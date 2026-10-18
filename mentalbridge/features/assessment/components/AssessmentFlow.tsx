@@ -290,6 +290,65 @@ function ResultPanel({
         </aside>
       )}
 
+      <section
+        className="care-next-steps"
+        aria-labelledby="care-next-steps-title"
+      >
+        <div>
+          <span className="eyebrow">Bước tiếp theo</span>
+          <h2 id="care-next-steps-title">Chọn cách hỗ trợ phù hợp với bạn</h2>
+          <p>
+            Đây là kết quả của một bài sàng lọc. Hoàn thành cả PHQ-9 và GAD-7
+            trong kiểm tra ban đầu để xem gợi ý hỗ trợ tổng hợp và kế hoạch theo
+            dõi của riêng bạn.
+          </p>
+        </div>
+        <div className="care-next-steps-grid">
+          {mode === 'authenticated' && (
+            <Link href="/initial-check" className="care-next-step">
+              <strong>Xem gợi ý sau kiểm tra</strong>
+              <span>Ghép kết quả hai bài để chọn hướng hỗ trợ tiếp theo.</span>
+            </Link>
+          )}
+          <Link href="/resources" className="care-next-step">
+            <strong>Đọc và thực hành</strong>
+            <span>
+              Xem tài nguyên đã rà soát và ghi nhận hoạt động phù hợp.
+            </span>
+          </Link>
+          {mode === 'authenticated' && (
+            <Link href="/support-plan" className="care-next-step">
+              <strong>Theo dõi kế hoạch hỗ trợ</strong>
+              <span>Xem việc hôm nay và tiến độ đã ghi nhận.</span>
+            </Link>
+          )}
+          <Link href="/specialists" className="care-next-step">
+            <strong>Trao đổi với chuyên gia</strong>
+            <span>
+              {result.screeningLevel === 'MINIMAL' ||
+              result.screeningLevel === 'MILD'
+                ? 'Bạn vẫn có thể tìm người phù hợp nếu cần được lắng nghe.'
+                : 'Bạn có thể tìm người có chuyên môn để trao đổi về điều mình đang trải qua.'}
+            </span>
+          </Link>
+          <Link href="/community" className="care-next-step">
+            <strong>Chia sẻ trong cộng đồng</strong>
+            <span>
+              Tham gia khi bạn muốn; kết quả này không được đăng tự động.
+            </span>
+          </Link>
+          {positive && (
+            <Link
+              href="/safety-directory?trigger=positive-item-9"
+              className="care-next-step"
+            >
+              <strong>Xem hỗ trợ an toàn</strong>
+              <span>Thông tin hỗ trợ trong khu vực bạn đã chọn.</span>
+            </Link>
+          )}
+        </div>
+      </section>
+
       <ResourcesList limit={6} className="care-result-resources" />
 
       <div className="care-result-actions">

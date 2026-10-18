@@ -2,121 +2,112 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Dialog } from '@/components/ui/Dialog'
-import { useFeedback } from '@/components/ui/FeedbackProvider'
+import {
+  CalendarDays,
+  Check,
+  Clock3,
+  LifeBuoy,
+  Lock,
+  RefreshCw,
+  Shield,
+  Star,
+  User,
+} from 'lucide-react'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import type {
-  DiscoveryExplanation,
   DiscoverySlot,
   SpecialistDiscoveryItem,
   SpecialistDiscoveryPage,
 } from '@/lib/consultation/consultation-validation'
-import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
+import { browserServiceCredits } from '@/features/service-credits/api/browser-client'
+import type { VerifiedCredentialBadge } from '@/features/specialist-profile/api/credential-validation'
 import {
   specialistDiscoveryBrowserClient,
   type DiscoveryFilters,
 } from '../api/browser-client'
+import SpecialistDetailDialog from './SpecialistDetailDialog'
 import styles from './SpecialistDiscovery.module.css'
+import cardStyles from './SpecialistCards.module.css'
 
-const supportAreaLabels = {
+const supportAreaLabels: Record<string, string> = {
   DEPRESSIVE_SYMPTOMS: 'Khí sắc và trầm buồn',
   ANXIETY_SYMPTOMS: 'Lo âu',
-} as const
-const languageLabels = {
-  vi: 'Tiếng Việt',
-  en: 'English',
-  zh: 'Tiếng Trung',
-  fr: 'Tiếng Pháp',
-} as const
+}
 const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh'
+
+const TOPICS = [
+  { id: 'all', label: 'Tất cả', supportArea: '' },
+  {
+    id: 'anxiety',
+    label: 'Lo âu & Căng thẳng',
+    supportArea: 'ANXIETY_SYMPTOMS',
+  },
+  {
+    id: 'depression',
+    label: 'Khí sắc & Trầm buồn',
+    supportArea: 'DEPRESSIVE_SYMPTOMS',
+  },
+] as const
+
+// Tags come only from Consultation-owned support areas (no invented specialties).
+function getSpecialistTags(item: SpecialistDiscoveryItem): string[] {
+  return item.supportAreas.map((area) => supportAreaLabels[area] ?? area)
+}
 
 function initials(name: string) {
   return name
+    .trim()
     .split(/\s+/)
-    .filter(Boolean)
     .slice(-2)
     .map((part) => part[0]?.toLocaleUpperCase('vi-VN'))
     .join('')
 }
 
-function formatTime(value: string, timezone: string) {
+function formatEarliestSlot(item: SpecialistDiscoveryItem) {
+  const earliest = item.explanation.earliestSelectableStartAt
+  if (!earliest) return 'Chưa có lịch trống'
+  const date = new Date(earliest)
+  const now = new Date()
+  const isToday = date.toDateString() === now.toDateString()
+  const tomorrow = new Date(now)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const isTomorrow = date.toDateString() === tomorrow.toDateString()
+
+  const timeStr = new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: VIETNAM_TIME_ZONE,
+  }).format(date)
+
+  if (isToday) return `Gần nhất: Hôm nay, ${timeStr}`
+  if (isTomorrow) return `Gần nhất: Ngày mai, ${timeStr}`
+
+  const dayStr = new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'numeric',
+    timeZone: VIETNAM_TIME_ZONE,
+  }).format(date)
+  return `Gần nhất: ${dayStr}, ${timeStr}`
+}
+
+function formatTime(value: string) {
   const date = new Date(value)
+  const day = new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'numeric',
+    timeZone: VIETNAM_TIME_ZONE,
+  }).format(date)
   const time = new Intl.DateTimeFormat('vi-VN', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-    timeZone: timezone,
+    timeZone: VIETNAM_TIME_ZONE,
   }).format(date)
-  const day = new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: timezone,
-  }).format(date)
-  return `${time} · ${day}`
-}
-
-function slotPresentation(slot: DiscoverySlot) {
-  const start = new Date(slot.startAt)
-  const end = new Date(slot.endAt)
-  const weekday = new Intl.DateTimeFormat('vi-VN', {
-    weekday: 'long',
-    timeZone: VIETNAM_TIME_ZONE,
-  }).format(start)
-  const day = new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    timeZone: VIETNAM_TIME_ZONE,
-  }).format(start)
-  const month = new Intl.DateTimeFormat('vi-VN', {
-    month: '2-digit',
-    timeZone: VIETNAM_TIME_ZONE,
-  }).format(start)
-  const time = (value: Date) =>
-    new Intl.DateTimeFormat('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZone: VIETNAM_TIME_ZONE,
-    }).format(value)
-
-  return {
-    weekday,
-    day,
-    month: `Tháng ${month}`,
-    range: `${time(start)} – ${time(end)}`,
-    summary: `${weekday}, ${Number(day)} tháng ${Number(month)} lúc ${time(start)}`,
-  }
-}
-
-function explanationText(explanation: DiscoveryExplanation) {
-  const messages: string[] = []
-  if (explanation.compatibility === 'MATCHED')
-    messages.push(
-      'Có lĩnh vực hỗ trợ trùng với gợi ý sau bài sàng lọc bạn đã chọn dùng.',
-    )
-  if (explanation.compatibility === 'NOT_MATCHED')
-    messages.push('Chưa có lĩnh vực hỗ trợ trùng với gợi ý sau bài sàng lọc.')
-  if (explanation.compatibility === 'UNAVAILABLE')
-    messages.push(
-      'Hiện chưa thể dùng gợi ý sau bài sàng lọc; các tiêu chí còn lại vẫn được áp dụng.',
-    )
-  if (explanation.compatibility === 'NEUTRAL')
-    messages.push('Thứ tự chung không sử dụng nội dung bài sàng lọc.')
-  if (explanation.languageMatched === true)
-    messages.push('Có ngôn ngữ bạn ưu tiên.')
-  if (explanation.languageMatched === false)
-    messages.push('Chưa có ngôn ngữ bạn ưu tiên.')
-  messages.push(
-    explanation.hasSelectableSlot
-      ? 'Có khung giờ 60 phút đang chọn được.'
-      : 'Hiện chưa có khung giờ chọn được.',
-  )
-  if (explanation.ratingTieBreakerApplied)
-    messages.push(
-      'Điểm đánh giá chỉ được dùng để phân định khi các yếu tố chính bằng nhau.',
-    )
-  return messages
+  return `${day}, ${time}`
 }
 
 function discoveryError(error: unknown) {
@@ -129,314 +120,6 @@ function discoveryError(error: unknown) {
   if (error.code === 'DISCOVERY_CURSOR_STALE')
     return 'Danh sách đã thay đổi. Hãy tải lại từ đầu.'
   return 'Danh sách chuyên gia đang tạm thời không khả dụng. Vui lòng thử lại.'
-}
-
-function bookingError(error: unknown) {
-  if (!(error instanceof ApiError))
-    return 'Không thể gửi yêu cầu đặt lịch. Vui lòng thử lại.'
-  const messages: Record<string, string> = {
-    PAID_PLAN_REQUIRED: 'Bạn cần gói Plus hoặc Premium để đặt lịch.',
-    APPOINTMENT_CREDIT_UNAVAILABLE: 'Bạn hiện không còn lượt tư vấn phù hợp.',
-    APPOINTMENT_RESERVATION_LIMIT_REACHED:
-      'Bạn đã đạt giới hạn lịch đang hoạt động của gói hiện tại.',
-    APPOINTMENT_SLOT_UNAVAILABLE:
-      'Khung giờ này vừa được chọn. Hãy tải lại và chọn giờ khác.',
-    APPOINTMENT_SLOT_STALE:
-      'Khung giờ này đã thay đổi. Hãy tải lại và chọn giờ khác.',
-    APPOINTMENT_VIDEO_DISABLED:
-      'Tư vấn video hiện chưa khả dụng. Hãy chọn chat trong ứng dụng.',
-  }
-  return messages[error.code] ?? 'Không thể gửi yêu cầu đặt lịch lúc này.'
-}
-
-type DetailDialogProps = Readonly<{
-  item: SpecialistDiscoveryItem | null
-  loading: boolean
-  error: string
-  open: boolean
-  packageCode: SpecialistDiscoveryPage['packageCode'] | null
-  onClose: () => void
-  onRetry: () => void
-  onBooked: () => void
-  originatingPlanActionId: string | null
-}>
-
-function DetailDialog({
-  item,
-  loading,
-  error,
-  open,
-  packageCode,
-  onClose,
-  onRetry,
-  onBooked,
-  originatingPlanActionId,
-}: DetailDialogProps) {
-  const { showActionToast } = useFeedback()
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [bookingMessage, setBookingMessage] = useState('')
-
-  const selectedSlot = item?.selectableSlots.find(
-    (slot) => slot.id === selectedSlotId,
-  )
-
-  async function book(slot: DiscoverySlot) {
-    setSubmitting(true)
-    setBookingMessage('')
-    try {
-      const commandKey = `appointment-${crypto.randomUUID()}`
-      if (originatingPlanActionId) {
-        await appointmentBrowserClient.request(
-          slot.id,
-          slot.modality,
-          commandKey,
-          undefined,
-          undefined,
-          originatingPlanActionId,
-        )
-      } else {
-        await appointmentBrowserClient.request(
-          slot.id,
-          slot.modality,
-          commandKey,
-        )
-      }
-      showActionToast({
-        title: 'Đã gửi yêu cầu đặt lịch',
-        description: 'Chuyên gia sẽ xác nhận yêu cầu của bạn.',
-      })
-      onBooked()
-    } catch (caught) {
-      setBookingMessage(bookingError(caught))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const selectedPresentation = selectedSlot
-    ? slotPresentation(selectedSlot)
-    : null
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => !next && onClose()}
-      labelledBy="specialist-detail-title"
-      describedBy="specialist-detail-description"
-      className={styles.dialog}
-    >
-      <div className={styles.profileLayout}>
-        <aside className={styles.profileAside}>
-          <svg
-            className={styles.bridge}
-            viewBox="0 0 300 300"
-            aria-hidden="true"
-          >
-            <path d="M-20 300V150a170 170 0 0 1 340 0v150" />
-            <path d="M20 300V150a130 130 0 0 1 260 0v150" />
-            <path d="M60 300V150a90 90 0 0 1 180 0v150" />
-          </svg>
-          <div className={styles.profileAvatar} aria-hidden="true">
-            {item ? initials(item.displayName) : 'MB'}
-          </div>
-          <h2 id="specialist-detail-title">
-            {item?.displayName ?? 'Đang tải hồ sơ'}
-          </h2>
-          <p className={styles.profileRole}>
-            Chuyên gia hỗ trợ sức khỏe tinh thần
-          </p>
-          {item && item.selectableSlots.length > 0 && (
-            <span className={styles.availabilityBadge}>
-              <i /> Có lịch trống
-            </span>
-          )}
-          {item?.ratingAggregate && (
-            <p className={styles.ratingAggregate}>
-              <span aria-hidden="true">★</span>{' '}
-              <strong>{item.ratingAggregate.averageRating.toFixed(1)}/5</strong>
-              {' · '}
-              {item.ratingAggregate.ratingCount} lượt đánh giá
-            </p>
-          )}
-          {item && (
-            <dl className={styles.profileFacts}>
-              <div>
-                <span className={styles.factIcon} aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <rect x="3" y="7" width="18" height="13" rx="2" />
-                    <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18" />
-                  </svg>
-                </span>
-                <div>
-                  <dt>Kinh nghiệm</dt>
-                  <dd>{item.yearsOfExperience} năm</dd>
-                </div>
-              </div>
-              <div>
-                <span className={styles.factIcon} aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M4 5h9M8.5 3v2M6 5c.5 4 3 7 6 8M12 5c-.5 4-3 7-6 8M13 21l4.5-10L22 21M14.8 17h5.4" />
-                  </svg>
-                </span>
-                <div>
-                  <dt>Ngôn ngữ</dt>
-                  <dd>
-                    {item.languages
-                      .map((value) => languageLabels[value])
-                      .join(', ')}
-                  </dd>
-                </div>
-              </div>
-            </dl>
-          )}
-          <p className={styles.profileNote}>
-            Hỗ trợ phi lâm sàng, không thay thế chẩn đoán hay điều trị y tế.
-          </p>
-        </aside>
-
-        <section className={styles.profileMain}>
-          <button
-            className={styles.closeButton}
-            type="button"
-            onClick={onClose}
-            aria-label="Đóng hồ sơ"
-          >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M4 4l12 12M16 4L4 16" />
-            </svg>
-          </button>
-          {loading ? (
-            <div className={styles.dialogLoading} aria-label="Đang tải hồ sơ">
-              <Skeleton height="34px" />
-              <Skeleton height="110px" />
-              <Skeleton height="160px" />
-            </div>
-          ) : error ? (
-            <div className={styles.dialogState} role="alert">
-              <h3>Không thể mở hồ sơ này</h3>
-              <p>{error}</p>
-              <button type="button" onClick={onRetry}>
-                Thử lại
-              </button>
-            </div>
-          ) : item ? (
-            <>
-              <div className={styles.dialogContent}>
-                <p id="specialist-detail-description" className={styles.bio}>
-                  {item.bio}
-                </p>
-                <section
-                  className={styles.explanation}
-                  aria-labelledby="why-title"
-                >
-                  <h3 id="why-title">Vì sao hồ sơ này xuất hiện?</h3>
-                  <ul>
-                    {explanationText(item.explanation).map((message) => (
-                      <li key={message}>
-                        <svg viewBox="0 0 20 20" aria-hidden="true">
-                          <path d="M5 10.5l3.2 3.2L15 7" />
-                        </svg>
-                        <span>{message}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-                <fieldset className={styles.slots}>
-                  <legend>Chọn khung giờ 60 phút</legend>
-                  {item.selectableSlots.length === 0 ? (
-                    <div className={styles.emptySlots}>
-                      <strong>Hiện chưa có khung giờ trống</strong>
-                      <p>Hãy quay lại sau khi chuyên gia cập nhật lịch mới.</p>
-                    </div>
-                  ) : (
-                    <div className={styles.slotList}>
-                      {item.selectableSlots.map((slot) => {
-                        const presentation = slotPresentation(slot)
-                        return (
-                          <label className={styles.slotCard} key={slot.id}>
-                            <input
-                              type="radio"
-                              name="specialist-slot"
-                              value={slot.id}
-                              checked={selectedSlotId === slot.id}
-                              onChange={() => setSelectedSlotId(slot.id)}
-                            />
-                            <span
-                              className={styles.slotDate}
-                              aria-hidden="true"
-                            >
-                              <small>{presentation.weekday}</small>
-                              <strong>{presentation.day}</strong>
-                              <small>{presentation.month}</small>
-                            </span>
-                            <span className={styles.slotTime}>
-                              <strong>{presentation.range}</strong>
-                              <small>
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                  <path d="M21 12a8 8 0 0 1-11.8 7L4 20l1.2-4.4A8 8 0 1 1 21 12z" />
-                                </svg>
-                                {slot.modality === 'IN_APP_CHAT'
-                                  ? 'Chat trong ứng dụng'
-                                  : 'Video trong ứng dụng'}
-                              </small>
-                            </span>
-                            <span
-                              className={styles.slotRadio}
-                              aria-hidden="true"
-                            >
-                              <svg viewBox="0 0 20 20">
-                                <path d="M5 10.5l3.2 3.2L15 7" />
-                              </svg>
-                            </span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  )}
-                </fieldset>
-                {bookingMessage && (
-                  <p className={styles.inlineError} role="alert">
-                    {bookingMessage}
-                  </p>
-                )}
-              </div>
-              <div className={styles.dialogFooter}>
-                {packageCode === 'FREE' ? (
-                  <>
-                    <p>Đặt lịch cần gói Plus hoặc Premium.</p>
-                    <Link href="/subscription">Xem quyền lợi các gói</Link>
-                  </>
-                ) : (
-                  <>
-                    <p aria-live="polite">
-                      {selectedPresentation ? (
-                        <>
-                          Bạn chọn:{' '}
-                          <strong>{selectedPresentation.summary}</strong>
-                        </>
-                      ) : (
-                        'Chọn một khung giờ để tiếp tục.'
-                      )}
-                    </p>
-                    <button
-                      type="button"
-                      disabled={!selectedSlot || submitting}
-                      onClick={() => selectedSlot && void book(selectedSlot)}
-                    >
-                      {submitting
-                        ? 'Đang gửi yêu cầu…'
-                        : 'Gửi yêu cầu đặt lịch'}
-                    </button>
-                  </>
-                )}
-              </div>
-            </>
-          ) : null}
-        </section>
-      </div>
-    </Dialog>
-  )
 }
 
 export default function SpecialistDiscovery({
@@ -462,6 +145,8 @@ export default function SpecialistDiscovery({
 
     return () => window.clearTimeout(hydrationTimer)
   }, [])
+
+  const [selectedTopicId, setSelectedTopicId] = useState<string>('all')
   const [supportArea, setSupportArea] = useState<
     DiscoveryFilters['supportArea'] | ''
   >('')
@@ -479,8 +164,33 @@ export default function SpecialistDiscovery({
   const [error, setError] = useState('')
   const [detailId, setDetailId] = useState<string | null>(null)
   const [detail, setDetail] = useState<SpecialistDiscoveryItem | null>(null)
+  const [detailBadges, setDetailBadges] = useState<VerifiedCredentialBadge[]>(
+    [],
+  )
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
+  const [initialTab, setInitialTab] = useState<'profile' | 'slots'>('profile')
+  // Default keeps the server's specialist-discovery-v2 order; rating and years
+  // of experience are not user-facing rank keys under the consultation policy.
+  const [sortBy, setSortBy] = useState<'recommended' | 'nearest'>('recommended')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [availableCredits, setAvailableCredits] = useState<number | null>(null)
+  const [bookedSlot, setBookedSlot] = useState<{
+    slot: DiscoverySlot
+    name: string
+  } | null>(null)
+
+  useEffect(() => {
+    void browserServiceCredits
+      .get()
+      .then((account) => setAvailableCredits(account.balance.available))
+      .catch(() => setAvailableCredits(null))
+    const onSearch = (event: Event) =>
+      setSearchQuery((event as CustomEvent<string>).detail ?? '')
+    window.addEventListener('mentalbridge:specialist-search', onSearch)
+    return () =>
+      window.removeEventListener('mentalbridge:specialist-search', onSearch)
+  }, [])
 
   const filters = useMemo<DiscoveryFilters>(
     () => ({
@@ -535,14 +245,18 @@ export default function SpecialistDiscovery({
       setDetailLoading(true)
       setDetailError('')
       setDetail(null)
+      setDetailBadges([])
       try {
-        setDetail(
-          await specialistDiscoveryBrowserClient.detail(id, {
+        const [profile, badges] = await Promise.all([
+          specialistDiscoveryBrowserClient.detail(id, {
             ...(language ? { language } : {}),
             ...(modality ? { modality } : {}),
             timezone,
           }),
-        )
+          specialistDiscoveryBrowserClient.badges(id).catch(() => []),
+        ])
+        setDetail(profile)
+        setDetailBadges(badges)
       } catch (caught) {
         if (caught instanceof ApiError && caught.status === 404)
           setDetailError(
@@ -556,18 +270,56 @@ export default function SpecialistDiscovery({
     [language, modality, timezone],
   )
 
-  function openDetail(id: string) {
+  function openDetail(id: string, tab: 'profile' | 'slots') {
+    setInitialTab(tab)
     setDetailId(id)
     void loadDetail(id)
   }
 
   async function booked() {
-    if (detailId) await loadDetail(detailId)
     await load()
+    void browserServiceCredits
+      .get()
+      .then((account) => setAvailableCredits(account.balance.available))
+      .catch(() => setAvailableCredits(null))
+  }
+
+  const visibleItems = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase('vi-VN')
+    let result = items
+
+    if (query) {
+      result = result.filter((item) =>
+        [
+          item.displayName,
+          item.bio,
+          ...getSpecialistTags(item),
+          ...item.supportAreas.map((area) => supportAreaLabels[area] ?? area),
+        ].some((value) => value.toLocaleLowerCase('vi-VN').includes(query)),
+      )
+    }
+
+    if (sortBy === 'recommended') return result
+    return [...result].sort((a, b) =>
+      (a.explanation.earliestSelectableStartAt ?? 'Z').localeCompare(
+        b.explanation.earliestSelectableStartAt ?? 'Z',
+      ),
+    )
+  }, [items, searchQuery, sortBy])
+
+  function resetFilters() {
+    setSelectedTopicId('all')
+    setSupportArea('')
+    setLanguage('')
+    setModality('')
+    setSearchQuery('')
+    setSortBy('recommended')
+    window.dispatchEvent(new Event('mentalbridge:specialist-search-reset'))
+    void load()
   }
 
   return (
-    <main className={styles.page}>
+    <main className={styles.page} data-discovery-ui="">
       {returnSupportGuideId && (
         <Link
           className="btn btn-ghost"
@@ -576,130 +328,270 @@ export default function SpecialistDiscovery({
           Quay lại gợi ý hỗ trợ
         </Link>
       )}
+      {/* Hero Section */}
       <header className={styles.hero}>
-        <span className={styles.heroPill}>
-          <i aria-hidden="true" /> Kết nối trực tuyến
-        </span>
-        <h1>Chuyên gia tư vấn</h1>
-        <p>
-          Xem hồ sơ đã được phê duyệt và chọn khung giờ chat hoặc video 60 phút
-          đang khả dụng.
-        </p>
-        <div className={styles.heroStats}>
-          <span>
-            <strong>{loading ? '—' : items.length}</strong> chuyên gia có lịch
-          </span>
-          <span>
-            <strong>60</strong> phút mỗi buổi
-          </span>
+        <div className={styles.heroDecor} aria-hidden="true">
+          <div className={styles.decorCircle1} />
+          <div className={styles.decorCircle2} />
+          <div className={styles.decorCircle3} />
+        </div>
+        <div className={styles.heroContent}>
+          <div className={styles.heroBadge}>
+            <span className={styles.greenDot} />
+            <span>Kết nối trực tuyến</span>
+          </div>
+          <h1 className={styles.heroTitle}>Kết nối chuyên gia tâm lý</h1>
+          <p className={styles.heroSubtitle}>
+            Xem hồ sơ chuyên gia đã được phê duyệt và chọn khung giờ chat hoặc
+            video 60 phút đang khả dụng.
+          </p>
+
+          <div className={styles.heroCards}>
+            {/* Card 1 */}
+            <div className={styles.statCard}>
+              <div className={styles.statIconMint}>
+                <User
+                  size={20}
+                  className={styles.iconMint}
+                  aria-hidden="true"
+                />
+              </div>
+              <div className={styles.statText}>
+                <strong className={styles.statNumber}>
+                  {loading ? '—' : `${items.length} chuyên gia`}
+                </strong>
+                <span className={styles.statLabel}>Đang có lịch trống</span>
+              </div>
+            </div>
+
+            {/* Card 2 */}
+            <div className={styles.statCard}>
+              <div className={styles.statIconPeach}>
+                <Clock3
+                  size={20}
+                  className={styles.iconPeach}
+                  aria-hidden="true"
+                />
+              </div>
+              <div className={styles.statText}>
+                <strong className={styles.statNumber}>60 phút</strong>
+                <span className={styles.statLabel}>
+                  Mỗi buổi tư vấn sâu 1:1
+                </span>
+              </div>
+            </div>
+
+            {/* Card 3 */}
+            <div className={styles.statCardDark}>
+              <div className={styles.statIconDark}>
+                <Shield
+                  size={20}
+                  className={styles.iconWhite}
+                  aria-hidden="true"
+                />
+              </div>
+              <div className={styles.statText}>
+                <div className={styles.statDarkTitle}>
+                  <strong>
+                    {page
+                      ? `Gói ${
+                          page.packageCode === 'FREE'
+                            ? 'Free'
+                            : page.packageCode === 'PREMIUM'
+                              ? 'Premium'
+                              : 'Plus'
+                        } của bạn`
+                      : 'Gói của bạn'}
+                  </strong>
+                  <span className={styles.onlineDot} />
+                </div>
+                <span className={styles.statDarkLabel}>
+                  {page?.packageCode === 'FREE'
+                    ? 'Xem hồ sơ; đặt lịch cần gói Plus hoặc Premium'
+                    : availableCredits !== null
+                      ? `Còn ${availableCredits} lượt tư vấn theo gói`
+                      : 'Lượt tư vấn được kiểm tra khi đặt lịch'}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      <section className={styles.controls} aria-label="Bộ lọc chuyên gia">
-        <div className={styles.controlGroup}>
-          <span>Lĩnh vực hỗ trợ</span>
-          <div className={styles.chips}>
-            {(
-              [
-                ['', 'Tất cả'],
-                ['ANXIETY_SYMPTOMS', 'Lo âu'],
-                ['DEPRESSIVE_SYMPTOMS', 'Khí sắc và trầm buồn'],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value || 'all'}
-                type="button"
-                data-active={supportArea === value}
+      {/* Filter Card */}
+      <section className={styles.filterCard} aria-label="Bộ lọc chuyên gia">
+        {/* Row 1: Topics */}
+        <div className={styles.filterRow1}>
+          <span className={styles.filterLabel}>CHỦ ĐỀ:</span>
+          <div className={styles.topicChips}>
+            {TOPICS.map((topic) => {
+              const isActive = selectedTopicId === topic.id
+              return (
+                <button
+                  key={topic.id}
+                  type="button"
+                  className={`${styles.topicChip} ${isActive ? styles.topicChipActive : ''}`}
+                  data-active={isActive}
+                  disabled={loading}
+                  onClick={() => {
+                    setSelectedTopicId(topic.id)
+                    setSupportArea(topic.supportArea)
+                  }}
+                >
+                  {topic.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Row 2: Languages, Modality, Reload */}
+        <div className={styles.filterRow2}>
+          <div className={styles.filterRow2Left}>
+            <label className={styles.langLabel}>
+              <span>Ngôn ngữ:</span>
+              <select
+                value={language}
                 disabled={loading}
-                onClick={() => setSupportArea(value)}
+                onChange={(event) =>
+                  setLanguage(event.target.value as typeof language)
+                }
+                className={styles.langSelect}
               >
-                {label}
+                <option value="">Không ưu tiên</option>
+                <option value="vi">Tiếng Việt</option>
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+                <option value="fr">Français</option>
+              </select>
+            </label>
+
+            <div className={styles.modalityGroup}>
+              <button
+                type="button"
+                className={`${styles.modalityBtn} ${modality === '' ? styles.modalityBtnActive : ''}`}
+                data-active={modality === ''}
+                disabled={loading}
+                onClick={() => setModality('')}
+              >
+                Tất cả
               </button>
-            ))}
+              <button
+                type="button"
+                className={`${styles.modalityBtn} ${modality === 'IN_APP_CHAT' ? styles.modalityBtnActive : ''}`}
+                data-active={modality === 'IN_APP_CHAT'}
+                disabled={loading}
+                onClick={() => setModality('IN_APP_CHAT')}
+              >
+                Chat
+              </button>
+              {page?.videoEnabled ? (
+                <button
+                  type="button"
+                  className={`${styles.modalityBtn} ${modality === 'IN_APP_VIDEO' ? styles.modalityBtnActive : ''}`}
+                  data-active={modality === 'IN_APP_VIDEO'}
+                  disabled={loading}
+                  onClick={() => setModality('IN_APP_VIDEO')}
+                >
+                  Video
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  aria-label="Video · sắp có"
+                  className={styles.modalityBtnDisabled}
+                  title="Video trong ứng dụng hiện chưa khả dụng"
+                >
+                  Video <span className={styles.badgeSoon}>sắp có</span>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-        <label>
-          <span>Ưu tiên ngôn ngữ</span>
-          <select
-            value={language}
+
+          <button
+            className={styles.reloadBtn}
+            type="button"
+            onClick={resetFilters}
             disabled={loading}
-            onChange={(event) =>
-              setLanguage(event.target.value as typeof language)
-            }
           >
-            <option value="">Không ưu tiên</option>
-            <option value="vi">Tiếng Việt</option>
-            <option value="en">English</option>
-          </select>
-        </label>
-        <div className={styles.controlGroup}>
-          <span>Hình thức</span>
-          <div className={styles.chips}>
-            <button
-              type="button"
-              data-active={modality === ''}
-              disabled={loading}
-              onClick={() => setModality('')}
-            >
-              Tất cả
-            </button>
-            <button
-              type="button"
-              data-active={modality === 'IN_APP_CHAT'}
-              disabled={loading}
-              onClick={() => setModality('IN_APP_CHAT')}
-            >
-              Chat
-            </button>
-            <button
-              type="button"
-              data-active={modality === 'IN_APP_VIDEO'}
-              disabled={loading || !page?.videoEnabled}
-              onClick={() => setModality('IN_APP_VIDEO')}
-            >
-              {page?.videoEnabled ? 'Video' : 'Video · sắp có'}
-            </button>
-          </div>
+            <RefreshCw
+              size={14}
+              className={loading ? styles.spinning : undefined}
+              aria-hidden="true"
+            />
+            <span>Tải lại</span>
+          </button>
         </div>
-        <button
-          className={styles.reload}
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-        >
-          {loading ? 'Đang tải…' : 'Tải lại'}
-        </button>
+
+        {/* Row 3: Notice Strip */}
+        {page && (
+          <div className={styles.benefitNotice}>
+            <div className={styles.benefitLeft}>
+              {page.packageCode === 'FREE' ? (
+                <span>
+                  <strong>Bạn đang dùng gói Free.</strong> Bạn có thể xem hồ sơ
+                  và khung giờ; đặt lịch cần gói Plus hoặc Premium.
+                </span>
+              ) : (
+                <span>
+                  <strong>
+                    Gói {page.packageCode === 'PLUS' ? 'Plus' : 'Premium'}.
+                  </strong>{' '}
+                  Khi gửi yêu cầu, quyền lợi và lượt tư vấn sẽ được kiểm tra
+                  lại.
+                </span>
+              )}
+            </div>
+            {!page.videoEnabled && (
+              <div className={styles.benefitRight}>
+                <span>
+                  Video trong ứng dụng hiện chưa khả dụng; chỉ hiển thị lịch
+                  chat.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
-      {page && (
-        <aside className={styles.entitlement}>
-          {page.packageCode === 'FREE' ? (
-            <p>
-              <strong>Bạn đang dùng gói Free.</strong> Bạn có thể xem hồ sơ và
-              khung giờ; đặt lịch cần gói Plus hoặc Premium.
-            </p>
-          ) : (
-            <p>
-              <strong>
-                Gói {page.packageCode === 'PLUS' ? 'Plus' : 'Premium'}.
-              </strong>{' '}
-              Khi gửi yêu cầu, quyền lợi và lượt tư vấn sẽ được kiểm tra lại.
-            </p>
-          )}
-          {!page.videoEnabled && (
-            <p>
-              Video trong ứng dụng hiện chưa khả dụng; chỉ hiển thị lịch chat.
-            </p>
-          )}
-        </aside>
+      {/* Booked Upcoming Slot (if any) */}
+      {bookedSlot && (
+        <section className={cardStyles.upcoming} aria-label="Lịch hẹn sắp tới">
+          <CalendarDays size={20} aria-hidden="true" />
+          <div>
+            <strong>Lịch hẹn sắp tới</strong>
+            <span>
+              {bookedSlot.name} · {formatTime(bookedSlot.slot.startAt)} · Chờ
+              chuyên gia xác nhận
+            </span>
+          </div>
+        </section>
       )}
 
+      {/* Toolbar */}
       {!loading && !error && (
-        <p className={styles.resultCount}>
-          Hiển thị <strong>{items.length}</strong> chuyên gia
-        </p>
+        <div className={cardStyles.toolbar}>
+          <p>
+            Hiển thị <strong>{visibleItems.length}</strong> chuyên gia phù hợp
+            tiêu chí
+          </p>
+          <label>
+            Sắp xếp:
+            <select
+              value={sortBy}
+              onChange={(event) =>
+                setSortBy(event.target.value as typeof sortBy)
+              }
+            >
+              <option value="recommended">Phù hợp nhất</option>
+              <option value="nearest">Lịch trống gần nhất</option>
+            </select>
+          </label>
+        </div>
       )}
 
+      {/* Error State */}
       {error && (
         <section className={styles.state} role="alert">
           <h2>Chưa thể tải danh sách</h2>
@@ -710,88 +602,116 @@ export default function SpecialistDiscovery({
         </section>
       )}
 
+      {/* Loading Skeletons */}
       {loading ? (
         <div className={styles.grid} aria-label="Đang tải chuyên gia">
-          {[0, 1, 2].map((value) => (
+          {[0, 1, 2, 3].map((value) => (
             <div className={styles.skeletonCard} key={value}>
-              <Skeleton height="68px" />
-              <Skeleton height="24px" />
-              <Skeleton height="80px" />
+              <Skeleton height="58px" width="58px" />
+              <Skeleton height="24px" width="70%" />
+              <Skeleton height="18px" width="50%" />
+              <Skeleton height="70px" />
+              <Skeleton height="40px" />
             </div>
           ))}
         </div>
-      ) : !error && items.length === 0 ? (
+      ) : !error && visibleItems.length === 0 ? (
         <section className={styles.state}>
           <h2>Chưa có chuyên gia phù hợp</h2>
           <p>Hãy đổi bộ lọc hoặc quay lại sau khi có lịch mới.</p>
-          <button
-            type="button"
-            onClick={() => {
-              setSupportArea('')
-              setLanguage('')
-              setModality('')
-            }}
-          >
+          <button type="button" onClick={resetFilters}>
             Xóa bộ lọc
           </button>
         </section>
       ) : (
-        <div className={styles.grid}>
-          {items.map((item) => (
-            <article className={styles.card} key={item.specialistAccountId}>
-              <div className={styles.identity}>
-                <span aria-hidden="true">{initials(item.displayName)}</span>
-                <div>
-                  <h2>{item.displayName}</h2>
-                  <p>{item.yearsOfExperience} năm kinh nghiệm</p>
-                  {item.ratingAggregate && (
-                    <p className={styles.cardRating}>
-                      <span aria-hidden="true">★</span>{' '}
-                      {item.ratingAggregate.averageRating.toFixed(1)}/5 ·{' '}
-                      {item.ratingAggregate.ratingCount} lượt
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className={styles.tags}>
-                {item.supportAreas.map((area) => (
-                  <span key={area}>{supportAreaLabels[area]}</span>
-                ))}
-              </div>
-              <p className={styles.summary}>{item.bio}</p>
-              <p className={styles.languages}>
-                Ngôn ngữ{' '}
-                <strong>
-                  {item.languages
-                    .map((value) => languageLabels[value])
-                    .join(', ')}
-                </strong>
-              </p>
-              <div className={styles.nextSlot}>
-                <i aria-hidden="true">◷</i>
-                <div>
-                  <small>Lịch gần nhất</small>
-                  <strong>
-                    {item.explanation.earliestSelectableStartAt
-                      ? formatTime(
-                          item.explanation.earliestSelectableStartAt,
-                          timezone,
-                        )
-                      : 'Chưa có lịch trống'}
-                  </strong>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => openDetail(item.specialistAccountId)}
+        /* Specialists 4-Card Grid */
+        <div className={cardStyles.grid}>
+          {visibleItems.map((item, index) => {
+            const tags = getSpecialistTags(item)
+            return (
+              <article
+                className={cardStyles.card}
+                key={item.specialistAccountId}
               >
-                Xem hồ sơ và khung giờ
-              </button>
-            </article>
-          ))}
+                <div
+                  className={cardStyles.avatar}
+                  data-tone={index % 4}
+                  data-available={Boolean(
+                    item.explanation.earliestSelectableStartAt,
+                  )}
+                  aria-hidden="true"
+                >
+                  {initials(item.displayName)}
+                </div>
+
+                <h2>{item.displayName}</h2>
+
+                <span className={cardStyles.verified}>
+                  <Check size={12} strokeWidth={2.5} aria-hidden="true" /> Hồ sơ
+                  đã duyệt
+                </span>
+
+                <p className={cardStyles.experience}>
+                  {item.yearsOfExperience} năm kinh nghiệm
+                </p>
+
+                {item.ratingAggregate ? (
+                  <p className={cardStyles.rating}>
+                    <Star
+                      size={13}
+                      className={cardStyles.star}
+                      aria-hidden="true"
+                    />{' '}
+                    <strong>
+                      {item.ratingAggregate.averageRating.toFixed(1)}
+                    </strong>{' '}
+                    <span className={cardStyles.reviewCount}>
+                      · {item.ratingAggregate.ratingCount} đánh giá
+                    </span>
+                  </p>
+                ) : (
+                  <p className={cardStyles.rating}>Chưa có đánh giá</p>
+                )}
+
+                <div className={cardStyles.tags}>
+                  {tags.slice(0, 2).map((tag) => (
+                    <span key={tag}>{tag}</span>
+                  ))}
+                  {tags.length > 2 && <span>+{tags.length - 2}</span>}
+                </div>
+
+                <div className={cardStyles.nearest}>
+                  <Clock3 size={15} aria-hidden="true" />
+                  <span>{formatEarliestSlot(item)}</span>
+                </div>
+
+                <div className={cardStyles.actions}>
+                  <button
+                    type="button"
+                    className={cardStyles.profileBtn}
+                    onClick={() =>
+                      openDetail(item.specialistAccountId, 'profile')
+                    }
+                  >
+                    Hồ sơ
+                  </button>
+                  <button
+                    type="button"
+                    className={cardStyles.slotBtn}
+                    onClick={() =>
+                      openDetail(item.specialistAccountId, 'slots')
+                    }
+                  >
+                    Lịch trống
+                  </button>
+                </div>
+              </article>
+            )
+          })}
         </div>
       )}
 
+      {/* Pagination (if any) */}
       {page?.nextCursor && !error && (
         <button
           className={styles.more}
@@ -803,20 +723,91 @@ export default function SpecialistDiscovery({
         </button>
       )}
 
-      <DetailDialog
+      {/* Trust & Security Banner */}
+      <section
+        className={styles.trustBanner}
+        aria-label="Cam kết bảo mật và chuẩn mực"
+      >
+        <h3 className={styles.trustTitle}>BẢO MẬT VÀ PHẠM VI HỖ TRỢ</h3>
+        <div className={styles.trustGrid}>
+          <div className={styles.trustItem}>
+            <div className={styles.trustIconBox}>
+              <Lock size={20} className={styles.trustIcon} aria-hidden="true" />
+            </div>
+            <div className={styles.trustContent}>
+              <h4>Kết nối được mã hóa</h4>
+              <p>
+                Phiên chat và video trong ứng dụng dùng kết nối được mã hóa khi
+                truyền.
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.trustItem}>
+            <div className={styles.trustIconBox}>
+              <Shield
+                size={20}
+                className={styles.trustIcon}
+                aria-hidden="true"
+              />
+            </div>
+            <div className={styles.trustContent}>
+              <h4>Hồ sơ đã được phê duyệt</h4>
+              <p>
+                Chỉ chuyên gia có hồ sơ đã duyệt và còn khung giờ trống mới xuất
+                hiện tại đây.
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.trustItem}>
+            <div className={styles.trustIconBox}>
+              <LifeBuoy
+                size={20}
+                className={styles.trustIcon}
+                aria-hidden="true"
+              />
+            </div>
+            <div className={styles.trustContent}>
+              <h4>Hỗ trợ phi lâm sàng</h4>
+              <p>
+                Buổi tư vấn không thay thế chẩn đoán hay điều trị y tế. Khi cần
+                giúp ngay, hãy dùng mục hỗ trợ khẩn cấp.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className={styles.footer}>
+        <p>
+          © 2026 MentalBridge Health Tech. Bảo lưu mọi quyền. Nền tảng chăm sóc
+          sức khỏe tinh thần đáng tin cậy.
+        </p>
+      </footer>
+
+      <SpecialistDetailDialog
         key={detailId ?? 'closed'}
         open={detailId !== null}
         item={detail}
+        badges={detailBadges}
         loading={detailLoading}
         error={detailError}
         packageCode={page?.packageCode ?? null}
+        initialTab={initialTab}
+        availableCredits={availableCredits}
         onClose={() => {
           setDetailId(null)
           setDetail(null)
+          setDetailBadges([])
           setDetailError('')
         }}
         onRetry={() => detailId && void loadDetail(detailId)}
-        onBooked={() => void booked()}
+        onBooked={(slot, name) => {
+          setBookedSlot({ slot, name })
+          void booked()
+        }}
         originatingPlanActionId={originatingPlanActionId}
       />
     </main>

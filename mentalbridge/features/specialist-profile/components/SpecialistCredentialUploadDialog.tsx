@@ -77,6 +77,8 @@ export default function SpecialistCredentialUploadDialog({
           </div>
           <button
             type="button"
+            data-profile-ui
+            className={styles.closeButton}
             onClick={onClose}
             disabled={busy}
             aria-label="Đóng"
@@ -85,49 +87,61 @@ export default function SpecialistCredentialUploadDialog({
           </button>
         </header>
         <form onSubmit={(event) => void submit(event)} className={styles.form}>
-          <label>
+          <label className={styles.field}>
             Loại giấy tờ
-            <select name="credentialType" defaultValue="DEGREE" required>
+            <select
+              name="credentialType"
+              defaultValue="DEGREE"
+              required
+              className={styles.input}
+            >
               <option value="DEGREE">Bằng cấp</option>
               <option value="LICENSE">Giấy phép hành nghề</option>
               <option value="CERTIFICATE">Chứng chỉ</option>
             </select>
           </label>
-          <label>
+          <label className={styles.field}>
             Tên giấy tờ
             <input
               name="title"
               maxLength={160}
               required
               placeholder="Ví dụ: Bằng Thạc sĩ Tâm lý học lâm sàng"
+              className={styles.input}
             />
           </label>
-          <label>
-            Nơi cấp
-            <input
-              name="issuer"
-              maxLength={160}
-              required
-              placeholder="Tên trường hoặc đơn vị cấp"
-            />
-          </label>
-          <label>
-            Năm cấp
-            <input
-              name="issueYear"
-              type="number"
-              min={1900}
-              max={new Date().getFullYear()}
-              required
-            />
-          </label>
-          <label>
+          <div className={styles.gridRow}>
+            <label className={styles.field}>
+              Nơi cấp
+              <input
+                name="issuer"
+                maxLength={160}
+                required
+                placeholder="Tên trường hoặc đơn vị cấp"
+                className={styles.input}
+              />
+            </label>
+            <label className={`${styles.field} ${styles.yearField}`}>
+              Năm cấp
+              <input
+                name="issueYear"
+                type="number"
+                min={1900}
+                max={new Date().getFullYear()}
+                required
+                placeholder="YYYY"
+                className={styles.input}
+              />
+            </label>
+          </div>
+          <label className={styles.field}>
             Tệp gốc
             <input
               name="file"
               type="file"
               accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
               required
+              className={styles.fileInput}
             />
             <small>PDF, JPG hoặc PNG · tối đa 10 MB</small>
           </label>
@@ -141,10 +155,21 @@ export default function SpecialistCredentialUploadDialog({
             </p>
           )}
           <footer>
-            <button type="button" onClick={onClose} disabled={busy}>
+            <button
+              type="button"
+              data-profile-ui
+              className={styles.cancelButton}
+              onClick={onClose}
+              disabled={busy}
+            >
               Hủy
             </button>
-            <button type="submit" disabled={busy}>
+            <button
+              type="submit"
+              data-profile-ui
+              className={`btn-primary ${styles.submitButton}`}
+              disabled={busy}
+            >
               <FilePlus2 aria-hidden="true" />{' '}
               {busy ? 'Đang tải lên…' : 'Tải lên để xác minh'}
             </button>

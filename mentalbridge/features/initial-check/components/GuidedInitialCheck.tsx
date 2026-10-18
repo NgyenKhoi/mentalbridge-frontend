@@ -260,14 +260,16 @@ function SafetyBlock({ evaluation }: { evaluation: SupportEvaluation }) {
         MentalBridge không cung cấp ứng cứu khẩn cấp, không giám sát 24/7 và
         không tự động liên hệ người khác.
       </p>
-      {positive && (
-        <Link
-          className="btn btn-primary"
-          href="/safety-directory?trigger=positive-item-9"
-        >
-          Xem hỗ trợ trong khu vực đã chọn
-        </Link>
-      )}
+      <Link
+        className="btn btn-primary"
+        href={
+          positive
+            ? '/safety-directory?trigger=positive-item-9'
+            : '/safety-directory'
+        }
+      >
+        {positive ? 'Xem hỗ trợ trong khu vực đã chọn' : 'Tôi cần hỗ trợ ngay'}
+      </Link>
     </section>
   )
 }
@@ -461,12 +463,6 @@ function UnifiedResult({
     gad7.result.totalScore,
     gad7.result.screeningLevel,
   )
-  const phq9Evidence = evaluation.evidence.find(
-    (item) => item.instrument === 'PHQ9',
-  )
-  const hasPositiveSafety =
-    phq9Evidence?.safetyStatus === 'POSITIVE_SAFETY_SCREEN'
-
   return (
     <div className="initial-check-result">
       {/* 1. Hero Header Card */}
@@ -509,7 +505,7 @@ function UnifiedResult({
       </header>
 
       {/* Safety block if item 9 triggered */}
-      {hasPositiveSafety && <SafetyBlock evaluation={evaluation} />}
+      <SafetyBlock evaluation={evaluation} />
 
       {/* 2. Score Cards (PHQ-9 & GAD-7) */}
       <article className={`initial-check-score-card ${phq9Data.bgClass}`}>

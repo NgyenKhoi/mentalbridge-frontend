@@ -848,7 +848,14 @@ export default function AppointmentChatPanel({
                       <button
                         key={reply}
                         type="button"
-                        onClick={() => setContent(reply)}
+                        onClick={() =>
+                          setContent((current) =>
+                            (current.trim()
+                              ? `${current.trimEnd()} ${reply}`
+                              : reply
+                            ).slice(0, 4000),
+                          )
+                        }
                       >
                         {index === 0 ? 'Gửi lời chào' : 'Xác nhận sẵn sàng'}
                       </button>
@@ -926,6 +933,28 @@ export default function AppointmentChatPanel({
               }}
             >
               <label htmlFor="appointment-chat-message">Tin nhắn</label>
+              {isSpecialist && eligibility?.sendAllowed && (
+                <div className={styles.composerSuggestions}>
+                  <span>Mẫu nhanh:</span>
+                  {quickReplies.map((reply, index) => (
+                    <button
+                      type="button"
+                      key={reply}
+                      title={reply}
+                      onClick={() =>
+                        setContent((current) =>
+                          (current.trim()
+                            ? `${current.trimEnd()} ${reply}`
+                            : reply
+                          ).slice(0, 4000),
+                        )
+                      }
+                    >
+                      {index === 0 ? 'Chào đón ấm áp' : 'Xác nhận sẵn sàng'}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className={styles.composerBox}>
                 <textarea
                   id="appointment-chat-message"

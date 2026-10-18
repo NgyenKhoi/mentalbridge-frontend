@@ -168,7 +168,7 @@ export function ProgressiveRelaxationResourceDetail({
   const ringLength = 2 * Math.PI * 68
   const playedPercent = (currentTime / progressiveRelaxationDuration) * 100
 
-  function seekTo(seconds: number) {
+  const seekTo = useCallback((seconds: number) => {
     const target = Math.min(progressiveRelaxationDuration, Math.max(0, seconds))
     if (videoRef.current) {
       videoRef.current.currentTime = target
@@ -176,7 +176,7 @@ export function ProgressiveRelaxationResourceDetail({
     }
     setCurrentTime(target)
     setEnded(false)
-  }
+  }, [])
 
   const togglePlay = useCallback(() => {
     if (!videoRef.current) return
@@ -187,7 +187,7 @@ export function ProgressiveRelaxationResourceDetail({
     } else {
       videoRef.current.pause()
     }
-  }, [ended])
+  }, [ended, seekTo])
 
   function toggleMute() {
     if (!videoRef.current) return
@@ -241,7 +241,7 @@ export function ProgressiveRelaxationResourceDetail({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentTime, ended, isPlaying, togglePlay])
+  }, [currentTime, ended, isPlaying, seekTo, togglePlay])
 
   async function startCompletion() {
     if (!ended || progressLoadState !== 'ready' || saving) return

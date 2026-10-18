@@ -682,8 +682,8 @@
         "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
         "scenario": "allows Free users to browse real details and slots without booking",
         "assertions": [
-          "screen.findByText('Chuyên gia An')",
-          "name: 'Xem hồ sơ và khung giờ'"
+          "name: 'Chuyên gia An'",
+          "name: 'Hồ sơ'"
         ]
       },
       "mobile": {
@@ -743,8 +743,8 @@
         "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
         "scenario": "allows Free users to browse real details and slots without booking",
         "assertions": [
-          "name: 'Xem hồ sơ và khung giờ'",
-          "screen.findByText('Vì sao hồ sơ này xuất hiện?')"
+          "name: 'Hồ sơ'",
+          "findByText(item.bio)"
         ]
       },
       "mobile": {
@@ -1128,9 +1128,9 @@
       "web": {
         "state": "CODE_READY",
         "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
-        "scenario": "hands the exact selected slot and modality to MB-378 for paid plans",
+        "scenario": "opens directly to slots and requests the exact selected time after confirmation",
         "assertions": [
-          "await screen.findByRole('radio')",
+          "findByRole('radio')",
           "item.selectableSlots[0].id"
         ]
       },
@@ -1150,7 +1150,7 @@
       "web": {
         "state": "CODE_READY",
         "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
-        "scenario": "hands the exact selected slot and modality to MB-378 for paid plans",
+        "scenario": "opens directly to slots and requests the exact selected time after confirmation",
         "assertions": [
           "appointmentClient.request).toHaveBeenCalledWith",
           "'IN_APP_CHAT'"

@@ -69,10 +69,10 @@ describe('RoleWorkspace specialist production closure', () => {
     const navigation = screen.getByRole('navigation', {
       name: 'Điều hướng specialist',
     })
-    expect(within(navigation).getAllByRole('link')).toHaveLength(8)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(9)
     expect(
-      within(navigation).queryByRole('link', { name: /Phân tích vận hành/i }),
-    ).not.toBeInTheDocument()
+      within(navigation).getByRole('link', { name: /Phân tích vận hành/i }),
+    ).toBeInTheDocument()
     expect(
       within(navigation).getByRole('link', { name: /Thu nhập/i }),
     ).toBeInTheDocument()

@@ -96,6 +96,9 @@ export function DailyEmotionCheckIn({
   const [persisted, setPersisted] = useState<EmotionCheckIn | null>(null)
   const [yesterdayCheckIn, setYesterdayCheckIn] =
     useState<EmotionCheckIn | null>(null)
+  const [yesterdayStatus, setYesterdayStatus] = useState<
+    'loading' | 'ready' | 'error'
+  >('loading')
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [phase, setPhase] = useState<Phase>('loading')
   const [retryKind, setRetryKind] = useState<RetryKind>('load')
@@ -118,6 +121,7 @@ export function DailyEmotionCheckIn({
     activeDate.current = nextDate
     mutation.current = null
     setPhase('loading')
+    setYesterdayStatus('loading')
     setMessage('Đang tải ghi nhận hôm nay…')
     setLocalDate(nextDate)
     return true
@@ -133,24 +137,31 @@ export function DailyEmotionCheckIn({
 
   useEffect(() => {
     let active = true
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayDate = localDateInTimeZone(yesterday, timezone)
+    const yesterdayDate = new Date(
+      Date.parse(`${localDate}T00:00:00.000Z`) - 86400000,
+    )
+      .toISOString()
+      .slice(0, 10)
     void listEmotionCheckIns(10)
       .then((result) => {
-        if (active)
+        if (active) {
           setYesterdayCheckIn(
             result.items.find((item) => item.localDate === yesterdayDate) ??
               null,
           )
+          setYesterdayStatus('ready')
+        }
       })
       .catch(() => {
-        if (active) setYesterdayCheckIn(null)
+        if (active) {
+          setYesterdayCheckIn(null)
+          setYesterdayStatus('error')
+        }
       })
     return () => {
       active = false
     }
-  }, [timezone, reload])
+  }, [localDate, reload])
 
   useEffect(() => {
     let active = true
@@ -332,6 +343,7 @@ export function DailyEmotionCheckIn({
     else if (retryKind === 'delete') void remove(false)
     else {
       setPhase('loading')
+      setYesterdayStatus('loading')
       setMessage('Đang tải ghi nhận hôm nay…')
       setReload((value) => value + 1)
     }
@@ -576,7 +588,13 @@ export function DailyEmotionCheckIn({
         <div className={styles.comparisonBoxes}>
           <div className={styles.boxYesterday}>
             <span className={styles.boxDate}>Hôm qua</span>
-            {yesterdayCheckIn ? (
+            {yesterdayStatus === 'loading' ? (
+              <span className={styles.boxEmptyText}>Đang tải ghi nhận…</span>
+            ) : yesterdayStatus === 'error' ? (
+              <span className={styles.boxEmptyText}>
+                Chưa tải được ghi nhận
+              </span>
+            ) : yesterdayCheckIn ? (
               <>
                 <span className={styles.boxMood}>
                   <span aria-hidden="true">
@@ -598,7 +616,15 @@ export function DailyEmotionCheckIn({
             →
           </span>
           <div className={styles.boxToday}>
-            <span className={styles.boxTodayDate}>Hôm nay · đã lưu</span>
+            <span className={styles.boxTodayDate}>
+              {phase === 'loading'
+                ? 'Hôm nay · đang tải'
+                : phase === 'error'
+                  ? 'Hôm nay · chưa xác nhận'
+                  : persisted
+                    ? 'Hôm nay · đã lưu'
+                    : 'Hôm nay · chưa ghi nhận'}
+            </span>
             {persisted ? (
               <>
                 <span className={styles.boxTodayMood}>
