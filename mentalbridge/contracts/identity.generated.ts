@@ -308,6 +308,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/product-journey-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read privacy-bounded aggregate product journey facts
+         * @description Returns privacy-bounded stage counts and descriptive cohort progress rates for the same half-open [from,to) window. Identity activation is limited to USER accounts registered in the window and verified before to; consultation progress is limited to appointments requested in the window and reaching the milestone before to. SPECIALIST and ADMIN accounts are excluded. Rates do not represent clinical effectiveness, recovery, or causation. Unavailable owner capabilities remain explicitly unavailable.
+         */
+        get: operations["getProductJourneyMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/platform-reports": {
         parameters: {
             query?: never;
@@ -519,6 +539,56 @@ export interface components {
             updatedAt: string;
             /** Format: int64 */
             version: number;
+        };
+        ProductJourneyMetrics: {
+            /** @constant */
+            projectionVersion: "product-journey-metrics-v2";
+            window: {
+                /** Format: date-time */
+                from: string;
+                /** Format: date-time */
+                to: string;
+            };
+            /** Format: date-time */
+            asOf: string;
+            /** @constant */
+            interpretation: "DESCRIPTIVE_PRODUCT_ACTIVITY_NOT_CLINICAL_EFFECTIVENESS";
+            sources: components["schemas"]["ProductJourneySource"][];
+            stages: components["schemas"]["ProductJourneyStage"][];
+        };
+        ProductJourneySource: {
+            /** @enum {string} */
+            source: "IDENTITY" | "CARE" | "CONSULTATION";
+            sourceVersion?: string | null;
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE";
+            /** Format: date-time */
+            asOf?: string | null;
+            /** @enum {string|null} */
+            unavailableReason?: "DEPENDENCY_UNAVAILABLE" | null;
+        };
+        ProductJourneyStage: {
+            /** @enum {string} */
+            stage: "USER_ACCOUNTS_REGISTERED" | "USER_ACCOUNTS_ACTIVATED" | "COMPLETED_SCREENING_EPISODES" | "SUPPORT_GUIDES_GENERATED" | "SUPPORT_GUIDES_OPENED" | "PAID_SUPPORT_PLANS_ACTIVATED" | "CONSULTATIONS_REQUESTED" | "CONSULTATIONS_CONFIRMED" | "CONSULTATIONS_COMPLETED";
+            /** @enum {string} */
+            source: "IDENTITY" | "CARE" | "CONSULTATION";
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE";
+            /**
+             * Format: int64
+             * @description Aggregate stage count. For a rate-bearing stage, this is the numerator from the same explicit cohort as denominatorStage.
+             */
+            count?: number | null;
+            /** @description Descriptive cohort progress percentage. Null when the stage has no approved cohort denominator or the denominator count is zero. */
+            rate?: null | components["schemas"]["ProductJourneyRate"];
+            /** @enum {string|null} */
+            unavailableReason?: "SOURCE_UNAVAILABLE" | "AUTHORITATIVE_USAGE_FACT_UNAVAILABLE" | null;
+        };
+        ProductJourneyRate: {
+            /** @enum {string} */
+            denominatorStage: "USER_ACCOUNTS_REGISTERED" | "CONSULTATIONS_REQUESTED";
+            /** @description Numerator count divided by the named denominator-stage count, rounded to one decimal place. */
+            percentage: number;
         };
         /** @enum {string} */
         PlatformReportTypeCode: "ACCOUNT_ACTIVITY";
@@ -1443,6 +1513,35 @@ export interface operations {
                     "application/json": components["schemas"]["PlatformReportType"][];
                 };
             };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getProductJourneyMetrics: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregate platform journey projection for the explicit half-open window */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductJourneyMetrics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
         };
