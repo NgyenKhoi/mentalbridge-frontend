@@ -1571,6 +1571,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        CorrelationId: string;
         ResourceId: string;
         /** @description Opaque key reused only for an unchanged logical create request by this actor. */
         IdempotencyKey: string;
@@ -2528,7 +2530,10 @@ export interface operations {
             query: {
                 version: components["parameters"]["DirectoryVersion"];
             };
-            header?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
             path: {
                 entryId: components["parameters"]["DirectoryEntryId"];
             };
@@ -2557,7 +2562,10 @@ export interface operations {
             query: {
                 version: components["parameters"]["DirectoryVersion"];
             };
-            header?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
             path: {
                 entryId: components["parameters"]["DirectoryEntryId"];
             };
