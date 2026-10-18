@@ -2869,6 +2869,8 @@ export interface components {
     };
     parameters: {
         CredentialDocumentId: string;
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        CorrelationId: string;
         SpecialistAccountId: string;
         /** @description Omit only when creating the first profile; otherwise quote the current non-negative version. */
         OptionalIfMatch: string;
@@ -5185,6 +5187,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];
@@ -5217,6 +5221,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];
@@ -5254,6 +5260,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];
@@ -5291,6 +5299,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];
