@@ -190,10 +190,44 @@ async function actor(role, bootstrap) {
     const nativeCapture = navigator.mediaDevices.getUserMedia.bind(
       navigator.mediaDevices,
     )
+    // This journey verifies real Cloud RTP, not a physical camera driver. Keep
+    // synthetic video independent of Chrome's fake capture service, which can
+    // end a track and then report NotFoundError during reconnect on this host.
+    function syntheticVideo() {
+      const canvas = document.createElement('canvas')
+      canvas.width = 640
+      canvas.height = 480
+      const paint = canvas.getContext('2d')
+      if (!paint) throw new Error('Synthetic video unavailable')
+      let frame = 0
+      const draw = () => {
+        paint.fillStyle = `hsl(${frame++ % 360} 65% 25%)`
+        paint.fillRect(0, 0, canvas.width, canvas.height)
+        paint.fillStyle = 'white'
+        paint.font = '28px sans-serif'
+        paint.fillText(`MB-384 synthetic frame ${frame}`, 24, 64)
+      }
+      draw()
+      const [track] = canvas.captureStream(15).getVideoTracks()
+      const timer = setInterval(draw, 100)
+      const stop = track.stop.bind(track)
+      track.stop = () => {
+        clearInterval(timer)
+        stop()
+      }
+      return track
+    }
     navigator.mediaDevices.getUserMedia = async (constraints) => {
       let stream
       try {
-        stream = await nativeCapture(constraints)
+        if (constraints?.video) {
+          stream = constraints.audio
+            ? await nativeCapture({ ...constraints, video: false })
+            : new MediaStream()
+          stream.addTrack(syntheticVideo())
+        } else {
+          stream = await nativeCapture(constraints)
+        }
       } catch (error) {
         record({
           captureError: [
@@ -998,7 +1032,7 @@ try {
         backend: sourceRevision(resolve(config.backend)),
         executedAt: new Date().toISOString(),
         provider: 'LIVEKIT_CLOUD',
-        mediaInput: 'synthetic-camera-and-microphone',
+        mediaInput: 'synthetic-canvas-camera-and-Chromium-microphone',
         lifecycleMode: lifecycle,
         identity:
           'controlled JWT/current-account fixture; real Consultation owner and public BFF',

@@ -105,6 +105,10 @@ It uses disposable PostgreSQL, synthetic Identity/approved account fixtures and
 owned Chrome profiles, never real accounts or shared dev appointments. Existing
 backend-only Cloud credentials are reused without printing them. Actual visibility
 is measured with owned CDP windows; arbitrary OS process freezing is not proven.
+The media fixture supplies an animated canvas camera and Chromium's fake
+microphone. Cloud RTP, SDK controls and reconnection are real; physical camera
+drivers are not verified. This isolates the network journey from observed native
+fake-camera `ended`/`NotFoundError` failures without relaxing media assertions.
 Do not rebuild `.next` during execution. No staging, protected environment,
 tunnel or paid upgrade is required. Without signed webhook evidence, completion
 must remain pending with credit HELD. Two physical devices and Android media
