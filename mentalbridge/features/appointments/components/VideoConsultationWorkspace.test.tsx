@@ -1,10 +1,39 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { VideoConsultationWorkspace } from './VideoConsultationWorkspace'
+import type { ReactNode } from 'react'
+
+vi.mock('next/font/google', () => ({
+  Manrope: () => ({ variable: 'video-display' }),
+}))
 
 vi.mock('./VideoConsultationPanel', () => ({
-  VideoSessionPanel: ({ role }: { role: string }) => (
-    <section aria-label="Cuộc gọi tư vấn">{role}</section>
+  VideoSessionPanel: ({
+    role,
+    appointmentId,
+    preparation,
+  }: {
+    role: string
+    appointmentId: string
+    preparation?: ReactNode
+  }) => (
+    <section aria-label="Cuộc gọi tư vấn">
+      {role}
+      <a
+        href={
+          role === 'USER'
+            ? `/appointments/${appointmentId}`
+            : `/specialist/appointments?appointmentId=${appointmentId}`
+        }
+      >
+        Trở về lịch hẹn
+      </a>
+      {preparation ?? (
+        <a href={`/appointments/${appointmentId}`}>
+          Xem nội dung chuẩn bị trong lịch hẹn
+        </a>
+      )}
+    </section>
   ),
 }))
 vi.mock('./SpecialistConsultationBrief', () => ({

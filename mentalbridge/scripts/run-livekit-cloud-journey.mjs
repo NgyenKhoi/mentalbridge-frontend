@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { resolve } from 'node:path'
 import { chromium, expect } from '@playwright/test'
+import { SignalResponse, DisconnectReason } from '@livekit/protocol'
 
 let input = ''
 for await (const chunk of process.stdin) {
@@ -30,6 +31,15 @@ const evidence = resolve('test-results/mb384-livekit-cloud')
 await mkdir(evidence, { recursive: true })
 const checks = []
 const contexts = []
+const ownedBrowsers = []
+const lifecycle = process.env.MB384_CALL_LIFECYCLE === 'true'
+const continuityChecks = []
+const transportEvents = []
+const mediaArgs = [
+  '--use-fake-device-for-media-stream',
+  '--use-fake-ui-for-media-stream',
+  '--autoplay-policy=no-user-gesture-required',
+]
 let browser
 let appointment
 let server
@@ -100,7 +110,7 @@ async function fixture(action, body = {}) {
   return result.json()
 }
 async function api(context, method, path, data, headers = {}) {
-  const response = await context.request.fetch(path, {
+  const response = await context.request.fetch(new URL(path, baseURL).href, {
     method,
     data,
     headers,
@@ -126,12 +136,36 @@ async function api(context, method, path, data, headers = {}) {
   return response.json()
 }
 async function actor(role, bootstrap) {
-  const context = await browser.newContext({
-    baseURL,
-    viewport: { width: 1440, height: 900 },
-    permissions: ['camera', 'microphone'],
-    reducedMotion: 'reduce',
-  })
+  let context
+  if (lifecycle) {
+    const debugPort = role === 'USER' ? 3196 : 3197
+    const probe = createServer()
+    await new Promise((done, reject) => {
+      probe.once('error', reject)
+      probe.listen(debugPort, host, done)
+    })
+    await new Promise((done) => probe.close(done))
+    const owner = await chromium.launch({
+      channel: 'chrome',
+      headless: false,
+      args: [...mediaArgs, `--remote-debugging-port=${debugPort}`],
+    })
+    ownedBrowsers.push(owner)
+    const driver = await chromium.connectOverCDP(
+      `http://${host}:${debugPort}`,
+      { noDefaults: true },
+    )
+    ownedBrowsers.push(driver)
+    context = driver.contexts()[0]
+    await context.grantPermissions(['camera', 'microphone'])
+  } else {
+    context = await browser.newContext({
+      baseURL,
+      viewport: { width: 1440, height: 900 },
+      permissions: ['camera', 'microphone'],
+      reducedMotion: 'reduce',
+    })
+  }
   contexts.push(context)
   await context.addCookies([
     {
@@ -153,8 +187,61 @@ async function actor(role, bootstrap) {
         globalThis.__mb384Peers.push(this)
       }
     }
+    const NativeSocket = globalThis.WebSocket
+    globalThis.__mb384Signals = []
+    globalThis.WebSocket = class extends NativeSocket {
+      constructor(...args) {
+        super(...args)
+        if (this.url.startsWith('wss:')) globalThis.__mb384Signals.push(this)
+      }
+    }
+    globalThis.__mb384ControlClicks = []
+    document.addEventListener(
+      'click',
+      (event) => {
+        const button = event.target.closest?.('button')
+        const label = button?.getAttribute('aria-label') || button?.textContent
+        if (
+          /^(Micro:|Camera:|Rời cuộc gọi|Tham gia phiên tư vấn)/.test(
+            label ?? '',
+          )
+        )
+          globalThis.__mb384ControlClicks.push(label)
+      },
+      true,
+    )
   })
   const page = await context.newPage()
+  await page.setViewportSize({ width: 1440, height: 900 })
+  let accessRequests = 0
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.endsWith('/video-access'))
+      transportEvents.push({
+        role,
+        accessRequest: ++accessRequests,
+        at: Date.now(),
+      })
+  })
+  page.on('websocket', (socket) => {
+    socket.on('framereceived', ({ payload }) => {
+      if (typeof payload === 'string') return
+      try {
+        const { message } = SignalResponse.fromBinary(payload)
+        if (message.case === 'leave')
+          transportEvents.push({
+            role,
+            providerLeave: DisconnectReason[message.value.reason],
+            action: message.value.action,
+            at: Date.now(),
+          })
+      } catch {
+        return
+      }
+    })
+    socket.on('close', () =>
+      transportEvents.push({ role, signalClosed: true, at: Date.now() }),
+    )
+  })
   page.on('response', async (response) => {
     if (!new URL(response.url()).pathname.endsWith('/video-access')) return
     let code = 'none'
@@ -172,7 +259,7 @@ async function actor(role, bootstrap) {
     }
     accessDiagnostic = `${role}: HTTP ${response.status()}, ${code}`
   })
-  return { context, page }
+  return { context, page, accessRequests: () => accessRequests }
 }
 async function mediaCounters(page) {
   return page.evaluate(async () => {
@@ -232,13 +319,21 @@ async function verifyVideoDisplay(page) {
             0,
           )
       const front = light(rgb(style.color))
-      const back = light(
-        rgb(getComputedStyle(element.parentElement).backgroundColor),
+      let surface = element.parentElement
+      while (
+        surface.parentElement &&
+        getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)'
       )
+        surface = surface.parentElement
+      const back = light(rgb(getComputedStyle(surface).backgroundColor))
       const controlsVisible =
         innerWidth < 1280 ||
         innerHeight < 800 ||
-        [...element.parentElement.querySelectorAll('button')].every(
+        [
+          ...element.parentElement.parentElement.querySelectorAll(
+            '[aria-label="Điều khiển cuộc gọi"] button',
+          ),
+        ].every(
           (button) => button.getBoundingClientRect().bottom <= innerHeight,
         )
       return {
@@ -247,6 +342,10 @@ async function verifyVideoDisplay(page) {
         fontLoaded: faces.length > 0 && document.fonts.check(font, text),
         fontFamily: style.fontFamily,
         fontWeight: style.fontWeight,
+        fontSize: Number.parseFloat(style.fontSize),
+        textClipped:
+          element.scrollHeight > element.clientHeight + 1 ||
+          element.scrollWidth > element.clientWidth + 1,
         controlsVisible,
         width: element.getBoundingClientRect().width,
         overflow: document.documentElement.scrollWidth > innerWidth + 1,
@@ -255,12 +354,234 @@ async function verifyVideoDisplay(page) {
   assert(display.contrast >= 4.5, 'Call status text needs accessible contrast')
   assert(
     display.fontLoaded &&
-      display.width >= 200 &&
+      display.width > 0 &&
+      display.fontSize >= 12 &&
+      !display.textClipped &&
       !display.overflow &&
       display.controlsVisible,
     `Video font or panel layout failed: ${JSON.stringify(display)}`,
   )
-  return display
+  const layout = await region.evaluate((root) => {
+    const remote = root.querySelector(
+      'figure[aria-label="Hình ảnh người tham gia cùng bạn"]',
+    )
+    const local = root.querySelector('figure[aria-label="Hình ảnh của bạn"]')
+    const stage = remote.getBoundingClientRect()
+    const inset = local.getBoundingClientRect()
+    const controls = [
+      ...root.querySelectorAll('[aria-label="Điều khiển cuộc gọi"] button'),
+    ]
+    return {
+      localBottomRight:
+        inset.right < stage.right &&
+        inset.left >= stage.left + 12 &&
+        stage.bottom - inset.bottom > 0 &&
+        stage.bottom - inset.bottom <= 100,
+      overlay:
+        getComputedStyle(remote.parentElement).position === 'relative' &&
+        getComputedStyle(local).position === 'absolute',
+      clearOfControls: controls.every(
+        (button) => inset.bottom < button.getBoundingClientRect().top,
+      ),
+      videoNotStretched: [...root.querySelectorAll('figure video')].every(
+        (video) => getComputedStyle(video).objectFit === 'cover',
+      ),
+      minControl: Math.min(
+        ...controls.map((button) =>
+          Math.min(
+            button.getBoundingClientRect().width,
+            button.getBoundingClientRect().height,
+          ),
+        ),
+      ),
+      iconControls:
+        controls.length === 5 &&
+        controls.every(
+          (button) =>
+            !button.textContent.trim() && button.getAttribute('aria-label'),
+        ),
+      badGlyph: /\uFFFD|Ã[\u0080-\u00BF]/.test(root.innerText),
+    }
+  })
+  assert(
+    layout.localBottomRight &&
+      layout.overlay &&
+      layout.clearOfControls &&
+      layout.videoNotStretched &&
+      layout.minControl >= 44 &&
+      layout.iconControls &&
+      !layout.badGlyph,
+    'Remote stage, local inset or icon-control layout failed',
+  )
+  return { ...display, ...layout }
+}
+
+async function verifyContinuity(participant, role) {
+  const { page, context } = participant
+  await page.bringToFront()
+  const accesses = participant.accessRequests()
+  const before = await mediaCounters(page)
+  const otherTab = await context.newPage()
+  try {
+    await otherTab.goto('about:blank')
+    await otherTab.bringToFront()
+    await expect
+      .poll(() => page.evaluate(() => document.visibilityState))
+      .toBe('hidden')
+    await new Promise((done) => setTimeout(done, 5000))
+    assert(
+      (await mediaCounters(page)).audioBytes > before.audioBytes,
+      'Background audio did not continue',
+    )
+    await expect(
+      page.getByRole('button', { name: 'Rời cuộc gọi' }),
+    ).toBeAttached()
+    assert.equal(
+      participant.accessRequests(),
+      accesses,
+      'Tab hiding requested a new join token',
+    )
+  } finally {
+    await otherTab.close()
+    await page.bringToFront()
+  }
+  await expect
+    .poll(async () => (await mediaCounters(page)).videoFrames, {
+      timeout: 30000,
+    })
+    .toBeGreaterThan(before.videoFrames)
+  const cdp = await context.newCDPSession(page)
+  const { windowId } = await cdp.send('Browser.getWindowForTarget')
+  const minimized = await mediaCounters(page)
+  try {
+    await cdp.send('Browser.setWindowBounds', {
+      windowId,
+      bounds: { windowState: 'minimized' },
+    })
+    await expect
+      .poll(() => page.evaluate(() => document.visibilityState))
+      .toBe('hidden')
+    await new Promise((done) => setTimeout(done, 5000))
+    assert(
+      (await mediaCounters(page)).audioBytes > minimized.audioBytes,
+      'Minimized-window audio did not continue',
+    )
+    await expect(
+      page.getByRole('button', { name: 'Tham gia phiên tư vấn' }),
+    ).toHaveCount(0)
+  } finally {
+    await cdp.send('Browser.setWindowBounds', {
+      windowId,
+      bounds: { windowState: 'normal' },
+    })
+    await page.bringToFront()
+    await cdp.detach()
+  }
+  await expect
+    .poll(async () => (await mediaCounters(page)).videoFrames, {
+      timeout: 30000,
+    })
+    .toBeGreaterThan(minimized.videoFrames)
+  assert.equal(participant.accessRequests(), accesses)
+  continuityChecks.push({
+    role,
+    actualHiddenTab: true,
+    minimizedWindow: true,
+    audioContinued: true,
+    videoResumed: true,
+    additionalJoinRequests: 0,
+  })
+}
+
+async function verifyNetworkRecovery(participant) {
+  const { page, context } = participant
+  await page.bringToFront()
+  const before = await mediaCounters(page)
+  const accesses = participant.accessRequests()
+  const camera = await page
+    .getByRole('button', { name: /^Camera:/ })
+    .getAttribute('aria-pressed')
+  const microphone = await page
+    .getByRole('button', { name: /^Micro:/ })
+    .getAttribute('aria-pressed')
+  await page.evaluate(() => {
+    globalThis.__mb384ReconnectObserved = false
+    const status = document.querySelector(
+      '[aria-label="Cuộc gọi tư vấn"] [role="status"]',
+    )
+    const observer = new MutationObserver(() => {
+      if (status?.textContent.includes('đang kết nối lại'))
+        globalThis.__mb384ReconnectObserved = true
+    })
+    observer.observe(status, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    })
+    globalThis.__mb384StatusObserver = observer
+  })
+  try {
+    await context.setOffline(true)
+    const interrupted = await page.evaluate(() => {
+      const signals = globalThis.__mb384Signals.filter(
+        (socket) => socket.readyState === WebSocket.OPEN,
+      )
+      for (const signal of signals)
+        signal.close(4000, 'controlled-test-interruption')
+      return signals.length
+    })
+    assert.equal(
+      interrupted,
+      1,
+      'Exactly one real media signaling connection must be interrupted',
+    )
+    await new Promise((done) => setTimeout(done, 12000))
+  } finally {
+    await context.setOffline(false)
+  }
+  await expect(page.getByText('Đã kết nối với người còn lại')).toBeVisible({
+    timeout: 45000,
+  })
+  await expect
+    .poll(
+      async () => {
+        const current = await mediaCounters(page)
+        return (
+          current.audioBytes > before.audioBytes &&
+          current.videoFrames > before.videoFrames
+        )
+      },
+      { timeout: 45000 },
+    )
+    .toBe(true)
+  assert.equal(
+    participant.accessRequests(),
+    accesses,
+    'Temporary network interruption required a new join',
+  )
+  await expect(page.getByRole('button', { name: /^Camera:/ })).toHaveAttribute(
+    'aria-pressed',
+    camera,
+  )
+  await expect(page.getByRole('button', { name: /^Micro:/ })).toHaveAttribute(
+    'aria-pressed',
+    microphone,
+  )
+  const reconnectStatusObserved = await page.evaluate(() => {
+    globalThis.__mb384StatusObserver.disconnect()
+    return globalThis.__mb384ReconnectObserved
+  })
+  assert(
+    reconnectStatusObserved,
+    'A real signaling interruption must exercise SDK reconnect UI',
+  )
+  continuityChecks.push({
+    temporaryOfflineSeconds: 12,
+    realSignalingSocketInterrupted: true,
+    recoveredRtp: true,
+    reconnectStatusObserved,
+    additionalJoinRequests: 0,
+  })
 }
 
 async function screenshot(page, name) {
@@ -327,14 +648,8 @@ try {
       { timeout: 30000 },
     )
     .toBe(true)
-  browser = await chromium.launch({
-    channel: 'chrome',
-    args: [
-      '--use-fake-device-for-media-stream',
-      '--use-fake-ui-for-media-stream',
-      '--autoplay-policy=no-user-gesture-required',
-    ],
-  })
+  if (!lifecycle)
+    browser = await chromium.launch({ channel: 'chrome', args: mediaArgs })
   step = 'synthetic actor browser setup'
   const user = await actor('USER', bootstrap)
   const specialist = await actor('SPECIALIST', bootstrap)
@@ -376,16 +691,20 @@ try {
   )
 
   step = 'actual appointment UI and join'
-  await user.page.goto(`/appointments/${appointment.id}`)
+  await user.page.goto(`${baseURL}/appointments/${appointment.id}`)
   await specialist.page.goto(
-    `/specialist/appointments?appointmentId=${appointment.id}`,
+    `${baseURL}/specialist/appointments?appointmentId=${appointment.id}`,
   )
   for (const participant of [user, specialist]) {
-    step = `actual ${participant === user ? 'USER' : 'SPECIALIST'} appointment UI and join`
-    await participant.page
+    step = `actual ${participant === user ? 'USER' : 'SPECIALIST'} appointment room entry`
+    await participant.page.bringToFront()
+    const entry = participant.page
       .getByRole('link', { name: /Mở phòng tư vấn/ })
+      .or(participant.page.getByRole('button', { name: /Mở phòng tư vấn/ }))
       .first()
-      .click()
+    await expect(entry).toBeVisible({ timeout: 15000 })
+    await entry.click()
+    step = `actual ${participant === user ? 'USER' : 'SPECIALIST'} join control`
     await expect(
       participant.page.getByRole('button', { name: 'Tham gia phiên tư vấn' }),
     ).toBeEnabled({ timeout: 15000 })
@@ -424,30 +743,37 @@ try {
   const displayChecks = []
   const rtp = []
   for (const participant of [user, specialist]) {
+    await participant.page.bringToFront()
     rtp.push({
       actor: participant === user ? 'USER' : 'SPECIALIST',
       ...(await mediaCounters(participant.page)),
     })
-    displayChecks.push(await verifyVideoDisplay(participant.page))
-    await screenshot(
-      participant.page,
-      `${participant === user ? 'user' : 'specialist'}-connected.png`,
-    )
-    await participant.page.setViewportSize({ width: 375, height: 812 })
-    displayChecks.push(await verifyVideoDisplay(participant.page))
-    await screenshot(
-      participant.page,
-      `${participant === user ? 'user' : 'specialist'}-connected-375.png`,
-    )
+    for (const width of [1440, 1280, 768, 375, 320, 640]) {
+      await participant.page.setViewportSize({
+        width,
+        height: width === 640 ? 400 : 900,
+      })
+      displayChecks.push({
+        role: participant === user ? 'USER' : 'SPECIALIST',
+        viewportWidth: width,
+        ...(await verifyVideoDisplay(participant.page)),
+      })
+      if ([1440, 375].includes(width))
+        await screenshot(
+          participant.page,
+          `${participant === user ? 'user' : 'specialist'}-connected${width === 375 ? '-375' : ''}.png`,
+        )
+    }
     await participant.page.setViewportSize({ width: 1440, height: 900 })
   }
   checks.push(
     'Two browser contexts connected through LIVE LiveKit Cloud; actual RTP audio bytes received and video frames decoded in both directions. Camera/mic input is synthetic, not a human consultation.',
   )
   checks.push(
-    'Actual USER/SPECIALIST routes at 1440px and 375px: loaded fonts, readable call-status contrast, full-width panel and no horizontal overflow.',
+    'Actual USER/SPECIALIST routes at 1440/1280/768/375/320 and 640x400: loaded fonts, readable call-status contrast, owner-reference bottom-right PiP above floating five-icon controls, 44px+ controls and no horizontal overflow.',
   )
 
+  await user.page.bringToFront()
   await user.page.getByRole('button', { name: 'Camera: Đang bật' }).click()
   await expect(
     user.page.getByRole('button', { name: 'Camera: Đang tắt' }),
@@ -458,6 +784,16 @@ try {
     user.page.getByRole('button', { name: 'Micro: Đang tắt' }),
   ).toBeVisible()
   await user.page.getByRole('button', { name: 'Micro: Đang tắt' }).click()
+  if (lifecycle) {
+    step = 'actual hidden-tab and minimized-window continuity'
+    await verifyContinuity(user, 'USER')
+    await verifyContinuity(specialist, 'SPECIALIST')
+    step = 'temporary network interruption and SDK recovery'
+    await verifyNetworkRecovery(user)
+    checks.push(
+      'Both isolated Chrome profiles: real hidden tabs and minimized windows retain audio; video resumes without Join. Twelve-second offline BFF + real signaling-socket interruption exercises SDK reconnect and recovers without new application access.',
+    )
+  }
   // Keep genuine wall-clock common participation longer than the approved 60s
   // threshold. The fixture never inserts or synthesizes attendance/webhooks.
   while (Date.now() - connectedAt < 65000)
@@ -468,19 +804,64 @@ try {
     `/api/consultation/appointments/${appointment.id}/video-session`,
   )
   assert.equal(authorityBeforeLeave.completion, null)
+  await user.page.bringToFront()
   await user.page.getByRole('button', { name: 'Rời cuộc gọi' }).click()
+  await user.page
+    .getByRole('dialog', { name: 'Bạn muốn rời cuộc gọi tư vấn?' })
+    .getByRole('button', { name: 'Rời cuộc gọi' })
+    .click()
   await expect(
     user.page.getByRole('button', { name: 'Tham gia phiên tư vấn' }),
   ).toBeEnabled()
-  await user.page.getByRole('button', { name: 'Tham gia phiên tư vấn' }).click()
-  await expect(user.page.getByText('Đã kết nối với người còn lại')).toBeVisible(
-    { timeout: 30000 },
-  )
+  await specialist.page.bringToFront()
+  await specialist.page.getByRole('button', { name: 'Rời cuộc gọi' }).click()
+  await specialist.page
+    .getByRole('dialog', { name: 'Bạn muốn rời cuộc gọi tư vấn?' })
+    .getByRole('button', { name: 'Rời cuộc gọi' })
+    .click()
+  for (const participant of [specialist, user]) {
+    await participant.page.bringToFront()
+    await participant.page
+      .getByRole('button', { name: 'Tham gia phiên tư vấn' })
+      .click()
+    await expect(
+      participant.page.getByRole('button', { name: 'Micro: Đang tắt' }),
+    ).toBeEnabled({ timeout: 30000 })
+    if (participant === specialist)
+      await expect(
+        participant.page.getByText('Đang chờ người còn lại tham gia'),
+      ).toBeVisible()
+    await participant.page
+      .getByRole('button', { name: 'Micro: Đang tắt' })
+      .click()
+    await participant.page
+      .getByRole('button', { name: 'Camera: Đang tắt' })
+      .click()
+  }
+  for (const participant of [user, specialist]) {
+    await expect(
+      participant.page.getByText('Đã kết nối với người còn lại'),
+    ).toBeVisible({ timeout: 30000 })
+    const restarted = await mediaCounters(participant.page)
+    await expect
+      .poll(
+        async () => {
+          const next = await mediaCounters(participant.page)
+          return (
+            next.audioBytes > restarted.audioBytes &&
+            next.videoFrames > restarted.videoFrames
+          )
+        },
+        { timeout: 30000 },
+      )
+      .toBe(true)
+  }
   checks.push(
-    'Camera/microphone toggles; >65s real overlapping connection; leave and fresh-authorized rejoin do not invoke completion.',
+    'Camera/microphone toggles; >65s real overlapping connection; both leave, Specialist rejoins first, then USER. Two-way RTP resumes and fresh-authorized rejoin does not invoke completion.',
   )
 
   step = 'explicit completion and authoritative reload'
+  await specialist.page.bringToFront()
   await specialist.page
     .getByRole('button', { name: 'Xác nhận kết thúc buổi tư vấn' })
     .click()
@@ -548,6 +929,7 @@ try {
         executedAt: new Date().toISOString(),
         provider: 'LIVEKIT_CLOUD',
         mediaInput: 'synthetic-camera-and-microphone',
+        lifecycleMode: lifecycle,
         identity:
           'controlled JWT/current-account fixture; real Consultation owner and public BFF',
         database: 'disposable Testcontainers PostgreSQL',
@@ -555,6 +937,8 @@ try {
         verifiedCompletion: Boolean(config.requireWebhook),
         rtp,
         displayChecks,
+        continuityChecks,
+        transportEvents,
         checks,
       },
       null,
@@ -565,9 +949,26 @@ try {
     `PASS MB-384 LiveKit Cloud journey: ${checks.length} checks, media + ${config.requireWebhook ? 'signed webhook/completion' : 'safe pending verification'}. Evidence: test-results/mb384-livekit-cloud. No secrets or tokens retained.`,
   )
 } catch (error) {
+  const states = []
   for (const [index, context] of contexts.entries()) {
     const page = context.pages()[0]
-    if (page)
+    if (page) {
+      states.push(
+        await page.evaluate(() => ({
+          visibility: document.visibilityState,
+          status: document.querySelector(
+            '[aria-label="Cuộc gọi tư vấn"] [role="status"]',
+          )?.textContent,
+          controls: globalThis.__mb384ControlClicks,
+          peers: (globalThis.__mb384Peers ?? []).map((peer) => ({
+            connection: peer.connectionState,
+            ice: peer.iceConnectionState,
+          })),
+          hasJoin: [...document.querySelectorAll('button')].some(
+            (button) => button.textContent === 'Tham gia phiên tư vấn',
+          ),
+        })),
+      )
       await page
         .screenshot({
           path: resolve(
@@ -577,7 +978,16 @@ try {
           fullPage: true,
         })
         .catch(() => {})
+    }
   }
+  await writeFile(
+    resolve(evidence, 'continuity-checkpoint.json'),
+    JSON.stringify(
+      { step, continuityChecks, transportEvents, states },
+      null,
+      2,
+    ),
+  )
   console.error(
     `Controlled standalone readiness: ${readiness}; startup diagnostic: ${serverDiagnostic}; access: ${accessDiagnostic}`,
   )
@@ -603,9 +1013,22 @@ try {
         : 'No detail'
     }. No raw network/provider data retained.`,
   )
+  if (error instanceof Error && error.name === 'TimeoutError')
+    console.error(
+      error.message
+        .split('\n')
+        .filter((line) =>
+          /waiting for|not visible|not stable|intercepts pointer|element was detached/.test(
+            line,
+          ),
+        )
+        .slice(0, 5)
+        .join('\n'),
+    )
   process.exitCode = 1
 } finally {
   for (const context of contexts) await context.close()
+  for (const owned of ownedBrowsers.reverse()) await owned.close()
   await browser?.close()
   await new Promise((done) => webhook.close(done))
   if (server && server.exitCode === null) server.kill()

@@ -1,8 +1,14 @@
-import Link from 'next/link'
-import { ArrowLeft, FileText } from 'lucide-react'
+import { Manrope } from 'next/font/google'
 import { VideoSessionPanel } from './VideoConsultationPanel'
 import { SpecialistConsultationBrief } from './SpecialistConsultationBrief'
 import styles from './VideoConsultation.module.css'
+
+const displayFont = Manrope({
+  subsets: ['latin', 'vietnamese'],
+  weight: ['500', '600', '700', '800'],
+  variable: '--font-video-display',
+  display: 'swap',
+})
 
 export function VideoConsultationWorkspace({
   appointmentId,
@@ -11,34 +17,22 @@ export function VideoConsultationWorkspace({
   appointmentId: string
   role: 'USER' | 'SPECIALIST'
 }) {
-  const appointmentHref =
-    role === 'USER'
-      ? `/appointments/${encodeURIComponent(appointmentId)}`
-      : `/specialist/appointments?appointmentId=${encodeURIComponent(appointmentId)}`
   return (
-    <section className={styles.workspace} data-role={role}>
-      <header className={styles.workspaceHeading}>
-        <Link href={appointmentHref} className={styles.backLink}>
-          <ArrowLeft size={18} aria-hidden="true" /> Trở về lịch hẹn
-        </Link>
-        <h1>Phòng tư vấn video</h1>
-        <p>Không gian riêng cho buổi tư vấn của bạn.</p>
-      </header>
+    <section
+      className={`${styles.workspace} ${displayFont.variable}`}
+      data-role={role}
+    >
+      <h1 className={styles.visuallyHidden}>Phòng tư vấn video</h1>
       <VideoSessionPanel
         key={`${role}:${appointmentId}`}
         appointmentId={appointmentId}
         role={role}
+        preparation={
+          role === 'SPECIALIST' ? (
+            <SpecialistConsultationBrief appointmentId={appointmentId} />
+          ) : undefined
+        }
       />
-      <div className={styles.preparation}>
-        {role === 'SPECIALIST' ? (
-          <SpecialistConsultationBrief appointmentId={appointmentId} />
-        ) : (
-          <Link href={appointmentHref}>
-            <FileText size={18} aria-hidden="true" /> Xem nội dung chuẩn bị
-            trong lịch hẹn
-          </Link>
-        )}
-      </div>
     </section>
   )
 }

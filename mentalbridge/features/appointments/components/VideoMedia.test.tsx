@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import VideoMedia from './VideoMedia'
 import type { VideoAccess } from '@/lib/consultation/video-validation'
 
@@ -15,6 +15,7 @@ const sdk = vi.hoisted(() => ({
   setMicrophone: vi.fn(),
   create: vi.fn(),
   disconnect: vi.fn(),
+  select: vi.fn(),
 }))
 vi.mock('@livekit/components-react', async () => {
   const { useEffect } = await import('react')
@@ -24,7 +25,15 @@ vi.mock('@livekit/components-react', async () => {
       return children
     },
     RoomAudioRenderer: () => null,
-    VideoTrack: () => <span>video track</span>,
+    VideoTrack: ({
+      trackRef,
+    }: {
+      trackRef: { participant: { isLocal: boolean } }
+    }) => (
+      <span data-testid={trackRef.participant.isLocal ? 'local' : 'remote'}>
+        video track
+      </span>
+    ),
     useConnectionState: () => sdk.state,
     useLocalParticipant: () => ({
       localParticipant: {
@@ -37,6 +46,12 @@ vi.mock('@livekit/components-react', async () => {
     useRemoteParticipants: () => sdk.remote,
     useTracks: () => sdk.tracks,
     useStartAudio: () => ({ canPlayAudio: true, mergedProps: {} }),
+    useConnectionQualityIndicator: () => ({ quality: 'good' }),
+    useMediaDeviceSelect: () => ({
+      devices: [{ deviceId: 'default', label: 'Thiết bị mặc định' }],
+      activeDeviceId: 'default',
+      setActiveMediaDevice: sdk.select,
+    }),
   }
 })
 vi.mock('livekit-client', () => ({
@@ -107,7 +122,9 @@ describe('official Web SDK presentation boundary', () => {
       />,
     )
     expect(screen.getByText('Người tham gia cùng bạn')).toBeInTheDocument()
-    expect(screen.getByText('Bạn', { exact: true })).toBeInTheDocument()
+    expect(
+      screen.getByText('Bạn (Thu nhỏ)', { exact: true }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Camera đang tắt')).toBeInTheDocument()
     expect(
       screen.getByText('Người còn lại đang tắt camera'),
@@ -123,6 +140,135 @@ describe('official Web SDK presentation boundary', () => {
     sdk.tracks = []
     sdk.camera = false
     sdk.microphone = false
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+  it('swaps surfaces and device selection without disconnecting or changing media preferences; leave is cancel-first', async () => {
+    const user = userEvent.setup()
+    sdk.select.mockResolvedValue(undefined)
+    sdk.remote = [{ isMicrophoneEnabled: true }]
+    sdk.tracks = [
+      { participant: { isLocal: true }, publication: { isMuted: false } },
+      { participant: { isLocal: false }, publication: { isMuted: false } },
+    ]
+    const leave = vi.fn()
+    render(
+      <VideoMedia
+        access={access}
+        previewAllowed
+        onLeave={leave}
+        onError={vi.fn()}
+      />,
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Hoán đổi khung hình chính' }),
+    )
+    expect(
+      screen.getByRole('figure', { name: 'Hình ảnh của bạn' }),
+    ).toHaveAttribute('data-local', 'true')
+    expect(
+      within(
+        screen.getByRole('figure', { name: 'Hình ảnh của bạn' }),
+      ).getByTestId('local'),
+    ).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: 'Hoán đổi khung hình' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Cài đặt thiết bị' }))
+    const settings = screen.getByRole('dialog', { name: 'Cài đặt thiết bị' })
+    expect(within(settings).getAllByRole('combobox')).toHaveLength(3)
+    await user.selectOptions(
+      within(settings).getByLabelText('Camera'),
+      'default',
+    )
+    expect(sdk.select).toHaveBeenCalledWith('default')
+    await user.click(
+      within(settings).getByRole('button', { name: 'Đóng cài đặt' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Rời cuộc gọi' }))
+    expect(leave).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Tiếp tục cuộc gọi' }))
+    expect(sdk.disconnect).not.toHaveBeenCalled()
+    expect(sdk.setCamera).not.toHaveBeenCalled()
+    expect(sdk.setMicrophone).not.toHaveBeenCalled()
+  })
+  it('keeps local and remote tracks on their own surfaces with accessible icon controls', () => {
+    sdk.remote = [{ isMicrophoneEnabled: false }]
+    sdk.tracks = [
+      { participant: { isLocal: true }, publication: { isMuted: false } },
+      { participant: { isLocal: false }, publication: { isMuted: false } },
+    ]
+    sdk.camera = true
+    render(
+      <VideoMedia
+        access={access}
+        participantName="Chuyên gia An"
+        previewAllowed
+        onLeave={vi.fn()}
+        onError={vi.fn()}
+      />,
+    )
+    const local = screen.getByRole('figure', { name: 'Hình ảnh của bạn' })
+    const remote = screen.getByRole('figure', {
+      name: 'Hình ảnh người tham gia cùng bạn',
+    })
+    expect(within(local).getByTestId('local')).toBeInTheDocument()
+    expect(within(local).queryByTestId('remote')).not.toBeInTheDocument()
+    expect(within(remote).getByTestId('remote')).toBeInTheDocument()
+    expect(within(remote).getByText('Chuyên gia An')).toBeInTheDocument()
+    expect(within(remote).getByText('Micro đang tắt')).toBeInTheDocument()
+    const controls = screen.getByRole('group', { name: 'Điều khiển cuộc gọi' })
+    expect(within(controls).getAllByRole('button')).toHaveLength(5)
+    expect(
+      screen.getByRole('button', { name: 'Micro: Đang tắt' }),
+    ).toHaveAttribute('aria-pressed', 'false')
+    expect(
+      screen.getByRole('button', { name: 'Camera: Đang bật' }),
+    ).toHaveAttribute('title', 'Tắt camera')
+  })
+  it('starts elapsed time only with a connected peer and retains it through reconnect without remounting the room', () => {
+    vi.useFakeTimers()
+    let now = 1000
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+    const props = {
+      access,
+      previewAllowed: true,
+      onLeave: vi.fn(),
+      onError: vi.fn(),
+    }
+    const view = render(<VideoMedia {...props} />)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(
+      screen.queryByLabelText(/Thời gian cuộc gọi/),
+    ).not.toBeInTheDocument()
+    sdk.remote = [{ isMicrophoneEnabled: true }]
+    view.rerender(<VideoMedia {...props} />)
+    now += 61000
+    act(() => vi.advanceTimersByTime(1000))
+    expect(
+      screen.getByLabelText('Thời gian cuộc gọi 01:01'),
+    ).toBeInTheDocument()
+    sdk.state = 'reconnecting'
+    view.rerender(<VideoMedia {...props} />)
+    now += 3000
+    act(() => vi.advanceTimersByTime(1000))
+    expect(
+      screen.getByLabelText('Thời gian cuộc gọi 01:04'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Camera: Đang tắt' }),
+    ).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Rời cuộc gọi' })).toBeEnabled()
+    sdk.state = 'connected'
+    view.rerender(<VideoMedia {...props} />)
+    expect(sdk.disconnect).not.toHaveBeenCalled()
+    expect(
+      screen.getByLabelText('Thời gian cuộc gọi 01:04'),
+    ).toBeInTheDocument()
+    view.unmount()
+    expect(sdk.disconnect).toHaveBeenCalledOnce()
   })
   it('shows waiting, toggles actual SDK tracks, reconnects, and disconnects on unmount', async () => {
     const user = userEvent.setup()
@@ -153,6 +299,13 @@ describe('official Web SDK presentation boundary', () => {
     )
     expect(screen.getByRole('status')).toHaveTextContent('đang kết nối lại')
     await user.click(screen.getByRole('button', { name: 'Rời cuộc gọi' }))
+    expect(leave).not.toHaveBeenCalled()
+    const dialog = screen.getByRole('dialog', {
+      name: 'Bạn muốn rời cuộc gọi tư vấn?',
+    })
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Rời cuộc gọi' }),
+    )
     expect(leave).toHaveBeenCalledOnce()
     view.unmount()
     expect(sdk.disconnect).toHaveBeenCalledOnce()
@@ -181,8 +334,8 @@ describe('official Web SDK presentation boundary', () => {
   it('does not request devices until explicit preview and stops all tracks on join', async () => {
     const stop = vi.fn()
     sdk.create.mockResolvedValue([
-      { kind: 'video', attach: vi.fn(), stop },
-      { kind: 'audio', stop },
+      { kind: 'video', attach: vi.fn(), detach: vi.fn(), stop },
+      { kind: 'audio', detach: vi.fn(), stop },
     ])
     const view = render(
       <VideoMedia
@@ -226,5 +379,53 @@ describe('official Web SDK presentation boundary', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('Kiểm tra quyền'),
     )
     expect(document.body.innerHTML).not.toContain(access.participantToken)
+  })
+  it('stops the local preview immediately when current authority revokes preview eligibility', async () => {
+    const stop = vi.fn()
+    sdk.create.mockResolvedValue([
+      { kind: 'video', attach: vi.fn(), detach: vi.fn(), stop },
+    ])
+    const props = { access: null, onLeave: vi.fn(), onError: vi.fn() }
+    const view = render(<VideoMedia {...props} previewAllowed />)
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Kiểm tra camera và micro' }))
+    await screen.findByText(/Đã mở thiết bị trên máy/)
+    view.rerender(<VideoMedia {...props} previewAllowed={false} />)
+    expect(stop).toHaveBeenCalledOnce()
+    expect(
+      screen.queryByRole('button', { name: 'Kiểm tra camera và micro' }),
+    ).not.toBeInTheDocument()
+  })
+  it('stops a late preview result after navigation without attaching or retaining tracks', async () => {
+    const stop = vi.fn()
+    const attach = vi.fn()
+    let resolve!: (tracks: unknown[]) => void
+    sdk.create.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done
+      }),
+    )
+    const view = render(
+      <VideoMedia
+        access={null}
+        previewAllowed
+        onLeave={vi.fn()}
+        onError={vi.fn()}
+      />,
+    )
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Kiểm tra camera và micro' }))
+    view.unmount()
+    await act(async () =>
+      resolve([
+        { kind: 'video', attach, stop },
+        { kind: 'audio', stop },
+      ]),
+    )
+    expect(stop).toHaveBeenCalledTimes(2)
+    expect(attach).not.toHaveBeenCalled()
+    expect(sdk.disconnect).not.toHaveBeenCalled()
   })
 })

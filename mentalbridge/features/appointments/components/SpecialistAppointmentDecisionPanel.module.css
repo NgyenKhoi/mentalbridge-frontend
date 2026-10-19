@@ -596,6 +596,10 @@
   font-weight: 700;
   text-decoration: none;
 }
+.compactCard[data-modality='IN_APP_VIDEO'] .compactAction {
+  min-height: 44px;
+  justify-self: start;
+}
 
 .compactCard[data-modality='IN_APP_VIDEO']
   > section[aria-label='Tóm tắt được người dùng phê duyệt'] {

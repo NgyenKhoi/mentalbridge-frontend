@@ -111,6 +111,7 @@ for (const role of ['USER', 'SPECIALIST'] as const) {
     ).toHaveCount(0)
     await page
       .getByRole('link', { name: /Mở phòng tư vấn/ })
+      .or(page.getByRole('button', { name: /Mở phòng tư vấn/ }))
       .first()
       .click()
     await expect(page).toHaveURL(
@@ -118,7 +119,7 @@ for (const role of ['USER', 'SPECIALIST'] as const) {
     )
     await expect(
       page.getByRole('heading', { name: 'Phòng tư vấn video', level: 1 }),
-    ).toBeVisible()
+    ).toBeAttached()
     await expect(
       page.getByRole('button', { name: 'Tham gia phiên tư vấn' }),
     ).toBeEnabled()
