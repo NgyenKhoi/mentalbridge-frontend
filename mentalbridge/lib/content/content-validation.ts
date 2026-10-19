@@ -35,6 +35,10 @@ export type AchievementCollection =
 export type AchievementItem = components['schemas']['AchievementItem']
 export type AchievementPreferenceUpdate =
   components['schemas']['AchievementPreferenceUpdate']
+export type ResourceRewardReadModel =
+  components['schemas']['ResourceRewardReadModel']
+export type ResourceRewardVisibilityUpdate =
+  components['schemas']['ResourceRewardVisibilityUpdate']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -80,6 +84,7 @@ const COMPLETION_MODES = new Set([
 ])
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/
 const ACTION_ID = /^[A-Za-z0-9:_-]{1,64}$/
+const REWARD_VERSION = /^[a-z0-9][a-z0-9-]{2,63}$/
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -776,6 +781,98 @@ export function parseResourceProgressUpdate(
     return null
   }
   return update as ResourceProgressUpdate
+}
+
+export function parseResourceRewardReadModel(
+  value: unknown,
+): ResourceRewardReadModel | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'totalXp',
+      'level',
+      'nextLevelXp',
+      'visibilityState',
+      'preferenceVersion',
+      'policyVersion',
+      'sourceAvailability',
+      'calculatedAt',
+      'recentGrants',
+    ]) ||
+    !Number.isSafeInteger(item.totalXp) ||
+    (item.totalXp as number) < 0 ||
+    !Number.isSafeInteger(item.level) ||
+    (item.level as number) < 0 ||
+    !(
+      item.nextLevelXp === null ||
+      (Number.isSafeInteger(item.nextLevelXp) &&
+        (item.nextLevelXp as number) >= 0)
+    ) ||
+    !['VISIBLE', 'HIDDEN'].includes(item.visibilityState as string) ||
+    typeof item.preferenceVersion !== 'string' ||
+    !CONTENT_VERSION.test(item.preferenceVersion) ||
+    typeof item.policyVersion !== 'string' ||
+    !REWARD_VERSION.test(item.policyVersion) ||
+    item.sourceAvailability !== 'AVAILABLE' ||
+    !dateTime(item.calculatedAt) ||
+    !Array.isArray(item.recentGrants) ||
+    item.recentGrants.length > 10 ||
+    !item.recentGrants.every((value) => {
+      const grant = record(value)
+      return Boolean(
+        grant &&
+        exactKeys(grant, [
+          'grantId',
+          'kind',
+          'xp',
+          'resourceId',
+          'contentVersion',
+          'localDate',
+          'grantedAt',
+          'sourceReference',
+          'ruleVersion',
+        ]) &&
+        typeof grant.grantId === 'string' &&
+        /^[a-f0-9]{64}$/.test(grant.grantId) &&
+        ['RESOURCE_COMPLETION', 'VERIFIED_PRACTICE'].includes(
+          grant.kind as string,
+        ) &&
+        Number.isSafeInteger(grant.xp) &&
+        (grant.xp as number) >= 1 &&
+        (grant.xp as number) <= 100 &&
+        typeof grant.resourceId === 'string' &&
+        UUID.test(grant.resourceId) &&
+        typeof grant.contentVersion === 'string' &&
+        CONTENT_VERSION.test(grant.contentVersion) &&
+        typeof grant.localDate === 'string' &&
+        isLocalDate(grant.localDate) &&
+        dateTime(grant.grantedAt) &&
+        typeof grant.sourceReference === 'string' &&
+        grant.sourceReference.length >= 1 &&
+        grant.sourceReference.length <= 160 &&
+        typeof grant.ruleVersion === 'string' &&
+        REWARD_VERSION.test(grant.ruleVersion),
+      )
+    })
+  ) {
+    return null
+  }
+  return item as ResourceRewardReadModel
+}
+
+export function parseResourceRewardVisibilityUpdate(
+  value: unknown,
+): ResourceRewardVisibilityUpdate | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, ['visibilityState']) ||
+    !['VISIBLE', 'HIDDEN'].includes(item.visibilityState as string)
+  ) {
+    return null
+  }
+  return item as ResourceRewardVisibilityUpdate
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
