@@ -1131,6 +1131,9 @@ const NOTIFICATION_KINDS = new Set([
   'COMMUNITY_COMMENT',
   'COMMUNITY_REPLY',
   'COMMUNITY_REACTION',
+  'ASSESSMENT_RESULT_AVAILABLE',
+  'SUPPORT_GUIDE_AVAILABLE',
+  'ACCOUNT_STATUS',
 ])
 const NOTIFICATION_PRIORITIES = new Set(['LOW', 'NORMAL', 'HIGH'])
 const TARGETLESS_NOTIFICATION_ACTIONS: Readonly<Record<string, string>> = {
@@ -1202,6 +1205,10 @@ export function parseNotification(value: unknown): Notification | null {
       if (typeof action.targetId !== 'string' || !UUID.test(action.targetId))
         return null
       if (action.href !== `/community/${action.targetId}`) return null
+    } else if (action.type === 'OPEN_SUPPORT_GUIDE') {
+      if (typeof action.targetId !== 'string' || !UUID.test(action.targetId))
+        return null
+      if (action.href !== `/support-guides/${action.targetId}`) return null
     } else if (
       TARGETLESS_NOTIFICATION_ACTIONS[action.type] !== action.href ||
       action.targetId !== null
