@@ -43,8 +43,8 @@ test.describe('admin retention and deletion governance journey', () => {
     await expect(
       page.getByText('Chính sách bảo lưu báo cáo phân tích tổng hợp'),
     ).toBeVisible()
-    await expect(page.getByText('90 ngày')).toBeVisible()
-    await expect(page.getByText('COMPLETED (15 bản ghi dọn dẹp)')).toBeVisible()
+    await expect(page.getByText('30 ngày')).toBeVisible()
+    await expect(page.getByText('SUCCEEDED (15 bản ghi dọn dẹp)')).toBeVisible()
 
     // 3. Explicitly unavailable capabilities rather than simulated
     await expect(

@@ -27,20 +27,20 @@ const mockPolicies: RetentionPolicy[] = [
     ownerService: 'IDENTITY',
     version: '1.0',
     status: 'APPROVED',
-    retentionDays: 90,
+    retentionDays: 30,
     automatedExecutionSupported: true,
     manualHoldSupported: false,
     requiresManualReview: false,
     jobStatus: 'ACTIVE',
-    jobName: 'IDENTITY_REPORTING_SWEEP',
+    jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
     description:
-      'Bảo lưu các tệp trích xuất báo cáo phân tích trong 90 ngày.',
+      'Bảo lưu các tệp trích xuất báo cáo phân tích trong 30 ngày.',
     lastExecution: {
       executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
       policyId: 'MB-IDENTITY-REPORTING-001',
       ownerService: 'IDENTITY',
-      jobName: 'IDENTITY_REPORTING_SWEEP',
-      jobStatus: 'COMPLETED',
+      jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
+      jobStatus: 'SUCCEEDED',
       startedAt: '2026-10-19T02:00:00Z',
       completedAt: '2026-10-19T02:05:00Z',
       itemsEvaluated: 120,
@@ -156,8 +156,8 @@ describe('AdminRetentionGovernance Component', () => {
       executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
       policyId: 'MB-IDENTITY-REPORTING-001',
       ownerService: 'IDENTITY',
-      jobName: 'IDENTITY_REPORTING_SWEEP',
-      jobStatus: 'COMPLETED',
+      jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
+      jobStatus: 'SUCCEEDED',
       startedAt: '2026-10-19T22:00:00Z',
       completedAt: '2026-10-19T22:01:00Z',
       itemsEvaluated: 50,
@@ -190,9 +190,10 @@ describe('AdminRetentionGovernance Component', () => {
     expect(
       screen.getByText(/Phiên bản: 1.0 · Chủ sở hữu: IDENTITY/),
     ).toBeInTheDocument()
-    expect(screen.getAllByText('90 ngày')).toHaveLength(2)
+    expect(screen.getByText('30 ngày')).toBeInTheDocument()
+    expect(screen.getByText('90 ngày')).toBeInTheDocument()
     expect(
-      screen.getByText('COMPLETED (15 bản ghi dọn dẹp)'),
+      screen.getByText('SUCCEEDED (15 bản ghi dọn dẹp)'),
     ).toBeInTheDocument()
   })
 
