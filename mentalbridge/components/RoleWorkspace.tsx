@@ -11,6 +11,7 @@ import { browserConsultation } from '@/features/specialist-profile/api/browser-c
 import SpecialistProfileWorkspace from '@/features/specialist-profile/components/SpecialistProfileWorkspace'
 import SpecialistAvailabilityManager from '@/features/specialist-availability/components/SpecialistAvailabilityManager'
 import SpecialistAppointmentDecisionPanel from '@/features/appointments/components/SpecialistAppointmentDecisionPanel'
+import { VideoConsultationWorkspace } from '@/features/appointments/components/VideoConsultationWorkspace'
 import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
 import SpecialistContinuityManager from '@/features/appointments/components/SpecialistContinuityManager'
 import SpecialistDashboardManager from './SpecialistDashboardManager'
@@ -386,11 +387,13 @@ export default function RoleWorkspace({
   sectionKey,
   workspaces,
   selectedAppointmentId,
+  videoAppointmentId,
 }: {
   role: Role
   sectionKey: string
   workspaces: readonly Workspace[]
   selectedAppointmentId?: string
+  videoAppointmentId?: string
 }) {
   const section =
     role === 'specialist'
@@ -771,11 +774,18 @@ export default function RoleWorkspace({
           {role === 'specialist' && sectionKey === 'availability' && (
             <SpecialistAvailabilityManager />
           )}
-          {role === 'specialist' && sectionKey === 'appointments' && (
-            <SpecialistAppointmentDecisionPanel
-              initialAppointmentId={selectedAppointmentId}
-            />
-          )}
+          {role === 'specialist' &&
+            sectionKey === 'appointments' &&
+            (videoAppointmentId ? (
+              <VideoConsultationWorkspace
+                appointmentId={videoAppointmentId}
+                role="SPECIALIST"
+              />
+            ) : (
+              <SpecialistAppointmentDecisionPanel
+                initialAppointmentId={selectedAppointmentId}
+              />
+            ))}
           {role === 'specialist' && sectionKey === 'clients' && (
             <SpecialistClientsManager
               initialAppointmentId={selectedAppointmentId}

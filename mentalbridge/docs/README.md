@@ -49,6 +49,7 @@ không khôi phục chúng như coding standard hiện hành.
 Story-specific delivery evidence:
 
 - [MB-624 cross-domain UC traceability rebaseline](reports/mb-624/README.md)
+- [MB-384 Web video-call continuity and focused controls](mb-384-video-call-continuity.md)
 - [MB-623 authoritative consultation journey closure](mb-623-consultation-journey.md)
 - [MB-642 private Journal action in SupportPlan](mb-642-journal-plan-action.md)
 - [MB-637 SupportGuide and SupportPlan v3 product boundary](ADR_SUPPORTPLAN_V3_PRODUCT_BOUNDARY.md)

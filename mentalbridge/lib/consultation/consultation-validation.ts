@@ -2084,7 +2084,8 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
   const completedSessionPolicyMatches =
     sessionPolicyMatches ||
     (item.modality === 'IN_APP_VIDEO' &&
-      item.sessionPolicyVersion === 'chat-session-completion-v1')
+      item.sessionPolicyVersion === 'chat-session-completion-v1' &&
+      item.sessionOutcomeReason === 'EVIDENCE_REQUIREMENTS_MET')
   const cancellationFields = [
     item.cancelledAt,
     item.cancellationReason,
@@ -2122,7 +2123,7 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
         : item.creditState !== 'HELD' && item.sessionSettledAt !== null) &&
       (item.modality !== 'IN_APP_VIDEO' || item.sessionOutcome === null)
     )
-  if (item.status === 'COMPLETED')
+  if (item.status === 'COMPLETED') {
     return (
       item.decidedAt !== null &&
       item.decisionReason === 'SPECIALIST_ACCEPTED' &&
@@ -2133,6 +2134,7 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
       item.completionFactId !== null &&
       ['CONSUMED', 'AVAILABLE'].includes(String(item.creditState))
     )
+  }
   if (item.status === 'REJECTED')
     return (
       item.decidedAt !== null &&

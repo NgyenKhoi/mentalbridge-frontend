@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CalendarDays,
+  Video,
   Check,
   ChevronRight,
   Clock3,
@@ -28,7 +29,6 @@ import {
 import styles from './SpecialistAppointmentDecisionPanel.module.css'
 import { SpecialistConsultationBrief } from './SpecialistConsultationBrief'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
-import { VideoConsultationPanel } from './VideoConsultationPanel'
 import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 
 type Decision = 'accept' | 'reject'
@@ -495,17 +495,27 @@ export default function SpecialistAppointmentDecisionPanel({
               Thân chủ: Người đặt lịch <span aria-hidden="true">·</span>{' '}
               <span>{CREDIT_LABELS[appointment.creditState]}</span>
             </p>
+            {appointment.modality === 'IN_APP_VIDEO' &&
+              [
+                'CONFIRMED',
+                'IN_PROGRESS',
+                'SESSION_ENDED',
+                'COMPLETED',
+              ].includes(appointment.status) && (
+                <Link
+                  className={styles.compactAction}
+                  href={`/specialist/appointments/${encodeURIComponent(appointment.id)}/video`}
+                  aria-label={`${['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) ? 'Mở phòng tư vấn' : 'Xem phiên tư vấn video'}, buổi ${displayDate(appointment)} ${displayTimeRange(appointment)}`}
+                >
+                  {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status)
+                    ? 'Mở phòng tư vấn'
+                    : 'Xem phiên tư vấn video'}
+                </Link>
+              )}
             {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) && (
               <SpecialistConsultationBrief
                 appointmentId={appointment.id}
                 compact
-              />
-            )}
-            {appointment.modality === 'IN_APP_VIDEO' && (
-              <VideoConsultationPanel
-                appointmentId={appointment.id}
-                role="SPECIALIST"
-                onVerified={() => void load()}
               />
             )}
             {appointment.status === 'COMPLETED' && (
@@ -754,9 +764,13 @@ export default function SpecialistAppointmentDecisionPanel({
                   Mở cửa sổ tin nhắn tư vấn
                 </Link>
               ) : (
-                <div className={styles.nextActionUnavailable}>
-                  Phiên video trong ứng dụng
-                </div>
+                <Link
+                  className={styles.nextAction}
+                  href={`/specialist/appointments/${encodeURIComponent(next.id)}/video`}
+                >
+                  <Video size={17} aria-hidden="true" />
+                  Mở phòng tư vấn video
+                </Link>
               )}
             </section>
           ) : (

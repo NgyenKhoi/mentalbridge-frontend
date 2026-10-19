@@ -27,7 +27,6 @@ import { ConsultationBriefEditor } from './ConsultationBriefEditor'
 import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 import { AppointmentRatingDialog } from './AppointmentRatingDialog'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
-import { VideoConsultationPanel } from './VideoConsultationPanel'
 import styles from './AppointmentRequestPanel.module.css'
 
 function format(value: string, timezone: string) {
@@ -869,6 +868,31 @@ export default function AppointmentRequestPanel({
               <AppointmentCancellationInfo appointment={focusedAppointment} />
 
               <div className={styles.detailActions}>
+                {focusedAppointment.modality === 'IN_APP_VIDEO' &&
+                  [
+                    'CONFIRMED',
+                    'IN_PROGRESS',
+                    'SESSION_ENDED',
+                    'COMPLETED',
+                  ].includes(focusedAppointment.status) && (
+                    <Link
+                      className={
+                        ['CONFIRMED', 'IN_PROGRESS'].includes(
+                          focusedAppointment.status,
+                        )
+                          ? styles.primaryAction
+                          : styles.secondaryAction
+                      }
+                      href={`/appointments/${encodeURIComponent(focusedAppointment.id)}/video`}
+                      aria-label={`${['CONFIRMED', 'IN_PROGRESS'].includes(focusedAppointment.status) ? 'Mở phòng tư vấn' : 'Xem phiên tư vấn video'} với ${focusedAppointment.specialistDisplayName}, buổi ${format(focusedAppointment.scheduledStartAt, focusedAppointment.timezone)}`}
+                    >
+                      {['CONFIRMED', 'IN_PROGRESS'].includes(
+                        focusedAppointment.status,
+                      )
+                        ? 'Mở phòng tư vấn'
+                        : 'Xem phiên tư vấn video'}
+                    </Link>
+                  )}
                 {canOpenChat(focusedAppointment) && (
                   <Link
                     className={styles.mintBtn}
@@ -907,14 +931,6 @@ export default function AppointmentRequestPanel({
                     appointmentId={focusedAppointment.id}
                   />
                 </div>
-              )}
-
-              {focusedAppointment.modality === 'IN_APP_VIDEO' && (
-                <VideoConsultationPanel
-                  appointmentId={focusedAppointment.id}
-                  role="USER"
-                  onVerified={() => void loadAppointments()}
-                />
               )}
 
               {focusedAppointment.status === 'COMPLETED' && (

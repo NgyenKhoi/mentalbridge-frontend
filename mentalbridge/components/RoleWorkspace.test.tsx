@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from 'vitest'
 
 import RoleWorkspace from './RoleWorkspace'
 
+vi.mock('next/font/google', () => ({
+  Manrope: () => ({ variable: 'video-display' }),
+}))
+
 vi.mock('framer-motion', () => ({
   motion: new Proxy(
     {},

@@ -50,6 +50,41 @@ const requested = {
 }
 
 describe('SpecialistAppointmentDecisionPanel', () => {
+  it.each(['CONFIRMED', 'SESSION_ENDED'] as const)(
+    'routes assigned %s video to its dedicated room with the visible action in its accessible name, not chat or inline media',
+    async (status) => {
+      api.assigned.mockResolvedValueOnce({
+        items: [
+          {
+            ...requested,
+            modality: 'IN_APP_VIDEO',
+            status,
+            decidedAt: '2099-09-25T03:00:00Z',
+            decisionReason: 'SPECIALIST_ACCEPTED',
+            version: 1,
+          },
+        ],
+        count: 1,
+        generatedAt: '2099-09-25T03:00:01Z',
+      })
+      render(<SpecialistAppointmentDecisionPanel />)
+      const links = await screen.findAllByRole('link', {
+        name:
+          status === 'CONFIRMED' ? /Mở phòng tư vấn/ : /Xem phiên tư vấn video/,
+      })
+      for (const link of links)
+        expect(link).toHaveAttribute(
+          'href',
+          `/specialist/appointments/${requested.id}/video`,
+        )
+      expect(
+        screen.queryByRole('region', { name: 'Cuộc gọi tư vấn' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('link', { name: /Mở tin nhắn/ }),
+      ).not.toBeInTheDocument()
+    },
+  )
   beforeEach(() => {
     vi.clearAllMocks()
     api.assigned.mockResolvedValue({

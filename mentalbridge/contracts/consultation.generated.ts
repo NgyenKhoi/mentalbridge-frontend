@@ -13,7 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Explicit assigned approved Specialist assertion of actual consultation end, accepted immediately without waiting for scheduled end or webhook grace. Stable idempotency and strong Appointment If-Match are required. Provider closure and paired trusted evidence are verified separately. Incomplete verification remains SESSION_ENDED with HELD credit, including after 24h; no timeout release, no-show, refund or earning is authorized. Verified completion reuses the existing immutable completion fact, consumed-credit ledger and MB-516 earning contract. */
+        /** @description Explicit assigned approved Specialist assertion of actual consultation end, accepted immediately without waiting for scheduled end or webhook grace. Stable idempotency and strong Appointment If-Match are required. The opt-in local/dev effective-DEMO video exception permits explicitly ending pre-start demo transport, but it remains pending verification with HELD credit and never supplies valid completion evidence. Provider closure and paired trusted evidence are verified separately. Incomplete verification remains SESSION_ENDED with HELD credit, including after 24h; no timeout release, no-show, refund or earning is authorized. Verified completion reuses the existing immutable completion fact, consumed-credit ledger and MB-516 earning contract. */
         post: operations["confirmVideoConsultationFinished"];
         delete?: never;
         options?: never;
@@ -45,7 +45,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Assigned USER or SPECIALIST only. Waiting begins five minutes early for local preview, without a provider connection or attendance. Current authorization is authoritative; no media event completes an appointment. */
+        /** @description Assigned USER or SPECIALIST only. Normally waiting begins five minutes early for local preview without a provider connection or attendance. The disabled-by-default immediate video demo exception applies only to explicit local/dev/test profiles and effective DEMO entitlement plus held DEMO credit; a CONFIRMED/IN_PROGRESS demo may report ACTIVE before scheduled start. Booked timestamps and end cutoff remain unchanged. Current authorization is authoritative; early demo media is not completion evidence and no media event completes an appointment. */
         get: operations["getAppointmentVideoSession"];
         put?: never;
         post?: never;
@@ -64,7 +64,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description No request body. Rechecks exact assigned actor/role, approved specialist, held credit, video modality, CONFIRMED/IN_PROGRESS and [startsAt,endsAt). Uses the owner room mapping, never a client room/actor. Token is room-scoped, in-memory only, 30–300 seconds maximum and expires no later than endsAt. LiveKit SDK refresh does not extend the appointment; server revocation/closure remains required. */
+        /** @description No request body. Rechecks exact assigned actor/role, approved specialist, held credit, video modality, CONFIRMED/IN_PROGRESS and normally [startsAt,endsAt). Only the opt-in local/dev/test effective-DEMO video exception may connect before startsAt; it never permits REQUESTED, cancelled, completed, expired or post-endsAt access. Early demo transport is not valid completion evidence. Uses the owner room mapping, never a client room/actor. Token is room-scoped, in-memory only, 30–300 seconds maximum and expires no later than endsAt. LiveKit SDK refresh does not extend the appointment; server revocation/closure remains required. */
         post: operations["issueAppointmentVideoAccess"];
         delete?: never;
         options?: never;
