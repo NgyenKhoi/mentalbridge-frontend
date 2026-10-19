@@ -43,6 +43,9 @@ describe('AdminWorkspace', () => {
       screen.getByRole('link', { name: 'Thanh toán gói' }),
     ).toHaveAttribute('href', '/admin/payments')
     expect(
+      screen.getByRole('link', { name: 'Bảo lưu & xóa dữ liệu' }),
+    ).toHaveAttribute('href', '/admin/retention')
+    expect(
       screen.getByRole('link', { name: 'Chi trả chuyên gia' }),
     ).toHaveAttribute('href', '/admin/payouts')
   })

@@ -13,6 +13,7 @@ import AdminAppointmentDisputes from '@/features/appointments/components/AdminAp
 import AdminReportsSection from '@/features/reports/components/AdminReportsSection'
 import AdminPaymentsManager from '@/components/AdminPaymentsManager'
 import AdminPayoutsManager from '@/components/AdminPayoutsManager'
+import AdminRetentionGovernance from '@/features/retention/components/AdminRetentionGovernance'
 import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
@@ -22,6 +23,11 @@ const SECTIONS = {
     label: 'Tổng quan',
     description:
       'Bảng điều khiển các chỉ số vận hành có thẩm quyền từ các dịch vụ nền tảng.',
+  },
+  retention: {
+    label: 'Bảo lưu & xóa dữ liệu',
+    description:
+      'Quản trị chính sách bảo lưu và theo dõi thực thi xóa dữ liệu với bằng chứng kiểm toán.',
   },
   accounts: {
     label: 'Tài khoản',
@@ -112,13 +118,15 @@ export default function AdminWorkspace({
       </aside>
 
       <main
-        className={`${styles.main} ${section === 'specialists' || section === 'reports' || section === 'payments' || section === 'payouts' ? styles.reviewMain : ''}`}
+        className={`${styles.main} ${section === 'specialists' || section === 'reports' || section === 'payments' || section === 'payouts' || section === 'retention' ? styles.reviewMain : ''}`}
       >
         {section === 'dashboard' ? (
           <>
             <AdminOperationsDashboard />
             <ProductJourneyMetricsPanel />
           </>
+        ) : section === 'retention' ? (
+          <AdminRetentionGovernance />
         ) : section === 'content' ? (
           <AdminContentSection />
         ) : section === 'specialists' ? (

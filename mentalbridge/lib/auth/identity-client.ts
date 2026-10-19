@@ -26,6 +26,11 @@ import type {
   PlatformReportSchedule,
   PlatformReportScheduleRequest,
   ProductJourneyMetrics,
+  ApplyHoldRequest,
+  DeletionRequest,
+  DeletionRequestPage,
+  RetentionExecutionRecord,
+  RetentionPolicy,
 } from '@/features/auth/api/identity-contract'
 import { readIdentityServerConfig } from '@/lib/config/server'
 
@@ -41,6 +46,10 @@ import {
   parsePlatformReportCatalogue,
   parsePlatformReportPage,
   parseProductJourneyMetrics,
+  parseDeletionRequest,
+  parseDeletionRequestPage,
+  parseRetentionExecutionRecord,
+  parseRetentionPolicies,
 } from './identity-validation'
 import {
   parseReportSchedule,
@@ -807,5 +816,95 @@ export const identityClient = {
     correlationId: string,
   ) {
     return identityArtifactRequest(accessToken, reportId, correlationId)
+  },
+
+  getRetentionPolicies(accessToken: string, correlationId: string) {
+    return identityRequest<RetentionPolicy[]>({
+      method: 'GET',
+      path: '/api/v1/admin/retention/policies',
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseRetentionPolicies,
+    })
+  },
+
+  triggerRetentionSweep(
+    accessToken: string,
+    policyId: string,
+    correlationId: string,
+  ) {
+    return identityRequest<RetentionExecutionRecord>({
+      method: 'POST',
+      path: `/api/v1/admin/retention/policies/${encodeURIComponent(policyId)}/sweep`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseRetentionExecutionRecord,
+    })
+  },
+
+  getDeletionRequests(
+    accessToken: string,
+    params: { status?: string; holdType?: string; limit?: number },
+    correlationId: string,
+  ) {
+    const search = new URLSearchParams()
+    if (params.status) search.set('status', params.status)
+    if (params.holdType) search.set('holdType', params.holdType)
+    if (params.limit) search.set('limit', String(params.limit))
+    const suffix = search.toString()
+
+    return identityRequest<DeletionRequestPage>({
+      method: 'GET',
+      path: `/api/v1/admin/retention/deletions${suffix ? `?${suffix}` : ''}`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseDeletionRequestPage,
+    })
+  },
+
+  retryDeletion(accessToken: string, requestId: string, correlationId: string) {
+    return identityRequest<DeletionRequest>({
+      method: 'POST',
+      path: `/api/v1/admin/retention/deletions/${encodeURIComponent(requestId)}/retry`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseDeletionRequest,
+    })
+  },
+
+  applyDeletionHold(
+    accessToken: string,
+    requestId: string,
+    body: ApplyHoldRequest,
+    correlationId: string,
+  ) {
+    return identityRequest<DeletionRequest>({
+      method: 'POST',
+      path: `/api/v1/admin/retention/deletions/${encodeURIComponent(requestId)}/holds`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      body,
+      parseSuccess: parseDeletionRequest,
+    })
+  },
+
+  releaseDeletionHold(
+    accessToken: string,
+    requestId: string,
+    correlationId: string,
+  ) {
+    return identityRequest<DeletionRequest>({
+      method: 'DELETE',
+      path: `/api/v1/admin/retention/deletions/${encodeURIComponent(requestId)}/holds`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseDeletionRequest,
+    })
   },
 }

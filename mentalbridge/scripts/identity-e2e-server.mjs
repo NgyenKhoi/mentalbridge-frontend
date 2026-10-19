@@ -266,6 +266,145 @@ const communityPostVersions = new Map([
   ['50000000-0000-4000-8000-000000000002', 1],
 ])
 
+const initialRetentionPolicies = [
+  {
+    policyId: 'IDENTITY_AUDIT_LOGS',
+    name: 'Chính sách bảo lưu nhật ký kiểm toán Identity',
+    ownerService: 'IDENTITY',
+    version: '1.0.0',
+    status: 'APPROVED',
+    retentionDays: 365,
+    automatedExecutionSupported: true,
+    manualHoldSupported: false,
+    requiresManualReview: false,
+    jobStatus: 'ACTIVE',
+    jobName: 'identityAuditLogRetentionJob',
+    description:
+      'Bảo lưu sự kiện kiểm toán tối thiểu hóa danh tính trong 365 ngày.',
+    lastExecution: {
+      executionId: 'exec-e2e-001',
+      policyId: 'IDENTITY_AUDIT_LOGS',
+      ownerService: 'IDENTITY',
+      jobName: 'identityAuditLogRetentionJob',
+      jobStatus: 'COMPLETED',
+      startedAt: '2026-10-19T02:00:00Z',
+      completedAt: '2026-10-19T02:05:00Z',
+      itemsEvaluated: 120,
+      recordsPurged: 15,
+      tombstonesCreated: 0,
+      holdsHonored: 0,
+    },
+  },
+  {
+    policyId: 'CARE_INACTIVE_ASSESSMENTS',
+    name: 'Chính sách bảo lưu kết quả đánh giá tâm lý Care',
+    ownerService: 'CARE',
+    version: '1.0.0',
+    status: 'APPROVED',
+    retentionDays: 730,
+    automatedExecutionSupported: false,
+    manualHoldSupported: true,
+    requiresManualReview: true,
+    jobStatus: 'PARTIALLY_SUPPORTED',
+    jobName: 'careAssessmentLifecycleSweepJob',
+    description:
+      'Chỉ Care Service có thẩm quyền dọn dẹp các bản ghi đánh giá lâm sàng quá 730 ngày.',
+    unsupportedCapabilityNotice:
+      'Care Service tự quản lý vòng đời đánh giá tâm lý; không kích hoạt trực tiếp từ Identity.',
+  },
+  {
+    policyId: 'CONTENT_INBOX_PURGE',
+    name: 'Chính sách bảo lưu thông báo quản trị Content',
+    ownerService: 'CONTENT',
+    version: '1.0.0',
+    status: 'APPROVED',
+    retentionDays: 90,
+    automatedExecutionSupported: false,
+    manualHoldSupported: false,
+    requiresManualReview: false,
+    jobStatus: 'UNAVAILABLE',
+    jobName: 'contentNotificationSweepJob',
+    description:
+      'Chỉ lưu trữ tạm thời tin thông báo nội dung không quan trọng.',
+    unsupportedCapabilityNotice:
+      'Chức năng dọn dẹp tự động của Content Service hiện chưa cung cấp endpoint kích hoạt từ Identity Service (Explicitly Unavailable).',
+  },
+]
+const retentionPolicies = structuredClone(initialRetentionPolicies)
+
+const initialDeletionRequests = [
+  {
+    requestId: 'del-e2e-001',
+    subjectReference:
+      'tombstone:948f9e80d3bc45aa91f6044dd5afbf78e2e001e2e001e2e001e2e001e2e001e2',
+    accountStatus: 'DELETION_PENDING',
+    status: 'IN_PROGRESS',
+    holdType: 'NONE',
+    holdReason: null,
+    retryCount: 1,
+    maxRetries: 3,
+    escalationState: 'NONE',
+    requestedAt: '2026-10-18T10:00:00Z',
+    scheduledExecutionAt: '2026-10-18T10:00:00Z',
+    ownerFacts: [
+      {
+        ownerService: 'IDENTITY',
+        status: 'COMPLETED',
+        completedAt: '2026-10-18T10:01:00Z',
+        evidenceReference: 'audit:del:identity:001',
+      },
+      {
+        ownerService: 'CARE',
+        status: 'PENDING',
+      },
+    ],
+  },
+  {
+    requestId: 'del-e2e-002',
+    subjectReference:
+      'tombstone:bbbb9e80d3bc45aa91f6044dd5afbf78e2e002e2e002e2e002e2e002e2e002e2',
+    accountStatus: 'DISABLED',
+    status: 'HELD',
+    holdType: 'LEGAL_HOLD',
+    holdReason: 'STATUTORY_INQUIRY',
+    retryCount: 0,
+    maxRetries: 3,
+    escalationState: 'NONE',
+    requestedAt: '2026-10-18T10:30:00Z',
+    scheduledExecutionAt: '2026-10-18T10:30:00Z',
+    ownerFacts: [
+      {
+        ownerService: 'IDENTITY',
+        status: 'HELD',
+        failureReason: 'Active legal hold blocks deletion execution',
+      },
+    ],
+  },
+  {
+    requestId: 'del-e2e-003',
+    subjectReference:
+      'tombstone:cccc9e80d3bc45aa91f6044dd5afbf78e2e003e2e003e2e003e2e003e2e003e2',
+    accountStatus: 'DELETION_PENDING',
+    status: 'FAILED',
+    holdType: 'NONE',
+    holdReason: null,
+    retryCount: 3,
+    maxRetries: 3,
+    escalationState: 'RETRY_EXHAUSTED',
+    requestedAt: '2026-10-17T08:00:00Z',
+    scheduledExecutionAt: '2026-10-17T08:00:00Z',
+    ownerFacts: [
+      {
+        ownerService: 'COMMUNITY',
+        status: 'FAILED',
+        failureReason:
+          'Community service timeout during post de-identification',
+      },
+    ],
+  },
+]
+const deletionRequests = structuredClone(initialDeletionRequests)
+
 const accessSessions = new Map()
 const refreshSessions = new Map()
 const anonymousCareSessions = new Map()
@@ -353,6 +492,16 @@ function reset() {
     0,
     adminAccounts.length,
     ...structuredClone(initialAdminAccounts),
+  )
+  retentionPolicies.splice(
+    0,
+    retentionPolicies.length,
+    ...structuredClone(initialRetentionPolicies),
+  )
+  deletionRequests.splice(
+    0,
+    deletionRequests.length,
+    ...structuredClone(initialDeletionRequests),
   )
   contentCreateByKey.clear()
   communityCreateByKey.clear()
@@ -3611,6 +3760,178 @@ const server = createServer(async (request, response) => {
       refreshSessions.delete(body.refreshToken)
       state.refreshCount += 1
       json(response, 200, tokenPair(actor, `${actor.accountId}-rotated`))
+      return
+    }
+
+    if (url.pathname === '/api/v1/admin/retention/policies') {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      if (request.method !== 'GET') {
+        problem(response, 405, 'METHOD_NOT_ALLOWED', 'Method is not allowed')
+        return
+      }
+      json(response, 200, retentionPolicies)
+      return
+    }
+
+    const sweepMatch = url.pathname.match(
+      /^\/api\/v1\/admin\/retention\/policies\/([^/]+)\/sweep$/,
+    )
+    if (request.method === 'POST' && sweepMatch) {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      const policyId = sweepMatch[1]
+      const target = retentionPolicies.find((p) => p.policyId === policyId)
+      if (!target) {
+        problem(
+          response,
+          404,
+          'POLICY_NOT_FOUND',
+          'Retention policy was not found',
+        )
+        return
+      }
+      if (!target.automatedExecutionSupported) {
+        problem(
+          response,
+          422,
+          'CAPABILITY_UNSUPPORTED',
+          target.unsupportedCapabilityNotice ??
+            'Capability unsupported by owner',
+        )
+        return
+      }
+      const executionRecord = {
+        executionId: `exec-e2e-${Date.now()}`,
+        policyId: target.policyId,
+        ownerService: target.ownerService,
+        jobName: target.jobName,
+        jobStatus: 'COMPLETED',
+        startedAt: new Date(Date.now() - 30000).toISOString(),
+        completedAt: new Date().toISOString(),
+        itemsEvaluated: 120,
+        recordsPurged: 15,
+        tombstonesCreated: 0,
+        holdsHonored: 0,
+      }
+      target.lastExecution = executionRecord
+      json(response, 200, executionRecord)
+      return
+    }
+
+    if (url.pathname === '/api/v1/admin/retention/deletions') {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      if (request.method !== 'GET') {
+        problem(response, 405, 'METHOD_NOT_ALLOWED', 'Method is not allowed')
+        return
+      }
+      const statusFilter = url.searchParams.get('status')
+      const holdFilter = url.searchParams.get('holdType')
+      const items = deletionRequests.filter((candidate) => {
+        return (
+          (!statusFilter || candidate.status === statusFilter) &&
+          (!holdFilter || candidate.holdType === holdFilter)
+        )
+      })
+      json(response, 200, { items, total: items.length, nextCursor: null })
+      return
+    }
+
+    const retryMatch = url.pathname.match(
+      /^\/api\/v1\/admin\/retention\/deletions\/([^/]+)\/retry$/,
+    )
+    if (request.method === 'POST' && retryMatch) {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      const requestId = retryMatch[1]
+      const target = deletionRequests.find((d) => d.requestId === requestId)
+      if (!target) {
+        problem(
+          response,
+          404,
+          'DELETION_REQUEST_NOT_FOUND',
+          'Deletion request was not found',
+        )
+        return
+      }
+      if (target.holdType !== 'NONE') {
+        problem(
+          response,
+          409,
+          'DELETION_HOLD_ACTIVE',
+          'Cannot execute deletion while an active hold is in place',
+        )
+        return
+      }
+      if (target.retryCount >= target.maxRetries) {
+        problem(
+          response,
+          409,
+          'DELETION_RETRY_EXHAUSTED',
+          'Deletion retry limit reached. Manual escalation is required.',
+        )
+        return
+      }
+      target.retryCount += 1
+      if (target.retryCount >= target.maxRetries) {
+        target.status = 'FAILED'
+        target.escalationState = 'RETRY_EXHAUSTED'
+      } else {
+        target.status = 'IN_PROGRESS'
+      }
+      json(response, 200, target)
+      return
+    }
+
+    const holdsMatch = url.pathname.match(
+      /^\/api\/v1\/admin\/retention\/deletions\/([^/]+)\/holds$/,
+    )
+    if (holdsMatch) {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      const requestId = holdsMatch[1]
+      const target = deletionRequests.find((d) => d.requestId === requestId)
+      if (!target) {
+        problem(
+          response,
+          404,
+          'DELETION_REQUEST_NOT_FOUND',
+          'Deletion request was not found',
+        )
+        return
+      }
+      if (request.method === 'PUT') {
+        const body = await readBody(request)
+        target.holdType = body.holdType
+        target.holdReason = body.holdReason
+        target.status = 'HELD'
+        json(response, 200, target)
+        return
+      }
+      if (request.method === 'DELETE') {
+        target.holdType = 'NONE'
+        target.holdReason = null
+        target.status = 'IN_PROGRESS'
+        json(response, 200, target)
+        return
+      }
+      problem(response, 405, 'METHOD_NOT_ALLOWED', 'Method is not allowed')
       return
     }
 

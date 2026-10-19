@@ -491,6 +491,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/retention/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List approved retention and deletion policies across platform owners
+         * @description Returns policy metadata, versions, owning services, execution status, and safe aggregate metrics.
+         */
+        get: operations["getRetentionPolicies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/retention/policies/{policyId}/sweep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger authoritative retention sweep for a supported owner policy
+         * @description Purges expired artifacts and tokens for supported owners (e.g. Identity). Fails closed for unsupported owners.
+         */
+        post: operations["triggerRetentionSweep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/retention/deletions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Browse traceable user deletion requests and owner completion facts
+         * @description Minimized identifiers and per-owner completion facts. No cross-owner direct DB access.
+         */
+        get: operations["getDeletionRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/retention/deletions/{requestId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bounded retry of deletion coordination
+         * @description Retries deletion coordination. Rejects if active hold applies (409) or max retries exceeded (409).
+         */
+        post: operations["retryDeletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/retention/deletions/{requestId}/holds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply legal or operational hold to a deletion request
+         * @description Blocks deletion execution until released by admin.
+         */
+        post: operations["applyDeletionHold"];
+        /**
+         * Release legal or operational hold from a deletion request
+         * @description Releases hold, permitting deletion coordination to resume.
+         */
+        delete: operations["releaseDeletionHold"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -827,6 +931,87 @@ export interface components {
             }[];
         } & {
             [key: string]: unknown;
+        };
+        RetentionPolicy: {
+            policyId: string;
+            name: string;
+            version: string;
+            /** @enum {string} */
+            ownerService: "IDENTITY" | "CARE" | "CONSULTATION" | "JOURNAL_AI" | "COMMUNITY" | "CONTENT";
+            /** @enum {string} */
+            status: "APPROVED" | "ENFORCED" | "PARTIALLY_SUPPORTED" | "UNAVAILABLE";
+            description: string;
+            retentionDays?: number | null;
+            jobName: string;
+            /** @enum {string} */
+            jobStatus: "ACTIVE" | "IDLE" | "PARTIALLY_SUPPORTED" | "UNAVAILABLE" | "SUCCEEDED" | "FAILED" | "RUNNING";
+            automatedExecutionSupported: boolean;
+            manualHoldSupported: boolean;
+            requiresManualReview: boolean;
+            unsupportedCapabilityNotice?: string | null;
+            lastExecution?: components["schemas"]["RetentionExecutionRecord"] | null;
+        };
+        RetentionExecutionRecord: {
+            /** Format: uuid */
+            executionId: string;
+            policyId: string;
+            ownerService: string;
+            jobName: string;
+            jobStatus: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+            itemsEvaluated: number;
+            recordsPurged: number;
+            tombstonesCreated: number;
+            holdsHonored: number;
+            failureCode?: string | null;
+        };
+        DeletionOwnerFact: {
+            /** @enum {string} */
+            ownerService: "IDENTITY" | "CARE" | "CONSULTATION" | "JOURNAL_AI" | "COMMUNITY" | "CONTENT";
+            /** @enum {string} */
+            status: "PENDING" | "COMPLETED" | "HELD" | "FAILED" | "UNAVAILABLE";
+            /** Format: date-time */
+            completedAt?: string | null;
+            evidenceReference?: string | null;
+            failureReason?: string | null;
+        };
+        DeletionRequest: {
+            /** Format: uuid */
+            requestId: string;
+            subjectReference: string;
+            accountStatus: components["schemas"]["AccountStatus"];
+            /** @enum {string} */
+            status: "PENDING" | "IN_PROGRESS" | "HELD" | "COMPLETED" | "FAILED";
+            /** @enum {string} */
+            holdType: "NONE" | "LEGAL_HOLD" | "OPERATIONAL_HOLD" | "DISPUTE_HOLD";
+            holdReason?: string | null;
+            retryCount: number;
+            maxRetries: number;
+            /** @enum {string} */
+            escalationState: "NONE" | "RETRY_EXHAUSTED" | "MANUAL_ESCALATION_REQUIRED";
+            failureCode?: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            scheduledExecutionAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+            /** Format: date-time */
+            lastAttemptAt?: string | null;
+            ownerFacts: components["schemas"]["DeletionOwnerFact"][];
+        };
+        DeletionRequestPage: {
+            items: components["schemas"]["DeletionRequest"][];
+            total: number;
+            nextCursor?: string | null;
+        };
+        ApplyHoldRequest: {
+            /** @enum {string} */
+            holdType: "LEGAL_HOLD" | "OPERATIONAL_HOLD" | "DISPUTE_HOLD";
+            holdReason: string;
         };
     };
     responses: {
@@ -1869,6 +2054,188 @@ export interface operations {
             400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getRetentionPolicies: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of approved retention policies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionPolicy"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    triggerRetentionSweep: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retention sweep execution result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionExecutionRecord"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Capability unsupported by owner */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getDeletionRequests: {
+        parameters: {
+            query?: {
+                status?: "PENDING" | "IN_PROGRESS" | "HELD" | "COMPLETED" | "FAILED";
+                holdType?: "NONE" | "LEGAL_HOLD" | "OPERATIONAL_HOLD" | "DISPUTE_HOLD";
+                limit?: number;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deletion requests page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestPage"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    retryDeletion: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated deletion request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequest"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    applyDeletionHold: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyHoldRequest"];
+            };
+        };
+        responses: {
+            /** @description Deletion request with hold applied */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequest"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    releaseDeletionHold: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deletion request with hold released */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequest"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
         };
     };
 }
