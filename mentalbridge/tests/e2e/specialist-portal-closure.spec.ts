@@ -193,7 +193,7 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
 
   await page.goto('/specialist/notifications')
   await expect(
-    page.getByRole('heading', { name: 'Trung tâm thông báo chưa khả dụng' }),
+    page.getByRole('heading', { name: 'Trung tâm thông báo', exact: true }),
   ).toBeVisible()
   await expect(page.getByText('Nguyễn Minh Anh')).toHaveCount(0)
   await expect(page.getByText('3', { exact: true })).toHaveCount(0)
