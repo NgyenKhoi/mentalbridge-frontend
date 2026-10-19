@@ -22,6 +22,8 @@ const client = vi.hoisted(() => ({
   reconcile: vi.fn(),
   companionExplanation: vi.fn(),
   reconcileJournal: vi.fn(),
+  continueCycle: vi.fn(),
+  occurrenceEngagement: vi.fn(),
 }))
 const session = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -66,6 +68,75 @@ describe('Native SupportPlan bounded BFF', () => {
     for (const method of Object.values(client))
       method.mockResolvedValue(nativeSupportPlanFixture())
   })
+  it.each([
+    [
+      'https://0.0.0.0:3000',
+      'staging.mentalbridge.online',
+      'https://staging.mentalbridge.online',
+    ],
+    ['http://0.0.0.0:3000', 'localhost:3000', 'http://localhost:3000'],
+  ])(
+    'accepts a mutation addressed to the public Host behind the proxy: %s',
+    async (baseUrl, host, origin) => {
+      const response = await supportPlanActionHandler(
+        new NextRequest(`${baseUrl}/api/care/v2/support-plans`, {
+          method: 'POST',
+          headers: {
+            host,
+            origin,
+            cookie: `${ACCESS_COOKIE_NAME}=server-token-only`,
+            'content-type': 'application/json',
+            'idempotency-key': key,
+          },
+          body: JSON.stringify({ sourceSupportEvaluationId: id }),
+        }),
+        'propose',
+      )
+      expect(response.status).toBe(201)
+      expect(client.propose).toHaveBeenCalledWith(
+        'server-token-only',
+        { sourceSupportEvaluationId: id },
+        key,
+        expect.any(String),
+      )
+    },
+  )
+  it.each([
+    undefined,
+    'null',
+    'not-a-url',
+    'https://other.test',
+    'http://staging.mentalbridge.online',
+    'https://staging.mentalbridge.online:3000',
+    'https://staging.mentalbridge.online/path',
+    'https://attacker@staging.mentalbridge.online',
+    'https://0.0.0.0:3000',
+  ])(
+    'rejects missing, malformed or foreign origin behind the proxy: %s',
+    async (origin) => {
+      const response = await supportPlanActionHandler(
+        new NextRequest('https://0.0.0.0:3000/api/care/v2/support-plans', {
+          method: 'POST',
+          headers: {
+            host: 'staging.mentalbridge.online',
+            ...(origin === undefined ? {} : { origin }),
+            'x-forwarded-host': origin ?? 'other.test',
+            'x-forwarded-proto': 'http',
+            cookie: `${ACCESS_COOKIE_NAME}=server-token-only`,
+            'content-type': 'application/json',
+            'idempotency-key': key,
+          },
+          body: JSON.stringify({ sourceSupportEvaluationId: id }),
+        }),
+        'propose',
+      )
+      expect(response.status).toBe(403)
+      expect(await response.json()).toMatchObject({
+        code: 'CROSS_ORIGIN_REQUEST',
+      })
+      expect(client.propose).not.toHaveBeenCalled()
+    },
+  )
   it('forwards exactly one Journal candidate using the authoritative USER session', async () => {
     client.reconcileJournal.mockResolvedValue({
       version: 1,
@@ -502,6 +573,86 @@ describe('Native SupportPlan bounded BFF', () => {
         )
       ).status,
     ).toBe(200)
+  })
+  it('continues a review-due cycle only with strong If-Match, a retry key and no body', async () => {
+    const headers = { 'if-match': '"3"', 'idempotency-key': key }
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('POST', undefined, headers),
+          'continueCycle',
+          id,
+        )
+      ).status,
+    ).toBe(200)
+    expect(client.continueCycle).toHaveBeenCalledWith(
+      'server-token-only',
+      id,
+      3,
+      key,
+      expect.any(String),
+    )
+    for (const [body, extra] of [
+      [undefined, { 'if-match': '"3"' }],
+      [undefined, { 'idempotency-key': key }],
+      [{ cycleNumber: 9 }, headers],
+    ] as const) {
+      expect(
+        (
+          await supportPlanActionHandler(
+            request('POST', body, extra),
+            'continueCycle',
+            id,
+          )
+        ).status,
+      ).toBe(400)
+    }
+    expect(client.continueCycle).toHaveBeenCalledTimes(1)
+  })
+  it('records native helpfulness only through the bounded engagement shape', async () => {
+    client.occurrenceEngagement.mockResolvedValue(emotionOccurrenceFixture())
+    const body = {
+      state: 'COMPLETED',
+      hidden: false,
+      helpfulness: 'HELPFUL',
+      barrierCode: null,
+      reflection: null,
+      summaryReuseApproved: false,
+    }
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('PUT', body, { 'if-match': '"1"' }),
+          'occurrenceEngagement',
+          id,
+        )
+      ).status,
+    ).toBe(200)
+    expect(client.occurrenceEngagement).toHaveBeenCalledWith(
+      'server-token-only',
+      id,
+      1,
+      body,
+      expect.any(String),
+    )
+    for (const invalid of [
+      { ...body, helpfulness: 'AMAZING' },
+      { ...body, completionEvidence: { factId: id } },
+      { ...body, state: 'SKIPPED' },
+      { ...body, state: ['SCHEDULED'], helpfulness: null },
+      { ...body, helpfulness: ['HELPFUL'] },
+    ]) {
+      expect(
+        (
+          await supportPlanActionHandler(
+            request('PUT', invalid, { 'if-match': '"1"' }),
+            'occurrenceEngagement',
+            id,
+          )
+        ).status,
+      ).toBe(400)
+    }
+    expect(client.occurrenceEngagement).toHaveBeenCalledTimes(1)
   })
   it('validates lifecycle reason and cursor bounds', async () => {
     expect(

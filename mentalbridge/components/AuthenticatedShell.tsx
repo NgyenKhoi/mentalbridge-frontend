@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { getCareProfile } from '@/features/assessment/api/browser-care'
+import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
 import SessionActions from '@/features/auth/components/SessionActions'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
@@ -104,6 +105,13 @@ const groups = [
           <path d="M4 5h16v11H8l-4 4V5Z" />
         </Svg>,
       ],
+      [
+        '/ai-companion',
+        'AI Companion',
+        <Svg key="ai">
+          <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
+        </Svg>,
+      ],
     ],
   },
   {
@@ -159,9 +167,10 @@ const labels: Record<string, string> = {
   '/support-guides': 'Gợi ý hỗ trợ',
   '/safety-directory': 'Hỗ trợ an toàn theo khu vực',
   '/support-plan': 'Kế hoạch hỗ trợ',
-  '/specialists': 'Chuyên gia',
+  '/specialists': 'Chuyên gia tư vấn',
   '/appointments': 'Lịch hẹn',
   '/messages': 'Tin nhắn',
+  '/ai-companion': 'AI Companion',
   '/resources': 'Tài nguyên',
   '/achievements': 'Bộ sưu tập hành trình',
   '/analytics': 'Phân tích',
@@ -189,6 +198,40 @@ export default function AuthenticatedShell({
   const [collapsed, setCollapsed] = useState(false)
   const [mobile, setMobile] = useState(false)
   const [profile, setProfile] = useState<{ displayName: string } | null>(null)
+  const [specialistSearch, setSpecialistSearch] = useState('')
+  const [generalSearch, setGeneralSearch] = useState('')
+  const [appointmentCount, setAppointmentCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    const resetSearch = () => setSpecialistSearch('')
+    const refreshAppointments = () => {
+      void appointmentBrowserClient
+        .list()
+        .then((result) => {
+          setAppointmentCount(
+            result.items.filter((item) =>
+              ['REQUESTED', 'CONFIRMED'].includes(item.status),
+            ).length,
+          )
+        })
+        .catch(() => setAppointmentCount(null))
+    }
+    window.addEventListener('mentalbridge:specialist-search-reset', resetSearch)
+    window.addEventListener(
+      'mentalbridge:appointment-requested',
+      refreshAppointments,
+    )
+    return () => {
+      window.removeEventListener(
+        'mentalbridge:specialist-search-reset',
+        resetSearch,
+      )
+      window.removeEventListener(
+        'mentalbridge:appointment-requested',
+        refreshAppointments,
+      )
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -228,7 +271,8 @@ export default function AuthenticatedShell({
     '/support-guides',
   ].some((route) => pathname === route || pathname.startsWith(`${route}/`))
   const isProgressiveRelaxation =
-    pathname === '/resources/00000000-0000-4000-8000-000000000215'
+    pathname === '/resources/00000000-0000-4000-8000-000000000215' ||
+    pathname === '/resources/00000000-0000-4000-8000-000000000216'
   const initials = useMemo(
     () =>
       (
@@ -282,6 +326,15 @@ export default function AuthenticatedShell({
                   <i>{item[2]}</i>
                   <span>{item[1]}</span>
                   {item[3] && <b>{item[3]}</b>}
+                  {item[0] === '/appointments' &&
+                    appointmentCount !== null &&
+                    appointmentCount > 0 && (
+                      <b
+                        aria-label={`${appointmentCount} lịch hẹn đang hoạt động`}
+                      >
+                        {appointmentCount}
+                      </b>
+                    )}
                 </Link>
               ))}
             </section>
@@ -315,7 +368,11 @@ export default function AuthenticatedShell({
             <nav className="pmr-top-crumb" aria-label="Đường dẫn trên cùng">
               <Link href="/resources">Tài nguyên</Link>
               <span aria-hidden="true">›</span>
-              <span aria-current="page">Thư giãn cơ tiến triển</span>
+              <span aria-current="page">
+                {pathname.endsWith('0216')
+                  ? 'Thả lỏng cơ theo từng vùng'
+                  : 'Thư giãn cơ tiến triển'}
+              </span>
             </nav>
           ) : isScreeningJourney ? (
             <nav
@@ -328,8 +385,16 @@ export default function AuthenticatedShell({
             </nav>
           ) : (
             <div className="ref-context">
-              <span>Không gian của bạn</span>
-              <strong>{resolveContextLabel(pathname)}</strong>
+              <span>
+                {pathname === '/appointments'
+                  ? 'Không gian cá nhân / '
+                  : 'Không gian của bạn'}
+              </span>
+              <strong>
+                {pathname === '/appointments'
+                  ? 'Lịch hẹn tư vấn'
+                  : resolveContextLabel(pathname)}
+              </strong>
             </div>
           )}
           <label>
@@ -338,24 +403,68 @@ export default function AuthenticatedShell({
               <path d="m21 21-4.3-4.3" />
             </Svg>
             <input
+              key={
+                pathname === '/specialists'
+                  ? 'specialist-search'
+                  : 'general-search'
+              }
               type="search"
+              aria-label={
+                pathname === '/specialists'
+                  ? 'Tìm chuyên gia theo tên hoặc chuyên môn'
+                  : 'Tìm kiếm'
+              }
+              value={
+                pathname === '/specialists' ? specialistSearch : generalSearch
+              }
+              onChange={(event) => {
+                if (pathname === '/specialists') {
+                  setSpecialistSearch(event.target.value)
+                  window.dispatchEvent(
+                    new CustomEvent('mentalbridge:specialist-search', {
+                      detail: event.target.value,
+                    }),
+                  )
+                } else {
+                  setGeneralSearch(event.target.value)
+                }
+              }}
               placeholder={
-                isProgressiveRelaxation
-                  ? 'Tìm kiếm chuyên gia, bài tập, nhật ký...'
-                  : 'Tìm kiếm chuyên gia, nhật ký...'
+                pathname === '/specialists'
+                  ? 'Tìm theo chuyên môn, tên bác sĩ...'
+                  : pathname === '/appointments'
+                    ? 'Tìm chuyên gia, nhật ký phiên...'
+                    : isProgressiveRelaxation
+                      ? 'Tìm kiếm chuyên gia, bài tập, nhật ký...'
+                      : 'Tìm kiếm chuyên gia, nhật ký...'
               }
             />
-            <kbd>{isProgressiveRelaxation ? '⌘K' : '⌘ K'}</kbd>
+            <kbd>⌘K</kbd>
           </label>
           <div className="ref-top-actions">
-            <Link
-              href="/community"
-              className="ref-community-link"
-              onClick={() => setMobile(false)}
-            >
-              <CommunityIcon />
-              <span>Cộng đồng</span>
-            </Link>
+            {pathname === '/appointments' && (
+              <button
+                type="button"
+                className="ref-new-booking-btn"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new Event('mentalbridge:open-appointment-booking'),
+                  )
+                }
+              >
+                <span>+ Đặt lịch mới</span>
+              </button>
+            )}
+            {pathname !== '/appointments' && (
+              <Link
+                href="/community"
+                className="ref-community-link"
+                onClick={() => setMobile(false)}
+              >
+                <CommunityIcon />
+                <span>Cộng đồng</span>
+              </Link>
+            )}
             {isProgressiveRelaxation && (
               <Link
                 href="/support-guides"

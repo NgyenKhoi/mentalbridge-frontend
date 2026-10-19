@@ -4,7 +4,7 @@ export const SUPPORT_AREAS = [
   'DEPRESSIVE_SYMPTOMS',
   'ANXIETY_SYMPTOMS',
 ] as const
-export const LANGUAGES = ['vi', 'en'] as const
+export const LANGUAGES = ['vi', 'en', 'zh', 'fr'] as const
 export type SupportArea = (typeof SUPPORT_AREAS)[number]
 export type SpecialistApprovalStatus =
   'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED'
@@ -1568,7 +1568,7 @@ export function parseSpecialistDiscoveryItem(
     displayName: item.displayName,
     bio: item.bio,
     supportAreas: [...item.supportAreas] as SupportArea[],
-    languages: [...item.languages] as ('vi' | 'en')[],
+    languages: [...item.languages] as (typeof LANGUAGES)[number][],
     yearsOfExperience: Number(item.yearsOfExperience),
     timezone: item.timezone,
     ratingAggregate:
@@ -1728,7 +1728,7 @@ export function parseProfile(value: unknown): SpecialistProfile | null {
     ) ||
     !Array.isArray(item.languages) ||
     !item.languages.every((language) =>
-      LANGUAGES.includes(language as 'vi' | 'en'),
+      LANGUAGES.includes(language as (typeof LANGUAGES)[number]),
     ) ||
     !Number.isInteger(item.yearsOfExperience) ||
     typeof item.timezone !== 'string' ||
@@ -2081,6 +2081,11 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
     (item.modality === 'IN_APP_VIDEO'
       ? 'livekit-video-completion-v1'
       : 'chat-session-completion-v1')
+  const completedSessionPolicyMatches =
+    sessionPolicyMatches ||
+    (item.modality === 'IN_APP_VIDEO' &&
+      item.sessionPolicyVersion === 'chat-session-completion-v1' &&
+      item.sessionOutcomeReason === 'EVIDENCE_REQUIREMENTS_MET')
   const cancellationFields = [
     item.cancelledAt,
     item.cancellationReason,
@@ -2119,15 +2124,11 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
       (item.modality !== 'IN_APP_VIDEO' || item.sessionOutcome === null)
     )
   if (item.status === 'COMPLETED') {
-    const historicalVideoCompletion =
-      item.modality === 'IN_APP_VIDEO' &&
-      item.sessionPolicyVersion === 'chat-session-completion-v1' &&
-      item.sessionOutcomeReason === 'EVIDENCE_REQUIREMENTS_MET'
     return (
       item.decidedAt !== null &&
       item.decisionReason === 'SPECIALIST_ACCEPTED' &&
       item.sessionOutcome === 'COMPLETED' &&
-      (sessionPolicyMatches || historicalVideoCompletion) &&
+      completedSessionPolicyMatches &&
       item.sessionEndedAt !== null &&
       item.sessionSettledAt !== null &&
       item.completionFactId !== null &&
@@ -2667,7 +2668,7 @@ export function parseProfileInput(value: unknown): SpecialistProfileInput {
     !Array.isArray(input.languages) ||
     input.languages.length < 1 ||
     !input.languages.every((language) =>
-      LANGUAGES.includes(language as 'vi' | 'en'),
+      LANGUAGES.includes(language as (typeof LANGUAGES)[number]),
     )
   ) {
     throw new ConsultationInputError('languages')
@@ -2726,4 +2727,81 @@ export function parseSpecialistDecisionInput(
 
 export function validUuid(value: string) {
   return uuid(value)
+}
+
+export type ConsultationOperationsSummary =
+  consultationComponents['schemas']['ConsultationOperationsSummary']
+export type AdminSpecialistOperationsSummary =
+  consultationComponents['schemas']['AdminSpecialistOperationsSummary']
+export type AdminAppointmentOperationsSummary =
+  consultationComponents['schemas']['AdminAppointmentOperationsSummary']
+
+export function parseConsultationOperationsSummary(
+  value: unknown,
+): ConsultationOperationsSummary | null {
+  const data = record(value)
+  if (!data) return null
+  if (
+    data.source !== 'CONSULTATION' ||
+    typeof data.asOf !== 'string' ||
+    !Number.isFinite(Date.parse(data.asOf))
+  ) {
+    return null
+  }
+  const spec = record(data.specialists)
+  const appt = record(data.appointments)
+  if (!spec || !appt) return null
+
+  if (
+    typeof spec.total !== 'number' ||
+    typeof spec.pendingReview !== 'number' ||
+    typeof spec.active !== 'number' ||
+    typeof spec.rejected !== 'number' ||
+    typeof spec.suspended !== 'number'
+  ) {
+    return null
+  }
+
+  if (
+    typeof appt.total !== 'number' ||
+    typeof appt.requested !== 'number' ||
+    typeof appt.confirmed !== 'number' ||
+    typeof appt.inProgress !== 'number' ||
+    typeof appt.sessionEnded !== 'number' ||
+    typeof appt.completed !== 'number' ||
+    typeof appt.cancelled !== 'number' ||
+    typeof appt.rejected !== 'number' ||
+    typeof appt.expired !== 'number' ||
+    typeof appt.userNoShow !== 'number' ||
+    typeof appt.specialistNoShow !== 'number' ||
+    typeof appt.bothNoShow !== 'number'
+  ) {
+    return null
+  }
+
+  return {
+    source: 'CONSULTATION',
+    asOf: data.asOf,
+    specialists: {
+      total: spec.total,
+      pendingReview: spec.pendingReview,
+      active: spec.active,
+      rejected: spec.rejected,
+      suspended: spec.suspended,
+    },
+    appointments: {
+      total: appt.total,
+      requested: appt.requested,
+      confirmed: appt.confirmed,
+      inProgress: appt.inProgress,
+      sessionEnded: appt.sessionEnded,
+      completed: appt.completed,
+      cancelled: appt.cancelled,
+      rejected: appt.rejected,
+      expired: appt.expired,
+      userNoShow: appt.userNoShow,
+      specialistNoShow: appt.specialistNoShow,
+      bothNoShow: appt.bothNoShow,
+    },
+  }
 }

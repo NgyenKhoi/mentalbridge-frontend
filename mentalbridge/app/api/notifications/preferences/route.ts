@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { correlationIdFrom } from '@/lib/auth/bff-response'
 import { readBoundedJson, RequestBodyError } from '@/lib/auth/request-body'
 import {
-  authenticatedContentUser,
+  authenticatedNotificationOwner,
   carryContentSession,
   contentAuthenticationFailure,
 } from '@/lib/content/authenticated-user'
@@ -22,9 +22,9 @@ function withEtag<T extends Response>(response: T, etag: string): T {
 
 export async function GET(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
-  let user: Awaited<ReturnType<typeof authenticatedContentUser>>
+  let user: Awaited<ReturnType<typeof authenticatedNotificationOwner>>
   try {
-    user = await authenticatedContentUser(request, correlationId)
+    user = await authenticatedNotificationOwner(request, correlationId)
   } catch (error) {
     return contentAuthenticationFailure(error, correlationId)
   }
@@ -48,9 +48,9 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
-  let user: Awaited<ReturnType<typeof authenticatedContentUser>>
+  let user: Awaited<ReturnType<typeof authenticatedNotificationOwner>>
   try {
-    user = await authenticatedContentUser(request, correlationId)
+    user = await authenticatedNotificationOwner(request, correlationId)
   } catch (error) {
     return contentAuthenticationFailure(error, correlationId)
   }

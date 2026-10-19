@@ -29,7 +29,7 @@ function respond(body: Record<string, unknown>, status = 200) {
 describe('ResourcesList', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('announces the loading state and keeps future scope explicit', () => {
+  it('announces loading and exposes the supported consultation destinations', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       () => new Promise(() => {}),
     )
@@ -38,7 +38,12 @@ describe('ResourcesList', () => {
 
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByText('Đang tải...')).toBeInTheDocument()
-    expect(screen.getByText('Chưa khả dụng')).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Xem chuyên gia' }),
+    ).toHaveAttribute('href', '/specialists')
+    expect(
+      screen.getByRole('link', { name: 'xem quyền lợi tư vấn' }),
+    ).toHaveAttribute('href', '/subscription')
   })
 
   it('routes every reviewed card through Resource Detail with a meaningful action', async () => {

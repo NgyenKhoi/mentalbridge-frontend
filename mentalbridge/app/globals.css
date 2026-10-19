@@ -1,6 +1,25 @@
 :root {
-  scrollbar-color: var(--teal) var(--bg);
-  scrollbar-width: auto;
+  --color-app-bg: #f6f9fc;
+  --color-surface: #ffffff;
+  --color-surface-soft: #eef2fd;
+  --color-surface-soft-hover: #e2e8f8;
+  --color-primary: #1f5c3f;
+  --color-primary-dark: #174a32;
+  --color-primary-hover: #184a32;
+  --color-primary-action: var(--color-primary);
+  --color-on-primary: #ffffff;
+  --color-primary-soft: #d9f3e4;
+  --color-mint: var(--color-primary-soft);
+  --color-amber-soft: #fef3c7;
+  --color-amber: #b45309;
+  --color-danger-soft: #fde3df;
+  --color-danger: #b3402f;
+  --color-text: #1a1c1e;
+  --color-text-muted: #5b6470;
+  --color-text-faint: #6b7280;
+  --color-border: rgba(26, 28, 30, 0.07);
+  --shadow-card: 0 4px 24px rgba(20, 40, 60, 0.05);
+  --radius-card: 28px;
   --bg: #f1f4eb;
   --bg-deep: #e7ede1;
   --surface: #ffffff;
@@ -57,8 +76,8 @@
   --focus-ring: 0 0 0 3px rgba(61, 122, 110, 0.24);
   /* next/font exposes these named families; aliases at :root cannot depend on
      variables that are introduced later by a class on body. */
-  --font-fraunces: 'Fraunces', 'Fraunces Fallback';
-  --font-be-vietnam: 'Be Vietnam Pro', 'Be Vietnam Pro Fallback';
+  --font-fraunces: var(--font-fraunces-variable, 'Fraunces'), 'Fraunces Fallback', Georgia, serif;
+  --font-be-vietnam: var(--font-be-vietnam-variable, 'Be Vietnam Pro'), 'Be Vietnam Pro Fallback', system-ui, -apple-system, sans-serif;
   /* Alias cho các dashboard pages */
   --font-display: var(--font-fraunces);
   --font-body: var(--font-be-vietnam);
@@ -78,6 +97,27 @@
   --type-link-size: 10px;
   --type-note-size: 12px;
   --text: #1b2a22;
+}
+
+:root[data-theme='dark'] {
+  --color-app-bg: #10151a;
+  --color-surface: #171e25;
+  --color-surface-soft: #1f2833;
+  --color-surface-soft-hover: #293541;
+  --color-primary: #7bcda1;
+  --color-primary-dark: #174a32;
+  --color-primary-hover: #184a32;
+  --color-primary-action: #1f5c3f;
+  --color-primary-soft: #1f3a2c;
+  --color-amber-soft: #3a3015;
+  --color-amber: #f2c066;
+  --color-danger-soft: #3a2220;
+  --color-danger: #f0a090;
+  --color-text: #eceff2;
+  --color-text-muted: #b7c0ca;
+  --color-text-faint: #9da7b4;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.2);
 }
 
 * {
@@ -4652,9 +4692,7 @@ nav {
     .light-select-trigger
   ):not(.light-select-option):not([class*='close']):not(
     [class*='collapse']
-  ):not([class*='menu']):not([class*='bell']):not([class*='logout']):not(
-    :where([data-availability-ui] *, [data-specialist-journey] *)
-  ) {
+  ):not([class*='menu']):not([class*='bell']):not([class*='logout']):not([data-appointment-ui]):not([data-availability-ui]):not([data-clients-ui]):not([data-messages-ui]):not([data-earnings-ui]):not([data-profile-ui]) {
   background: transparent !important;
   background-color: transparent !important;
 }
@@ -4662,9 +4700,7 @@ nav {
 [class*='specialist-']
   button:not(.btn-primary):not(.btn-outline):not(.btn-ghost):not(
     .light-select-trigger
-  ):not(.light-select-option):not([class*='close']):not(
-    :where([data-availability-ui] *, [data-specialist-journey] *)
-  ) {
+  ):not(.light-select-option):not([class*='close']):not([data-appointment-ui]):not([data-availability-ui]):not([data-clients-ui]):not([data-messages-ui]):not([data-earnings-ui]):not([data-profile-ui]) {
   background: transparent !important;
   background-color: transparent !important;
 }

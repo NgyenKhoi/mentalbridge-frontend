@@ -117,7 +117,9 @@ describe('SupportPlanPersonalization', () => {
     expect(
       await screen.findByText('Bản đề xuất hiện tại cần được tạo lại'),
     ).toBeVisible()
-    expect(screen.getByText(/hủy bản cũ rồi tạo lại/i)).toBeVisible()
+    expect(
+      screen.getByText(/tạo lại theo lựa chọn mới trước khi bắt đầu/i),
+    ).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản đề xuất' }))
     expect(onReviewPlan).toHaveBeenCalledWith(
       'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION',

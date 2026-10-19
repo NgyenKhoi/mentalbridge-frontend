@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '@/lib/api/api-error'
 import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
 
 const careMocks = vi.hoisted(() => ({
-  currentScreeningEpisode: vi.fn(),
-  generateSupportGuide: vi.fn(),
+  currentGuidedJourney: vi.fn(),
+  ensureScreeningEpisodeSupportGuide: vi.fn(),
   supportGuideHistory: vi.fn(),
 }))
 const sessionMocks = vi.hoisted(() => ({
@@ -22,19 +23,12 @@ vi.mock('@/lib/auth/session-service', () => ({
 
 import { GET, POST } from './route'
 
-const phq9 = '10000000-0000-4000-8000-000000000511'
-const gad7 = '20000000-0000-4000-8000-000000000511'
+const episodeId = '10000000-0000-4000-8000-000000000668'
 
 function request(method: 'GET' | 'POST', suffix = '') {
-  const cookies = [`${ACCESS_COOKIE_NAME}=identity-access-secret`]
   return new NextRequest(`http://localhost/api/care/support-guides${suffix}`, {
     method,
-    headers: {
-      cookie: cookies.join('; '),
-      ...(method === 'POST'
-        ? { 'idempotency-key': 'support-guide-browser-0001' }
-        : {}),
-    },
+    headers: { cookie: `${ACCESS_COOKIE_NAME}=identity-access-secret` },
   })
 }
 
@@ -49,43 +43,72 @@ describe('/api/care/support-guides', () => {
         emailVerified: true,
       },
     })
-    careMocks.currentScreeningEpisode.mockResolvedValue({
-      status: 'COMPLETED',
-      phq9AssessmentId: phq9,
-      gad7AssessmentId: gad7,
+    careMocks.currentGuidedJourney.mockResolvedValue({
+      stage: 'GUIDE_REQUIRED',
+      episodeId,
     })
   })
 
-  it('generates only from server-held exact assessment references', async () => {
-    careMocks.generateSupportGuide.mockResolvedValue({
+  it('ensures the Guide for the Care-selected completed episode without client evidence or keys', async () => {
+    careMocks.ensureScreeningEpisodeSupportGuide.mockResolvedValue({
       supportGuideId: 'guide',
     })
     const response = await POST(request('POST'))
 
-    expect(response.status).toBe(201)
-    expect(careMocks.generateSupportGuide).toHaveBeenCalledWith(
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(careMocks.ensureScreeningEpisodeSupportGuide).toHaveBeenCalledWith(
       'identity-access-secret',
-      { phq9AssessmentId: phq9, gad7AssessmentId: gad7 },
-      'support-guide-browser-0001',
+      episodeId,
       expect.any(String),
     )
   })
 
-  it('fails closed when the guided assessment references are absent', async () => {
-    careMocks.currentScreeningEpisode.mockResolvedValue({
-      status: 'IN_PROGRESS',
-      phq9AssessmentId: null,
-      gad7AssessmentId: null,
+  it('fails closed when Care has no completed initial check', async () => {
+    careMocks.currentGuidedJourney.mockResolvedValue({
+      stage: 'ASSESSMENT_REQUIRED',
+      episodeId: null,
     })
     const response = await POST(request('POST'))
 
     expect(response.status).toBe(409)
     await expect(response.json()).resolves.toMatchObject({
       code: 'INITIAL_CHECK_INCOMPLETE',
-      title:
-        'Cần hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu trước khi tạo gợi ý hỗ trợ.',
     })
-    expect(careMocks.generateSupportGuide).not.toHaveBeenCalled()
+    expect(careMocks.ensureScreeningEpisodeSupportGuide).not.toHaveBeenCalled()
+  })
+
+  it('passes Care ensure rejections through without inventing a Guide', async () => {
+    careMocks.ensureScreeningEpisodeSupportGuide.mockRejectedValue(
+      new ApiError({
+        message: 'Not current',
+        code: 'SCREENING_EPISODE_NOT_CURRENT',
+        status: 409,
+      }),
+    )
+
+    const response = await POST(request('POST'))
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'SCREENING_EPISODE_NOT_CURRENT',
+    })
+  })
+
+  it('requires a session before asking Care to prepare a Guide', async () => {
+    sessionMocks.resolveSession.mockRejectedValue(
+      new ApiError({
+        code: 'SESSION_REQUIRED',
+        status: 401,
+        message: 'secret',
+      }),
+    )
+
+    const response = await POST(request('POST'))
+
+    expect(response.status).toBe(401)
+    expect(careMocks.currentGuidedJourney).not.toHaveBeenCalled()
+    expect(careMocks.ensureScreeningEpisodeSupportGuide).not.toHaveBeenCalled()
   })
 
   it('forwards bounded history pagination under the authenticated user', async () => {

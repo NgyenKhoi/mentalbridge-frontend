@@ -412,6 +412,14 @@ test.describe('Community feed journey', () => {
 
     await page.getByLabel('Tên hiển thị hoặc biệt danh').fill('Lá Nhỏ')
     await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
+    await expect(page.getByText('Đã lưu danh tính cộng đồng')).toBeVisible()
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          Boolean(window.history.state?.mentalbridgeDraftGuard),
+        ),
+      )
+      .toBe(false)
     await page.reload()
     await expect(page.getByLabel('Tên hiển thị hoặc biệt danh')).toHaveValue(
       'Lá Nhỏ',

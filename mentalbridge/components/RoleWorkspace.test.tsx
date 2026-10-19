@@ -12,7 +12,16 @@ vi.mock('framer-motion', () => ({
   ),
 }))
 vi.mock('@/features/auth/components/SessionActions', () => ({
-  default: () => <button type="button">Người dùng</button>,
+  default: ({ displayName }: { displayName: string }) => (
+    <button type="button">{displayName}</button>
+  ),
+}))
+vi.mock('@/features/specialist-profile/api/browser-client', () => ({
+  browserConsultation: {
+    own: vi
+      .fn()
+      .mockResolvedValue({ data: { displayName: 'Chuyên gia từ hồ sơ' } }),
+  },
 }))
 vi.mock('@/features/auth/components/WorkspaceSwitcher', () => ({
   default: () => null,
@@ -53,6 +62,10 @@ vi.mock(
 vi.mock('./SpecialistEarningsManager', () => ({
   default: () => <h1>Thu nhập thật</h1>,
 }))
+vi.mock(
+  '@/features/notifications/components/SpecialistNotificationCenter',
+  () => ({ default: () => <h1>Trung tâm thông báo thật</h1> }),
+)
 
 const props = {
   role: 'specialist' as const,
@@ -60,7 +73,7 @@ const props = {
 }
 
 describe('RoleWorkspace specialist production closure', () => {
-  it('exposes only owner-backed destinations without a fixed notification badge', () => {
+  it('keeps the new navigation and renders the authenticated profile identity', async () => {
     render(<RoleWorkspace {...props} sectionKey="dashboard" />)
 
     const navigation = screen.getByRole('navigation', {
@@ -77,13 +90,21 @@ describe('RoleWorkspace specialist production closure', () => {
       within(navigation).queryByRole('link', { name: /Notifications/i }),
     ).not.toBeInTheDocument()
     expect(screen.queryByText('3')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Thông báo')).not.toBeInTheDocument()
-    expect(within(screen.getByRole('complementary')).getByText('Chuyên gia từ hồ sơ')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Thông báo' })).toHaveAttribute(
+      'href',
+      '/specialist/notifications',
+    )
+    expect(
+      await within(screen.getByRole('complementary')).findByRole('button', {
+        name: 'Chuyên gia từ hồ sơ',
+      }),
+    ).toBeInTheDocument()
     expect(screen.queryByText('Người dùng')).not.toBeInTheDocument()
   })
 
-  it('does not expose unsupported appointment creation actions or modalities', () => {
+  it('does not expose unsupported appointment creation actions or modalities', async () => {
     render(<RoleWorkspace {...props} sectionKey="appointments" />)
+    await screen.findByRole('button', { name: 'Chuyên gia từ hồ sơ' })
 
     expect(screen.getByRole('heading', { name: 'Lịch hẹn thật' })).toBeVisible()
     expect(
@@ -97,22 +118,24 @@ describe('RoleWorkspace specialist production closure', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('renders the authoritative specialist earnings destination', () => {
+  it('renders the authoritative specialist earnings destination', async () => {
     render(<RoleWorkspace {...props} sectionKey="earnings" />)
+    await screen.findByRole('button', { name: 'Chuyên gia từ hồ sơ' })
 
     expect(screen.getByRole('heading', { name: 'Thu nhập thật' })).toBeVisible()
   })
 
-  it.each([['notifications', 'Trung tâm thông báo chưa khả dụng']])(
-    'shows truthful deferred state for %s',
-    (sectionKey, heading) => {
-    render(<RoleWorkspace {...props} sectionKey={sectionKey} />)
+  it.each([['notifications', 'Trung tâm thông báo thật']])(
+    'shows the owner-backed state for %s',
+    async (sectionKey, heading) => {
+      render(<RoleWorkspace {...props} sectionKey={sectionKey} />)
+      await screen.findByRole('button', { name: 'Chuyên gia từ hồ sơ' })
 
-    expect(screen.getByRole('heading', { name: heading })).toBeVisible()
-    expect(
-      screen.queryByText(/8\.400\.000|6\.800\.000|PayOS/),
-    ).not.toBeInTheDocument()
-    expect(screen.queryByText('Nguyễn Minh Anh')).not.toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: heading })).toBeVisible()
+      expect(
+        screen.queryByText(/8\.400\.000|6\.800\.000|PayOS/),
+      ).not.toBeInTheDocument()
+      expect(screen.queryByText('Nguyễn Minh Anh')).not.toBeInTheDocument()
     },
   )
 })

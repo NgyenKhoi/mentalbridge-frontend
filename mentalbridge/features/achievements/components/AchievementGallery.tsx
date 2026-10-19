@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   BookOpenText,
   Check,
-  Eye,
-  EyeOff,
   HeartHandshake,
   Leaf,
   LockKeyhole,
@@ -17,7 +15,6 @@ import {
 import { ApiError } from '@/lib/api/api-error'
 import {
   getAchievements,
-  setAchievementVisibility,
   type AchievementCollection,
   type AchievementItem,
 } from '../api/browser-achievements'
@@ -115,10 +112,8 @@ export default function AchievementGallery() {
   const [collection, setCollection] = useState<AchievementCollection | null>(
     null,
   )
-  const [etag, setEtag] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const timezone = useMemo(
     () =>
       Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh',
@@ -131,10 +126,8 @@ export default function AchievementGallery() {
     try {
       const result = await getAchievements(timezone)
       setCollection(result.collection)
-      setEtag(result.etag)
     } catch (requestError) {
       setCollection(null)
-      setEtag(null)
       setError(errorMessage(requestError))
     } finally {
       setLoading(false)
@@ -147,12 +140,10 @@ export default function AchievementGallery() {
       .then((result) => {
         if (!active) return
         setCollection(result.collection)
-        setEtag(result.etag)
       })
       .catch((requestError: unknown) => {
         if (!active) return
         setCollection(null)
-        setEtag(null)
         setError(errorMessage(requestError))
       })
       .finally(() => {
@@ -162,30 +153,6 @@ export default function AchievementGallery() {
       active = false
     }
   }, [timezone])
-
-  const toggleVisibility = async () => {
-    if (!collection || !etag || saving) return
-    setSaving(true)
-    setError(null)
-    try {
-      const result = await setAchievementVisibility(
-        timezone,
-        collection.visibilityState === 'VISIBLE' ? 'HIDDEN' : 'VISIBLE',
-        etag,
-      )
-      setCollection(result.collection)
-      setEtag(result.etag)
-    } catch (requestError) {
-      setError(
-        requestError instanceof ApiError && requestError.status === 412
-          ? 'Tùy chọn đã thay đổi ở nơi khác. Bộ sưu tập đang được tải lại.'
-          : errorMessage(requestError),
-      )
-      await load()
-    } finally {
-      setSaving(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -247,94 +214,48 @@ export default function AchievementGallery() {
         </div>
       </header>
 
-      <section
-        className={styles.privacy}
-        aria-labelledby="achievement-privacy-title"
-      >
-        <span className={styles.privacyIcon} aria-hidden="true">
-          {collection.visibilityState === 'VISIBLE' ? <Eye /> : <EyeOff />}
-        </span>
-        <div>
-          <h2 id="achievement-privacy-title">Chỉ bạn thấy bộ sưu tập này</h2>
-          <p>
-            Việc ẩn không ảnh hưởng đến Nhật ký, check-in cảm xúc, Tài nguyên
-            hay Kế hoạch hỗ trợ.
-          </p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={collection.visibilityState === 'VISIBLE'}
-          aria-label="Hiện bộ sưu tập"
-          disabled={saving}
-          onClick={() => void toggleVisibility()}
-          className={styles.switch}
-        >
-          <span />
-        </button>
-      </section>
-
-      {error ? <p className={styles.inlineError}>{error}</p> : null}
-
-      {collection.visibilityState === 'HIDDEN' ? (
-        <section className={styles.hiddenState}>
-          <EyeOff aria-hidden="true" />
-          <h2>Bộ sưu tập đang được ẩn</h2>
-          <p>Các dấu mốc vẫn được giữ nguyên và chỉ hiện lại khi bạn chọn.</p>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void toggleVisibility()}
-          >
-            <Eye aria-hidden="true" /> Hiện bộ sưu tập
-          </button>
-        </section>
-      ) : (
-        <div className={styles.domains}>
-          {(Object.keys(domainMeta) as Array<keyof typeof domainMeta>).map(
-            (domain) => {
-              const meta = domainMeta[domain]
-              const Icon = meta.icon
-              const items = collection.items.filter(
-                (item) => item.domain === domain,
-              )
-              return (
-                <section
-                  className={styles.domain}
-                  key={domain}
-                  aria-labelledby={`domain-${domain}`}
-                >
-                  <header>
-                    <span aria-hidden="true">
-                      <Icon />
-                    </span>
-                    <div>
-                      <h2 id={`domain-${domain}`}>{meta.title}</h2>
-                      <p>{meta.note}</p>
-                    </div>
-                  </header>
-                  <div className={styles.cards}>
-                    {items.map((item) => (
-                      <AchievementCard key={item.definitionId} item={item} />
-                    ))}
+      <div className={styles.domains}>
+        {(Object.keys(domainMeta) as Array<keyof typeof domainMeta>).map(
+          (domain) => {
+            const meta = domainMeta[domain]
+            const Icon = meta.icon
+            const items = collection.items.filter(
+              (item) => item.domain === domain,
+            )
+            return (
+              <section
+                className={styles.domain}
+                key={domain}
+                aria-labelledby={`domain-${domain}`}
+              >
+                <header>
+                  <span aria-hidden="true">
+                    <Icon />
+                  </span>
+                  <div>
+                    <h2 id={`domain-${domain}`}>{meta.title}</h2>
+                    <p>{meta.note}</p>
                   </div>
-                  {items.some(
-                    ({ status }) => status === 'SOURCE_UNAVAILABLE',
-                  ) ? (
-                    <button
-                      className={styles.retry}
-                      type="button"
-                      onClick={() => void load()}
-                    >
-                      <RefreshCw aria-hidden="true" /> Thử lại kết nối
-                    </button>
-                  ) : null}
-                </section>
-              )
-            },
-          )}
-        </div>
-      )}
+                </header>
+                <div className={styles.cards}>
+                  {items.map((item) => (
+                    <AchievementCard key={item.definitionId} item={item} />
+                  ))}
+                </div>
+                {items.some(({ status }) => status === 'SOURCE_UNAVAILABLE') ? (
+                  <button
+                    className={styles.retry}
+                    type="button"
+                    onClick={() => void load()}
+                  >
+                    <RefreshCw aria-hidden="true" /> Thử lại kết nối
+                  </button>
+                ) : null}
+              </section>
+            )
+          },
+        )}
+      </div>
 
       <aside className={styles.disclosure}>
         <LockKeyhole aria-hidden="true" />

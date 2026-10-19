@@ -24,18 +24,27 @@ test('MB-558 separates Consultation-owned credits from reservation capacity on m
   await page.goto('/subscription')
   expect((await response).status()).toBe(200)
 
-  const creditPanel = page.getByRole('region', { name: 'Plus' })
-  await expect(creditPanel.getByRole('heading', { name: 'Plus' })).toBeVisible()
-  await expect(creditPanel.getByText(/Lượt tư vấn dùng thử/)).toBeVisible()
-  await expect(creditPanel.getByText('Còn lại').locator('..')).toContainText(
-    '4',
-  )
+  const creditPanel = page.getByRole('region', { name: 'Gói Plus dùng thử' })
+  await expect(creditPanel).toBeVisible()
+  await expect(
+    creditPanel.getByText('Còn lại', { exact: true }).locator('..'),
+  ).toContainText('4')
+  await expect(
+    creditPanel.getByText(/Bạn đang giữ 1 lịch hẹn tư vấn/),
+  ).toBeVisible()
+  const plus = page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: 'Plus', exact: true }),
+  })
+  await expect(plus.getByText('2 lịch', { exact: true })).toBeVisible()
+  await expect(
+    page.getByText(/Nâng Plus lên Premium thu đủ giá Premium/),
+  ).toBeVisible()
+  await creditPanel.getByRole('button', { name: 'Lịch sử lượt tư vấn' }).click()
+  await expect(
+    creditPanel.getByRole('heading', { name: 'Lịch sử lượt tư vấn' }),
+  ).toBeVisible()
   await expect(
     creditPanel.getByRole('heading', { name: '1/2 lịch' }),
   ).toBeVisible()
-  await expect(creditPanel.getByText(/giới hạn riêng/)).toBeVisible()
-  await expect(
-    creditPanel.getByText(/chỉ cấp thêm phần chênh lệch/),
-  ).toBeVisible()
-  await expect(creditPanel.getByText(/Đã cấp/)).toBeVisible()
+  await expect(creditPanel.getByText('Đã cấp', { exact: true })).toBeVisible()
 })

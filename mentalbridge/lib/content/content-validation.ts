@@ -23,6 +23,8 @@ export type ResourceProgressUpdate =
 export type ResourceJourney = components['schemas']['ResourceJourney']
 export type ResourceJourneyRequest =
   components['schemas']['ResourceJourneyRequest']
+export type NotificationOperationsSummary =
+  components['schemas']['NotificationOperationsSummary']
 export type ResourceBookmark = components['schemas']['ResourceBookmark']
 export type ResourceBookmarkList = components['schemas']['ResourceBookmarkList']
 export type ResourceBingoBoard = components['schemas']['ResourceBingoBoard']
@@ -30,8 +32,13 @@ export type ResourceBingoSelfConfirmationUpdate =
   components['schemas']['ResourceBingoSelfConfirmationUpdate']
 export type AchievementCollection =
   components['schemas']['AchievementCollection']
+export type AchievementItem = components['schemas']['AchievementItem']
 export type AchievementPreferenceUpdate =
   components['schemas']['AchievementPreferenceUpdate']
+export type ResourceRewardReadModel =
+  components['schemas']['ResourceRewardReadModel']
+export type ResourceRewardVisibilityUpdate =
+  components['schemas']['ResourceRewardVisibilityUpdate']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -77,6 +84,7 @@ const COMPLETION_MODES = new Set([
 ])
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/
 const ACTION_ID = /^[A-Za-z0-9:_-]{1,64}$/
+const REWARD_VERSION = /^[a-z0-9][a-z0-9-]{2,63}$/
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -625,10 +633,14 @@ export function parseAchievementCollection(
   }
 
   const definitionIds = new Set<string>()
+  const sanitizedItems: AchievementItem[] = []
   for (const itemValue of collection.items) {
-    const item = record(itemValue)
+    const rawItem = record(itemValue)
+    if (!rawItem) return null
+    const item = { ...rawItem }
+    delete item.target
+    delete item.unit
     if (
-      !item ||
       !exactKeys(item, [
         'definitionId',
         'domain',
@@ -705,8 +717,12 @@ export function parseAchievementCollection(
       return null
     }
     definitionIds.add(item.definitionId)
+    sanitizedItems.push(item as unknown as AchievementItem)
   }
-  return collection as AchievementCollection
+  return {
+    ...collection,
+    items: sanitizedItems,
+  } as AchievementCollection
 }
 
 export function parseAchievementPreferenceUpdate(
@@ -765,6 +781,98 @@ export function parseResourceProgressUpdate(
     return null
   }
   return update as ResourceProgressUpdate
+}
+
+export function parseResourceRewardReadModel(
+  value: unknown,
+): ResourceRewardReadModel | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'totalXp',
+      'level',
+      'nextLevelXp',
+      'visibilityState',
+      'preferenceVersion',
+      'policyVersion',
+      'sourceAvailability',
+      'calculatedAt',
+      'recentGrants',
+    ]) ||
+    !Number.isSafeInteger(item.totalXp) ||
+    (item.totalXp as number) < 0 ||
+    !Number.isSafeInteger(item.level) ||
+    (item.level as number) < 0 ||
+    !(
+      item.nextLevelXp === null ||
+      (Number.isSafeInteger(item.nextLevelXp) &&
+        (item.nextLevelXp as number) >= 0)
+    ) ||
+    !['VISIBLE', 'HIDDEN'].includes(item.visibilityState as string) ||
+    typeof item.preferenceVersion !== 'string' ||
+    !CONTENT_VERSION.test(item.preferenceVersion) ||
+    typeof item.policyVersion !== 'string' ||
+    !REWARD_VERSION.test(item.policyVersion) ||
+    item.sourceAvailability !== 'AVAILABLE' ||
+    !dateTime(item.calculatedAt) ||
+    !Array.isArray(item.recentGrants) ||
+    item.recentGrants.length > 10 ||
+    !item.recentGrants.every((value) => {
+      const grant = record(value)
+      return Boolean(
+        grant &&
+        exactKeys(grant, [
+          'grantId',
+          'kind',
+          'xp',
+          'resourceId',
+          'contentVersion',
+          'localDate',
+          'grantedAt',
+          'sourceReference',
+          'ruleVersion',
+        ]) &&
+        typeof grant.grantId === 'string' &&
+        /^[a-f0-9]{64}$/.test(grant.grantId) &&
+        ['RESOURCE_COMPLETION', 'VERIFIED_PRACTICE'].includes(
+          grant.kind as string,
+        ) &&
+        Number.isSafeInteger(grant.xp) &&
+        (grant.xp as number) >= 1 &&
+        (grant.xp as number) <= 100 &&
+        typeof grant.resourceId === 'string' &&
+        UUID.test(grant.resourceId) &&
+        typeof grant.contentVersion === 'string' &&
+        CONTENT_VERSION.test(grant.contentVersion) &&
+        typeof grant.localDate === 'string' &&
+        isLocalDate(grant.localDate) &&
+        dateTime(grant.grantedAt) &&
+        typeof grant.sourceReference === 'string' &&
+        grant.sourceReference.length >= 1 &&
+        grant.sourceReference.length <= 160 &&
+        typeof grant.ruleVersion === 'string' &&
+        REWARD_VERSION.test(grant.ruleVersion),
+      )
+    })
+  ) {
+    return null
+  }
+  return item as ResourceRewardReadModel
+}
+
+export function parseResourceRewardVisibilityUpdate(
+  value: unknown,
+): ResourceRewardVisibilityUpdate | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, ['visibilityState']) ||
+    !['VISIBLE', 'HIDDEN'].includes(item.visibilityState as string)
+  ) {
+    return null
+  }
+  return item as ResourceRewardVisibilityUpdate
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -1031,6 +1139,7 @@ const TARGETLESS_NOTIFICATION_ACTIONS: Readonly<Record<string, string>> = {
   OPEN_APPOINTMENTS: '/appointments',
   OPEN_RESOURCES: '/resources',
   OPEN_ASSESSMENTS: '/assessments',
+  OPEN_SPECIALIST_APPOINTMENTS: '/specialist/appointments',
 }
 
 export function parseNotification(value: unknown): Notification | null {
@@ -1187,4 +1296,68 @@ export function parseContentProblem(
     }
   }
   return problem as ContentProblem
+}
+
+export function parseNotificationOperationsSummary(
+  value: unknown,
+): NotificationOperationsSummary | null {
+  const data = record(value)
+  if (!data) return null
+  if (
+    data.source !== 'CONTENT_NOTIFICATION' ||
+    typeof data.asOf !== 'string' ||
+    !Number.isFinite(Date.parse(data.asOf))
+  ) {
+    return null
+  }
+  const inApp = record(data.inApp)
+  const email = record(data.emailReminders)
+  if (!inApp || !email) return null
+
+  if (
+    typeof inApp.total !== 'number' ||
+    typeof inApp.delivered !== 'number' ||
+    typeof inApp.pending !== 'number' ||
+    typeof inApp.failed !== 'number' ||
+    typeof inApp.cancelled !== 'number' ||
+    typeof inApp.unread !== 'number' ||
+    typeof inApp.read !== 'number'
+  ) {
+    return null
+  }
+
+  if (
+    typeof email.total !== 'number' ||
+    typeof email.pending !== 'number' ||
+    typeof email.processing !== 'number' ||
+    typeof email.delivered !== 'number' ||
+    typeof email.failed !== 'number' ||
+    typeof email.suppressed !== 'number' ||
+    typeof email.invalidated !== 'number'
+  ) {
+    return null
+  }
+
+  return {
+    source: 'CONTENT_NOTIFICATION',
+    asOf: data.asOf,
+    inApp: {
+      total: inApp.total,
+      delivered: inApp.delivered,
+      pending: inApp.pending,
+      failed: inApp.failed,
+      cancelled: inApp.cancelled,
+      unread: inApp.unread,
+      read: inApp.read,
+    },
+    emailReminders: {
+      total: email.total,
+      pending: email.pending,
+      processing: email.processing,
+      delivered: email.delivered,
+      failed: email.failed,
+      suppressed: email.suppressed,
+      invalidated: email.invalidated,
+    },
+  }
 }

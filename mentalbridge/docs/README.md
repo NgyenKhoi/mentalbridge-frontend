@@ -48,6 +48,7 @@ không khôi phục chúng như coding standard hiện hành.
 
 Story-specific delivery evidence:
 
+- [MB-624 cross-domain UC traceability rebaseline](reports/mb-624/README.md)
 - [MB-623 authoritative consultation journey closure](mb-623-consultation-journey.md)
 - [MB-642 private Journal action in SupportPlan](mb-642-journal-plan-action.md)
 - [MB-637 SupportGuide and SupportPlan v3 product boundary](ADR_SUPPORTPLAN_V3_PRODUCT_BOUNDARY.md)
@@ -60,6 +61,8 @@ Story-specific delivery evidence:
 - [MB-379 appointment decisions and expiry evidence](mb-379-appointment-decisions-evidence.md)
 - [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
 - [MB-593 specialist operational analytics evidence](mb-593-specialist-operational-analytics-evidence.md)
+- [MB-596 aggregate product journey metrics evidence](mb-596-product-journey-metrics-evidence.md)
+- [MB-594 specialist notification center evidence](mb-594-specialist-notification-center-evidence.md)
 - [MB-609 standalone Community peer-support experience](mb-609-community-standalone-evidence.md)
 - [MB-577 Community comments and one-level replies](mb-577-community-comments-evidence.md)
 - [MB-578 Community reports, blocks, and moderation](mb-578-community-moderation-evidence.md)

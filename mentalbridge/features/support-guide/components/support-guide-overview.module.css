@@ -77,7 +77,8 @@
   margin: 0;
 }
 .state button,
-.empty button {
+.empty :is(a, button) {
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -138,7 +139,7 @@
   .empty h1 {
     font-size: 1.6rem;
   }
-  .empty button {
+  .empty :is(a, button) {
     width: 100%;
   }
 }

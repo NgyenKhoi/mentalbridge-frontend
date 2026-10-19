@@ -13,6 +13,12 @@ export interface paths {
         };
         get: operations["listSupportGuides"];
         put?: never;
+        /**
+         * @deprecated
+         * @description Retained only for already-installed clients. New clients use
+         *     POST /api/v1/screening-episodes/{episodeId}/support-guide, which takes no
+         *     client-selected assessment identifiers.
+         */
         post: operations["generateSupportGuide"];
         delete?: never;
         options?: never;
@@ -30,6 +36,34 @@ export interface paths {
         get: operations["getSupportGuide"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/screening-episodes/{episodeId}/support-guide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ensure the one immutable Guide for a completed guided screening episode
+         * @description Naturally idempotent. Care resolves the exact SupportEvaluation persisted on the
+         *     owner's completed episode and returns its existing Guide without contacting Content
+         *     or AI. Only when no Guide exists does Care materialize one from that exact evaluation.
+         *     Retry, reload, multiple tabs and concurrent calls return the same Guide. The client
+         *     supplies no assessment identifiers, so a historical or independently newest pair
+         *     can never be substituted. Only the owner's latest COMPLETED INITIAL_CHECK episode
+         *     may prepare a Guide: an open episode returns 409 SCREENING_EPISODE_INCOMPLETE and an
+         *     older initial check or a reassessment returns 409 SCREENING_EPISODE_NOT_CURRENT; a
+         *     foreign or unknown episode returns 404 SCREENING_EPISODE_NOT_FOUND.
+         */
+        post: operations["ensureScreeningEpisodeSupportGuide"];
         delete?: never;
         options?: never;
         head?: never;
@@ -229,6 +263,36 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    ensureScreeningEpisodeSupportGuide: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: string;
+            };
+            path: {
+                episodeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Existing or newly materialized Guide for the exact episode evaluation. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportGuide"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
 }

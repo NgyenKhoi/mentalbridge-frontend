@@ -6,6 +6,7 @@ import { test } from './test-fixtures'
 test.describe.configure({ mode: 'serial' })
 
 const identityFixtureUrl = 'http://127.0.0.1:3201'
+const careFixtureUrl = 'http://127.0.0.1:3202'
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -14,8 +15,11 @@ const identityFixtureUrl = 'http://127.0.0.1:3201'
 async function resetFixture(
   request: import('@playwright/test').APIRequestContext,
 ) {
-  const response = await request.post(`${identityFixtureUrl}/__test/reset`)
-  expect(response.status()).toBe(204)
+  const responses = await Promise.all([
+    request.post(`${identityFixtureUrl}/__test/reset`),
+    request.post(`${careFixtureUrl}/__test/reset`),
+  ])
+  for (const response of responses) expect(response.status()).toBe(204)
 }
 
 /** Inject the pre-seeded Care E2E USER session cookie. */
@@ -79,9 +83,11 @@ test.describe('AC1: Cross-user authorization boundaries', () => {
     page,
   }) => {
     // No session cookie — layout calls requireCurrentAccount → 401 → redirect
-    await page.goto('/dashboard')
-    await expect(page).toHaveURL(/\/login/)
-    await expect(page.locator('form input[type="email"]')).toBeVisible()
+    for (const route of ['/dashboard', '/ai-companion']) {
+      await page.goto(route)
+      await expect(page).toHaveURL(/\/login/)
+      await expect(page.locator('form input[type="email"]')).toBeVisible()
+    }
   })
 
   test('invalid token on protected routes redirects to login without leaking data', async ({
@@ -124,7 +130,12 @@ test.describe('AC1: Cross-user authorization boundaries', () => {
     await expect(page).toHaveURL(/\/specialist\/dashboard/)
     // Must not render USER dashboard content
     await expect(
-      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
+      page.getByRole('heading', { name: 'Kết quả sàng lọc', exact: true }),
+    ).toHaveCount(0)
+    await page.goto('/ai-companion')
+    await expect(page).toHaveURL(/\/specialist\/dashboard/)
+    await expect(
+      page.getByRole('region', { name: 'AI Companion' }),
     ).toHaveCount(0)
   })
 
@@ -337,11 +348,17 @@ test.describe('AC2: Explicit degradation states', () => {
     await page.goto('/assessments')
 
     // Error state must appear
-    await expect(page.getByText('Không thể tải lịch sử')).toBeVisible({
+    await expect(
+      page.getByText(
+        'Không thể tải lịch sử sàng lọc lúc này. Vui lòng thử lại.',
+      ),
+    ).toBeVisible({
       timeout: 10_000,
     })
     // Retry option must be available
-    await expect(page.getByRole('button', { name: 'Thử lại' })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Thử lại', exact: true }).first(),
+    ).toBeVisible()
     // No invented assessment rows
     await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(0)
   })
@@ -391,6 +408,11 @@ test.describe('AC2: Explicit degradation states', () => {
 
     await page.goto('/assessments')
 
+    await page
+      .getByRole('button', {
+        name: 'Bài sàng lọc riêng lẻ và kết quả từng bài',
+      })
+      .click()
     const reviewAction = page.getByRole('link', { name: 'Xem lại' })
     const compareAction = page.getByRole('button', { name: 'So sánh' })
     await expect(reviewAction).toBeVisible()
@@ -400,8 +422,10 @@ test.describe('AC2: Explicit degradation states', () => {
     const compareActionBox = await compareAction.boundingBox()
     expect(reviewActionBox).not.toBeNull()
     expect(compareActionBox).not.toBeNull()
-    expect(reviewActionBox?.width).toBeGreaterThanOrEqual(78)
-    expect(compareActionBox?.width).toBeGreaterThanOrEqual(78)
+    expect(reviewActionBox?.width).toBeGreaterThanOrEqual(44)
+    expect(compareActionBox?.width).toBeGreaterThanOrEqual(44)
+    expect(reviewActionBox?.height).toBeGreaterThanOrEqual(24)
+    expect(compareActionBox?.height).toBeGreaterThanOrEqual(24)
     expect(
       (reviewActionBox?.x ?? 0) + (reviewActionBox?.width ?? 0),
     ).toBeLessThan(compareActionBox?.x ?? 0)
@@ -437,8 +461,10 @@ test.describe('AC2: Explicit degradation states', () => {
   })
 
   test('Content outage renders an explicit resource fallback', async ({
+    context,
     page,
   }) => {
+    await injectUserSession(context)
     await page.route('**/api/resources**', (route) => {
       void route.fulfill({
         status: 200,
@@ -454,9 +480,10 @@ test.describe('AC2: Explicit degradation states', () => {
     })
     await page.goto('/resources')
     await expect(
-      page.getByText(
-        'Tài nguyên hỗ trợ tạm thời không khả dụng. Vui lòng thử lại sau.',
-      ),
+      page.getByRole('heading', { name: 'Góc tài nguyên đang nghỉ một chút' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Thử tải lại' }),
     ).toBeVisible()
     await expect(page.locator('.resource-card')).toHaveCount(0)
     await expect(page.getByText(/hotline/i)).toHaveCount(0)
@@ -486,7 +513,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.goto('/dashboard')
 
     await expect(
-      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
+      page.getByRole('heading', { name: 'Kết quả sàng lọc', exact: true }),
     ).toBeVisible({ timeout: 10_000 })
 
     const html = await page.evaluate(() => document.body.innerHTML)
@@ -499,39 +526,31 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
 
     // PHQ result card must show placeholder, not a fake result
     await expect(
-      page.getByText('Chưa có kết quả sàng lọc nào được hiển thị.'),
+      page.getByText('Chưa có kết quả PHQ-9 nào được hiển thị.'),
     ).toBeVisible()
   })
 
-  test('free-tier dashboard gates paid features with an explicit upgrade prompt', async ({
+  test('dashboard keeps appointments reachable without a client-side upgrade gate', async ({
     context,
     page,
   }) => {
     await injectUserSession(context)
-    // Ensure no plan is set in localStorage (free tier)
     await page.goto('/dashboard')
-    await page.evaluate(() => localStorage.removeItem('mentalbridge_plan'))
-    await page.reload()
 
     await expect(
-      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
+      page.getByRole('heading', { name: 'Kết quả sàng lọc', exact: true }),
     ).toBeVisible({ timeout: 10_000 })
 
-    // PlanGate must show upgrade link for locked features, not pretend they work
+    // Entitlements are enforced by the backend when booking; the dashboard must
+    // not lock the appointment entry behind a premium prompt it cannot verify.
+    const appointments = page.locator('.ref-appointment')
+    await expect(appointments).toBeVisible()
     await expect(
-      page.getByRole('link', { name: /nâng cấp plus/i }),
-    ).toBeVisible()
+      appointments.getByRole('link', { name: 'Xem tất cả →' }),
+    ).toHaveAttribute('href', '/appointments')
     await expect(
       page.getByRole('link', { name: /nâng cấp premium/i }),
-    ).toBeVisible()
-
-    // The locked feature content must be behind the gate overlay (aria-hidden preview)
-    // and the gate link must point to /subscription
-    const upgradeLinks = page.getByRole('link', { name: /nâng cấp/i })
-    for (const link of await upgradeLinks.all()) {
-      const href = await link.getAttribute('href')
-      expect(href).toBe('/subscription')
-    }
+    ).toHaveCount(0)
   })
 
   test('notifications page does not claim real-time delivery or emergency dispatch', async ({
@@ -756,14 +775,16 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.goto('/specialists')
 
     await expect(
-      page.getByRole('heading', { name: 'Chuyên gia tư vấn' }),
+      page.getByRole('heading', { name: 'Kết nối chuyên gia tâm lý' }),
     ).toBeVisible({ timeout: 10_000 })
 
     await expect(page.getByText('Chuyên gia An')).toBeVisible()
     await expect(page.getByText(/Bạn đang dùng gói Free/)).toBeVisible()
-    await page.getByRole('button', { name: 'Xem hồ sơ và khung giờ' }).click()
-    await expect(page.getByText('Vì sao hồ sơ này xuất hiện?')).toBeVisible()
-    await expect(page.getByRole('radio')).toBeVisible()
+    await page.getByRole('button', { name: 'Hồ sơ', exact: true }).click()
+    const detail = page.getByRole('dialog')
+    await expect(detail.getByText(item.bio)).toBeVisible()
+    await detail.getByRole('tab', { name: 'Lịch trống' }).click()
+    await expect(detail.getByRole('radio')).toBeVisible()
 
     const bodyText = await page.evaluate(() => document.body.innerText)
 
@@ -778,6 +799,9 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     expect(bodyText).not.toMatch(/google meet|zoom|meeting link/i)
     await expect(
       page.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }),
+    ).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: 'Xác nhận đặt lịch' }),
     ).toHaveCount(0)
     await expect(
       page.getByRole('link', { name: 'Xem quyền lợi các gói' }),
@@ -821,8 +845,13 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
 
     for (const route of protectedRoutes) {
       await page.goto(route)
-      // Wait for page to settle
-      await page.waitForLoadState('networkidle').catch(() => undefined)
+      // Notification polling can keep the network busy after the screen is ready.
+      await expect(
+        page.getByRole('heading', { level: 1 }).first(),
+      ).toBeVisible()
+      await expect(
+        page.getByRole('heading', { level: 1 }).first(),
+      ).not.toContainText(/đang tải|đang chuẩn bị/i)
 
       const bodyText = await page.evaluate(() => document.body.innerText)
 

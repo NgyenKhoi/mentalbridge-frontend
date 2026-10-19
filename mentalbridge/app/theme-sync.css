@@ -35,13 +35,19 @@
     .ref-shell,
     .role-shell
   )
-  :is(h1, h2, h3, h4, strong):not(:where([data-availability-ui] *)) {
+  :is(h1, h2, h3, h4, strong):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *
+    )
+  ) {
   color: var(--ink);
 }
 
 /* Product surfaces */
 .ref-sidebar,
-.role-sidebar {
+.role-shell:not(.role-specialist) .role-sidebar {
   background: linear-gradient(
     180deg,
     rgba(20, 14, 28, 0.98),
@@ -76,7 +82,7 @@
     [class*='-table-wrap'],
     [class*='-preferences'],
     [class*='-summary']
-  ):not(:where(.ref-content-screening *)),
+  ),
 .role-shell
   :is(
     .role-panel,
@@ -167,7 +173,13 @@
   .role-brand-mark,
   .role-user > span:first-child,
   .role-toast
-):not(:where([data-availability-ui] *)) {
+):not(
+  :where(
+    [data-availability-ui] *,
+    [data-appointments-ui] *,
+    [data-discovery-ui] *
+  )
+) {
   background: linear-gradient(
     135deg,
     var(--primary),
@@ -197,20 +209,32 @@
   border-color: rgba(232, 174, 191, 0.2) !important;
   box-shadow: inset 3px 0 #e8aebf !important;
 }
-.role-sidebar nav a.active {
+.role-shell:not(.role-specialist) .role-sidebar nav a.active {
   color: #f8edf3 !important;
 }
 
 /* Inputs and controls */
 :is(.auth-layout, .anonymous-assessment, .ref-shell, .role-shell)
-  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
+  :is(input, select, textarea):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *
+    )
+  ) {
   background: #120d19 !important;
   border-color: var(--line) !important;
   color: var(--ink) !important;
   color-scheme: dark;
 }
 :is(.auth-layout, .anonymous-assessment, .ref-shell, .role-shell)
-  :is(input, select, textarea):focus:not(:where([data-availability-ui] *)) {
+  :is(input, select, textarea):focus:not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *
+    )
+  ) {
   background: #17111f !important;
   border-color: #aa98e8 !important;
   box-shadow: 0 0 0 3px rgba(169, 147, 236, 0.15) !important;
@@ -664,7 +688,13 @@
 }
 
 :is(.auth-layout, .anonymous-assessment, .ref-shell, .role-shell)
-  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
+  :is(input, select, textarea):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *
+    )
+  ) {
   font-size: 14px !important;
   line-height: 1.5 !important;
 }
@@ -1285,7 +1315,7 @@
 
 /* Shared product chrome follows the same palette as auth and marketing. */
 .ref-sidebar,
-.role-sidebar {
+.role-shell:not(.role-specialist) .role-sidebar {
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.96),
@@ -1322,7 +1352,7 @@
     [class*='-table-wrap'],
     [class*='-preferences'],
     [class*='-summary']
-  ):not(:where(.ref-content-screening *)),
+  ),
 .role-shell
   :is(
     .role-panel,
@@ -1354,13 +1384,224 @@
   background: var(--surface-soft) !important;
   border-color: var(--line) !important;
 }
-.ref-shell :is(h1, h2, h3, h4, strong):not(:where(.ref-content-screening *)),
-.role-shell :is(h1, h2, h3, h4, strong):not(:where([data-availability-ui] *)) {
+.ref-shell
+  :is(h1, h2, h3, h4, strong):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *,
+      [data-resource-surface='dark'] *,
+      [data-resource-ink='light'] *,
+      [class*='heroCard'] *,
+      [class*='HeroCard'] *,
+      [class*='heroDate'] *,
+      [class*='heroDateBox'] *,
+      [class*='heroPill'] *,
+      [class*='heroDuration'],
+      [class*='heroSecureNotice'] *,
+      [class*='btn'] *,
+      [class*='Btn'] *,
+      [class*='button'] *,
+      [class*='Button'] *,
+      button *,
+      [role='button'] *,
+      [class*='badge'] *,
+      [class*='Badge'] *,
+      [class*='pill'] *,
+      [class*='Pill'] *,
+      [class*='tag'] *,
+      [class*='Tag'] *,
+      [class*='chip'] *,
+      [class*='calDaySelected'],
+      [class*='calDaySelected'] *,
+      [class*='selected'] *,
+      [class*='Selected'] *,
+      [class*='active'] *,
+      [class*='Active'] *,
+      [class*='avatar'] *,
+      [class*='Avatar'] *,
+      .ref-new-booking-btn,
+      .ref-new-booking-btn *,
+      [data-surface='dark'] *,
+      [data-contrast='light'] *
+    )
+  ),
+.role-shell:not(.role-specialist)
+  :is(h1, h2, h3, h4, strong):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *,
+      [data-resource-surface='dark'] *,
+      [data-resource-ink='light'] *,
+      [class*='heroCard'] *,
+      [class*='HeroCard'] *,
+      [class*='heroDate'] *,
+      [class*='heroDateBox'] *,
+      [class*='heroPill'] *,
+      [class*='heroDuration'],
+      [class*='heroSecureNotice'] *,
+      [class*='btn'] *,
+      [class*='Btn'] *,
+      [class*='button'] *,
+      [class*='Button'] *,
+      button *,
+      [role='button'] *,
+      [class*='badge'] *,
+      [class*='Badge'] *,
+      [class*='pill'] *,
+      [class*='Pill'] *,
+      [class*='tag'] *,
+      [class*='Tag'] *,
+      [class*='chip'] *,
+      [class*='calDaySelected'],
+      [class*='calDaySelected'] *,
+      [class*='selected'] *,
+      [class*='Selected'] *,
+      [class*='active'] *,
+      [class*='Active'] *,
+      [class*='avatar'] *,
+      [class*='Avatar'] *,
+      .ref-new-booking-btn,
+      .ref-new-booking-btn *,
+      [data-surface='dark'] *,
+      [data-contrast='light'] *
+    )
+  ) {
   color: var(--ink) !important;
 }
-.ref-shell :is(p, span, small):not(:where(.ref-content-screening *)),
-.role-shell :is(p, span, small):not(:where([data-availability-ui] *)) {
+.ref-shell
+  :is(p, span, small):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *,
+      [data-resource-surface='dark'] *,
+      [data-resource-ink='light'] *,
+      [class*='heroCard'] *,
+      [class*='HeroCard'] *,
+      [class*='heroDate'] *,
+      [class*='heroDateBox'] *,
+      [class*='heroPill'] *,
+      [class*='heroDuration'],
+      [class*='heroSecureNotice'] *,
+      [class*='btn'] *,
+      [class*='Btn'] *,
+      [class*='button'] *,
+      [class*='Button'] *,
+      button *,
+      [role='button'] *,
+      [class*='badge'] *,
+      [class*='Badge'] *,
+      [class*='pill'] *,
+      [class*='Pill'] *,
+      [class*='tag'] *,
+      [class*='Tag'] *,
+      [class*='chip'] *,
+      [class*='calDaySelected'],
+      [class*='calDaySelected'] *,
+      [class*='selected'] *,
+      [class*='Selected'] *,
+      [class*='active'] *,
+      [class*='Active'] *,
+      [class*='avatar'] *,
+      [class*='Avatar'] *,
+      .ref-new-booking-btn,
+      .ref-new-booking-btn *,
+      [data-surface='dark'] *,
+      [data-contrast='light'] *
+    )
+  ),
+.role-shell:not(.role-specialist)
+  :is(p, span, small):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *,
+      [data-resource-surface='dark'] *,
+      [data-resource-ink='light'] *,
+      [class*='heroCard'] *,
+      [class*='HeroCard'] *,
+      [class*='heroDate'] *,
+      [class*='heroDateBox'] *,
+      [class*='heroPill'] *,
+      [class*='heroDuration'],
+      [class*='heroSecureNotice'] *,
+      [class*='btn'] *,
+      [class*='Btn'] *,
+      [class*='button'] *,
+      [class*='Button'] *,
+      button *,
+      [role='button'] *,
+      [class*='badge'] *,
+      [class*='Badge'] *,
+      [class*='pill'] *,
+      [class*='Pill'] *,
+      [class*='tag'] *,
+      [class*='Tag'] *,
+      [class*='chip'] *,
+      [class*='calDaySelected'],
+      [class*='calDaySelected'] *,
+      [class*='selected'] *,
+      [class*='Selected'] *,
+      [class*='active'] *,
+      [class*='Active'] *,
+      [class*='avatar'] *,
+      [class*='Avatar'] *,
+      .ref-new-booking-btn,
+      .ref-new-booking-btn *,
+      [data-surface='dark'] *,
+      [data-contrast='light'] *
+    )
+  ) {
   color: var(--ink-soft) !important;
+}
+
+/* Universal high-contrast protection for text on dark green surfaces & primary action buttons */
+.ref-shell :is(.ref-new-booking-btn, [class*='confirmSlotBtn']),
+.ref-shell :is(.ref-new-booking-btn, [class*='confirmSlotBtn']) * {
+  color: #ffffff !important;
+}
+
+.ref-shell [class*='calDaySelected'],
+.ref-shell [class*='calDaySelected'] * {
+  color: #ffffff !important;
+}
+
+[data-appointments-ui] [class*='heroCard'] {
+  color: #ffffff !important;
+}
+[data-appointments-ui] [class*='heroDateWeekday'] {
+  color: #a7f3d0 !important;
+}
+[data-appointments-ui] [class*='heroDateDay'] {
+  color: #ffffff !important;
+}
+[data-appointments-ui] [class*='heroDateTime'] {
+  color: #86efac !important;
+}
+[data-appointments-ui] [class*='heroPill'],
+[data-appointments-ui] [class*='heroPill'] * {
+  color: #a7f3d0 !important;
+}
+[data-appointments-ui] [class*='heroDuration'] {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+[data-appointments-ui] [class*='heroSpecialistRole'] {
+  color: #d1fae5 !important;
+}
+[data-appointments-ui] [class*='heroTopic'] {
+  color: #e2f4eb !important;
+}
+[data-appointments-ui] [class*='heroTopic'] strong {
+  color: #ffffff !important;
+}
+[data-appointments-ui] [class*='heroSecureNotice'],
+[data-appointments-ui] [class*='heroSecureNotice'] * {
+  color: #d1fae5 !important;
+}
+[data-appointments-ui] [class*='heroRescheduleBtn'] {
+  color: #ffffff !important;
 }
 .ref-shell
   .resources-page
@@ -1381,13 +1622,13 @@
   color: var(--ink-faint) !important;
 }
 .ref-sidebar nav a,
-.role-sidebar nav a {
+.role-shell:not(.role-specialist) .role-sidebar nav a {
   color: var(--ink-soft) !important;
 }
 .ref-sidebar nav a.active,
 .ref-sidebar nav a:hover,
-.role-sidebar nav a.active,
-.role-sidebar nav a:hover {
+.role-shell:not(.role-specialist) .role-sidebar nav a.active,
+.role-shell:not(.role-specialist) .role-sidebar nav a:hover {
   color: var(--teal-deep) !important;
 }
 .ref-sidebar nav a.active,
@@ -1433,8 +1674,7 @@
   border-color: rgba(61, 122, 110, 0.16) !important;
   box-shadow: 0 28px 70px -48px rgba(30, 74, 67, 0.28) !important;
 }
-.ref-hero :is(h1, p, span, strong, small),
-.ref-quick .primary :is(b, span, strong) {
+.ref-hero :is(h1, p, span, strong, small) {
   color: var(--ink) !important;
 }
 .ref-hero p,
@@ -1562,12 +1802,12 @@
   background: var(--teal-pale) !important;
   border-color: var(--teal) !important;
 }
-.role-active-pill {
+.role-shell:not(.role-specialist) .role-active-pill {
   background: var(--teal-pale) !important;
   border-color: rgba(61, 122, 110, 0.28) !important;
   box-shadow: inset 3px 0 var(--amber) !important;
 }
-.role-sidebar nav a.active {
+.role-shell:not(.role-specialist) .role-sidebar nav a.active {
   background: var(--teal-pale) !important;
   color: var(--teal-deep) !important;
 }
@@ -1592,7 +1832,13 @@
   .role-brand-mark,
   .role-user > span:first-child,
   .role-toast
-):not(:where([data-availability-ui] *)) {
+):not(
+  :where(
+    [data-availability-ui] *,
+    [data-appointments-ui] *,
+    [data-discovery-ui] *
+  )
+) {
   background: linear-gradient(135deg, var(--teal), var(--teal-deep)) !important;
   border-color: rgba(30, 74, 67, 0.18) !important;
   color: var(--primary-foreground) !important;
@@ -1601,7 +1847,7 @@
 
 @media (max-width: 980px) {
   .ref-sidebar,
-  .role-sidebar {
+  .role-shell:not(.role-specialist) .role-sidebar {
     background: var(--surface) !important;
   }
 }
@@ -1615,15 +1861,21 @@
 .ref-sidebar-foot > a.active i {
   color: #fff !important;
 }
-.role-sidebar nav a.active,
-.role-sidebar nav a.active span,
-.role-sidebar nav a.active i {
+.role-shell:not(.role-specialist) .role-sidebar nav a.active,
+.role-shell:not(.role-specialist) .role-sidebar nav a.active span,
+.role-shell:not(.role-specialist) .role-sidebar nav a.active i {
   color: var(--teal-deep) !important;
 }
 
 /* Final light product-surface pass: legacy dark rules above must not leak into user pages. */
 :is(.ref-shell, .role-shell)
-  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
+  :is(input, select, textarea):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *
+    )
+  ) {
   background: var(--surface) !important;
   color: var(--ink) !important;
   color-scheme: light;
@@ -1744,11 +1996,11 @@
   background: transparent !important;
 }
 .ref-sidebar,
-.role-sidebar {
+.role-shell:not(.role-specialist) .role-sidebar {
   background: linear-gradient(180deg, #edf2eb, #e2eae1) !important;
 }
 .ref-topbar,
-.role-topbar {
+.role-shell:not(.role-specialist) .role-topbar {
   background: rgba(237, 242, 235, 0.94) !important;
 }
 .ref-shell
@@ -2680,7 +2932,13 @@ html {
     .ref-shell,
     .role-shell
   )
-  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
+  :is(input, select, textarea):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *
+    )
+  ) {
   background-color: var(--surface) !important;
   color: var(--ink) !important;
   color-scheme: light !important;
@@ -2695,7 +2953,11 @@ html {
     .role-shell
   )
   :is(input, select, textarea):is(:focus, :focus-visible):not(
-    :where([data-availability-ui] *)
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *
+    )
   ) {
   background-color: var(--surface) !important;
   color: var(--ink) !important;
@@ -2766,4 +3028,101 @@ html {
 }
 .ref-shell .subscription-compare td:first-child {
   color: var(--ink) !important;
+}
+
+/* ==========================================================================
+   SPECIALIST WORKSPACE CLINICAL THEME (Sidebar & Chrome)
+   Preserve user's signature clinical specialist design
+   ========================================================================== */
+.role-specialist .role-sidebar {
+  background: var(--color-app-bg, #f6f9fc) !important;
+  border-right: 1px solid var(--color-border, rgba(26, 28, 30, 0.06)) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.role-specialist .role-brand {
+  border-bottom: 1px solid var(--color-border, rgba(26, 28, 30, 0.06)) !important;
+}
+
+.role-specialist .role-brand-mark {
+  background: var(--color-primary, #1f5c3f) !important;
+  box-shadow: 0 4px 14px rgba(31, 92, 63, 0.25) !important;
+}
+
+.role-specialist .role-brand strong {
+  color: var(--color-primary, #1f5c3f) !important;
+}
+
+.role-specialist .role-brand small {
+  color: var(--color-text-muted, #5b6470) !important;
+}
+
+.role-specialist .role-sidebar nav {
+  gap: 4px !important;
+}
+
+.role-specialist .role-sidebar nav a {
+  color: var(--color-text-muted, #5b6470) !important;
+  border-radius: 999px !important;
+  font-weight: 500 !important;
+  background: transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+.role-specialist .role-sidebar nav a:hover {
+  background: var(--color-surface-soft, #eef2fd) !important;
+  color: var(--color-text, #1a1c1e) !important;
+  transform: none !important;
+}
+
+/* Active navigation link: Solid primary green pill #1F5C3F with white text & icon */
+.role-specialist .role-sidebar nav a.active,
+.role-specialist .role-sidebar nav a.active:hover {
+  background: var(--color-primary, #1f5c3f) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  border-radius: 999px !important;
+  box-shadow: 0 2px 10px rgba(31, 92, 63, 0.22) !important;
+}
+
+.role-specialist .role-sidebar nav a.active span,
+.role-specialist .role-sidebar nav a.active i,
+.role-specialist .role-sidebar nav a.active .role-nav-icon,
+.role-specialist .role-sidebar nav a.active .role-nav-label {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+
+.role-specialist .role-sidebar nav a.active .role-active-pill {
+  display: none !important;
+}
+
+/* Topbar */
+.role-specialist .role-topbar {
+  background: var(--color-app-bg, #f6f9fc) !important;
+  border-bottom: 1px solid var(--color-border, rgba(26, 28, 30, 0.06)) !important;
+  backdrop-filter: none !important;
+}
+
+/* User profile card at bottom of specialist sidebar */
+.role-specialist .role-sidebar-foot :is(button, [class*='trigger']) {
+  border-radius: 16px !important;
+  background: var(--color-surface, #ffffff) !important;
+  border: 1px solid var(--color-border, rgba(26, 28, 30, 0.06)) !important;
+  box-shadow: 0 3px 14px rgba(20, 40, 60, 0.04) !important;
+  transition: all 0.2s ease !important;
+}
+
+.role-specialist .role-sidebar-foot :is(button, [class*='trigger']):hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 18px rgba(20, 40, 60, 0.08) !important;
+}
+
+.role-specialist .role-sidebar-foot :is([class*='avatar'], .avatar) {
+  border-radius: 50% !important;
+  background: var(--color-primary, #1f5c3f) !important;
+  color: #ffffff !important;
+  border: none !important;
 }

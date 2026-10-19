@@ -137,7 +137,7 @@ describe('ResourceDetail', () => {
 
   it('renders reviewed detail, embedded video, TOC, and catalogue return', async () => {
     const user = userEvent.setup()
-    render(<ResourceDetail resourceId={resource.id} fromSupportPlan={false} />)
+    render(<ResourceDetail resourceId={resource.id} />)
 
     expect(
       await screen.findByRole('heading', { name: resource.title }),
@@ -192,7 +192,7 @@ describe('ResourceDetail', () => {
     render(
       <ResourceDetail
         resourceId={resource.id}
-        fromSupportPlan={false}
+
         activityDate="2026-09-29"
       />,
     )
@@ -263,7 +263,7 @@ describe('ResourceDetail', () => {
     render(
       <ResourceDetail
         resourceId={checklistResource.id}
-        fromSupportPlan={false}
+
         activityDate="2026-09-29"
       />,
     )
@@ -378,12 +378,7 @@ describe('ResourceDetail', () => {
       hasMore: false,
     })
 
-    render(
-      <ResourceDetail
-        resourceId={worksheetResource.id}
-        fromSupportPlan={false}
-      />,
-    )
+    render(<ResourceDetail resourceId={worksheetResource.id} />)
 
     expect(
       await screen.findByText(/nội dung bạn nhập.+không được lưu/i),
@@ -415,12 +410,7 @@ describe('ResourceDetail', () => {
       hasMore: false,
     })
 
-    render(
-      <ResourceDetail
-        resourceId={activationResource.id}
-        fromSupportPlan={false}
-      />,
-    )
+    render(<ResourceDetail resourceId={activationResource.id} />)
 
     expect(
       await screen.findByRole('group', { name: 'Bản nháp hoạt động' }),
@@ -452,12 +442,7 @@ describe('ResourceDetail', () => {
       hasMore: false,
     })
 
-    render(
-      <ResourceDetail
-        resourceId={structuredResource.id}
-        fromSupportPlan={false}
-      />,
-    )
+    render(<ResourceDetail resourceId={structuredResource.id} />)
 
     expect(await screen.findByText('Tổng quan đã được biên tập.')).toBeVisible()
     expect(
@@ -513,7 +498,7 @@ describe('ResourceDetail', () => {
     render(
       <ResourceDetail
         resourceId={timedResource.id}
-        fromSupportPlan={false}
+
         activityDate="2026-09-30"
       />,
     )
@@ -553,7 +538,7 @@ describe('ResourceDetail', () => {
     render(
       <ResourceDetail
         resourceId={resource.id}
-        fromSupportPlan
+        supportPlanReturnHref="/support-plan?source=resource&occurrenceId=30000000-0000-4000-8000-000000000641&actionId=20000000-0000-4000-8000-000000000641&localDate=2026-10-13#activity-30000000-0000-4000-8000-000000000641"
         contentVersion="4"
       />,
     )
@@ -562,7 +547,10 @@ describe('ResourceDetail', () => {
       await screen.findByRole('link', {
         name: /quay lại kế hoạch hỗ trợ/i,
       }),
-    ).toHaveAttribute('href', '/support-plan')
+    ).toHaveAttribute(
+      'href',
+      '/support-plan?source=resource&occurrenceId=30000000-0000-4000-8000-000000000641&actionId=20000000-0000-4000-8000-000000000641&localDate=2026-10-13#activity-30000000-0000-4000-8000-000000000641',
+    )
     expect(api.getResourceDetail).toHaveBeenCalledWith(
       resource.id,
       '4',
@@ -572,24 +560,64 @@ describe('ResourceDetail', () => {
 
   it('shows a bounded not-found state', async () => {
     api.getResourceDetail.mockRejectedValue(new ResourceBrowserError(404))
-    render(<ResourceDetail resourceId={resource.id} fromSupportPlan={false} />)
+    render(<ResourceDetail resourceId={resource.id} />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Không tìm thấy tài nguyên',
     )
   })
 
+  it.each([401, 404, 503])(
+    'does not fabricate a published exercise after a %s response',
+    async (status) => {
+      api.getResourceDetail.mockRejectedValue(new ResourceBrowserError(status))
+      render(
+        <ResourceDetail
+          resourceId="00000000-0000-4000-8000-000000000209"
+
+          contentVersion="1"
+        />,
+      )
+      expect(await screen.findByRole('alert')).toBeVisible()
+      expect(
+        screen.queryByText('Giải quyết một vấn đề theo từng bước'),
+      ).not.toBeInTheDocument()
+      expect(api.saveResourceProgress).not.toHaveBeenCalled()
+    },
+  )
+
+  it('retries an unavailable resource using its exact content version', async () => {
+    api.getResourceDetail
+      .mockRejectedValueOnce(new ResourceBrowserError(503))
+      .mockResolvedValue(resource)
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+
+        contentVersion="4"
+      />,
+    )
+    await screen.findByRole('alert')
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(
+      await screen.findByRole('heading', { level: 1, name: resource.title }),
+    ).toBeVisible()
+    expect(api.getResourceDetail).toHaveBeenLastCalledWith(
+      resource.id,
+      '4',
+      expect.any(AbortSignal),
+    )
+  })
+
   it('uses resource-focused loading and unavailable copy', async () => {
     api.getResourceDetail.mockReturnValueOnce(new Promise(() => undefined))
-    const { unmount } = render(
-      <ResourceDetail resourceId={resource.id} fromSupportPlan={false} />,
-    )
+    const { unmount } = render(<ResourceDetail resourceId={resource.id} />)
     expect(screen.getByText('Đang chuẩn bị nội dung…')).toBeVisible()
     expect(screen.queryByText(/Content service/i)).toBeNull()
     unmount()
 
     api.getResourceDetail.mockRejectedValueOnce(new ResourceBrowserError(503))
-    render(<ResourceDetail resourceId={resource.id} fromSupportPlan={false} />)
+    render(<ResourceDetail resourceId={resource.id} />)
     expect(
       await screen.findByText('Tài nguyên này tạm thời chưa tải được'),
     ).toBeVisible()

@@ -1,10 +1,10 @@
 'use client'
 import { Suspense, useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
-import PlanGate, { type PlanId } from '@/components/PlanGate'
 import LatestPhq9Result from '@/features/assessment/components/LatestPhq9Result'
 import { PlanEmotionCheckIn } from '@/features/emotion-check-in/PlanEmotionCheckIn'
 import { EmotionProgress } from '@/features/emotion-check-in/EmotionProgress'
+import TodayPlanReminder from '@/features/support-plan/components/TodayPlanReminder'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import '../dashboard-page.css'
@@ -12,11 +12,6 @@ import '../dashboard-page.css'
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger)
 }
-const tasks = [
-  'Viết nhật ký hôm nay',
-  'Hoàn thành bài tập thở',
-  'Làm bài sàng lọc khi bạn sẵn sàng',
-]
 const SmallIcon = ({ type }: { type: 'note' | 'check' | 'user' }) => (
   <svg
     viewBox="0 0 24 24"
@@ -44,22 +39,12 @@ const SmallIcon = ({ type }: { type: 'note' | 'check' | 'user' }) => (
 )
 
 export default function DashboardPage() {
-  const [done, setDone] = useState<number[]>([])
-  const [plan, setPlan] = useState<PlanId>('free')
   const [emotionRefresh, setEmotionRefresh] = useState(0)
   const heroRef = useRef<HTMLElement>(null)
   const bentoRef = useRef<HTMLElement>(null)
   const todayRef = useRef<HTMLElement>(null)
   const quickRef = useRef<HTMLElement>(null)
   const streakRef = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const saved = localStorage.getItem('mentalbridge_plan')
-      if (saved === 'plus' || saved === 'premium') setPlan(saved)
-    }, 0)
-    return () => window.clearTimeout(timer)
-  }, [])
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia(
@@ -156,9 +141,6 @@ export default function DashboardPage() {
     return () => ctx.revert()
   }, [])
 
-  const toggle = (i: number) =>
-    setDone((v) => (v.includes(i) ? v.filter((x) => x !== i) : [...v, i]))
-
   return (
     <div className="ref-dashboard">
       <section ref={heroRef} className="ref-hero">
@@ -211,45 +193,20 @@ export default function DashboardPage() {
         </div>
       </section>
       <section ref={todayRef} className="ref-today">
-        <PlanGate
-          currentPlan={plan}
-          required="premium"
-          title="Lịch hẹn ưu tiên"
-        >
-          <article className="ref-card ref-appointment">
-            <header>
-              <h2>Lịch hẹn</h2>
-              <Link href="/appointments">Xem tất cả →</Link>
-            </header>
-            <div>
-              <p>
-                <strong>Xem lịch hẹn của bạn</strong>
-                <span>Mở trang lịch hẹn để xem thông tin mới nhất.</span>
-              </p>
-            </div>
-            <footer>
-              Thông tin lịch hẹn không được tạo mẫu trên trang này.
-            </footer>
-          </article>
-        </PlanGate>
-        <article className="ref-card ref-tasks">
+        <article className="ref-card ref-appointment">
           <header>
-            <h2>Gợi ý cho hôm nay</h2>
-            <b>{done.length}/3</b>
+            <h2>Lịch hẹn</h2>
+            <Link href="/appointments">Xem tất cả →</Link>
           </header>
-          {tasks.map((task, i) => (
-            <button
-              type="button"
-              key={task}
-              onClick={() => toggle(i)}
-              className={done.includes(i) ? 'done' : ''}
-              aria-pressed={done.includes(i)}
-            >
-              <i aria-hidden="true">{done.includes(i) ? '✓' : ''}</i>
-              {task}
-            </button>
-          ))}
+          <div>
+            <p>
+              <strong>Xem lịch hẹn của bạn</strong>
+              <span>Mở trang lịch hẹn để xem thông tin mới nhất.</span>
+            </p>
+          </div>
+          <footer>Thông tin lịch hẹn không được tạo mẫu trên trang này.</footer>
         </article>
+        <TodayPlanReminder />
       </section>
       <section ref={quickRef} className="ref-quick">
         <header>
@@ -292,7 +249,16 @@ export default function DashboardPage() {
       <section ref={streakRef} className="ref-journal-streak">
         <div className="ref-streak-left">
           <div className="ref-streak-icon" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M12 20h9" />
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
             </svg>
@@ -304,7 +270,9 @@ export default function DashboardPage() {
         </div>
         <Link href="/journal" className="ref-streak-btn">
           <span>Viết nhật ký</span>
-          <span className="ref-streak-btn-arrow" aria-hidden="true">→</span>
+          <span className="ref-streak-btn-arrow" aria-hidden="true">
+            →
+          </span>
         </Link>
       </section>
     </div>

@@ -3,32 +3,34 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import type { GuidedJourney } from '@/features/assessment/api/care-contract'
 import { ApiError } from '@/lib/api/api-error'
-import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { MamAnLoadingState } from '@/features/assessment/components/MamAnLoadingState'
 import {
-  generateSupportGuide,
+  getGuidedJourney,
   getSupportGuide,
   getSupportGuideHistory,
 } from '../api/browser-support-guide'
 import type { SupportGuide } from '../api/support-guide-contract'
+import GuideLoadError from './GuideLoadError'
+import GuidedJourneySteps from './GuidedJourneySteps'
 import SupportGuideCard, {
   type SupportGuideScorePair,
 } from './SupportGuideCard'
-import { loadGuideScores } from './load-guide-scores'
+import { guideContinuation, isCurrentJourneyGuide } from './guided-continuation'
+import { loadGuideMeaning, loadGuideScores } from './load-guide-scores'
+import type { CombinedScreeningMeaning } from '@/features/assessment/api/care-contract'
 
 import './support-guide.css'
 
 function message(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.code === 'INITIAL_CHECK_INCOMPLETE')
-      return 'Lịch sử sàng lọc của bạn vẫn được giữ nguyên. Để tạo gợi ý hỗ trợ, hãy hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu.'
     if (error.status === 401)
       return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
     if (error.status === 404)
       return 'Không tìm thấy hướng dẫn thuộc tài khoản này.'
   }
-  return 'Chưa thể tải gợi ý hỗ trợ. Vui lòng thử lại.'
+  return 'Gợi ý đã lưu của bạn không thay đổi. Hãy thử lại sau giây lát.'
 }
 
 export default function SupportGuideJourney({
@@ -40,7 +42,6 @@ export default function SupportGuideJourney({
   historical?: boolean
   resultEvaluationId?: string
 }) {
-  const { showActionToast } = useFeedback()
   const [items, setItems] = useState<SupportGuide[]>([])
   const [scores, setScores] = useState<
     Record<string, SupportGuideScorePair | null>
@@ -48,33 +49,70 @@ export default function SupportGuideJourney({
   const [cursor, setCursor] = useState<string>()
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string>()
-  const generationKey = useRef<string | undefined>(undefined)
+  const [journey, setJourney] = useState<GuidedJourney | null>(null)
+  const [journeyFailed, setJourneyFailed] = useState(false)
+
+  const [meaning, setMeaning] = useState<CombinedScreeningMeaning | null>(null)
+  const [journeyRetrying, setJourneyRetrying] = useState(false)
+  const journeyRetryInFlight = useRef(false)
+
+  const fetchJourney = useCallback(async () => {
+    if (historical || !supportGuideId) return { journey: null, failed: false }
+    try {
+      return { journey: await getGuidedJourney(), failed: false }
+    } catch {
+      return { journey: null, failed: true }
+    }
+  }, [historical, supportGuideId])
 
   const load = useCallback(
-    async (next?: string) => {
-      setLoading(true)
-      setError(undefined)
+    async (next?: string, retry = false) => {
+      // A retry keeps the error panel mounted so its busy state and focus survive.
+      if (!retry) {
+        setLoading(true)
+        setError(undefined)
+      }
       try {
         if (supportGuideId) {
-          const guide = await getSupportGuide(supportGuideId)
+          const [guide, journeyResult] = await Promise.all([
+            getSupportGuide(supportGuideId),
+            fetchJourney(),
+          ])
+          const currentJourney = journeyResult.journey
+          // Resolve the whole card before committing it, so a retry never flashes a partial Guide.
+          const [pair, savedMeaning] = await Promise.all([
+            loadGuideScores(guide),
+            loadGuideMeaning(
+              guide,
+              historical
+                ? resultEvaluationId
+                : currentJourney?.supportGuideId === guide.supportGuideId
+                  ? currentJourney.presentationEvaluationId
+                  : null,
+            ),
+          ])
+          setError(undefined)
+          setJourney(currentJourney)
+          setJourneyFailed(journeyResult.failed)
           setItems([guide])
-          setScores({ [guide.supportGuideId]: await loadGuideScores(guide) })
+          setScores({ [guide.supportGuideId]: pair })
+          setMeaning(savedMeaning)
           setHasMore(false)
         } else {
           const history = await getSupportGuideHistory(next)
-          setItems((current) =>
-            next ? [...current, ...history.items] : history.items,
-          )
-          setCursor(history.nextCursor ?? undefined)
-          setHasMore(history.hasMore)
           const pairs = await Promise.all(
             history.items.map(
               async (guide) =>
                 [guide.supportGuideId, await loadGuideScores(guide)] as const,
             ),
           )
+          setError(undefined)
+          setItems((current) =>
+            next ? [...current, ...history.items] : history.items,
+          )
+          setCursor(history.nextCursor ?? undefined)
+          setHasMore(history.hasMore)
           setScores((current) => ({ ...current, ...Object.fromEntries(pairs) }))
         }
       } catch (cause) {
@@ -83,40 +121,52 @@ export default function SupportGuideJourney({
         setLoading(false)
       }
     },
-    [supportGuideId],
+    [fetchJourney, historical, resultEvaluationId, supportGuideId],
   )
+
+  // Re-reads only the next step and its matching meaning; the saved Guide on screen is kept.
+  const retryJourney = useCallback(async () => {
+    const guide = items[0]
+    if (journeyRetryInFlight.current || !guide) return
+    journeyRetryInFlight.current = true
+    setJourneyRetrying(true)
+    try {
+      const result = await fetchJourney()
+      if (result.failed) {
+        setJourney(null)
+        setJourneyFailed(true)
+        return
+      }
+      const presentationEvaluationId =
+        result.journey?.supportGuideId === guide.supportGuideId
+          ? result.journey.presentationEvaluationId
+          : null
+      const savedMeaning =
+        presentationEvaluationId &&
+        meaning?.supportEvaluationId === presentationEvaluationId
+          ? meaning
+          : await loadGuideMeaning(guide, presentationEvaluationId)
+      setJourney(result.journey)
+      setJourneyFailed(false)
+      setMeaning(savedMeaning)
+    } finally {
+      journeyRetryInFlight.current = false
+      setJourneyRetrying(false)
+    }
+  }, [fetchJourney, items, meaning])
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0)
     return () => window.clearTimeout(timer)
   }, [load])
 
-  const create = async () => {
-    setGenerating(true)
-    setError(undefined)
-    generationKey.current ??= crypto.randomUUID()
-    const key = generationKey.current
-    try {
-      const guide = await generateSupportGuide(key)
-      const pair = await loadGuideScores(guide)
-      setScores((current) => ({ ...current, [guide.supportGuideId]: pair }))
-      setItems((current) => [
-        guide,
-        ...current.filter(
-          (item) => item.supportGuideId !== guide.supportGuideId,
-        ),
-      ])
-      generationKey.current = undefined
-      showActionToast({
-        title: 'Đã tạo gợi ý hỗ trợ',
-        description: 'Bạn có thể xem lại nội dung này bất cứ lúc nào.',
-      })
-    } catch (cause) {
-      setError(message(cause))
-    } finally {
-      setGenerating(false)
-    }
-  }
+  const currentGuide =
+    !historical &&
+    items.length === 1 &&
+    isCurrentJourneyGuide(journey, items[0])
+      ? items[0]
+      : null
+  const readOnly = historical || (journey !== null && currentGuide === null)
 
   return (
     <div className="support-guide-page">
@@ -131,34 +181,43 @@ export default function SupportGuideJourney({
               ? 'Nội dung này được mở lại đúng như đã lưu cùng lần sàng lọc trước đây; trang không tạo lại hoặc thay đổi gợi ý lịch sử.'
               : 'Xem các bước hỗ trợ dựa trên cặp kết quả PHQ-9 và GAD-7 trong Kiểm tra ban đầu, rồi chủ động chọn điều phù hợp với bạn.'}
           </p>
-          {!supportGuideId && (
-            <button
-              className="btn btn-primary"
-              type="button"
-              disabled={generating}
-              onClick={() => void create()}
-            >
-              {generating
-                ? 'Đang chuẩn bị gợi ý…'
-                : 'Tạo gợi ý từ Kiểm tra ban đầu'}
-            </button>
-          )}
         </header>
       )}
 
       {error && (
-        <div className="support-guide-state error" role="alert">
-          <p>{error}</p>
-          <button className="btn btn-ghost" onClick={() => void load()}>
-            Thử lại
+        <GuideLoadError
+          message={error}
+          onRetry={() => load(undefined, true)}
+          headingLevel={supportGuideId ? 'h1' : 'h2'}
+        />
+      )}
+      {!loading && journeyFailed && (
+        <div className="support-guide-state" role="status">
+          <p>
+            Chưa tải được bước tiếp theo. Gợi ý bên dưới vẫn được lưu nguyên
+            vẹn.
+          </p>
+          <button
+            className="btn btn-ghost"
+            aria-busy={journeyRetrying}
+            aria-disabled={journeyRetrying}
+            onClick={() => void retryJourney()}
+          >
+            {journeyRetrying ? 'Đang thử lại…' : 'Thử lại'}
           </button>
         </div>
       )}
       {loading && (
         <MamAnLoadingState
-          title="Đang tải gợi ý hỗ trợ đã lưu..."
+          title="Đang tải gợi ý hỗ trợ đã lưu…"
           description="Mầm An đang mở lại gợi ý và đúng cặp kết quả của lần đánh giá này."
           preview="meaning"
+        />
+      )}
+      {!loading && currentGuide && journey && (
+        <GuidedJourneySteps
+          journey={journey}
+          onRetry={() => void retryJourney()}
         />
       )}
       {!loading && !error && items.length === 0 && (
@@ -192,11 +251,19 @@ export default function SupportGuideJourney({
             >
               <SupportGuideCard
                 guide={guide}
-                historical={historical}
+                historical={readOnly}
                 scorePair={scores[guide.supportGuideId]}
+                meaning={supportGuideId ? meaning : null}
                 resultEvaluationId={resultEvaluationId}
                 headingLevel={supportGuideId ? 'h1' : 'h2'}
                 showOpenLink={!supportGuideId}
+                continuation={
+                  guide === currentGuide && journey
+                    ? guideContinuation(journey, guide)
+                    : readOnly
+                      ? undefined
+                      : null
+                }
               />
             </div>
           ))}

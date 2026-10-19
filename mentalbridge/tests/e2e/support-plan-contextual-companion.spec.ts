@@ -81,6 +81,8 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
       const problem = (status: number, code: string) =>
         json({ type: 'about:blank', title: code, status, code }, status)
 
+      if (path === '/api/care/guided-journey')
+        return problem(503, 'CARE_UNAVAILABLE')
       if (path === '/api/care/v2/support-plans/current') return json(plan)
       if (path === '/api/care/v2/support-plans/current-draft')
         return problem(404, 'SUPPORT_PLAN_NOT_FOUND')
@@ -134,7 +136,8 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
 
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/support-plan')
-    const activity = page.getByRole('article', {
+    // Today shows one next action; the explanation sits on that card only.
+    const activity = page.getByRole('region', {
       name: 'Check-in cảm xúc',
       exact: true,
     })
@@ -142,17 +145,13 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
       name: /Nhờ bạn đồng hành giải thích/,
     })
     const originalAction = activity.getByRole('link', {
-      name: 'Ghi nhận cảm xúc',
+      name: 'Ghi lại cảm xúc',
       exact: true,
-    })
-    const secondActivity = page.getByRole('article', {
-      name: 'Bài thực hành tiếp theo',
-      exact: true,
-    })
-    const secondTrigger = secondActivity.getByRole('button', {
-      name: /Nhờ bạn đồng hành giải thích/,
     })
     await expect(activity).toBeVisible()
+    await expect(
+      page.getByRole('region', { name: 'Sau đó trong hôm nay' }),
+    ).toContainText('Bài thực hành tiếp theo')
     await trigger.focus()
     expect(requests).toBe(0)
     await trigger.click()
@@ -160,10 +159,8 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
       activity.getByText('Đang chuẩn bị lời giải thích…'),
     ).toBeVisible()
     await expect(trigger).toBeDisabled()
-    await expect(secondTrigger).toBeDisabled()
     await trigger.evaluate((button) => (button as HTMLElement).click())
-    await secondTrigger.evaluate((button) => (button as HTMLElement).click())
-    await expect(originalAction).toBeEnabled()
+    await expect(originalAction).toBeVisible()
     expect(requests).toBe(1)
     releaseFirstResponse?.()
     const desktopBubble = activity.locator('.support-plan-contextual-bubble')

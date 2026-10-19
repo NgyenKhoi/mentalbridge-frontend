@@ -119,7 +119,7 @@ test.beforeEach(async ({ page }) => {
 
 test('MB-620 keeps the specialist portal on authoritative or explicitly deferred paths', async ({
   page,
-}) => {
+}, testInfo) => {
   test.setTimeout(60_000)
   await page.setViewportSize({ width: 1440, height: 900 })
   await loginAsSpecialist(page)
@@ -148,9 +148,9 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
   await expect(navigation.getByText(/Earnings|Notifications/)).toHaveCount(0)
   await expect(
     page.getByRole('link', { name: 'Thông báo', exact: true }),
-  ).toHaveCount(0)
+  ).toHaveAttribute('href', '/specialist/notifications')
   await page.screenshot({
-    path: 'docs/evidence/mb-620-specialist-portal-desktop.png',
+    path: testInfo.outputPath('specialist-portal-desktop.png'),
     fullPage: true,
   })
 
@@ -176,9 +176,9 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
   await expect(page.getByRole('heading', { name: 'Hộp thư' })).toBeVisible()
   await expect(page.getByText('Chưa có cuộc trò chuyện')).toBeVisible()
 
-  await navigation.getByRole('link', { name: 'Sau tư vấn' }).click()
+  await navigation.getByRole('link', { name: 'Theo dõi sau phiên' }).click()
   await expect(
-    page.getByRole('heading', { name: 'Nội dung đã thống nhất sau phiên' }),
+    page.getByRole('heading', { name: 'Theo dõi sau phiên' }),
   ).toBeVisible()
   await expect(
     page.getByText('Chưa có phiên tư vấn đã hoàn thành'),
@@ -193,7 +193,7 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
 
   await page.goto('/specialist/notifications')
   await expect(
-    page.getByRole('heading', { name: 'Trung tâm thông báo chưa khả dụng' }),
+    page.getByRole('heading', { name: 'Trung tâm thông báo', exact: true }),
   ).toBeVisible()
   await expect(page.getByText('Nguyễn Minh Anh')).toHaveCount(0)
   await expect(page.getByText('3', { exact: true })).toHaveCount(0)
@@ -209,7 +209,7 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
     page.getByRole('heading', { name: 'Chào bạn, Chuyên gia An' }),
   ).toHaveCSS('opacity', '1')
   await page.screenshot({
-    path: 'docs/evidence/mb-620-specialist-portal-laptop.png',
+    path: testInfo.outputPath('specialist-portal-laptop.png'),
     fullPage: true,
   })
 
@@ -225,8 +225,8 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
       ),
     ).toBe(true)
     await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
-    const drawer = page.getByRole('dialog', { name: 'Điều hướng chuyên gia' })
-    await expect(drawer).toBeVisible()
+    const drawer = page.locator('.role-sidebar')
+    await expect(drawer).toBeInViewport()
     await expect(drawer.getByRole('navigation').getByRole('link')).toHaveCount(
       9,
     )
@@ -235,8 +235,11 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
         name: 'Mở menu tài khoản chuyên gia',
       }),
     ).toBeVisible()
-    await drawer.getByRole('button', { name: 'Đóng menu' }).click()
-    await expect(drawer).not.toBeVisible()
+    const overlay = page.getByRole('button', { name: 'Đóng menu' })
+    const overlayBox = await overlay.boundingBox()
+    await overlay.click({
+      position: { x: (overlayBox?.width ?? 1) - 8, y: 8 },
+    })
     await expect(
       page.getByRole('button', { name: 'Mở menu', exact: true }),
     ).toBeFocused()
@@ -244,7 +247,7 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
   }
 
   await page.screenshot({
-    path: 'docs/evidence/mb-620-specialist-portal-mobile.png',
+    path: testInfo.outputPath('specialist-portal-mobile.png'),
     fullPage: true,
   })
 })

@@ -28,6 +28,8 @@ const contentResources = [
     reviewedAt: '2026-08-01T00:00:00Z',
     contentBody: 'Published fixture body.',
     contentVersion: '1',
+    isCorrectionDraft: false,
+    reviewDecision: null,
     sourceTitle: null,
     sourceUrl: null,
     sourceReviewNote: null,
@@ -47,6 +49,9 @@ const contentResources = [
     status: 'DRAFT',
     reviewedAt: null,
     contentBody: 'Draft fixture body.',
+    contentVersion: '1',
+    isCorrectionDraft: false,
+    reviewDecision: null,
     reviewedBy: null,
     effectiveAt: null,
     expiresAt: null,
@@ -63,6 +68,9 @@ const contentResources = [
     status: 'ARCHIVED',
     reviewedAt: '2026-07-01T00:00:00Z',
     contentBody: 'Archived fixture body.',
+    contentVersion: '1',
+    isCorrectionDraft: false,
+    reviewDecision: null,
     reviewedBy: '10000000-0000-4000-8000-000000000006',
     effectiveAt: null,
     expiresAt: null,
@@ -265,6 +273,7 @@ const anonymousAssessments = new Map()
 const authenticatedAssessments = new Map()
 const supportEvaluations = new Map()
 const supportEvaluationByPair = new Map()
+const screeningEpisodes = new Map()
 const careProfiles = new Map()
 const careConsents = new Map()
 const journalEntries = new Map()
@@ -323,6 +332,7 @@ function reset() {
   authenticatedAssessments.clear()
   supportEvaluations.clear()
   supportEvaluationByPair.clear()
+  screeningEpisodes.clear()
   careProfiles.clear()
   careConsents.clear()
   journalEntries.clear()
@@ -2187,6 +2197,9 @@ const server = createServer(async (request, response) => {
         effectiveAt: body.effectiveAt ?? null,
         expiresAt: body.expiresAt ?? null,
         status: 'DRAFT',
+        contentVersion: body.contentVersion ?? '1',
+        isCorrectionDraft: false,
+        reviewDecision: null,
         reviewedAt: null,
         reviewedBy: null,
         version: 0,
@@ -2883,6 +2896,231 @@ const server = createServer(async (request, response) => {
         return
       }
       json(response, 200, assessment)
+      return
+    }
+
+    if (url.pathname.startsWith('/api/v1/screening-episodes')) {
+      const actor = accessSessions.get(bearerToken(request))
+      if (!actor || actor.expired || !actor.roles.includes('USER')) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      if (url.pathname === '/api/v1/screening-episodes/current') {
+        const episode = screeningEpisodes.get(
+          `${actor.accountId}:${url.searchParams.get('purpose')}`,
+        )
+        if (!episode) {
+          problem(
+            response,
+            404,
+            'SCREENING_EPISODE_NOT_FOUND',
+            'No current episode',
+          )
+          return
+        }
+        json(response, 200, episode)
+        return
+      }
+      if (
+        request.method === 'POST' &&
+        url.pathname === '/api/v1/screening-episodes'
+      ) {
+        const { purpose } = await readBody(request)
+        if (!['INITIAL_CHECK', 'REASSESSMENT'].includes(purpose)) {
+          problem(response, 400, 'VALIDATION_FAILED', 'Unknown episode purpose')
+          return
+        }
+        const key = `${actor.accountId}:${purpose}`
+        let episode = screeningEpisodes.get(key)
+        if (!episode || episode.status === 'COMPLETED') {
+          episode = {
+            episodeId: crypto.randomUUID(),
+            purpose,
+            status: 'IN_PROGRESS',
+            phq9AssessmentId: null,
+            gad7AssessmentId: null,
+            supportEvaluationId: null,
+            presentationEvaluationId: null,
+            createdAt: careNow.toISOString(),
+            updatedAt: careNow.toISOString(),
+            completedAt: null,
+            version: 0,
+          }
+          screeningEpisodes.set(key, episode)
+        }
+        json(response, 201, episode)
+        return
+      }
+      const command = url.pathname.match(
+        /^\/api\/v1\/screening-episodes\/([^/]+)\/(?:assessments\/(PHQ9|GAD7)|(support-evaluation))$/,
+      )
+      if (request.method === 'POST' && command) {
+        const episode = [...screeningEpisodes.entries()].find(
+          ([key, item]) =>
+            key.startsWith(`${actor.accountId}:`) &&
+            item.episodeId === command[1],
+        )?.[1]
+        if (!episode) {
+          problem(
+            response,
+            404,
+            'SCREENING_EPISODE_NOT_FOUND',
+            'No owned episode',
+          )
+          return
+        }
+        if (command[2]) {
+          const body = await readBody(request)
+          const questionnaire = careQuestionnaires.get(
+            body.questionnaireDefinitionId,
+          )
+          if (
+            questionnaire?.instrument !== command[2] ||
+            body.privacyPolicyVersion !== 'privacy-capstone-v3' ||
+            body.privacyDisclosureAcknowledged !== true ||
+            careConsents.get(consentKey(actor.accountId, 'PRIVACY_POLICY'))
+              ?.granted !== true
+          ) {
+            problem(
+              response,
+              409,
+              'PRIVACY_DISCLOSURE_REQUIRED',
+              'Privacy disclosure required',
+            )
+            return
+          }
+          const field =
+            command[2] === 'PHQ9' ? 'phq9AssessmentId' : 'gad7AssessmentId'
+          let assessment = authenticatedAssessments.get(
+            `${actor.accountId}:${episode[field]}`,
+          )
+          if (!assessment) {
+            assessment = careAssessment(crypto.randomUUID(), body)
+            authenticatedAssessments.set(
+              `${actor.accountId}:${assessment.assessmentId}`,
+              assessment,
+            )
+            episode[field] = assessment.assessmentId
+            episode.version += 1
+            episode.updatedAt = careNow.toISOString()
+            state.authenticatedAssessmentCount += 1
+          }
+          json(response, 201, assessment)
+          return
+        }
+        const phq9 = authenticatedAssessments.get(
+          `${actor.accountId}:${episode.phq9AssessmentId}`,
+        )
+        const gad7 = authenticatedAssessments.get(
+          `${actor.accountId}:${episode.gad7AssessmentId}`,
+        )
+        if (!phq9 || !gad7) {
+          problem(
+            response,
+            409,
+            'SCREENING_EPISODE_INCOMPLETE',
+            'Both assessments are required',
+          )
+          return
+        }
+        let evaluation = supportEvaluations.get(
+          `${actor.accountId}:${episode.presentationEvaluationId}`,
+        )
+        if (!evaluation) {
+          evaluation = supportEvaluation(phq9, gad7)
+          supportEvaluations.set(
+            `${actor.accountId}:${evaluation.supportEvaluationId}`,
+            evaluation,
+          )
+          Object.assign(episode, {
+            status: 'COMPLETED',
+            supportEvaluationId: evaluation.supportEvaluationId,
+            presentationEvaluationId: evaluation.supportEvaluationId,
+            updatedAt: careNow.toISOString(),
+            completedAt: careNow.toISOString(),
+            version: episode.version + 1,
+          })
+        }
+        json(response, 201, { episode, presentationEvaluation: evaluation })
+        return
+      }
+    }
+
+    const combinedMeaningGet = url.pathname.match(
+      /^\/api\/v1\/support-evaluations\/([^/]+)\/combined-meaning$/,
+    )
+    if (request.method === 'GET' && combinedMeaningGet) {
+      const actor = accessSessions.get(bearerToken(request))
+      if (!actor || actor.expired || !actor.roles.includes('USER')) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      const evaluation = supportEvaluations.get(
+        `${actor.accountId}:${combinedMeaningGet[1]}`,
+      )
+      const episode = [...screeningEpisodes.entries()].find(
+        ([key, item]) =>
+          key.startsWith(`${actor.accountId}:`) &&
+          item.presentationEvaluationId === combinedMeaningGet[1],
+      )?.[1]
+      if (!evaluation || !episode) {
+        problem(
+          response,
+          404,
+          'SUPPORT_EVALUATION_NOT_FOUND',
+          'No owned evaluation',
+        )
+        return
+      }
+      const evidence = evaluation.evidence.map((item) => ({
+        assessmentId: item.assessmentId,
+        instrument: item.instrument,
+        questionnaireVersion: item.questionnaireVersion,
+        scoringVersion: item.scoringVersion,
+        screeningLevel: item.screeningLevel,
+        safetyStatus: item.safetyStatus,
+        totalScore: authenticatedAssessments.get(
+          `${actor.accountId}:${item.assessmentId}`,
+        ).result.totalScore,
+      }))
+      const [phq9, gad7] = evidence
+      const professional = [phq9, gad7].some((item) =>
+        ['MODERATE', 'MODERATELY_SEVERE', 'SEVERE'].includes(
+          item.screeningLevel,
+        ),
+      )
+      json(response, 200, {
+        supportEvaluationId: evaluation.supportEvaluationId,
+        sourcePolicyVersion: evaluation.policyVersion,
+        evaluatedAt: evaluation.evaluatedAt,
+        presentationPolicyVersion: 'mb-combined-screening-meaning-v1',
+        contentVersion: 'mb-combined-screening-meaning-vi-vn-v1-draft.3',
+        referencePeriodDays: 14,
+        episodeId: episode.episodeId,
+        episodePurpose: episode.purpose,
+        episodeCompletedAt: episode.completedAt,
+        domainSupportEvaluationId: episode.supportEvaluationId,
+        supportGuideId: null,
+        evidence,
+        supportTier: evaluation.supportTier,
+        baseMeaning: {
+          code: `PHQ9_${phq9.screeningLevel}_GAD7_${gad7.screeningLevel}`,
+          text: 'Kết quả phản ánh câu trả lời trong 14 ngày qua.',
+          rationale: 'Bạn có thể xem từng kết quả và bước hỗ trợ phù hợp.',
+          supportTier: professional
+            ? 'PROFESSIONAL_SUPPORT_RECOMMENDED'
+            : 'SELF_GUIDED_SUPPORT',
+        },
+        presentationPriority: evaluation.safetyGuidance
+          ? 'SAFETY'
+          : professional
+            ? 'PROFESSIONAL_SUPPORT'
+            : 'SELF_GUIDED',
+        nextStep: evaluation.nextStep,
+        safetyGuidance: evaluation.safetyGuidance,
+        disclaimerCode: evaluation.disclaimerCode,
+        disclaimer: evaluation.disclaimer,
+      })
       return
     }
 

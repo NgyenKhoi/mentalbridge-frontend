@@ -1,5 +1,20 @@
 # Native development-path verification
 
+## Temporary web-demo exception (PR #187)
+
+The owner has temporarily deferred the Android native boot and real-contract
+journey gate so staging can be used for the web demo. The Android job remains
+defined but is explicitly skipped; the final staging gate accepts this skipped
+result and emits a warning. This is not passing Android evidence. Web quality,
+browser tests, promotion policy, mobile quality and iOS native boot remain
+required. The known Android sign-in failure is still open.
+
+After the demo, remove the Android job's temporary `if` condition, restore its
+strict success requirement in the final gate, and remove the exception warning
+in `.github/workflows/staging-quality.yml`. Rerun the Android journeys after
+fixing sign-in before claiming native readiness. The normal requirements below
+apply again after that restoration.
+
 MB-606 distinguishes JavaScript bundle export from a native app boot. An
 `expo export` result proves that Metro can produce platform bundles; it does not
 prove that Gradle or Xcode can compile, install, and launch the native app.

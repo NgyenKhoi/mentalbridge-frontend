@@ -131,8 +131,11 @@ export function MindfulnessResourceDetail({
   useEffect(() => {
     if (!running || remaining === 0) return
     const timeout = window.setTimeout(() => {
-      setRemaining((value) => value - 1)
-      if (remaining === 1) setRunning(false)
+      setRemaining((value) => {
+        const next = Math.max(0, value - 1)
+        if (next === 0) setRunning(false)
+        return next
+      })
     }, 1000)
     return () => window.clearTimeout(timeout)
   }, [remaining, running])

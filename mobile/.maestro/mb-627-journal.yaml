@@ -4,9 +4,11 @@ name: MB-627 private Journal to explicit authoritative AI safe outcome
 - launchApp:
     clearState: true
 - tapOn: 'Tiếp tục'
-- tapOn: 'Email'
+- tapOn:
+    id: 'sign-in-email-input'
 - inputText: '${MAESTRO_MB_USER_EMAIL}'
-- tapOn: 'Mật khẩu'
+- tapOn:
+    id: 'sign-in-password-input'
 - inputText: '${MAESTRO_MB_USER_PASSWORD}'
 - hideKeyboard
 - tapOn:

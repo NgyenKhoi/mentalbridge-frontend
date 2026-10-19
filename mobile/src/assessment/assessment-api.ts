@@ -1,10 +1,12 @@
 import type { AxiosInstance } from 'axios'
+import { z } from 'zod'
 
 import {
   assessmentHistorySchema,
   assessmentSchema,
   consentDecisionSchema,
   consentCollectionSchema,
+  guidedJourneySchema,
   privacyDisclosureSchema,
   questionnaireSchema,
   safetyDirectoryResponseSchema,
@@ -17,6 +19,7 @@ import {
   type AssessmentHistory,
   type AssessmentSubmission,
   type ConsentCollection,
+  type GuidedJourney,
   type Instrument,
   type PrivacyDisclosure,
   type Questionnaire,
@@ -48,11 +51,8 @@ export interface AssessmentApi {
   getAssessment(assessmentId: string): Promise<Assessment>
   listAssessments(): Promise<AssessmentHistory>
   getSupportEvaluation(supportEvaluationId: string): Promise<SupportEvaluation>
-  generateSupportGuide(
-    phq9AssessmentId: string,
-    gad7AssessmentId: string,
-    idempotencyKey: string,
-  ): Promise<SupportGuide>
+  ensureEpisodeSupportGuide(episodeId: string): Promise<SupportGuide>
+  getGuidedJourney(): Promise<GuidedJourney>
   getSupportGuide(supportGuideId: string): Promise<SupportGuide>
   listSupportGuides(): Promise<SupportGuideHistory>
   lookupSafetyDirectory(
@@ -147,17 +147,15 @@ export function createAssessmentApi(client: AxiosInstance): AssessmentApi {
       )
       return supportEvaluationSchema.parse(response.data)
     },
-    async generateSupportGuide(
-      phq9AssessmentId,
-      gad7AssessmentId,
-      idempotencyKey,
-    ) {
+    async ensureEpisodeSupportGuide(episodeId) {
       const response = await client.post(
-        '/api/v1/support-guides',
-        { phq9AssessmentId, gad7AssessmentId },
-        { headers: { 'Idempotency-Key': idempotencyKey } },
+        `/api/v1/screening-episodes/${encodeURIComponent(z.uuid().parse(episodeId))}/support-guide`,
       )
       return supportGuideSchema.parse(response.data)
+    },
+    async getGuidedJourney() {
+      const response = await client.get('/api/v1/guided-journey/current')
+      return guidedJourneySchema.parse(response.data)
     },
     async getSupportGuide(supportGuideId) {
       const response = await client.get(

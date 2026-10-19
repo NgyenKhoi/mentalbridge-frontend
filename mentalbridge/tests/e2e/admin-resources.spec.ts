@@ -48,8 +48,13 @@ test.describe('ADMIN to USER resource boundary', () => {
       page.getByText('Draft Resource', { exact: true }),
     ).toBeVisible()
     await page.getByRole('button', { name: /Draft Resource/ }).click()
+    // Publishing stays locked: no publish action before an approved review, and
+    // approval needs complete source provenance, which this draft lacks.
     await expect(
-      page.getByRole('button', { name: 'Xuất bản — đang khóa' }),
+      page.getByRole('button', { name: 'Xuất bản phiên bản này' }),
+    ).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: 'Phê duyệt phiên bản' }),
     ).toBeDisabled()
 
     await page.getByRole('button', { name: '+ Thêm tài nguyên' }).click()
@@ -102,6 +107,10 @@ test.describe('ADMIN to USER resource boundary', () => {
       page.getByRole('button', { name: 'Lưu trữ', exact: true }),
     ).toBeVisible()
     await page.getByRole('button', { name: 'Lưu trữ', exact: true }).click()
+    await page
+      .getByRole('dialog', { name: 'Lưu trữ tài nguyên này?' })
+      .getByRole('button', { name: 'Lưu trữ', exact: true })
+      .click()
     await expect(
       page.getByText('Đã lưu trữ tài nguyên thành công'),
     ).toBeVisible()
@@ -123,7 +132,7 @@ test.describe('ADMIN to USER resource boundary', () => {
     ).toBeVisible()
     await page.getByRole('button', { name: /Draft Resource/ }).click()
     await expect(
-      page.getByRole('button', { name: 'Xuất bản — đang khóa' }),
+      page.getByRole('button', { name: 'Phê duyệt phiên bản' }),
     ).toBeDisabled()
     await expect(page.getByLabel('Tiêu đề')).toBeVisible()
   })

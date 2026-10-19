@@ -36,7 +36,6 @@ import {
 
 import type { PublicResourceDetail } from '../api/browser-resources'
 import { stretchExerciseSteps } from '../model/stretch-exercise-steps'
-import { useResourceBookmarks } from '../hooks/useResourceBookmarks'
 import styles from './stretch-resource-detail.module.css'
 
 type Props = Readonly<{
@@ -112,7 +111,6 @@ export function StretchResourceDetail({
     'loading',
   )
   const [duration, setDuration] = useState<number | null>(null)
-  const [videoHeight, setVideoHeight] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [watchedSeconds, setWatchedSeconds] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -121,15 +119,25 @@ export function StretchResourceDetail({
   const [volume, setVolume] = useState(80)
   const [muted, setMuted] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
+  const [saved, setSaved] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return (
+        window.localStorage.getItem(`mb:resource-bookmark:${resource.id}`) ===
+        'true'
+      )
+    } catch {
+      return false
+    }
+  })
   const [shareMessage, setShareMessage] = useState('')
+  const [announcement, setAnnouncement] = useState('')
   const [recordState, setRecordState] = useState<
     'idle' | 'sending' | 'success' | 'error'
   >('idle')
   const [showCues, setShowCues] = useState(true)
   const [playbackRate, setPlaybackRate] = useState(1)
-
-  const bookmarks = useResourceBookmarks()
-  const saved = bookmarks.isBookmarked(resource.id)
+  const [videoHeight, setVideoHeight] = useState(0)
 
   useEffect(() => {
     const onFullscreenChange = () =>
@@ -216,14 +224,15 @@ export function StretchResourceDetail({
   const sourceUrl = resource.sourceUrl?.startsWith('https://')
     ? resource.sourceUrl
     : null
-  const announcement = !hasPlayed
-    ? ''
-    : ended
-      ? 'Bài tập đã hoàn thành'
-      : `Động tác ${activeIndex + 1}: ${activeStep.title}`
-
   useEffect(() => {
     if (!hasPlayed) return
+    queueMicrotask(() => {
+      setAnnouncement(
+        ended
+          ? 'Bài tập đã hoàn thành'
+          : `Động tác ${activeIndex + 1}: ${activeStep.title}`,
+      )
+    })
     const rail = stepsRef.current
     const card = stepRefs.current[activeIndex]
     if (!rail || !card) return
@@ -359,16 +368,19 @@ export function StretchResourceDetail({
     }
   }
 
-  async function toggleBookmark() {
-    if (bookmarks.state === 'error' || bookmarks.state === 'stale') {
-      await bookmarks.retry()
-      return
-    }
-    const changed = await bookmarks.toggle(resource.id)
-    if (!changed)
-      setShareMessage(
-        'Chưa đối soát được mục đã lưu. Hãy tải lại trạng thái trước khi thử lại.',
+  function toggleBookmark() {
+    const next = !saved
+    setSaved(next)
+    try {
+      window.localStorage.setItem(
+        `mb:resource-bookmark:${resource.id}`,
+        String(next),
       )
+    } catch {
+      setShareMessage(
+        'Trình duyệt chưa cho phép lưu bài tập trên thiết bị này.',
+      )
+    }
   }
 
   async function shareResource() {
@@ -423,12 +435,8 @@ export function StretchResourceDetail({
           <div className={styles.toolbarActions}>
             <button
               type="button"
-              onClick={() => void toggleBookmark()}
-              aria-pressed={bookmarks.state === 'ready' && saved}
-              disabled={
-                bookmarks.state === 'loading' ||
-                bookmarks.pendingResourceId !== null
-              }
+              onClick={toggleBookmark}
+              aria-pressed={saved}
               aria-label={
                 saved
                   ? 'Bỏ lưu bài tập trên thiết bị'
@@ -440,15 +448,7 @@ export function StretchResourceDetail({
                 fill={saved ? 'currentColor' : 'none'}
                 aria-hidden="true"
               />
-              <span>
-                {bookmarks.pendingResourceId === resource.id
-                  ? 'Đang lưu…'
-                  : bookmarks.state === 'error' || bookmarks.state === 'stale'
-                    ? 'Tải lại mục đã lưu'
-                    : saved
-                      ? 'Đã lưu'
-                      : 'Lưu bài tập'}
-              </span>
+              <span>{saved ? 'Đã lưu' : 'Lưu bài tập'}</span>
             </button>
             <button
               type="button"
@@ -494,7 +494,7 @@ export function StretchResourceDetail({
             </span>
             <div>
               <span>TIẾN ĐỘ HOÀN THÀNH</span>
-              <strong>Chỉ ghi nhận sau khi lưu thành công</strong>
+              <strong>Ghi nhận bài tập đã hoàn thành</strong>
             </div>
           </div>
         </header>
@@ -521,7 +521,7 @@ export function StretchResourceDetail({
                     playsInline
                     onLoadedMetadata={(event) => {
                       const seconds = event.currentTarget.duration
-                      setVideoHeight(event.currentTarget.videoHeight)
+                      setVideoHeight(event.currentTarget.videoHeight || 0)
                       if (Number.isFinite(seconds) && seconds > 0) {
                         setDuration(seconds)
                         setMediaState('ready')

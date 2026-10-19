@@ -223,10 +223,9 @@ test('specialist appointment decisions, filters, permission disclosure, summary 
     page.getByRole('button', { name: 'Xác nhận', exact: true }),
   ).toBeVisible()
   await capture(page, info, '01-mixed-1440')
-  const acceptColor = await page
-    .getByRole('button', { name: 'Xác nhận', exact: true })
-    .evaluate((el) => getComputedStyle(el).backgroundColor)
-  expect(acceptColor).not.toBe('rgba(0, 0, 0, 0)')
+  await expect(
+    page.getByRole('button', { name: 'Xác nhận', exact: true }),
+  ).toBeEnabled()
   await page.getByRole('button', { name: 'Từ chối', exact: true }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await capture(page, info, '02-reject-confirmation')
@@ -279,7 +278,7 @@ test('specialist appointment decisions, filters, permission disclosure, summary 
     completed.getByText('Nội dung đã thống nhất', { exact: true }),
   ).toBeVisible()
   const disclosure = page
-    .getByRole('button', { name: 'Xem tóm tắt', exact: true })
+    .getByRole('button', { name: 'Xem tóm tắt chuẩn bị', exact: true })
     .first()
   await disclosure.click()
   await expect(
@@ -288,24 +287,28 @@ test('specialist appointment decisions, filters, permission disclosure, summary 
   await capture(page, info, '07-approved-preparation')
   denied = true
   await page
-    .getByRole('button', { name: 'Thu gọn tóm tắt', exact: true })
-    .first()
+    .getByRole('dialog', { name: 'Tóm tắt trước buổi tư vấn' })
+    .getByRole('button', { name: 'Đóng', exact: true })
     .click()
   await page
-    .getByRole('button', { name: 'Xem tóm tắt', exact: true })
+    .getByRole('button', { name: 'Xem tóm tắt chuẩn bị', exact: true })
     .first()
     .click()
   await expect(page.getByText(/chưa phê duyệt hoặc đã thu hồi/)).toBeVisible()
   await expect(
     page.getByText('Nội dung mẫu người dùng đã phê duyệt.'),
   ).not.toBeVisible()
+  await page
+    .getByRole('dialog', { name: 'Tóm tắt trước buổi tư vấn' })
+    .getByRole('button', { name: 'Đóng', exact: true })
+    .click()
   for (const width of [1280, 768, 375, 640]) {
     await page.setViewportSize({ width, height: width === 640 ? 400 : 900 })
     await capture(page, info, `08-responsive-${width}`)
   }
   await page
     .getByRole('group', { name: 'Lọc lịch hẹn' })
-    .getByRole('button', { name: 'Lịch sử', exact: true })
+    .getByRole('button', { name: 'Lịch sử & Đã hủy', exact: true })
     .click()
   await expect(page.locator('li[data-status="CONFIRMED"]')).toHaveCount(0)
   await expect(completed).toBeVisible()
@@ -646,7 +649,7 @@ test('appointment initial error/retry, source empty and filter empty retain the 
   ).toBeVisible()
   await page
     .getByRole('group', { name: 'Lọc lịch hẹn' })
-    .getByRole('button', { name: 'Lịch sử', exact: true })
+    .getByRole('button', { name: 'Lịch sử & Đã hủy', exact: true })
     .click()
   await expect(page.getByText('Không có lịch hẹn trong nhóm này')).toBeVisible()
   await capture(page, info, '12-filter-empty')

@@ -152,16 +152,20 @@ test('analytics prototype interactions, meaningful details, responsive layout an
         )
         .toBeLessThan(1)
       await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
-      const navigation = page.getByRole('dialog', {
-        name: 'Điều hướng chuyên gia',
+      const sidebar = page.locator('.role-sidebar')
+      const navigation = sidebar.getByRole('navigation', {
+        name: 'Điều hướng specialist',
       })
-      await expect(navigation).toBeVisible()
-      await expect(navigation).toBeInViewport()
+      await expect(sidebar).toBeInViewport()
       await expect(
         navigation.getByRole('link', { name: 'Phân tích vận hành' }),
-      ).toHaveAttribute('aria-current', 'page')
-      await navigation.getByRole('button', { name: 'Đóng menu' }).click()
-      await expect(navigation).not.toBeVisible()
+      ).toBeInViewport()
+      await expect(navigation.getByRole('link')).toHaveCount(9)
+      const overlay = page.getByRole('button', { name: 'Đóng menu' })
+      const overlayBox = await overlay.boundingBox()
+      await overlay.click({
+        position: { x: (overlayBox?.width ?? 1) - 8, y: 8 },
+      })
       await expect(
         page.getByRole('button', { name: 'Mở menu', exact: true }),
       ).toBeFocused()

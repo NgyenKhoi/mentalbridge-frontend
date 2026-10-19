@@ -35,7 +35,10 @@ async function answerPublishedQuestionnaire(page: Page) {
     page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
   ).toBeVisible()
   await expect(page.getByText('1', { exact: true })).toBeVisible()
-  await expect(page.getByText('Dương tính theo quy tắc sàng lọc')).toBeVisible()
+  await expect(page.getByText('Có câu trả lời cần bạn lưu ý')).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: 'Xem hỗ trợ trong khu vực đã chọn' }),
+  ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
   await expect(page.getByText(/không giám sát con người 24\/7/i)).toBeVisible()
   await expect(page.getByText(/hotline/i)).toHaveCount(0)
 }
@@ -341,31 +344,20 @@ test.describe('Care-backed PHQ-9 screening', () => {
     ).toBeVisible()
     await page.getByLabel('Tên hiển thị').fill('Care E2E Updated User')
     await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
-    await expect(page.getByText('Đã lưu thay đổi hồ sơ.')).toBeVisible()
+    await expect(
+      page.getByText('Đã lưu thay đổi hồ sơ', { exact: true }),
+    ).toBeVisible()
     await page.reload()
     await expect(page.getByLabel('Tên hiển thị')).toHaveValue(
       'Care E2E Updated User',
     )
-    await page
-      .getByRole('button', { name: 'Đồng ý xử lý dữ liệu sàng lọc' })
-      .click()
-    await expect(
-      page.getByText('Đã bật xử lý dữ liệu cho các lần sàng lọc mới.'),
-    ).toBeVisible()
-    await page
-      .getByRole('button', {
-        name: 'Dừng xử lý cho các lần sàng lọc mới',
-      })
-      .click()
-    await expect(
-      page.getByText('Đã dừng xử lý dữ liệu cho các lần sàng lọc mới.'),
-    ).toBeVisible()
-    await page
-      .getByRole('button', { name: 'Đồng ý xử lý dữ liệu sàng lọc' })
-      .click()
-    await expect(
-      page.getByText('Đã bật xử lý dữ liệu cho các lần sàng lọc mới.'),
-    ).toBeVisible()
+    const privacyToggle = page.getByRole('switch', { name: /xử lý dữ liệu/ })
+    await privacyToggle.click()
+    await expect(privacyToggle).toHaveAttribute('aria-checked', 'true')
+    await privacyToggle.click()
+    await expect(privacyToggle).toHaveAttribute('aria-checked', 'false')
+    await privacyToggle.click()
+    await expect(privacyToggle).toHaveAttribute('aria-checked', 'true')
 
     await page.goto('/assessment/phq9')
     await answerPublishedQuestionnaire(page)
@@ -375,6 +367,11 @@ test.describe('Care-backed PHQ-9 screening', () => {
     ).toBeVisible()
 
     await page.goto('/assessments')
+    await page
+      .getByRole('button', {
+        name: 'Bài sàng lọc riêng lẻ và kết quả từng bài',
+      })
+      .click()
     await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(1)
     await expectProgressFailure(page, 'Chưa đủ kết quả để so sánh', 1)
 
@@ -388,6 +385,11 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await answerPublishedQuestionnaire(page)
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/assessments')
+    await page
+      .getByRole('button', {
+        name: 'Bài sàng lọc riêng lẻ và kết quả từng bài',
+      })
+      .click()
     await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(2)
 
     await selectedAssessmentId(page)
@@ -473,7 +475,12 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await expect(page.locator('body')).not.toContainText(careAccessToken)
     await expect(page.locator('body')).not.toContainText(careServiceUrl)
 
-    await page.getByRole('link', { name: 'Xem lại' }).first().click()
+    const latestResult = await page
+      .getByRole('link', { name: 'Xem lại' })
+      .first()
+      .getAttribute('href')
+    expect(latestResult).toBeTruthy()
+    await page.goto(latestResult!)
     await expect(
       page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
     ).toBeVisible()
@@ -484,7 +491,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await expect(
       page.getByRole('heading', { name: 'Kết quả sàng lọc GAD-7' }),
     ).toBeVisible()
-    await page.getByText('Nội dung và thang điểm đã dùng').click()
+    await page.getByText('Nội dung và thang điểm của bài này').click()
     await expect(
       page.getByText(
         'Cảm thấy sợ như thể có một điều gì đó khủng khiếp có thể xảy ra',
@@ -492,7 +499,12 @@ test.describe('Care-backed PHQ-9 screening', () => {
     ).toBeVisible()
 
     await page.goto('/assessments')
-    const gad7HistoryRow = page.getByRole('row').filter({ hasText: 'GAD7' })
+    await page
+      .getByRole('button', {
+        name: 'Bài sàng lọc riêng lẻ và kết quả từng bài',
+      })
+      .click()
+    const gad7HistoryRow = page.getByRole('article').filter({ hasText: 'GAD7' })
     await expect(
       gad7HistoryRow.getByRole('link', { name: 'Xem lại' }),
     ).toHaveAttribute('href', /\/assessment\/gad7\?assessmentId=/)
@@ -501,8 +513,10 @@ test.describe('Care-backed PHQ-9 screening', () => {
   test('completes and resumes the guided initial check without browser-persisted health data', async ({
     context,
     page,
+    request,
   }) => {
     test.setTimeout(useCareFixture ? 90_000 : 150_000)
+    if (useCareFixture) await careControl(request, '/__test/reset')
     await context.addCookies([
       {
         name: 'mentalbridge_access',
@@ -520,20 +534,22 @@ test.describe('Care-backed PHQ-9 screening', () => {
       name: /Bắt đầu kiểm tra ban đầu/,
     })
     await expect(start).toBeVisible()
-    await expect(page.getByText(/14 ngày gần đây/)).toBeVisible()
     await expect(
-      page.getByText(/không phải chẩn đoán y khoa/).first(),
+      page.getByRole('heading', { name: 'Hiểu rõ hơn về 14 ngày gần đây' }),
     ).toBeVisible()
     await start.click()
 
     const privacyHeading = page.getByRole('heading', {
       name: 'Xác nhận quyền riêng tư',
     })
+    if (useCareFixture) await expect(privacyHeading).toBeVisible()
     if (await privacyHeading.isVisible().catch(() => false)) {
       await page
         .getByRole('link', { name: 'Xem quyền riêng tư và tiếp tục' })
         .click()
-      await page.getByRole('button', { name: 'Tôi đồng ý' }).click()
+      const privacyToggle = page.getByRole('switch', { name: /xử lý dữ liệu/ })
+      await privacyToggle.click()
+      await expect(privacyToggle).toHaveAttribute('aria-checked', 'true')
       await page
         .getByRole('link', { name: 'Tiếp tục bước chưa hoàn tất' })
         .click()
@@ -603,46 +619,37 @@ test.describe('Care-backed PHQ-9 screening', () => {
     )
 
     const resultHeading = page.getByRole('heading', {
-      name: 'Kết quả kiểm tra ban đầu',
+      name: 'Lắng nghe nhịp điệu tâm trí của bạn',
     })
     await expect(resultHeading).toBeVisible()
-    expect(
-      await resultHeading.evaluate(
-        (element) => getComputedStyle(element).color,
-      ),
-    ).toBe('rgb(248, 251, 249)')
+    await expect(
+      page.getByText(/Không thay thế chẩn đoán bác sĩ/),
+    ).toBeVisible()
     await expect(
       page.getByRole('heading', { name: 'Ưu tiên xem hướng dẫn an toàn' }),
     ).toBeVisible()
     await expect(
       page.getByText(/chủ động liên hệ dịch vụ khẩn cấp/i),
     ).toBeVisible()
+    const safety = page.locator('.initial-check-safety.positive')
     await expect(
-      page.getByRole('heading', { name: 'Nên ưu tiên theo dõi an toàn' }),
-    ).toBeVisible()
-    await expect(
-      page.getByText('Dịch vụ tạm thời không khả dụng'),
-    ).toBeVisible()
-
-    const blockOrder = await page
-      .locator('.initial-check-result > section')
-      .evaluateAll((elements) =>
-        elements.slice(0, 6).map((element) => element.className),
-      )
-    expect(blockOrder).toEqual([
-      'initial-check-evidence',
-      'initial-check-evidence',
-      'initial-check-safety positive',
-      'initial-check-tier',
-      'initial-check-meaning',
-      'initial-check-next',
-    ])
+      safety.getByRole('link', { name: /Xem hỗ trợ/ }),
+    ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
+    const scoreCards = page.locator('.initial-check-score-card')
+    await expect(scoreCards).toHaveCount(2)
+    expect((await safety.boundingBox())!.y).toBeLessThan(
+      (await scoreCards.first().boundingBox())!.y,
+    )
 
     const journeyCookies = (await context.cookies()).filter((cookie) =>
       cookie.name.startsWith('mentalbridge_initial_check_'),
     )
-    expect(journeyCookies).toHaveLength(3)
-    expect(journeyCookies.every((cookie) => cookie.httpOnly)).toBe(true)
+    // Episode continuity now lives in Care; the browser needs no journey IDs.
+    expect(journeyCookies).toHaveLength(0)
+    const completedResponse = await page.request.get('/api/care/initial-check')
+    expect(completedResponse.ok()).toBe(true)
+    const completed = await completedResponse.json()
+    expect(completed.phase).toBe('COMPLETED')
     const browserState = await page.evaluate(() => ({
       cookie: document.cookie,
       local: JSON.stringify(localStorage),
@@ -650,12 +657,17 @@ test.describe('Care-backed PHQ-9 screening', () => {
       url: window.location.href,
       html: document.documentElement.innerHTML,
     }))
-    for (const cookie of journeyCookies) {
-      expect(browserState.cookie).not.toContain(cookie.value)
-      expect(browserState.local).not.toContain(cookie.value)
-      expect(browserState.session).not.toContain(cookie.value)
-      expect(browserState.url).not.toContain(cookie.value)
-      expect(browserState.html).not.toContain(cookie.value)
+    for (const privateValue of [
+      careAccessToken,
+      completed.phq9.assessmentId,
+      completed.gad7.assessmentId,
+      completed.evaluation.supportEvaluationId,
+    ]) {
+      expect(browserState.cookie).not.toContain(privateValue)
+      expect(browserState.local).not.toContain(privateValue)
+      expect(browserState.session).not.toContain(privateValue)
+      expect(browserState.url).not.toContain(privateValue)
+      expect(browserState.html).not.toContain(privateValue)
     }
     expect(browserState.local).not.toMatch(/questionId|answers|totalScore/)
     expect(browserState.session).not.toMatch(/questionId|answers|totalScore/)
@@ -669,9 +681,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
     })
     await page.setViewportSize({ width: 375, height: 812 })
     await page.reload()
-    await expect(
-      page.getByRole('heading', { name: 'Kết quả kiểm tra ban đầu' }),
-    ).toBeVisible()
+    await expect(resultHeading).toBeVisible()
     await page.screenshot({
       path: 'docs/evidence/mb-272-initial-check-mobile.png',
       fullPage: true,

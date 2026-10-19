@@ -79,6 +79,8 @@ test.describe('MB-651 guided SupportPlan Companion', () => {
       const problem = (status: number, code: string) =>
         json({ type: 'about:blank', title: code, status, code }, status)
 
+      if (path === '/api/care/guided-journey')
+        return problem(503, 'CARE_UNAVAILABLE')
       if (path === '/api/care/v2/support-plans/current') return json(plan)
       if (path === '/api/care/v2/support-plans/current-draft')
         return problem(404, 'SUPPORT_PLAN_NOT_FOUND')
@@ -173,7 +175,7 @@ test.describe('MB-651 guided SupportPlan Companion', () => {
     await expect(panel).toHaveAttribute('aria-modal', 'true')
     const shell = page.locator('.support-plan-companion.is-panel-open')
     await expect(shell).toHaveCSS('position', 'fixed')
-    const pageHeader = page.locator('.support-plan-page > header')
+    const pageHeader = page.locator('.mbw-page > header')
     await expect(pageHeader).toHaveAttribute('inert', '')
     const close = panel.getByRole('button', {
       name: 'Đóng hướng dẫn Bạn đồng hành',

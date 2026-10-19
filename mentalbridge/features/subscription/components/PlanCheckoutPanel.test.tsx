@@ -278,6 +278,10 @@ describe('PlanCheckoutPanel', () => {
     render(<PlanCheckoutPanel />)
     expect(await screen.findByText(/1\.390\.000\s*₫/)).toBeInTheDocument()
     expect(screen.getByText(/3\.490\.000\s*₫/)).toBeInTheDocument()
+    expect(screen.getByText('4 lượt tư vấn')).toBeInTheDocument()
+    expect(screen.getByText('2 lịch')).toBeInTheDocument()
+    expect(screen.getByText('10 lượt tư vấn')).toBeInTheDocument()
+    expect(screen.getByText('4 lịch')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /Chọn Plus qua MoMo/ }),
     ).toBeEnabled()

@@ -190,19 +190,26 @@ test('overview real projections, context navigation, mobile menu and recovery st
     for (const link of await overview.locator('a').all())
       expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44)
   }
-  await page.getByRole('button', { name: 'Mở menu' }).click()
-  const menu = page.getByRole('dialog', { name: 'Điều hướng chuyên gia' })
-  await expect(menu).toBeVisible()
+  await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
+  const menu = page.locator('.role-sidebar')
+  await expect(menu).toBeInViewport()
+  await expect(
+    menu.getByRole('navigation').getByRole('link').first(),
+  ).toBeFocused()
+  // Content behind the open slide-in menu stays out of the keyboard order.
+  const main = page.locator('.role-main')
   for (let n = 0; n < 15; n++) {
     await page.keyboard.press('Tab')
-    expect(await menu.evaluate((e) => e.contains(document.activeElement))).toBe(
-      true,
+    expect(await main.evaluate((e) => e.contains(document.activeElement))).toBe(
+      false,
     )
   }
   await capture(page, info, 'overview-02-mobile-menu', 'overview')
   await page.keyboard.press('Escape')
-  await expect(menu).not.toBeVisible()
-  await expect(page.getByRole('button', { name: 'Mở menu' })).toBeFocused()
+  await expect(menu).not.toBeInViewport()
+  await expect(
+    page.getByRole('button', { name: 'Mở menu', exact: true }),
+  ).toBeFocused()
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.getByRole('link', { name: 'Xem yêu cầu', exact: true }).click()
   await expect(page).toHaveURL(new RegExp('appointmentId=' + workspaceId(1)))

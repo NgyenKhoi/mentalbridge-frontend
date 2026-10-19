@@ -4,6 +4,7 @@ import type {
   ChangeSupportPlanStatusRequest,
   ProposeNativeSupportPlanRequest,
   ReplaceCurrentSupportPlanRequest,
+  ReplaceSupportPlanOccurrenceEngagementRequest,
 } from '@/features/support-plan/api/support-plan-contract'
 import { ApiError } from '@/lib/api/api-error'
 import { careRequest } from './care-client'
@@ -115,12 +116,10 @@ export const supportPlanActionClient = {
       idempotencyKey,
       authorization,
       correlationId,
+      // An idempotent replay returns the plan's current view, which may no longer be a draft.
       parseSuccess(value) {
         const parsed = parseCanonicalSupportPlan(value)
-        return parsed?.representationMode === 'NATIVE_V3' &&
-          parsed.status === 'DRAFT'
-          ? parsed
-          : null
+        return parsed?.representationMode === 'NATIVE_V3' ? parsed : null
       },
     })
   },
@@ -275,6 +274,46 @@ export const supportPlanActionClient = {
       parseSuccess(value) {
         const parsed = parseJournalReconciliation(value)
         return parsed?.occurrenceId === id && parsed.journalId === journalId
+          ? parsed
+          : null
+      },
+    })
+  },
+  continueCycle(
+    authorization: string,
+    id: string,
+    ifMatch: number,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'POST',
+      path: `${planPath(id)}/cycle-continuation`,
+      ifMatch,
+      idempotencyKey,
+      authorization,
+      correlationId,
+      parseSuccess: identity(parseCanonicalSupportPlan, id),
+    })
+  },
+  occurrenceEngagement(
+    authorization: string,
+    id: string,
+    ifMatch: number,
+    body: ReplaceSupportPlanOccurrenceEngagementRequest,
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'PUT',
+      path: `${occurrencePath(id)}/engagement`,
+      body,
+      ifMatch,
+      authorization,
+      correlationId,
+      parseSuccess(value) {
+        const parsed = parseActionOccurrence(value)
+        return parsed?.occurrenceId === id &&
+          parsed.representationMode === 'NATIVE_V3'
           ? parsed
           : null
       },

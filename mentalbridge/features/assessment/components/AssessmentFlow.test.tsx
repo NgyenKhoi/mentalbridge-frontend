@@ -164,6 +164,18 @@ describe('AssessmentFlow', () => {
       }),
     ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
     expect(screen.getByText(/không giám sát con người 24\/7/i)).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: /Đọc và thực hành/ }),
+    ).toHaveAttribute('href', '/resources')
+    expect(
+      screen.getByRole('link', { name: /Trao đổi với chuyên gia/ }),
+    ).toHaveAttribute('href', '/specialists')
+    expect(
+      screen.getByText(/kết quả này không được đăng tự động/i),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('link', { name: /Theo dõi kế hoạch hỗ trợ/ }),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText(/hotline/i)).not.toBeInTheDocument()
     expect(received).toHaveBeenCalledWith({
       body: {

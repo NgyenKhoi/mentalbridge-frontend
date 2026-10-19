@@ -252,6 +252,10 @@
   box-shadow: 0 4px 12px rgba(30, 74, 67, 0.25);
 }
 
+.selected * {
+  color: #ffffff !important;
+}
+
 .emotionIcon {
   display: flex;
   align-items: center;

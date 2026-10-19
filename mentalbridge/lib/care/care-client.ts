@@ -28,6 +28,7 @@ import type {
   ReassessmentContext,
   ReassessmentSummary,
   ReassessmentSummaryCreateRequest,
+  GuidedJourney,
   ScreeningEpisode,
   ScreeningEpisodeEvaluationOutcome,
   ScreeningEpisodeHistoryPage,
@@ -35,7 +36,6 @@ import type {
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
 import type {
-  GenerateSupportGuideRequest,
   SupportGuide,
   SupportGuideHistory,
 } from '@/features/support-guide/api/support-guide-contract'
@@ -66,6 +66,7 @@ import {
   parseSupportGuide,
   parseSupportGuideHistory,
 } from './support-guide-validation'
+import { parseGuidedJourney } from './guided-journey-validation'
 import {
   parseCombinedScreeningMeaning,
   parseScreeningEpisodeHistory,
@@ -884,19 +885,29 @@ export const careClient = {
     })
   },
 
-  generateSupportGuide(
+  currentGuidedJourney(
     accessToken: string,
-    request: GenerateSupportGuideRequest,
-    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<GuidedJourney> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/guided-journey/current',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseGuidedJourney,
+    })
+  },
+
+  ensureScreeningEpisodeSupportGuide(
+    accessToken: string,
+    episodeId: string,
     correlationId: string,
   ): Promise<SupportGuide> {
     return careRequest({
       method: 'POST',
-      path: '/api/v1/support-guides',
+      path: `/api/v1/screening-episodes/${encodeURIComponent(episodeId)}/support-guide`,
       correlationId,
       authorization: accessToken,
-      idempotencyKey,
-      body: request,
       parseSuccess: parseSupportGuide,
     })
   },

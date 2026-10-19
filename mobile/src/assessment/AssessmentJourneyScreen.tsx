@@ -21,6 +21,7 @@ import type {
   Assessment,
   AssessmentHistory,
   ConsentCollection,
+  GuidedJourney,
   Instrument,
   PrivacyDisclosure,
   Questionnaire,
@@ -30,6 +31,47 @@ import type {
   SupportGuide,
   SupportGuideHistory,
 } from './assessment-contract'
+
+const nextActionRoutes = {
+  FIND_SPECIALIST: { path: './specialists', label: 'Tìm chuyên gia phù hợp' },
+  OPEN_CURRENT_PLAN: {
+    path: './support-plan',
+    label: 'Tiếp tục kế hoạch hiện tại',
+  },
+  REVIEW_PLAN_DRAFT: {
+    path: './support-plan',
+    label: 'Xem lại kế hoạch đang soạn',
+  },
+  START_PLAN_PROPOSAL: {
+    path: './support-plan',
+    label: 'Tiếp tục với kế hoạch hỗ trợ',
+  },
+  EXPLORE_GUIDE_RESOURCES: {
+    path: './resources',
+    label: 'Khám phá thư viện tài nguyên',
+  },
+} as const
+
+function continuationFor(
+  nextAction: GuidedJourney['nextAction'],
+  guide: SupportGuide,
+) {
+  if (!nextAction || nextAction === 'REVIEW_SAFETY_SUPPORT') return null
+  const firstResource = guide.resources[0]
+  if (nextAction === 'EXPLORE_GUIDE_RESOURCES' && firstResource) {
+    return {
+      path: `./resources/${encodeURIComponent(firstResource.resourceId)}`,
+      label: 'Bắt đầu với bài tập đầu tiên',
+    }
+  }
+  return nextActionRoutes[nextAction]
+}
+
+function currentNextAction(journey: GuidedJourney | null, guide: SupportGuide) {
+  return journey?.supportGuideId === guide.supportGuideId
+    ? journey.nextAction
+    : null
+}
 
 const levelLabels = {
   MINIMAL: 'Tối thiểu',
@@ -48,6 +90,7 @@ type Overview = Readonly<{
   episode: ScreeningEpisode | null
   assessments: AssessmentHistory
   guides: SupportGuideHistory
+  journey: GuidedJourney | null
 }>
 
 type QuestionnaireState = Readonly<{
@@ -61,7 +104,9 @@ type CompletedJourney = Readonly<{
   phq9: Assessment
   gad7: Assessment
   evaluation: SupportEvaluation
-  guide: SupportGuide
+  episodeId: string
+  guide: SupportGuide | null
+  journey: GuidedJourney | null
 }>
 
 type HistoricalResult = Readonly<{
@@ -375,6 +420,57 @@ function GuidePanel({
   )
 }
 
+function JourneyContinuation({
+  guide,
+  journey,
+  showUnavailable = false,
+  working,
+  onRetry,
+}: Readonly<{
+  guide: SupportGuide
+  journey: GuidedJourney | null
+  showUnavailable?: boolean
+  working: boolean
+  onRetry: () => void
+}>) {
+  const nextAction = currentNextAction(journey, guide)
+  const continuation = continuationFor(nextAction, guide)
+  return (
+    <>
+      {continuation && (
+        <View style={styles.guidePanel}>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>
+            Tiếp tục hành trình
+          </Text>
+          <PrimaryButton
+            label={continuation.label}
+            onPress={() => router.push(continuation.path)}
+          />
+        </View>
+      )}
+      {nextAction && journey?.entitlementStatus === 'UNAVAILABLE' && (
+        <View style={styles.guidePanel}>
+          <StateMessage message="Chưa kiểm tra được quyền lợi gói của bạn, nên MentalBridge gợi ý bắt đầu với các bài tập miễn phí." />
+          <PrimaryButton
+            disabled={working}
+            label="Kiểm tra lại"
+            onPress={onRetry}
+          />
+        </View>
+      )}
+      {!nextAction && showUnavailable && (
+        <View style={styles.guidePanel}>
+          <StateMessage
+            message="Chưa tải được bước tiếp theo. Kết quả và gợi ý của bạn vẫn được lưu."
+            tone="error"
+          />
+          <PrimaryButton disabled={working} label="Thử lại" onPress={onRetry} />
+        </View>
+      )}
+    </>
+  )
+}
+
 export function AssessmentJourneyScreen({
   api,
 }: Readonly<{ api: AssessmentApi }>) {
@@ -390,7 +486,6 @@ export function AssessmentJourneyScreen({
   const [acknowledged, setAcknowledged] = useState(false)
   const consentKey = useRef(randomUUID())
   const assessmentKey = useRef(randomUUID())
-  const guideKey = useRef(randomUUID())
 
   const subject = session?.subject
 
@@ -398,15 +493,16 @@ export function AssessmentJourneyScreen({
     setLoading(true)
     setLoadError(null)
     try {
-      const [episode, assessments, guides] = await Promise.all([
+      const [episode, assessments, guides, journey] = await Promise.all([
         api.getCurrentEpisode().catch((error: unknown) => {
           if (isMissingCurrentEpisode(error)) return null
           throw error
         }),
         api.listAssessments(),
         api.listSupportGuides(),
+        api.getGuidedJourney().catch(() => null),
       ])
-      setOverview({ episode, assessments, guides })
+      setOverview({ episode, assessments, guides, journey })
     } catch (error) {
       setLoadError(loadErrorMessage(error))
     } finally {
@@ -467,26 +563,16 @@ export function AssessmentJourneyScreen({
           }
         : await api.completeEpisode(episode.episodeId)
 
-    const latestGuides = await api.listSupportGuides()
-    const storedGuide = latestGuides.items.find(
-      (item) =>
-        item.supportEvaluationId ===
-        outcome.presentationEvaluation.supportEvaluationId,
-    )
-    const guide =
-      storedGuide ??
-      (await api.generateSupportGuide(
-        phq9.assessmentId,
-        gad7.assessmentId,
-        guideKey.current,
-      ))
+    const { guide, journey } = await prepareGuide(outcome.episode.episodeId)
+    const latestGuides = await api.listSupportGuides().catch(() => null)
 
     setOverview((current) =>
       current
         ? {
             episode: outcome.episode,
             assessments: current.assessments,
-            guides: latestGuides,
+            guides: latestGuides ?? current.guides,
+            journey: journey ?? current.journey,
           }
         : current,
     )
@@ -496,7 +582,36 @@ export function AssessmentJourneyScreen({
         phq9,
         gad7,
         evaluation: outcome.presentationEvaluation,
+        episodeId: outcome.episode.episodeId,
         guide,
+        journey,
+      },
+    })
+  }
+
+  const prepareGuide = async (
+    episodeId: string,
+    known?: SupportGuide | null,
+  ) => {
+    const guide =
+      known ??
+      (await api.ensureEpisodeSupportGuide(episodeId).catch(() => null))
+    const journey = guide
+      ? await api.getGuidedJourney().catch(() => null)
+      : null
+    return { guide, journey }
+  }
+
+  const retryJourney = async (data: CompletedJourney) => {
+    setWorking(true)
+    const prepared = await prepareGuide(data.episodeId, data.guide)
+    setWorking(false)
+    setView({
+      name: 'completed',
+      data: {
+        ...data,
+        guide: prepared.guide,
+        journey: prepared.journey ?? data.journey,
       },
     })
   }
@@ -803,9 +918,13 @@ export function AssessmentJourneyScreen({
   }
 
   if (view.name === 'completed') {
+    const completed = view.data
     return (
       <Screen>
         <BackButton onPress={returnToOverview} />
+        <Text style={styles.supportingText}>
+          Kết quả → Gợi ý hỗ trợ → Bước tiếp theo
+        </Text>
         <Text style={styles.eyebrow}>KẾT QUẢ SÀNG LỌC</Text>
         <Text accessibilityRole="header" style={styles.title}>
           Bạn đã hoàn tất lượt sàng lọc
@@ -837,7 +956,30 @@ export function AssessmentJourneyScreen({
             {view.data.evaluation.nextStep.boundary}
           </Text>
         </View>
-        <GuidePanel api={api} guide={view.data.guide} />
+        {completed.guide ? (
+          <>
+            <GuidePanel api={api} guide={completed.guide} />
+            <JourneyContinuation
+              guide={completed.guide}
+              journey={completed.journey}
+              showUnavailable
+              working={working}
+              onRetry={() => void retryJourney(completed)}
+            />
+          </>
+        ) : (
+          <View style={styles.guidePanel}>
+            <StateMessage
+              message="Chưa chuẩn bị được gợi ý hỗ trợ. Kết quả sàng lọc của bạn đã được lưu."
+              tone="error"
+            />
+            <PrimaryButton
+              disabled={working}
+              label="Thử lại"
+              onPress={() => void retryJourney(completed)}
+            />
+          </View>
+        )}
       </Screen>
     )
   }
@@ -883,6 +1025,12 @@ export function AssessmentJourneyScreen({
           từ dữ liệu hiện tại.
         </Text>
         <GuidePanel api={api} guide={view.data} />
+        <JourneyContinuation
+          guide={view.data}
+          journey={overview?.journey ?? null}
+          working={loading}
+          onRetry={() => void loadOverview()}
+        />
       </Screen>
     )
   }

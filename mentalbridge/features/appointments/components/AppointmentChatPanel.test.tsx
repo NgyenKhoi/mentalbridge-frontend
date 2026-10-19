@@ -28,6 +28,23 @@ const transport = vi.hoisted(() => ({
           issue?: { code: string; message: string; retryable: boolean }
         }) => void
         onAcknowledgement?: (ack: { commandId: string }) => void
+        onEvent?: (event: {
+          schemaVersion: 1
+          eventId: string
+          eventType: 'message.created'
+          correlationId: string
+          occurredAt: string
+          payload: {
+            messageId: string
+            conversationId: string
+            senderId: string
+            clientMessageId: string
+            type: 'TEXT'
+            content: string
+            sentAt: string
+            schemaVersion: 1
+          }
+        }) => void
       }
     | undefined,
 }))
@@ -228,6 +245,43 @@ describe('AppointmentChatPanel', () => {
     expect(screen.getByLabelText('Tin nhắn từ Người dùng')).toHaveTextContent(
       'Tin nhắn từ người dùng',
     )
+  })
+
+  it('renders an inbound realtime message from message.created', async () => {
+    api.chatEligibility.mockResolvedValue({
+      ...baseDecision,
+      phase: 'ACTIVE',
+      reasonCode: 'APPOINTMENT_ACTIVE',
+      sendAllowed: true,
+    })
+    render(<AppointmentChatPanel appointmentId={appointmentId} />)
+    await waitFor(() =>
+      expect(transport.options?.onEvent).toBeTypeOf('function'),
+    )
+
+    act(() =>
+      transport.options?.onEvent?.({
+        schemaVersion: 1,
+        eventId: '11111111-1111-4111-8111-111111111111',
+        eventType: 'message.created',
+        correlationId: 'inbound-message-test',
+        occurredAt: '2099-09-27T02:03:00Z',
+        payload: {
+          messageId: '22222222-2222-4222-8222-222222222222',
+          conversationId: appointmentId,
+          senderId: baseDecision.specialistAccountId,
+          clientMessageId: '33333333-3333-4333-8333-333333333333',
+          type: 'TEXT',
+          content: 'Tin nhắn realtime từ chuyên gia',
+          sentAt: '2099-09-27T02:03:00Z',
+          schemaVersion: 1,
+        },
+      }),
+    )
+
+    expect(
+      await screen.findByText('Tin nhắn realtime từ chuyên gia'),
+    ).toBeVisible()
   })
 
   it.each([

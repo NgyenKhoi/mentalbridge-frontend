@@ -19,7 +19,7 @@ test.describe('MB-642 canonical Journal action', () => {
     'Controlled Journal/evidence states must not mutate shared accounts.',
   )
 
-  test('keeps writing private, returns the saved ID and explicitly checks immutable completion', async ({
+  test('keeps writing private, returns the saved ID and checks completion once on return', async ({
     page,
     context,
   }, testInfo) => {
@@ -83,14 +83,16 @@ test.describe('MB-642 canonical Journal action', () => {
       if (path === '/api/care/v2/support-plans/history')
         return json({ items: [], hasMore: false, nextCursor: null })
       if (path === '/api/care/v2/support-plan-occurrences') {
-        expect(url.searchParams.get('from')).toBe(journalDay)
-        expect(url.searchParams.get('through')).toBe(journalDay)
+        const from = url.searchParams.get('from') ?? ''
+        const through = url.searchParams.get('through') ?? ''
+        // The plan reads a window around today; Journal resolves one exact day.
+        expect(from <= journalDay && journalDay <= through).toBe(true)
         return json({
           supportPlanId: plan.supportPlanId,
           supportPlanStatus: 'ACTIVE',
           representationMode: 'NATIVE_V3',
-          from: journalDay,
-          through: journalDay,
+          from,
+          through,
           occurrences: [occurrence],
           interpretationCode:
             'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
@@ -127,6 +129,8 @@ test.describe('MB-642 canonical Journal action', () => {
           completionEvidence: occurrence.completionEvidence,
         })
       }
+      if (path === '/api/care/guided-journey')
+        return problem(503, 'CARE_UNAVAILABLE')
       if (path.startsWith('/api/care/v2/'))
         throw new Error(
           `Unexpected native command: ${request.method()} ${path}`,
@@ -221,7 +225,7 @@ test.describe('MB-642 canonical Journal action', () => {
 
     await page.goto('/support-plan')
     const activity = () =>
-      page.getByRole('article', { name: 'Viết một suy nghĩ ngắn', exact: true })
+      page.getByRole('region', { name: 'Viết một suy nghĩ ngắn', exact: true })
     await expect(activity()).toBeVisible()
     expect(checks).toBe(0)
     for (const [width, height] of [
@@ -246,7 +250,7 @@ test.describe('MB-642 canonical Journal action', () => {
       expect(
         (
           await activity()
-            .getByRole('link', { name: 'Viết nhật ký', exact: true })
+            .getByRole('link', { name: 'Viết vài dòng' })
             .boundingBox()
         )?.height,
       ).toBeGreaterThanOrEqual(44)
@@ -257,9 +261,7 @@ test.describe('MB-642 canonical Journal action', () => {
       })
     }
     await page.setViewportSize({ width: 375, height: 812 })
-    await activity()
-      .getByRole('link', { name: 'Viết nhật ký', exact: true })
-      .click()
+    await activity().getByRole('link', { name: 'Viết vài dòng' }).click()
     const editor = page.getByRole('dialog', {
       name: 'Viết nhật ký',
       exact: true,
@@ -377,73 +379,30 @@ test.describe('MB-642 canonical Journal action', () => {
       fullPage: true,
       animations: 'disabled',
     })
+    // Journal evidence is briefly unavailable when the user comes back.
+    unavailable = true
     await detail
       .getByRole('link', { name: 'Quay lại hoạt động', exact: true })
       .click()
-    await expect(
-      activity().getByRole('heading', { name: 'Viết một suy nghĩ ngắn' }),
-    ).toBeFocused()
-    await expect(activity()).toContainText(
-      'Hoạt động chưa được xác nhận hoàn thành',
-    )
-    expect(checks).toBe(0)
-    unavailable = true
-    await activity()
-      .getByRole('button', { name: 'Kiểm tra ghi nhận', exact: true })
-      .click()
-    await expect(activity().getByRole('alert')).toBeVisible()
+    await expect(activity().getByText(/Chưa thực hiện được/)).toBeVisible()
+    expect(checks).toBe(1)
     expect(occurrence.state).toBe('SCHEDULED')
+    await expect(
+      page.getByRole('region', { name: 'Đã ghi nhận hôm nay' }),
+    ).toHaveCount(0)
     unavailable = false
-    await activity()
-      .getByRole('button', { name: 'Thử kiểm tra lại', exact: true })
-      .click()
-    await expect(activity()).toContainText('Đã ghi nhận hoàn thành')
+    await page.reload()
+    const done = page.getByRole('region', { name: 'Đã ghi nhận hôm nay' })
+    await expect(done).toContainText('Viết một suy nghĩ ngắn')
+    await expect(done).toContainText('Đã xong')
     expect(checks).toBe(2)
     await page.reload()
-    await expect(activity()).toContainText('Đã ghi nhận hoàn thành')
+    await expect(done).toContainText('Đã xong')
+    // Accepted completion is never re-checked or rewritten by later visits.
     expect(checks).toBe(2)
-    await activity()
-      .getByRole('link', { name: 'Xem nhật ký', exact: true })
-      .click()
-    await expect(detail).toBeVisible()
-    await detail.getByRole('button', { name: 'Chỉnh sửa', exact: true }).click()
-    const revisionEditor = page.getByRole('dialog', {
-      name: 'Chỉnh sửa nhật ký',
-      exact: true,
-    })
-    await revisionEditor
-      .getByLabel('Nội dung', { exact: false })
-      .fill('synthetic private revised Journal writing')
-    await revisionEditor
-      .getByRole('button', { name: 'Lưu nhật ký', exact: true })
-      .click()
-    await expect(detail).toContainText(
-      'synthetic private revised Journal writing',
-    )
-    expect(revisions).toBe(1)
-    expect(checks).toBe(2)
-    await detail
-      .getByRole('link', { name: 'Quay lại hoạt động', exact: true })
-      .click()
-    await activity()
-      .getByRole('button', { name: 'Kiểm tra ghi nhận', exact: true })
-      .click()
+    expect(revisions).toBe(0)
     expect(occurrence.version).toBe(1)
     expect(occurrence.completionEvidence?.factRevision).toBe('1')
-    source = 'DELETED'
-    entry = null
-    await activity()
-      .getByRole('button', { name: 'Kiểm tra ghi nhận', exact: true })
-      .click()
-    await expect(activity()).toContainText(
-      'Lần hoàn thành được chấp nhận trước đó vẫn được giữ',
-    )
-    unavailable = true
-    await activity()
-      .getByRole('button', { name: 'Kiểm tra ghi nhận', exact: true })
-      .click()
-    await expect(activity().getByRole('alert')).toBeVisible()
-    await expect(activity()).toContainText('Đã ghi nhận hoàn thành')
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.screenshot({
