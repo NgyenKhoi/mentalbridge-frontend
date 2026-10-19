@@ -180,6 +180,70 @@ describe('Notification preferences page', () => {
     ).toBe(true)
   })
 
+  it('renders the assessment, SupportGuide, and account facts and follows the bound guide action', async () => {
+    const user = userEvent.setup()
+    const supportGuideId = 'f13e4567-e89b-42d3-a456-426614174000'
+    const guideNotification = {
+      ...notification,
+      id: 'a13e4567-e89b-42d3-a456-426614174012',
+      kind: 'SUPPORT_GUIDE_AVAILABLE' as const,
+      title: 'Hướng dẫn hỗ trợ đã sẵn sàng',
+      body: 'Hướng dẫn đã được lưu để bạn xem lại khi thuận tiện.',
+      action: {
+        type: 'OPEN_SUPPORT_GUIDE' as const,
+        targetId: supportGuideId,
+        href: `/support-guides/${supportGuideId}`,
+      },
+    }
+    inboxApi.get.mockResolvedValueOnce({
+      items: [
+        {
+          ...notification,
+          id: 'a13e4567-e89b-42d3-a456-426614174011',
+          kind: 'ASSESSMENT_RESULT_AVAILABLE',
+          title: 'Kết quả sàng lọc đã sẵn sàng',
+          action: {
+            type: 'OPEN_ASSESSMENTS',
+            targetId: null,
+            href: '/assessments',
+          },
+        },
+        guideNotification,
+        {
+          ...notification,
+          id: 'a13e4567-e89b-42d3-a456-426614174013',
+          kind: 'ACCOUNT_STATUS',
+          title: 'Tài khoản đã sẵn sàng',
+          action: null,
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      unreadCount: 3,
+    })
+    inboxApi.read.mockResolvedValue({
+      ...guideNotification,
+      read: true,
+      readAt: '2026-09-26T02:00:00.000Z',
+    })
+
+    render(<NotificationsPage />)
+
+    expect(await screen.findByText('Sàng lọc')).toBeVisible()
+    expect(screen.getByText('Hướng dẫn hỗ trợ')).toBeVisible()
+    expect(screen.getByText('Hệ thống')).toBeVisible()
+    await user.click(
+      screen.getByText(guideNotification.title).closest('button')!,
+    )
+
+    await waitFor(() =>
+      expect(inboxApi.read).toHaveBeenCalledWith(guideNotification.id),
+    )
+    expect(inboxApi.push).toHaveBeenCalledWith(
+      `/support-guides/${supportGuideId}`,
+    )
+  })
+
   it('renders a Community interaction and follows only the server-derived post deep link', async () => {
     const user = userEvent.setup()
     const postId = 'e13e4567-e89b-42d3-a456-426614174000'

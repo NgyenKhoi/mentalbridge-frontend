@@ -56,6 +56,17 @@ const typeMeta: Readonly<
   COMMUNITY_COMMENT: { label: 'Cộng đồng', icon: '◇', tone: 'teal' },
   COMMUNITY_REPLY: { label: 'Cộng đồng', icon: '↗', tone: 'sage' },
   COMMUNITY_REACTION: { label: 'Cộng đồng', icon: '♡', tone: 'terra' },
+  ASSESSMENT_RESULT_AVAILABLE: {
+    label: 'Sàng lọc',
+    icon: '✓',
+    tone: 'amber',
+  },
+  SUPPORT_GUIDE_AVAILABLE: {
+    label: 'Hướng dẫn hỗ trợ',
+    icon: '◇',
+    tone: 'sage',
+  },
+  ACCOUNT_STATUS: { label: 'Hệ thống', icon: '✓', tone: 'teal' },
 }
 
 function notificationTime(value: string) {

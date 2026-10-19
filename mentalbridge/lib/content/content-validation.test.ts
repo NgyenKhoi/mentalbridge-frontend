@@ -352,6 +352,9 @@ describe('Content response validation', () => {
       'COMMUNITY_COMMENT',
       'COMMUNITY_REPLY',
       'COMMUNITY_REACTION',
+      'ASSESSMENT_RESULT_AVAILABLE',
+      'SUPPORT_GUIDE_AVAILABLE',
+      'ACCOUNT_STATUS',
     ] as const) {
       expect(parseNotification({ ...notification, kind })).not.toBeNull()
     }
@@ -359,6 +362,29 @@ describe('Content response validation', () => {
       parseNotification({
         ...notification,
         action: { ...notification.action, href: 'https://untrusted.example' },
+      }),
+    ).toBeNull()
+    const supportGuideId = '523e4567-e89b-42d3-a456-426614174000'
+    expect(
+      parseNotification({
+        ...notification,
+        kind: 'SUPPORT_GUIDE_AVAILABLE',
+        action: {
+          type: 'OPEN_SUPPORT_GUIDE',
+          targetId: supportGuideId,
+          href: `/support-guides/${supportGuideId}`,
+        },
+      }),
+    ).not.toBeNull()
+    expect(
+      parseNotification({
+        ...notification,
+        kind: 'SUPPORT_GUIDE_AVAILABLE',
+        action: {
+          type: 'OPEN_SUPPORT_GUIDE',
+          targetId: supportGuideId,
+          href: '/support-guides/623e4567-e89b-42d3-a456-426614174000',
+        },
       }),
     ).toBeNull()
     const communityPostId = '423e4567-e89b-42d3-a456-426614174000'
