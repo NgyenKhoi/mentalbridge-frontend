@@ -13,6 +13,7 @@ import AdminAppointmentDisputes from '@/features/appointments/components/AdminAp
 import AdminReportsSection from '@/features/reports/components/AdminReportsSection'
 import AdminPaymentsManager from '@/components/AdminPaymentsManager'
 import AdminPayoutsManager from '@/components/AdminPayoutsManager'
+import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
 
@@ -114,7 +115,10 @@ export default function AdminWorkspace({
         className={`${styles.main} ${section === 'specialists' || section === 'reports' || section === 'payments' || section === 'payouts' ? styles.reviewMain : ''}`}
       >
         {section === 'dashboard' ? (
-          <AdminOperationsDashboard />
+          <>
+            <AdminOperationsDashboard />
+            <ProductJourneyMetricsPanel />
+          </>
         ) : section === 'content' ? (
           <AdminContentSection />
         ) : section === 'specialists' ? (

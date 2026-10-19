@@ -207,6 +207,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/product-journey-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read privacy-bounded appointment journey aggregates
+         * @description Counts the appointment cohort requested inside the explicit half-open window and the members of that cohort that reached confirmation or completion before the window ended. No participant, brief, summary, chat, clinical, or private-note data is returned.
+         */
+        get: operations["getConsultationProductJourneyMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist-profile/amendments/current": {
         parameters: {
             query?: never;
@@ -1499,6 +1519,29 @@ export interface components {
             /** Format: int64 */
             userFee?: number;
             promotionInfo?: unknown;
+        };
+        ConsultationProductJourneyMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** @constant */
+            sourceVersion: "consultation-product-journey-v3";
+            /** Format: date-time */
+            asOf: string;
+            /**
+             * Format: int64
+             * @description Appointments requested inside [from,to).
+             */
+            consultationsRequested: number;
+            /**
+             * Format: int64
+             * @description Requested cohort members that reached CONFIRMED before to.
+             */
+            consultationsConfirmed: number;
+            /**
+             * Format: int64
+             * @description Requested cohort members that reached COMPLETED before to.
+             */
+            consultationsCompleted: number;
         };
         AppointmentNotificationEligibility: {
             /** Format: uuid */
@@ -3359,6 +3402,32 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getConsultationProductJourneyMetrics: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregate request-cohort lifecycle progress observed by the end of the requested window */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationProductJourneyMetrics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     getOwnProfileAmendment: {
