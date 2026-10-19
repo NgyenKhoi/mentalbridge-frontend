@@ -34,6 +34,10 @@ export default function AdminRetentionGovernance() {
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(
     null,
   )
+  const [currentPage, setCurrentPage] = useState<number>(0)
+  const [totalItems, setTotalItems] = useState<number>(0)
+  const [hasNextPage, setHasNextPage] = useState<boolean>(false)
+  const pageSize = 20
 
   // Hold Modal state
   const [selectedHoldRequestId, setSelectedHoldRequestId] = useState<
@@ -61,25 +65,32 @@ export default function AdminRetentionGovernance() {
     }
   }, [])
 
-  const loadDeletions = useCallback(async () => {
-    setDeletionsLoading(true)
-    setDeletionsError(null)
-    try {
-      const data = await browserAdminRetention.getDeletions({
-        status: statusFilter || undefined,
-        holdType: holdFilter || undefined,
-      })
-      setDeletions(data.items)
-    } catch (err) {
-      setDeletionsError(
-        err instanceof ApiError
-          ? err.message
-          : 'Không thể tải danh sách yêu cầu xóa dữ liệu.',
-      )
-    } finally {
-      setDeletionsLoading(false)
-    }
-  }, [statusFilter, holdFilter])
+  const loadDeletions = useCallback(
+    async (pageToLoad = currentPage) => {
+      setDeletionsLoading(true)
+      setDeletionsError(null)
+      try {
+        const data = await browserAdminRetention.getDeletions({
+          status: statusFilter || undefined,
+          holdType: holdFilter || undefined,
+          limit: pageSize,
+          page: pageToLoad,
+        })
+        setDeletions(data.items)
+        setTotalItems(data.total)
+        setHasNextPage(Boolean(data.nextCursor))
+      } catch (err) {
+        setDeletionsError(
+          err instanceof ApiError
+            ? err.message
+            : 'Không thể tải danh sách yêu cầu xóa dữ liệu.',
+        )
+      } finally {
+        setDeletionsLoading(false)
+      }
+    },
+    [statusFilter, holdFilter, currentPage, pageSize],
+  )
 
   useEffect(() => {
     let active = true
@@ -112,9 +123,15 @@ export default function AdminRetentionGovernance() {
       .getDeletions({
         status: statusFilter || undefined,
         holdType: holdFilter || undefined,
+        limit: pageSize,
+        page: currentPage,
       })
       .then((data) => {
-        if (active) setDeletions(data.items)
+        if (active) {
+          setDeletions(data.items)
+          setTotalItems(data.total)
+          setHasNextPage(Boolean(data.nextCursor))
+        }
       })
       .catch((err: unknown) => {
         if (active) {
@@ -131,7 +148,7 @@ export default function AdminRetentionGovernance() {
     return () => {
       active = false
     }
-  }, [activeTab, statusFilter, holdFilter])
+  }, [activeTab, statusFilter, holdFilter, currentPage, pageSize])
 
   const handleTriggerSweep = async (policyId: string) => {
     setSweepActionLoading(policyId)
@@ -404,7 +421,10 @@ export default function AdminRetentionGovernance() {
             <select
               id="status-filter"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setCurrentPage(0)
+              }}
               data-testid="filter-status"
             >
               <option value="">Tất cả trạng thái</option>
@@ -424,7 +444,10 @@ export default function AdminRetentionGovernance() {
             <select
               id="hold-filter"
               value={holdFilter}
-              onChange={(e) => setHoldFilter(e.target.value)}
+              onChange={(e) => {
+                setHoldFilter(e.target.value)
+                setCurrentPage(0)
+              }}
               data-testid="filter-hold"
             >
               <option value="">Tất cả lệnh Hold</option>
@@ -441,7 +464,9 @@ export default function AdminRetentionGovernance() {
             <button
               type="button"
               className={styles.btnSecondary}
-              onClick={loadDeletions}
+              onClick={() => {
+                loadDeletions(currentPage)
+              }}
               style={{ marginLeft: 'auto' }}
               data-testid="btn-refresh-deletions"
             >
@@ -490,7 +515,7 @@ export default function AdminRetentionGovernance() {
                       </td>
                       <td>
                         <span className={styles.badge}>
-                          {req.accountStatus}
+                          {req.accountStatus ?? 'UNKNOWN'}
                         </span>
                       </td>
                       <td>
@@ -700,6 +725,51 @@ export default function AdminRetentionGovernance() {
                   ))}
                 </tbody>
               </table>
+              <div
+                className={styles.paginationControls}
+                data-testid="pagination-controls"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 16px',
+                  borderTop: '1px solid var(--border-soft)',
+                }}
+              >
+                <span
+                  style={{ fontSize: '13px', color: 'var(--ink-soft)' }}
+                  data-testid="pagination-info"
+                >
+                  Trang {currentPage + 1} (Tổng cộng: {totalItems} yêu cầu)
+                </span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className={styles.btnSecondary}
+                    onClick={() => {
+                      const prev = Math.max(0, currentPage - 1)
+                      setCurrentPage(prev)
+                    }}
+                    disabled={currentPage === 0 || deletionsLoading}
+                    data-testid="btn-prev-page"
+                  >
+                    Trang trước
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.btnSecondary}
+                    onClick={() => {
+                      if (hasNextPage) {
+                        setCurrentPage((p) => p + 1)
+                      }
+                    }}
+                    disabled={!hasNextPage || deletionsLoading}
+                    data-testid="btn-next-page"
+                  >
+                    Trang sau
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </section>

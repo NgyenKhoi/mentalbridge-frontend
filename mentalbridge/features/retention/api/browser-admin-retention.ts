@@ -26,6 +26,7 @@ export const browserAdminRetention = {
     status?: string
     holdType?: string
     limit?: number
+    page?: number
   }) {
     const response = await browserApiClient.get<DeletionRequestPage>(
       '/admin/retention/deletions',

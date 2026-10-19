@@ -846,13 +846,14 @@ export const identityClient = {
 
   getDeletionRequests(
     accessToken: string,
-    params: { status?: string; holdType?: string; limit?: number },
+    params: { status?: string; holdType?: string; limit?: number; page?: number },
     correlationId: string,
   ) {
     const search = new URLSearchParams()
     if (params.status) search.set('status', params.status)
     if (params.holdType) search.set('holdType', params.holdType)
-    if (params.limit) search.set('limit', String(params.limit))
+    if (params.limit !== undefined && params.limit !== null) search.set('limit', String(params.limit))
+    if (params.page !== undefined && params.page !== null) search.set('page', String(params.page))
     const suffix = search.toString()
 
     return identityRequest<DeletionRequestPage>({

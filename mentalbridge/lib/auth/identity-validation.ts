@@ -1186,8 +1186,10 @@ export function parseDeletionRequest(value: unknown): DeletionRequest | null {
     !UUID_PATTERN.test(value.requestId) ||
     typeof value.subjectReference !== 'string' ||
     !/^tombstone:[0-9a-f]{64}$/i.test(value.subjectReference) ||
-    typeof value.accountStatus !== 'string' ||
-    !ACCOUNT_STATUSES.has(value.accountStatus) ||
+    (value.accountStatus !== null &&
+      value.accountStatus !== undefined &&
+      (typeof value.accountStatus !== 'string' ||
+        !ACCOUNT_STATUSES.has(value.accountStatus))) ||
     typeof value.status !== 'string' ||
     !DELETION_REQUEST_STATUSES.has(value.status) ||
     typeof value.holdType !== 'string' ||
@@ -1218,7 +1220,7 @@ export function parseDeletionRequest(value: unknown): DeletionRequest | null {
   return {
     requestId: value.requestId,
     subjectReference: value.subjectReference,
-    accountStatus: value.accountStatus as DeletionRequest['accountStatus'],
+    accountStatus: (value.accountStatus as DeletionRequest['accountStatus']) ?? null,
     status: value.status as DeletionRequest['status'],
     holdType: value.holdType as DeletionRequest['holdType'],
     holdReason: (value.holdReason as string) ?? null,

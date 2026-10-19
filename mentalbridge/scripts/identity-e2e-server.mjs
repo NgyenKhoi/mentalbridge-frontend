@@ -269,7 +269,7 @@ const communityPostVersions = new Map([
 const initialRetentionPolicies = [
   {
     policyId: 'MB-IDENTITY-REPORTING-001',
-    name: 'Chính sách bảo lưu báo cáo phân tích tổng hợp',
+    name: 'Chính sách bảo lưu tệp báo cáo tổng hợp',
     ownerService: 'IDENTITY',
     version: '1.0',
     status: 'APPROVED',
@@ -280,7 +280,7 @@ const initialRetentionPolicies = [
     jobStatus: 'ACTIVE',
     jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
     description:
-      'Bảo lưu các tệp trích xuất báo cáo phân tích trong 30 ngày.',
+      'Tệp báo cáo tổng hợp hoạt động tài khoản được lưu trữ an toàn trong 30 ngày trước khi dọn dẹp tự động.',
     lastExecution: {
       executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
       policyId: 'MB-IDENTITY-REPORTING-001',
@@ -296,21 +296,89 @@ const initialRetentionPolicies = [
     },
   },
   {
-    policyId: 'MB-PRIVACY-CARE-001',
-    name: 'Chính sách bảo lưu hồ sơ lâm sàng và phiên chăm sóc',
-    ownerService: 'CARE',
+    policyId: 'MB-IDENTITY-AUDIT-001',
+    name: 'Chính sách bảo lưu nhật ký kiểm toán Identity',
+    ownerService: 'IDENTITY',
     version: '1.0',
     status: 'APPROVED',
-    retentionDays: 730,
+    retentionDays: 365,
+    automatedExecutionSupported: false,
+    manualHoldSupported: false,
+    requiresManualReview: false,
+    jobStatus: 'PARTIALLY_SUPPORTED',
+    jobName: 'IDENTITY_AUDIT_RETENTION',
+    description:
+      'Nhật ký kiểm toán tối thiểu hóa danh tính được bảo lưu bất biến trong 365 ngày (MB-587). Không hỗ trợ quét xóa thủ công từ quản trị.',
+    unsupportedCapabilityNotice:
+      'Nhật ký kiểm toán được bảo lưu bất biến trong 365 ngày theo chính sách MB-587; không hỗ trợ quét xóa sớm hoặc xóa thủ công từ giao diện quản trị.',
+  },
+  {
+    policyId: 'MB-PRIVACY-CARE-001',
+    name: 'Chính sách bảo lưu sàng lọc & đồng ý chăm sóc',
+    ownerService: 'CARE',
+    version: '1.1-capstone',
+    status: 'APPROVED',
+    retentionDays: null,
     automatedExecutionSupported: false,
     manualHoldSupported: true,
     requiresManualReview: true,
     jobStatus: 'PARTIALLY_SUPPORTED',
-    jobName: 'CARE_RECORD_RETENTION_SWEEP',
+    jobName: 'CARE_ANONYMOUS_EXPIRY_SWEEP',
     description:
-      'Hồ sơ phiên chăm sóc và đánh giá lâm sàng bảo lưu 730 ngày.',
+      'Phiên ẩn danh TTL 30 phút, tối đa 2 giờ; Đánh giá có tài khoản được bảo lưu có kiểm soát phục vụ tái đánh giá; Không xóa trước thời hạn quy định',
     unsupportedCapabilityNotice:
-      'Care Service tự quản lý vòng đời hồ sơ; không kích hoạt trực tiếp từ Identity.',
+      'Identity không có quyền can thiệp cơ sở dữ liệu Care Service. Quá trình dọn dẹp do Care Service tự thực thi độc lập.',
+  },
+  {
+    policyId: 'consultation-journey-v1',
+    name: 'Chính sách bảo lưu phiên tư vấn & đối soát giao dịch',
+    ownerService: 'CONSULTATION',
+    version: '1.0-scope-v2',
+    status: 'APPROVED',
+    retentionDays: 90,
+    automatedExecutionSupported: false,
+    manualHoldSupported: true,
+    requiresManualReview: true,
+    jobStatus: 'ACTIVE',
+    jobName: 'CONSULTATION_METADATA_RETENTION',
+    description:
+      'Metadata phòng LiveKit lưu trữ 90 ngày (ADR 0039); Bằng chứng tài chính và giao dịch được bảo lưu theo quy định kế toán; Giữ lại vô thời hạn nếu có tranh chấp',
+    unsupportedCapabilityNotice:
+      'Identity không thể xóa dữ liệu giao dịch hoặc lịch hẹn Consultation. Phải tôn trọng giữ lại khi có tranh chấp (DISPUTE_HOLD).',
+  },
+  {
+    policyId: 'MB-DAILY-EMOTION-CHECK-IN-001',
+    name: 'Chính sách bảo lưu & xóa nhật ký cảm xúc',
+    ownerService: 'JOURNAL_AI',
+    version: '1.0',
+    status: 'APPROVED',
+    retentionDays: null,
+    automatedExecutionSupported: false,
+    manualHoldSupported: true,
+    requiresManualReview: false,
+    jobStatus: 'ACTIVE',
+    jobName: 'JOURNAL_AI_TOMBSTONE_PURGE',
+    description:
+      'Xóa dữ liệu nhật ký sẽ lập tức xóa bản mã hóa (ciphertext); giữ lại tombstone có giới hạn trước khi chuyển thành MISSING; Tuyệt đối không xuất thô nội dung',
+    unsupportedCapabilityNotice:
+      'Dữ liệu nhật ký mã hóa thuộc quyền riêng tư của Journal AI. Identity chỉ điều phối sự kiện xóa, không truy cập trực tiếp.',
+  },
+  {
+    policyId: 'MB-COMMUNITY-RETENTION-001',
+    name: 'Chính sách bảo lưu nội dung cộng đồng',
+    ownerService: 'COMMUNITY',
+    version: '1.0',
+    status: 'APPROVED',
+    retentionDays: 7,
+    automatedExecutionSupported: false,
+    manualHoldSupported: false,
+    requiresManualReview: false,
+    jobStatus: 'PARTIALLY_SUPPORTED',
+    jobName: 'COMMUNITY_MEDIA_SWEEP',
+    description:
+      'Gỡ bài đăng sẽ lưu tombstone; Phương tiện chưa liên kết bị xóa sau 7 ngày',
+    unsupportedCapabilityNotice:
+      'Tính năng tự động dọn dẹp phương tiện đang thử nghiệm. Không hỗ trợ xóa tức thì qua quyền quản trị.',
   },
   {
     policyId: 'MB-CONTENT-NOTIFICATION-RETENTION-001',
@@ -3837,13 +3905,18 @@ const server = createServer(async (request, response) => {
       }
       const statusFilter = url.searchParams.get('status')
       const holdFilter = url.searchParams.get('holdType')
-      const items = deletionRequests.filter((candidate) => {
+      const limit = Number(url.searchParams.get('limit') ?? '20')
+      const page = Number(url.searchParams.get('page') ?? '0')
+      const filtered = deletionRequests.filter((candidate) => {
         return (
           (!statusFilter || candidate.status === statusFilter) &&
           (!holdFilter || candidate.holdType === holdFilter)
         )
       })
-      json(response, 200, { items, total: items.length, nextCursor: null })
+      const start = page * limit
+      const items = filtered.slice(start, start + limit)
+      const nextCursor = start + limit < filtered.length ? String(page + 1) : null
+      json(response, 200, { items, total: filtered.length, nextCursor })
       return
     }
 

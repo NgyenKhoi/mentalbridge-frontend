@@ -317,4 +317,54 @@ describe('AdminRetentionGovernance Component', () => {
       holdReason: 'STATUTORY_INQUIRY',
     })
   })
+
+  it('renders pagination controls and navigates pages', async () => {
+    const user = userEvent.setup()
+    apiMock.getDeletions.mockResolvedValueOnce({
+      items: mockDeletions,
+      total: 35,
+      nextCursor: '1',
+    })
+
+    render(<AdminRetentionGovernance />)
+    await user.click(screen.getByTestId('tab-deletions'))
+
+    expect(await screen.findByTestId('pagination-controls')).toBeInTheDocument()
+    expect(screen.getByTestId('pagination-info')).toHaveTextContent('Trang 1 (Tổng cộng: 35 yêu cầu)')
+
+    const prevBtn = screen.getByTestId('btn-prev-page')
+    const nextBtn = screen.getByTestId('btn-next-page')
+    expect(prevBtn).toBeDisabled()
+    expect(nextBtn).toBeEnabled()
+
+    apiMock.getDeletions.mockResolvedValueOnce({
+      items: [mockDeletions[0]],
+      total: 35,
+      nextCursor: null,
+    })
+
+    await user.click(nextBtn)
+    expect(apiMock.getDeletions).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1 }),
+    )
+  })
+
+  it('renders UNKNOWN fallback when accountStatus is null', async () => {
+    const user = userEvent.setup()
+    const requestWithNullAccount: DeletionRequest = {
+      ...mockDeletions[0],
+      accountStatus: null,
+    }
+    apiMock.getDeletions.mockResolvedValueOnce({
+      items: [requestWithNullAccount],
+      total: 1,
+      nextCursor: null,
+    })
+
+    render(<AdminRetentionGovernance />)
+    await user.click(screen.getByTestId('tab-deletions'))
+
+    const row = await screen.findByTestId('deletion-row-948f9e80-d3bc-45aa-91f6-044dd5afbf71')
+    expect(row).toHaveTextContent('UNKNOWN')
+  })
 })

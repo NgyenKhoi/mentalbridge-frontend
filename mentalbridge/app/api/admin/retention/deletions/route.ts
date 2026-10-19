@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
   const holdType = searchParams.get('holdType') ?? undefined
   const limitParam = searchParams.get('limit')
   const limit = limitParam ? Number(limitParam) : undefined
+  const pageParam = searchParams.get('page')
+  const pageNumber = pageParam !== null && pageParam !== undefined ? Number(pageParam) : undefined
 
   let actor
   try {
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
   try {
     const page = await identityClient.getDeletionRequests(
       actor.accessToken,
-      { status, holdType, limit },
+      { status, holdType, limit, page: pageNumber },
       correlationId,
     )
     return carryAdminSession(successResponse(page, correlationId), actor)

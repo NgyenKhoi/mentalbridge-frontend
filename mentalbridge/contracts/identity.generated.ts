@@ -982,7 +982,7 @@ export interface components {
             /** Format: uuid */
             requestId: string;
             subjectReference: string;
-            accountStatus: components["schemas"]["AccountStatus"];
+            accountStatus?: components["schemas"]["AccountStatus"] | null;
             /** @enum {string} */
             status: "PENDING" | "IN_PROGRESS" | "HELD" | "COMPLETED" | "FAILED";
             /** @enum {string} */
@@ -2124,6 +2124,7 @@ export interface operations {
                 status?: "PENDING" | "IN_PROGRESS" | "HELD" | "COMPLETED" | "FAILED";
                 holdType?: "NONE" | "LEGAL_HOLD" | "OPERATIONAL_HOLD" | "DISPUTE_HOLD";
                 limit?: number;
+                page?: number;
             };
             header?: {
                 /** @description Caller correlation identifier; the server generates one when omitted */
@@ -2174,6 +2175,15 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["ConflictProblem"];
+            /** @description Retry unsupported for external owners or invalid facts state */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     applyDeletionHold: {
