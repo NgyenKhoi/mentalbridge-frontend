@@ -2,9 +2,11 @@ import { expect, type Page, type Route } from '@playwright/test'
 import { test } from './test-fixtures'
 import type {
   ActionOccurrence,
+  NativeSupportPlanReplacementReview,
   PlanAction,
   SupportPlanV3,
 } from '../../features/support-plan/api/support-plan-contract'
+import { nativeSupportPlanReviewFixture } from '../../features/support-plan/testing/native-support-plan-review-fixture'
 import {
   emotionActionId,
   emotionOccurrenceFixture,
@@ -154,6 +156,9 @@ type World = {
   proposeStatus?: number
   reconcile?: () => { status: number; recorded: boolean }
   stateStatus?: number
+  replacementDraft?: SupportPlanV3
+  replacementReview?: NativeSupportPlanReplacementReview
+  reassessmentSummaryId?: string
 }
 
 async function authenticate(page: Page) {
@@ -233,15 +238,26 @@ async function mockPlanApi(page: Page, world: World) {
         entitlementStatus: 'VERIFIED',
       })
     if (path === '/api/care/v2/support-plans/evaluation-source')
-      return json({ sourceSupportEvaluationId: evaluationId })
+      return json({
+        sourceSupportEvaluationId:
+          url.searchParams.get('purpose') === 'REASSESSMENT'
+            ? '90000000-0000-4000-8000-000000000652'
+            : evaluationId,
+      })
+    if (path === '/api/care/reassessment-summaries/current')
+      return world.reassessmentSummaryId
+        ? json({ summaryId: world.reassessmentSummaryId })
+        : problem(404, 'REASSESSMENT_SUMMARY_NOT_FOUND')
     if (path === '/api/care/support-plan-personalization')
       return json(personalization)
     if (path === '/api/care/v2/support-plans' && request.method() === 'POST') {
       if (world.proposeStatus)
         return problem(world.proposeStatus, 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED')
-      world.draft = draftOf(proposalPlan())
+      world.draft = world.replacementDraft ?? draftOf(proposalPlan())
       return json(world.draft, 201)
     }
+    if (path.endsWith('/replacement-review') && world.replacementReview)
+      return json(world.replacementReview)
     if (path.endsWith('/activate') && world.draft) {
       world.current = proposalPlan()
       world.draft = undefined
@@ -640,6 +656,76 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     await expect(
       page.getByRole('button', { name: 'Bắt đầu kế hoạch' }),
     ).toHaveCount(0)
+  })
+
+  test('MB-652 explains a contradictory adaptive review without mutating the plan', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(90_000)
+    await authenticate(page)
+    const review = nativeSupportPlanReviewFixture()
+    const world: World = {
+      current: review.currentPlan,
+      replacementDraft: review.proposedPlan,
+      replacementReview: review,
+      reassessmentSummaryId: review.reassessmentSummary.summaryId,
+      history: [],
+      occurrences: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    const calls = await mockPlanApi(page, world)
+
+    await page.goto('/support-plan')
+    await page.getByRole('tab', { name: 'Điều chỉnh' }).click()
+    await page.getByText('Phương án khác', { exact: true }).click()
+    await page.getByRole('button', { name: 'Xem phương án mới' }).click()
+    await page
+      .getByRole('button', { name: 'So sánh với kế hoạch hiện tại' })
+      .click()
+
+    await page.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }).click()
+    const panel = page.getByRole('dialog', { name: 'Bạn đồng hành' })
+    await panel
+      .getByRole('button', {
+        name: 'Vì sao lần xem lại này gợi ý thay đổi?',
+      })
+      .click()
+
+    await expect(
+      panel.getByRole('heading', { name: 'Điều MentalBridge đã ghi nhận' }),
+    ).toBeVisible()
+    await expect(
+      panel.getByText('PHQ-9: thấp hơn giai đoạn trước.'),
+    ).toBeVisible()
+    await expect(
+      panel.getByText('GAD-7: cao hơn giai đoạn trước.'),
+    ).toBeVisible()
+    await expect(
+      panel.getByText(/Các tín hiệu chưa hoàn toàn cùng chiều/),
+    ).toBeVisible()
+    await expect(panel.getByRole('textbox')).toHaveCount(0)
+    expect(calls.some((call) => call.path.endsWith('/replacement'))).toBe(false)
+    expect(
+      calls.some((call) => call.path.endsWith('/companion-explanation')),
+    ).toBe(false)
+
+    await page.screenshot({
+      path: testInfo.outputPath('mb-652-review-companion-desktop.png'),
+      fullPage: true,
+      animations: 'disabled',
+    })
+    await page.setViewportSize({ width: 375, height: 812 })
+    await expect(panel).toBeVisible()
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true)
+    await page.screenshot({
+      path: testInfo.outputPath('mb-652-review-companion-mobile.png'),
+      fullPage: true,
+      animations: 'disabled',
+    })
   })
 
   test('MB-644 a v2 resource plan opens in the same workspace', async ({

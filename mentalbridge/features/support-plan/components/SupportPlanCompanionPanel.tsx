@@ -13,11 +13,13 @@ import {
 } from 'lucide-react'
 
 import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
+import type { NativeSupportPlanReplacementReview } from '../api/support-plan-contract'
 import type {
   ContextualCompanionRequest,
   ContextualCompanionSnapshot,
 } from './support-plan-contextual-companion'
 import type { SupportPlanCompanionSurface } from './support-plan-companion-state'
+import SupportPlanReviewExplanation from './SupportPlanReviewExplanation'
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
@@ -29,7 +31,7 @@ export type SupportPlanGuidedContext = Readonly<{
     title: string
     requestSurface?: 'TODAY' | 'PLAN'
   }>
-  reviewAvailable?: boolean
+  review?: NativeSupportPlanReplacementReview
 }>
 
 export type SupportPlanGuidedNavigationTarget = Readonly<{
@@ -91,6 +93,7 @@ export default function SupportPlanCompanionPanel({
   const explanationTargetId = `companion-panel-explain-${generatedId}`
   const [turn, setTurn] = useState<GuidedTurn>()
   const [requestedExplanation, setRequestedExplanation] = useState(false)
+  const [reviewRequested, setReviewRequested] = useState(false)
 
   useEffect(() => {
     if (!modal || !panelRef.current) return
@@ -169,6 +172,7 @@ export default function SupportPlanCompanionPanel({
     const action = context.action
     if (!action?.requestSurface || !onRequest || requestPending) return
     setTurn(undefined)
+    setReviewRequested(false)
     setRequestedExplanation(true)
     onRequest({
       targetId: explanationTargetId,
@@ -182,6 +186,7 @@ export default function SupportPlanCompanionPanel({
   const suggestNext = () => {
     const action = context.action
     setRequestedExplanation(false)
+    setReviewRequested(false)
     setTurn({
       intent: 'SUGGEST_NEXT_STEP',
       question: questions.next,
@@ -194,17 +199,13 @@ export default function SupportPlanCompanionPanel({
 
   const explainReview = () => {
     setRequestedExplanation(false)
-    setTurn({
-      intent: 'EXPLAIN_REVIEW_OPTION',
-      question: questions.review,
-      answer:
-        'Một phương án xem lại đang có trong mục Điều chỉnh. Hãy mở phần so sánh tại đó để xem lý do và tự xác nhận; Bạn đồng hành không chọn hoặc áp dụng thay đổi thay bạn.',
-      source: 'PLAN',
-    })
+    setTurn(undefined)
+    setReviewRequested(true)
   }
 
   const showAdjust = () => {
     setRequestedExplanation(false)
+    setReviewRequested(false)
     setTurn({
       intent: 'NAVIGATE',
       question: questions.adjust,
@@ -292,8 +293,12 @@ export default function SupportPlanCompanionPanel({
           <span>{questions.next}</span>
           <ArrowRight size={17} aria-hidden="true" />
         </button>
-        {context.reviewAvailable && (
-          <button type="button" onClick={explainReview}>
+        {context.review && (
+          <button
+            type="button"
+            aria-pressed={reviewRequested}
+            onClick={explainReview}
+          >
             <CircleHelp size={18} aria-hidden="true" />
             <span>{questions.review}</span>
             <ArrowRight size={17} aria-hidden="true" />
@@ -346,6 +351,21 @@ export default function SupportPlanCompanionPanel({
               Đến mục Điều chỉnh
             </button>
           </div>
+        </div>
+      )}
+
+      {reviewRequested && context.review && (
+        <div
+          className="support-plan-guided-response is-review"
+          data-source="plan"
+          {...(muted ? {} : { role: 'status', 'aria-live': 'polite' })}
+        >
+          <p className="support-plan-guided-question">{questions.review}</p>
+          <small>Thông tin từ lần xem lại đã được MentalBridge chuẩn bị</small>
+          <SupportPlanReviewExplanation
+            review={context.review}
+            onOpenAdjust={() => onNavigate({ surface: 'adjust' })}
+          />
         </div>
       )}
 

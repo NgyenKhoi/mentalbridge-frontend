@@ -384,7 +384,7 @@ export default function SupportPlanCompanionShell({
       >
         {panelOpen && guidedContext && onGuidedNavigate ? (
           <SupportPlanCompanionPanel
-            key={`${surface}:${guidedContext.supportPlanId}:${guidedContext.action?.actionId ?? 'no-action'}:${guidedContext.reviewAvailable ? 'review' : 'no-review'}`}
+            key={`${surface}:${guidedContext.supportPlanId}:${guidedContext.action?.actionId ?? 'no-action'}:${guidedContext.review ? guidedContext.review.reviewedAt : 'no-review'}`}
             surface={surface}
             context={guidedContext}
             snapshot={contextual}

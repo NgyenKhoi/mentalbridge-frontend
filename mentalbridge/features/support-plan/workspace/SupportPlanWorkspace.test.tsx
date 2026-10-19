@@ -49,6 +49,7 @@ const legacy = vi.hoisted(() => ({
 const journey = vi.hoisted(() => ({ getGuidedJourney: vi.fn() }))
 const feedback = vi.hoisted(() => ({ confirm: vi.fn() }))
 const care = vi.hoisted(() => ({ getCurrentReassessmentSummary: vi.fn() }))
+const companionShell = vi.hoisted(() => ({ render: vi.fn() }))
 
 vi.mock('../api/browser-support-plan-actions', () => api)
 vi.mock('../api/browser-support-plan', () => legacy)
@@ -117,7 +118,10 @@ vi.mock('../components/SupportPlanScheduleEditor', () => ({
   ),
 }))
 vi.mock('../components/SupportPlanCompanionShell', () => ({
-  default: () => null,
+  default: (props: unknown) => {
+    companionShell.render(props)
+    return null
+  },
   useSupportPlanCompanionMuted: () => false,
 }))
 vi.mock('../components/ProfessionalSupportPath', () => ({
@@ -1429,6 +1433,17 @@ describe('SupportPlan workspace replacement', () => {
     )
     expect(api.replaceWithNativeSupportPlan).not.toHaveBeenCalled()
     expect(api.changeNativeSupportPlanStatus).not.toHaveBeenCalled()
+    expect(companionShell.render).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        guidedContext: expect.objectContaining({
+          review: expect.objectContaining({
+            outcome: 'CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE',
+            currentPlan: current,
+            proposedPlan: replacement,
+          }),
+        }),
+      }),
+    )
   })
 
   it('replaces only after confirmation and retries a lost reply with the same payload and key', async () => {

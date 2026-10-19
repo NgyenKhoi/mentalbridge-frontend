@@ -1502,7 +1502,7 @@ export default function SupportPlanWorkspace({
                           : undefined,
                   }
                 : undefined,
-              reviewAvailable: false,
+              review,
             }}
             companionRequestPending={companion.pending}
             interruptionActive={companion.interrupted}

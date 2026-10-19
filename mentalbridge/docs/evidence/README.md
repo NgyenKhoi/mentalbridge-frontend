@@ -1,5 +1,12 @@
 # Synthetic browser evidence
 
+MB-652 explains Care's adaptive SupportPlan replacement review inside the
+bounded Companion while keeping every evidence dimension separate and all plan
+mutation in the normal Adjust UI. Its contradictory, sparse, unchanged,
+alternative, current-not-admissible, dependency-independent, desktop/mobile,
+and no-mutation evidence is recorded in
+[`mb-652-adaptive-review-companion.md`](mb-652-adaptive-review-companion.md).
+
 MB-648 adds the bounded, presentation-only SupportPlan Companion shell. Its
 state-machine, isolation, fallback, accessibility, responsive, performance, and
 Stitch evidence is recorded in
