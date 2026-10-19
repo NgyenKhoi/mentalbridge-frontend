@@ -944,7 +944,7 @@ export interface components {
             retentionDays?: number | null;
             jobName: string;
             /** @enum {string} */
-            jobStatus: "ACTIVE" | "IDLE" | "PARTIALLY_SUPPORTED" | "UNAVAILABLE" | "SUCCEEDED" | "FAILED" | "RUNNING";
+            jobStatus: "ACTIVE" | "IDLE" | "PARTIALLY_SUPPORTED" | "UNAVAILABLE" | "SUCCEEDED" | "FAILED" | "RUNNING" | "STALE";
             automatedExecutionSupported: boolean;
             manualHoldSupported: boolean;
             requiresManualReview: boolean;
@@ -2107,6 +2107,7 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
             /** @description Capability unsupported by owner */
             422: {
                 headers: {

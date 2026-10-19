@@ -280,6 +280,28 @@ describe('AdminRetentionGovernance Component', () => {
     expect(retryBtnReq3).toBeDisabled()
   })
 
+  it('disables retry when Identity is complete and an external owner is still pending', async () => {
+    const user = userEvent.setup()
+    render(<AdminRetentionGovernance />)
+
+    await user.click(screen.getByTestId('tab-deletions'))
+
+    const retryButton = await screen.findByTestId(
+      'btn-retry-948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+    )
+    expect(retryButton).toBeDisabled()
+    expect(
+      screen.getByTestId(
+        'retry-unavailable-948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+      ),
+    ).toHaveTextContent(
+      'Phần dữ liệu tài khoản đã hoàn tất; hiện chưa hỗ trợ thử lại tự động cho các phần còn chờ ở dịch vụ khác.',
+    )
+
+    await user.click(retryButton)
+    expect(apiMock.retryDeletion).not.toHaveBeenCalled()
+  })
+
   it('expands owner facts to show cross-service audit evidence', async () => {
     const user = userEvent.setup()
     render(<AdminRetentionGovernance />)

@@ -107,6 +107,14 @@ test.describe('admin retention and deletion governance journey', () => {
     await expect(factsPanel).toContainText('audit:del:identity:001')
     await expect(factsPanel).toContainText('CARE')
     await expect(factsPanel).toContainText('PENDING')
+    await expect(
+      page.getByTestId('btn-retry-948f9e80-d3bc-45aa-91f6-044dd5afbf71'),
+    ).toBeDisabled()
+    await expect(
+      page.getByTestId(
+        'retry-unavailable-948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+      ),
+    ).toContainText('chưa hỗ trợ thử lại tự động')
 
     // 5. Apply and release hold flow
     await page.getByTestId('btn-apply-hold-948f9e80-d3bc-45aa-91f6-044dd5afbf71').click()

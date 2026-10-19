@@ -284,6 +284,14 @@
   margin-top: 8px;
 }
 
+.actionHint {
+  max-width: 32rem;
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .factRow {
   display: flex;
   align-items: center;

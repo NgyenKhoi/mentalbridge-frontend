@@ -10,6 +10,32 @@ import type {
 import { browserAdminRetention } from '../api/browser-admin-retention'
 import styles from './AdminRetentionGovernance.module.css'
 
+function retryUnavailableReason(request: DeletionRequest): string | null {
+  if (request.status === 'COMPLETED') {
+    return 'Yêu cầu xóa đã hoàn tất.'
+  }
+  if (request.holdType !== 'NONE') {
+    return 'Không thể thử lại khi có lệnh Hold đang áp dụng.'
+  }
+  if (request.retryCount >= request.maxRetries) {
+    return 'Đã đạt giới hạn thử lại; yêu cầu cần được xử lý thủ công.'
+  }
+  if (new Date(request.scheduledExecutionAt).getTime() > Date.now()) {
+    return 'Chưa đến thời điểm thực thi đã được phê duyệt.'
+  }
+
+  const identityFact = request.ownerFacts.find(
+    (fact) => fact.ownerService === 'IDENTITY',
+  )
+  if (request.ownerFacts.length === 0 || !identityFact) {
+    return 'Thiếu bằng chứng chủ sở hữu bắt buộc nên chưa thể thử lại.'
+  }
+  if (identityFact.status === 'COMPLETED') {
+    return 'Phần dữ liệu tài khoản đã hoàn tất; hiện chưa hỗ trợ thử lại tự động cho các phần còn chờ ở dịch vụ khác.'
+  }
+  return null
+}
+
 export default function AdminRetentionGovernance() {
   const [activeTab, setActiveTab] = useState<'policies' | 'deletions'>(
     'policies',
@@ -650,22 +676,29 @@ export default function AdminRetentionGovernance() {
                             onClick={() => handleRetryDeletion(req.requestId)}
                             disabled={
                               actionLoadingId === req.requestId ||
-                              req.holdType !== 'NONE' ||
-                              req.retryCount >= req.maxRetries ||
-                              req.status === 'COMPLETED'
+                              retryUnavailableReason(req) !== null
                             }
-                            title={
-                              req.holdType !== 'NONE'
-                                ? 'Không thể thử lại khi có lệnh Hold đang áp dụng'
-                                : req.retryCount >= req.maxRetries
-                                  ? 'Đã đạt giới hạn tối đa số lần thử lại, yêu cầu xử lý leo thang thủ công'
-                                  : undefined
+                            title={retryUnavailableReason(req) ?? undefined}
+                            aria-describedby={
+                              retryUnavailableReason(req)
+                                ? `retry-unavailable-${req.requestId}`
+                                : undefined
                             }
                             data-testid={`btn-retry-${req.requestId}`}
                           >
                             Thử lại
                           </button>
                         </div>
+
+                        {retryUnavailableReason(req) && (
+                          <p
+                            id={`retry-unavailable-${req.requestId}`}
+                            className={styles.actionHint}
+                            data-testid={`retry-unavailable-${req.requestId}`}
+                          >
+                            {retryUnavailableReason(req)}
+                          </p>
+                        )}
 
                         {expandedRequestId === req.requestId && (
                           <div
