@@ -19,6 +19,13 @@ explicit leave or terminal SDK disconnect still stop media. Late access/preview
 responses cannot resurrect a departed call. Preview eligibility revocation stops
 local tracks immediately. New connections always require fresh authorization.
 
+Current-head Cloud interruption testing also exposed a separate reconnect bug:
+the React SDK re-applies `audio`/`video` on `SignalConnected`, including a full
+reconnect. Fixed `false` props therefore muted devices enabled after Join. The
+room now receives only successfully applied, explicit user choices for that
+mounted call. Muted choices remain muted; failures do not enable a preference;
+leaving resets both defaults. Actual SDK track state still drives the controls.
+
 ## Owner-approved presentation
 
 The supplied HTML attachment `80d66da0-48fa-4a66-b726-e005210f391f` supersedes the

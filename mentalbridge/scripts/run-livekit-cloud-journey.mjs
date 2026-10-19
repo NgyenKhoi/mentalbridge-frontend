@@ -559,6 +559,20 @@ async function verifyNetworkRecovery(participant) {
     accesses,
     'Temporary network interruption required a new join',
   )
+  continuityChecks.push({
+    role: participant.role,
+    reconnectedDeviceChoices: {
+      expected: { camera, microphone },
+      actual: {
+        camera: await page
+          .getByRole('button', { name: /^Camera:/ })
+          .getAttribute('aria-pressed'),
+        microphone: await page
+          .getByRole('button', { name: /^Micro:/ })
+          .getAttribute('aria-pressed'),
+      },
+    },
+  })
   await expect(page.getByRole('button', { name: /^Camera:/ })).toHaveAttribute(
     'aria-pressed',
     camera,

@@ -79,17 +79,48 @@ export default function VideoMedia({
       />
     )
   return (
+    <ConnectedVideoMedia
+      access={access}
+      onLeave={onLeave}
+      onError={onError}
+      participantName={participantName}
+    />
+  )
+}
+function ConnectedVideoMedia({
+  access,
+  onLeave,
+  onError,
+  participantName,
+}: Pick<Props, 'onLeave' | 'onError'> & {
+  access: VideoAccess
+  participantName: string
+}) {
+  // SignalConnected also runs after a full SDK reconnect. Replay only choices
+  // successfully made in this room, not the initial camera/mic-off defaults.
+  // Leaving unmounts this state, so a new Join never captures devices itself.
+  const [media, setMedia] = useState({ camera: false, microphone: false })
+  const mediaChanged = useCallback(
+    (kind: 'camera' | 'microphone', enabled: boolean) =>
+      setMedia((current) => ({ ...current, [kind]: enabled })),
+    [],
+  )
+  return (
     <LiveKitRoom
       serverUrl={access.serverUrl}
       token={access.participantToken}
       connect
-      audio={false}
-      video={false}
+      audio={media.microphone}
+      video={media.camera}
       options={roomOptions}
       onError={onError}
       onDisconnected={onLeave}
     >
-      <CallControls onLeave={onLeave} participantName={participantName} />
+      <CallControls
+        onLeave={onLeave}
+        participantName={participantName}
+        onMediaChanged={mediaChanged}
+      />
     </LiveKitRoom>
   )
 }
@@ -268,9 +299,11 @@ function DeviceSelect({
 function CallControls({
   onLeave,
   participantName,
+  onMediaChanged,
 }: {
   onLeave: () => void
   participantName: string
+  onMediaChanged: (kind: 'camera' | 'microphone', enabled: boolean) => void
 }) {
   const state = useConnectionState()
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } =
@@ -372,9 +405,11 @@ function CallControls({
     setBusy(true)
     setError('')
     try {
-      if (kind === 'camera')
-        await localParticipant.setCameraEnabled(!isCameraEnabled)
-      else await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)
+      const enabled =
+        kind === 'camera' ? !isCameraEnabled : !isMicrophoneEnabled
+      if (kind === 'camera') await localParticipant.setCameraEnabled(enabled)
+      else await localParticipant.setMicrophoneEnabled(enabled)
+      onMediaChanged(kind, enabled)
     } catch {
       setError(
         'Chưa mở được thiết bị. Hãy kiểm tra quyền camera/micro, đóng ứng dụng đang dùng thiết bị rồi thử lại.',

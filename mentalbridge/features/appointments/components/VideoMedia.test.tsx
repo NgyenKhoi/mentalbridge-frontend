@@ -16,11 +16,21 @@ const sdk = vi.hoisted(() => ({
   create: vi.fn(),
   disconnect: vi.fn(),
   select: vi.fn(),
+  roomMedia: { audio: false, video: false },
 }))
 vi.mock('@livekit/components-react', async () => {
   const { useEffect } = await import('react')
   return {
-    LiveKitRoom: ({ children }: { children: ReactNode }) => {
+    LiveKitRoom: ({
+      children,
+      audio,
+      video,
+    }: {
+      children: ReactNode
+      audio: boolean
+      video: boolean
+    }) => {
+      sdk.roomMedia = { audio, video }
       useEffect(() => () => sdk.disconnect(), [])
       return children
     },
@@ -140,10 +150,52 @@ describe('official Web SDK presentation boundary', () => {
     sdk.tracks = []
     sdk.camera = false
     sdk.microphone = false
+    sdk.setCamera.mockImplementation(async (enabled: boolean) => {
+      sdk.camera = enabled
+    })
+    sdk.setMicrophone.mockImplementation(async (enabled: boolean) => {
+      sdk.microphone = enabled
+    })
   })
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
+  })
+  it('replays successful media choices on full signaling reconnect, preserves mute, and resets on a new Join', async () => {
+    const user = userEvent.setup()
+    const props = {
+      access,
+      previewAllowed: true,
+      onLeave: vi.fn(),
+      onError: vi.fn(),
+    }
+    const view = render(<VideoMedia {...props} />)
+    expect(sdk.roomMedia).toEqual({ audio: false, video: false })
+    expect(sdk.setCamera).not.toHaveBeenCalled()
+    expect(sdk.setMicrophone).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Camera: Đang tắt' }))
+    await user.click(screen.getByRole('button', { name: 'Micro: Đang tắt' }))
+    expect(sdk.roomMedia).toEqual({ audio: true, video: true })
+    await user.click(screen.getByRole('button', { name: 'Micro: Đang bật' }))
+    sdk.state = 'reconnecting'
+    view.rerender(<VideoMedia {...props} />)
+    // The installed SDK applies these props again on SignalConnected.
+    await act(async () => {
+      await sdk.setCamera(sdk.roomMedia.video)
+      await sdk.setMicrophone(sdk.roomMedia.audio)
+    })
+    sdk.state = 'connected'
+    view.rerender(<VideoMedia {...props} />)
+    expect(
+      screen.getByRole('button', { name: 'Camera: Đang bật' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      screen.getByRole('button', { name: 'Micro: Đang tắt' }),
+    ).toHaveAttribute('aria-pressed', 'false')
+    expect(sdk.disconnect).not.toHaveBeenCalled()
+    view.rerender(<VideoMedia {...props} access={null} />)
+    view.rerender(<VideoMedia {...props} />)
+    expect(sdk.roomMedia).toEqual({ audio: false, video: false })
   })
   it('swaps surfaces and device selection without disconnecting or changing media preferences; leave is cancel-first', async () => {
     const user = userEvent.setup()
@@ -329,6 +381,7 @@ describe('official Web SDK presentation boundary', () => {
       /kiểm tra quyền camera\/micro/i,
     )
     expect(document.body.innerHTML).not.toContain(access.participantToken)
+    expect(sdk.roomMedia.video).toBe(false)
     expect(
       screen.getByRole('button', { name: 'Micro: Đang tắt' }),
     ).toBeEnabled()
