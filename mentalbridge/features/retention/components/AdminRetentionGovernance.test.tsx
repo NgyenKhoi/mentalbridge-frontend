@@ -22,24 +22,24 @@ vi.mock('../api/browser-admin-retention', () => ({
 
 const mockPolicies: RetentionPolicy[] = [
   {
-    policyId: 'IDENTITY_AUDIT_LOGS',
-    name: 'Chính sách bảo lưu nhật ký kiểm toán Identity',
+    policyId: 'MB-IDENTITY-REPORTING-001',
+    name: 'Chính sách bảo lưu báo cáo phân tích tổng hợp',
     ownerService: 'IDENTITY',
-    version: '1.0.0',
+    version: '1.0',
     status: 'APPROVED',
-    retentionDays: 365,
+    retentionDays: 90,
     automatedExecutionSupported: true,
     manualHoldSupported: false,
     requiresManualReview: false,
     jobStatus: 'ACTIVE',
-    jobName: 'identityAuditLogRetentionJob',
+    jobName: 'IDENTITY_REPORTING_SWEEP',
     description:
-      'Bảo lưu sự kiện kiểm toán tối thiểu hóa danh tính trong 365 ngày.',
+      'Bảo lưu các tệp trích xuất báo cáo phân tích trong 90 ngày.',
     lastExecution: {
-      executionId: 'rec-1',
-      policyId: 'IDENTITY_AUDIT_LOGS',
+      executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
+      policyId: 'MB-IDENTITY-REPORTING-001',
       ownerService: 'IDENTITY',
-      jobName: 'identityAuditLogRetentionJob',
+      jobName: 'IDENTITY_REPORTING_SWEEP',
       jobStatus: 'COMPLETED',
       startedAt: '2026-10-19T02:00:00Z',
       completedAt: '2026-10-19T02:05:00Z',
@@ -50,19 +50,19 @@ const mockPolicies: RetentionPolicy[] = [
     },
   },
   {
-    policyId: 'CONTENT_INBOX_PURGE',
-    name: 'Chính sách bảo lưu thông báo quản trị Content',
+    policyId: 'MB-CONTENT-NOTIFICATION-RETENTION-001',
+    name: 'Chính sách bảo lưu hộp thư thông báo',
     ownerService: 'CONTENT',
-    version: '1.0.0',
+    version: '1.0',
     status: 'APPROVED',
     retentionDays: 90,
     automatedExecutionSupported: false,
     manualHoldSupported: false,
     requiresManualReview: false,
     jobStatus: 'UNAVAILABLE',
-    jobName: 'contentNotificationSweepJob',
+    jobName: 'NOTIFICATION_INBOX_RETENTION',
     description:
-      'Chỉ lưu trữ tạm thời tin thông báo nội dung không quan trọng.',
+      'Hộp thư thông báo lưu trữ 90 ngày',
     unsupportedCapabilityNotice:
       'Chức năng dọn dẹp tự động của Content Service hiện chưa cung cấp endpoint kích hoạt từ Identity Service (Explicitly Unavailable).',
   },
@@ -70,7 +70,7 @@ const mockPolicies: RetentionPolicy[] = [
 
 const mockDeletions: DeletionRequest[] = [
   {
-    requestId: 'req-001',
+    requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf71',
     subjectReference:
       'tombstone:948f9e80d3bc45aa91f6044dd5afbf78abcdef1234567890abcdef1234567890',
     status: 'IN_PROGRESS',
@@ -95,7 +95,7 @@ const mockDeletions: DeletionRequest[] = [
     ],
   },
   {
-    requestId: 'req-002',
+    requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf72',
     subjectReference:
       'tombstone:bbbb9e80d3bc45aa91f6044dd5afbf78abcdef1234567890abcdef1234567890',
     status: 'HELD',
@@ -116,7 +116,7 @@ const mockDeletions: DeletionRequest[] = [
     ],
   },
   {
-    requestId: 'req-003',
+    requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf73',
     subjectReference:
       'tombstone:cccc9e80d3bc45aa91f6044dd5afbf78abcdef1234567890abcdef1234567890',
     status: 'FAILED',
@@ -153,10 +153,10 @@ describe('AdminRetentionGovernance Component', () => {
       size: 20,
     })
     apiMock.triggerSweep.mockResolvedValue({
-      executionId: 'rec-new',
-      policyId: 'IDENTITY_AUDIT_LOGS',
+      executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
+      policyId: 'MB-IDENTITY-REPORTING-001',
       ownerService: 'IDENTITY',
-      jobName: 'identityAuditLogRetentionJob',
+      jobName: 'IDENTITY_REPORTING_SWEEP',
       jobStatus: 'COMPLETED',
       startedAt: '2026-10-19T22:00:00Z',
       completedAt: '2026-10-19T22:01:00Z',
@@ -185,12 +185,12 @@ describe('AdminRetentionGovernance Component', () => {
 
     // Verify policies loaded
     expect(
-      await screen.findByText('Chính sách bảo lưu nhật ký kiểm toán Identity'),
+      await screen.findByText('Chính sách bảo lưu báo cáo phân tích tổng hợp'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/Phiên bản: 1.0.0 · Chủ sở hữu: IDENTITY/),
+      screen.getByText(/Phiên bản: 1.0 · Chủ sở hữu: IDENTITY/),
     ).toBeInTheDocument()
-    expect(screen.getByText('365 ngày')).toBeInTheDocument()
+    expect(screen.getAllByText('90 ngày')).toHaveLength(2)
     expect(
       screen.getByText('COMPLETED (15 bản ghi dọn dẹp)'),
     ).toBeInTheDocument()
@@ -200,15 +200,15 @@ describe('AdminRetentionGovernance Component', () => {
     render(<AdminRetentionGovernance />)
 
     expect(
-      await screen.findByText('Chính sách bảo lưu thông báo quản trị Content'),
+      await screen.findByText('Chính sách bảo lưu hộp thư thông báo'),
     ).toBeInTheDocument()
 
-    const notice = screen.getByTestId('unavailable-notice-CONTENT_INBOX_PURGE')
+    const notice = screen.getByTestId('unavailable-notice-MB-CONTENT-NOTIFICATION-RETENTION-001')
     expect(notice).toHaveTextContent(
       /Chức năng dọn dẹp tự động của Content Service hiện chưa cung cấp endpoint/i,
     )
 
-    const disabledBtn = screen.getByTestId('sweep-disabled-CONTENT_INBOX_PURGE')
+    const disabledBtn = screen.getByTestId('sweep-disabled-MB-CONTENT-NOTIFICATION-RETENTION-001')
     expect(disabledBtn).toBeDisabled()
     expect(disabledBtn).toHaveTextContent('Thực thi không khả dụng')
   })
@@ -217,12 +217,12 @@ describe('AdminRetentionGovernance Component', () => {
     const user = userEvent.setup()
     render(<AdminRetentionGovernance />)
 
-    const sweepBtn = await screen.findByTestId('sweep-btn-IDENTITY_AUDIT_LOGS')
+    const sweepBtn = await screen.findByTestId('sweep-btn-MB-IDENTITY-REPORTING-001')
     expect(sweepBtn).toBeEnabled()
 
     await user.click(sweepBtn)
 
-    expect(apiMock.triggerSweep).toHaveBeenCalledWith('IDENTITY_AUDIT_LOGS')
+    expect(apiMock.triggerSweep).toHaveBeenCalledWith('MB-IDENTITY-REPORTING-001')
     expect(
       await screen.findByText(/Đã dọn dẹp 10 bản ghi hết hạn/i),
     ).toBeInTheDocument()
@@ -256,12 +256,12 @@ describe('AdminRetentionGovernance Component', () => {
 
     await user.click(screen.getByTestId('tab-deletions'))
 
-    expect(await screen.findByTestId('hold-badge-req-002')).toHaveTextContent(
+    expect(await screen.findByTestId('hold-badge-948f9e80-d3bc-45aa-91f6-044dd5afbf72')).toHaveTextContent(
       'LEGAL_HOLD: STATUTORY_INQUIRY',
     )
 
-    // Retry button for req-002 (under hold) must be disabled
-    const retryBtnReq2 = screen.getByTestId('btn-retry-req-002')
+    // Retry button for 948f9e80-d3bc-45aa-91f6-044dd5afbf72 (under hold) must be disabled
+    const retryBtnReq2 = screen.getByTestId('btn-retry-948f9e80-d3bc-45aa-91f6-044dd5afbf72')
     expect(retryBtnReq2).toBeDisabled()
   })
 
@@ -271,11 +271,11 @@ describe('AdminRetentionGovernance Component', () => {
 
     await user.click(screen.getByTestId('tab-deletions'))
 
-    // req-003 has retryCount = 3, maxRetries = 3, RETRY_EXHAUSTED
+    // 948f9e80-d3bc-45aa-91f6-044dd5afbf73 has retryCount = 3, maxRetries = 3, RETRY_EXHAUSTED
     expect(
-      await screen.findByTestId('escalation-badge-req-003'),
+      await screen.findByTestId('escalation-badge-948f9e80-d3bc-45aa-91f6-044dd5afbf73'),
     ).toHaveTextContent('RETRY_EXHAUSTED')
-    const retryBtnReq3 = screen.getByTestId('btn-retry-req-003')
+    const retryBtnReq3 = screen.getByTestId('btn-retry-948f9e80-d3bc-45aa-91f6-044dd5afbf73')
     expect(retryBtnReq3).toBeDisabled()
   })
 
@@ -285,10 +285,10 @@ describe('AdminRetentionGovernance Component', () => {
 
     await user.click(screen.getByTestId('tab-deletions'))
 
-    const expandBtn = await screen.findByTestId('btn-expand-req-001')
+    const expandBtn = await screen.findByTestId('btn-expand-948f9e80-d3bc-45aa-91f6-044dd5afbf71')
     await user.click(expandBtn)
 
-    const factsPanel = screen.getByTestId('facts-panel-req-001')
+    const factsPanel = screen.getByTestId('facts-panel-948f9e80-d3bc-45aa-91f6-044dd5afbf71')
     expect(factsPanel).toBeInTheDocument()
     expect(factsPanel).toHaveTextContent('IDENTITY')
     expect(factsPanel).toHaveTextContent('Bằng chứng: audit:del:identity:001')
@@ -302,7 +302,7 @@ describe('AdminRetentionGovernance Component', () => {
 
     await user.click(screen.getByTestId('tab-deletions'))
 
-    const applyHoldBtn = await screen.findByTestId('btn-apply-hold-req-001')
+    const applyHoldBtn = await screen.findByTestId('btn-apply-hold-948f9e80-d3bc-45aa-91f6-044dd5afbf71')
     await user.click(applyHoldBtn)
 
     expect(screen.getByTestId('hold-modal')).toBeInTheDocument()
@@ -311,7 +311,7 @@ describe('AdminRetentionGovernance Component', () => {
     const confirmBtn = screen.getByTestId('btn-confirm-apply-hold')
     await user.click(confirmBtn)
 
-    expect(apiMock.applyHold).toHaveBeenCalledWith('req-001', {
+    expect(apiMock.applyHold).toHaveBeenCalledWith('948f9e80-d3bc-45aa-91f6-044dd5afbf71', {
       holdType: 'LEGAL_HOLD',
       holdReason: 'STATUTORY_INQUIRY',
     })

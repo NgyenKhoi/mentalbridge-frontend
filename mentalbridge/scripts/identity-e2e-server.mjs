@@ -268,24 +268,24 @@ const communityPostVersions = new Map([
 
 const initialRetentionPolicies = [
   {
-    policyId: 'IDENTITY_AUDIT_LOGS',
-    name: 'Chính sách bảo lưu nhật ký kiểm toán Identity',
+    policyId: 'MB-IDENTITY-REPORTING-001',
+    name: 'Chính sách bảo lưu báo cáo phân tích tổng hợp',
     ownerService: 'IDENTITY',
-    version: '1.0.0',
+    version: '1.0',
     status: 'APPROVED',
-    retentionDays: 365,
+    retentionDays: 90,
     automatedExecutionSupported: true,
     manualHoldSupported: false,
     requiresManualReview: false,
     jobStatus: 'ACTIVE',
-    jobName: 'identityAuditLogRetentionJob',
+    jobName: 'IDENTITY_REPORTING_SWEEP',
     description:
-      'Bảo lưu sự kiện kiểm toán tối thiểu hóa danh tính trong 365 ngày.',
+      'Bảo lưu các tệp trích xuất báo cáo phân tích trong 90 ngày.',
     lastExecution: {
-      executionId: 'exec-e2e-001',
-      policyId: 'IDENTITY_AUDIT_LOGS',
+      executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
+      policyId: 'MB-IDENTITY-REPORTING-001',
       ownerService: 'IDENTITY',
-      jobName: 'identityAuditLogRetentionJob',
+      jobName: 'IDENTITY_REPORTING_SWEEP',
       jobStatus: 'COMPLETED',
       startedAt: '2026-10-19T02:00:00Z',
       completedAt: '2026-10-19T02:05:00Z',
@@ -296,45 +296,45 @@ const initialRetentionPolicies = [
     },
   },
   {
-    policyId: 'CARE_INACTIVE_ASSESSMENTS',
-    name: 'Chính sách bảo lưu kết quả đánh giá tâm lý Care',
+    policyId: 'MB-PRIVACY-CARE-001',
+    name: 'Chính sách bảo lưu hồ sơ lâm sàng và phiên chăm sóc',
     ownerService: 'CARE',
-    version: '1.0.0',
+    version: '1.0',
     status: 'APPROVED',
     retentionDays: 730,
     automatedExecutionSupported: false,
     manualHoldSupported: true,
     requiresManualReview: true,
     jobStatus: 'PARTIALLY_SUPPORTED',
-    jobName: 'careAssessmentLifecycleSweepJob',
+    jobName: 'CARE_RECORD_RETENTION_SWEEP',
     description:
-      'Chỉ Care Service có thẩm quyền dọn dẹp các bản ghi đánh giá lâm sàng quá 730 ngày.',
+      'Hồ sơ phiên chăm sóc và đánh giá lâm sàng bảo lưu 730 ngày.',
     unsupportedCapabilityNotice:
-      'Care Service tự quản lý vòng đời đánh giá tâm lý; không kích hoạt trực tiếp từ Identity.',
+      'Care Service tự quản lý vòng đời hồ sơ; không kích hoạt trực tiếp từ Identity.',
   },
   {
-    policyId: 'CONTENT_INBOX_PURGE',
-    name: 'Chính sách bảo lưu thông báo quản trị Content',
+    policyId: 'MB-CONTENT-NOTIFICATION-RETENTION-001',
+    name: 'Chính sách bảo lưu hộp thư thông báo',
     ownerService: 'CONTENT',
-    version: '1.0.0',
+    version: '1.0',
     status: 'APPROVED',
     retentionDays: 90,
     automatedExecutionSupported: false,
     manualHoldSupported: false,
     requiresManualReview: false,
     jobStatus: 'UNAVAILABLE',
-    jobName: 'contentNotificationSweepJob',
+    jobName: 'NOTIFICATION_INBOX_RETENTION',
     description:
-      'Chỉ lưu trữ tạm thời tin thông báo nội dung không quan trọng.',
+      'Hộp thư thông báo lưu trữ 90 ngày',
     unsupportedCapabilityNotice:
-      'Chức năng dọn dẹp tự động của Content Service hiện chưa cung cấp endpoint kích hoạt từ Identity Service (Explicitly Unavailable).',
+      'Chức năng tự động dọn dẹp chưa được triển khai tại Content Service (Explicitly Unavailable).',
   },
 ]
 const retentionPolicies = structuredClone(initialRetentionPolicies)
 
 const initialDeletionRequests = [
   {
-    requestId: 'del-e2e-001',
+    requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf71',
     subjectReference:
       'tombstone:948f9e80d3bc45aa91f6044dd5afbf78e2e001e2e001e2e001e2e001e2e001e2',
     accountStatus: 'DELETION_PENDING',
@@ -360,7 +360,7 @@ const initialDeletionRequests = [
     ],
   },
   {
-    requestId: 'del-e2e-002',
+    requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf72',
     subjectReference:
       'tombstone:bbbb9e80d3bc45aa91f6044dd5afbf78e2e002e2e002e2e002e2e002e2e002e2',
     accountStatus: 'DISABLED',
@@ -381,7 +381,7 @@ const initialDeletionRequests = [
     ],
   },
   {
-    requestId: 'del-e2e-003',
+    requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf73',
     subjectReference:
       'tombstone:cccc9e80d3bc45aa91f6044dd5afbf78e2e003e2e003e2e003e2e003e2e003e2',
     accountStatus: 'DELETION_PENDING',
@@ -3808,7 +3808,7 @@ const server = createServer(async (request, response) => {
         return
       }
       const executionRecord = {
-        executionId: `exec-e2e-${Date.now()}`,
+        executionId: crypto.randomUUID(),
         policyId: target.policyId,
         ownerService: target.ownerService,
         jobName: target.jobName,
@@ -3916,8 +3916,34 @@ const server = createServer(async (request, response) => {
         )
         return
       }
-      if (request.method === 'PUT') {
+      if (request.method === 'POST' || request.method === 'PUT') {
+        if (target.status === 'COMPLETED') {
+          problem(
+            response,
+            409,
+            'CONFLICT',
+            'Không thể áp dụng Hold lên yêu cầu xóa đã hoàn tất (COMPLETED).',
+          )
+          return
+        }
         const body = await readBody(request)
+        const allowedReasons = new Set([
+          'STATUTORY_INQUIRY',
+          'PENDING_DISPUTE',
+          'ACTIVE_SAFETY_REVIEW',
+          'SCHEDULED_APPOINTMENT_ACTIVE',
+          'USER_CONTESTED',
+          'AUDIT_COMPLIANCE_HOLD',
+        ])
+        if (!body.holdReason || !allowedReasons.has(body.holdReason)) {
+          problem(
+            response,
+            400,
+            'VALIDATION_FAILED',
+            'Mã lý do Hold không hợp lệ hoặc chứa nội dung không an toàn.',
+          )
+          return
+        }
         target.holdType = body.holdType
         target.holdReason = body.holdReason
         target.status = 'HELD'
@@ -3927,7 +3953,13 @@ const server = createServer(async (request, response) => {
       if (request.method === 'DELETE') {
         target.holdType = 'NONE'
         target.holdReason = null
-        target.status = 'IN_PROGRESS'
+        if (target.retryCount >= target.maxRetries && target.maxRetries > 0) {
+          target.status = 'FAILED'
+        } else if (target.retryCount > 0) {
+          target.status = 'IN_PROGRESS'
+        } else {
+          target.status = 'PENDING'
+        }
         json(response, 200, target)
         return
       }

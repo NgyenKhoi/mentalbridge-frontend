@@ -38,31 +38,31 @@ test.describe('admin retention and deletion governance journey', () => {
 
     // 2. Approved policies with authoritative aggregate outcomes
     await expect(
-      page.getByTestId('policy-card-IDENTITY_AUDIT_LOGS'),
+      page.getByTestId('policy-card-MB-IDENTITY-REPORTING-001'),
     ).toBeVisible()
     await expect(
-      page.getByText('Chính sách bảo lưu nhật ký kiểm toán Identity'),
+      page.getByText('Chính sách bảo lưu báo cáo phân tích tổng hợp'),
     ).toBeVisible()
-    await expect(page.getByText('365 ngày')).toBeVisible()
+    await expect(page.getByText('90 ngày')).toBeVisible()
     await expect(page.getByText('COMPLETED (15 bản ghi dọn dẹp)')).toBeVisible()
 
     // 3. Explicitly unavailable capabilities rather than simulated
     await expect(
-      page.getByTestId('policy-card-CONTENT_INBOX_PURGE'),
+      page.getByTestId('policy-card-MB-CONTENT-NOTIFICATION-RETENTION-001'),
     ).toBeVisible()
     await expect(
-      page.getByTestId('unavailable-notice-CONTENT_INBOX_PURGE'),
+      page.getByTestId('unavailable-notice-MB-CONTENT-NOTIFICATION-RETENTION-001'),
     ).toBeVisible()
-    const disabledSweep = page.getByTestId('sweep-disabled-CONTENT_INBOX_PURGE')
+    const disabledSweep = page.getByTestId('sweep-disabled-MB-CONTENT-NOTIFICATION-RETENTION-001')
     await expect(disabledSweep).toBeDisabled()
     await expect(disabledSweep).toHaveText('Thực thi không khả dụng')
 
     // 4. Trigger supported sweep and check audit-safe feedback
-    const activeSweep = page.getByTestId('sweep-btn-IDENTITY_AUDIT_LOGS')
+    const activeSweep = page.getByTestId('sweep-btn-MB-IDENTITY-REPORTING-001')
     await expect(activeSweep).toBeEnabled()
     await activeSweep.click()
     await expect(
-      page.getByText(/Thực thi dọn dẹp thành công cho IDENTITY_AUDIT_LOGS/i),
+      page.getByText(/Thực thi dọn dẹp thành công cho MB-IDENTITY-REPORTING-001/i),
     ).toBeVisible()
   })
 
@@ -86,22 +86,22 @@ test.describe('admin retention and deletion governance journey', () => {
     await expect(page.locator('body')).not.toContainText('assessmentAnswers')
 
     // 2. Legal hold blocks deletion retry
-    const holdBadge = page.getByTestId('hold-badge-del-e2e-002')
+    const holdBadge = page.getByTestId('hold-badge-948f9e80-d3bc-45aa-91f6-044dd5afbf72')
     await expect(holdBadge).toBeVisible()
     await expect(holdBadge).toContainText('LEGAL_HOLD: STATUTORY_INQUIRY')
-    const retryHeld = page.getByTestId('btn-retry-del-e2e-002')
+    const retryHeld = page.getByTestId('btn-retry-948f9e80-d3bc-45aa-91f6-044dd5afbf72')
     await expect(retryHeld).toBeDisabled()
 
     // 3. Bounded retry exhaustion disables retry button
-    const escalationBadge = page.getByTestId('escalation-badge-del-e2e-003')
+    const escalationBadge = page.getByTestId('escalation-badge-948f9e80-d3bc-45aa-91f6-044dd5afbf73')
     await expect(escalationBadge).toBeVisible()
     await expect(escalationBadge).toHaveText('RETRY_EXHAUSTED')
-    const retryExhausted = page.getByTestId('btn-retry-del-e2e-003')
+    const retryExhausted = page.getByTestId('btn-retry-948f9e80-d3bc-45aa-91f6-044dd5afbf73')
     await expect(retryExhausted).toBeDisabled()
 
     // 4. Traceable owner completion facts without cross-owner direct DB access
-    await page.getByTestId('btn-expand-del-e2e-001').click()
-    const factsPanel = page.getByTestId('facts-panel-del-e2e-001')
+    await page.getByTestId('btn-expand-948f9e80-d3bc-45aa-91f6-044dd5afbf71').click()
+    const factsPanel = page.getByTestId('facts-panel-948f9e80-d3bc-45aa-91f6-044dd5afbf71')
     await expect(factsPanel).toBeVisible()
     await expect(factsPanel).toContainText('IDENTITY')
     await expect(factsPanel).toContainText('audit:del:identity:001')
@@ -109,16 +109,16 @@ test.describe('admin retention and deletion governance journey', () => {
     await expect(factsPanel).toContainText('PENDING')
 
     // 5. Apply and release hold flow
-    await page.getByTestId('btn-apply-hold-del-e2e-001').click()
+    await page.getByTestId('btn-apply-hold-948f9e80-d3bc-45aa-91f6-044dd5afbf71').click()
     await expect(page.getByTestId('hold-modal')).toBeVisible()
     await page.getByTestId('select-hold-type').selectOption('OPERATIONAL_HOLD')
     await page.getByTestId('btn-confirm-apply-hold').click()
 
     // Verify hold applied
-    await expect(page.getByTestId('hold-badge-del-e2e-001')).toContainText(
+    await expect(page.getByTestId('hold-badge-948f9e80-d3bc-45aa-91f6-044dd5afbf71')).toContainText(
       'OPERATIONAL_HOLD',
     )
     // Retry should now be blocked
-    await expect(page.getByTestId('btn-retry-del-e2e-001')).toBeDisabled()
+    await expect(page.getByTestId('btn-retry-948f9e80-d3bc-45aa-91f6-044dd5afbf71')).toBeDisabled()
   })
 })
