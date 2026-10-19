@@ -3,7 +3,10 @@ import type {
   AccountPage,
   AccountStateChangeRequest,
   AccountStatus,
+  AdministrationAuditEvent,
+  AdministrationAuditEventPage,
   AccountSummary,
+  AccountsSummary,
   ChallengeRequest,
   EmailRequest,
   IdentityRole,
@@ -18,6 +21,7 @@ import type {
   PlatformReportPage,
   PlatformReportRequest,
   PlatformReportType,
+  ProductJourneyMetrics,
 } from '@/features/auth/api/identity-contract'
 
 const ACCOUNT_STATUSES = new Set([
@@ -42,6 +46,22 @@ const PUBLIC_REGISTRATION_ROLES = new Set<PublicRegistrationRole>([
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const SAFE_CODE_PATTERN = /^[A-Z0-9_]{1,96}$/
+const SAFE_ACTOR_PATTERN =
+  /^(account:[0-9a-f-]{36}|tombstone:[0-9a-f]{64}|system)$/i
+const SAFE_TARGET_PATTERN = /^(account:[0-9a-f-]{36}|tombstone:[0-9a-f]{64})$/i
+const VALID_AUDIT_SERVICES = new Set([
+  'IDENTITY',
+  'CONSULTATION',
+  'CONTENT',
+  'COMMUNITY',
+])
+const VALID_AUDIT_DOMAINS = new Set([
+  'ACCOUNT_ADMINISTRATION',
+  'SPECIALIST_REVIEW',
+  'RESOURCE_MANAGEMENT',
+  'COMMUNITY_MODERATION',
+])
 const PLATFORM_REPORT_STATUSES = new Set([
   'QUEUED',
   'RUNNING',
@@ -475,6 +495,87 @@ export function parseAccountPage(value: unknown): AccountPage | null {
   return { items, nextCursor: value.nextCursor as string | null }
 }
 
+function parseAdministrationAuditEvent(
+  value: unknown,
+): AdministrationAuditEvent | null {
+  if (!isRecord(value)) return null
+  if (
+    !hasOnlyKeys(value, [
+      'eventId',
+      'occurredAt',
+      'actorType',
+      'actorIdentifier',
+      'action',
+      'result',
+      'reasonCode',
+      'correlationId',
+      'sourceService',
+      'domain',
+      'targetIdentifier',
+    ])
+  ) {
+    return null
+  }
+  if (
+    typeof value.eventId !== 'string' ||
+    !UUID_PATTERN.test(value.eventId) ||
+    !isDateTime(value.occurredAt) ||
+    !['ADMIN', 'SYSTEM'].includes(String(value.actorType)) ||
+    typeof value.actorIdentifier !== 'string' ||
+    !SAFE_ACTOR_PATTERN.test(value.actorIdentifier) ||
+    typeof value.action !== 'string' ||
+    !SAFE_CODE_PATTERN.test(value.action) ||
+    !['SUCCEEDED', 'DENIED', 'FAILED'].includes(String(value.result)) ||
+    (value.reasonCode !== null &&
+      (typeof value.reasonCode !== 'string' ||
+        !SAFE_CODE_PATTERN.test(value.reasonCode))) ||
+    typeof value.correlationId !== 'string' ||
+    !UUID_PATTERN.test(value.correlationId) ||
+    !VALID_AUDIT_SERVICES.has(String(value.sourceService)) ||
+    !VALID_AUDIT_DOMAINS.has(String(value.domain)) ||
+    (value.actorType === 'SYSTEM' && value.actorIdentifier !== 'system') ||
+    (value.actorType === 'ADMIN' && value.actorIdentifier === 'system') ||
+    (value.targetIdentifier !== null &&
+      value.targetIdentifier !== undefined &&
+      (typeof value.targetIdentifier !== 'string' ||
+        !SAFE_TARGET_PATTERN.test(value.targetIdentifier)))
+  ) {
+    return null
+  }
+  return value as AdministrationAuditEvent
+}
+
+export function parseAdministrationAuditEventPage(
+  value: unknown,
+): AdministrationAuditEventPage | null {
+  if (!isRecord(value)) return null
+  if (
+    !hasOnlyKeys(value, [
+      'items',
+      'nextCursor',
+      'effectiveFrom',
+      'effectiveTo',
+      'retentionCutoff',
+    ]) ||
+    !Array.isArray(value.items) ||
+    (value.nextCursor !== null && typeof value.nextCursor !== 'string') ||
+    !isDateTime(value.effectiveFrom) ||
+    !isDateTime(value.effectiveTo) ||
+    !isDateTime(value.retentionCutoff)
+  ) {
+    return null
+  }
+  const items = value.items.map(parseAdministrationAuditEvent)
+  if (items.some((item) => item === null)) return null
+  return {
+    items: items as AdministrationAuditEvent[],
+    nextCursor: value.nextCursor as string | null,
+    effectiveFrom: value.effectiveFrom,
+    effectiveTo: value.effectiveTo,
+    retentionCutoff: value.retentionCutoff,
+  }
+}
+
 export function validateAccountStateChangeRequest(
   value: unknown,
 ): ValidationResult<AccountStateChangeRequest> {
@@ -506,6 +607,45 @@ export function validateAccountStateChangeRequest(
     value: {
       status: value.status as AccountStateChangeRequest['status'],
       reasonCode: value.reasonCode as AccountStateChangeRequest['reasonCode'],
+    },
+  }
+}
+
+export function parseAccountsSummary(value: unknown): AccountsSummary | null {
+  if (!isRecord(value)) return null
+  if (
+    value.source !== 'IDENTITY' ||
+    typeof value.asOf !== 'string' ||
+    !isDateTime(value.asOf) ||
+    typeof value.totalAccounts !== 'number' ||
+    typeof value.activeAccounts !== 'number' ||
+    typeof value.pendingVerificationAccounts !== 'number' ||
+    typeof value.disabledAccounts !== 'number' ||
+    typeof value.deletionPendingAccounts !== 'number' ||
+    !isRecord(value.byRole)
+  ) {
+    return null
+  }
+  const byRole = value.byRole
+  if (
+    typeof byRole.users !== 'number' ||
+    typeof byRole.specialists !== 'number' ||
+    typeof byRole.admins !== 'number'
+  ) {
+    return null
+  }
+  return {
+    source: 'IDENTITY',
+    asOf: value.asOf,
+    totalAccounts: value.totalAccounts,
+    activeAccounts: value.activeAccounts,
+    pendingVerificationAccounts: value.pendingVerificationAccounts,
+    disabledAccounts: value.disabledAccounts,
+    deletionPendingAccounts: value.deletionPendingAccounts,
+    byRole: {
+      users: byRole.users,
+      specialists: byRole.specialists,
+      admins: byRole.admins,
     },
   }
 }
@@ -673,4 +813,188 @@ export function parsePlatformReportPage(
   if (value.nextCursor !== null && typeof value.nextCursor !== 'string')
     return null
   return { items, nextCursor: value.nextCursor as string | null }
+}
+
+const PRODUCT_JOURNEY_SOURCES = new Set(['IDENTITY', 'CARE', 'CONSULTATION'])
+const PRODUCT_JOURNEY_SOURCE_VERSIONS: Readonly<Record<string, string>> = {
+  IDENTITY: 'identity-account-projection-v3',
+  CARE: 'care-product-journey-v1',
+  CONSULTATION: 'consultation-product-journey-v3',
+}
+const PRODUCT_JOURNEY_STAGES = new Set([
+  'USER_ACCOUNTS_REGISTERED',
+  'USER_ACCOUNTS_ACTIVATED',
+  'COMPLETED_SCREENING_EPISODES',
+  'SUPPORT_GUIDES_GENERATED',
+  'SUPPORT_GUIDES_OPENED',
+  'PAID_SUPPORT_PLANS_ACTIVATED',
+  'CONSULTATIONS_REQUESTED',
+  'CONSULTATIONS_CONFIRMED',
+  'CONSULTATIONS_COMPLETED',
+])
+const PRODUCT_JOURNEY_STAGE_SOURCES: Readonly<Record<string, string>> = {
+  USER_ACCOUNTS_REGISTERED: 'IDENTITY',
+  USER_ACCOUNTS_ACTIVATED: 'IDENTITY',
+  COMPLETED_SCREENING_EPISODES: 'CARE',
+  SUPPORT_GUIDES_GENERATED: 'CARE',
+  SUPPORT_GUIDES_OPENED: 'CARE',
+  PAID_SUPPORT_PLANS_ACTIVATED: 'CARE',
+  CONSULTATIONS_REQUESTED: 'CONSULTATION',
+  CONSULTATIONS_CONFIRMED: 'CONSULTATION',
+  CONSULTATIONS_COMPLETED: 'CONSULTATION',
+}
+const PRODUCT_JOURNEY_RATE_DENOMINATORS: Readonly<Record<string, string>> = {
+  USER_ACCOUNTS_ACTIVATED: 'USER_ACCOUNTS_REGISTERED',
+  CONSULTATIONS_CONFIRMED: 'CONSULTATIONS_REQUESTED',
+  CONSULTATIONS_COMPLETED: 'CONSULTATIONS_REQUESTED',
+}
+
+export function parseProductJourneyMetrics(
+  value: unknown,
+): ProductJourneyMetrics | null {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'projectionVersion',
+      'window',
+      'asOf',
+      'interpretation',
+      'sources',
+      'stages',
+    ]) ||
+    value.projectionVersion !== 'product-journey-metrics-v2' ||
+    value.interpretation !==
+      'DESCRIPTIVE_PRODUCT_ACTIVITY_NOT_CLINICAL_EFFECTIVENESS' ||
+    !isDateTime(value.asOf) ||
+    !isRecord(value.window) ||
+    !hasOnlyKeys(value.window, ['from', 'to']) ||
+    !isDateTime(value.window.from) ||
+    !isDateTime(value.window.to) ||
+    !Array.isArray(value.sources) ||
+    value.sources.length !== 3 ||
+    !Array.isArray(value.stages) ||
+    value.stages.length !== 9
+  )
+    return null
+
+  if (
+    new Set(
+      value.sources.map((source) => (isRecord(source) ? source.source : null)),
+    ).size !== 3 ||
+    !value.sources.every((source) => {
+      if (
+        !isRecord(source) ||
+        !hasOnlyKeys(source, [
+          'source',
+          'sourceVersion',
+          'status',
+          'asOf',
+          'unavailableReason',
+        ]) ||
+        !PRODUCT_JOURNEY_SOURCES.has(String(source.source)) ||
+        !['AVAILABLE', 'UNAVAILABLE'].includes(String(source.status))
+      )
+        return false
+      return source.status === 'AVAILABLE'
+        ? source.sourceVersion ===
+            PRODUCT_JOURNEY_SOURCE_VERSIONS[String(source.source)] &&
+            isDateTime(source.asOf) &&
+            source.unavailableReason === null
+        : source.sourceVersion === null &&
+            source.asOf === null &&
+            source.unavailableReason === 'DEPENDENCY_UNAVAILABLE'
+    })
+  )
+    return null
+
+  if (
+    new Set(value.stages.map((stage) => (isRecord(stage) ? stage.stage : null)))
+      .size !== 9 ||
+    !value.stages.every((stage) => {
+      if (
+        !isRecord(stage) ||
+        !hasOnlyKeys(stage, [
+          'stage',
+          'source',
+          'status',
+          'count',
+          'rate',
+          'unavailableReason',
+        ]) ||
+        !PRODUCT_JOURNEY_STAGES.has(String(stage.stage)) ||
+        !PRODUCT_JOURNEY_SOURCES.has(String(stage.source)) ||
+        stage.source !== PRODUCT_JOURNEY_STAGE_SOURCES[String(stage.stage)] ||
+        !['AVAILABLE', 'UNAVAILABLE'].includes(String(stage.status))
+      )
+        return false
+      if (stage.status === 'AVAILABLE') {
+        if (
+          !Number.isSafeInteger(stage.count) ||
+          Number(stage.count) < 0 ||
+          stage.unavailableReason !== null
+        )
+          return false
+      } else if (
+        stage.count !== null ||
+        stage.rate !== null ||
+        ![
+          'SOURCE_UNAVAILABLE',
+          'AUTHORITATIVE_USAGE_FACT_UNAVAILABLE',
+        ].includes(String(stage.unavailableReason))
+      )
+        return false
+      if (stage.rate === null) return true
+      if (!isRecord(stage.rate)) return false
+      return (
+        hasOnlyKeys(stage.rate, ['denominatorStage', 'percentage']) &&
+        ['USER_ACCOUNTS_REGISTERED', 'CONSULTATIONS_REQUESTED'].includes(
+          String(stage.rate.denominatorStage),
+        ) &&
+        typeof stage.rate.percentage === 'number' &&
+        Number.isFinite(stage.rate.percentage) &&
+        stage.rate.percentage >= 0 &&
+        stage.rate.percentage <= 100
+      )
+    })
+  )
+    return null
+
+  const stages = new Map(
+    value.stages.map((stage) => {
+      const record = stage as Record<string, unknown>
+      return [String(record.stage), record]
+    }),
+  )
+  for (const [stageCode, stage] of stages) {
+    const denominatorCode = PRODUCT_JOURNEY_RATE_DENOMINATORS[stageCode]
+    if (!denominatorCode) {
+      if (stage.rate !== null) return null
+      continue
+    }
+    if (stage.status === 'UNAVAILABLE') continue
+    const denominator = stages.get(denominatorCode)
+    if (
+      !denominator ||
+      denominator.status !== 'AVAILABLE' ||
+      !Number.isSafeInteger(denominator.count)
+    )
+      return null
+    const numeratorCount = Number(stage.count)
+    const denominatorCount = Number(denominator.count)
+    if (numeratorCount > denominatorCount) return null
+    if (denominatorCount === 0) {
+      if (stage.rate !== null) return null
+      continue
+    }
+    if (
+      !isRecord(stage.rate) ||
+      stage.rate.denominatorStage !== denominatorCode
+    )
+      return null
+    const expectedPercentage =
+      Math.round((numeratorCount / denominatorCount) * 1_000) / 10
+    if (stage.rate.percentage !== expectedPercentage) return null
+  }
+
+  return value as ProductJourneyMetrics
 }

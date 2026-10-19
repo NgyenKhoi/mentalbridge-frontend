@@ -139,6 +139,17 @@
   gap: 24px;
   min-width: 0;
 }
+.clientTimeline {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.clientScope {
+  margin-block: var(--space-3) !important;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
 .directory,
 .detail {
   min-width: 0;

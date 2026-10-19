@@ -1,0 +1,370 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@/lib/api/api-error'
+import AdminAuditLog from './AdminAuditLog'
+
+const api = vi.hoisted(() => ({ browse: vi.fn(), exportCsv: vi.fn() }))
+vi.mock('../api/browser-admin-audit', () => ({ browserAdminAudit: api }))
+
+const event = {
+  eventId: 'c8239c17-a472-4d72-a70b-a81322c40eb3',
+  occurredAt: '2026-10-04T04:00:00Z',
+  actorType: 'ADMIN' as const,
+  actorIdentifier: 'account:948f9e80-d3bc-45aa-91f6-044dd5afbf78',
+  action: 'ACCOUNT_DISABLED',
+  result: 'DENIED' as const,
+  reasonCode: 'POLICY_VIOLATION',
+  correlationId: 'a9f3f920-eb85-4bc3-8782-9bc653131b25',
+  sourceService: 'IDENTITY' as const,
+  domain: 'ACCOUNT_ADMINISTRATION' as const,
+  targetIdentifier: 'tombstone:' + 'a'.repeat(64),
+}
+
+const page = {
+  items: [event],
+  nextCursor: 'next-page',
+  effectiveFrom: '2026-09-05T00:00:00Z',
+  effectiveTo: '2026-10-05T00:00:00Z',
+  retentionCutoff: '2025-10-05T00:00:00Z',
+}
+
+describe('AdminAuditLog', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    api.browse.mockResolvedValue(page)
+    api.exportCsv.mockResolvedValue(undefined)
+  })
+
+  it('renders only minimized audit metadata and a safe tombstone', async () => {
+    render(<AdminAuditLog />)
+    expect(
+      await screen.findByText(/Đối tượng không còn khả dụng/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('cell', { name: /Quản trị viên/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('account:948f9e80-d3bc-45aa-91f6-044dd5afbf78'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/email|journal body|assessment answer/i),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders deleted admin actor tombstone, system actor, and absent target safely', async () => {
+    const deletedAdminEvent = {
+      ...event,
+      eventId: 'd8239c17-a472-4d72-a70b-a81322c40eb4',
+      actorType: 'ADMIN' as const,
+      actorIdentifier: 'tombstone:' + 'b'.repeat(64),
+      targetIdentifier: null,
+    }
+    const systemEvent = {
+      ...event,
+      eventId: 'e8239c17-a472-4d72-a70b-a81322c40eb5',
+      actorType: 'SYSTEM' as const,
+      actorIdentifier: 'system',
+      targetIdentifier: undefined,
+    }
+    api.browse.mockResolvedValueOnce({
+      ...page,
+      items: [deletedAdminEvent, systemEvent],
+    })
+
+    render(<AdminAuditLog />)
+    expect(
+      await screen.findByRole('cell', { name: /Hệ thống/ }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('system')).toBeInTheDocument()
+    expect(
+      screen.getByText(/Tài khoản đã xóa · bbbbbbbbbbbb/),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText('Không áp dụng')).toHaveLength(2)
+  })
+
+  it('applies filters and reuses the applied filters for export', async () => {
+    const user = userEvent.setup()
+    render(<AdminAuditLog />)
+    await screen.findByText('Tạm ngưng tài khoản')
+    await user.selectOptions(screen.getByLabelText('Dịch vụ'), 'IDENTITY')
+    await user.selectOptions(
+      screen.getByLabelText('Phạm vi'),
+      'ACCOUNT_ADMINISTRATION',
+    )
+    await user.selectOptions(screen.getByLabelText('Loại tác nhân'), 'ADMIN')
+    await user.selectOptions(
+      screen.getByLabelText('Hành động'),
+      'ACCOUNT_DISABLED',
+    )
+    await user.selectOptions(screen.getByLabelText('Kết quả'), 'DENIED')
+    await user.type(
+      screen.getByLabelText('Mã đối tượng an toàn'),
+      `tombstone:${'a'.repeat(64)}`,
+    )
+    await user.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }))
+
+    const filters = {
+      sourceService: 'IDENTITY',
+      domain: 'ACCOUNT_ADMINISTRATION',
+      actorType: 'ADMIN',
+      action: 'ACCOUNT_DISABLED',
+      result: 'DENIED',
+      targetIdentifier: `tombstone:${'a'.repeat(64)}`,
+    }
+    await waitFor(() =>
+      expect(api.browse).toHaveBeenLastCalledWith({ ...filters, limit: 50 }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất CSV theo bộ lọc' }),
+    )
+    await waitFor(() => expect(api.exportCsv).toHaveBeenCalledWith(filters))
+  })
+
+  it('uses opaque cursor pagination', async () => {
+    const user = userEvent.setup()
+    render(<AdminAuditLog />)
+    await screen.findByText('Tạm ngưng tài khoản')
+    await user.click(screen.getByRole('button', { name: 'Trang sau' }))
+    await waitFor(() =>
+      expect(api.browse).toHaveBeenLastCalledWith({
+        cursor: 'next-page',
+        limit: 50,
+      }),
+    )
+  })
+
+  it('shows a specific forbidden state', async () => {
+    api.browse.mockRejectedValue(
+      new ApiError({ message: 'Forbidden', code: 'FORBIDDEN', status: 403 }),
+    )
+    render(<AdminAuditLog />)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Bạn không có quyền xem nhật ký kiểm toán.',
+    )
+  })
+
+  it.each([
+    ['ACCOUNT_DISABLED', 'Tạm ngưng tài khoản'],
+    ['ACCOUNT_RESTORED', 'Khôi phục tài khoản'],
+    ['SPECIALIST_APPROVED', 'Duyệt chuyên gia'],
+    ['SPECIALIST_REJECTED', 'Từ chối chuyên gia'],
+    ['SPECIALIST_SUSPENDED', 'Đình chỉ chuyên gia'],
+    ['SPECIALIST_RESTORED', 'Khôi phục chuyên gia'],
+    ['RESOURCE_ARCHIVED', 'Lưu trữ tài nguyên'],
+    ['SAFETY_DIRECTORY_REVIEWED', 'Duyệt danh mục an toàn'],
+    ['SAFETY_DIRECTORY_DEACTIVATED', 'Ngừng kích hoạt danh mục an toàn'],
+    ['MODERATION_ACTION_APPLIED', 'Xử lý kiểm duyệt'],
+    ['MODERATION_CASE_RESOLVED', 'Hoàn tất vụ việc kiểm duyệt'],
+    ['COMMUNITY_POST_REMOVED', 'Gỡ bài viết cộng đồng'],
+    ['COMMUNITY_USER_SUSPENDED', 'Đình chỉ người dùng cộng đồng'],
+  ])(
+    'supports selecting action %s with label %s',
+    async (actionValue, expectedLabel) => {
+      const user = userEvent.setup()
+      render(<AdminAuditLog />)
+      const select = screen.getByLabelText('Hành động')
+      await user.selectOptions(select, actionValue)
+      expect(select).toHaveValue(actionValue)
+      expect(
+        screen.getByRole('option', { name: expectedLabel }),
+      ).toBeInTheDocument()
+    },
+  )
+
+  it('preserves query A and export filters when query B submission fails, and commits B on subsequent success', async () => {
+    const user = userEvent.setup()
+
+    const pageA = {
+      items: [
+        {
+          ...event,
+          eventId: 'a1111111-1111-1111-1111-111111111111',
+          action: 'ACCOUNT_DISABLED',
+          correlationId: 'corr-a',
+        },
+      ],
+      nextCursor: 'cursor-a-next',
+      effectiveFrom: '2026-09-01T00:00:00Z',
+      effectiveTo: '2026-10-01T00:00:00Z',
+      retentionCutoff: '2025-10-01T00:00:00Z',
+    }
+
+    const pageB = {
+      items: [
+        {
+          ...event,
+          eventId: 'b2222222-2222-2222-2222-222222222222',
+          action: 'SPECIALIST_APPROVED',
+          correlationId: 'corr-b',
+        },
+      ],
+      nextCursor: 'cursor-b-next',
+      effectiveFrom: '2026-08-01T00:00:00Z',
+      effectiveTo: '2026-09-01T00:00:00Z',
+      retentionCutoff: '2025-08-01T00:00:00Z',
+    }
+
+    api.browse.mockResolvedValueOnce(pageA)
+    render(<AdminAuditLog />)
+
+    // 1 & 2. Browse A succeeds and is displayed
+    expect(await screen.findByText('corr-a')).toBeInTheDocument()
+    expect(
+      screen.getByRole('cell', { name: /Tạm ngưng tài khoản/ }),
+    ).toBeInTheDocument()
+
+    // 3 & 4. Submit filter B, but browse B fails
+    api.browse.mockRejectedValueOnce(
+      new ApiError({
+        message: 'Bad request',
+        code: 'BAD_REQUEST',
+        status: 400,
+      }),
+    )
+    await user.selectOptions(
+      screen.getByLabelText('Hành động'),
+      'SPECIALIST_APPROVED',
+    )
+    await user.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }))
+
+    // 5. B failure is visible
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Bộ lọc không hợp lệ. Khoảng thời gian tối đa là 90 ngày và phải nằm trong 365 ngày gần nhất.',
+    )
+
+    // A is still displayed, not represented as B
+    expect(screen.getByText('corr-a')).toBeInTheDocument()
+    expect(screen.queryByText('corr-b')).not.toBeInTheDocument()
+
+    // 6. Export cannot use B while A is displayed; export sends committed A (empty filters), not B
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất CSV theo bộ lọc' }),
+    )
+    await waitFor(() => {
+      expect(api.exportCsv).toHaveBeenCalledWith({})
+    })
+    expect(api.exportCsv).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'SPECIALIST_APPROVED' }),
+    )
+
+    // Later successful B request commits B
+    api.browse.mockResolvedValueOnce(pageB)
+    await user.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }))
+
+    expect(await screen.findByText('corr-b')).toBeInTheDocument()
+    expect(screen.queryByText('corr-a')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    // Export then uses B
+    api.exportCsv.mockClear()
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất CSV theo bộ lọc' }),
+    )
+    await waitFor(() => {
+      expect(api.exportCsv).toHaveBeenCalledWith({
+        action: 'SPECIALIST_APPROVED',
+      })
+    })
+  })
+
+  it('separates browse error and export error states', async () => {
+    const user = userEvent.setup()
+    render(<AdminAuditLog />)
+    await screen.findByText('Tạm ngưng tài khoản')
+
+    // 1. Export failure shows export error, without setting browse error or clearing table
+    api.exportCsv.mockRejectedValueOnce(
+      new ApiError({
+        message: 'Internal server error',
+        code: 'INTERNAL',
+        status: 500,
+      }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất CSV theo bộ lọc' }),
+    )
+    expect(await screen.findByTestId('export-error')).toHaveTextContent(
+      'Không thể tải nhật ký lúc này. Hãy thử lại.',
+    )
+    expect(screen.queryByTestId('browse-error')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('cell', { name: /Tạm ngưng tài khoản/ }),
+    ).toBeInTheDocument()
+
+    // 2. Subsequent browse failure sets browse error, clears export error
+    api.browse.mockRejectedValueOnce(
+      new ApiError({
+        message: 'Bad request',
+        code: 'BAD_REQUEST',
+        status: 400,
+      }),
+    )
+    await user.selectOptions(
+      screen.getByLabelText('Hành động'),
+      'SPECIALIST_APPROVED',
+    )
+    await user.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }))
+    expect(await screen.findByTestId('browse-error')).toHaveTextContent(
+      'Bộ lọc không hợp lệ. Khoảng thời gian tối đa là 90 ngày và phải nằm trong 365 ngày gần nhất.',
+    )
+    expect(screen.queryByTestId('export-error')).not.toBeInTheDocument()
+  })
+
+  it('disables export button when initial query fails to load', async () => {
+    api.browse.mockRejectedValueOnce(
+      new ApiError({
+        message: 'Internal error',
+        code: 'INTERNAL',
+        status: 500,
+      }),
+    )
+    render(<AdminAuditLog />)
+    expect(await screen.findByTestId('browse-error')).toBeInTheDocument()
+
+    const exportBtn = screen.getByRole('button', {
+      name: 'Xuất CSV theo bộ lọc',
+    })
+    expect(exportBtn).toBeDisabled()
+    expect(api.exportCsv).not.toHaveBeenCalled()
+  })
+
+  it('displays query badge indicating draft filters vs committed query and exports committed filters', async () => {
+    const user = userEvent.setup()
+    render(<AdminAuditLog />)
+    await screen.findByText('Tạm ngưng tài khoản')
+
+    const badge = screen.getByTestId('displayed-query-badge')
+    expect(badge).toHaveTextContent('Đang hiển thị theo bộ lọc hiện tại')
+
+    // Alter draft filter without submitting
+    await user.selectOptions(screen.getByLabelText('Dịch vụ'), 'CONSULTATION')
+    expect(badge).toHaveTextContent(
+      'Đang hiển thị kết quả của bộ lọc trước đó (chưa áp dụng thay đổi)',
+    )
+
+    // Export uses committed query (empty), not draft CONSULTATION
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất CSV theo bộ lọc' }),
+    )
+    await waitFor(() => {
+      expect(api.exportCsv).toHaveBeenCalledWith({})
+    })
+
+    // Now submit filters
+    api.browse.mockResolvedValueOnce({
+      ...page,
+      items: [
+        {
+          ...event,
+          eventId: 'f9999999-9999-9999-9999-999999999999',
+          sourceService: 'CONSULTATION',
+        },
+      ],
+    })
+    await user.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }))
+    await waitFor(() => {
+      expect(badge).toHaveTextContent('Đang hiển thị theo bộ lọc hiện tại')
+    })
+  })
+})

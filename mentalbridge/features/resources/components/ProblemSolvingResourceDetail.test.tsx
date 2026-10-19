@@ -42,10 +42,9 @@ describe('ProblemSolvingResourceDetail', () => {
     )
 
     // 1. Breadcrumb (single navigation, no duplicate "Quay lại Tài nguyên" button)
-    expect(screen.getByRole('link', { name: 'Tài nguyên' })).toHaveAttribute(
-      'href',
-      '/resources',
-    )
+    expect(
+      screen.getByRole('link', { name: 'Quay lại Tài nguyên' }),
+    ).toHaveAttribute('href', '/resources')
     expect(
       screen.getAllByText('Giải quyết một vấn đề theo từng bước').length,
     ).toBeGreaterThanOrEqual(2)

@@ -99,6 +99,7 @@ const SPEED_OPTIONS = [1, 1.25, 1.5, 0.75] as const
 export function ProblemSolvingResourceDetail({
   resource,
   backHref,
+  backLabel,
   status,
   progressLoadState,
   saving,
@@ -526,7 +527,7 @@ export function ProblemSolvingResourceDetail({
         <div className={styles.topBar}>
           <nav className={styles.breadcrumb} aria-label="Đường dẫn trang">
             <Link href={backHref} className={styles.breadcrumbLink}>
-              Tài nguyên
+              {backLabel || 'Tài nguyên'}
             </Link>
             <ChevronRight
               size={14}

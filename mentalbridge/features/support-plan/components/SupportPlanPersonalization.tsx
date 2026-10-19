@@ -177,9 +177,11 @@ function MultiChoiceGroup({
 export default function SupportPlanPersonalization({
   onReviewPlan,
   onDirtyChange,
+  onSaved,
 }: Readonly<{
   onReviewPlan: (reasonCode: SupportPlanReviewReasonCode) => void
   onDirtyChange?: (dirty: boolean) => void
+  onSaved?: (saved: SupportPlanPersonalizationAuthority) => void
 }>) {
   const [authority, setAuthority] =
     useState<SupportPlanPersonalizationAuthority>()
@@ -273,6 +275,7 @@ export default function SupportPlanPersonalization({
           ? 'Đã bỏ qua. MentalBridge sẽ dùng lựa chọn mặc định an toàn.'
           : 'Đã lưu cách bạn muốn kế hoạch đồng hành.',
       )
+      onSaved?.(updated)
     } catch (saveError) {
       const isConflict =
         saveError instanceof ApiError &&
@@ -312,7 +315,6 @@ export default function SupportPlanPersonalization({
     <section className="mb-personalization">
       <div className="mb-personalization-heading">
         <div>
-          <p className="mb-personalization-kicker">Tùy chọn của bạn</p>
           <h2>Điều gì giúp kế hoạch dễ thực hiện hơn?</h2>
           <p>
             Mọi câu đều không bắt buộc. Đây là sở thích thực tế để sắp xếp hỗ
@@ -331,9 +333,8 @@ export default function SupportPlanPersonalization({
               <>
                 <strong>Bản đề xuất hiện tại cần được tạo lại</strong>
                 <p>
-                  Bản đề xuất được tạo từ lựa chọn trước đó. Hãy xem, hủy bản cũ
-                  rồi tạo lại trước khi bắt đầu; MentalBridge không tự đổi kế
-                  hoạch thay bạn.
+                  Bản đề xuất được tạo từ lựa chọn trước đó. Hãy tạo lại theo
+                  lựa chọn mới trước khi bắt đầu.
                 </p>
               </>
             ) : (

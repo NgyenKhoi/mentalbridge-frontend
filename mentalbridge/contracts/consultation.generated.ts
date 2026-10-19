@@ -207,6 +207,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/product-journey-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read privacy-bounded appointment journey aggregates
+         * @description Counts the appointment cohort requested inside the explicit half-open window and the members of that cohort that reached confirmation or completion before the window ended. No participant, brief, summary, chat, clinical, or private-note data is returned.
+         */
+        get: operations["getConsultationProductJourneyMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist-profile/amendments/current": {
         parameters: {
             query?: never;
@@ -1113,6 +1133,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/operations/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns authoritative aggregate consultation operations metrics for the admin operations dashboard including specialist profiles and appointment lifecycle status counts. */
+        get: operations["getAdminOperationsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist/appointments/{appointmentId}/dispute": {
         parameters: {
             query?: never;
@@ -1483,6 +1520,29 @@ export interface components {
             userFee?: number;
             promotionInfo?: unknown;
         };
+        ConsultationProductJourneyMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** @constant */
+            sourceVersion: "consultation-product-journey-v3";
+            /** Format: date-time */
+            asOf: string;
+            /**
+             * Format: int64
+             * @description Appointments requested inside [from,to).
+             */
+            consultationsRequested: number;
+            /**
+             * Format: int64
+             * @description Requested cohort members that reached CONFIRMED before to.
+             */
+            consultationsConfirmed: number;
+            /**
+             * Format: int64
+             * @description Requested cohort members that reached COMPLETED before to.
+             */
+            consultationsCompleted: number;
+        };
         AppointmentNotificationEligibility: {
             /** Format: uuid */
             appointmentId: string;
@@ -1832,6 +1892,35 @@ export interface components {
             nextAppointment: components["schemas"]["SpecialistDashboardNextAppointment"];
             availability: components["schemas"]["SpecialistDashboardAvailabilityCollection"];
             actionRequired: components["schemas"]["SpecialistDashboardActionItem"][];
+        };
+        AdminSpecialistOperationsSummary: {
+            total: number;
+            pendingReview: number;
+            active: number;
+            rejected: number;
+            suspended: number;
+        };
+        AdminAppointmentOperationsSummary: {
+            total: number;
+            requested: number;
+            confirmed: number;
+            inProgress: number;
+            sessionEnded: number;
+            completed: number;
+            cancelled: number;
+            rejected: number;
+            expired: number;
+            userNoShow: number;
+            specialistNoShow: number;
+            bothNoShow: number;
+        };
+        ConsultationOperationsSummary: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            specialists: components["schemas"]["AdminSpecialistOperationsSummary"];
+            appointments: components["schemas"]["AdminAppointmentOperationsSummary"];
         };
         /** @enum {string} */
         SpecialistAnalyticsDataState: "AVAILABLE" | "EMPTY" | "BLOCKED" | "UNAVAILABLE" | "STALE";
@@ -2869,6 +2958,8 @@ export interface components {
     };
     parameters: {
         CredentialDocumentId: string;
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        CorrelationId: string;
         SpecialistAccountId: string;
         /** @description Omit only when creating the first profile; otherwise quote the current non-negative version. */
         OptionalIfMatch: string;
@@ -3311,6 +3402,32 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getConsultationProductJourneyMetrics: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregate request-cohort lifecycle progress observed by the end of the requested window */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationProductJourneyMetrics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     getOwnProfileAmendment: {
@@ -5007,6 +5124,28 @@ export interface operations {
             428: components["responses"]["AppointmentVersionRequiredProblem"];
         };
     };
+    getAdminOperationsSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative consultation operations summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationOperationsSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     getAssignedAppointmentDispute: {
         parameters: {
             query?: never;
@@ -5185,6 +5324,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];
@@ -5217,6 +5358,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];
@@ -5254,6 +5397,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];
@@ -5291,6 +5436,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];

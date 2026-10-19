@@ -1,0 +1,682 @@
+import { expect, type Page, type Route } from '@playwright/test'
+import { test } from './test-fixtures'
+import type {
+  ActionOccurrence,
+  PlanAction,
+  SupportPlanV3,
+} from '../../features/support-plan/api/support-plan-contract'
+import {
+  emotionActionId,
+  emotionOccurrenceFixture,
+  emotionOccurrenceId,
+  nativeSupportPlanFixture,
+} from '../../features/support-plan/testing/native-support-plan-fixture'
+
+const today = '2026-10-13'
+const evaluationId = '90000000-0000-4000-8000-000000000669'
+const resourceActionId = 'b1000000-0000-4000-8000-000000000644'
+const resourceOccurrenceId = 'b2000000-0000-4000-8000-000000000644'
+const resourceId = 'b3000000-0000-4000-8000-000000000644'
+
+type Cycle = NonNullable<SupportPlanV3['cycle']>
+
+function cycle(overrides: Partial<Cycle> = {}): Cycle {
+  return {
+    policyVersion: 'support-plan-cycle-v1',
+    lengthDays: 14,
+    timezone: 'Asia/Ho_Chi_Minh',
+    cycleNumber: 1,
+    startedOn: today,
+    reviewDueOn: '2026-10-26',
+    currentDay: 1,
+    pausedDays: 0,
+    state: 'IN_PROGRESS',
+    ...overrides,
+  }
+}
+
+function resourceAction(): PlanAction {
+  const base = nativeSupportPlanFixture().focuses[0].actions[0]
+  return {
+    ...base,
+    actionId: resourceActionId,
+    actionType: 'RESOURCE',
+    purposeCode: 'PRACTISE_CALM_BREATHING',
+    rationale: 'Một bài thở ngắn giúp bạn chậm lại khi lo âu tăng lên.',
+    ordinal: 2,
+    source: {
+      ownerDomain: 'CONTENT',
+      sourceKind: 'RESOURCE_VERSION',
+      sourceId: resourceId,
+      sourceRevision: '3',
+      sourcePolicyVersion: null,
+      publicationId: null,
+      eligibilityPolicyVersion: null,
+      verifiedAt: '2026-10-13T05:00:00Z',
+    },
+    presentation: {
+      title: 'Thở chậm 3 phút',
+      summary: 'Bài thở có hướng dẫn.',
+      instructions: null,
+      externalUrl: null,
+    },
+    schedules: [
+      {
+        ...base.schedules[0],
+        scheduleId: 'b4000000-0000-4000-8000-000000000644',
+        localTime: '08:00',
+        estimatedDurationMinutes: 5,
+      },
+    ],
+  }
+}
+
+function proposalPlan(): SupportPlanV3 {
+  const base = nativeSupportPlanFixture()
+  return {
+    ...base,
+    planPolicyVersion: 'support-plan-proposal-v1',
+    focuses: [
+      {
+        ...base.focuses[0],
+        actions: [...base.focuses[0].actions, resourceAction()],
+      },
+    ],
+    cycle: cycle(),
+  }
+}
+
+function draftOf(plan: SupportPlanV3): SupportPlanV3 {
+  return {
+    ...plan,
+    status: 'DRAFT',
+    version: 0,
+    activatedAt: null,
+    cycle: cycle({
+      state: 'NOT_STARTED',
+      startedOn: null,
+      reviewDueOn: null,
+      currentDay: null,
+    }),
+    focuses: plan.focuses.map((focus) => ({
+      ...focus,
+      actions: focus.actions.map((action) => ({
+        ...action,
+        status: 'DRAFT' as const,
+        activatedAt: null,
+      })),
+    })),
+  }
+}
+
+function resourceOccurrence(
+  overrides: Partial<ActionOccurrence> = {},
+): ActionOccurrence {
+  return {
+    ...emotionOccurrenceFixture(),
+    occurrenceId: resourceOccurrenceId,
+    actionId: resourceActionId,
+    actionType: 'RESOURCE',
+    scheduleId: 'b4000000-0000-4000-8000-000000000644',
+    scheduledAt: '2026-10-13T01:00:00Z',
+    displayState: 'SCHEDULED',
+    ...overrides,
+  } as ActionOccurrence
+}
+
+const personalization = {
+  personalizationId: null,
+  schemaVersion: 'support-plan-personalization-v1',
+  revision: 0,
+  status: 'NOT_PROVIDED',
+  preferredFocus: null,
+  desiredPace: null,
+  dailyTimeBudgetMinutes: null,
+  preferredDaypart: null,
+  preferredActivityModes: [],
+  commonBarriers: [],
+  submittedAt: null,
+  planReview: {
+    required: false,
+    supportPlanId: null,
+    supportPlanVersion: null,
+    reasonCode: null,
+  },
+}
+
+type World = {
+  current?: SupportPlanV3
+  draft?: SupportPlanV3
+  history: SupportPlanV3[]
+  occurrences: ActionOccurrence[]
+  journeyNext: string
+  failCurrentOnce?: boolean
+  proposeStatus?: number
+  reconcile?: () => { status: number; recorded: boolean }
+  stateStatus?: number
+}
+
+async function authenticate(page: Page) {
+  await page.clock.install({ time: new Date('2026-10-13T05:00:00Z') })
+  await page.context().addCookies([
+    {
+      name: 'mentalbridge_access',
+      value: 'synthetic-mb273-e2e-access',
+      url: 'http://127.0.0.1:3100',
+      httpOnly: true,
+      sameSite: 'Lax',
+    },
+  ])
+}
+
+async function mockPlanApi(page: Page, world: World) {
+  const calls: Array<{
+    method: string
+    path: string
+    headers: Record<string, string>
+    body: unknown
+  }> = []
+  await page.route('**/api/**', async (route: Route) => {
+    const request = route.request()
+    const url = new URL(request.url())
+    const path = url.pathname
+    const json = (body: unknown, status = 200) =>
+      route.fulfill({
+        status,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      })
+    const problem = (status: number, code: string) =>
+      json(
+        {
+          type: 'about:blank',
+          title: 'Controlled',
+          status,
+          code,
+          correlationId: '62cda42f-b286-43c6-aa48-88ef64ff3361',
+        },
+        status,
+      )
+    if (!path.startsWith('/api/care/')) return route.continue()
+    calls.push({
+      method: request.method(),
+      path,
+      headers: request.headers(),
+      body: request.postData() ? request.postDataJSON() : undefined,
+    })
+    if (path === '/api/care/v2/support-plans/current') {
+      if (world.failCurrentOnce) {
+        world.failCurrentOnce = false
+        return problem(503, 'CARE_UNAVAILABLE')
+      }
+      return world.current
+        ? json(world.current)
+        : problem(404, 'SUPPORT_PLAN_NOT_FOUND')
+    }
+    if (path === '/api/care/v2/support-plans/current-draft')
+      return world.draft
+        ? json(world.draft)
+        : problem(404, 'SUPPORT_PLAN_DRAFT_NOT_FOUND')
+    if (path === '/api/care/v2/support-plans/history')
+      return json({ items: world.history, hasMore: false, nextCursor: null })
+    if (path === '/api/care/guided-journey')
+      return json({
+        journeyPolicyVersion: 'mb-guided-journey-v1',
+        stage: 'GUIDE_READY',
+        assessmentInProgress: false,
+        episodeId: '80000000-0000-4000-8000-000000000669',
+        episodeCompletedAt: '2026-10-13T01:00:00Z',
+        presentationEvaluationId: evaluationId,
+        supportGuideId: 'a0000000-0000-4000-8000-000000000669',
+        nextAction: world.journeyNext,
+        currentSupportPlanId: world.current?.supportPlanId ?? null,
+        entitlementStatus: 'VERIFIED',
+      })
+    if (path === '/api/care/v2/support-plans/evaluation-source')
+      return json({ sourceSupportEvaluationId: evaluationId })
+    if (path === '/api/care/support-plan-personalization')
+      return json(personalization)
+    if (path === '/api/care/v2/support-plans' && request.method() === 'POST') {
+      if (world.proposeStatus)
+        return problem(world.proposeStatus, 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED')
+      world.draft = draftOf(proposalPlan())
+      return json(world.draft, 201)
+    }
+    if (path.endsWith('/activate') && world.draft) {
+      world.current = proposalPlan()
+      world.draft = undefined
+      return json(world.current)
+    }
+    if (path.endsWith('/status') && world.current) {
+      const status = (
+        request.postDataJSON() as { status: SupportPlanV3['status'] }
+      ).status
+      world.current = {
+        ...world.current,
+        status,
+        version: world.current.version + 1,
+        cycle: world.current.cycle && cycle(),
+      }
+      return json(world.current)
+    }
+    if (path.endsWith('/cycle-continuation') && world.current) {
+      world.current = {
+        ...world.current,
+        version: world.current.version + 1,
+        cycle: cycle({ cycleNumber: 2 }),
+      }
+      return json(world.current)
+    }
+    if (path === '/api/care/v2/support-plan-occurrences')
+      return world.current
+        ? json({
+            supportPlanId: world.current.supportPlanId,
+            supportPlanStatus: world.current.status,
+            representationMode: world.current.representationMode,
+            from: url.searchParams.get('from'),
+            through: url.searchParams.get('through'),
+            occurrences: world.occurrences,
+            interpretationCode:
+              'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
+          })
+        : problem(404, 'SUPPORT_PLAN_NOT_FOUND')
+    const occurrenceCommand =
+      /^\/api\/care\/v2\/support-plan-occurrences\/([^/]+)\/(state|engagement|emotion-check-in\/reconcile)$/.exec(
+        path,
+      )
+    if (occurrenceCommand) {
+      const [, id, command] = occurrenceCommand
+      const index = world.occurrences.findIndex(
+        (item) => item.occurrenceId === id,
+      )
+      const item = world.occurrences[index]
+      if (command === 'state') {
+        if (world.stateStatus)
+          return problem(world.stateStatus, 'OCCURRENCE_VERSION_MISMATCH')
+        const state = (
+          request.postDataJSON() as { state: ActionOccurrence['state'] }
+        ).state
+        const next = {
+          ...item,
+          state,
+          displayState: state,
+          version: item.version + 1,
+          completionEvidence:
+            state === 'COMPLETED'
+              ? {
+                  kind: 'USER_ACKNOWLEDGEMENT',
+                  ownerDomain: 'CARE',
+                  factId: id,
+                  factRevision: null,
+                  occurredAt: '2026-10-13T05:01:00Z',
+                  verifiedAt: '2026-10-13T05:01:00Z',
+                }
+              : null,
+          outcomeRecordedAt:
+            state === 'COMPLETED' ? '2026-10-13T05:01:00Z' : null,
+        } as ActionOccurrence
+        world.occurrences[index] = next
+        return json(next)
+      }
+      if (command === 'engagement') {
+        const next = {
+          ...item,
+          ...(request.postDataJSON() as object),
+          version: item.version + 1,
+        } as ActionOccurrence
+        world.occurrences[index] = next
+        return json(next)
+      }
+      const outcome = world.reconcile?.() ?? { status: 200, recorded: false }
+      if (outcome.status !== 200)
+        return problem(outcome.status, 'EMOTION_CHECK_IN_EVIDENCE_UNAVAILABLE')
+      const completed = outcome.recorded
+      const next = {
+        ...item,
+        state: completed ? 'COMPLETED' : item.state,
+        displayState: completed ? 'COMPLETED' : item.displayState,
+        version: completed ? item.version + 1 : item.version,
+      } as ActionOccurrence
+      world.occurrences[index] = next
+      return json({
+        schemaVersion: 'emotion-check-in-occurrence-reconciliation-v1',
+        occurrenceId: id,
+        actionId: item.actionId,
+        localDate: item.localDate,
+        sourceState: completed ? 'RECORDED' : 'MISSING',
+        occurrenceState: next.state,
+        version: next.version,
+        completionEvidence: completed
+          ? {
+              kind: 'EMOTION_CHECK_IN',
+              ownerDomain: 'JOURNAL_AI',
+              factId: '70000000-0000-4000-8000-000000000641',
+              factRevision: '1',
+              occurredAt: '2026-10-13T05:00:00Z',
+              verifiedAt: '2026-10-13T05:01:00Z',
+            }
+          : null,
+        completedAt: completed ? '2026-10-13T05:01:00Z' : null,
+      })
+    }
+    if (
+      path.startsWith('/api/care/v2/') ||
+      path.startsWith('/api/care/support-plans')
+    )
+      return problem(404, 'NOT_MOCKED')
+    return route.continue()
+  })
+  return calls
+}
+
+async function noHorizontalScroll(
+  page: Page,
+  name: string,
+  outputPath: (name: string) => string,
+) {
+  for (const [width, height] of [
+    [1440, 900],
+    [1280, 800],
+    [768, 1024],
+    [375, 812],
+  ]) {
+    await page.setViewportSize({ width, height })
+    await page.evaluate(() => document.fonts.ready)
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+      `${name} ${width}x${height}`,
+    ).toBe(false)
+    await page.screenshot({
+      path: outputPath(`${name}-${width}x${height}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    })
+  }
+  await page.setViewportSize({ width: 1280, height: 800 })
+}
+
+test.describe('MB-644 + MB-669 unified plan workspace', () => {
+  test.skip(
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'Controlled plan states must not mutate shared accounts.',
+  )
+
+  test('MB-669 prepares a 14-day proposal without a generate button and starts only on request', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(90_000)
+    await authenticate(page)
+    const world: World = {
+      history: [],
+      occurrences: [],
+      journeyNext: 'START_PLAN_PROPOSAL',
+    }
+    const calls = await mockPlanApi(page, world)
+    await page.goto('/support-plan')
+    await expect(
+      page.getByRole('heading', { name: 'Kế hoạch 14 ngày dành cho bạn' }),
+    ).toBeVisible()
+    await expect(page.getByText('Việc đầu tiên')).toBeVisible()
+    await expect(page.getByText(/Khoảng \d+ phút mỗi ngày/)).toBeVisible()
+    const proposals = calls.filter(
+      (call) =>
+        call.method === 'POST' && call.path === '/api/care/v2/support-plans',
+    )
+    expect(proposals).toHaveLength(1)
+    expect(proposals[0].headers['idempotency-key']).toBe(
+      `auto-proposal-${evaluationId}-p0`,
+    )
+    expect(calls.some((call) => call.path.endsWith('/activate'))).toBe(false)
+    await expect(
+      page.getByRole('button', { name: /tạo kế hoạch/i }),
+    ).toHaveCount(0)
+    await noHorizontalScroll(page, 'proposal', (name) =>
+      testInfo.outputPath(name),
+    )
+    await page.setViewportSize({ width: 375, height: 812 })
+    await expect(
+      page.getByRole('button', { name: 'Bắt đầu kế hoạch' }),
+    ).toBeInViewport()
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.getByRole('button', { name: 'Bắt đầu kế hoạch' }).click()
+    await expect(page.getByRole('tab', { name: 'Hôm nay' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await expect(page.getByText('Ngày 1/14')).toBeVisible()
+    const activation = calls.find((call) => call.path.endsWith('/activate'))
+    expect(activation?.headers['if-match']).toBe('"0"')
+  })
+
+  test('MB-644 Today sends one resource to its owner and confirms only after the user returns', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(90_000)
+    await authenticate(page)
+    const world: World = {
+      current: proposalPlan(),
+      history: [],
+      occurrences: [
+        resourceOccurrence(),
+        { ...emotionOccurrenceFixture(), displayState: 'SCHEDULED' },
+      ],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    const calls = await mockPlanApi(page, world)
+    await page.goto('/support-plan')
+    const next = page.getByRole('region', { name: 'Thở chậm 3 phút' })
+    await expect(next).toBeVisible()
+    const open = next.getByRole('link', { name: /Mở nội dung/ })
+    const href = new URL(
+      (await open.getAttribute('href')) ?? '',
+      'http://localhost',
+    )
+    expect(href.pathname).toBe(`/resources/${resourceId}`)
+    expect(Object.fromEntries(href.searchParams)).toMatchObject({
+      from: 'support-plan',
+      contentVersion: '3',
+      occurrenceId: resourceOccurrenceId,
+      actionId: resourceActionId,
+      localDate: today,
+    })
+    expect((await open.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
+    await expect(
+      page.getByRole('heading', { name: 'Sau đó trong hôm nay' }),
+    ).toBeVisible()
+    await noHorizontalScroll(page, 'today', (name) => testInfo.outputPath(name))
+    await page.goto(
+      `/support-plan?source=resource&occurrenceId=${resourceOccurrenceId}&actionId=${resourceActionId}&localDate=${today}`,
+    )
+    const confirm = page
+      .getByRole('region', { name: 'Thở chậm 3 phút' })
+      .getByRole('button', { name: 'Đã làm xong' })
+    await expect(confirm).toBeVisible()
+    expect(calls.filter((call) => call.path.endsWith('/state'))).toHaveLength(0)
+    await confirm.click()
+    await expect(
+      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
+    ).toBeVisible()
+    const state = calls.find((call) => call.path.endsWith('/state'))
+    expect(state?.body).toEqual({ state: 'COMPLETED' })
+    await page
+      .getByRole('group', { name: /có giúp bạn không/i })
+      .getByRole('button', { name: 'Có' })
+      .click()
+    await expect
+      .poll(
+        () => calls.filter((call) => call.path.endsWith('/engagement')).length,
+      )
+      .toBe(1)
+    await page.getByRole('tab', { name: 'Tiến triển' }).click()
+    await expect(page.getByText('1 lần đã làm')).toBeVisible()
+    await expect(page.locator('.mbw-page')).not.toContainText('%')
+  })
+
+  test('MB-644 an emotion return is checked once and never shown as done without evidence', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    let attempts = 0
+    const world: World = {
+      current: nativeSupportPlanFixture(),
+      history: [],
+      occurrences: [
+        { ...emotionOccurrenceFixture(), displayState: 'SCHEDULED' },
+      ],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+      reconcile: () =>
+        ++attempts === 1
+          ? { status: 503, recorded: false }
+          : { status: 200, recorded: true },
+    }
+    await mockPlanApi(page, world)
+    const back = `/support-plan?occurrenceId=${emotionOccurrenceId}&actionId=${emotionActionId}&localDate=${today}`
+    await page.goto(back)
+    const next = page.getByRole('region', { name: 'Check-in cảm xúc' })
+    await expect(next.getByText(/Chưa thực hiện được/)).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
+    ).toHaveCount(0)
+    expect(attempts).toBe(1)
+    await page.reload()
+    await expect(
+      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
+    ).toBeVisible()
+    await expect(page.getByText('Đã xong', { exact: true })).toBeVisible()
+    expect(attempts).toBe(2)
+  })
+
+  test('MB-644 paused plans resume first and the 14-day review keeps the plan only on request', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    const world: World = {
+      current: {
+        ...proposalPlan(),
+        status: 'PAUSED',
+        cycle: cycle({ state: 'PAUSED', pausedDays: 2 }),
+      },
+      history: [],
+      occurrences: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    const calls = await mockPlanApi(page, world)
+    await page.goto('/support-plan')
+    await expect(
+      page.getByRole('heading', { name: 'Kế hoạch đang tạm dừng' }),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Tiếp tục kế hoạch' }).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Tiếp tục' })
+      .click()
+    await expect
+      .poll(() => calls.find((call) => call.path.endsWith('/status'))?.body)
+      .toEqual({ status: 'ACTIVE' })
+
+    world.current = {
+      ...proposalPlan(),
+      cycle: cycle({ state: 'REVIEW_DUE', currentDay: 14 }),
+    }
+    await page.goto('/support-plan')
+    await expect(
+      page.getByRole('heading', { name: 'Đến lúc cùng xem lại kế hoạch' }),
+    ).toBeVisible()
+    expect(
+      calls.some((call) => call.path.endsWith('/cycle-continuation')),
+    ).toBe(false)
+    await page.getByRole('button', { name: /Xem lại kế hoạch/ }).click()
+    await page.getByRole('button', { name: 'Tiếp tục thêm 14 ngày' }).click()
+    await expect
+      .poll(
+        () =>
+          calls.filter((call) => call.path.endsWith('/cycle-continuation'))
+            .length,
+      )
+      .toBe(1)
+  })
+
+  test('MB-644 load errors, stale commands and the FREE tier stay truthful', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    const world: World = {
+      current: nativeSupportPlanFixture(),
+      history: [],
+      occurrences: [
+        { ...emotionOccurrenceFixture(), displayState: 'SCHEDULED' },
+      ],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+      failCurrentOnce: true,
+      stateStatus: 412,
+    }
+    await mockPlanApi(page, world)
+    await page.goto('/support-plan')
+    await expect(
+      page.getByRole('heading', { name: 'Chưa tải được kế hoạch' }),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Thử lại' }).click()
+    const next = page.getByRole('region', { name: 'Check-in cảm xúc' })
+    await expect(next).toBeVisible()
+    await next.getByRole('button', { name: 'Để hôm khác' }).click()
+    await expect(
+      next.getByText(/Kế hoạch vừa thay đổi ở nơi khác/),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
+    ).toHaveCount(0)
+
+    world.current = undefined
+    world.proposeStatus = 403
+    world.journeyNext = 'START_PLAN_PROPOSAL'
+    await page.goto('/support-plan')
+    await expect(
+      page.getByRole('heading', {
+        name: 'Kế hoạch theo ngày có trong gói Plus và Premium',
+      }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Bắt đầu kế hoạch' }),
+    ).toHaveCount(0)
+  })
+
+  test('MB-644 a v2 resource plan opens in the same workspace', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    const v2 = proposalPlan()
+    const adapter: SupportPlanV3 = {
+      ...v2,
+      planPolicyVersion: 'support-plan-selection-v1',
+      representationMode: 'V2_RESOURCE_ADAPTER',
+      cycle: null,
+      focuses: v2.focuses.map((focus) => ({
+        ...focus,
+        actions: focus.actions
+          .filter((action) => action.actionType === 'RESOURCE')
+          .map((action) => ({
+            ...action,
+            representationMode: 'V2_RESOURCE_ADAPTER' as const,
+          })),
+      })),
+    }
+    const world: World = {
+      current: adapter,
+      history: [],
+      occurrences: [
+        resourceOccurrence({ representationMode: 'V2_RESOURCE_ADAPTER' }),
+      ],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    await mockPlanApi(page, world)
+    await page.goto('/support-plan')
+    await expect(
+      page.getByRole('region', { name: 'Thở chậm 3 phút' }),
+    ).toBeVisible()
+    await expect(page.getByText('Đang theo kế hoạch')).toBeVisible()
+    await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+    await expect(page.getByText(/Mỗi ngày · khoảng 5 phút/)).toBeVisible()
+  })
+})

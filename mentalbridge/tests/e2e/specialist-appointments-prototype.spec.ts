@@ -278,7 +278,7 @@ test('specialist appointment decisions, filters, permission disclosure, summary 
     completed.getByText('Nội dung đã thống nhất', { exact: true }),
   ).toBeVisible()
   const disclosure = page
-    .getByRole('button', { name: 'Xem tóm tắt', exact: true })
+    .getByRole('button', { name: 'Xem tóm tắt chuẩn bị', exact: true })
     .first()
   await disclosure.click()
   await expect(
@@ -287,24 +287,28 @@ test('specialist appointment decisions, filters, permission disclosure, summary 
   await capture(page, info, '07-approved-preparation')
   denied = true
   await page
-    .getByRole('button', { name: 'Thu gọn tóm tắt', exact: true })
-    .first()
+    .getByRole('dialog', { name: 'Tóm tắt trước buổi tư vấn' })
+    .getByRole('button', { name: 'Đóng', exact: true })
     .click()
   await page
-    .getByRole('button', { name: 'Xem tóm tắt', exact: true })
+    .getByRole('button', { name: 'Xem tóm tắt chuẩn bị', exact: true })
     .first()
     .click()
   await expect(page.getByText(/chưa phê duyệt hoặc đã thu hồi/)).toBeVisible()
   await expect(
     page.getByText('Nội dung mẫu người dùng đã phê duyệt.'),
   ).not.toBeVisible()
+  await page
+    .getByRole('dialog', { name: 'Tóm tắt trước buổi tư vấn' })
+    .getByRole('button', { name: 'Đóng', exact: true })
+    .click()
   for (const width of [1280, 768, 375, 640]) {
     await page.setViewportSize({ width, height: width === 640 ? 400 : 900 })
     await capture(page, info, `08-responsive-${width}`)
   }
   await page
     .getByRole('group', { name: 'Lọc lịch hẹn' })
-    .getByRole('button', { name: 'Lịch sử', exact: true })
+    .getByRole('button', { name: 'Lịch sử & Đã hủy', exact: true })
     .click()
   await expect(page.locator('li[data-status="CONFIRMED"]')).toHaveCount(0)
   await expect(completed).toBeVisible()
@@ -645,7 +649,7 @@ test('appointment initial error/retry, source empty and filter empty retain the 
   ).toBeVisible()
   await page
     .getByRole('group', { name: 'Lọc lịch hẹn' })
-    .getByRole('button', { name: 'Lịch sử', exact: true })
+    .getByRole('button', { name: 'Lịch sử & Đã hủy', exact: true })
     .click()
   await expect(page.getByText('Không có lịch hẹn trong nhóm này')).toBeVisible()
   await capture(page, info, '12-filter-empty')

@@ -131,12 +131,13 @@ export function StretchResourceDetail({
     }
   })
   const [shareMessage, setShareMessage] = useState('')
-  const [videoHeight, setVideoHeight] = useState(0)
+  const [announcement, setAnnouncement] = useState('')
   const [recordState, setRecordState] = useState<
     'idle' | 'sending' | 'success' | 'error'
   >('idle')
   const [showCues, setShowCues] = useState(true)
   const [playbackRate, setPlaybackRate] = useState(1)
+  const [videoHeight, setVideoHeight] = useState(0)
 
   useEffect(() => {
     const onFullscreenChange = () =>
@@ -223,14 +224,15 @@ export function StretchResourceDetail({
   const sourceUrl = resource.sourceUrl?.startsWith('https://')
     ? resource.sourceUrl
     : null
-  const announcement = hasPlayed
-    ? ended
-      ? 'Bài tập đã hoàn thành'
-      : `Động tác ${activeIndex + 1}: ${activeStep.title}`
-    : ''
-
   useEffect(() => {
     if (!hasPlayed) return
+    queueMicrotask(() => {
+      setAnnouncement(
+        ended
+          ? 'Bài tập đã hoàn thành'
+          : `Động tác ${activeIndex + 1}: ${activeStep.title}`,
+      )
+    })
     const rail = stepsRef.current
     const card = stepRefs.current[activeIndex]
     if (!rail || !card) return
@@ -518,8 +520,8 @@ export function StretchResourceDetail({
                     preload="metadata"
                     playsInline
                     onLoadedMetadata={(event) => {
-                      setVideoHeight(event.currentTarget.videoHeight)
                       const seconds = event.currentTarget.duration
+                      setVideoHeight(event.currentTarget.videoHeight || 0)
                       if (Number.isFinite(seconds) && seconds > 0) {
                         setDuration(seconds)
                         setMediaState('ready')

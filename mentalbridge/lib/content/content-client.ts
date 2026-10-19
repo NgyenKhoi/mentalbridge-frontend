@@ -20,6 +20,7 @@ import {
   parseResourceBookmarkList,
   parseResourceBingoBoard,
   parseAchievementCollection,
+  parseResourceRewardReadModel,
   type AdminResourceDetail,
   type ResourceReviewDecision,
   type ContentProblem,
@@ -37,12 +38,16 @@ import {
   type ResourceProgressUpdate,
   type ResourceJourney,
   type ResourceJourneyRequest,
+  parseNotificationOperationsSummary,
+  type NotificationOperationsSummary,
   type ResourceBookmark,
   type ResourceBookmarkList,
   type ResourceBingoBoard,
   type ResourceBingoSelfConfirmationUpdate,
   type AchievementCollection,
   type AchievementPreferenceUpdate,
+  type ResourceRewardReadModel,
+  type ResourceRewardVisibilityUpdate,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
@@ -741,6 +746,48 @@ export const contentAdminClient = {
       correlationId,
       body: {},
       parseSuccess: parseResourceSummary,
+      mutation: true,
+    })
+  },
+  getNotificationOperationsSummary(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<NotificationOperationsSummary> {
+    return contentRequest<NotificationOperationsSummary>({
+      method: 'GET',
+      path: '/api/v1/admin/notifications/summary',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseNotificationOperationsSummary,
+    })
+  },
+}
+
+export const contentResourceRewardClient = {
+  read(accessToken: string, correlationId: string) {
+    return contentRequest<ResourceRewardReadModel>({
+      method: 'GET',
+      path: '/api/v1/resource-rewards',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseResourceRewardReadModel,
+    })
+  },
+  setVisibility(
+    accessToken: string,
+    update: ResourceRewardVisibilityUpdate,
+    correlationId: string,
+  ) {
+    return contentRequest<ResourceRewardReadModel>({
+      method: 'PUT',
+      path: '/api/v1/resource-rewards',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: update,
+      parseSuccess: parseResourceRewardReadModel,
       mutation: true,
     })
   },

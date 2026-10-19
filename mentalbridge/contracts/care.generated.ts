@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/admin/product-journey-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read privacy-bounded Care product journey aggregates */
+        get: operations["getCareProductJourneyMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -1329,12 +1346,39 @@ export interface paths {
         /**
          * Explicitly activate one native draft after fresh Care admission checks
          * @description Revalidates paid entitlement, exact screening context, policy, admitted
-         *     resource versions and snapshotted explicit Journal/Emotion intent outside local
+         *     resource versions and snapshotted policy-specific Journal/Emotion intent outside local
          *     locks. The owner transaction rechecks the draft version and preferences,
          *     activates the plan/actions and cadence atomically, and records retry
          *     identity in the existing command ledger. No second current plan is allowed.
          */
         post: operations["activateNativeSupportPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/cycle-continuation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly keep a review-due proposal plan for another 14-day cycle
+         * @description Owner-only command for an ACTIVE support-plan-proposal-v1 plan whose
+         *     cycle is REVIEW_DUE. Requires the strong plan If-Match and a durable
+         *     Idempotency-Key. Starts cycleNumber + 1 on today's local date in the
+         *     cycle timezone, resets pausedDays and schedules a new one-time
+         *     reassessment occurrence on day 14. Preserves prior occurrence history,
+         *     action intent and plan status. No automatic renewal, completion,
+         *     entitlement change, appointment or consent mutation occurs.
+         *     An identical replay returns the plan without starting another cycle.
+         */
+        post: operations["continueNativeSupportPlanCycle"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1462,6 +1506,32 @@ export interface paths {
         put: operations["changeOwnNativeActionOccurrenceState"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/engagement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace helpfulness and private engagement metadata on an owned native occurrence
+         * @description Uses the v1 engagement request shape, but state must match the persisted
+         *     native occurrence state. This command cannot create or erase completion
+         *     evidence. Helpfulness requires COMPLETED; a barrier requires SKIPPED.
+         *     Reflection is private and excluded from integration events. Requires an
+         *     active plan/action and a non-cancelled occurrence. Exact no-op retries
+         *     preserve version and accepted evidence. V2 adapters keep the v1 command.
+         */
+        put: operations["replaceOwnNativeActionOccurrenceEngagement"];
+        post?: never;
+        /** Clear owned native engagement metadata while retaining occurrence state and evidence */
+        delete: operations["deleteOwnNativeActionOccurrenceEngagement"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1762,6 +1832,20 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CareProductJourneyMetrics: {
+            /** @constant */
+            source: "CARE";
+            /** @constant */
+            sourceVersion: "care-product-journey-v1";
+            /** Format: date-time */
+            asOf: string;
+            /** Format: int64 */
+            completedScreeningEpisodes: number;
+            /** Format: int64 */
+            supportGuidesGenerated: number;
+            /** Format: int64 */
+            paidSupportPlansActivated: number;
+        };
         ConsultationBriefDraftRequest: {
             currentSituation: string;
             /** Format: uuid */
@@ -3042,7 +3126,7 @@ export interface components {
             supportPlanId: string;
             /** @constant */
             modelVersion: 3;
-            /** @description Native v3 policy version or the exact v2 selection policy exposed by the adapter. */
+            /** @description Native v3 policy version (support-plan-proposal-v1 for new proposals) or the exact v2 selection policy exposed by the adapter. */
             planPolicyVersion: string;
             /**
              * @description Identifies a non-destructive v2 read projection or canonical v3 storage.
@@ -3053,6 +3137,8 @@ export interface components {
             status: "DRAFT" | "ACTIVE" | "PAUSED" | "COMPLETED" | "SUPERSEDED" | "DISCARDED";
             version: number;
             safety: components["schemas"]["SupportPlanSafety"];
+            /** @description Additive optional bounded review cycle, present only on support-plan-proposal-v1 plans and omitted otherwise so existing strict clients keep reading earlier plans unchanged. Clients also accept null. */
+            cycle?: components["schemas"]["SupportPlanCycle"] | null;
             focuses: components["schemas"]["PlanFocus"][];
             /** Format: date-time */
             createdAt: string;
@@ -3074,6 +3160,33 @@ export interface components {
             /** @constant */
             disclaimerCode: "WELLBEING_SUPPORT_NOT_TREATMENT";
             disclaimer: string;
+        };
+        /**
+         * @description support-plan-cycle-v1 applies only to support-plan-proposal-v1 plans.
+         *     Day 1 is the activation or explicit continuation local date. Paused days
+         *     are calendar days from the pause date up to but excluding the resume
+         *     date, in the cycle timezone; an ongoing pause uses today's local date
+         *     as the exclusive end. These days do not advance the cycle. A pause
+         *     beginning on or after the review date does not move it or add paused days.
+         *     reviewDueOn is startedOn + 13 days + pausedDays. REVIEW_DUE changes no
+         *     lifecycle state and remains until an explicit owner keep/change command.
+         *     NOT_STARTED is a DRAFT; CLOSED is COMPLETED, SUPERSEDED or DISCARDED.
+         */
+        SupportPlanCycle: {
+            /** @constant */
+            policyVersion: "support-plan-cycle-v1";
+            /** @constant */
+            lengthDays: 14;
+            timezone: string;
+            cycleNumber: number;
+            /** Format: date */
+            startedOn: string | null;
+            /** Format: date */
+            reviewDueOn: string | null;
+            currentDay: number | null;
+            pausedDays: number;
+            /** @enum {string} */
+            state: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" | "REVIEW_DUE" | "CLOSED";
         };
         PlanFocus: {
             /** @description Native identity or stable virtual identity when adapted from v2. */
@@ -3277,6 +3390,14 @@ export interface components {
             /** @constant */
             interpretationCode: "SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE";
         };
+        /**
+         * @description The six engagement fields (hidden, helpfulness, barrierCode, reflection,
+         *     summaryReuseApproved, engagementUpdatedAt) are additive and optional: they
+         *     are emitted only on native occurrences with engagement metadata or on
+         *     the native engagement command responses. Existing occurrence reads and
+         *     state commands without metadata keep their original wire shape, including
+         *     older state-only engagement timestamps.
+         */
         ActionOccurrence: {
             /** Format: uuid */
             occurrenceId: string;
@@ -3305,6 +3426,15 @@ export interface components {
             completionEvidence: components["schemas"]["CompletionEvidence"] | null;
             /** Format: date-time */
             outcomeRecordedAt: string | null;
+            hidden?: boolean;
+            /** @enum {string|null} */
+            helpfulness?: "NOT_HELPFUL" | "A_LITTLE_HELPFUL" | "HELPFUL" | "VERY_HELPFUL" | null;
+            /** @enum {string|null} */
+            barrierCode?: "LOW_ENERGY" | "NOT_ENOUGH_TIME" | "DIFFICULT_TO_START" | "NOT_A_GOOD_FIT" | "OTHER" | null;
+            reflection?: string | null;
+            summaryReuseApproved?: boolean;
+            /** Format: date-time */
+            engagementUpdatedAt?: string | null;
         } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
         CompletionEvidence: {
             /** @enum {string} */
@@ -3629,7 +3759,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Current source facts cannot produce a bounded draft (SUPPORT_EVALUATION_STALE, SUPPORT_PLAN_CORE_UNAVAILABLE, or RESOURCE_VERSION_STALE); no draft was created */
+        /** @description Current source facts cannot produce a bounded draft (SUPPORT_EVALUATION_STALE, SUPPORT_PLAN_CORE_UNAVAILABLE, RESOURCE_VERSION_STALE, SUPPORT_PLAN_SAFETY_REVIEW_REQUIRED, SUPPORT_PLAN_TIME_BUDGET_INCOMPATIBLE, or SUPPORT_PLAN_DRAFT_EXISTS); no draft was created */
         SupportPlanEligibilityProblem: {
             headers: {
                 [name: string]: unknown;
@@ -3728,6 +3858,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description The plan has no proposal cycle, is not ACTIVE and REVIEW_DUE, or reuses a key differently (SUPPORT_PLAN_MODEL_VERSION_UNSUPPORTED, SUPPORT_PLAN_CYCLE_NOT_REVIEW_DUE, or IDEMPOTENCY_KEY_REUSED); no cycle was started */
+        SupportPlanCycleConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description The command reuses an idempotency key differently, targets a non-mutable plan or action, or requests recurrence for a review-only action (IDEMPOTENCY_KEY_REUSED, SUPPORT_PLAN_SCHEDULE_NOT_MUTABLE, PLAN_ACTION_SCHEDULE_NOT_MUTABLE, or PLAN_ACTION_UNSCHEDULABLE) */
         SupportPlanScheduleConflictProblem: {
             headers: {
@@ -3746,7 +3885,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The occurrence is cancelled, already has another terminal input, or its source plan is no longer current (OCCURRENCE_NOT_OPEN or SUPPORT_PLAN_NOT_CURRENT) */
+        /** @description The occurrence is cancelled, has a conflicting state, its plan/action is inactive, its model cannot take this command, or a native engagement command tries to change authoritative state (OCCURRENCE_NOT_OPEN, SUPPORT_PLAN_NOT_CURRENT, SUPPORT_PLAN_NOT_ACTIVE, SUPPORT_PLAN_MODEL_VERSION_UNSUPPORTED, or AUTHORITATIVE_COMPLETION_REQUIRED) */
         SupportPlanOccurrenceConflictProblem: {
             headers: {
                 [name: string]: unknown;
@@ -3878,6 +4017,32 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getCareProductJourneyMetrics: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts only; no score, band, answer, Journal, emotion, AI, or user-level outcome is returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareProductJourneyMetrics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     getOwnCareProfile: {
         parameters: {
             query?: never;
@@ -5868,6 +6033,40 @@ export interface operations {
             503: components["responses"]["SupportPlanDependencyProblem"];
         };
     };
+    continueNativeSupportPlanCycle: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Plan with the explicitly continued cycle or unchanged command replay */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanCycleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+        };
+    };
     changeNativeSupportPlanStatus: {
         parameters: {
             query?: never;
@@ -6036,6 +6235,78 @@ export interface operations {
         };
         responses: {
             /** @description Authoritative native action occurrence after explicit state command or unchanged retry */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOccurrence"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    replaceOwnNativeActionOccurrenceEngagement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceSupportPlanOccurrenceEngagementRequest"];
+            };
+        };
+        responses: {
+            /** @description Native occurrence with its authoritative evidence and replaced engagement metadata */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOccurrence"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    deleteOwnNativeActionOccurrenceEngagement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Native occurrence with cleared engagement metadata and unchanged completion evidence */
             200: {
                 headers: {
                     ETag: components["headers"]["SupportPlanETag"];

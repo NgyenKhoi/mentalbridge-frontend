@@ -13,6 +13,8 @@ import styles from './AppointmentRatingDialog.module.css'
 
 type Props = Readonly<{
   appointment: Appointment
+  triggerLabel?: string
+  triggerClassName?: string
 }>
 
 function errorMessage(error: unknown) {
@@ -25,7 +27,11 @@ function errorMessage(error: unknown) {
   return 'Chưa thể lưu đánh giá. Vui lòng thử lại.'
 }
 
-export function AppointmentRatingDialog({ appointment }: Props) {
+export function AppointmentRatingDialog({
+  appointment,
+  triggerLabel,
+  triggerClassName,
+}: Props) {
   const { showActionToast } = useFeedback()
   const [open, setOpen] = useState(false)
   const [current, setCurrent] = useState<AppointmentRating | null>(null)
@@ -88,9 +94,16 @@ export function AppointmentRatingDialog({ appointment }: Props) {
 
   return (
     <>
-      <button type="button" className={styles.trigger} onClick={show}>
+      <button
+        type="button"
+        className={triggerClassName ?? styles.trigger}
+        onClick={show}
+      >
         <span aria-hidden="true">★</span>
-        {current ? `Đã đánh giá · ${current.rating}/5` : 'Đánh giá chuyên gia'}
+        {triggerLabel ??
+          (current
+            ? `Đã đánh giá · ${current.rating}/5`
+            : 'Đánh giá chuyên gia')}
       </button>
       <Dialog
         open={open}

@@ -308,6 +308,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/product-journey-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read privacy-bounded aggregate product journey facts
+         * @description Returns privacy-bounded stage counts and descriptive cohort progress rates for the same half-open [from,to) window. Identity activation is limited to USER accounts registered in the window and verified before to; consultation progress is limited to appointments requested in the window and reaching the milestone before to. SPECIALIST and ADMIN accounts are excluded. Rates do not represent clinical effectiveness, recovery, or causation. Unavailable owner capabilities remain explicitly unavailable.
+         */
+        get: operations["getProductJourneyMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/platform-reports": {
         parameters: {
             query?: never;
@@ -377,6 +397,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/accounts/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read authoritative aggregate account counts and status for admin operations dashboard (excluding soft-deleted accounts) */
+        get: operations["getAccountsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/accounts/{accountId}": {
         parameters: {
             query?: never;
@@ -407,6 +444,46 @@ export interface paths {
          * @description The dedicated ADMIN account is provisioned and managed operationally and cannot be targeted.
          */
         put: operations["changeAccountState"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Browse privacy-minimized administration audit events
+         * @description Returns only bounded operational metadata retained by Identity. Raw journal, assessment, chat, provider, credential, token, secret, and unnecessary health data are never included.
+         */
+        get: operations["browseAdministrationAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit-events/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export the currently filtered administration audit events as CSV
+         * @description Uses the same authorization, retention window, ordering, and filter semantics as browse. Exports are limited to 5,000 rows and 5 MiB.
+         */
+        get: operations["exportAdministrationAuditEvents"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -462,6 +539,56 @@ export interface components {
             updatedAt: string;
             /** Format: int64 */
             version: number;
+        };
+        ProductJourneyMetrics: {
+            /** @constant */
+            projectionVersion: "product-journey-metrics-v2";
+            window: {
+                /** Format: date-time */
+                from: string;
+                /** Format: date-time */
+                to: string;
+            };
+            /** Format: date-time */
+            asOf: string;
+            /** @constant */
+            interpretation: "DESCRIPTIVE_PRODUCT_ACTIVITY_NOT_CLINICAL_EFFECTIVENESS";
+            sources: components["schemas"]["ProductJourneySource"][];
+            stages: components["schemas"]["ProductJourneyStage"][];
+        };
+        ProductJourneySource: {
+            /** @enum {string} */
+            source: "IDENTITY" | "CARE" | "CONSULTATION";
+            sourceVersion?: string | null;
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE";
+            /** Format: date-time */
+            asOf?: string | null;
+            /** @enum {string|null} */
+            unavailableReason?: "DEPENDENCY_UNAVAILABLE" | null;
+        };
+        ProductJourneyStage: {
+            /** @enum {string} */
+            stage: "USER_ACCOUNTS_REGISTERED" | "USER_ACCOUNTS_ACTIVATED" | "COMPLETED_SCREENING_EPISODES" | "SUPPORT_GUIDES_GENERATED" | "SUPPORT_GUIDES_OPENED" | "PAID_SUPPORT_PLANS_ACTIVATED" | "CONSULTATIONS_REQUESTED" | "CONSULTATIONS_CONFIRMED" | "CONSULTATIONS_COMPLETED";
+            /** @enum {string} */
+            source: "IDENTITY" | "CARE" | "CONSULTATION";
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE";
+            /**
+             * Format: int64
+             * @description Aggregate stage count. For a rate-bearing stage, this is the numerator from the same explicit cohort as denominatorStage.
+             */
+            count?: number | null;
+            /** @description Descriptive cohort progress percentage. Null when the stage has no approved cohort denominator or the denominator count is zero. */
+            rate?: null | components["schemas"]["ProductJourneyRate"];
+            /** @enum {string|null} */
+            unavailableReason?: "SOURCE_UNAVAILABLE" | "AUTHORITATIVE_USAGE_FACT_UNAVAILABLE" | null;
+        };
+        ProductJourneyRate: {
+            /** @enum {string} */
+            denominatorStage: "USER_ACCOUNTS_REGISTERED" | "CONSULTATIONS_REQUESTED";
+            /** @description Numerator count divided by the named denominator-stage count, rounded to one decimal place. */
+            percentage: number;
         };
         /** @enum {string} */
         PlatformReportTypeCode: "ACCOUNT_ACTIVITY";
@@ -628,6 +755,59 @@ export interface components {
              * @enum {string}
              */
             reasonCode: "SAFETY_CONCERN" | "POLICY_VIOLATION" | "ACCOUNT_REVIEW_REQUIRED" | "REVIEW_COMPLETED";
+        };
+        /** @enum {string} */
+        AuditSourceService: "IDENTITY" | "CONSULTATION" | "CONTENT" | "COMMUNITY";
+        /** @enum {string} */
+        AuditDomain: "ACCOUNT_ADMINISTRATION" | "SPECIALIST_REVIEW" | "RESOURCE_MANAGEMENT" | "COMMUNITY_MODERATION";
+        /** @enum {string} */
+        AuditActorType: "ADMIN" | "SYSTEM";
+        /** @enum {string} */
+        AuditResult: "SUCCEEDED" | "DENIED" | "FAILED";
+        AdministrationAuditEvent: {
+            /** Format: uuid */
+            eventId: string;
+            /** Format: date-time */
+            occurredAt: string;
+            actorType: components["schemas"]["AuditActorType"];
+            /** @description Safe account identifier, actor tombstone, or the literal system actor. */
+            actorIdentifier: string;
+            action: string;
+            result: components["schemas"]["AuditResult"];
+            reasonCode?: string | null;
+            /** Format: uuid */
+            correlationId: string;
+            sourceService: components["schemas"]["AuditSourceService"];
+            domain: components["schemas"]["AuditDomain"];
+            targetIdentifier?: string | null;
+        };
+        AdministrationAuditEventPage: {
+            items: components["schemas"]["AdministrationAuditEvent"][];
+            nextCursor: string | null;
+            /** Format: date-time */
+            effectiveFrom: string;
+            /** Format: date-time */
+            effectiveTo: string;
+            /** Format: date-time */
+            retentionCutoff: string;
+        };
+        AccountsSummaryRoleBreakdown: {
+            users: number;
+            specialists: number;
+            admins: number;
+        };
+        AccountsSummary: {
+            /** @constant */
+            source: "IDENTITY";
+            /** Format: date-time */
+            asOf: string;
+            /** @description Total manageable accounts in the platform, excluding soft-deleted (purged) accounts. Matches the sum of status breakdown and the sum of role breakdown. */
+            totalAccounts: number;
+            activeAccounts: number;
+            pendingVerificationAccounts: number;
+            disabledAccounts: number;
+            deletionPendingAccounts: number;
+            byRole: components["schemas"]["AccountsSummaryRoleBreakdown"];
         };
         Problem: {
             /** Format: uri-reference */
@@ -818,6 +998,17 @@ export interface components {
         IdempotencyKey: string;
         /** @example "3" */
         IfMatch: string;
+        /** @description Inclusive UTC start. Defaults to 30 days before the effective end and cannot precede the 365-day retention boundary. */
+        AuditFrom: string;
+        /** @description Inclusive UTC end. Defaults to the current server time. A query window cannot exceed 90 days. */
+        AuditTo: string;
+        AuditSourceService: components["schemas"]["AuditSourceService"];
+        AuditDomain: components["schemas"]["AuditDomain"];
+        AuditActorType: components["schemas"]["AuditActorType"];
+        AuditAction: string;
+        AuditResult: components["schemas"]["AuditResult"];
+        /** @description Exact safe identifier returned by this API, either account UUID or tombstone hash. */
+        AuditTargetIdentifier: string;
     };
     requestBodies: never;
     headers: never;
@@ -1326,6 +1517,35 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
         };
     };
+    getProductJourneyMetrics: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregate platform journey projection for the explicit half-open window */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductJourneyMetrics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     browsePlatformReports: {
         parameters: {
             query?: {
@@ -1482,6 +1702,31 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
         };
     };
+    getAccountsSummary: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative aggregate account summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountsSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     getAccountById: {
         parameters: {
             query?: never;
@@ -1545,6 +1790,85 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["ConflictProblem"];
             412: components["responses"]["VersionProblem"];
+        };
+    };
+    browseAdministrationAuditEvents: {
+        parameters: {
+            query?: {
+                /** @description Inclusive UTC start. Defaults to 30 days before the effective end and cannot precede the 365-day retention boundary. */
+                from?: components["parameters"]["AuditFrom"];
+                /** @description Inclusive UTC end. Defaults to the current server time. A query window cannot exceed 90 days. */
+                to?: components["parameters"]["AuditTo"];
+                sourceService?: components["parameters"]["AuditSourceService"];
+                domain?: components["parameters"]["AuditDomain"];
+                actorType?: components["parameters"]["AuditActorType"];
+                action?: components["parameters"]["AuditAction"];
+                result?: components["parameters"]["AuditResult"];
+                /** @description Exact safe identifier returned by this API, either account UUID or tombstone hash. */
+                targetIdentifier?: components["parameters"]["AuditTargetIdentifier"];
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded audit event page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdministrationAuditEventPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    exportAdministrationAuditEvents: {
+        parameters: {
+            query?: {
+                /** @description Inclusive UTC start. Defaults to 30 days before the effective end and cannot precede the 365-day retention boundary. */
+                from?: components["parameters"]["AuditFrom"];
+                /** @description Inclusive UTC end. Defaults to the current server time. A query window cannot exceed 90 days. */
+                to?: components["parameters"]["AuditTo"];
+                sourceService?: components["parameters"]["AuditSourceService"];
+                domain?: components["parameters"]["AuditDomain"];
+                actorType?: components["parameters"]["AuditActorType"];
+                action?: components["parameters"]["AuditAction"];
+                result?: components["parameters"]["AuditResult"];
+                /** @description Exact safe identifier returned by this API, either account UUID or tombstone hash. */
+                targetIdentifier?: components["parameters"]["AuditTargetIdentifier"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description UTF-8 CSV containing only privacy-minimized audit metadata */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
 }

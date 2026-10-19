@@ -138,13 +138,13 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
   const navigation = page.getByRole('navigation', {
     name: 'Điều hướng specialist',
   })
-  await expect(navigation.getByRole('link')).toHaveCount(8)
+  await expect(navigation.getByRole('link')).toHaveCount(9)
   await expect(
     navigation.getByRole('link', { name: 'Thu nhập & thanh toán' }),
   ).toHaveAttribute('href', '/specialist/earnings')
   await expect(
     navigation.getByRole('link', { name: 'Phân tích vận hành' }),
-  ).toHaveCount(0)
+  ).toHaveAttribute('href', '/specialist/analytics')
   await expect(navigation.getByText(/Earnings|Notifications/)).toHaveCount(0)
   await expect(
     page.getByRole('link', { name: 'Thông báo', exact: true }),
@@ -178,7 +178,7 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
 
   await navigation.getByRole('link', { name: 'Theo dõi sau phiên' }).click()
   await expect(
-    page.getByRole('heading', { name: 'Nội dung đã thống nhất sau phiên' }),
+    page.getByRole('heading', { name: 'Theo dõi sau phiên' }),
   ).toBeVisible()
   await expect(
     page.getByText('Chưa có phiên tư vấn đã hoàn thành'),
@@ -193,7 +193,7 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
 
   await page.goto('/specialist/notifications')
   await expect(
-    page.getByRole('heading', { name: 'Trung tâm thông báo chưa khả dụng' }),
+    page.getByRole('heading', { name: 'Trung tâm thông báo', exact: true }),
   ).toBeVisible()
   await expect(page.getByText('Nguyễn Minh Anh')).toHaveCount(0)
   await expect(page.getByText('3', { exact: true })).toHaveCount(0)
@@ -225,18 +225,21 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
       ),
     ).toBe(true)
     await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
-    const drawer = page.getByRole('dialog', { name: 'Điều hướng chuyên gia' })
-    await expect(drawer).toBeVisible()
+    const drawer = page.locator('.role-sidebar')
+    await expect(drawer).toBeInViewport()
     await expect(drawer.getByRole('navigation').getByRole('link')).toHaveCount(
-      8,
+      9,
     )
     await expect(
       drawer.getByRole('button', {
         name: 'Mở menu tài khoản chuyên gia',
       }),
     ).toBeVisible()
-    await drawer.getByRole('button', { name: 'Đóng menu' }).click()
-    await expect(drawer).not.toBeVisible()
+    const overlay = page.getByRole('button', { name: 'Đóng menu' })
+    const overlayBox = await overlay.boundingBox()
+    await overlay.click({
+      position: { x: (overlayBox?.width ?? 1) - 8, y: 8 },
+    })
     await expect(
       page.getByRole('button', { name: 'Mở menu', exact: true }),
     ).toBeFocused()

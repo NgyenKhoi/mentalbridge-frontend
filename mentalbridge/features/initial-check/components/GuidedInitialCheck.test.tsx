@@ -169,12 +169,21 @@ describe('GuidedInitialCheck', () => {
     ).toBeVisible()
     expect(
       screen.getByRole('heading', {
-        name: 'Bạn không cần phải tự mình vượt qua tất cả',
+        name: 'Không có câu trả lời cần thêm hướng dẫn an toàn',
       }),
     ).toBeVisible()
     expect(
+      screen.getByRole('link', { name: 'Tôi cần hỗ trợ ngay' }),
+    ).toHaveAttribute('href', '/safety-directory')
+    expect(
       screen.getByRole('heading', { name: 'Tài nguyên nuôi dưỡng hôm nay' }),
     ).toBeVisible()
+    expect(
+      screen.getByRole('heading', {
+        name: 'Bạn không cần phải tự mình vượt qua tất cả',
+      }),
+    ).toBeVisible()
+    expect(screen.getByText(/không phải là đánh giá toàn diện/)).toBeVisible()
     expect(container.textContent).not.toMatch(/sprint|backend|demo|test/i)
 
     await userEvent.click(

@@ -132,11 +132,9 @@ export function MindfulnessResourceDetail({
     if (!running || remaining === 0) return
     const timeout = window.setTimeout(() => {
       setRemaining((value) => {
-        if (value <= 1) {
-          setRunning(false)
-          return 0
-        }
-        return value - 1
+        const next = Math.max(0, value - 1)
+        if (next === 0) setRunning(false)
+        return next
       })
     }, 1000)
     return () => window.clearTimeout(timeout)

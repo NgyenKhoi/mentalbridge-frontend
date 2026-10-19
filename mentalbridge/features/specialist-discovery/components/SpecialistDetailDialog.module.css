@@ -1,0 +1,358 @@
+.dialog {
+  width: min(660px, calc(100vw - 24px));
+  max-height: 92dvh;
+  border-radius: 26px;
+}
+.dialog > div {
+  max-height: 92dvh;
+  border-radius: 26px;
+}
+.shell {
+  color: #1d332a;
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 28px;
+  background: #e9f5ee;
+}
+.avatar {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  flex: none;
+  place-items: center;
+  border-radius: 18px;
+  background: #d8e8ef;
+  color: #123b2b;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 1.65rem;
+  font-weight: 700;
+}
+.heading {
+  flex: 1;
+  min-width: 0;
+}
+.heading h2 {
+  margin: 0;
+  color: #172e24;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 1.5rem;
+}
+.heading p {
+  margin: 4px 0;
+  color: #52675c;
+  font-size: 0.82rem;
+}
+.heading p svg {
+  vertical-align: -2px;
+  color: #bd7a0c;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 99px;
+  padding: 4px 8px;
+  background: #d4ecde;
+  color: #205f43;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.close {
+  align-self: flex-start;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  color: #213d2f;
+  cursor: pointer;
+}
+.tabs {
+  display: flex;
+  gap: 20px;
+  padding: 0 28px;
+  border-bottom: 1px solid #e0eae3;
+}
+.tabs button {
+  min-height: 48px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0 12px;
+  background: transparent;
+  color: #667a6d;
+  font: inherit;
+  cursor: pointer;
+}
+.tabs button[aria-selected='true'] {
+  border-color: #123b2b;
+  color: #123b2b;
+  font-weight: 750;
+}
+.body {
+  display: grid;
+  gap: 18px;
+  max-height: min(48dvh, 460px);
+  overflow-y: auto;
+  padding: 24px 28px;
+}
+.body h3 {
+  margin: 0;
+}
+.bio {
+  margin: 0;
+  line-height: 1.6;
+}
+.facts,
+.confirmFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+.facts > div,
+.confirmFacts > div {
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid #e2ebe5;
+  border-radius: 13px;
+  background: #f7faf8;
+}
+.facts dt,
+.confirmFacts dt,
+.eyebrow {
+  color: #63766b;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.facts dd,
+.confirmFacts dd {
+  margin: 5px 0 0;
+  color: #21382c;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+.tags,
+.credentials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.tags span {
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #f3f0e6;
+  color: #615932;
+  font-size: 0.78rem;
+}
+.credentials span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #205f43;
+  font-size: 0.77rem;
+}
+.security {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  border-radius: 12px;
+  padding: 11px 13px;
+  background: #e9f5ee;
+  color: #20523c;
+  font-size: 0.82rem;
+}
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 17px 28px 22px;
+  border-top: 1px solid #e0eae3;
+  background: #fff;
+}
+.footer p {
+  flex: 1 1 100%;
+  margin: 0;
+  color: #607367;
+  font-size: 0.78rem;
+}
+.footerActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  gap: 10px;
+}
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 11px;
+  padding: 0 16px;
+  font: inherit;
+  font-weight: 750;
+  text-decoration: none;
+  cursor: pointer;
+}
+.primary {
+  border: 1px solid #123b2b;
+  background: #123b2b;
+  color: #fff;
+}
+.secondary {
+  border: 1px solid #c9d9ce;
+  background: #fff;
+  color: #123b2b;
+}
+.primary:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+.days {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.days button {
+  display: grid;
+  min-width: 132px;
+  gap: 4px;
+  border: 1px solid #d9e5dc;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #1d392a;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.days button[aria-pressed='true'] {
+  border-color: #123b2b;
+  background: #e9f5ee;
+}
+.days strong {
+  font-size: 0.78rem;
+}
+.days small {
+  color: #607366;
+}
+.times {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.time {
+  cursor: pointer;
+}
+.time input {
+  position: absolute;
+  opacity: 0;
+}
+.time span {
+  display: grid;
+  min-height: 43px;
+  place-items: center;
+  border: 1px solid #d9e5dc;
+  border-radius: 10px;
+  color: #214432;
+  font-size: 0.83rem;
+}
+.time input:checked + span {
+  border-color: #123b2b;
+  background: #e9f5ee;
+  font-weight: 750;
+}
+.time input:focus-visible + span {
+  outline: 3px solid #76b894;
+  outline-offset: 2px;
+}
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 26px 10px;
+  text-align: center;
+}
+.empty p,
+.note {
+  margin: 0;
+  color: #617468;
+}
+.success {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 44px 32px;
+  text-align: center;
+}
+.success > span {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e9f5ee;
+  color: #205f43;
+}
+.success h3,
+.success p {
+  margin: 0;
+}
+.success h3 {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 1.55rem;
+}
+.success p {
+  max-width: 42ch;
+  color: #607366;
+  line-height: 1.6;
+}
+.error {
+  margin: 0;
+  color: #9b382e;
+  font-weight: 700;
+}
+.shell :is(button, a):focus-visible {
+  outline: 3px solid #76b894;
+  outline-offset: 3px;
+}
+@media (max-width: 560px) {
+  .dialog {
+    width: calc(100vw - 16px);
+  }
+  .header {
+    padding: 18px;
+  }
+  .heading h2 {
+    font-size: 1.25rem;
+  }
+  .tabs {
+    padding: 0 18px;
+  }
+  .body {
+    padding: 20px 18px;
+    max-height: 52dvh;
+  }
+  .footer {
+    padding: 16px 18px;
+  }
+  .facts,
+  .confirmFacts {
+    grid-template-columns: 1fr;
+  }
+  .times {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

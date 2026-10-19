@@ -44,6 +44,17 @@ export function emotionPlanHref(
   return `${destination}?${params}${destination === '/dashboard' ? '#emotion-check-in' : `#activity-${origin.occurrenceId}`}`
 }
 
+/** Plan return from a Resource; the plan re-reads the occurrence, the URL proves nothing. */
+export function resourcePlanHref(origin: EmotionPlanOrigin) {
+  const params = new URLSearchParams({
+    source: 'resource',
+    occurrenceId: origin.occurrenceId,
+    actionId: origin.actionId,
+    localDate: origin.localDate,
+  })
+  return `/support-plan?${params}#activity-${origin.occurrenceId}`
+}
+
 /** URL values identify the desired target; only owned API data supplies context. */
 export async function resolveEmotionPlanOrigin(origin: EmotionPlanOrigin) {
   const plan = await getCurrentSupportPlanActions()

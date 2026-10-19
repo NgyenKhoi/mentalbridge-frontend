@@ -383,8 +383,8 @@ export default function SpecialistContinuityManager({
     >
       <header className={styles.heading}>
         <div>
-          <span className={styles.eyebrow}>Tiếp nối sau tư vấn</span>
-          <h1 id="continuity-title">Nội dung đã thống nhất sau phiên</h1>
+          <span className={styles.eyebrow}>Tiếp nối sau phiên</span>
+          <h1 id="continuity-title">Theo dõi sau phiên</h1>
           <p>
             Xem lại bản tóm tắt và các bước đã trao đổi theo từng lịch hẹn đã
             hoàn thành.
