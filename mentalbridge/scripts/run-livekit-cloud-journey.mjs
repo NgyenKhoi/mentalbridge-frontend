@@ -179,6 +179,45 @@ async function actor(role, bootstrap) {
   ])
   // Only non-sensitive RTP counters are retained, never SDP, identity or tokens.
   await context.addInitScript(() => {
+    globalThis.__mb384MediaEvents = []
+    const record = (event) => {
+      if (globalThis.__mb384MediaEvents.length < 200)
+        globalThis.__mb384MediaEvents.push({ ...event, at: Date.now() })
+    }
+    document.addEventListener('visibilitychange', () =>
+      record({ visibility: document.visibilityState }),
+    )
+    const nativeCapture = navigator.mediaDevices.getUserMedia.bind(
+      navigator.mediaDevices,
+    )
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      let stream
+      try {
+        stream = await nativeCapture(constraints)
+      } catch (error) {
+        record({
+          captureError: [
+            'NotAllowedError',
+            'NotFoundError',
+            'NotReadableError',
+            'AbortError',
+            'OverconstrainedError',
+            'InvalidStateError',
+          ].includes(error?.name)
+            ? error.name
+            : 'DeviceError',
+        })
+        throw error
+      }
+      for (const track of stream.getTracks()) {
+        record({ trackEvent: 'captured', kind: track.kind })
+        for (const name of ['ended', 'mute', 'unmute'])
+          track.addEventListener(name, () =>
+            record({ trackEvent: name, kind: track.kind }),
+          )
+      }
+      return stream
+    }
     const NativePeer = globalThis.RTCPeerConnection
     globalThis.__mb384Peers = []
     globalThis.RTCPeerConnection = class extends NativePeer {
@@ -206,7 +245,13 @@ async function actor(role, bootstrap) {
             label ?? '',
           )
         )
-          globalThis.__mb384ControlClicks.push(label)
+          globalThis.__mb384ControlClicks.push({
+            label,
+            at: Date.now(),
+            ...(/^(Micro:|Camera:)/.test(label)
+              ? { planned: globalThis.__mb384ExpectedMediaClick === label }
+              : {}),
+          })
       },
       true,
     )
@@ -259,7 +304,19 @@ async function actor(role, bootstrap) {
     }
     accessDiagnostic = `${role}: HTTP ${response.status()}, ${code}`
   })
-  return { context, page, accessRequests: () => accessRequests }
+  return { role, context, page, accessRequests: () => accessRequests }
+}
+async function clickMedia(page, name) {
+  await page.evaluate((label) => {
+    globalThis.__mb384ExpectedMediaClick = label
+  }, name)
+  try {
+    await page.getByRole('button', { name, exact: true }).click()
+  } finally {
+    await page.evaluate(() => {
+      globalThis.__mb384ExpectedMediaClick = null
+    })
+  }
 }
 async function mediaCounters(page) {
   return page.evaluate(async () => {
@@ -421,6 +478,7 @@ async function verifyContinuity(participant, role) {
   await page.bringToFront()
   const accesses = participant.accessRequests()
   const before = await mediaCounters(page)
+  continuityChecks.push({ role, phase: 'before-hide', counters: before })
   const otherTab = await context.newPage()
   try {
     await otherTab.goto('about:blank')
@@ -450,6 +508,11 @@ async function verifyContinuity(participant, role) {
       timeout: 30000,
     })
     .toBeGreaterThan(before.videoFrames)
+  continuityChecks.push({
+    role,
+    phase: 'tab-restored',
+    counters: await mediaCounters(page),
+  })
   const cdp = await context.newCDPSession(page)
   const { windowId } = await cdp.send('Browser.getWindowForTarget')
   const minimized = await mediaCounters(page)
@@ -730,12 +793,8 @@ try {
         /Đang chờ người còn lại tham gia|Đã kết nối với người còn lại/,
       ),
     ).toBeVisible({ timeout: 30000 })
-    await participant.page
-      .getByRole('button', { name: 'Micro: Đang tắt' })
-      .click()
-    await participant.page
-      .getByRole('button', { name: 'Camera: Đang tắt' })
-      .click()
+    await clickMedia(participant.page, 'Micro: Đang tắt')
+    await clickMedia(participant.page, 'Camera: Đang tắt')
   }
   for (const participant of [user, specialist]) {
     await expect(
@@ -788,16 +847,16 @@ try {
   )
 
   await user.page.bringToFront()
-  await user.page.getByRole('button', { name: 'Camera: Đang bật' }).click()
+  await clickMedia(user.page, 'Camera: Đang bật')
   await expect(
     user.page.getByRole('button', { name: 'Camera: Đang tắt' }),
   ).toBeVisible()
-  await user.page.getByRole('button', { name: 'Camera: Đang tắt' }).click()
-  await user.page.getByRole('button', { name: 'Micro: Đang bật' }).click()
+  await clickMedia(user.page, 'Camera: Đang tắt')
+  await clickMedia(user.page, 'Micro: Đang bật')
   await expect(
     user.page.getByRole('button', { name: 'Micro: Đang tắt' }),
   ).toBeVisible()
-  await user.page.getByRole('button', { name: 'Micro: Đang tắt' }).click()
+  await clickMedia(user.page, 'Micro: Đang tắt')
   if (lifecycle) {
     step = 'actual hidden-tab and minimized-window continuity'
     await verifyContinuity(user, 'USER')
@@ -818,6 +877,7 @@ try {
     `/api/consultation/appointments/${appointment.id}/video-session`,
   )
   assert.equal(authorityBeforeLeave.completion, null)
+  step = 'fresh-authorized leave and rejoin'
   await user.page.bringToFront()
   await user.page.getByRole('button', { name: 'Rời cuộc gọi' }).click()
   await user.page
@@ -845,12 +905,8 @@ try {
       await expect(
         participant.page.getByText('Đang chờ người còn lại tham gia'),
       ).toBeVisible()
-    await participant.page
-      .getByRole('button', { name: 'Micro: Đang tắt' })
-      .click()
-    await participant.page
-      .getByRole('button', { name: 'Camera: Đang tắt' })
-      .click()
+    await clickMedia(participant.page, 'Micro: Đang tắt')
+    await clickMedia(participant.page, 'Camera: Đang tắt')
   }
   for (const participant of [user, specialist]) {
     await expect(
@@ -974,9 +1030,27 @@ try {
             '[aria-label="Cuộc gọi tư vấn"] [role="status"]',
           )?.textContent,
           controls: globalThis.__mb384ControlClicks,
+          mediaEvents: globalThis.__mb384MediaEvents,
+          mediaControls: Array.from(
+            document.querySelectorAll('button[aria-pressed]'),
+            (button) => ({
+              name: button.getAttribute('aria-label'),
+              pressed: button.getAttribute('aria-pressed'),
+            }),
+          ).filter((button) => /^(Micro:|Camera:)/.test(button.name ?? '')),
           peers: (globalThis.__mb384Peers ?? []).map((peer) => ({
             connection: peer.connectionState,
             ice: peer.iceConnectionState,
+            senders: peer.getSenders().map(({ track }) =>
+              track
+                ? {
+                    kind: track.kind,
+                    enabled: track.enabled,
+                    muted: track.muted,
+                    state: track.readyState,
+                  }
+                : null,
+            ),
           })),
           hasJoin: [...document.querySelectorAll('button')].some(
             (button) => button.textContent === 'Tham gia phiên tư vấn',
