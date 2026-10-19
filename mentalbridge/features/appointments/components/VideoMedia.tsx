@@ -188,6 +188,7 @@ function DevicePreview({
         <div className={styles.waitingActions}>
           {onJoin && (
             <button
+              data-appointment-ui
               type="button"
               className={styles.primary}
               disabled={joinDisabled}
@@ -199,6 +200,7 @@ function DevicePreview({
           )}
           {allowed && (
             <button
+              data-appointment-ui
               type="button"
               disabled={busy}
               onClick={() => (ready ? stop() : void preview())}
@@ -246,6 +248,7 @@ function DeviceSelect({
     <label className={styles.deviceSelect}>
       {label}
       <select
+        data-appointment-ui
         value={activeDeviceId ?? ''}
         disabled={!devices.length}
         onChange={(event) => {
@@ -488,6 +491,7 @@ function CallControls({
           {surface(!swapped)}
           <div className={styles.pipHeader}>
             <button
+              data-appointment-ui
               type="button"
               className={styles.dragHandle}
               aria-label="Di chuyển khung hình nhỏ"
@@ -549,6 +553,7 @@ function CallControls({
               <span>Kéo thả</span>
             </button>
             <button
+              data-appointment-ui
               type="button"
               aria-label="Hoán đổi khung hình"
               title="Hoán đổi với khung to"
@@ -557,6 +562,7 @@ function CallControls({
               <ArrowUpDown size={14} aria-hidden="true" />
             </button>
             <button
+              data-appointment-ui
               type="button"
               aria-label="Chuyển góc khung hình nhỏ"
               title="Chuyển sang góc tiếp theo"
@@ -588,7 +594,7 @@ function CallControls({
         <RoomAudioRenderer />
         <div className={styles.callFeedback}>
           {!canPlayAudio && (
-            <button {...mergedProps} type="button">
+            <button data-appointment-ui {...mergedProps} type="button">
               Bật âm thanh cuộc gọi
             </button>
           )}
@@ -601,6 +607,7 @@ function CallControls({
             aria-label="Điều khiển cuộc gọi"
           >
             <button
+              data-appointment-ui
               type="button"
               className={styles.micButton}
               disabled={busy || state !== 'connected'}
@@ -616,6 +623,7 @@ function CallControls({
               )}
             </button>
             <button
+              data-appointment-ui
               type="button"
               className={styles.cameraButton}
               disabled={busy || state !== 'connected'}
@@ -631,6 +639,7 @@ function CallControls({
               )}
             </button>
             <button
+              data-appointment-ui
               type="button"
               aria-label="Hoán đổi khung hình chính"
               title="Hoán đổi khung hình"
@@ -639,6 +648,7 @@ function CallControls({
               <ArrowUpDown size={20} aria-hidden="true" />
             </button>
             <button
+              data-appointment-ui
               type="button"
               aria-label="Cài đặt thiết bị"
               title="Cài đặt thiết bị"
@@ -650,6 +660,7 @@ function CallControls({
               <Settings size={20} aria-hidden="true" />
             </button>
             <button
+              data-appointment-ui
               type="button"
               className={styles.leaveCall}
               aria-label="Rời cuộc gọi"
@@ -677,10 +688,15 @@ function CallControls({
             còn mở. Rời cuộc gọi không xác nhận buổi tư vấn đã hoàn tất.
           </p>
           <div className={styles.dialogActions}>
-            <button type="button" onClick={() => setLeaving(false)}>
+            <button
+              data-appointment-ui
+              type="button"
+              onClick={() => setLeaving(false)}
+            >
               Tiếp tục cuộc gọi
             </button>
             <button
+              data-appointment-ui
               type="button"
               className={styles.confirmLeave}
               onClick={onLeave}
@@ -700,6 +716,7 @@ function CallControls({
           <div className={styles.dialogHeading}>
             <h2 id={`${dialogId}-settings`}>Cài đặt thiết bị</h2>
             <button
+              data-appointment-ui
               type="button"
               aria-label="Đóng cài đặt"
               onClick={() => setSettings(false)}

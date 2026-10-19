@@ -1,5 +1,10 @@
 /* Owner-approved call reference, scoped to this feature; the app shell is unchanged. */
 .workspace {
+  --font-be-vietnam:
+    var(--font-be-vietnam-variable), 'Be Vietnam Pro Fallback', system-ui,
+    sans-serif;
+  --font-body: var(--font-be-vietnam);
+  font-family: var(--font-body);
   width: 100%;
   min-width: 0;
   color: var(--ink);
@@ -58,7 +63,7 @@
   font:
     700 16px/1.5 var(--font-video-display),
     var(--font-body),
-    sans-serif;
+    sans-serif !important;
   color: #004844;
   overflow-wrap: anywhere;
 }
@@ -148,12 +153,12 @@
   outline-offset: 3px;
 }
 .panel .primary {
-  color: #fff;
-  background: #0f615c;
+  color: #fff !important;
+  background: #0f615c !important;
   border-color: #0f615c;
 }
 .panel .primary:hover:not(:disabled) {
-  background: #004844;
+  background: #004844 !important;
 }
 .call,
 .standby {
@@ -327,6 +332,10 @@
 }
 .panel .call .waiting h3 {
   color: #fff !important;
+  font:
+    700 clamp(20px, 2vw, 24px)/1.4 var(--font-video-display),
+    var(--font-body),
+    sans-serif !important;
 }
 .panel .call .waiting p {
   color: #b5cac5 !important;
@@ -414,6 +423,12 @@
 }
 .waitingActions > button {
   font-size: 12px;
+  background: #fff !important;
+  color: #004844 !important;
+}
+.panel .waitingActions > .primary {
+  background: #0f615c !important;
+  color: #fff !important;
 }
 .localPreview,
 .localVideo {
@@ -508,9 +523,9 @@
   padding: 0;
   width: 44px;
   flex-shrink: 0;
-  border: 0;
-  background: transparent;
-  color: #fff;
+  border: 0 !important;
+  background: transparent !important;
+  color: #fff !important;
   border-radius: 6px;
 }
 .panel .pipHeader .dragHandle {
@@ -555,36 +570,36 @@
   height: 48px;
   min-height: 48px;
   flex: 0 0 48px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 50% !important;
   color: #fff !important;
-  background: #24423c;
+  background: #24423c !important;
 }
 .panel .callControls button:hover:not(:disabled) {
-  background: #365c53;
+  background: #365c53 !important;
 }
 .panel .callControls .micButton[aria-pressed='true'] {
-  background: #059669;
+  background: #059669 !important;
 }
 .panel .callControls .cameraButton {
-  background: #fff;
+  background: #fff !important;
   color: #1e293b !important;
 }
 .panel .callControls .cameraButton:hover:not(:disabled) {
-  background: #ecfdf5;
+  background: #ecfdf5 !important;
 }
 .panel .callControls .cameraButton[aria-pressed='false'] {
-  background: #ffe4e6;
+  background: #ffe4e6 !important;
   color: #e11d48 !important;
 }
 .panel .callControls .leaveCall {
   color: #fff;
-  background: #e11d48;
+  background: #e11d48 !important;
   box-shadow: 0 10px 15px -3px #e11d4833;
 }
 .panel .callControls .leaveCall:hover {
-  background: #be123c;
+  background: #be123c !important;
 }
 .leaveCall svg,
 .leaveIcon svg {
@@ -627,6 +642,8 @@
 }
 .footerNote > button {
   flex-shrink: 0;
+  background: #fff !important;
+  color: #004844 !important;
   box-shadow: 0 1px 2px #0000000d;
 }
 .note {
@@ -653,7 +670,7 @@
   border: 0;
   border-radius: 12px;
   color: #004844;
-  background: #0048440d;
+  background: #0048440d !important;
   font-size: 12px;
   font-weight: 500;
   text-decoration: none;
@@ -686,7 +703,7 @@
   font:
     700 20px/1.4 var(--font-video-display),
     var(--font-body),
-    sans-serif;
+    sans-serif !important;
   color: #004844;
 }
 .dialogContent p {
@@ -711,8 +728,8 @@
   margin-top: 24px;
 }
 .dialogActions .confirmLeave {
-  background: #e11d48;
-  color: #fff;
+  background: #e11d48 !important;
+  color: #fff !important;
   border-color: #e11d48;
 }
 .dialogActions .confirmLeave:hover {
@@ -844,7 +861,7 @@
     display: none;
   }
   .waiting:has(+ .localPreview:not([hidden])) h3 {
-    font-size: 16px;
+    font-size: 16px !important;
   }
   .footerNote {
     flex-basis: 100%;

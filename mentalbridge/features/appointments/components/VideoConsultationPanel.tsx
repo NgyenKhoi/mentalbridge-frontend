@@ -428,6 +428,7 @@ export function VideoSessionPanel({
         <footer className={styles.footer}>
           <div className={styles.footerNote}>
             <button
+              data-appointment-ui
               type="button"
               disabled={busy}
               onClick={() => {
@@ -448,6 +449,7 @@ export function VideoSessionPanel({
           <div className={styles.actions}>
             {preparation ? (
               <button
+                data-appointment-ui
                 type="button"
                 className={styles.preparationButton}
                 onClick={() => setPreparationOpen(true)}
@@ -469,6 +471,7 @@ export function VideoSessionPanel({
               (uncertain ||
                 (session && ['ACTIVE', 'ENDED'].includes(session.phase))) && (
                 <button
+                  data-appointment-ui
                   type="button"
                   className={styles.primary}
                   disabled={busy}
@@ -505,6 +508,7 @@ export function VideoSessionPanel({
             <div className={styles.dialogHeading}>
               <h2 id={preparationId}>Thông tin trước buổi tư vấn</h2>
               <button
+                data-appointment-ui
                 type="button"
                 aria-label="Đóng thông tin chuẩn bị"
                 onClick={() => setPreparationOpen(false)}

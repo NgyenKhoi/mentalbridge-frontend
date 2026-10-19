@@ -221,6 +221,8 @@ describe('official Web SDK presentation boundary', () => {
     expect(within(remote).getByText('Micro đang tắt')).toBeInTheDocument()
     const controls = screen.getByRole('group', { name: 'Điều khiển cuộc gọi' })
     expect(within(controls).getAllByRole('button')).toHaveLength(5)
+    for (const button of within(controls).getAllByRole('button'))
+      expect(button).toHaveAttribute('data-appointment-ui')
     expect(
       screen.getByRole('button', { name: 'Micro: Đang tắt' }),
     ).toHaveAttribute('aria-pressed', 'false')
