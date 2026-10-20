@@ -36,6 +36,25 @@ function retryUnavailableReason(request: DeletionRequest): string | null {
   return null
 }
 
+function sweepUnavailableReason(policy: RetentionPolicy): string | null {
+  if (!policy.automatedExecutionSupported) {
+    return (
+      policy.unsupportedCapabilityNotice ??
+      'Chức năng quét dọn dẹp tự động không khả dụng từ giao diện quản trị (Explicitly Unavailable).'
+    )
+  }
+  if (
+    policy.jobStatus === 'RUNNING' ||
+    policy.lastExecution?.jobStatus === 'RUNNING'
+  ) {
+    return 'Tiến trình dọn dẹp đang được thực thi (RUNNING). Vui lòng đợi hoàn tất trước khi kích hoạt lại.'
+  }
+  if (policy.jobStatus === 'FAILED') {
+    return 'Tiến trình dọn dẹp đã thất bại liên tiếp và cần xử lý leo thang thủ công (MANUAL_ESCALATION_REQUIRED).'
+  }
+  return null
+}
+
 export default function AdminRetentionGovernance() {
   const [activeTab, setActiveTab] = useState<'policies' | 'deletions'>(
     'policies',
@@ -397,12 +416,26 @@ export default function AdminRetentionGovernance() {
                         type="button"
                         className={styles.btnPrimary}
                         onClick={() => handleTriggerSweep(policy.policyId)}
-                        disabled={sweepActionLoading === policy.policyId}
+                        disabled={
+                          sweepActionLoading === policy.policyId ||
+                          sweepUnavailableReason(policy) !== null
+                        }
+                        title={sweepUnavailableReason(policy) ?? undefined}
+                        aria-describedby={
+                          sweepUnavailableReason(policy)
+                            ? `sweep-blocked-${policy.policyId}`
+                            : undefined
+                        }
                         data-testid={`sweep-btn-${policy.policyId}`}
                       >
                         {sweepActionLoading === policy.policyId
                           ? 'Đang thực thi...'
-                          : 'Kích hoạt dọn dẹp ngay'}
+                          : policy.jobStatus === 'RUNNING' ||
+                              policy.lastExecution?.jobStatus === 'RUNNING'
+                            ? 'Đang chạy (RUNNING)'
+                            : policy.jobStatus === 'FAILED'
+                              ? 'Cần xử lý thủ công'
+                              : 'Kích hoạt dọn dẹp ngay'}
                       </button>
                     </>
                   ) : (
@@ -426,6 +459,17 @@ export default function AdminRetentionGovernance() {
                     </>
                   )}
                 </div>
+
+                {policy.automatedExecutionSupported &&
+                  sweepUnavailableReason(policy) && (
+                    <p
+                      id={`sweep-blocked-${policy.policyId}`}
+                      className={styles.actionHint}
+                      data-testid={`sweep-blocked-${policy.policyId}`}
+                    >
+                      {sweepUnavailableReason(policy)}
+                    </p>
+                  )}
               </article>
             ))
           )}

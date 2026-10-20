@@ -41,9 +41,9 @@ test.describe('admin retention and deletion governance journey', () => {
       page.getByTestId('policy-card-MB-IDENTITY-REPORTING-001'),
     ).toBeVisible()
     await expect(
-      page.getByText('Chính sách bảo lưu báo cáo phân tích tổng hợp'),
+      page.getByText('Chính sách bảo lưu tệp báo cáo tổng hợp'),
     ).toBeVisible()
-    await expect(page.getByText('30 ngày')).toBeVisible()
+    await expect(page.getByText('30 ngày', { exact: true })).toBeVisible()
     await expect(page.getByText('SUCCEEDED (15 bản ghi dọn dẹp)')).toBeVisible()
 
     // 3. Explicitly unavailable capabilities rather than simulated

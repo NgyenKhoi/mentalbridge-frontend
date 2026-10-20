@@ -229,6 +229,60 @@ describe('AdminRetentionGovernance Component', () => {
     ).toBeInTheDocument()
   })
 
+  it('disables sweep button and displays hint when job is RUNNING', async () => {
+    apiMock.getPolicies.mockResolvedValueOnce([
+      {
+        ...mockPolicies[0],
+        jobStatus: 'RUNNING',
+        lastExecution: {
+          ...mockPolicies[0].lastExecution!,
+          jobStatus: 'RUNNING',
+        },
+      },
+    ])
+    const user = userEvent.setup()
+    render(<AdminRetentionGovernance />)
+
+    const sweepBtn = await screen.findByTestId(
+      'sweep-btn-MB-IDENTITY-REPORTING-001',
+    )
+    expect(sweepBtn).toBeDisabled()
+    expect(sweepBtn).toHaveTextContent('Đang chạy (RUNNING)')
+    expect(
+      screen.getByTestId('sweep-blocked-MB-IDENTITY-REPORTING-001'),
+    ).toHaveTextContent('Tiến trình dọn dẹp đang được thực thi (RUNNING)')
+
+    await user.click(sweepBtn)
+    expect(apiMock.triggerSweep).not.toHaveBeenCalled()
+  })
+
+  it('disables sweep button and explains manual escalation when 3 consecutive executions failed', async () => {
+    apiMock.getPolicies.mockResolvedValueOnce([
+      {
+        ...mockPolicies[0],
+        jobStatus: 'FAILED',
+        lastExecution: {
+          ...mockPolicies[0].lastExecution!,
+          jobStatus: 'FAILED',
+        },
+      },
+    ])
+    const user = userEvent.setup()
+    render(<AdminRetentionGovernance />)
+
+    const sweepBtn = await screen.findByTestId(
+      'sweep-btn-MB-IDENTITY-REPORTING-001',
+    )
+    expect(sweepBtn).toBeDisabled()
+    expect(sweepBtn).toHaveTextContent('Cần xử lý thủ công')
+    expect(
+      screen.getByTestId('sweep-blocked-MB-IDENTITY-REPORTING-001'),
+    ).toHaveTextContent('MANUAL_ESCALATION_REQUIRED')
+
+    await user.click(sweepBtn)
+    expect(apiMock.triggerSweep).not.toHaveBeenCalled()
+  })
+
   it('switches to deletions tab and renders minimized identifiers without raw secrets or text', async () => {
     const user = userEvent.setup()
     render(<AdminRetentionGovernance />)
