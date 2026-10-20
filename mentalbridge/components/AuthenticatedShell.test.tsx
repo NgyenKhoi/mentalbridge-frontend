@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
 const profileApi = vi.hoisted(() => ({ getCareProfile: vi.fn() }))
@@ -145,5 +145,81 @@ describe('AuthenticatedShell', () => {
     expect(
       within(screen.getByRole('banner')).getByText('Kết quả sàng lọc'),
     ).toBeVisible()
+  })
+
+  describe('page entrance latch', () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => {
+      vi.restoreAllMocks()
+      vi.useRealTimers()
+    })
+
+    it('finishes once and stays entered through same-path content changes', () => {
+      const { rerender } = render(
+        <AuthenticatedShell workspaces={[]}>
+          Nội dung ban đầu
+        </AuthenticatedShell>,
+      )
+      const content = screen.getByRole('main')
+      expect(content).not.toHaveAttribute('data-entered')
+
+      act(() => vi.advanceTimersByTime(1199))
+      expect(content).not.toHaveAttribute('data-entered')
+      act(() => vi.advanceTimersByTime(1))
+      expect(content).toHaveAttribute('data-entered')
+
+      // Query-only navigation also keeps usePathname unchanged.
+      rerender(
+        <AuthenticatedShell workspaces={[]}>
+          Nội dung cập nhật
+        </AuthenticatedShell>,
+      )
+      expect(screen.getByRole('main')).toBe(content)
+      expect(content).toHaveAttribute('data-entered')
+    })
+
+    it('resets for each pathname, including a quick return to the previous page', () => {
+      const shell = (
+        <AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>
+      )
+      const { rerender } = render(shell)
+      const content = screen.getByRole('main')
+      act(() => vi.advanceTimersByTime(1200))
+      expect(content).toHaveAttribute('data-entered')
+
+      navigation.pathname = '/journal'
+      rerender(<AuthenticatedShell workspaces={[]}>Nhật ký</AuthenticatedShell>)
+      expect(screen.getByRole('main')).toBe(content)
+      expect(content).not.toHaveAttribute('data-entered')
+      act(() => vi.advanceTimersByTime(600))
+
+      navigation.pathname = '/dashboard'
+      rerender(shell)
+      expect(screen.getByRole('main')).toBe(content)
+      expect(content).not.toHaveAttribute('data-entered')
+      act(() => vi.advanceTimersByTime(600))
+      expect(content).not.toHaveAttribute('data-entered')
+      act(() => vi.advanceTimersByTime(600))
+      expect(content).toHaveAttribute('data-entered')
+    })
+
+    it('replaces the pending timer on navigation and clears it on unmount', () => {
+      const scheduled = vi.spyOn(window, 'setTimeout')
+      const cleared = vi.spyOn(window, 'clearTimeout')
+      const { rerender, unmount } = render(
+        <AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>,
+      )
+
+      navigation.pathname = '/journal'
+      rerender(<AuthenticatedShell workspaces={[]}>Nhật ký</AuthenticatedShell>)
+      const entranceTimers = scheduled.mock.calls.flatMap(([, delay], index) =>
+        delay === 1200 ? [scheduled.mock.results[index].value] : [],
+      )
+      expect(entranceTimers).toHaveLength(2)
+      expect(cleared).toHaveBeenCalledWith(entranceTimers[0])
+
+      unmount()
+      expect(cleared).toHaveBeenCalledWith(entranceTimers[1])
+    })
   })
 })

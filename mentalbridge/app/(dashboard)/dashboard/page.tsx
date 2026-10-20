@@ -1,17 +1,12 @@
 'use client'
-import { Suspense, useEffect, useState, useRef } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import LatestPhq9Result from '@/features/assessment/components/LatestPhq9Result'
 import { PlanEmotionCheckIn } from '@/features/emotion-check-in/PlanEmotionCheckIn'
 import { EmotionProgress } from '@/features/emotion-check-in/EmotionProgress'
 import TodayPlanReminder from '@/features/support-plan/components/TodayPlanReminder'
-import { gsap } from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import '../dashboard-page.css'
 
-if (typeof window !== 'undefined') {
-  gsap.registerPlugin(ScrollTrigger)
-}
 const SmallIcon = ({ type }: { type: 'note' | 'check' | 'user' }) => (
   <svg
     viewBox="0 0 24 24"
@@ -40,110 +35,9 @@ const SmallIcon = ({ type }: { type: 'note' | 'check' | 'user' }) => (
 
 export default function DashboardPage() {
   const [emotionRefresh, setEmotionRefresh] = useState(0)
-  const heroRef = useRef<HTMLElement>(null)
-  const bentoRef = useRef<HTMLElement>(null)
-  const todayRef = useRef<HTMLElement>(null)
-  const quickRef = useRef<HTMLElement>(null)
-  const streakRef = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia(
-      '(prefers-reduced-motion: reduce)',
-    ).matches
-    if (prefersReducedMotion) return
-
-    const ctx = gsap.context(() => {
-      // Hero entrance
-      gsap.from(heroRef.current, {
-        opacity: 0,
-        y: 30,
-        duration: 0.8,
-        ease: 'power3.out',
-      })
-
-      // Bento cards stagger
-      if (bentoRef.current) {
-        gsap.from(bentoRef.current.querySelectorAll('.ref-panel-col'), {
-          scrollTrigger: {
-            trigger: bentoRef.current,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-          opacity: 0,
-          y: 40,
-          duration: 0.6,
-          stagger: 0.15,
-          ease: 'power2.out',
-        })
-      }
-
-      // Today section
-      if (todayRef.current) {
-        gsap.from(todayRef.current.querySelectorAll('.ref-card'), {
-          scrollTrigger: {
-            trigger: todayRef.current,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-          opacity: 0,
-          y: 40,
-          duration: 0.6,
-          stagger: 0.2,
-          ease: 'power2.out',
-        })
-      }
-
-      // Quick actions
-      if (quickRef.current) {
-        gsap.from(quickRef.current.querySelector('header'), {
-          scrollTrigger: {
-            trigger: quickRef.current,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-          opacity: 0,
-          y: 20,
-          duration: 0.5,
-          ease: 'power2.out',
-        })
-
-        gsap.from(quickRef.current.querySelectorAll('a'), {
-          scrollTrigger: {
-            trigger: quickRef.current,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-          opacity: 0,
-          y: 30,
-          duration: 0.6,
-          stagger: 0.12,
-          ease: 'back.out(1.2)',
-        })
-      }
-
-      // Streak banner
-      if (streakRef.current) {
-        gsap.from(streakRef.current, {
-          scrollTrigger: {
-            trigger: streakRef.current,
-            start: 'top 85%',
-            toggleActions: 'play none none reverse',
-          },
-          opacity: 0,
-          scale: 0.95,
-          y: 20,
-          duration: 0.6,
-          ease: 'back.out(1.4)',
-        })
-      }
-    })
-
-    return () => ctx.revert()
-  }, [])
-
   return (
     <div className="ref-dashboard">
-      <section ref={heroRef} className="ref-hero">
+      <section className="ref-hero">
         <div>
           <p>
             <i />
@@ -174,7 +68,7 @@ export default function DashboardPage() {
           Bắt đầu kiểm tra ban đầu <strong aria-hidden="true">→</strong>
         </Link>
       </section>
-      <section ref={bentoRef} className="ref-panel">
+      <section className="ref-panel">
         <div className="ref-panel-col ref-panel-mood">
           <Suspense fallback={<p role="status">Đang tải cảm xúc hôm nay…</p>}>
             <PlanEmotionCheckIn
@@ -182,7 +76,7 @@ export default function DashboardPage() {
             />
           </Suspense>
         </div>
-        <div className="ref-panel-col ref-panel-result">
+        <div className="ref-panel-col ref-panel-result" data-page-motion="off">
           <header className="ref-col-header">
             <h2>Kết quả sàng lọc</h2>
           </header>
@@ -192,7 +86,7 @@ export default function DashboardPage() {
           <EmotionProgress refreshKey={emotionRefresh} />
         </div>
       </section>
-      <section ref={todayRef} className="ref-today">
+      <section className="ref-today">
         <article className="ref-card ref-appointment">
           <header>
             <h2>Lịch hẹn</h2>
@@ -208,7 +102,7 @@ export default function DashboardPage() {
         </article>
         <TodayPlanReminder />
       </section>
-      <section ref={quickRef} className="ref-quick">
+      <section className="ref-quick">
         <header>
           <h2>Hành động nhanh</h2>
           <span>Những việc bạn có thể làm ngay</span>
@@ -246,7 +140,7 @@ export default function DashboardPage() {
           </Link>
         </div>
       </section>
-      <section ref={streakRef} className="ref-journal-streak">
+      <section className="ref-journal-streak">
         <div className="ref-streak-left">
           <div className="ref-streak-icon" aria-hidden="true">
             <svg

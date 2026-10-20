@@ -1171,7 +1171,7 @@ export default function SupportPlanWorkspace({
 
   if (loadFailed)
     return (
-      <div className="mbw-page">
+      <div className="mbw-page" data-page-motion="off">
         {header()}
         <WorkspaceMessage
           alert
@@ -1196,7 +1196,7 @@ export default function SupportPlanWorkspace({
 
   if (!loaded)
     return (
-      <div className="mbw-page">
+      <div className="mbw-page" data-page-motion="off">
         {header()}
         <WorkspaceLoading label="Đang tải kế hoạch…" />
       </div>
@@ -1213,7 +1213,7 @@ export default function SupportPlanWorkspace({
         ? { label: 'Làm bài kiểm tra ngắn', href: '/initial-check' }
         : { label: 'Xem gợi ý hỗ trợ', href: '/support-guides' }
     return (
-      <div className="mbw-page">
+      <div className="mbw-page" data-page-motion="off">
         {header(draft ? 'Xem trước rồi bắt đầu khi bạn sẵn sàng.' : undefined)}
         {live}
         {message && (
@@ -1400,7 +1400,7 @@ export default function SupportPlanWorkspace({
   }
 
   return (
-    <div className="mbw-page">
+    <div className="mbw-page" data-page-motion="off">
       {header(
         cycleLine(current.cycle) ??
           (current.status === 'PAUSED'

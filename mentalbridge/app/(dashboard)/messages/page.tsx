@@ -10,9 +10,11 @@ export default async function MessagesPage({
     ? query.appointmentId[0]
     : query.appointmentId
   return (
-    <AppointmentMessagesWorkspace
-      viewerRole="USER"
-      initialAppointmentId={appointmentId}
-    />
+    <div className="ref-still" data-page-motion="off">
+      <AppointmentMessagesWorkspace
+        viewerRole="USER"
+        initialAppointmentId={appointmentId}
+      />
+    </div>
   )
 }

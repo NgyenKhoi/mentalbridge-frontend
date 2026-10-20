@@ -109,7 +109,7 @@ export default function AssessmentsPage() {
         </div>
       </header>
 
-      <div className="assessment-tabs-container">
+      <div className="assessment-tabs-container" data-page-motion="off">
         <div
           ref={tabListRef}
           className="assessment-tablist"
