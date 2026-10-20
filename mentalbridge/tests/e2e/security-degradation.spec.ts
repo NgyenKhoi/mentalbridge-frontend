@@ -783,6 +783,10 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.getByRole('button', { name: 'Hồ sơ', exact: true }).click()
     const detail = page.getByRole('dialog')
     await expect(detail.getByText(item.bio)).toBeVisible()
+    // MB-716: neutral ranking is explained, not presented as personal matching.
+    await expect(
+      detail.getByRole('region', { name: 'Vì sao hồ sơ này xuất hiện?' }),
+    ).toContainText('Thứ tự chung không sử dụng nội dung bài sàng lọc.')
     await detail.getByRole('tab', { name: 'Lịch trống' }).click()
     await expect(detail.getByRole('radio')).toBeVisible()
 
