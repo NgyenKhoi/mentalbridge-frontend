@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { BadgeCheck, Check, Clock3, LockKeyhole, Star, X } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import type {
+  DiscoveryExplanation,
   DiscoverySlot,
   SpecialistDiscoveryItem,
   SpecialistDiscoveryPage,
@@ -65,6 +66,38 @@ function dateLabel(value: string) {
   }).format(new Date(value))
 }
 
+// Short ranking explanation required by ADR 0027; neutral and unavailable Care
+// context stay distinct (consultation-specialist-policy-v2 §44–49).
+function explanationText(explanation: DiscoveryExplanation) {
+  const messages: string[] = []
+  if (explanation.compatibility === 'MATCHED')
+    messages.push(
+      'Có lĩnh vực hỗ trợ trùng với gợi ý sau bài sàng lọc bạn đã chọn dùng.',
+    )
+  if (explanation.compatibility === 'NOT_MATCHED')
+    messages.push('Chưa có lĩnh vực hỗ trợ trùng với gợi ý sau bài sàng lọc.')
+  if (explanation.compatibility === 'UNAVAILABLE')
+    messages.push(
+      'Hiện chưa thể dùng gợi ý sau bài sàng lọc; các tiêu chí còn lại vẫn được áp dụng.',
+    )
+  if (explanation.compatibility === 'NEUTRAL')
+    messages.push('Thứ tự chung không sử dụng nội dung bài sàng lọc.')
+  if (explanation.languageMatched === true)
+    messages.push('Có ngôn ngữ bạn ưu tiên.')
+  if (explanation.languageMatched === false)
+    messages.push('Chưa có ngôn ngữ bạn ưu tiên.')
+  messages.push(
+    explanation.hasSelectableSlot
+      ? 'Có khung giờ 60 phút đang chọn được.'
+      : 'Hiện chưa có khung giờ chọn được.',
+  )
+  if (explanation.ratingTieBreakerApplied)
+    messages.push(
+      'Điểm đánh giá chỉ được dùng để phân định khi các yếu tố chính bằng nhau.',
+    )
+  return messages
+}
+
 function bookingError(error: unknown) {
   if (!(error instanceof ApiError))
     return 'Không thể gửi yêu cầu đặt lịch. Vui lòng thử lại.'
@@ -113,6 +146,7 @@ export default function SpecialistDetailDialog({
   originatingPlanActionId,
 }: Props) {
   const { showActionToast } = useFeedback()
+  const whyTitleId = useId()
   const [tab, setTab] = useState<'profile' | 'slots'>(initialTab)
   const [step, setStep] = useState<'browse' | 'confirm' | 'success'>('browse')
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
@@ -391,6 +425,14 @@ export default function SpecialistDetailDialog({
             {tab === 'profile' ? (
               <div className={styles.body} role="tabpanel">
                 <p className={styles.bio}>{item.bio}</p>
+                <section className={styles.why} aria-labelledby={whyTitleId}>
+                  <h3 id={whyTitleId}>Vì sao hồ sơ này xuất hiện?</h3>
+                  <ul>
+                    {explanationText(item.explanation).map((message) => (
+                      <li key={message}>{message}</li>
+                    ))}
+                  </ul>
+                </section>
                 <dl className={styles.facts}>
                   <div>
                     <dt>Kinh nghiệm</dt>

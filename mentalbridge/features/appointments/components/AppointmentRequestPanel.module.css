@@ -1267,6 +1267,11 @@
   cursor: pointer;
 }
 
+.detailActions button[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .primaryAction {
   background: #12382c;
   color: #ffffff !important;
