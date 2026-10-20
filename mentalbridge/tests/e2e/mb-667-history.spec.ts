@@ -258,20 +258,16 @@ test('MB-667 post-screening tab and Results share the exact saved Meaning UI', a
   for (const width of [1440, 1280, 768, 640, 375]) {
     await page.setViewportSize({ width, height: 900 })
     await expectNoHorizontalOverflow(page)
-    await expect(cards.nth(0)).toHaveCSS(
-      'background-color',
-      'rgb(255, 255, 255)',
-    )
-    await expect(cards.nth(1)).toHaveCSS(
-      'background-color',
-      'rgb(255, 255, 255)',
-    )
+    // The two bands sit inside the white meaning card, after the meaning.
+    // The shell theme paints every summary surface; only require it to be white.
+    await expect(summary).toHaveCSS('background-color', /^rgba?\(255, 255, 255/)
+    await expect(summary.locator('.combined-meaning-score')).toHaveCount(2)
     const first = (await cards.nth(0).boundingBox())!
     const second = (await cards.nth(1).boundingBox())!
     if (width > 700) expect(Math.abs(first.y - second.y)).toBeLessThan(2)
     else expect(second.y).toBeGreaterThan(first.y + first.height)
     const compositionBox = (await panel
-      .locator('.combined-meaning-card')
+      .locator('.combined-meaning')
       .boundingBox())!
     const summaryBox = (await summary.boundingBox())!
     expect(summaryBox.width / compositionBox.width).toBeGreaterThan(0.98)
@@ -288,9 +284,11 @@ test('MB-667 post-screening tab and Results share the exact saved Meaning UI', a
   await expect(
     page.getByRole('heading', { name: meaning.baseMeaning.text }),
   ).toBeVisible()
-  expect(await page.locator('.combined-meaning-scores').innerHTML()).toBe(
-    scoresMarkup,
-  )
+  // Band headings follow the page outline (h3 in the tab, h2 on the page); the markup is otherwise identical.
+  const sameLevel = (markup: string) => markup.replace(/<(\/?)h[23]\b/g, '<$1h')
+  expect(
+    sameLevel(await page.locator('.combined-meaning-scores').innerHTML()),
+  ).toBe(sameLevel(scoresMarkup))
   expect(await page.locator('.combined-meaning-summary').textContent()).toBe(
     summaryContent,
   )
@@ -306,9 +304,7 @@ test('MB-667 post-screening tab and Results share the exact saved Meaning UI', a
   await expect(
     panel.getByRole('heading', { name: older.baseMeaning.text }),
   ).toBeVisible()
-  await expect(
-    panel.getByRole('progressbar', { name: /PHQ-9: 12 trên 27 điểm/ }),
-  ).toHaveCount(1)
+  await expect(panel.getByText('12/27 điểm · Trung bình')).toHaveCount(1)
   await expect(
     panel.getByRole('link', { name: 'Mở trang kết quả' }),
   ).toHaveAttribute('href', `/assessments/results/${severeEvaluationId}`)
@@ -350,12 +346,13 @@ test('the current result keeps incoming actions without reading or generating un
   })
 
   await page.goto('/initial-check')
+  // Without a saved Guide the initial check continues to the Guide overview, never a guessed Guide.
   await expect(
-    page.getByRole('link', { name: /Kết nối chuyên gia tâm lý/ }),
-  ).toHaveAttribute('href', '/specialists')
+    page.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
+  ).toHaveAttribute('href', '/support-guides')
   await expect(page.locator('a[href^="/support-guides/"]')).toHaveCount(0)
   await expect(
-    page.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
+    page.getByText('Lần sàng lọc này chưa có gợi ý đã lưu.'),
   ).toHaveCount(0)
   await page.screenshot({
     path: testInfo.outputPath('mb-667-current-no-matching-guide.png'),
@@ -365,9 +362,9 @@ test('the current result keeps incoming actions without reading or generating un
   matchedGuideId = guideId
   await page.reload()
   await expect(
-    page.getByRole('link', { name: 'Xem bài tập chánh niệm' }),
-  ).toHaveAttribute('href', '/support-plan')
-  await expect(page.locator('a[href^="/support-guides/"]')).toHaveCount(0)
+    page.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
+  ).toHaveAttribute('href', `/support-guides/${guideId}`)
+  await expect(page.locator('a[href^="/support-guides/"]')).toHaveCount(1)
   expect(unrelatedGuideReads).toBe(0)
   expect(guideGenerations).toBe(0)
 })
@@ -404,13 +401,13 @@ test('the incoming result keeps loading, paired cards and responsive reading ord
   })
   releaseCurrent()
   await expect(
-    page.getByRole('heading', { name: 'Lắng nghe nhịp điệu tâm trí của bạn' }),
+    page.getByRole('heading', { level: 1, name: meaning.baseMeaning.text }),
   ).toBeVisible()
   const result = page.locator('.initial-check-result')
-  const cards = result.locator('.initial-check-score-card')
+  const cards = result.locator('.combined-meaning-score')
   await expect(cards).toHaveCount(2)
-  await expect(cards.nth(0)).toContainText('PHQ-9')
-  await expect(cards.nth(1)).toContainText('GAD-7')
+  await expect(cards.nth(0)).toContainText('Dấu hiệu trầm cảm')
+  await expect(cards.nth(1)).toContainText('Dấu hiệu lo âu')
   for (const width of [1440, 1280]) {
     await page.setViewportSize({ width, height: 900 })
     const first = (await cards.nth(0).boundingBox())!
@@ -503,12 +500,8 @@ test('MB-667 opens the exact saved pair and its persisted Guide', async ({
   await expect(
     page.getByRole('heading', { name: meaning.baseMeaning.text }),
   ).toBeVisible()
-  await expect(
-    page.getByRole('progressbar', { name: /PHQ-9: 5 trên 27 điểm/ }),
-  ).toBeVisible()
-  await expect(
-    page.getByRole('progressbar', { name: /GAD-7: 4 trên 21 điểm/ }),
-  ).toBeVisible()
+  await expect(page.getByText('5/27 điểm · Nhẹ')).toBeAttached()
+  await expect(page.getByText('4/21 điểm · Tối thiểu')).toBeAttached()
   await expect(page.getByText('Lưu bản tóm tắt')).toHaveCount(0)
 
   const desktop = testInfo.outputPath('mb-667-historical-meaning-desktop.png')
@@ -826,11 +819,7 @@ test('MB-667 keeps safety authoritative and renders severe professional support 
   })
 
   await page.goto(`/assessments/results/${severeEvaluationId}`)
-  await expect(
-    page.getByRole('progressbar', {
-      name: 'PHQ-9: 24 trên 27 điểm, mức Nặng',
-    }),
-  ).toBeVisible()
+  await expect(page.getByText('24/27 điểm · Nặng')).toBeAttached()
   await expect(
     page.getByRole('heading', {
       name: 'Nên sớm trao đổi với chuyên gia',
@@ -840,7 +829,7 @@ test('MB-667 keeps safety authoritative and renders severe professional support 
     page.getByRole('link', { name: /Tìm chuyên gia hiện tại/ }),
   ).toHaveAttribute('href', '/specialists')
   await expect(
-    page.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
+    page.getByText('Lần sàng lọc này chưa có gợi ý đã lưu.'),
   ).toBeVisible()
   await expect(
     page.getByRole('heading', { name: /hướng dẫn an toàn/i }),
@@ -868,11 +857,7 @@ test('MB-667 keeps safety authoritative and renders severe professional support 
   })
 
   await page.goto(`/assessments/results/${severeEvaluationId}`)
-  await expect(
-    page.getByRole('progressbar', {
-      name: 'PHQ-9: 24 trên 27 điểm, mức Nặng',
-    }),
-  ).toBeVisible()
+  await expect(page.getByText('24/27 điểm · Nặng')).toBeAttached()
   await expectNoHorizontalOverflow(page)
   const severeMobileScreenshot = testInfo.outputPath('mb-667-severe-mobile.png')
   await page.screenshot({ path: severeMobileScreenshot, fullPage: true })

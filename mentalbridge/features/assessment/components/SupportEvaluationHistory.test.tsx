@@ -62,12 +62,8 @@ describe('SupportEvaluationHistory unified Meaning', () => {
         level: 2,
       }),
     ).toBeVisible()
-    expect(
-      screen.getByRole('progressbar', { name: /PHQ-9: 5 trên 27 điểm/ }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('progressbar', { name: /GAD-7: 4 trên 21 điểm/ }),
-    ).toBeInTheDocument()
+    expect(screen.getByText('5/27 điểm · Nhẹ')).toBeInTheDocument()
+    expect(screen.getByText('4/21 điểm · Tối thiểu')).toBeInTheDocument()
     expect(container.querySelectorAll('.combined-meaning-score')).toHaveLength(
       2,
     )
@@ -114,9 +110,7 @@ describe('SupportEvaluationHistory unified Meaning', () => {
     ).toBeVisible()
     expect(chooseOlder).toHaveFocus()
     expect(chooseOlder).toHaveAttribute('aria-pressed', 'true')
-    expect(
-      screen.getByRole('progressbar', { name: /PHQ-9: 12 trên 27 điểm/ }),
-    ).toBeInTheDocument()
+    expect(screen.getByText('12/27 điểm · Trung bình')).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Mở trang kết quả' }),
     ).toHaveAttribute(

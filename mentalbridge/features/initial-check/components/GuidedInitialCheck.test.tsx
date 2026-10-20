@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { combinedMeaningFixture } from '@/tests/fixtures/combined-meaning'
 import { mockServer } from '@/tests/mocks/server'
 
 import GuidedInitialCheck from './GuidedInitialCheck'
@@ -96,6 +97,7 @@ function completedState() {
       disclaimer:
         'Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.',
     },
+    combinedMeaning: combinedMeaningFixture(),
   }
 }
 
@@ -158,36 +160,29 @@ describe('GuidedInitialCheck', () => {
 
     const { container } = render(<GuidedInitialCheck />)
 
+    // The result is Care's saved combined meaning, not client-written copy.
     await screen.findByRole('heading', {
-      name: 'Lắng nghe nhịp điệu tâm trí của bạn',
+      level: 1,
+      name: 'Dấu hiệu trầm cảm ở mức nhẹ, lo âu rất ít.',
     })
+    expect(screen.getByText(/Đã lưu kết quả kiểm tra ban đầu/)).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: 'Khí sắc & Thể chất' }),
+      screen.getByRole('heading', { name: 'Dấu hiệu trầm cảm' }),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: 'Căng thẳng & Lo âu' }),
+      screen.getByRole('heading', { name: 'Dấu hiệu lo âu' }),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', {
-        name: 'Không có câu trả lời cần thêm hướng dẫn an toàn',
-      }),
-    ).toBeVisible()
+      screen.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
+    ).toHaveAttribute('href', '/support-guides')
     expect(
-      screen.getByRole('link', { name: 'Tôi cần hỗ trợ ngay' }),
-    ).toHaveAttribute('href', '/safety-directory')
-    expect(
-      screen.getByRole('heading', { name: 'Tài nguyên nuôi dưỡng hôm nay' }),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('heading', {
-        name: 'Bạn không cần phải tự mình vượt qua tất cả',
-      }),
-    ).toBeVisible()
-    expect(screen.getByText(/không phải là đánh giá toàn diện/)).toBeVisible()
+      screen.queryByRole('heading', { name: /hướng dẫn an toàn/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/[ⓘ⚠✓]/)).not.toBeInTheDocument()
     expect(container.textContent).not.toMatch(/sprint|backend|demo|test/i)
 
     await userEvent.click(
-      screen.getByRole('button', { name: 'Bắt đầu lượt kiểm tra mới' }),
+      screen.getByRole('button', { name: 'Làm lại bài sàng lọc' }),
     )
     const confirmation = screen.getByRole('group', {
       name: 'Xác nhận bắt đầu lượt mới',
@@ -203,6 +198,9 @@ describe('GuidedInitialCheck', () => {
     expect(
       screen.queryByRole('group', { name: 'Xác nhận bắt đầu lượt mới' }),
     ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Làm lại bài sàng lọc' }),
+    ).toHaveFocus()
   })
 
   it('offers a retry without discarding completed assessments when evaluation is unavailable', async () => {
