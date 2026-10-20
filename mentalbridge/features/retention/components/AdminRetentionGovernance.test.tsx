@@ -496,4 +496,67 @@ describe('AdminRetentionGovernance Component', () => {
     expect(screen.queryByText(/Bearer eyJhbGci/)).not.toBeInTheDocument()
     expect(screen.queryByText(/please do not tell my parents/)).not.toBeInTheDocument()
   })
+
+  it('sanitizes bare JWT, API keys, underscore sensitive text and unapproved owner evidence from UI', async () => {
+    const user = userEvent.setup()
+    apiMock.getDeletions.mockResolvedValueOnce({
+      items: [
+        {
+          ...mockDeletions[0],
+          requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf88',
+          failureCode: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.request.token',
+          ownerFacts: [
+            {
+              ownerService: 'IDENTITY',
+              status: 'COMPLETED',
+              evidenceReference: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bare.jwt',
+            },
+            {
+              ownerService: 'IDENTITY',
+              status: 'FAILED',
+              evidenceReference: 'opaque_api_key_token_mock_12345',
+              failureReason: 'KEY_EXPIRED',
+            },
+            {
+              ownerService: 'IDENTITY',
+              status: 'FAILED',
+              evidenceReference:
+                'PATIENT_DIAGNOSED_WITH_SEVERE_DEPRESSION_SUICIDE_RISK',
+              failureReason: 'CLINICAL_HOLD',
+            },
+            {
+              ownerService: 'CARE',
+              status: 'COMPLETED',
+              evidenceReference: 'audit:care:account-deleted:123',
+            },
+            {
+              ownerService: 'IDENTITY',
+              status: 'COMPLETED',
+              evidenceReference: 'audit:del:identity:001',
+            },
+          ],
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    })
+
+    render(<AdminRetentionGovernance />)
+    await user.click(screen.getByTestId('tab-deletions'))
+
+    const expandBtn = await screen.findByTestId('btn-expand-948f9e80-d3bc-45aa-91f6-044dd5afbf88')
+    await user.click(expandBtn)
+
+    const factsPanel = screen.getByTestId('facts-panel-948f9e80-d3bc-45aa-91f6-044dd5afbf88')
+
+    // Approved audit reference renders correctly
+    expect(factsPanel).toHaveTextContent('Bằng chứng: audit:del:identity:001')
+
+    // Tokens and sensitive text do NOT appear anywhere in the DOM
+    expect(screen.queryByText(/bare\.jwt/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/opaque_api_key/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/SEVERE_DEPRESSION/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/audit:care:account-deleted/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/request\.token/)).not.toBeInTheDocument()
+  })
 })

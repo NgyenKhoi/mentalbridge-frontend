@@ -10,8 +10,9 @@ import type {
 import { browserAdminRetention } from '../api/browser-admin-retention'
 import {
   DELETION_HOLD_REASON_CODES,
-  SAFE_EVIDENCE_REFERENCE_PATTERN,
+  APPROVED_IDENTITY_EVIDENCE_PATTERN,
   SAFE_FAILURE_REASON_PATTERN,
+  SAFE_FAILURE_CODE_PATTERN,
 } from '@/lib/auth/identity-validation'
 import styles from './AdminRetentionGovernance.module.css'
 
@@ -406,8 +407,11 @@ export default function AdminRetentionGovernance() {
                         <>
                           <span>
                             {policy.lastExecution.jobStatus}{' '}
-                            {policy.lastExecution.failureCode
-                              ? `(${policy.lastExecution.failureCode})`
+                            {policy.lastExecution.failureCode &&
+                            SAFE_FAILURE_CODE_PATTERN.test(
+                              policy.lastExecution.failureCode.trim(),
+                            )
+                              ? `(${policy.lastExecution.failureCode.trim()})`
                               : `(${policy.lastExecution.recordsPurged} bản ghi dọn dẹp)`}
                           </span>
                           <span
@@ -792,9 +796,9 @@ export default function AdminRetentionGovernance() {
                               BẰNG CHỨNG HOÀN TẤT THEO DỊCH VỤ CHỦ SỞ HỮU (OWNER
                               FACTS):
                             </strong>
-                            {req.ownerFacts.map((fact) => (
+                            {req.ownerFacts.map((fact, factIndex) => (
                               <div
-                                key={fact.ownerService}
+                                key={`${fact.ownerService}-${factIndex}`}
                                 className={styles.factRow}
                               >
                                 <div>
@@ -815,8 +819,9 @@ export default function AdminRetentionGovernance() {
                                   </span>
                                 </div>
                                 <div className={styles.factCode}>
-                                  {fact.evidenceReference &&
-                                  SAFE_EVIDENCE_REFERENCE_PATTERN.test(
+                                  {fact.ownerService === 'IDENTITY' &&
+                                  fact.evidenceReference &&
+                                  APPROVED_IDENTITY_EVIDENCE_PATTERN.test(
                                     fact.evidenceReference.trim(),
                                   ) ? (
                                     <span>

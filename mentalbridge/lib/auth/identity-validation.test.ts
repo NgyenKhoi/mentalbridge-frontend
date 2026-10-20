@@ -264,6 +264,61 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
     })
   })
 
+  it('sanitizes bare JWT, API keys, underscore sensitive text, and unapproved owner references in evidenceReference', () => {
+    // Bare JWT on IDENTITY -> null
+    const jwtFact = parseDeletionOwnerFact({
+      ownerService: 'IDENTITY',
+      status: 'FAILED',
+      evidenceReference:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.c2lnbmF0dXJl',
+    })
+    expect(jwtFact?.evidenceReference).toBeNull()
+
+    // API-key-like token on IDENTITY -> null
+    const apiKeyFact = parseDeletionOwnerFact({
+      ownerService: 'IDENTITY',
+      status: 'FAILED',
+      evidenceReference: 'opaque_api_key_token_mock_12345',
+    })
+    expect(apiKeyFact?.evidenceReference).toBeNull()
+
+    // Underscore-delimited sensitive clinical text on IDENTITY -> null
+    const clinicalUnderscoreFact = parseDeletionOwnerFact({
+      ownerService: 'IDENTITY',
+      status: 'FAILED',
+      evidenceReference:
+        'PATIENT_DIAGNOSED_WITH_SEVERE_DEPRESSION_SUICIDE_RISK',
+    })
+    expect(clinicalUnderscoreFact?.evidenceReference).toBeNull()
+
+    // Valid approved audit reference on IDENTITY -> preserved
+    const validIdFact = parseDeletionOwnerFact({
+      ownerService: 'IDENTITY',
+      status: 'COMPLETED',
+      evidenceReference:
+        'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+    })
+    expect(validIdFact?.evidenceReference).toBe(
+      'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+    )
+
+    // Valid approved audit format del:identity -> preserved
+    const validDelFact = parseDeletionOwnerFact({
+      ownerService: 'IDENTITY',
+      status: 'COMPLETED',
+      evidenceReference: 'audit:del:identity:001',
+    })
+    expect(validDelFact?.evidenceReference).toBe('audit:del:identity:001')
+
+    // Unapproved external owner with audit prefix -> null
+    const unapprovedOwnerFact = parseDeletionOwnerFact({
+      ownerService: 'CARE',
+      status: 'COMPLETED',
+      evidenceReference: 'audit:care:account-deleted:123',
+    })
+    expect(unapprovedOwnerFact?.evidenceReference).toBeNull()
+  })
+
   it('rejects invalid owner service or unknown status', () => {
     expect(
       parseDeletionOwnerFact({
@@ -280,8 +335,8 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
     ).toBeNull()
   })
 
-  it('sanitizes facts inside parseDeletionRequest', () => {
-    const request = parseDeletionRequest({
+  it('sanitizes facts and failureCode inside parseDeletionRequest', () => {
+    const requestWithLeaks = parseDeletionRequest({
       requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf71',
       subjectReference:
         'tombstone:aaaa9e80d3bc45aa91f6044dd5afbf78abcdef1234567890abcdef1234567890',
@@ -292,6 +347,7 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
       maxRetries: 3,
       escalationState: 'NONE',
       accountStatus: 'DELETION_PENDING',
+      failureCode: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token.leak',
       requestedAt: '2026-10-18T10:00:00Z',
       scheduledExecutionAt: '2026-10-18T10:00:00Z',
       ownerFacts: [
@@ -304,8 +360,29 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
       ],
     })
 
-    expect(request).not.toBeNull()
-    expect(request?.ownerFacts[0].evidenceReference).toBeNull()
-    expect(request?.ownerFacts[0].failureReason).toBeNull()
+    expect(requestWithLeaks).not.toBeNull()
+    // failureCode containing bare JWT must be sanitized to null
+    expect(requestWithLeaks?.failureCode).toBeNull()
+    expect(requestWithLeaks?.ownerFacts[0].evidenceReference).toBeNull()
+    expect(requestWithLeaks?.ownerFacts[0].failureReason).toBeNull()
+
+    const requestWithValidCode = parseDeletionRequest({
+      requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+      subjectReference:
+        'tombstone:aaaa9e80d3bc45aa91f6044dd5afbf78abcdef1234567890abcdef1234567890',
+      status: 'FAILED',
+      holdType: 'NONE',
+      holdReason: null,
+      retryCount: 1,
+      maxRetries: 3,
+      escalationState: 'NONE',
+      accountStatus: 'DELETION_PENDING',
+      failureCode: 'ACCOUNT_NOT_FOUND',
+      requestedAt: '2026-10-18T10:00:00Z',
+      scheduledExecutionAt: '2026-10-18T10:00:00Z',
+      ownerFacts: [],
+    })
+
+    expect(requestWithValidCode?.failureCode).toBe('ACCOUNT_NOT_FOUND')
   })
 })

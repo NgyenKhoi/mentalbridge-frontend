@@ -1062,8 +1062,10 @@ const DELETION_FACT_STATUSES = new Set([
   'FAILED',
   'UNAVAILABLE',
 ])
+export const SAFE_FAILURE_CODE_PATTERN = /^[A-Z0-9_]{1,64}$/
 export const SAFE_FAILURE_REASON_PATTERN = /^[A-Z0-9_]{1,64}$/
-export const SAFE_EVIDENCE_REFERENCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,128}$/
+export const APPROVED_IDENTITY_EVIDENCE_PATTERN =
+  /^audit:(identity:account-deleted:[0-9a-fA-F-]{1,64}|del:identity:[a-zA-Z0-9.-]{1,64})$/
 
 export function parseRetentionExecutionRecord(
   value: unknown,
@@ -1100,7 +1102,11 @@ export function parseRetentionExecutionRecord(
     recordsPurged: value.recordsPurged,
     tombstonesCreated: value.tombstonesCreated,
     holdsHonored: value.holdsHonored,
-    failureCode: (value.failureCode as string) ?? null,
+    failureCode:
+      typeof value.failureCode === 'string' &&
+      SAFE_FAILURE_CODE_PATTERN.test(value.failureCode.trim())
+        ? value.failureCode.trim()
+        : null,
   }
 }
 
@@ -1186,7 +1192,9 @@ export function parseDeletionOwnerFact(
       ? value.evidenceReference.trim()
       : null
   const safeEvidenceReference =
-    rawEvidence && SAFE_EVIDENCE_REFERENCE_PATTERN.test(rawEvidence)
+    value.ownerService === 'IDENTITY' &&
+    rawEvidence &&
+    APPROVED_IDENTITY_EVIDENCE_PATTERN.test(rawEvidence)
       ? rawEvidence
       : null
 
@@ -1262,7 +1270,11 @@ export function parseDeletionRequest(value: unknown): DeletionRequest | null {
     maxRetries: value.maxRetries,
     escalationState:
       value.escalationState as DeletionRequest['escalationState'],
-    failureCode: (value.failureCode as string) ?? null,
+    failureCode:
+      typeof value.failureCode === 'string' &&
+      SAFE_FAILURE_CODE_PATTERN.test(value.failureCode.trim())
+        ? value.failureCode.trim()
+        : null,
     requestedAt: value.requestedAt,
     scheduledExecutionAt: value.scheduledExecutionAt,
     completedAt: (value.completedAt as string) ?? null,
