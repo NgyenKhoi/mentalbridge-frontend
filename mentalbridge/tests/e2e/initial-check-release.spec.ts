@@ -440,7 +440,7 @@ test.describe('MB-273 initial-check release readiness', () => {
       Array.from({ length: 7 }, () => 'Không bao giờ (0 ngày nào)'),
     )
 
-    const resultCard = page.locator('article.combined-meaning-card')
+    const resultCard = page.locator('article.combined-meaning')
     const resultHeading = resultCard.getByRole('heading', { level: 1 })
     await expect(resultHeading).toBeVisible()
     await expect(
@@ -448,20 +448,12 @@ test.describe('MB-273 initial-check release readiness', () => {
         name: 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp',
       }),
     ).toBeVisible()
-    await expect(
-      resultCard.getByRole('progressbar', {
-        name: /PHQ-9: 1 trên 27 điểm, mức tối thiểu/i,
-      }),
-    ).toBeVisible()
-    await expect(
-      resultCard.getByRole('progressbar', {
-        name: /GAD-7: 0 trên 21 điểm, mức tối thiểu/i,
-      }),
-    ).toBeVisible()
+    await expect(resultCard.getByText('1/27 điểm · Tối thiểu')).toBeAttached()
+    await expect(resultCard.getByText('0/21 điểm · Tối thiểu')).toBeAttached()
     await expect(
       resultCard.getByText(/chủ động liên hệ dịch vụ khẩn cấp/i),
     ).toBeVisible()
-    await resultCard.getByText('Vì sao có gợi ý này?').first().click()
+    await resultCard.getByText('Điều cần biết về kết quả này').first().click()
     await expect(
       resultCard.getByText(/không phải chẩn đoán y khoa/i).first(),
     ).toBeVisible()
