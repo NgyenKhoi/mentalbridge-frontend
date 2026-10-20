@@ -233,6 +233,7 @@ function SafetyBlock({ evaluation }: { evaluation: SupportEvaluation }) {
     <section
       className={`initial-check-safety ${positive ? 'positive' : ''}`}
       aria-labelledby="initial-check-safety-title"
+      data-page-motion="off"
     >
       <header className="initial-check-section-header">
         <div className="initial-check-section-title">
@@ -464,7 +465,7 @@ function UnifiedResult({
     gad7.result.screeningLevel,
   )
   return (
-    <div className="initial-check-result">
+    <div className="initial-check-result" data-page-motion="off">
       {/* 1. Hero Header Card */}
       <header className="initial-check-result-hero-zen">
         <div className="initial-check-hero-copy">

@@ -201,6 +201,20 @@ export default function AuthenticatedShell({
   const [specialistSearch, setSpecialistSearch] = useState('')
   const [generalSearch, setGeneralSearch] = useState('')
   const [appointmentCount, setAppointmentCount] = useState<number | null>(null)
+  // MB-744: the page entrance (globals.css) plays only while a route is fresh,
+  // so dialogs, async rows and re-renders later never replay it.
+  const [enteredPath, setEnteredPath] = useState<string | null>(null)
+  const [shownPath, setShownPath] = useState(pathname)
+  if (shownPath !== pathname) {
+    // A route revisited within the window (A → B → A) enters again.
+    setShownPath(pathname)
+    setEnteredPath(null)
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setEnteredPath(pathname), 1200)
+    return () => window.clearTimeout(timer)
+  }, [pathname])
 
   useEffect(() => {
     const resetSearch = () => setSpecialistSearch('')
@@ -508,6 +522,7 @@ export default function AuthenticatedShell({
         </header>
         <main
           className={`ref-content ${pathname === '/dashboard' ? 'ref-content-dashboard' : isScreeningJourney ? 'ref-content-screening' : 'ref-content-page'}`}
+          data-entered={enteredPath === pathname ? '' : undefined}
         >
           {children}
         </main>

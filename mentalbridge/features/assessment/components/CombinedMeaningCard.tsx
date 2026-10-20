@@ -158,6 +158,7 @@ export function CombinedMeaningCard({
 
   return (
     <article
+      data-page-motion="off"
       className={`combined-meaning-card priority-${meaning.presentationPriority.toLowerCase()}`}
       aria-labelledby="combined-meaning-title"
     >

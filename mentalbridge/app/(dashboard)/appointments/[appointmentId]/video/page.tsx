@@ -12,10 +12,12 @@ export default async function AppointmentVideoPage({
   const { appointmentId } = await params
   if (!validUuid(appointmentId)) notFound()
   return (
-    <VideoConsultationWorkspace
+    <div
       key={`${account.accountId}:${appointmentId}`}
-      appointmentId={appointmentId}
-      role="USER"
-    />
+      className="ref-still"
+      data-page-motion="off"
+    >
+      <VideoConsultationWorkspace appointmentId={appointmentId} role="USER" />
+    </div>
   )
 }
