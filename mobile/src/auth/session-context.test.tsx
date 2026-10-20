@@ -5,12 +5,13 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native'
-import { Button } from 'react-native'
+import { Button, View } from 'react-native'
 
 import { createQueryClient } from '@/query/query-client'
 
 import type { SessionService } from './identity-session-service'
 import { SessionProvider, useSession } from './session-context'
+import { useCompanionSessionPreferences } from '@/support-plan-companion/companion-session'
 
 function createSessionService(): jest.Mocked<SessionService> {
   return {
@@ -26,8 +27,17 @@ function createSessionService(): jest.Mocked<SessionService> {
 
 function SignOutHarness() {
   const { signOut, status } = useSession()
+  const { muted, setMuted } = useCompanionSessionPreferences('account-1')
 
-  return <Button title={status} onPress={() => void signOut()} />
+  return (
+    <View>
+      <Button title={status} onPress={() => void signOut()} />
+      <Button
+        title={muted ? 'companion-muted' : 'companion-unmuted'}
+        onPress={() => setMuted(!muted)}
+      />
+    </View>
+  )
 }
 
 describe('mobile session context', () => {
@@ -50,6 +60,12 @@ describe('mobile session context', () => {
       </QueryClientProvider>,
     )
 
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'companion-unmuted' }),
+    )
+    expect(
+      screen.getByRole('button', { name: 'companion-muted' }),
+    ).toBeOnTheScreen()
     await fireEvent.press(screen.getByRole('button', { name: 'authenticated' }))
 
     await waitFor(() => {
@@ -57,6 +73,9 @@ describe('mobile session context', () => {
       expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
       expect(
         screen.getByRole('button', { name: 'unauthenticated' }),
+      ).toBeOnTheScreen()
+      expect(
+        screen.getByRole('button', { name: 'companion-unmuted' }),
       ).toBeOnTheScreen()
     })
   })
