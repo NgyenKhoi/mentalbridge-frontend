@@ -15,6 +15,7 @@ import type {
   SessionService,
 } from './identity-session-service'
 import type { AppSession } from './session'
+import { resetCompanionSessionPreferences } from '@/support-plan-companion/companion-session'
 
 export type SessionStatus =
   'restoring' | 'authenticated' | 'unauthenticated' | 'unavailable'
@@ -65,6 +66,7 @@ export function SessionProvider({
 
   const applyUnauthenticated = useCallback(() => {
     accessExpiresAt.current = null
+    resetCompanionSessionPreferences()
     queryClient.clear()
     setSession(null)
     setStatus('unauthenticated')

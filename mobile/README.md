@@ -141,6 +141,14 @@ terminal history, replacement review, and specialist proposal decisions. See
 [`docs/MB-625_SUPPORT_PLAN.md`](docs/MB-625_SUPPORT_PLAN.md) for contract, cache,
 failure-state, test, and Android persisted-activity evidence.
 
+MB-654 adds the optional mobile-native SupportPlan Companion as a bounded
+presenter: explicit explanation requests, deterministic next-step guidance,
+owner-route continuity, reduced-motion behavior and runtime-session mute/hide
+preferences. It never mutates or infers plan state. See
+[`docs/MB-654_SUPPORT_PLAN_COMPANION.md`](docs/MB-654_SUPPORT_PLAN_COMPANION.md)
+for the contract, web/mobile presentation differences, tests and deferred
+Android evidence status.
+
 MB-613 adds the Journal-backed daily emotion check-in, owner-scoped history,
 authoritative streaks and bounded 7/14/30-day coverage. It supports same-day
 revision-aware updates and deletion without client-side mood scoring, averages,
