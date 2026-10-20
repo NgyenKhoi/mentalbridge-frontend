@@ -95,15 +95,33 @@ export function SupportPlanCompanion({
   subject,
   plan,
   occurrences,
+  now,
+  preferredOccurrenceId,
   interrupted,
 }: Readonly<{
   api: SupportPlanActionApi
   subject: string
   plan: CanonicalSupportPlan
   occurrences: readonly ActionOccurrence[]
+  now: () => Date
+  preferredOccurrenceId?: string
   interrupted: boolean
 }>) {
-  const context = selectMobileCompanionContext(plan, occurrences)
+  const context = selectMobileCompanionContext(plan, occurrences, {
+    now: now(),
+    ...(preferredOccurrenceId ? { preferredOccurrenceId } : {}),
+  })
+  const contextKey = context
+    ? [
+        context.supportPlanId,
+        plan.version,
+        context.action.actionId,
+        context.action.actionVersion,
+        context.surface,
+        context.occurrence?.occurrenceId ?? '',
+        context.occurrence?.version ?? '',
+      ].join(':')
+    : 'none'
   const navigation = context ? mobileCompanionNavigation(context) : null
   const { muted, hidden, setMuted, setHidden } =
     useCompanionSessionPreferences(subject)
@@ -113,14 +131,15 @@ export function SupportPlanCompanion({
   const [response, setResponse] = useState<ResponseState | null>(null)
   const requestSequence = useRef(0)
   const inFlight = useRef(false)
+  const activeContextKey = useRef(contextKey)
   const openingControl = useRef<View>(null)
   const sheetHeading = useRef<Text>(null)
   const [pulse] = useState(() => new Animated.Value(0))
 
   const close = useCallback(() => {
     requestSequence.current += 1
-    inFlight.current = false
     setPending(false)
+    setResponse(null)
     setOpen(false)
     requestAnimationFrame(() => {
       if (openingControl.current)
@@ -134,13 +153,25 @@ export function SupportPlanCompanion({
   useEffect(() => {
     if (!interrupted) return
     requestSequence.current += 1
-    inFlight.current = false
     const frame = requestAnimationFrame(() => {
       setPending(false)
+      setResponse(null)
       setOpen(false)
     })
     return () => cancelAnimationFrame(frame)
   }, [interrupted])
+
+  useEffect(() => {
+    if (activeContextKey.current === contextKey) return
+    activeContextKey.current = contextKey
+    requestSequence.current += 1
+    const frame = requestAnimationFrame(() => {
+      setPending(false)
+      setResponse(null)
+      setOpen(false)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [contextKey])
 
   useEffect(() => {
     if (reducedMotion || muted || hidden || interrupted) {
@@ -211,8 +242,8 @@ export function SupportPlanCompanion({
         source: 'Không thể kết nối; kế hoạch gốc vẫn giữ nguyên',
       })
     } finally {
+      inFlight.current = false
       if (requestSequence.current === sequence) {
-        inFlight.current = false
         setPending(false)
       }
     }
@@ -221,7 +252,6 @@ export function SupportPlanCompanion({
   const showNextStep = () => {
     if (interrupted) return
     requestSequence.current += 1
-    inFlight.current = false
     setPending(false)
     setResponse({
       status: 'ready',

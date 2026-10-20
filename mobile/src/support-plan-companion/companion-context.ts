@@ -2,6 +2,8 @@ import type {
   ActionOccurrence,
   CanonicalSupportPlan,
 } from '@/support-plan/support-plan-action-contract'
+import { localPlanDate } from '@/support-plan/emotion-plan-context'
+import { isSupportedJournalAction } from '@/support-plan/journal-plan-context'
 
 type PlanAction = CanonicalSupportPlan['focuses'][number]['actions'][number]
 
@@ -23,23 +25,97 @@ export type MobileCompanionNavigation = Readonly<{
   params?: Readonly<Record<string, string>>
 }>
 
+type CompanionSelection = Readonly<{
+  now: Date
+  preferredOccurrenceId?: string
+}>
+
+function activeActions(plan: CanonicalSupportPlan) {
+  return plan.focuses
+    .slice()
+    .sort((left, right) => left.ordinal - right.ordinal)
+    .flatMap((focus) =>
+      focus.actions.slice().sort((left, right) => left.ordinal - right.ordinal),
+    )
+    .filter(
+      (action) =>
+        action.status === 'ACTIVE' && action.representationMode === 'NATIVE_V3',
+    )
+}
+
+function isEligibleTodayOccurrence(
+  plan: CanonicalSupportPlan,
+  action: PlanAction,
+  occurrence: ActionOccurrence,
+  now: Date,
+) {
+  if (
+    plan.status !== 'ACTIVE' ||
+    !['SCHEDULED', 'COMPLETED'].includes(occurrence.state) ||
+    occurrence.representationMode !== 'NATIVE_V3' ||
+    occurrence.actionId !== action.actionId ||
+    occurrence.actionType !== action.actionType ||
+    occurrence.actionVersion !== action.actionVersion ||
+    (action.actionType === 'JOURNAL' && !isSupportedJournalAction(action))
+  )
+    return false
+  const schedule = action.schedules.find(
+    (item) =>
+      item.status === 'ACTIVE' &&
+      item.scheduleId === occurrence.scheduleId &&
+      item.version === occurrence.scheduleVersion,
+  )
+  if (!schedule) return false
+  try {
+    return localPlanDate(now, schedule.timezone) === occurrence.localDate
+  } catch {
+    return false
+  }
+}
+
 export function selectMobileCompanionContext(
   plan: CanonicalSupportPlan,
   occurrences: readonly ActionOccurrence[],
+  selection: CompanionSelection,
 ): MobileCompanionContext | null {
-  const actions = plan.focuses.flatMap((focus) => focus.actions)
-  const occurrence = occurrences.find((item) =>
-    actions.some((action) => action.actionId === item.actionId),
-  )
-  const action = occurrence
-    ? actions.find((item) => item.actionId === occurrence.actionId)
-    : actions[0]
+  const actions = activeActions(plan)
+  const byActionId = new Map(actions.map((action) => [action.actionId, action]))
+  const eligible = occurrences
+    .flatMap((occurrence) => {
+      const action = byActionId.get(occurrence.actionId)
+      return action &&
+        isEligibleTodayOccurrence(plan, action, occurrence, selection.now)
+        ? [{ action, occurrence }]
+        : []
+    })
+    .sort((left, right) => {
+      const leftPreferred =
+        left.occurrence.occurrenceId === selection.preferredOccurrenceId
+      const rightPreferred =
+        right.occurrence.occurrenceId === selection.preferredOccurrenceId
+      if (leftPreferred !== rightPreferred) return leftPreferred ? -1 : 1
+      const scheduled = left.occurrence.scheduledAt.localeCompare(
+        right.occurrence.scheduledAt,
+      )
+      if (scheduled !== 0) return scheduled
+      return left.occurrence.occurrenceId.localeCompare(
+        right.occurrence.occurrenceId,
+      )
+    })
+  const today = eligible[0]
+  if (today)
+    return {
+      supportPlanId: plan.supportPlanId,
+      action: today.action,
+      occurrence: today.occurrence,
+      surface: 'TODAY',
+    }
+  const action = actions[0]
   if (!action) return null
   return {
     supportPlanId: plan.supportPlanId,
     action,
-    ...(occurrence ? { occurrence } : {}),
-    surface: occurrence ? 'TODAY' : 'PLAN',
+    surface: 'PLAN',
   }
 }
 
@@ -49,6 +125,7 @@ export function mobileCompanionNavigation(
   const { action, occurrence } = context
   switch (action.actionType) {
     case 'JOURNAL':
+      if (occurrence && !isSupportedJournalAction(action)) return null
       return {
         label: 'Mở Nhật ký',
         href: '/(user)/journal',

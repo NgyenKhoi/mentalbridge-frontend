@@ -541,6 +541,10 @@ export function NativeSupportPlanScreen({
           subject={subject}
           plan={plan}
           occurrences={ordered}
+          now={now}
+          {...(returned
+            ? { preferredOccurrenceId: returned.occurrenceId }
+            : {})}
           interrupted={busy || dirty || confirmation !== null}
         />
       ) : null}
