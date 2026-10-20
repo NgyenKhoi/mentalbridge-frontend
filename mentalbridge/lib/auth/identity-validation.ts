@@ -1062,6 +1062,8 @@ const DELETION_FACT_STATUSES = new Set([
   'FAILED',
   'UNAVAILABLE',
 ])
+export const SAFE_FAILURE_REASON_PATTERN = /^[A-Z0-9_]{1,64}$/
+export const SAFE_EVIDENCE_REFERENCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,128}$/
 
 export function parseRetentionExecutionRecord(
   value: unknown,
@@ -1179,12 +1181,30 @@ export function parseDeletionOwnerFact(
   )
     return null
 
+  const rawEvidence =
+    typeof value.evidenceReference === 'string'
+      ? value.evidenceReference.trim()
+      : null
+  const safeEvidenceReference =
+    rawEvidence && SAFE_EVIDENCE_REFERENCE_PATTERN.test(rawEvidence)
+      ? rawEvidence
+      : null
+
+  const rawReason =
+    typeof value.failureReason === 'string'
+      ? value.failureReason.trim()
+      : null
+  const safeFailureReason =
+    rawReason && SAFE_FAILURE_REASON_PATTERN.test(rawReason)
+      ? rawReason
+      : null
+
   return {
     ownerService: value.ownerService as DeletionOwnerFact['ownerService'],
     status: value.status as DeletionOwnerFact['status'],
     completedAt: (value.completedAt as string) ?? null,
-    evidenceReference: (value.evidenceReference as string) ?? null,
-    failureReason: (value.failureReason as string) ?? null,
+    evidenceReference: safeEvidenceReference,
+    failureReason: safeFailureReason,
   }
 }
 

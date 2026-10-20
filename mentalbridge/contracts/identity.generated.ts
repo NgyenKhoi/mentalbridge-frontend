@@ -542,7 +542,7 @@ export interface paths {
         put?: never;
         /**
          * Trigger authoritative retention sweep for a supported owner policy
-         * @description Purges expired artifacts and tokens for supported owners (e.g. Identity). Fails closed for unsupported owners.
+         * @description Purges expired artifacts (e.g. platform report export files) for supported owners (e.g. Identity). Fails closed for unsupported owners.
          */
         post: operations["triggerRetentionSweep"];
         delete?: never;
@@ -601,13 +601,13 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Apply legal or operational hold to a deletion request
-         * @description Blocks deletion execution until released by admin.
+         * Apply legal, operational, or dispute hold to a deletion request
+         * @description Applies an Identity coordinator hold (LEGAL_HOLD, OPERATIONAL_HOLD, or DISPUTE_HOLD) blocking deletion coordination and retry attempts within Identity until released by admin. Does not assert or claim enforcement in external owner databases unless an authoritative cross-service contract exists.
          */
         post: operations["applyDeletionHold"];
         /**
-         * Release legal or operational hold from a deletion request
-         * @description Releases hold, permitting deletion coordination to resume.
+         * Release legal, operational, or dispute hold from a deletion request
+         * @description Releases the Identity coordinator hold, permitting deletion coordination and retry attempts within Identity to resume. Does not mutate external owner facts or assert external enforcement.
          */
         delete: operations["releaseDeletionHold"];
         options?: never;

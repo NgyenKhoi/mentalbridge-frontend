@@ -8,7 +8,11 @@ import type {
   RetentionPolicy,
 } from '@/features/auth/api/identity-contract'
 import { browserAdminRetention } from '../api/browser-admin-retention'
-import { DELETION_HOLD_REASON_CODES } from '@/lib/auth/identity-validation'
+import {
+  DELETION_HOLD_REASON_CODES,
+  SAFE_EVIDENCE_REFERENCE_PATTERN,
+  SAFE_FAILURE_REASON_PATTERN,
+} from '@/lib/auth/identity-validation'
 import styles from './AdminRetentionGovernance.module.css'
 
 const HOLD_REASON_LABELS: Record<ApplyHoldRequest['holdReason'], string> = {
@@ -811,13 +815,20 @@ export default function AdminRetentionGovernance() {
                                   </span>
                                 </div>
                                 <div className={styles.factCode}>
-                                  {fact.evidenceReference ? (
+                                  {fact.evidenceReference &&
+                                  SAFE_EVIDENCE_REFERENCE_PATTERN.test(
+                                    fact.evidenceReference.trim(),
+                                  ) ? (
                                     <span>
-                                      Bằng chứng: {fact.evidenceReference}
+                                      Bằng chứng:{' '}
+                                      {fact.evidenceReference.trim()}
                                     </span>
-                                  ) : fact.failureReason ? (
+                                  ) : fact.failureReason &&
+                                    SAFE_FAILURE_REASON_PATTERN.test(
+                                      fact.failureReason.trim(),
+                                    ) ? (
                                     <span style={{ color: '#dc2626' }}>
-                                      Lý do: {fact.failureReason}
+                                      Lý do: {fact.failureReason.trim()}
                                     </span>
                                   ) : (
                                     'Chưa có'

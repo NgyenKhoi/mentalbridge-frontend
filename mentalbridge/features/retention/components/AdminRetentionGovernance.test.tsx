@@ -111,7 +111,7 @@ const mockDeletions: DeletionRequest[] = [
       {
         ownerService: 'IDENTITY',
         status: 'HELD',
-        failureReason: 'Active legal hold blocks deletion execution',
+        failureReason: 'LEGAL_HOLD_ACTIVE',
       },
     ],
   },
@@ -136,7 +136,7 @@ const mockDeletions: DeletionRequest[] = [
       {
         ownerService: 'COMMUNITY',
         status: 'FAILED',
-        failureReason: 'Downstream timeout during community post anonymization',
+        failureReason: 'COMMUNITY_TIMEOUT',
       },
     ],
   },
@@ -447,5 +447,53 @@ describe('AdminRetentionGovernance Component', () => {
 
     const row = await screen.findByTestId('deletion-row-948f9e80-d3bc-45aa-91f6-044dd5afbf71')
     expect(row).toHaveTextContent('UNKNOWN')
+  })
+
+  it('renders valid failureReason code and does not leak raw email, clinical note, chat or secret', async () => {
+    const user = userEvent.setup()
+    apiMock.getDeletions.mockResolvedValueOnce({
+      items: [
+        {
+          ...mockDeletions[2],
+          requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf99',
+          ownerFacts: [
+            {
+              ownerService: 'COMMUNITY',
+              status: 'FAILED',
+              failureReason: 'COMMUNITY_TIMEOUT',
+            },
+            {
+              ownerService: 'CARE',
+              status: 'FAILED',
+              evidenceReference: 'raw.email@example.com',
+              failureReason: 'Patient diagnosed with severe depression session #42',
+            },
+            {
+              ownerService: 'CONSULTATION',
+              status: 'FAILED',
+              evidenceReference: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret',
+              failureReason: 'User chat: please do not tell my parents about this',
+            },
+          ],
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    })
+
+    render(<AdminRetentionGovernance />)
+    await user.click(screen.getByTestId('tab-deletions'))
+
+    const expandBtn = await screen.findByTestId('btn-expand-948f9e80-d3bc-45aa-91f6-044dd5afbf99')
+    await user.click(expandBtn)
+
+    const factsPanel = screen.getByTestId('facts-panel-948f9e80-d3bc-45aa-91f6-044dd5afbf99')
+    expect(factsPanel).toHaveTextContent('Lý do: COMMUNITY_TIMEOUT')
+
+    // Verify privacy boundary fail-closed: raw PII/secrets/journal text are NEVER rendered
+    expect(screen.queryByText(/raw\.email@example\.com/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/severe depression/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Bearer eyJhbGci/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/please do not tell my parents/)).not.toBeInTheDocument()
   })
 })

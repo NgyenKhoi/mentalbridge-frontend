@@ -3,6 +3,8 @@ import {
   parseAccountPage,
   parseApplyHoldRequest,
   parseAdministrationAuditEventPage,
+  parseDeletionOwnerFact,
+  parseDeletionRequest,
   validateAccountStateChangeRequest,
 } from './identity-validation'
 
@@ -191,5 +193,119 @@ describe('admin account validation', () => {
         wrap({ ...baseEvent, targetIdentifier: 'invalid-target' }),
       ),
     ).toBeNull()
+  })
+})
+
+describe('parseDeletionOwnerFact boundary sanitization', () => {
+  it('accepts approved safe codes and opaque references', () => {
+    const fact = parseDeletionOwnerFact({
+      ownerService: 'IDENTITY',
+      status: 'COMPLETED',
+      completedAt: '2026-10-18T10:00:00Z',
+      evidenceReference: 'audit:del:identity:001',
+      failureReason: null,
+    })
+    expect(fact).toEqual({
+      ownerService: 'IDENTITY',
+      status: 'COMPLETED',
+      completedAt: '2026-10-18T10:00:00Z',
+      evidenceReference: 'audit:del:identity:001',
+      failureReason: null,
+    })
+
+    const failedFact = parseDeletionOwnerFact({
+      ownerService: 'CARE',
+      status: 'FAILED',
+      completedAt: null,
+      evidenceReference: null,
+      failureReason: 'ACCOUNT_NOT_FOUND',
+    })
+    expect(failedFact).toEqual({
+      ownerService: 'CARE',
+      status: 'FAILED',
+      completedAt: null,
+      evidenceReference: null,
+      failureReason: 'ACCOUNT_NOT_FOUND',
+    })
+  })
+
+  it('sanitizes raw emails, clinical journal notes, chat transcripts and secrets to null', () => {
+    const piiFact = parseDeletionOwnerFact({
+      ownerService: 'CARE',
+      status: 'FAILED',
+      completedAt: null,
+      evidenceReference: 'member.clinical@example.com',
+      failureReason:
+        'Patient diagnosed with severe major depressive disorder with suicidal ideation',
+    })
+    expect(piiFact).toEqual({
+      ownerService: 'CARE',
+      status: 'FAILED',
+      completedAt: null,
+      evidenceReference: null,
+      failureReason: null,
+    })
+
+    const chatAndSecretFact = parseDeletionOwnerFact({
+      ownerService: 'CONSULTATION',
+      status: 'FAILED',
+      completedAt: null,
+      evidenceReference:
+        'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.topsecrettoken',
+      failureReason:
+        'User chat log: my parents must never know about my consultation history',
+    })
+    expect(chatAndSecretFact).toEqual({
+      ownerService: 'CONSULTATION',
+      status: 'FAILED',
+      completedAt: null,
+      evidenceReference: null,
+      failureReason: null,
+    })
+  })
+
+  it('rejects invalid owner service or unknown status', () => {
+    expect(
+      parseDeletionOwnerFact({
+        ownerService: 'EXTERNAL_PAYMENT_SERVICE',
+        status: 'COMPLETED',
+      }),
+    ).toBeNull()
+
+    expect(
+      parseDeletionOwnerFact({
+        ownerService: 'IDENTITY',
+        status: 'UNKNOWN_STATUS',
+      }),
+    ).toBeNull()
+  })
+
+  it('sanitizes facts inside parseDeletionRequest', () => {
+    const request = parseDeletionRequest({
+      requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+      subjectReference:
+        'tombstone:aaaa9e80d3bc45aa91f6044dd5afbf78abcdef1234567890abcdef1234567890',
+      status: 'FAILED',
+      holdType: 'NONE',
+      holdReason: null,
+      retryCount: 1,
+      maxRetries: 3,
+      escalationState: 'NONE',
+      accountStatus: 'DELETION_PENDING',
+      requestedAt: '2026-10-18T10:00:00Z',
+      scheduledExecutionAt: '2026-10-18T10:00:00Z',
+      ownerFacts: [
+        {
+          ownerService: 'CARE',
+          status: 'FAILED',
+          evidenceReference: 'leaked.email@example.com',
+          failureReason: 'Free-text sensitive clinical observation',
+        },
+      ],
+    })
+
+    expect(request).not.toBeNull()
+    expect(request?.ownerFacts[0].evidenceReference).toBeNull()
+    expect(request?.ownerFacts[0].failureReason).toBeNull()
   })
 })
