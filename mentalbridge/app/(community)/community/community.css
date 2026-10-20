@@ -1598,7 +1598,7 @@
     left: var(--space-3);
     z-index: 50;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     padding: 6px;
     border: 1px solid var(--line);
     border-radius: var(--radius-shell);
@@ -2684,14 +2684,22 @@
   background: var(--surface);
   box-shadow: var(--elevation-2);
 }
-.community-safety-actions .community-safety-menu button {
+.community-safety-actions .community-safety-menu button,
+.community-safety-actions .community-safety-menu a {
   min-height: 44px;
+  display: flex;
+  align-items: center;
   justify-content: flex-start;
+  padding: 7px 11px;
   border: 0;
   background: transparent;
+  color: var(--ink);
+  font: inherit;
   text-align: left;
+  text-decoration: none;
 }
-.community-safety-actions .community-safety-menu button:hover {
+.community-safety-actions .community-safety-menu button:hover,
+.community-safety-actions .community-safety-menu a:hover {
   background: var(--surface-soft);
 }
 .community-report-form {
