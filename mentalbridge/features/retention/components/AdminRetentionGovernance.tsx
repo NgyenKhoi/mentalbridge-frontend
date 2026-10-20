@@ -388,9 +388,29 @@ export default function AdminRetentionGovernance() {
                   <div className={styles.metaItem}>
                     <strong>Kết quả lần thực thi gần nhất</strong>
                     <span>
-                      {policy.lastExecution
-                        ? `${policy.lastExecution.jobStatus} (${policy.lastExecution.recordsPurged} bản ghi dọn dẹp)`
-                        : 'Chưa có nhật ký gần đây'}
+                      {policy.lastExecution ? (
+                        <>
+                          <span>
+                            {policy.lastExecution.jobStatus}{' '}
+                            {policy.lastExecution.failureCode
+                              ? `(${policy.lastExecution.failureCode})`
+                              : `(${policy.lastExecution.recordsPurged} bản ghi dọn dẹp)`}
+                          </span>
+                          <span
+                            style={{
+                              display: 'block',
+                              fontSize: '11.5px',
+                              color: 'var(--ink-soft)',
+                            }}
+                          >
+                            {policy.lastExecution.completedAt
+                              ? `Thời gian: ${policy.lastExecution.completedAt}`
+                              : `Bắt đầu: ${policy.lastExecution.startedAt}`}
+                          </span>
+                        </>
+                      ) : (
+                        'Chưa có nhật ký gần đây'
+                      )}
                     </span>
                   </div>
                   <div className={styles.metaItem}>
@@ -874,8 +894,11 @@ export default function AdminRetentionGovernance() {
                 margin: 0,
               }}
             >
-              Đặt lệnh Hold sẽ chặn mọi hoạt động xóa dữ liệu đối với yêu cầu
-              này cho đến khi được quản trị viên chủ động gỡ bỏ.
+              Lệnh Hold cấp điều phối viên (Coordinator) chặn xử lý xóa tại
+              Identity và từ chối các lượt retry tiếp theo cho đến khi quản trị
+              viên chủ động gỡ bỏ. Lưu ý: Lệnh Hold này không can thiệp trực
+              tiếp vào cơ sở dữ liệu riêng của các dịch vụ bên ngoài chưa có
+              hợp đồng thực thi.
             </p>
 
             <div className={styles.formGroup}>
