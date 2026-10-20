@@ -8,7 +8,17 @@ import type {
   RetentionPolicy,
 } from '@/features/auth/api/identity-contract'
 import { browserAdminRetention } from '../api/browser-admin-retention'
+import { DELETION_HOLD_REASON_CODES } from '@/lib/auth/identity-validation'
 import styles from './AdminRetentionGovernance.module.css'
+
+const HOLD_REASON_LABELS: Record<ApplyHoldRequest['holdReason'], string> = {
+  STATUTORY_INQUIRY: 'Yêu cầu điều tra theo luật định',
+  PENDING_DISPUTE: 'Đang trong quá trình giải quyết khiếu nại',
+  ACTIVE_SAFETY_REVIEW: 'Đang đánh giá an toàn người dùng',
+  SCHEDULED_APPOINTMENT_ACTIVE: 'Có lịch hẹn tư vấn sắp diễn ra',
+  USER_CONTESTED: 'Người dùng khiếu nại yêu cầu xóa',
+  AUDIT_COMPLIANCE_HOLD: 'Bảo lưu phục vụ kiểm toán tuân thủ',
+}
 
 function retryUnavailableReason(request: DeletionRequest): string | null {
   if (request.status === 'COMPLETED') {
@@ -91,7 +101,7 @@ export default function AdminRetentionGovernance() {
   const [selectedHoldType, setSelectedHoldType] =
     useState<ApplyHoldRequest['holdType']>('LEGAL_HOLD')
   const [selectedHoldReason, setSelectedHoldReason] =
-    useState('STATUTORY_INQUIRY')
+    useState<ApplyHoldRequest['holdReason']>('STATUTORY_INQUIRY')
 
   const loadPolicies = useCallback(async () => {
     setPoliciesLoading(true)
@@ -930,24 +940,18 @@ export default function AdminRetentionGovernance() {
               <select
                 id="modal-hold-reason"
                 value={selectedHoldReason}
-                onChange={(e) => setSelectedHoldReason(e.target.value)}
+                onChange={(e) =>
+                  setSelectedHoldReason(
+                    e.target.value as ApplyHoldRequest['holdReason'],
+                  )
+                }
                 data-testid="select-hold-reason"
               >
-                <option value="STATUTORY_INQUIRY">
-                  STATUTORY_INQUIRY (Yêu cầu điều tra theo luật định)
-                </option>
-                <option value="PENDING_DISPUTE">
-                  PENDING_DISPUTE (Đang trong quá trình giải quyết khiếu nại)
-                </option>
-                <option value="ACTIVE_SAFETY_REVIEW">
-                  ACTIVE_SAFETY_REVIEW (Đang đánh giá an toàn người dùng)
-                </option>
-                <option value="SCHEDULED_APPOINTMENT_ACTIVE">
-                  SCHEDULED_APPOINTMENT_ACTIVE (Có lịch hẹn tư vấn sắp diễn ra)
-                </option>
-                <option value="USER_CONTESTED">
-                  USER_CONTESTED (Người dùng khiếu nại yêu cầu xóa)
-                </option>
+                {DELETION_HOLD_REASON_CODES.map((reason) => (
+                  <option key={reason} value={reason}>
+                    {reason} ({HOLD_REASON_LABELS[reason]})
+                  </option>
+                ))}
               </select>
             </div>
 

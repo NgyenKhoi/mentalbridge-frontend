@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/internal/v1/community-chat/account-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve current active USER eligibility for Community chat
+         * @description Community-only read using its dedicated service credential, separate from notification/reminder credentials. At most 100 exact private account IDs. Returns only requested IDs currently ACTIVE with verified email and USER role; unknown, disabled, deleting, deleted, unverified and other roles are omitted identically. No email, name, role or status projection. No cached positive fallback or Idempotency-Key. This current read is not a durable authorization grant; Community must recheck each operation and enforce its local blocks/restrictions transactionally. Internal network/TLS only.
+         */
+        post: operations["authorizeCommunityChatAccounts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/accounts/{accountId}/verified-email": {
         parameters: {
             query?: never;
@@ -978,6 +998,8 @@ export interface components {
             evidenceReference?: string | null;
             failureReason?: string | null;
         };
+        /** @enum {string} */
+        DeletionHoldReason: "STATUTORY_INQUIRY" | "PENDING_DISPUTE" | "ACTIVE_SAFETY_REVIEW" | "SCHEDULED_APPOINTMENT_ACTIVE" | "USER_CONTESTED" | "AUDIT_COMPLIANCE_HOLD";
         DeletionRequest: {
             /** Format: uuid */
             requestId: string;
@@ -987,7 +1009,7 @@ export interface components {
             status: "PENDING" | "IN_PROGRESS" | "HELD" | "COMPLETED" | "FAILED";
             /** @enum {string} */
             holdType: "NONE" | "LEGAL_HOLD" | "OPERATIONAL_HOLD" | "DISPUTE_HOLD";
-            holdReason?: string | null;
+            holdReason?: components["schemas"]["DeletionHoldReason"] | null;
             retryCount: number;
             maxRetries: number;
             /** @enum {string} */
@@ -1011,7 +1033,7 @@ export interface components {
         ApplyHoldRequest: {
             /** @enum {string} */
             holdType: "LEGAL_HOLD" | "OPERATIONAL_HOLD" | "DISPUTE_HOLD";
-            holdReason: string;
+            holdReason: components["schemas"]["DeletionHoldReason"];
         };
     };
     responses: {
@@ -1201,6 +1223,37 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    authorizeCommunityChatAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    accountIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Current eligibility subset; unknown IDs reveal no account metadata */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        activeUserAccountIds: string[];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+        };
+    };
     getVerifiedDeliveryAddress: {
         parameters: {
             query?: never;

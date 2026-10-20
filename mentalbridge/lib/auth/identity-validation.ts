@@ -1041,6 +1041,15 @@ const DELETION_HOLD_TYPES = new Set([
   'OPERATIONAL_HOLD',
   'DISPUTE_HOLD',
 ])
+export const DELETION_HOLD_REASON_CODES = [
+  'STATUTORY_INQUIRY',
+  'PENDING_DISPUTE',
+  'ACTIVE_SAFETY_REVIEW',
+  'SCHEDULED_APPOINTMENT_ACTIVE',
+  'USER_CONTESTED',
+  'AUDIT_COMPLIANCE_HOLD',
+] as const satisfies ReadonlyArray<ApplyHoldRequest['holdReason']>
+const DELETION_HOLD_REASONS = new Set<string>(DELETION_HOLD_REASON_CODES)
 const DELETION_ESCALATION_STATES = new Set([
   'NONE',
   'RETRY_EXHAUSTED',
@@ -1194,6 +1203,10 @@ export function parseDeletionRequest(value: unknown): DeletionRequest | null {
     !DELETION_REQUEST_STATUSES.has(value.status) ||
     typeof value.holdType !== 'string' ||
     !DELETION_HOLD_TYPES.has(value.holdType) ||
+    (value.holdReason !== null &&
+      value.holdReason !== undefined &&
+      (typeof value.holdReason !== 'string' ||
+        !DELETION_HOLD_REASONS.has(value.holdReason))) ||
     typeof value.retryCount !== 'number' ||
     typeof value.maxRetries !== 'number' ||
     typeof value.escalationState !== 'string' ||
@@ -1223,7 +1236,8 @@ export function parseDeletionRequest(value: unknown): DeletionRequest | null {
     accountStatus: (value.accountStatus as DeletionRequest['accountStatus']) ?? null,
     status: value.status as DeletionRequest['status'],
     holdType: value.holdType as DeletionRequest['holdType'],
-    holdReason: (value.holdReason as string) ?? null,
+    holdReason:
+      (value.holdReason as DeletionRequest['holdReason']) ?? null,
     retryCount: value.retryCount,
     maxRetries: value.maxRetries,
     escalationState:
@@ -1262,13 +1276,12 @@ export function parseApplyHoldRequest(value: unknown): ApplyHoldRequest | null {
     !DELETION_HOLD_TYPES.has(value.holdType) ||
     value.holdType === 'NONE' ||
     typeof value.holdReason !== 'string' ||
-    !value.holdReason.trim() ||
-    value.holdReason.length > 64
+    !DELETION_HOLD_REASONS.has(value.holdReason)
   )
     return null
 
   return {
     holdType: value.holdType as ApplyHoldRequest['holdType'],
-    holdReason: value.holdReason.trim(),
+    holdReason: value.holdReason as ApplyHoldRequest['holdReason'],
   }
 }

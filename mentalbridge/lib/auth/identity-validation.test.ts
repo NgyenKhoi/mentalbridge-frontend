@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   parseAccountPage,
+  parseApplyHoldRequest,
   parseAdministrationAuditEventPage,
   validateAccountStateChangeRequest,
 } from './identity-validation'
@@ -17,6 +18,24 @@ const account = {
 }
 
 describe('admin account validation', () => {
+	it('accepts only contract-defined retention hold reason codes', () => {
+		expect(
+			parseApplyHoldRequest({
+				holdType: 'OPERATIONAL_HOLD',
+				holdReason: 'AUDIT_COMPLIANCE_HOLD',
+			}),
+		).toEqual({
+			holdType: 'OPERATIONAL_HOLD',
+			holdReason: 'AUDIT_COMPLIANCE_HOLD',
+		})
+		expect(
+			parseApplyHoldRequest({
+				holdType: 'OPERATIONAL_HOLD',
+				holdReason: 'arbitrary free text',
+			}),
+		).toBeNull()
+	})
+
   it('parses a bounded account page without accepting extra fields', () => {
     expect(parseAccountPage({ items: [account], nextCursor: null })).toEqual({
       items: [account],

@@ -385,12 +385,17 @@ describe('AdminRetentionGovernance Component', () => {
     expect(screen.getByTestId('hold-modal')).toBeInTheDocument()
     expect(screen.getByText('Áp dụng lệnh Hold bảo lưu')).toBeInTheDocument()
 
+    await user.selectOptions(
+      screen.getByTestId('select-hold-reason'),
+      'AUDIT_COMPLIANCE_HOLD',
+    )
+
     const confirmBtn = screen.getByTestId('btn-confirm-apply-hold')
     await user.click(confirmBtn)
 
     expect(apiMock.applyHold).toHaveBeenCalledWith('948f9e80-d3bc-45aa-91f6-044dd5afbf71', {
       holdType: 'LEGAL_HOLD',
-      holdReason: 'STATUTORY_INQUIRY',
+      holdReason: 'AUDIT_COMPLIANCE_HOLD',
     })
   })
 
