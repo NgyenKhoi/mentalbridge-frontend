@@ -1619,6 +1619,13 @@ export interface components {
             /** Format: uuid */
             accountId: string;
             packageCode: components["schemas"]["ServicePackage"];
+            /**
+             * @description Always emitted by the provider; optional for additive rollout. ACTIVE is an effective paid or explicit demo grant at generatedAt. EXPIRED is a retained grant whose exclusive end is at or before generatedAt and returns effective FREE/DEFAULT_FREE with null current dates. DEFAULT_FREE has neither an effective nor an ended grant and may have a future grant.
+             * @enum {string}
+             */
+            entitlementState?: "ACTIVE" | "EXPIRED" | "DEFAULT_FREE";
+            /** @description Always emitted by the provider; optional for additive rollout. The exact purchased-version capability for ACTIVE PAID, or the explicit paid-package policy for ACTIVE DEMO, resolved at the same instant as entitlementState. False for EXPIRED and DEFAULT_FREE. Missing or inconsistent required grant facts return 503 rather than FREE. */
+            supportPlanEnabled?: boolean;
             source: components["schemas"]["CreditSource"];
             sourceReference: string | null;
             /** Format: date-time */
@@ -2838,6 +2845,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Required entitlement grant, purchased-version, or period facts are missing or inconsistent (ENTITLEMENT_UNAVAILABLE). */
+        EntitlementUnavailableProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Invalid body, path, or query parameter (VALIDATION_FAILED). */
         ValidationProblem: {
             headers: {
@@ -3798,6 +3814,7 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["EntitlementForbiddenProblem"];
             409: components["responses"]["CreditConflictProblem"];
+            503: components["responses"]["EntitlementUnavailableProblem"];
         };
     };
     listActiveServicePlanVersions: {

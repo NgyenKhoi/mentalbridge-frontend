@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { browserServiceCredits } from '@/features/service-credits/api/browser-client'
+import PlanUpgradeContinue from '@/features/support-plan-access/PlanUpgradeContinue'
 import type { ServiceCreditAccount } from '@/lib/consultation/consultation-validation'
 import type {
   PlanCode,
@@ -281,6 +282,8 @@ export default function PlanCheckoutPanel() {
             )}
         </div>
       )}
+
+      <PlanUpgradeContinue account={account} />
 
       {error && (
         <p className="svc-checkout-error" role="alert">
