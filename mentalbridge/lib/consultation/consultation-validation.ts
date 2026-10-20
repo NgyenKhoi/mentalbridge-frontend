@@ -505,6 +505,9 @@ export type ServiceCreditAccount = Readonly<{
     }>
   >
   generatedAt: string
+  /** Optional during the additive MB-671 rollout; the Plan access gate requires both. */
+  entitlementState?: 'ACTIVE' | 'EXPIRED' | 'DEFAULT_FREE'
+  supportPlanEnabled?: boolean
 }>
 
 type Problem = Readonly<{
@@ -1942,6 +1945,19 @@ export function parseServiceCreditAccount(
         typeof account.sourceReference !== 'string' ||
         account.periodStart === null ||
         account.periodEnd === null))
+  )
+    return null
+  const state = account.entitlementState
+  const enabled = account.supportPlanEnabled
+  if (
+    (state !== undefined &&
+      !['ACTIVE', 'EXPIRED', 'DEFAULT_FREE'].includes(String(state))) ||
+    (enabled !== undefined && typeof enabled !== 'boolean') ||
+    (account.source === 'DEFAULT_FREE' && enabled === true) ||
+    (state === 'ACTIVE' && enabled === false) ||
+    (state === 'ACTIVE' && account.source === 'DEFAULT_FREE') ||
+    ((state === 'EXPIRED' || state === 'DEFAULT_FREE') &&
+      (account.source !== 'DEFAULT_FREE' || enabled === true))
   )
     return null
   return account as ServiceCreditAccount

@@ -51,6 +51,20 @@ const feedback = vi.hoisted(() => ({ confirm: vi.fn() }))
 const care = vi.hoisted(() => ({ getCurrentReassessmentSummary: vi.fn() }))
 const companionShell = vi.hoisted(() => ({ render: vi.fn() }))
 
+const planAccess = vi.hoisted(() => ({
+  access: { status: 'paid', pendingPayment: false } as {
+    status: 'loading' | 'paid' | 'free' | 'expired' | 'unavailable'
+    pendingPayment: boolean
+  },
+  retry: vi.fn(),
+}))
+
+vi.mock('@/features/support-plan-access/use-plan-access', () => ({
+  usePlanAccess: () => planAccess,
+}))
+beforeEach(() => {
+  planAccess.access = { status: 'paid', pendingPayment: false }
+})
 vi.mock('../api/browser-support-plan-actions', () => api)
 vi.mock('../api/browser-support-plan', () => legacy)
 vi.mock('@/features/support-guide/api/browser-support-guide', () => journey)
@@ -359,11 +373,172 @@ describe('SupportPlan workspace', () => {
     render(<SupportPlanWorkspace />)
     expect(
       await screen.findByRole('heading', {
-        name: 'Kế hoạch theo ngày có trong gói Plus và Premium',
+        name: 'Kế hoạch 14 ngày có trong gói Plus',
       }),
     ).toBeVisible()
     expect(
       screen.queryByRole('button', { name: 'Bắt đầu kế hoạch' }),
+    ).toBeNull()
+  })
+
+  it('shows the labelled example to FREE without asking Care for a plan', async () => {
+    planAccess.access = { status: 'free', pendingPayment: false }
+    withoutPlan()
+    render(<SupportPlanWorkspace />)
+    expect(
+      await screen.findByText('Ví dụ minh hoạ, không phải kế hoạch của bạn'),
+    ).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Nâng cấp Plus' })).toHaveAttribute(
+      'href',
+      '/subscription',
+    )
+    expect(screen.queryByText(/Đang chuẩn bị kế hoạch/)).toBeNull()
+    expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
+    expect(api.activateNativeSupportPlan).not.toHaveBeenCalled()
+  })
+
+  it('says the package expired instead of offering a first upgrade', async () => {
+    planAccess.access = { status: 'expired', pendingPayment: false }
+    withoutPlan()
+    render(<SupportPlanWorkspace />)
+    expect(
+      await screen.findByRole('heading', { name: 'Gói của bạn đã hết hạn' }),
+    ).toBeVisible()
+    expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
+  })
+
+  it('F1 shows an example before screening and F3 keeps it after remount', async () => {
+    planAccess.access = { status: 'free', pendingPayment: false }
+    withoutPlan()
+    journey.getGuidedJourney.mockResolvedValue(
+      readyJourney({ stage: 'ASSESSMENT_REQUIRED', supportGuideId: null }),
+    )
+    const first = render(<SupportPlanWorkspace />)
+    expect(await screen.findByRole('figure')).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Làm bài kiểm tra ngắn' }),
+    ).toHaveAttribute('href', '/initial-check')
+    first.unmount()
+    render(<SupportPlanWorkspace />)
+    expect(await screen.findByRole('figure')).toBeVisible()
+    expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
+  })
+
+  it('F2 returns a FREE user to their saved Guide without a proposal', async () => {
+    planAccess.access = { status: 'free', pendingPayment: false }
+    withoutPlan()
+    render(<SupportPlanWorkspace />)
+    expect(
+      await screen.findByRole('link', { name: 'Xem lại gợi ý hỗ trợ' }),
+    ).toHaveAttribute(
+      'href',
+      `/support-guides/${readyJourney().supportGuideId}`,
+    )
+    expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
+  })
+
+  it.each(['loading', 'unavailable'] as const)(
+    'U1 preserves history without an upsell while access is %s',
+    async (status) => {
+      planAccess.access = { status, pendingPayment: false }
+      withoutPlan([{ ...nativeSupportPlanFixture(), status: 'COMPLETED' }])
+      render(<SupportPlanWorkspace />)
+      expect(
+        await screen.findByRole('heading', {
+          name: 'Bạn chưa có kế hoạch đang dùng',
+        }),
+      ).toBeVisible()
+      expect(screen.queryByRole('link', { name: /Plus/ })).toBeNull()
+      expect(
+        screen.queryByRole('button', { name: 'Xem đề xuất mới' }),
+      ).toBeNull()
+      expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
+    },
+  )
+
+  it('T1 uses payment status for expired history with a pending purchase', async () => {
+    planAccess.access = { status: 'expired', pendingPayment: true }
+    withoutPlan([{ ...nativeSupportPlanFixture(), status: 'COMPLETED' }])
+    render(<SupportPlanWorkspace />)
+    expect(
+      await screen.findByRole('link', { name: 'Xem trạng thái thanh toán' }),
+    ).toHaveAttribute('href', '/subscription')
+    expect(screen.queryByRole('figure')).toBeNull()
+  })
+
+  it.each(['current', 'draft'] as const)(
+    'E2 preserves an expired owned %s with a truthful notice',
+    async (kind) => {
+      planAccess.access = { status: 'expired', pendingPayment: false }
+      if (kind === 'current') withCurrent(nativeSupportPlanFixture())
+      else {
+        withoutPlan()
+        api.getCurrentNativeSupportPlanDraft.mockResolvedValue(draftPlan())
+      }
+      render(<SupportPlanWorkspace />)
+      expect(
+        await screen.findByRole('link', { name: 'gia hạn Plus' }),
+      ).toBeVisible()
+      expect(screen.queryByRole('figure')).toBeNull()
+      expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
+      if (kind === 'current')
+        expect(screen.getByRole('tab', { name: 'Hôm nay' })).toBeVisible()
+      else
+        expect(
+          screen.getByRole('button', { name: 'Bắt đầu kế hoạch' }),
+        ).toBeVisible()
+    },
+  )
+
+  it('S1 suppresses renewal on an owned plan when the fresh journey requests safety help', async () => {
+    planAccess.access = { status: 'expired', pendingPayment: false }
+    withCurrent(nativeSupportPlanFixture())
+    journey.getGuidedJourney.mockResolvedValue(
+      readyJourney({ nextAction: 'REVIEW_SAFETY_SUPPORT' }),
+    )
+    render(<SupportPlanWorkspace />)
+    expect(await screen.findByRole('tab', { name: 'Hôm nay' })).toBeVisible()
+    expect(screen.queryByRole('link', { name: /Plus/ })).toBeNull()
+  })
+
+  it('points a pending checkout to its status, not a second purchase', async () => {
+    planAccess.access = { status: 'free', pendingPayment: true }
+    withoutPlan()
+    render(<SupportPlanWorkspace />)
+    expect(
+      await screen.findByRole('link', { name: 'Xem trạng thái thanh toán' }),
+    ).toHaveAttribute('href', '/subscription')
+    expect(screen.queryByRole('link', { name: 'Nâng cấp Plus' })).toBeNull()
+  })
+
+  it('never turns an unreadable package into an upgrade offer', async () => {
+    planAccess.access = { status: 'unavailable', pendingPayment: false }
+    withoutPlan()
+    render(<SupportPlanWorkspace />)
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Chưa kiểm tra được gói của bạn',
+      }),
+    ).toBeVisible()
+    expect(screen.queryByRole('link', { name: 'Nâng cấp Plus' })).toBeNull()
+    expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(planAccess.retry).toHaveBeenCalled()
+  })
+
+  it('keeps an unrelated 403 a failure rather than the FREE example', async () => {
+    withoutPlan()
+    api.proposeNativeSupportPlanDraft.mockRejectedValue(
+      new ApiError({ code: 'FORBIDDEN', status: 403, message: 'No' }),
+    )
+    render(<SupportPlanWorkspace />)
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Chưa chuẩn bị được kế hoạch',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.queryByText('Ví dụ minh hoạ, không phải kế hoạch của bạn'),
     ).toBeNull()
   })
 
@@ -376,6 +551,45 @@ describe('SupportPlan workspace', () => {
       }),
     ).toBeVisible()
     expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
+  })
+
+  it('E2 keeps owned history visible after Care denies a fresh paid proposal', async () => {
+    withoutPlan([{ ...nativeSupportPlanFixture(), status: 'COMPLETED' }])
+    api.proposeNativeSupportPlanDraft.mockRejectedValue(
+      new ApiError({
+        code: 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED',
+        status: 403,
+        message: 'Denied',
+      }),
+    )
+    render(<SupportPlanWorkspace />)
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Xem đề xuất mới' }),
+    )
+    expect(
+      await screen.findByRole('link', { name: 'Nâng cấp Plus' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Bạn chưa có kế hoạch đang dùng' }),
+    ).toBeVisible()
+    expect(screen.queryByRole('figure')).toBeNull()
+  })
+
+  it('R1 waits for paid access before proposing once', async () => {
+    withoutPlan()
+    planAccess.access = { status: 'loading', pendingPayment: false }
+    api.proposeNativeSupportPlanDraft.mockResolvedValue(draftPlan())
+    const { rerender } = render(<SupportPlanWorkspace />)
+    expect(await screen.findByText('Đang kiểm tra gói của bạn…')).toBeVisible()
+    expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
+    planAccess.access = { status: 'paid', pendingPayment: false }
+    rerender(<SupportPlanWorkspace />)
+    expect(
+      await screen.findByRole('button', { name: 'Bắt đầu kế hoạch' }),
+    ).toBeVisible()
+    rerender(<SupportPlanWorkspace />)
+    expect(api.proposeNativeSupportPlanDraft).toHaveBeenCalledTimes(1)
+    expect(api.activateNativeSupportPlan).not.toHaveBeenCalled()
   })
 
   it('grounds an explicit new proposal on the newest reassessment, falling back to the first check', async () => {
@@ -410,17 +624,23 @@ describe('SupportPlan workspace', () => {
     )
   })
 
-  it('puts safety help first and proposes nothing when the journey asks for it', async () => {
-    withoutPlan()
-    journey.getGuidedJourney.mockResolvedValue(
-      readyJourney({ nextAction: 'REVIEW_SAFETY_SUPPORT' }),
-    )
-    render(<SupportPlanWorkspace />)
-    expect(
-      await screen.findByRole('link', { name: 'Xem số hỗ trợ gần bạn' }),
-    ).toHaveAttribute('href', '/safety-directory')
-    expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
-  })
+  it.each(['paid', 'free', 'expired', 'unavailable'] as const)(
+    'S1 puts safety help first with %s access',
+    async (status) => {
+      planAccess.access = { status, pendingPayment: true }
+      withoutPlan()
+      journey.getGuidedJourney.mockResolvedValue(
+        readyJourney({ nextAction: 'REVIEW_SAFETY_SUPPORT' }),
+      )
+      render(<SupportPlanWorkspace />)
+      expect(
+        await screen.findByRole('link', { name: 'Xem số hỗ trợ gần bạn' }),
+      ).toHaveAttribute('href', '/safety-directory')
+      expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
+      expect(screen.queryByRole('link', { name: /Plus/ })).toBeNull()
+      expect(screen.queryByRole('figure')).toBeNull()
+    },
+  )
 
   it('records helpfulness for a completed native activity', async () => {
     const user = userEvent.setup()

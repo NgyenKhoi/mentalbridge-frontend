@@ -346,6 +346,35 @@ describe('Consultation contract validation', () => {
     expect(
       parseServiceCreditAccount({ ...account, source: 'DEFAULT_FREE' }),
     ).toBeNull()
+    const withAccess = {
+      ...account,
+      entitlementState: 'ACTIVE',
+      supportPlanEnabled: true,
+    }
+    expect(parseServiceCreditAccount(withAccess)).toEqual(withAccess)
+    expect(
+      parseServiceCreditAccount({ ...withAccess, supportPlanEnabled: false }),
+    ).toBeNull()
+    const free = {
+      ...account,
+      packageCode: 'FREE',
+      source: 'DEFAULT_FREE',
+      sourceReference: null,
+      periodStart: null,
+      periodEnd: null,
+      balance: { ...account.balance, available: 0, held: 0, total: 0 },
+      history: [],
+    }
+    expect(parseServiceCreditAccount(free)).toEqual(free)
+    expect(
+      parseServiceCreditAccount({ ...free, supportPlanEnabled: true }),
+    ).toBeNull()
+    expect(
+      parseServiceCreditAccount({ ...account, entitlementState: 'EXPIRED' }),
+    ).toBeNull()
+    expect(
+      parseServiceCreditAccount({ ...account, supportPlanEnabled: 'yes' }),
+    ).toBeNull()
   })
 
   it('accepts online appointment snapshots and rejects physical or external modes', () => {

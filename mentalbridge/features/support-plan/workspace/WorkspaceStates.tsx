@@ -18,7 +18,7 @@ export function WorkspaceLoading({ label }: Readonly<{ label: string }>) {
 }
 
 type Action =
-  | Readonly<{ label: string; href: string }>
+  | Readonly<{ label: string; href: string; onNavigate?: () => void }>
   | Readonly<{ label: string; onClick: () => void; busy?: boolean }>
 
 function ActionControl({
@@ -27,7 +27,7 @@ function ActionControl({
 }: Readonly<{ action: Action; primary: boolean }>) {
   const className = primary ? 'mbw-primary' : 'mbw-secondary'
   return 'href' in action ? (
-    <Link className={className} href={action.href}>
+    <Link className={className} href={action.href} onClick={action.onNavigate}>
       {action.label}
     </Link>
   ) : (

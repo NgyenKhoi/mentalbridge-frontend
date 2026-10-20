@@ -649,13 +649,100 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     world.journeyNext = 'START_PLAN_PROPOSAL'
     await page.goto('/support-plan')
     await expect(
-      page.getByRole('heading', {
-        name: 'Kế hoạch theo ngày có trong gói Plus và Premium',
-      }),
+      page.getByRole('heading', { name: 'Kế hoạch 14 ngày có trong gói Plus' }),
     ).toBeVisible()
     await expect(
       page.getByRole('button', { name: 'Bắt đầu kế hoạch' }),
     ).toHaveCount(0)
+  })
+
+  test('MB-671 FREE sees a labelled example, upgrades and continues to a real proposal', async ({
+    page,
+  }, testInfo) => {
+    await authenticate(page)
+    const world: World = {
+      history: [],
+      occurrences: [],
+      journeyNext: 'START_PLAN_PROPOSAL',
+    }
+    const calls = await mockPlanApi(page, world)
+    // Consultation's own answer; flipped once the payment would be confirmed.
+    let paid = false
+    await page.route('**/api/consultation/service-credits', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          accountId: '6a000000-0000-4000-8000-000000000671',
+          packageCode: paid ? 'PLUS' : 'FREE',
+          source: paid ? 'PAID' : 'DEFAULT_FREE',
+          sourceReference: paid ? '51500000-0000-4000-8000-000000000671' : null,
+          periodStart: paid ? '2026-10-13T00:00:00Z' : null,
+          periodEnd: paid ? '2026-11-13T00:00:00Z' : null,
+          policyVersion: 'consultation-credit-v2',
+          balance: {
+            available: 0,
+            held: 0,
+            consumed: 0,
+            forfeited: 0,
+            total: 0,
+            releasedTransitions: 0,
+          },
+          reservationCapacity: { active: 0, maximum: 0, remaining: 0 },
+          history: [],
+          generatedAt: '2026-10-13T05:00:00Z',
+          entitlementState: paid ? 'ACTIVE' : 'DEFAULT_FREE',
+          supportPlanEnabled: paid,
+        }),
+      }),
+    )
+
+    await page.goto('/support-plan')
+    const sample = page.getByRole('figure', {
+      name: 'Ví dụ minh hoạ, không phải kế hoạch của bạn',
+    })
+    await expect(sample).toBeVisible()
+    await sample.getByRole('button', { name: /Đọc một bài ngắn/ }).click()
+    await expect(sample).toContainText('5 việc đã làm')
+    await page.screenshot({
+      path: testInfo.outputPath('mb-671-free-preview.png'),
+      fullPage: true,
+    })
+    expect(
+      calls.some(
+        (call) =>
+          call.method === 'POST' && call.path === '/api/care/v2/support-plans',
+      ),
+    ).toBe(false)
+
+    await page.reload()
+    await expect(sample).toBeVisible()
+    expect(
+      calls.filter(
+        (call) =>
+          call.method === 'POST' && call.path === '/api/care/v2/support-plans',
+      ),
+    ).toHaveLength(0)
+
+    await page.getByRole('link', { name: 'Nâng cấp Plus' }).click()
+    await expect(page).toHaveURL(/\/subscription$/)
+    await expect(
+      page.getByRole('link', { name: /Tiếp tục tới kế hoạch/ }),
+    ).toHaveCount(0)
+
+    paid = true
+    await page.reload()
+    await page.getByRole('link', { name: /Tiếp tục tới kế hoạch/ }).click()
+    await expect(page).toHaveURL(/\/support-plan$/)
+    await expect(
+      page.getByRole('button', { name: 'Bắt đầu kế hoạch' }),
+    ).toBeVisible()
+    expect(
+      calls.filter(
+        (call) =>
+          call.method === 'POST' && call.path === '/api/care/v2/support-plans',
+      ),
+    ).toHaveLength(1)
+    expect(calls.some((call) => call.path.endsWith('/activate'))).toBe(false)
   })
 
   test('MB-652 explains a contradictory adaptive review without mutating the plan', async ({

@@ -14,6 +14,9 @@ import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import type { GuidedJourney } from '@/features/assessment/api/care-contract'
 import { getCurrentReassessmentSummary } from '@/features/assessment/api/browser-care'
 import { getGuidedJourney } from '@/features/support-guide/api/browser-support-guide'
+import LockedPlanPreview from '@/features/support-plan-access/LockedPlanPreview'
+import { rememberUpgradeIntent } from '@/features/support-plan-access/plan-access'
+import { usePlanAccess } from '@/features/support-plan-access/use-plan-access'
 import {
   activateNativeSupportPlan,
   changeNativeActionOccurrenceState,
@@ -183,11 +186,8 @@ function code(error: unknown) {
 
 function proposalFailure(error: unknown): Proposal {
   if (!(error instanceof ApiError)) return 'failed'
-  if (
-    error.status === 403 ||
-    error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED'
-  )
-    return 'free'
+  // Only Care's paid-creation denial means FREE; any other 403 is a failure.
+  if (error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED') return 'free'
   if (code(error).includes('SAFETY')) return 'safety'
   if (
     error.status === 404 ||
@@ -263,6 +263,7 @@ export default function SupportPlanWorkspace({
   invalidOrigin = false,
 }: Readonly<{ returnOrigin?: ReturnOrigin; invalidOrigin?: boolean }>) {
   const { confirm } = useFeedback()
+  const { access, retry: retryAccess } = usePlanAccess()
   const [loaded, setLoaded] = useState<Loaded>()
   const [loadFailed, setLoadFailed] = useState(false)
   const [proposal, setProposal] = useState<Proposal>('idle')
@@ -545,7 +546,8 @@ export default function SupportPlanWorkspace({
   )
 
   useEffect(() => {
-    if (!loaded || proposalStarted.current) return
+    // Propose only with confirmed paid access: FREE never sees "preparing your plan".
+    if (!loaded || proposalStarted.current || access.status !== 'paid') return
     if (
       !shouldAutoPropose({
         current: loaded.current,
@@ -561,7 +563,7 @@ export default function SupportPlanWorkspace({
       0,
     )
     return () => window.clearTimeout(timer)
-  }, [loaded, propose])
+  }, [loaded, propose, access.status])
 
   // A command reply never moves a row back past a newer version already shown.
   function updateOccurrence(next: ActionOccurrence) {
@@ -1145,6 +1147,22 @@ export default function SupportPlanWorkspace({
     </WorkspaceMessage>
   )
 
+  const expiredNotice = access.status === 'expired' &&
+    !safetyFirst &&
+    loaded?.journey?.nextAction !== 'REVIEW_SAFETY_SUPPORT' && (
+      <p className="mbw-quiet">
+        Gói của bạn đã hết hạn. Kế hoạch này vẫn mở được; lập kế hoạch mới cần{' '}
+        <Link
+          className="lpp-inline-link"
+          href="/subscription"
+          onClick={() => rememberUpgradeIntent()}
+        >
+          gia hạn Plus
+        </Link>
+        .
+      </p>
+    )
+
   const live = (
     <p className="mbw-visually-hidden" role="status" aria-live="polite">
       {announcement}
@@ -1187,6 +1205,13 @@ export default function SupportPlanWorkspace({
   // No current plan: either the proposal preview, or one honest next step.
   if (!current) {
     const hadPlan = (loaded.history?.items.length ?? 0) > 0
+    const guideId = loaded.journey?.supportGuideId
+    // The one quiet free continuation, from Care's facts only.
+    const freeNext = guideId
+      ? { label: 'Xem lại gợi ý hỗ trợ', href: `/support-guides/${guideId}` }
+      : loaded.journey?.stage === 'ASSESSMENT_REQUIRED'
+        ? { label: 'Làm bài kiểm tra ngắn', href: '/initial-check' }
+        : { label: 'Xem gợi ý hỗ trợ', href: '/support-guides' }
     return (
       <div className="mbw-page">
         {header(draft ? 'Xem trước rồi bắt đầu khi bạn sẵn sàng.' : undefined)}
@@ -1197,6 +1222,7 @@ export default function SupportPlanWorkspace({
           </p>
         )}
         {safetyCard}
+        {draft && expiredNotice}
         {draft ? (
           <ProposalPreview
             draft={draft}
@@ -1264,17 +1290,26 @@ export default function SupportPlanWorkspace({
           >
             <p>Kế hoạch có thể đợi. Hãy liên hệ người hỗ trợ trước.</p>
           </WorkspaceMessage>
-        ) : proposal === 'free' ? (
+        ) : !hadPlan &&
+          (proposal === 'free' ||
+            access.status === 'free' ||
+            access.status === 'expired') ? (
+          <LockedPlanPreview
+            expired={access.status === 'expired'}
+            pendingPayment={access.pendingPayment}
+            next={freeNext}
+          />
+        ) : !hadPlan && access.status === 'unavailable' ? (
           <WorkspaceMessage
-            title="Kế hoạch theo ngày có trong gói Plus và Premium"
-            primary={{
-              label: 'Xem gợi ý hỗ trợ của bạn',
-              href: '/support-guides',
-            }}
-            secondary={{ label: 'Xem các gói', href: '/subscription' }}
+            alert
+            title="Chưa kiểm tra được gói của bạn"
+            primary={{ label: 'Thử lại', onClick: () => void retryAccess() }}
+            secondary={freeNext}
           >
-            <p>Gợi ý hỗ trợ sau bài kiểm tra vẫn dùng được với gói hiện tại.</p>
+            <p>Kết nối vừa bị gián đoạn. Gợi ý hỗ trợ vẫn mở được.</p>
           </WorkspaceMessage>
+        ) : !hadPlan && access.status === 'loading' ? (
+          <WorkspaceLoading label="Đang kiểm tra gói của bạn…" />
         ) : proposal === 'no-screening' ||
           loaded.journey?.stage === 'ASSESSMENT_REQUIRED' ? (
           <WorkspaceMessage
@@ -1317,14 +1352,32 @@ export default function SupportPlanWorkspace({
               label: 'Làm bài kiểm tra lại',
               href: '/initial-check?purpose=reassessment',
             }}
-            secondary={{
-              label: 'Xem đề xuất mới',
-              onClick: () =>
-                void propose({
-                  deterministic: false,
-                  preferReassessment: true,
-                }),
-            }}
+            secondary={
+              access.status === 'paid' && proposal !== 'free'
+                ? {
+                    label: 'Xem đề xuất mới',
+                    onClick: () =>
+                      void propose({
+                        deterministic: false,
+                        preferReassessment: true,
+                      }),
+                  }
+                : access.status === 'free' ||
+                    access.status === 'expired' ||
+                    proposal === 'free'
+                  ? {
+                      label: access.pendingPayment
+                        ? 'Xem trạng thái thanh toán'
+                        : access.status === 'expired'
+                          ? 'Gia hạn Plus'
+                          : 'Nâng cấp Plus',
+                      href: '/subscription',
+                      onNavigate: () => rememberUpgradeIntent(),
+                    }
+                  : access.status === 'unavailable'
+                    ? { label: 'Thử lại', onClick: () => void retryAccess() }
+                    : undefined
+            }
           >
             <p>Kiểm tra lại giúp đề xuất mới khớp với bạn lúc này.</p>
             <PlanHistory initial={loaded.history} />
@@ -1386,6 +1439,7 @@ export default function SupportPlanWorkspace({
         </div>
       )}
       {safetyCard}
+      {expiredNotice}
       <div
         className="mbw-tabs"
         role="tablist"

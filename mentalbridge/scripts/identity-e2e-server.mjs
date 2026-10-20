@@ -986,6 +986,8 @@ const server = createServer(async (request, response) => {
           },
         ],
         generatedAt: new Date().toISOString(),
+        entitlementState: 'ACTIVE',
+        supportPlanEnabled: true,
       })
       return
     }
