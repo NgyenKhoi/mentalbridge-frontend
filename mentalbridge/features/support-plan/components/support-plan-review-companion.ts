@@ -1,4 +1,9 @@
-import type { NativeSupportPlanReplacementReview } from '../api/support-plan-contract'
+import type {
+  ActionSchedule,
+  NativeSupportPlanReplacementReview,
+  PlanAction,
+  SupportPlanV3,
+} from '../api/support-plan-contract'
 
 type ReviewDimensionState = 'available' | 'limited'
 
@@ -14,6 +19,7 @@ export type CompanionReviewOption = Readonly<{
   id: 'keep' | 'change'
   title: string
   summary: string
+  details: readonly string[]
 }>
 
 export type CompanionReviewExplanation = Readonly<{
@@ -43,6 +49,43 @@ const barrierLabel = {
   NOT_A_GOOD_FIT: 'hoạt động chưa phù hợp',
   OTHER: 'một rào cản khác',
 } as const
+const journalHelpfulPatternLabel: Readonly<Record<string, string>> = {
+  GROUNDING: 'bài grounding',
+  WALK: 'đi bộ nhẹ',
+  WALKING: 'đi bộ nhẹ',
+  BREATHING: 'bài thở',
+  JOURNALING: 'ghi chép ngắn',
+  SHORT_GUIDED_ACTIVITY: 'hoạt động có hướng dẫn ngắn',
+}
+const journalBarrierLabel: Readonly<Record<string, string>> = {
+  LOW_ENERGY: 'năng lượng thấp',
+  LIMITED_TIME: 'thời gian hạn chế',
+  NOT_ENOUGH_TIME: 'không đủ thời gian',
+  BREATHING_DISCOMFORT: 'khó chịu khi tập thở',
+  DIFFICULT_TO_START: 'khó bắt đầu',
+  NOT_A_GOOD_FIT: 'hoạt động chưa phù hợp',
+}
+const daypartLabel = {
+  MORNING: 'buổi sáng',
+  AFTERNOON: 'buổi chiều',
+  EVENING: 'buổi tối',
+  FLEXIBLE: 'thời điểm linh hoạt',
+} as const
+const helpfulnessLabel = {
+  NOT_HELPFUL: 'không hữu ích',
+  A_LITTLE_HELPFUL: 'hữu ích một chút',
+  HELPFUL: 'hữu ích',
+  VERY_HELPFUL: 'rất hữu ích',
+} as const
+const weekdayLabel: Readonly<Record<number, string>> = {
+  1: 'Thứ Hai',
+  2: 'Thứ Ba',
+  3: 'Thứ Tư',
+  4: 'Thứ Năm',
+  5: 'Thứ Sáu',
+  6: 'Thứ Bảy',
+  7: 'Chủ Nhật',
+}
 
 function list(items: readonly string[]) {
   if (items.length <= 1) return items[0] ?? ''
@@ -55,14 +98,37 @@ function unavailable(state: string) {
     : 'Chưa đủ dữ liệu để so sánh nguồn này.'
 }
 
+function normalizedSignal(value: string) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_')
+}
+
+function controlledSignals(
+  values: readonly string[],
+  labels: Readonly<Record<string, string>>,
+) {
+  const safe = values
+    .map((value) => labels[normalizedSignal(value)])
+    .filter((value): value is string => Boolean(value))
+  return {
+    safe: [...new Set(safe)],
+    hiddenCount: Math.max(0, values.length - safe.length),
+  }
+}
+
 function screeningDimension(
   review: NativeSupportPlanReplacementReview,
 ): CompanionReviewDimension {
   const { screening } = review.reassessmentSummary
-  const details = screening.trends.map(
-    (trend) =>
-      `${instrumentLabel[trend.instrument]}: ${trendLabel[trend.direction]}.`,
-  )
+  const details =
+    screening.state === 'AVAILABLE'
+      ? screening.trends.map(
+          (trend) =>
+            `${instrumentLabel[trend.instrument]}: ${trendLabel[trend.direction]}.`,
+        )
+      : []
   return {
     id: 'screening',
     label: 'Bài sàng lọc',
@@ -82,16 +148,25 @@ function journalDimension(
   review: NativeSupportPlanReplacementReview,
 ): CompanionReviewDimension {
   const journal = review.reassessmentSummary.journalContext
-  const counts = [
-    journal.helpfulPatterns.length > 0
-      ? `${journal.helpfulPatterns.length} mẫu có ích`
+  const helpful = controlledSignals(
+    journal.state === 'AVAILABLE' ? journal.helpfulPatterns : [],
+    journalHelpfulPatternLabel,
+  )
+  const barriers = controlledSignals(
+    journal.state === 'AVAILABLE' ? journal.barriers : [],
+    journalBarrierLabel,
+  )
+  const details = [
+    helpful.safe.length > 0
+      ? `Mẫu có ích được tổng hợp: ${list(helpful.safe)}.`
       : '',
-    journal.barriers.length > 0 ? `${journal.barriers.length} rào cản` : '',
-    journal.changesComparedWithPreviousPeriod.some(
-      (change) => change.direction !== 'INSUFFICIENT_DATA',
-    )
-      ? 'có thay đổi để so sánh'
+    barriers.safe.length > 0
+      ? `Rào cản được tổng hợp: ${list(barriers.safe)}.`
       : '',
+    helpful.hiddenCount + barriers.hiddenCount > 0
+      ? `Có ${helpful.hiddenCount + barriers.hiddenCount} tín hiệu tổng hợp khác chưa có nhãn an toàn để hiển thị.`
+      : '',
+    'Nội dung ghi chép riêng tư không xuất hiện trong giải thích này.',
   ].filter(Boolean)
   return {
     id: 'journal',
@@ -99,13 +174,14 @@ function journalDimension(
     state: journal.state === 'AVAILABLE' ? 'available' : 'limited',
     summary:
       journal.state === 'AVAILABLE'
-        ? counts.length > 0
-          ? `MentalBridge chỉ dùng phần tổng hợp: ${list(counts)}.`
-          : 'Nguồn tổng hợp đã sẵn sàng nhưng chưa có mẫu rõ để nêu.'
+        ? helpful.safe.length > 0 || barriers.safe.length > 0
+          ? 'MentalBridge chỉ diễn đạt các mẫu tổng hợp có nhãn được phép.'
+          : 'Nguồn tổng hợp đã sẵn sàng nhưng chưa có mẫu an toàn đủ rõ để nêu.'
         : unavailable(journal.state),
-    details: [
-      'Nội dung ghi chép riêng tư không xuất hiện trong giải thích này.',
-    ],
+    details:
+      journal.state === 'AVAILABLE'
+        ? details
+        : ['Nội dung ghi chép riêng tư không xuất hiện trong giải thích này.'],
   }
 }
 
@@ -114,7 +190,9 @@ function engagementDimension(
 ): CompanionReviewDimension {
   const engagement = review.reassessmentSummary.supportPlanEngagement
   const barriers = new Map<keyof typeof barrierLabel, number>()
-  for (const source of engagement.sources) {
+  for (const source of engagement.state === 'AVAILABLE'
+    ? engagement.sources
+    : []) {
     if (!source.barrierCode) continue
     barriers.set(
       source.barrierCode,
@@ -134,9 +212,11 @@ function engagementDimension(
         ? `Giai đoạn này ghi nhận ${completedCount} hoạt động hoàn thành và ${skippedCount} hoạt động bỏ qua.`
         : unavailable(engagement.state),
     details:
-      repeated.length > 0
-        ? [`Rào cản lặp lại: ${list(repeated)}.`]
-        : ['Chưa có rào cản lặp lại đủ rõ để nêu.'],
+      engagement.state !== 'AVAILABLE'
+        ? []
+        : repeated.length > 0
+          ? [`Rào cản lặp lại: ${list(repeated)}.`]
+          : ['Chưa có rào cản lặp lại đủ rõ để nêu.'],
   }
 }
 
@@ -167,43 +247,147 @@ function reflectionDimension(
     review.reassessmentSummary.activityReflection ??
     review.reassessmentSummary.userReflection
   if (!reflection) return undefined
-  const helpful = reflection.sources.filter(
-    (source) =>
-      source.helpfulness === 'HELPFUL' || source.helpfulness === 'VERY_HELPFUL',
-  ).length
+  const counts = new Map<keyof typeof helpfulnessLabel, number>()
+  for (const source of reflection.state === 'AVAILABLE'
+    ? reflection.sources.filter((item) => item.period === 'CURRENT')
+    : []) {
+    if (!source.helpfulness) continue
+    counts.set(source.helpfulness, (counts.get(source.helpfulness) ?? 0) + 1)
+  }
+  const factualHelpfulness = [...counts].map(
+    ([helpfulness, count]) =>
+      `${count} phản hồi ${helpfulnessLabel[helpfulness]}`,
+  )
   return {
     id: 'reflection',
     label: 'Phản hồi sau hoạt động',
     state: reflection.state === 'AVAILABLE' ? 'available' : 'limited',
     summary:
       reflection.state === 'AVAILABLE'
-        ? helpful > 0
-          ? `${helpful} phản hồi cho biết hoạt động đã giúp ích.`
-          : 'Chưa có phản hồi cho thấy một hoạt động giúp ích rõ ràng.'
+        ? factualHelpfulness.length > 0
+          ? `Giai đoạn này có ${list(factualHelpfulness)}.`
+          : 'Chưa có mức độ hữu ích được ghi nhận cho giai đoạn này.'
         : unavailable(reflection.state),
     details: [],
   }
 }
 
-function actions(review: NativeSupportPlanReplacementReview) {
-  return review.proposedPlan.focuses
+function actions(plan: SupportPlanV3) {
+  return plan.focuses
     .flatMap((focus) => focus.actions)
     .filter((action) => action.status !== 'ENDED')
 }
 
-function proposedSummary(review: NativeSupportPlanReplacementReview) {
-  const proposed = actions(review)
-  const titles = [
-    ...new Set(proposed.map((action) => action.presentation.title)),
-  ]
-  const professional = proposed.some(
-    (action) => action.actionType === 'PROFESSIONAL_SUPPORT',
+function actionKey(action: PlanAction) {
+  if (!action.source) return `action:${action.actionId}`
+  return [
+    action.actionType,
+    action.source.ownerDomain,
+    action.source.sourceKind,
+    action.source.sourceId,
+  ].join(':')
+}
+
+function currentSchedule(action: PlanAction): ActionSchedule | undefined {
+  const schedules = action.schedules.filter(
+    (schedule) => schedule.status !== 'ENDED',
   )
-  const parts = [
-    titles.length > 0 ? `Gồm ${list(titles.slice(0, 3))}.` : '',
-    professional ? 'Có một bước hỗ trợ từ chuyên gia.' : '',
+  return schedules.length === 1 ? schedules[0] : undefined
+}
+
+function frequency(schedule: ActionSchedule) {
+  if (schedule.recurrenceType === 'DAILY') return 'mỗi ngày'
+  if (schedule.recurrenceType === 'ONCE') return 'một lần'
+  const days =
+    schedule.daysOfWeek.length > 0
+      ? schedule.daysOfWeek
+      : schedule.recurrenceDayOfWeek === null
+        ? []
+        : [schedule.recurrenceDayOfWeek]
+  const labels = days.map((day) => weekdayLabel[day]).filter(Boolean)
+  return days.length > 0
+    ? `${days.length} ngày mỗi tuần${labels.length === days.length ? ` (${list(labels)})` : ''}`
+    : 'hàng tuần'
+}
+
+function scheduledTime(schedule: ActionSchedule) {
+  return schedule.preferredDaypart
+    ? `${daypartLabel[schedule.preferredDaypart]} (${schedule.localTime.slice(0, 5)})`
+    : `lúc ${schedule.localTime.slice(0, 5)}`
+}
+
+function scheduleChanges(
+  current: PlanAction,
+  proposed: PlanAction,
+): readonly string[] {
+  const before = currentSchedule(current)
+  const after = currentSchedule(proposed)
+  const title = proposed.presentation.title
+  if (!after)
+    return [
+      `“${title}”: Care chưa cung cấp một lịch duy nhất để so sánh thời lượng và thời điểm.`,
+    ]
+  if (!before)
+    return [
+      `“${title}”: phương án mới có lịch ${frequency(after)}, ${after.estimatedDurationMinutes ?? 'chưa nêu'} phút mỗi lần, ${scheduledTime(after)}.`,
+    ]
+
+  const changes = [
+    before.estimatedDurationMinutes !== after.estimatedDurationMinutes
+      ? `“${title}”: thời lượng mỗi lần từ ${before.estimatedDurationMinutes ?? 'chưa nêu'} phút thành ${after.estimatedDurationMinutes ?? 'chưa nêu'} phút.`
+      : '',
+    frequency(before) !== frequency(after)
+      ? `“${title}”: nhịp từ ${frequency(before)} thành ${frequency(after)}.`
+      : '',
+    scheduledTime(before) !== scheduledTime(after)
+      ? `“${title}”: thời điểm từ ${scheduledTime(before)} sang ${scheduledTime(after)}.`
+      : '',
   ].filter(Boolean)
-  return parts.join(' ')
+  return changes
+}
+
+function planChanges(review: NativeSupportPlanReplacementReview) {
+  const current = actions(review.currentPlan)
+  const proposed = actions(review.proposedPlan)
+  const currentByKey = new Map(
+    current.map((action) => [actionKey(action), action]),
+  )
+  const proposedKeys = new Set(proposed.map(actionKey))
+  const details: string[] = []
+
+  for (const next of proposed) {
+    const previous = currentByKey.get(actionKey(next))
+    if (!previous) {
+      details.push(`Phương án mới thêm hoạt động “${next.presentation.title}”.`)
+      const schedule = currentSchedule(next)
+      if (schedule)
+        details.push(
+          `“${next.presentation.title}”: ${frequency(schedule)}, ${schedule.estimatedDurationMinutes ?? 'chưa nêu'} phút mỗi lần, ${scheduledTime(schedule)}.`,
+        )
+      continue
+    }
+    if (previous.presentation.title !== next.presentation.title)
+      details.push(
+        `Hoạt động “${previous.presentation.title}” được trình bày trong phương án mới là “${next.presentation.title}”.`,
+      )
+    details.push(...scheduleChanges(previous, next))
+  }
+
+  for (const previous of current) {
+    if (!proposedKeys.has(actionKey(previous)))
+      details.push(
+        `Phương án mới không còn hoạt động “${previous.presentation.title}”.`,
+      )
+  }
+
+  if (proposed.some((action) => action.actionType === 'PROFESSIONAL_SUPPORT'))
+    details.push('Phương án mới có một bước hỗ trợ từ chuyên gia.')
+
+  return details.length > 0
+    ? details
+    : [
+        'Care chưa cung cấp khác biệt cụ thể về hoạt động, thời lượng hoặc thời điểm trong hai phương án này.',
+      ]
 }
 
 function reviewOptions(
@@ -213,13 +397,14 @@ function reviewOptions(
     id: 'keep',
     title: 'Giữ kế hoạch hiện tại',
     summary: 'Tiếp tục nhịp hiện tại; không có thay đổi nào được áp dụng.',
+    details: [],
   }
   const change: CompanionReviewOption = {
     id: 'change',
     title: 'Xem phương án khác đã được chuẩn bị',
     summary:
-      proposedSummary(review) ||
-      'Mở phần so sánh để xem các hoạt động trong phương án mới.',
+      'Các khác biệt dưới đây chỉ mô tả hai phương án Care đã duyệt; chưa có thay đổi nào được áp dụng.',
+    details: planChanges(review),
   }
   if (review.outcome === 'CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE')
     return [keep]
@@ -230,20 +415,29 @@ function reviewOptions(
 function hasContradiction(review: NativeSupportPlanReplacementReview) {
   const summary = review.reassessmentSummary
   const directions = new Set(
-    summary.screening.trends
+    (summary.screening.state === 'AVAILABLE' ? summary.screening.trends : [])
       .map((trend) => trend.direction)
       .filter(
         (direction) => direction === 'INCREASED' || direction === 'DECREASED',
       ),
   )
-  const experience = summary.selfReportedExperience?.source?.currentExperience
+  const experience =
+    summary.selfReportedExperience?.state === 'AVAILABLE'
+      ? summary.selfReportedExperience.source?.currentExperience
+      : undefined
   const reflection = summary.activityReflection ?? summary.userReflection
-  const helpful = reflection?.sources.some(
-    (source) =>
-      source.helpfulness === 'HELPFUL' || source.helpfulness === 'VERY_HELPFUL',
-  )
+  const helpful =
+    reflection?.state === 'AVAILABLE' &&
+    reflection.sources.some(
+      (source) =>
+        source.period === 'CURRENT' &&
+        (source.helpfulness === 'HELPFUL' ||
+          source.helpfulness === 'VERY_HELPFUL'),
+    )
   const barrierCounts = new Map<string, number>()
-  for (const source of summary.supportPlanEngagement.sources) {
+  for (const source of summary.supportPlanEngagement.state === 'AVAILABLE'
+    ? summary.supportPlanEngagement.sources
+    : []) {
     if (source.barrierCode)
       barrierCounts.set(
         source.barrierCode,

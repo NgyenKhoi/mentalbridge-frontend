@@ -187,6 +187,11 @@ describe('SupportPlanCompanionPanel', () => {
     expect(screen.getByText('PHQ-9: thấp hơn giai đoạn trước.')).toBeVisible()
     expect(screen.getByText('GAD-7: cao hơn giai đoạn trước.')).toBeVisible()
     expect(
+      screen.getByText(
+        'Hoạt động “Check-in cảm xúc” được trình bày trong phương án mới là “Check-in cảm xúc vào buổi sáng”.',
+      ),
+    ).toBeVisible()
+    expect(
       screen.getByText(/Các tín hiệu chưa hoàn toàn cùng chiều/),
     ).toBeVisible()
     expect(onRequest).not.toHaveBeenCalled()

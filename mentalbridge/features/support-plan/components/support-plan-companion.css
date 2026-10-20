@@ -533,8 +533,8 @@
   list-style: none;
 }
 
-.support-plan-review-dimensions li,
-.support-plan-review-options li {
+.support-plan-review-dimensions > li,
+.support-plan-review-options > li {
   display: grid;
   min-width: 0;
   grid-template-columns: auto minmax(0, 1fr);
@@ -542,14 +542,14 @@
   gap: 0.55rem;
 }
 
-.support-plan-review-dimensions li {
+.support-plan-review-dimensions > li {
   padding: 0.65rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   background: var(--surface-soft);
 }
 
-.support-plan-review-dimensions li[data-state='limited'] {
+.support-plan-review-dimensions > li[data-state='limited'] {
   background: color-mix(in srgb, var(--surface) 88%, var(--amber-soft));
 }
 
@@ -569,7 +569,7 @@
 
 .support-plan-review-dimensions p,
 .support-plan-review-dimensions small,
-.support-plan-review-options span {
+.support-plan-review-option-copy {
   display: block;
   margin: 0.12rem 0 0;
   color: var(--ink-soft);
@@ -600,8 +600,20 @@
   color: var(--ink);
 }
 
-.support-plan-review-options li {
+.support-plan-review-options > li {
   padding: 0.15rem 0;
+}
+
+.support-plan-review-option-details {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.4rem 0 0;
+  padding-left: 1rem;
+  color: var(--ink-soft);
+}
+
+.support-plan-review-option-details li {
+  display: list-item;
 }
 
 .support-plan-review-confirmation {

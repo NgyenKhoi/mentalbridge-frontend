@@ -69,10 +69,17 @@ export default function SupportPlanReviewExplanation({
           {explanation.options.map((option) => (
             <li key={option.id}>
               <CheckCircle2 size={17} aria-hidden="true" />
-              <span>
+              <div className="support-plan-review-option-copy">
                 <strong>{option.title}</strong>
                 {option.summary}
-              </span>
+                {option.details.length > 0 && (
+                  <ul className="support-plan-review-option-details">
+                    {option.details.map((detail) => (
+                      <li key={detail}>{detail}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </li>
           ))}
         </ul>

@@ -13,7 +13,13 @@ The response:
 - identifies contradictory signals without resolving them into a diagnosis or
   recommendation;
 - describes repeated Care-coded barriers such as `NOT_ENOUGH_TIME` and only
-  aggregate helpfulness facts, never raw Journal text or private reflection;
+  allowlisted aggregate Journal patterns and helpfulness distributions, never
+  raw Journal text or private reflection;
+- ignores stale payload arrays whenever their evidence dimension is marked
+  unavailable or insufficient;
+- compares the current and proposed Care-approved actions by duration,
+  recurrence days, daypart/time, alternative activity, and professional
+  support, while naming missing comparison data instead of inventing advice;
 - exposes only the keep/change options admitted by Care's replacement-review
   outcome; and
 - links back to the existing Adjust confirmation flow without applying or
@@ -32,6 +38,9 @@ inside the frontend-only lane recorded on the Jira story.
 | Contradictory screening and self-report signals | Mapper and panel tests preserve each source, show the contradiction notice, and reject combined-score language.                                                            |
 | Sparse or unavailable evidence                  | Mapper tests render explicit insufficient/unavailable copy without inventing missing facts.                                                                                |
 | Repeated barrier and helpful activity patterns  | Mapper tests cover repeated `NOT_ENOUGH_TIME` and aggregate helpfulness counts.                                                                                            |
+| Safe aggregate Journal context                  | Mapper tests cover allowlisted useful/barrier labels, unknown-label redaction, and unavailable Journal payloads with stale arrays.                                         |
+| Care-approved schedule and workload comparison  | Mapper, component, and browser tests expose same-title duration, recurrence-day, daypart/time changes plus alternative-action and professional-support cases.              |
+| Stale and mixed evidence availability           | Mapper tests prove unavailable dimensions cannot contribute claims or contradictions while available dimensions remain visible.                                            |
 | No better alternative                           | Mapper tests expose only the keep-current option.                                                                                                                          |
 | Current plan no longer admissible               | Mapper tests remove the keep option and preserve the admitted proposed-plan/professional-support fact.                                                                     |
 | Normal alternative review                       | Workspace integration passes the exact Care review into the Companion after the existing proposal and comparison flow.                                                     |
@@ -58,13 +67,14 @@ Stitch markup.
 
 ## Verification
 
-Verified on 2026-10-19 against the MB-652 worktree:
+Verified on 2026-10-20 against the MB-652 worktree after addressing the pull
+request review:
 
-- Focused Vitest: 4 files / 88 tests passed.
-- Full Vitest: 268 files / 1,651 tests passed.
+- Review-focused Vitest: 2 files / 20 tests passed.
+- Full Vitest: 268 files / 1,660 tests passed.
 - Formatting, ESLint, TypeScript, all generated/OpenAPI contract checks,
   realtime contract checks, and the Companion source budget passed.
-- Companion budget: 60,491 raw bytes and 12,647 gzip bytes, below the existing
+- Companion budget: 60,722 raw bytes and 12,687 gzip bytes, below the existing
   100,000 / 20,000 byte limits, with no external animation runtime.
 - Next.js 16.3.0 production build passed after allowing the existing Google
   Font downloads required by the application.

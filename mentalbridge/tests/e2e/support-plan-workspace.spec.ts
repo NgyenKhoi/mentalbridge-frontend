@@ -664,6 +664,20 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     test.setTimeout(90_000)
     await authenticate(page)
     const review = nativeSupportPlanReviewFixture()
+    const currentAction = review.currentPlan.focuses[0].actions[0]
+    const proposedAction = review.proposedPlan.focuses[0].actions[0]
+    proposedAction.presentation.title = currentAction.presentation.title
+    const currentSchedule = currentAction.schedules[0]
+    currentSchedule.estimatedDurationMinutes = 20
+    currentSchedule.recurrenceType = 'DAILY'
+    currentSchedule.preferredDaypart = 'MORNING'
+    currentSchedule.localTime = '08:00'
+    const proposedSchedule = proposedAction.schedules[0]
+    proposedSchedule.estimatedDurationMinutes = 10
+    proposedSchedule.recurrenceType = 'WEEKLY'
+    proposedSchedule.daysOfWeek = [1, 3, 5]
+    proposedSchedule.preferredDaypart = 'EVENING'
+    proposedSchedule.localTime = '19:00'
     const world: World = {
       current: review.currentPlan,
       replacementDraft: review.proposedPlan,
@@ -702,6 +716,21 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     ).toBeVisible()
     await expect(
       panel.getByText(/Các tín hiệu chưa hoàn toàn cùng chiều/),
+    ).toBeVisible()
+    await expect(
+      panel.getByText(
+        '“Check-in cảm xúc”: thời lượng mỗi lần từ 20 phút thành 10 phút.',
+      ),
+    ).toBeVisible()
+    await expect(
+      panel.getByText(
+        '“Check-in cảm xúc”: nhịp từ mỗi ngày thành 3 ngày mỗi tuần (Thứ Hai, Thứ Tư và Thứ Sáu).',
+      ),
+    ).toBeVisible()
+    await expect(
+      panel.getByText(
+        '“Check-in cảm xúc”: thời điểm từ buổi sáng (08:00) sang buổi tối (19:00).',
+      ),
     ).toBeVisible()
     await expect(panel.getByRole('textbox')).toHaveCount(0)
     expect(calls.some((call) => call.path.endsWith('/replacement'))).toBe(false)
