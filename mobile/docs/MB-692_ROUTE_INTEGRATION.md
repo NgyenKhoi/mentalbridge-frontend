@@ -21,18 +21,19 @@ the router. Content's fresh mark-read action supplies navigation; the feature
 then resolves a target against current owner/recipient data. A request/invitation
 link cannot open a different list item or grant history access.
 
-Merge backend MB-749 #215, then feature #216, then this integration. This PR is
-initially stacked on the feature branch to keep its diff narrow. After #216
-merges, retarget this PR to `dev`, fetch/rebase on latest `dev`, run overlap and
-the affected checks again, and wait for required CI before merging. Existing
-CI only triggers for PRs into `dev`; a stacked base has no required-quality run.
+Backend MB-749 #215 merged as `cd71159d`; feature #216 squash-merged into frontend
+`dev` as `060c361`. Only the integration commit was rebased onto that new `dev`
+base. PR #217 now targets `dev` with the intended 11-file diff. The rebase
+preserved the reviewed source tree; this document updates the delivery state.
+Required CI must pass on the final head before integrator approval and merge.
 
 Verification in this worktree: non-emitting TypeScript and focused formatting;
 lint for all ten touched source/test/route files; 151 tests across 15 suites
-covering Community chat, MB-628 Community and Notifications. The aggregate run
-emitted one React `act` warning in the existing CommunityScreen asynchronous
-tests; all assertions passed. The five new Community entry/author cases were
-also run alone with a clean console. No unrelated test refactor is included.
+covering Community chat, MB-628 Community and Notifications, repeated after the
+rebase. React `act` warnings remain in asynchronously notified component tests;
+all assertions passed. The five new Community entry/author cases were also run
+alone with a clean console before the rebase. No unrelated test refactor is
+included.
 
 New integration cases cover available/anonymous/deleted/owner author controls,
 the closed route, all three notification link kinds and malformed descriptors,
