@@ -77,7 +77,7 @@ export async function communityChatRequest<T>(
   correlationId: string,
   parse: (value: unknown) => T | null,
   options: Readonly<{
-    method?: 'GET' | 'POST' | 'PUT'
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
     body?: unknown
     headers?: Record<string, string>
     expectedStatus?: number

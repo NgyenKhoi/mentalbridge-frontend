@@ -16,6 +16,12 @@ import type {
   ChatPrivacy,
 } from '../api/community-chat-contract'
 import { useCommunityChatWorkspace } from './useCommunityChatWorkspace'
+import { useCommunityGroups } from './useCommunityGroups'
+import {
+  CreateGroupDialog,
+  GroupInvitations,
+  GroupManagement,
+} from './CommunityGroupControls'
 import styles from './CommunityChatWorkspace.module.css'
 
 const reportReasons: Array<{ value: ChatReportReason; label: string }> = [
@@ -157,6 +163,12 @@ export default function CommunityChatWorkspace({
     initialConversationId,
     recipientCommunityProfileId,
   })
+  const groups = useCommunityGroups({
+    conversation: chat.conversation,
+    viewerProfileId: chat.viewerProfileId,
+    reloadOverview: chat.reload,
+  })
+  const [createGroupOpen, setCreateGroupOpen] = useState(false)
   const [reportTarget, setReportTarget] = useState<ChatMessage>()
   const [reportReason, setReportReason] =
     useState<ChatReportReason>('HARASSMENT')
@@ -261,6 +273,11 @@ export default function CommunityChatWorkspace({
           {reportNotice}
         </p>
       )}
+      {groups.notice && (
+        <p className={styles.notice} role="status">
+          {groups.notice}
+        </p>
+      )}
       {recipientCommunityProfileId && chat.busyKey === 'start' && (
         <p className={styles.notice} role="status">
           Đang mở cuộc trò chuyện an toàn…
@@ -271,6 +288,13 @@ export default function CommunityChatWorkspace({
         className={`${styles.workspace} ${initialConversationId ? styles.hasSelected : ''}`}
       >
         <aside className={styles.inbox} aria-label="Hộp thư cộng đồng">
+          <button
+            type="button"
+            className={styles.createGroupButton}
+            onClick={() => setCreateGroupOpen(true)}
+          >
+            + Tạo nhóm riêng
+          </button>
           <div
             className={styles.tabs}
             role="tablist"
@@ -291,7 +315,9 @@ export default function CommunityChatWorkspace({
               onClick={() => chat.setActiveTab('requests')}
             >
               Lời mời
-              {chat.requests.length > 0 && <span>{chat.requests.length}</span>}
+              {chat.requests.length + groups.invitations.length > 0 && (
+                <span>{chat.requests.length + groups.invitations.length}</span>
+              )}
             </button>
           </div>
 
@@ -330,15 +356,32 @@ export default function CommunityChatWorkspace({
                               : undefined
                           }
                         >
-                          <Avatar peer={peer} />
+                          {item.kind === 'GROUP' ? (
+                            <span
+                              className={styles.groupAvatar}
+                              aria-hidden="true"
+                            >
+                              {initials(item.groupName)}
+                            </span>
+                          ) : (
+                            <Avatar peer={peer} />
+                          )}
                           <span className={styles.rowCopy}>
-                            <strong>{peerName(peer)}</strong>
+                            <strong>
+                              {item.kind === 'GROUP'
+                                ? item.groupName
+                                : peerName(peer)}
+                            </strong>
                             <small>
-                              {item.state === 'READ_ONLY'
-                                ? 'Chỉ có thể xem'
-                                : item.unreadCount
-                                  ? `${item.unreadCount} tin chưa đọc`
-                                  : 'Mở cuộc trò chuyện'}
+                              {item.kind === 'GROUP'
+                                ? item.state === 'ARCHIVED'
+                                  ? 'Nhóm đã lưu trữ · Chỉ đọc'
+                                  : `${item.viewerRole === 'OWNER' ? 'Chủ nhóm' : item.viewerRole === 'ADMIN' ? 'Quản trị viên' : 'Thành viên'} · ${item.peers.length} người`
+                                : item.state === 'READ_ONLY'
+                                  ? 'Chỉ có thể xem'
+                                  : item.unreadCount
+                                    ? `${item.unreadCount} tin chưa đọc`
+                                    : 'Mở cuộc trò chuyện'}
                             </small>
                           </span>
                           {item.unreadCount > 0 && (
@@ -392,8 +435,12 @@ export default function CommunityChatWorkspace({
                 )}
               </div>
             )
-          ) : chat.requests.length ? (
+          ) : chat.requests.length ||
+            groups.invitations.length ||
+            groups.invitationLoading ||
+            groups.invitationError ? (
             <>
+              <GroupInvitations groups={groups} />
               <ul className={styles.requests}>
                 {chat.requests.map((request) => (
                   <li key={request.requestId}>
@@ -501,13 +548,27 @@ export default function CommunityChatWorkspace({
           ) : activeConversation ? (
             <>
               <header className={styles.threadHeader}>
-                <Avatar peer={activePeer} />
+                {activeConversation.kind === 'GROUP' ? (
+                  <span className={styles.groupAvatar} aria-hidden="true">
+                    {initials(activeConversation.groupName)}
+                  </span>
+                ) : (
+                  <Avatar peer={activePeer} />
+                )}
                 <span>
-                  <strong>{peerName(activePeer)}</strong>
+                  <strong>
+                    {activeConversation.kind === 'GROUP'
+                      ? activeConversation.groupName
+                      : peerName(activePeer)}
+                  </strong>
                   <small>
-                    {activeConversation.state === 'READ_ONLY'
-                      ? 'Cuộc trò chuyện chỉ đọc'
-                      : 'Tin nhắn riêng tư trong cộng đồng'}
+                    {activeConversation.kind === 'GROUP'
+                      ? activeConversation.state === 'ARCHIVED'
+                        ? 'Nhóm riêng đã lưu trữ · Chỉ đọc'
+                        : `Nhóm riêng · ${activeConversation.peers.length} thành viên · Chỉ người đã chấp thuận mới có thể đọc và gửi tin`
+                      : activeConversation.state === 'READ_ONLY'
+                        ? 'Cuộc trò chuyện chỉ đọc'
+                        : 'Tin nhắn riêng tư trong cộng đồng'}
                   </small>
                 </span>
                 <details className={styles.safetyMenu}>
@@ -516,16 +577,25 @@ export default function CommunityChatWorkspace({
                     <Link href="/safety-directory?trigger=community-chat">
                       Tìm hỗ trợ
                     </Link>
-                    <button
-                      type="button"
-                      disabled={chat.busyKey === 'block'}
-                      onClick={() => void chat.blockPeer()}
-                    >
-                      Chặn thành viên
-                    </button>
+                    {activeConversation.kind === 'DIRECT' && (
+                      <button
+                        type="button"
+                        disabled={chat.busyKey === 'block'}
+                        onClick={() => void chat.blockPeer()}
+                      >
+                        Chặn thành viên
+                      </button>
+                    )}
                   </div>
                 </details>
               </header>
+
+              {activeConversation.kind === 'GROUP' && (
+                <GroupManagement
+                  groups={groups}
+                  viewerProfileId={chat.viewerProfileId}
+                />
+              )}
 
               <div className={styles.messages} aria-live="polite">
                 {visibleMessages.length ? (
@@ -563,10 +633,15 @@ export default function CommunityChatWorkspace({
                   })
                 ) : (
                   <div className={styles.emptyThread}>
-                    <strong>Bắt đầu thật nhẹ nhàng</strong>
+                    <strong>
+                      {activeConversation.kind === 'GROUP'
+                        ? 'Bắt đầu cùng nhóm thật nhẹ nhàng'
+                        : 'Bắt đầu thật nhẹ nhàng'}
+                    </strong>
                     <p>
-                      Chỉ chia sẻ điều bạn thấy an toàn. Bạn có thể chặn và rời
-                      đi bất cứ lúc nào.
+                      {activeConversation.kind === 'GROUP'
+                        ? 'Chỉ thành viên đã chấp thuận mới có thể xem lịch sử và gửi tin trong nhóm này.'
+                        : 'Chỉ chia sẻ điều bạn thấy an toàn. Bạn có thể chặn và rời đi bất cứ lúc nào.'}
                     </p>
                   </div>
                 )}
@@ -644,6 +719,12 @@ export default function CommunityChatWorkspace({
           )}
         </article>
       </div>
+
+      <CreateGroupDialog
+        open={createGroupOpen}
+        groups={groups}
+        onOpenChange={setCreateGroupOpen}
+      />
 
       <Dialog
         open={Boolean(
