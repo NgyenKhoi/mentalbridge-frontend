@@ -1062,36 +1062,24 @@ const DELETION_FACT_STATUSES = new Set([
   'FAILED',
   'UNAVAILABLE',
 ])
-export const APPROVED_FAILURE_CODES = new Set<string>([
-  'ACCOUNT_NOT_FOUND',
-  'RETRY_LIMIT_EXHAUSTED',
-  'RETRY_EXHAUSTED',
+export const APPROVED_RETENTION_FAILURE_CODES = new Set<string>([
   'PRIOR_EXECUTION_STALE',
   'SWEEP_EXECUTION_FAILED',
-  'LOCK_ACQUISITION_FAILED',
-  'CONCURRENT_SWEEP_RUNNING',
-  'CAPABILITY_UNAVAILABLE',
-  'ALREADY_COMPLETED',
-  'HOLD_ACTIVE',
-  'EXECUTION_SCHEDULE_NOT_REACHED',
-  'MISSING_OWNER_FACTS',
-  'MISSING_IDENTITY_FACT',
-  'EXTERNAL_OWNER_RETRY_UNSUPPORTED',
 ])
-export const APPROVED_FAILURE_REASONS = new Set<string>([
+export const APPROVED_DELETION_FAILURE_CODES = new Set<string>([
+  'ACCOUNT_NOT_FOUND',
+  'RETRY_LIMIT_EXHAUSTED',
+])
+export const APPROVED_DELETION_FAILURE_REASONS = new Set<string>([
   'ACCOUNT_NOT_FOUND',
   'COMMUNITY_TIMEOUT',
   'LEGAL_HOLD_ACTIVE',
-  'AUTH_FAILED',
-  'KEY_EXPIRED',
-  'INVALID_REFERENCE',
-  'STATUTORY_INQUIRY',
-  'PENDING_DISPUTE',
-  'ACTIVE_SAFETY_REVIEW',
-  'SCHEDULED_APPOINTMENT_ACTIVE',
-  'USER_CONTESTED',
-  'AUDIT_COMPLIANCE_HOLD',
 ])
+export const APPROVED_FAILURE_CODES = new Set<string>([
+  ...APPROVED_RETENTION_FAILURE_CODES,
+  ...APPROVED_DELETION_FAILURE_CODES,
+])
+export const APPROVED_FAILURE_REASONS = APPROVED_DELETION_FAILURE_REASONS
 export const SAFE_FAILURE_CODE_PATTERN = /^[A-Z0-9_]{1,64}$/
 export const SAFE_FAILURE_REASON_PATTERN = /^[A-Z0-9_]{1,64}$/
 export const APPROVED_IDENTITY_EVIDENCE_PATTERN =
@@ -1134,7 +1122,7 @@ export function parseRetentionExecutionRecord(
     holdsHonored: value.holdsHonored,
     failureCode:
       typeof value.failureCode === 'string' &&
-      APPROVED_FAILURE_CODES.has(value.failureCode.trim())
+      APPROVED_RETENTION_FAILURE_CODES.has(value.failureCode.trim())
         ? (value.failureCode.trim() as RetentionExecutionRecord['failureCode'])
         : null,
   }
@@ -1231,7 +1219,7 @@ export function parseDeletionOwnerFact(
   const rawReason =
     typeof value.failureReason === 'string' ? value.failureReason.trim() : null
   const safeFailureReason =
-    rawReason && APPROVED_FAILURE_REASONS.has(rawReason)
+    rawReason && APPROVED_DELETION_FAILURE_REASONS.has(rawReason)
       ? (rawReason as DeletionOwnerFact['failureReason'])
       : null
 
@@ -1300,7 +1288,7 @@ export function parseDeletionRequest(value: unknown): DeletionRequest | null {
       value.escalationState as DeletionRequest['escalationState'],
     failureCode:
       typeof value.failureCode === 'string' &&
-      APPROVED_FAILURE_CODES.has(value.failureCode.trim())
+      APPROVED_DELETION_FAILURE_CODES.has(value.failureCode.trim())
         ? (value.failureCode.trim() as DeletionRequest['failureCode'])
         : null,
     requestedAt: value.requestedAt,

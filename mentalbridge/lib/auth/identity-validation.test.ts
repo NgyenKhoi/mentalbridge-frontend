@@ -5,6 +5,7 @@ import {
   parseAdministrationAuditEventPage,
   parseDeletionOwnerFact,
   parseDeletionRequest,
+  parseRetentionExecutionRecord,
   validateAccountStateChangeRequest,
 } from './identity-validation'
 
@@ -422,5 +423,110 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
     })
 
     expect(requestWithValidCode?.failureCode).toBe('ACCOUNT_NOT_FOUND')
+
+    const requestWithRetryExhausted = parseDeletionRequest({
+      requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+      subjectReference:
+        'tombstone:aaaa9e80d3bc45aa91f6044dd5afbf78abcdef1234567890abcdef1234567890',
+      status: 'FAILED',
+      holdType: 'NONE',
+      holdReason: null,
+      retryCount: 3,
+      maxRetries: 3,
+      escalationState: 'RETRY_EXHAUSTED',
+      accountStatus: 'DELETION_PENDING',
+      failureCode: 'RETRY_LIMIT_EXHAUSTED',
+      requestedAt: '2026-10-18T10:00:00Z',
+      scheduledExecutionAt: '2026-10-18T10:00:00Z',
+      ownerFacts: [],
+    })
+    expect(requestWithRetryExhausted?.failureCode).toBe('RETRY_LIMIT_EXHAUSTED')
+
+    // Cross-domain retention code inside deletion request must fail closed to null
+    const requestWithRetentionCode = parseDeletionRequest({
+      requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+      subjectReference:
+        'tombstone:aaaa9e80d3bc45aa91f6044dd5afbf78abcdef1234567890abcdef1234567890',
+      status: 'FAILED',
+      holdType: 'NONE',
+      holdReason: null,
+      retryCount: 1,
+      maxRetries: 3,
+      escalationState: 'NONE',
+      accountStatus: 'DELETION_PENDING',
+      failureCode: 'SWEEP_EXECUTION_FAILED',
+      requestedAt: '2026-10-18T10:00:00Z',
+      scheduledExecutionAt: '2026-10-18T10:00:00Z',
+      ownerFacts: [],
+    })
+    expect(requestWithRetentionCode?.failureCode).toBeNull()
+  })
+
+  it('validates retention execution failureCode against narrowed producer allowlist', () => {
+    const validStale = parseRetentionExecutionRecord({
+      executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
+      policyId: 'MB-IDENTITY-REPORTING-001',
+      ownerService: 'IDENTITY',
+      jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
+      jobStatus: 'FAILED',
+      startedAt: '2026-10-19T02:00:00Z',
+      completedAt: '2026-10-19T02:05:00Z',
+      itemsEvaluated: 10,
+      recordsPurged: 0,
+      tombstonesCreated: 0,
+      holdsHonored: 0,
+      failureCode: 'PRIOR_EXECUTION_STALE',
+    })
+    expect(validStale?.failureCode).toBe('PRIOR_EXECUTION_STALE')
+
+    const validSweepFailed = parseRetentionExecutionRecord({
+      executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
+      policyId: 'MB-IDENTITY-REPORTING-001',
+      ownerService: 'IDENTITY',
+      jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
+      jobStatus: 'FAILED',
+      startedAt: '2026-10-19T02:00:00Z',
+      completedAt: '2026-10-19T02:05:00Z',
+      itemsEvaluated: 10,
+      recordsPurged: 0,
+      tombstonesCreated: 0,
+      holdsHonored: 0,
+      failureCode: 'SWEEP_EXECUTION_FAILED',
+    })
+    expect(validSweepFailed?.failureCode).toBe('SWEEP_EXECUTION_FAILED')
+
+    // Deletion code inside retention execution must fail closed to null
+    const crossDomainCode = parseRetentionExecutionRecord({
+      executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
+      policyId: 'MB-IDENTITY-REPORTING-001',
+      ownerService: 'IDENTITY',
+      jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
+      jobStatus: 'FAILED',
+      startedAt: '2026-10-19T02:00:00Z',
+      completedAt: '2026-10-19T02:05:00Z',
+      itemsEvaluated: 10,
+      recordsPurged: 0,
+      tombstonesCreated: 0,
+      holdsHonored: 0,
+      failureCode: 'ACCOUNT_NOT_FOUND',
+    })
+    expect(crossDomainCode?.failureCode).toBeNull()
+
+    // Random uppercase code fails closed to null
+    const unapprovedCode = parseRetentionExecutionRecord({
+      executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
+      policyId: 'MB-IDENTITY-REPORTING-001',
+      ownerService: 'IDENTITY',
+      jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
+      jobStatus: 'FAILED',
+      startedAt: '2026-10-19T02:00:00Z',
+      completedAt: '2026-10-19T02:05:00Z',
+      itemsEvaluated: 10,
+      recordsPurged: 0,
+      tombstonesCreated: 0,
+      holdsHonored: 0,
+      failureCode: 'UNKNOWN_AUDIT_ERROR',
+    })
+    expect(unapprovedCode?.failureCode).toBeNull()
   })
 })
