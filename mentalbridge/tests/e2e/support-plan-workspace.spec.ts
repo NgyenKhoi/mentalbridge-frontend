@@ -15,6 +15,12 @@ import {
   emotionOccurrenceId,
   nativeSupportPlanFixture,
 } from '../../features/support-plan/testing/native-support-plan-fixture'
+import {
+  completeResourceReflection,
+  mockResourceCompletionDetail,
+  resourceCompletionHref,
+  resourceCompletionWorld,
+} from './resource-completion-mocks'
 
 const today = '2026-10-13'
 const evaluationId = '90000000-0000-4000-8000-000000000669'
@@ -451,6 +457,165 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     process.env.E2E_RUNTIME === 'live-cross-stack',
     'Controlled plan states must not mutate shared accounts.',
   )
+
+  test('MB-670 a saved Resource practice reconciles with its pinned version and Today shows accepted completion without undo', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    const resourceWorld = resourceCompletionWorld(today)
+    const world: World = {
+      ...resourceWorld,
+      history: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    const calls = await mockPlanApi(page, world)
+    const detail = await mockResourceCompletionDetail(page, world)
+    await page.goto('/support-plan')
+    const openResource = page.getByRole('link', { name: 'Mở nội dung' })
+    const href = new URL(
+      (await openResource.getAttribute('href'))!,
+      'http://127.0.0.1:3100',
+    )
+    expect(Object.fromEntries(href.searchParams)).toMatchObject({
+      from: 'support-plan',
+      contentVersion: '4',
+      localDate: today,
+    })
+    await openResource.click()
+    await expect(page).toHaveURL(href.toString())
+    await expect(
+      page.getByRole('heading', {
+        name: 'Viết vài dòng dịu dàng',
+        level: 1,
+        exact: true,
+      }),
+    ).toBeVisible()
+    expect(new Set(detail.reads)).toEqual(new Set(['4']))
+    expect(detail.reconciles).toHaveLength(0)
+    await completeResourceReflection(page)
+    await expect(
+      page.getByText('Đã ghi nhận vào kế hoạch hôm nay.', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      page.getByText('Đã ghi nhận từ bài luyện tập', { exact: true }),
+    ).toHaveCount(0)
+    await expect(
+      page.getByText(/Kết quả hoàn thành đã được ghi nhận/),
+    ).toHaveCount(0)
+    expect(detail.saves.at(-1)).toMatchObject({
+      status: 'COMPLETED',
+      resourceVersion: '4',
+    })
+    expect(detail.reconciles).toEqual([{ ifMatch: '"3"' }])
+    await page
+      .getByRole('link', { name: 'Quay lại kế hoạch', exact: true })
+      .click()
+    await expect(
+      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
+    ).toBeVisible()
+    await expect(
+      page.getByText('Đã ghi nhận từ bài luyện tập', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', {
+        name: /Làm lại hôm nay|Hoàn tác|Đã làm xong/,
+      }),
+    ).toHaveCount(0)
+    expect(calls.filter((call) => call.path.endsWith('/state'))).toHaveLength(0)
+    await page.getByRole('tab', { name: 'Tiến triển' }).click()
+    await expect(
+      page.getByText('Đã ghi nhận từ bài luyện tập', { exact: true }),
+    ).toBeVisible()
+  })
+
+  test('MB-670 reconcile 503 preserves the Content save and open occurrence until an explicit retry succeeds', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    const resourceWorld = resourceCompletionWorld(today)
+    const world: World & { reconcileStatus: number } = {
+      ...resourceWorld,
+      reconcileStatus: 503,
+      history: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    await mockPlanApi(page, world)
+    const detail = await mockResourceCompletionDetail(page, world)
+    await page.goto(resourceCompletionHref(today))
+    await completeResourceReflection(page)
+    await expect(
+      page.getByText(
+        'Đã lưu bài luyện tập. Kế hoạch sẽ cập nhật khi kết nối lại.',
+      ),
+    ).toBeVisible()
+    await expect(
+      page.getByText('Đã ghi nhận vào kế hoạch hôm nay.', { exact: true }),
+    ).toHaveCount(0)
+    expect(world.occurrences[0].state).toBe('SCHEDULED')
+    const saveCount = detail.saves.length
+    world.reconcileStatus = 200
+    await page.getByRole('button', { name: 'Thử lại', exact: true }).click()
+    await expect(
+      page.getByText('Đã ghi nhận vào kế hoạch hôm nay.', { exact: true }),
+    ).toBeVisible()
+    expect(detail.saves).toHaveLength(saveCount)
+    expect(detail.reconciles).toHaveLength(2)
+    await page
+      .getByRole('link', { name: 'Quay lại kế hoạch', exact: true })
+      .click()
+    await expect(
+      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
+    ).toBeVisible()
+  })
+
+  test('MB-670 missing Resource evidence keeps acknowledgement available on return', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    const world = {
+      ...resourceCompletionWorld(today),
+      reconcileStatus: 409,
+      history: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    await mockPlanApi(page, world)
+    await mockResourceCompletionDetail(page, world)
+    await page.goto(resourceCompletionHref(today))
+    await completeResourceReflection(page)
+    await expect(
+      page.getByText(
+        'Đã lưu bài luyện tập. Bạn có thể xác nhận trong kế hoạch.',
+      ),
+    ).toBeVisible()
+    await page.getByRole('link', { name: 'Xem trong kế hoạch' }).click()
+    await expect(
+      page.getByRole('button', { name: 'Đã làm xong', exact: true }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
+    ).toHaveCount(0)
+  })
+
+  test('MB-670 a historical Resource occurrence never offers automatic reconciliation', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    const past = '2026-10-12'
+    const world: World = {
+      ...resourceCompletionWorld(past),
+      history: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    await mockPlanApi(page, world)
+    const detail = await mockResourceCompletionDetail(page, world)
+    await page.goto(resourceCompletionHref(past))
+    await completeResourceReflection(page)
+    expect(detail.reconciles).toHaveLength(0)
+    expect(world.occurrences[0].state).toBe('SCHEDULED')
+    await expect(
+      page.getByText('Đã ghi nhận từ bài luyện tập', { exact: true }),
+    ).toHaveCount(0)
+  })
 
   test('MB-669 prepares a 14-day proposal without a generate button and starts only on request', async ({
     page,

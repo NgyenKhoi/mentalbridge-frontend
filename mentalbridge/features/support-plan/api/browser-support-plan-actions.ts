@@ -9,6 +9,7 @@ import type {
   EmotionCheckInOccurrenceReconciliation,
   JournalOccurrenceReconciliation,
   NativeSupportPlanReplacementReview,
+  PlanResourceActionsV1,
   ReplaceCurrentSupportPlanRequest,
   ReplaceSupportPlanOccurrenceEngagementRequest,
   SupportPlanActionHistory,
@@ -34,6 +35,17 @@ export async function getNativeSupportPlanEvaluationSource(
 export async function getCurrentSupportPlanActions() {
   return (
     await browserApiClient.get<SupportPlanV3>('/care/v2/support-plans/current')
+  ).data
+}
+export async function getCurrentPlanResourceActions(
+  localDate: string,
+  signal?: AbortSignal,
+) {
+  return (
+    await browserApiClient.get<PlanResourceActionsV1>(
+      '/care/v2/support-plans/current/resource-actions',
+      { params: { localDate }, signal },
+    )
   ).data
 }
 export async function getCurrentNativeSupportPlanDraft() {
@@ -187,6 +199,16 @@ export async function reconcileEmotionCheckInOccurrence(id: string) {
   return (
     await browserApiClient.post<EmotionCheckInOccurrenceReconciliation>(
       `${occurrencePath(id)}/emotion-check-in/reconcile`,
+    )
+  ).data
+}
+
+export async function reconcileResourceOccurrence(id: string, version: number) {
+  return (
+    await browserApiClient.post<ActionOccurrence>(
+      `${occurrencePath(id)}/resource/reconcile`,
+      undefined,
+      { headers: { 'If-Match': `"${version}"` } },
     )
   ).data
 }

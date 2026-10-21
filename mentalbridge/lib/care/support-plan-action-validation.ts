@@ -7,6 +7,7 @@ import type {
   EmotionCheckInOccurrenceReconciliation,
   JournalOccurrenceReconciliation,
   NativeSupportPlanReplacementReview,
+  PlanResourceActionsV1,
   SupportPlanActionHistory,
   SupportPlanContextualCompanionMessage,
   SupportPlanV3,
@@ -196,6 +197,136 @@ export function isSupportPlanLocalDate(value: unknown): value is string {
   return (
     Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
   )
+}
+
+/** Minimized resource projection: never pass action rationale or source payloads. */
+export function parsePlanResourceActions(
+  value: unknown,
+): PlanResourceActionsV1 | null {
+  if (
+    !exact(
+      value,
+      ['planState', 'localDate', 'actions'],
+      ['supportPlanId', 'supportPlanVersion', 'representationMode', 'timeZone'],
+    ) ||
+    !['ACTIVE', 'PAUSED', 'NONE'].includes(String(value.planState)) ||
+    !isSupportPlanLocalDate(value.localDate) ||
+    !Array.isArray(value.actions)
+  )
+    return null
+  if (value.planState === 'NONE') {
+    return value.actions.length === 0 &&
+      value.supportPlanId === undefined &&
+      value.supportPlanVersion === undefined &&
+      value.representationMode === undefined &&
+      value.timeZone === undefined
+      ? (value as PlanResourceActionsV1)
+      : null
+  }
+  if (
+    !isUuid(String(value.supportPlanId)) ||
+    !integer(value.supportPlanVersion) ||
+    !['NATIVE_V3', 'V2_RESOURCE_ADAPTER'].includes(
+      String(value.representationMode),
+    ) ||
+    !text(value.timeZone, 64)
+  )
+    return null
+  for (const entry of value.actions) {
+    if (
+      !exact(entry, [
+        'actionId',
+        'actionVersion',
+        'title',
+        'resource',
+        'schedule',
+        'today',
+      ]) ||
+      !text(entry.actionId, 128) ||
+      !integer(entry.actionVersion) ||
+      !text(entry.title, 255) ||
+      !exact(entry.resource, [
+        'resourceId',
+        'resourceVersion',
+        'publicationId',
+      ]) ||
+      !isUuid(String(entry.resource.resourceId)) ||
+      typeof entry.resource.resourceVersion !== 'string' ||
+      !/^(0|[1-9]\d{0,18})$/.test(String(entry.resource.resourceVersion)) ||
+      !isUuid(String(entry.resource.publicationId))
+    )
+      return null
+    if (entry.schedule !== null) {
+      const schedule = entry.schedule
+      if (
+        !exact(schedule, [
+          'scheduleId',
+          'version',
+          'schedulePolicyVersion',
+          'recurrenceType',
+          'recurrenceDayOfWeek',
+          'daysOfWeek',
+          'preferredDaypart',
+          'estimatedDurationMinutes',
+          'localTime',
+          'timezone',
+          'effectiveFrom',
+          'effectiveUntil',
+          'reminderEnabled',
+          'status',
+        ]) ||
+        !isUuid(String(schedule.scheduleId)) ||
+        !integer(schedule.version, 1) ||
+        !['ONCE', 'DAILY', 'WEEKLY'].includes(
+          String(schedule.recurrenceType),
+        ) ||
+        !Array.isArray(schedule.daysOfWeek) ||
+        !schedule.daysOfWeek.every(
+          (day) => integer(day, 1) && Number(day) <= 7,
+        ) ||
+        !text(schedule.localTime, 32) ||
+        !text(schedule.timezone, 64) ||
+        !isSupportPlanLocalDate(schedule.effectiveFrom) ||
+        !(
+          schedule.effectiveUntil === null ||
+          isSupportPlanLocalDate(schedule.effectiveUntil)
+        ) ||
+        typeof schedule.reminderEnabled !== 'boolean' ||
+        !['DRAFT', 'ACTIVE', 'PAUSED', 'ENDED'].includes(
+          String(schedule.status),
+        )
+      )
+        return null
+    }
+    if (entry.today !== null) {
+      const today = entry.today
+      if (
+        value.representationMode === 'V2_RESOURCE_ADAPTER' ||
+        !exact(
+          today,
+          [
+            'occurrenceId',
+            'occurrenceVersion',
+            'displayState',
+            'completionEvidence',
+          ],
+          ['timeZone'],
+        ) ||
+        !isUuid(String(today.occurrenceId)) ||
+        !integer(today.occurrenceVersion) ||
+        !(today.timeZone === undefined || text(today.timeZone, 64)) ||
+        !['SCHEDULED', 'OVERDUE', 'COMPLETED', 'SKIPPED', 'CANCELLED'].includes(
+          String(today.displayState),
+        ) ||
+        !(
+          today.completionEvidence === null ||
+          parseCompletionEvidence(today.completionEvidence)
+        )
+      )
+        return null
+    }
+  }
+  return value as PlanResourceActionsV1
 }
 
 const ACTION_TYPES = [
@@ -482,6 +613,8 @@ export function parseCompletionEvidence(
     APPOINTMENT_FULFILMENT: 'CONSULTATION',
     ASSESSMENT_HISTORY: 'CARE',
     SELF_REPORT_REVIEW: 'CARE',
+    RESOURCE_PRACTICE_SESSION: 'CONTENT',
+    RESOURCE_COMPLETION: 'CONTENT',
   }
   return owners[String(value.kind)] === value.ownerDomain
     ? (value as CompletionEvidence)
@@ -569,7 +702,12 @@ export function parseActionOccurrence(value: unknown): ActionOccurrence | null {
     SELF_REPORT_REVIEW: 'SELF_REPORT_REVIEW',
   }
   return evidence &&
-    evidence.kind === kinds[String(value.actionType)] &&
+    (evidence.kind === kinds[String(value.actionType)] ||
+      (value.actionType === 'RESOURCE' &&
+        evidence.ownerDomain === 'CONTENT' &&
+        ['RESOURCE_PRACTICE_SESSION', 'RESOURCE_COMPLETION'].includes(
+          evidence.kind,
+        ))) &&
     instant(value.outcomeRecordedAt)
     ? (value as ActionOccurrence)
     : null

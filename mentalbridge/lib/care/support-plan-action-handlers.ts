@@ -3,6 +3,7 @@ import 'server-only'
 import type { NextRequest } from 'next/server'
 import { correlationIdFrom } from '@/lib/auth/bff-response'
 import { readBoundedJson, RequestBodyError } from '@/lib/auth/request-body'
+import { isSameOrigin } from '@/lib/auth/same-origin'
 import {
   authenticatedCareUser,
   careAuthenticationFailure,
@@ -20,6 +21,7 @@ import { parseEngagementRequest } from './support-plan-engagement-request'
 
 type Operation =
   | 'current'
+  | 'resourceActions'
   | 'draft'
   | 'detail'
   | 'history'
@@ -33,12 +35,14 @@ type Operation =
   | 'reconcile'
   | 'companionExplanation'
   | 'reconcileJournal'
+  | 'reconcileResource'
   | 'continueCycle'
   | 'occurrenceEngagement'
   | 'adaptiveReview'
   | 'adaptiveConfirm'
 const READS: readonly Operation[] = [
   'current',
+  'resourceActions',
   'draft',
   'detail',
   'history',
@@ -67,22 +71,6 @@ function invalid(): never {
     'VALIDATION_FAILED',
     'Request validation failed.',
   )
-}
-
-function isSameOrigin(request: NextRequest): boolean {
-  const origin = request.headers.get('origin')
-  if (!origin) return false
-  try {
-    const parsed = new URL(origin)
-    const host = request.headers.get('host') ?? request.nextUrl.host
-    return (
-      origin === parsed.origin &&
-      parsed.host === host.toLowerCase() &&
-      parsed.protocol === request.nextUrl.protocol
-    )
-  } catch {
-    return false
-  }
 }
 
 async function requireEmptyBody(request: NextRequest) {
@@ -134,6 +122,7 @@ export async function supportPlanActionHandler(
         'reconcile',
         'companionExplanation',
         'reconcileJournal',
+        'reconcileResource',
         'continueCycle',
         'occurrenceEngagement',
         'adaptiveReview',
@@ -156,6 +145,7 @@ export async function supportPlanActionHandler(
         'review',
         'replace',
         'occurrenceState',
+        'reconcileResource',
         'continueCycle',
         'occurrenceEngagement',
         'adaptiveConfirm',
@@ -177,7 +167,11 @@ export async function supportPlanActionHandler(
       !KEY.test(key)
     )
       invalid()
-    if (['activate', 'reconcile', 'continueCycle'].includes(operation)) {
+    if (
+      ['activate', 'reconcile', 'reconcileResource', 'continueCycle'].includes(
+        operation,
+      )
+    ) {
       await requireEmptyBody(request)
     }
     let result: unknown
@@ -187,6 +181,16 @@ export async function supportPlanActionHandler(
       case 'current':
         result = await supportPlanActionClient.current(token, correlationId)
         break
+      case 'resourceActions': {
+        const localDate = request.nextUrl.searchParams.get('localDate')
+        if (!isSupportPlanLocalDate(localDate)) invalid()
+        result = await supportPlanActionClient.resourceActions(
+          token,
+          localDate,
+          correlationId,
+        )
+        break
+      }
       case 'draft':
         result = await supportPlanActionClient.draft(token, correlationId)
         break
@@ -382,6 +386,14 @@ export async function supportPlanActionHandler(
         )
         break
       }
+      case 'reconcileResource':
+        result = await supportPlanActionClient.reconcileResource(
+          token,
+          ownerId,
+          version,
+          correlationId,
+        )
+        break
       case 'continueCycle':
         result = await supportPlanActionClient.continueCycle(
           token,

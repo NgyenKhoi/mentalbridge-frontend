@@ -139,8 +139,42 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Replace one daily progress item for the authenticated owner */
+        /**
+         * Replace one daily progress item for the authenticated owner
+         * @description resourceVersion pins the listed publication snapshot actually used. An omitted version selects the current resource version. Completion stores that exact version; a newer resource version never substitutes as evidence.
+         */
         put: operations["saveResourceProgress"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-completion-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the newest qualifying exact-version Content fact for the owner
+         * @description Owner comes from the verified USER bearer. Matches the exact resource
+         *     version and the server occurredAt converted to the requested IANA timeZone
+         *     on localDate, never a client-selected date alone. Qualifying facts are a
+         *     measured 60-7200 second practice session (occurredAt = server completed_at
+         *     minus duration_seconds, including legacy sessions), or a
+         *     completed resource_daily_progress row (occurredAt = completed_at).
+         *     Practice factId is the session UUID; completion factId is the deterministic
+         *     resourceId:localDate of its stored daily-progress row. resourceVersion is
+         *     the fact revision. Learning completion and Bingo self-confirmation are
+         *     excluded. Candidates are ordered by recorded completed_at, newest first.
+         *     Callers can exclude fact IDs already accepted as occurrence evidence.
+         *     No remaining fact returns 404; dependency uncertainty returns 503.
+         */
+        get: operations["getResourceCompletionEvidence"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -194,10 +228,43 @@ export interface paths {
         };
         /**
          * Read one persisted weekly resource Bingo board and its exact evidence
-         * @description Self-confirmed marks are owner statements and remain distinct from Content-verified resource completion or eligible plan-bound practice evidence. Historical boards are retained by their local Monday and original IANA time zone.
+         * @description Self-confirmed marks are owner statements and remain distinct from Content-verified resource completion or eligible plan-bound practice evidence. Historical boards are retained by their local Monday and original IANA time zone. Returns the most recently synced board when multiple SupportPlans have boards in the same week. This read never resyncs current or historical boards.
          */
         get: operations["getResourceBingo"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-bingo/{weekStart}/plan-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Synchronize current-week Bingo with the owner's current Care resource actions
+         * @description Reads Care with the owner's Authorization and X-Correlation-Id, then
+         *     synchronizes under Content's owner/week advisory lock. Only the current
+         *     local week may be synced. Boards are scoped to owner, week and SupportPlan;
+         *     a plan switch creates a different board and preserves the former board.
+         *     Uses plan order with at most nine items and no catalogue padding. Existing
+         *     items remain in their ordinal and are retired when absent, preserving
+         *     evidence and counting toward the nine-item limit. Resource version changes
+         *     rebind in place and clear self-confirmation; a returning resource is
+         *     unretired. Multiple actions on one resource share one tile. actionVersion
+         *     changes alone do not churn tiles. Identical projections do not bump the
+         *     board version. Unlisted exact resource versions and actions beyond board
+         *     capacity are reported in unavailableActions. A definite Care NONE retires
+         *     the latest board; with no board it returns an empty nonpersisted board
+         *     shape with version "0". Care failure leaves all persisted state unchanged.
+         */
+        put: operations["syncResourceBingoPlan"];
         post?: never;
         delete?: never;
         options?: never;
@@ -213,7 +280,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Replace one owner self-confirmation on a persisted Bingo item */
+        /**
+         * Replace one owner self-confirmation on a persisted Bingo item
+         * @description Self-confirmation is undoable and never Care completion evidence. Retired items cannot be changed.
+         */
         put: operations["setResourceBingoSelfConfirmation"];
         post?: never;
         delete?: never;
@@ -636,11 +706,11 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {string} */
-        NotificationKind: "REMINDER" | "MESSAGE" | "APPOINTMENT" | "SYSTEM_RESOURCE" | "ASSESSMENT_REASSESSMENT" | "STREAK_MILESTONE" | "JOURNAL_REMINDER" | "EMOTION_CHECKIN_REMINDER" | "JOURNAL_STREAK_MILESTONE" | "EMOTION_STREAK_MILESTONE" | "COMMUNITY_COMMENT" | "COMMUNITY_REPLY" | "COMMUNITY_REACTION" | "ASSESSMENT_RESULT_AVAILABLE" | "SUPPORT_GUIDE_AVAILABLE" | "ACCOUNT_STATUS";
+        NotificationKind: "REMINDER" | "MESSAGE" | "APPOINTMENT" | "SYSTEM_RESOURCE" | "ASSESSMENT_REASSESSMENT" | "STREAK_MILESTONE" | "JOURNAL_REMINDER" | "EMOTION_CHECKIN_REMINDER" | "JOURNAL_STREAK_MILESTONE" | "EMOTION_STREAK_MILESTONE" | "COMMUNITY_COMMENT" | "COMMUNITY_REPLY" | "COMMUNITY_REACTION" | "COMMUNITY_MESSAGE" | "COMMUNITY_REQUEST" | "COMMUNITY_INVITATION" | "ASSESSMENT_RESULT_AVAILABLE" | "SUPPORT_GUIDE_AVAILABLE" | "ACCOUNT_STATUS";
         /** @enum {string} */
         NotificationPriority: "LOW" | "NORMAL" | "HIGH";
         /** @enum {string} */
-        NotificationActionType: "OPEN_JOURNAL" | "OPEN_MESSAGES" | "OPEN_APPOINTMENTS" | "OPEN_SPECIALIST_APPOINTMENTS" | "OPEN_RESOURCES" | "OPEN_ASSESSMENTS" | "OPEN_RESOURCE" | "OPEN_COMMUNITY_POST" | "OPEN_SUPPORT_GUIDE";
+        NotificationActionType: "OPEN_JOURNAL" | "OPEN_MESSAGES" | "OPEN_APPOINTMENTS" | "OPEN_SPECIALIST_APPOINTMENTS" | "OPEN_RESOURCES" | "OPEN_ASSESSMENTS" | "OPEN_RESOURCE" | "OPEN_COMMUNITY_POST" | "OPEN_COMMUNITY_CONVERSATION" | "OPEN_COMMUNITY_REQUEST" | "OPEN_COMMUNITY_INVITATION" | "OPEN_SUPPORT_GUIDE";
         NotificationAction: {
             type: components["schemas"]["NotificationActionType"];
             /** Format: uuid */
@@ -913,7 +983,8 @@ export interface components {
             practiceSessionId?: string;
             /**
              * Format: date-time
-             * @description Optional start instant for the practice session.
+             * @deprecated
+             * @description Ignored client instant. Practice start is derived from server completion time minus measured duration.
              */
             practiceStartedAt?: string;
             /** @description Optional measured duration for the practice session. */
@@ -928,6 +999,21 @@ export interface components {
             items: components["schemas"]["ResourceProgressItem"][];
         };
         ResourceProgressUpdate: {
+            /** @description Exact listed publication snapshot actually used; omitted selects the current version. */
+            resourceVersion?: string;
+            /**
+             * Format: uuid
+             * @description Client-generated idempotency key for one completed repeatable practice session.
+             */
+            practiceSessionId?: string;
+            /**
+             * Format: date-time
+             * @deprecated
+             * @description Ignored client instant retained for compatibility. Practice start is server completion time minus measured duration.
+             */
+            practiceStartedAt?: string;
+            /** @description Measured duration; requires practiceSessionId. Evidence requires 60 through 7200 seconds. */
+            practiceDurationSeconds?: number;
             status: components["schemas"]["ResourceProgressStatus"];
             /** @description Current user-managed checklist selections. These selections remain editable after COMPLETED without reversing the recorded completion. */
             completedActionIds: string[];
@@ -943,6 +1029,20 @@ export interface components {
         ResourceBookmarkList: {
             items: components["schemas"]["ResourceBookmark"][];
         };
+        ResourceCompletionEvidence: {
+            /** @enum {string} */
+            factKind: "RESOURCE_PRACTICE_SESSION" | "RESOURCE_COMPLETION";
+            /** @description Practice session UUID or deterministic resourceId:localDate daily-progress identity. */
+            factId: string;
+            resourceVersion: string;
+            /**
+             * Format: date-time
+             * @description Server practice completed_at minus duration_seconds, or daily-progress completed_at; never client started_at or localDate.
+             */
+            occurredAt: string;
+            /** Format: date-time */
+            verifiedAt: string;
+        };
         /** @enum {string} */
         ResourceBingoEvidence: "NONE" | "SELF_CONFIRMED" | "CONTENT_VERIFIED";
         /** @enum {string} */
@@ -951,8 +1051,13 @@ export interface components {
             position: number;
             /** Format: uuid */
             resourceId: string;
+            /** @description Care native action or v2 adapter slot identity; null for legacy catalogue items. */
+            actionId: string | null;
+            /** @description No longer in this plan; retained in its ordinal with history and no self-confirmation edits. */
+            retired: boolean;
             contentVersion: string;
             label: string;
+            /** @description Action-bound CONTENT_VERIFIED requires an exact-version owner Content fact whose server occurredAt falls inside this board week in its timeZone. Practice duration must be 60-7200 seconds. Only legacy items retain journey-assignment binding. A retired tile keeps history. */
             evidence: components["schemas"]["ResourceBingoEvidence"];
             /** Format: date-time */
             selfConfirmedAt: string | null;
@@ -968,6 +1073,21 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             items: components["schemas"]["ResourceBingoItemState"][];
+        };
+        ResourceBingoPlanSync: {
+            /** Format: date */
+            weekStart: string;
+            timeZone: string;
+            version: string;
+            /** Format: date-time */
+            updatedAt: string;
+            items: components["schemas"]["ResourceBingoItemState"][];
+            /** @description Current plan actions skipped without exposing resource rationale or copied content. */
+            unavailableActions: {
+                actionId: string;
+                /** @enum {string} */
+                reason: "RESOURCE_VERSION_UNAVAILABLE" | "BOARD_FULL";
+            }[];
         };
         ResourceBingoSelfConfirmationUpdate: {
             selfConfirmed: boolean;
@@ -1114,6 +1234,7 @@ export interface components {
             progress: components["schemas"]["ResourceJourneyProgress"];
             /** Format: date */
             weekStart: string;
+            /** @description Read-only items from the week's most recently synced persisted board, or [] when none exists. Journey materialization never creates or alters a Bingo board. Use plan-sync to update the current week. */
             bingo: components["schemas"]["ResourceJourneyBingoItem"][];
         };
         ResourceSummary: {
@@ -1976,6 +2097,84 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description RESOURCE_VERSION_UNAVAILABLE; supplied version is not a listed publication snapshot */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_VERSION_UNAVAILABLE",
+                     *       "title": "Resource version unavailable",
+                     *       "status": 409,
+                     *       "code": "RESOURCE_VERSION_UNAVAILABLE",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getResourceCompletionEvidence: {
+        parameters: {
+            query: {
+                resourceId: string;
+                resourceVersion: string;
+                localDate: string;
+                timeZone: string;
+                /** @description Fact IDs already used for this owner, resource and exact revision; omitted considers every candidate. */
+                excludedFactIds?: string[];
+            };
+            header?: {
+                "X-Correlation-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest qualifying minimized owner fact */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "factKind": "RESOURCE_PRACTICE_SESSION",
+                     *       "factId": "77000000-0000-4000-8000-000000000001",
+                     *       "resourceVersion": "2",
+                     *       "occurredAt": "2026-10-21T12:00:00Z",
+                     *       "verifiedAt": "2026-10-21T12:02:00Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ResourceCompletionEvidence"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description RESOURCE_EVIDENCE_NOT_FOUND; no qualifying exact-version owner fact for this local date */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_EVIDENCE_NOT_FOUND",
+                     *       "title": "Resource evidence not found",
+                     *       "status": 404,
+                     *       "code": "RESOURCE_EVIDENCE_NOT_FOUND",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             422: components["responses"]["ValidationError"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -2078,6 +2277,103 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    syncResourceBingoPlan: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: string;
+            };
+            path: {
+                weekStart: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    timeZone: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Current plan board and skipped actions; strong ETag matches version */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "weekStart": "2026-10-19",
+                     *       "timeZone": "Asia/Ho_Chi_Minh",
+                     *       "version": "1",
+                     *       "updatedAt": "2026-10-21T12:03:00Z",
+                     *       "items": [
+                     *         {
+                     *           "position": 1,
+                     *           "resourceId": "73000000-0000-4000-8000-000000000001",
+                     *           "contentVersion": "2",
+                     *           "actionId": "72000000-0000-4000-8000-000000000001",
+                     *           "retired": false,
+                     *           "label": "Slow breathing practice",
+                     *           "evidence": "CONTENT_VERIFIED",
+                     *           "selfConfirmedAt": null,
+                     *           "verifiedAt": "2026-10-21T12:02:00Z",
+                     *           "verificationSource": "PRACTICE_SESSION"
+                     *         }
+                     *       ],
+                     *       "unavailableActions": [
+                     *         {
+                     *           "actionId": "72000000-0000-4000-8000-000000000002",
+                     *           "reason": "RESOURCE_VERSION_UNAVAILABLE"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ResourceBingoPlanSync"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description RESOURCE_BINGO_WEEK_NOT_CURRENT; past or future weeks cannot be resynced */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_BINGO_WEEK_NOT_CURRENT",
+                     *       "title": "Bingo week is not current",
+                     *       "status": 409,
+                     *       "code": "RESOURCE_BINGO_WEEK_NOT_CURRENT",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            /** @description RESOURCE_BINGO_CARE_UNAVAILABLE for Care failure, or persistence dependency unavailable; board unchanged */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_BINGO_CARE_UNAVAILABLE",
+                     *       "title": "Care resource actions unavailable",
+                     *       "status": 503,
+                     *       "code": "RESOURCE_BINGO_CARE_UNAVAILABLE",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     setResourceBingoSelfConfirmation: {
         parameters: {
             query?: never;
@@ -2109,6 +2405,24 @@ export interface operations {
             400: components["responses"]["RequestRejected"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description RESOURCE_BINGO_ITEM_RETIRED; retired items are read-only */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_BINGO_ITEM_RETIRED",
+                     *       "title": "Bingo item retired",
+                     *       "status": 409,
+                     *       "code": "RESOURCE_BINGO_ITEM_RETIRED",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             412: components["responses"]["Conflict"];
             422: components["responses"]["ValidationError"];
             428: components["responses"]["RequestRejected"];

@@ -1,9 +1,23 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError } from '@/lib/api/api-error'
+import { useEffect } from 'react'
+import type { PlanResourceActionsV1 } from '@/features/support-plan/api/support-plan-contract'
 import type { PublicResourceSummary } from '../api/browser-resources'
 import ResourcesShowcase from './ResourcesShowcase'
+
+vi.mock('./PlanResourcesSection', () => ({
+  PlanResourcesSection: ({
+    onPlanChange,
+  }: {
+    onPlanChange?: (plan: PlanResourceActionsV1 | null) => void
+  }) => {
+    useEffect(() => {
+      onPlanChange?.(api.planProjection)
+    }, [onPlanChange])
+    return <div data-testid="plan-resources-section" />
+  },
+}))
 
 vi.mock('@/features/emotion-check-in/TodayEmotionSummary', () => ({
   TodayEmotionSummary: () => <div data-testid="today-emotion-summary" />,
@@ -17,9 +31,8 @@ const api = vi.hoisted(() => ({
   getResourceBookmarks: vi.fn(),
   saveResourceBookmark: vi.fn(),
   deleteResourceBookmark: vi.fn(),
-  getResourceBingo: vi.fn(),
-  setResourceBingoSelfConfirmation: vi.fn(),
   getAchievements: vi.fn(),
+  planProjection: null as PlanResourceActionsV1 | null,
 }))
 vi.mock('@/features/achievements/api/browser-achievements', () => ({
   getAchievements: api.getAchievements,
@@ -44,8 +57,6 @@ vi.mock('../api/browser-resource-engagement', () => ({
   getResourceBookmarks: api.getResourceBookmarks,
   saveResourceBookmark: api.saveResourceBookmark,
   deleteResourceBookmark: api.deleteResourceBookmark,
-  getResourceBingo: api.getResourceBingo,
-  setResourceBingoSelfConfirmation: api.setResourceBingoSelfConfirmation,
 }))
 
 const resource: PublicResourceSummary = {
@@ -90,23 +101,28 @@ function journey(date: string, completed = 0, streak = 0) {
   }
 }
 
-function bingo(evidence: 'NONE' | 'SELF_CONFIRMED' = 'NONE') {
+function planProjection(): PlanResourceActionsV1 {
   return {
-    weekStart: '2026-09-28',
-    timeZone: 'Asia/Ho_Chi_Minh',
-    version: '0',
-    updatedAt: '2026-09-29T02:15:00.000Z',
-    items: [
+    planState: 'ACTIVE',
+    localDate: '2026-09-29',
+    timeZone: 'Asia/Bangkok',
+    actions: [
       {
-        position: 1,
-        resourceId: resource.id,
-        contentVersion: '7',
-        label: resource.title,
-        evidence,
-        selfConfirmedAt:
-          evidence === 'SELF_CONFIRMED' ? '2026-09-29T02:15:00.000Z' : null,
-        verifiedAt: null,
-        verificationSource: null,
+        actionId: 'plan-action-1',
+        actionVersion: 1,
+        title: resource.title,
+        resource: {
+          resourceId: resource.id,
+          resourceVersion: '7',
+          publicationId: 'publication-1',
+        },
+        schedule: null,
+        today: {
+          occurrenceId: 'occurrence-1',
+          occurrenceVersion: 0,
+          displayState: 'SCHEDULED',
+          completionEvidence: null,
+        },
       },
     ],
   }
@@ -117,6 +133,7 @@ describe('ResourcesShowcase owner data', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(2026, 8, 29, 9))
     vi.clearAllMocks()
+    api.planProjection = planProjection()
     api.getAchievements.mockResolvedValue({ collection: { items: [] } })
     api.getResourceCatalogue.mockResolvedValue({
       items: [resource],
@@ -132,11 +149,6 @@ describe('ResourcesShowcase owner data', () => {
       contentVersion: '7',
       savedAt: '2026-09-29T02:15:00.000Z',
       version: '0',
-    })
-    api.getResourceBingo.mockResolvedValue({ board: bingo(), etag: '"0"' })
-    api.setResourceBingoSelfConfirmation.mockResolvedValue({
-      board: bingo('SELF_CONFIRMED'),
-      etag: '"1"',
     })
   })
 
@@ -156,24 +168,68 @@ describe('ResourcesShowcase owner data', () => {
       await screen.findByRole('heading', { level: 1, name: resource.title }),
     ).toBeVisible()
     expect(screen.getByText('Chưa có chuỗi thực hành')).toBeVisible()
-    expect(screen.getByText('0/1 hoạt động đã hoàn thành')).toBeVisible()
+    expect(
+      await screen.findByText('0/1 hoạt động hôm nay đã ghi nhận'),
+    ).toBeVisible()
     expect(screen.getByText('MentalBridge Content Review')).toBeVisible()
     expect(document.body).not.toHaveTextContent(/\bXP\b|420\/600|Cấp độ 2/)
   })
 
   it('keeps today visible when an older day fails to load', async () => {
+    api.planProjection!.actions[0].today!.displayState = 'COMPLETED'
     api.getResourceJourney.mockImplementation(async (date: string) => {
       if (date === '2026-09-25') throw new Error('Unavailable')
       return journey(date, date === '2026-09-29' ? 1 : 0, 4)
     })
     render(<ResourcesShowcase />)
     expect(await screen.findByText('4 ngày đã lưu')).toBeVisible()
-    expect(screen.getByText('1/1 hoạt động đã hoàn thành')).toBeVisible()
+    expect(
+      await screen.findByText('1/1 hoạt động hôm nay đã ghi nhận'),
+    ).toBeVisible()
     expect(
       screen.getByText(
         'Một số ngày trước chưa tải được. Tiến độ hôm nay vẫn là dữ liệu đã lưu.',
       ),
     ).toBeVisible()
+  })
+
+  it.each(['ACTIVE', 'PAUSED'] as const)(
+    'uses the %s plan projection for today count independently of journey totals',
+    async (planState) => {
+      const projection = planProjection()
+      const first = projection.actions[0]
+      projection.planState = planState
+      projection.actions = [
+        { ...first, today: { ...first.today!, displayState: 'COMPLETED' } },
+        { ...first, actionId: 'plan-action-2' },
+        { ...first, actionId: 'plan-action-3', today: null },
+        {
+          ...first,
+          actionId: 'plan-action-skipped',
+          today: { ...first.today!, displayState: 'SKIPPED' },
+        },
+      ]
+      api.planProjection = projection
+      render(<ResourcesShowcase />)
+      expect(
+        await screen.findByText('1/2 hoạt động hôm nay đã ghi nhận'),
+      ).toBeVisible()
+      expect(screen.queryByText('0/1 hoạt động đã hoàn thành')).toBeNull()
+      expect(
+        screen.getByRole('link', { name: 'Hoạt động trong kế hoạch hôm nay' }),
+      ).toHaveAttribute('href', '#plan-resources')
+    },
+  )
+
+  it('hides the side plan count and week strip when the plan is unavailable', async () => {
+    api.planProjection = null
+    render(<ResourcesShowcase />)
+    await screen.findByRole('heading', { level: 1, name: resource.title })
+    expect(screen.queryByTestId('today-plan-progress')).toBeNull()
+    expect(screen.queryByLabelText('Bảy ngày gần đây')).toBeNull()
+    expect(
+      screen.queryByRole('link', { name: 'Hoạt động trong kế hoạch hôm nay' }),
+    ).toBeNull()
   })
 
   it('persists bookmarks through the owner API', async () => {
@@ -186,28 +242,5 @@ describe('ResourcesShowcase owner data', () => {
     expect(
       await screen.findByRole('button', { name: 'Bỏ lưu hoạt động nổi bật' }),
     ).toBeVisible()
-  })
-
-  it('separates a saved Bingo mark from a failed update', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    api.setResourceBingoSelfConfirmation
-      .mockResolvedValueOnce({ board: bingo('SELF_CONFIRMED'), etag: '"1"' })
-      .mockRejectedValueOnce(
-        new ApiError({
-          message: 'conflict',
-          code: 'STALE_VERSION',
-          status: 412,
-        }),
-      )
-    render(<ResourcesShowcase />)
-    await user.click(await screen.findByRole('button', { name: 'Tự đánh dấu' }))
-    expect(await screen.findByText('Bạn tự đánh dấu')).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Bỏ tự đánh dấu' }))
-    expect(
-      await screen.findByText(
-        'Thay đổi Bingo chưa được đối soát. Các dấu cũ đang được ẩn để tránh nhầm là trạng thái hiện tại.',
-      ),
-    ).toBeVisible()
-    expect(screen.queryByText('Bạn tự đánh dấu')).not.toBeInTheDocument()
   })
 })

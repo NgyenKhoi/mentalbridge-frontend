@@ -39,6 +39,8 @@ export type ReplaceSupportPlanPersonalizationRequest =
   care['schemas']['ReplaceSupportPlanPersonalizationRequest']
 export type PlanAction = care['schemas']['PlanAction']
 export type ActionSchedule = care['schemas']['ActionSchedule']
+export type PlanResourceAction = care['schemas']['PlanResourceAction']
+export type PlanResourceActionsV1 = care['schemas']['PlanResourceActionsV1']
 export type ActionScheduleInput = care['schemas']['ActionScheduleInput']
 export type UpdateActionScheduleRequest =
   care['schemas']['UpdateActionScheduleRequest']
