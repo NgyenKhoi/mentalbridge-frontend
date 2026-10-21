@@ -13,6 +13,7 @@ import AdminAppointmentDisputes from '@/features/appointments/components/AdminAp
 import AdminReportsSection from '@/features/reports/components/AdminReportsSection'
 import AdminPaymentsManager from '@/components/AdminPaymentsManager'
 import AdminPayoutsManager from '@/components/AdminPayoutsManager'
+import AdminCommercialReconciliationManager from '@/features/reconciliation/components/AdminCommercialReconciliationManager'
 import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
@@ -68,6 +69,11 @@ const SECTIONS = {
     label: 'Chi trả chuyên gia',
     description: 'Tra cứu yêu cầu chi trả và kết quả xử lý.',
   },
+  reconciliation: {
+    label: 'Đối soát thương mại',
+    description:
+      'Đối soát vòng đời thương mại, phát hiện sai lệch và truy vết dòng tiền.',
+  },
 } as const
 
 export type AdminSection = keyof typeof SECTIONS
@@ -112,7 +118,7 @@ export default function AdminWorkspace({
       </aside>
 
       <main
-        className={`${styles.main} ${section === 'specialists' || section === 'reports' || section === 'payments' || section === 'payouts' ? styles.reviewMain : ''}`}
+        className={`${styles.main} ${section === 'specialists' || section === 'reports' || section === 'payments' || section === 'payouts' || section === 'reconciliation' ? styles.reviewMain : ''}`}
       >
         {section === 'dashboard' ? (
           <>
@@ -139,6 +145,8 @@ export default function AdminWorkspace({
           <AdminPaymentsManager />
         ) : section === 'payouts' ? (
           <AdminPayoutsManager />
+        ) : section === 'reconciliation' ? (
+          <AdminCommercialReconciliationManager />
         ) : (
           <>
             <span className={styles.eyebrow}>

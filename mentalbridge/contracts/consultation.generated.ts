@@ -1043,6 +1043,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/payouts/{payoutId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns payout details including masked destination, attempts, earnings, and provider events. */
+        get: operations["getAdminPayoutDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/subscriptions/{subscriptionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns subscription details including payments, credits, and upgrades. */
+        get: operations["getAdminSubscriptionDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/commercial/discrepancies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns authoritative commercial discrepancies including pending/failed/duplicate webhooks, failed payouts, held earnings, and disputed settlements. */
+        get: operations["getAdminCommercialDiscrepancies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/commercial/provenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Traces canonical commercial provenance across Payment, Subscription/Credit, Appointment/Settlement, Specialist Earning, and Payout. */
+        get: operations["getAdminCommercialProvenance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/payouts/momo/ipn": {
         parameters: {
             query?: never;
@@ -2173,6 +2241,265 @@ export interface components {
             requestedAt: string;
             /** Format: date-time */
             completedAt?: string | null;
+        };
+        AdminPayoutDetail: {
+            payout: components["schemas"]["AdminPayout"];
+            attempts: {
+                /** Format: uuid */
+                attemptId: string;
+                attemptNumber: number;
+                /** @enum {string} */
+                provider: "FAKE" | "MOMO";
+                /** @enum {string} */
+                status: "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
+                providerReference?: string | null;
+                failureCode?: string | null;
+                /** Format: date-time */
+                requestedAt: string;
+                /** Format: date-time */
+                confirmedAt?: string | null;
+                /** Format: date-time */
+                failedAt?: string | null;
+            }[];
+            earnings: {
+                /** Format: uuid */
+                earningId: string;
+                /** Format: uuid */
+                appointmentId: string;
+                /** Format: int64 */
+                amountVnd: number;
+                status: string;
+                /** Format: date-time */
+                earnedAt: string;
+                /** Format: date-time */
+                paidAt?: string | null;
+            }[];
+            events: {
+                /** Format: uuid */
+                eventId: string;
+                provider: string;
+                eventType: string;
+                processingStatus: string;
+                failureCode?: string | null;
+                /** Format: date-time */
+                receivedAt: string;
+                /** Format: date-time */
+                processedAt?: string | null;
+            }[];
+        };
+        AdminSubscriptionDetail: {
+            /** Format: uuid */
+            subscriptionId: string;
+            /** Format: uuid */
+            userAccountId: string;
+            /** Format: uuid */
+            planVersionId: string;
+            /** @enum {string} */
+            planCode: "FREE" | "PLUS" | "PREMIUM";
+            pricingPolicyVersion: string;
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "ACTIVE" | "ENDED";
+            /** Format: date-time */
+            currentPeriodStart?: string | null;
+            /** Format: date-time */
+            currentPeriodEnd?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            payments: components["schemas"]["AdminPayment"][];
+            credits: {
+                /** Format: uuid */
+                creditId: string;
+                /** Format: uuid */
+                periodId: string;
+                ordinal: number;
+                state: string;
+                /** Format: int64 */
+                creditAllocationVnd: number;
+                /** Format: uuid */
+                appointmentId?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            upgrades: {
+                /** Format: uuid */
+                upgradeId: string;
+                /** Format: uuid */
+                fromPlanVersionId: string;
+                /** Format: uuid */
+                toPlanVersionId: string;
+                /** Format: int64 */
+                offsetVnd: number;
+                /** Format: int64 */
+                amountDueVnd: number;
+                status: string;
+                /** Format: date-time */
+                quotedAt: string;
+                /** Format: date-time */
+                appliedAt?: string | null;
+            }[];
+        };
+        AdminCommercialDiscrepancyReport: {
+            /** Format: date-time */
+            generatedAt: string;
+            totalDiscrepancies: number;
+            webhooks: {
+                /** Format: uuid */
+                id: string;
+                orderId: string;
+                provider: string;
+                /** Format: int64 */
+                transId?: number | null;
+                discrepancyType: string;
+                status: string;
+                failureCode?: string | null;
+                /** Format: date-time */
+                receivedAt: string;
+            }[];
+            payouts: {
+                /** Format: uuid */
+                payoutId: string;
+                /** Format: uuid */
+                specialistAccountId: string;
+                destinationHint: string;
+                /** Format: int64 */
+                amountVnd: number;
+                /** @constant */
+                currency: "VND";
+                provider: string;
+                status: string;
+                failureCode?: string | null;
+                /** Format: date-time */
+                requestedAt: string;
+            }[];
+            heldEarnings: {
+                /** Format: uuid */
+                earningId: string;
+                /** Format: uuid */
+                appointmentId: string;
+                /** Format: uuid */
+                specialistAccountId: string;
+                /** Format: int64 */
+                amountVnd: number;
+                status: string;
+                holdReason: string;
+                /** Format: date-time */
+                earnedAt: string;
+                /** Format: date-time */
+                settlementAvailableAt: string;
+            }[];
+            disputes: {
+                /** Format: uuid */
+                disputeId: string;
+                /** Format: uuid */
+                appointmentId: string;
+                openedByRole: string;
+                reasonCode: string;
+                status: string;
+                resolutionOutcome?: string | null;
+                /** Format: date-time */
+                openedAt: string;
+                /** Format: date-time */
+                eligibleUntil: string;
+            }[];
+        };
+        AdminCommercialProvenance: {
+            /** Format: date-time */
+            generatedAt: string;
+            queryIdentifierType: string;
+            queryIdentifierValue: string;
+            found: boolean;
+            subscription?: {
+                /** Format: uuid */
+                subscriptionId: string;
+                /** Format: uuid */
+                userAccountId: string;
+                /** Format: uuid */
+                planVersionId: string;
+                planCode: string;
+                pricingPolicyVersion: string;
+                status: string;
+                /** Format: date-time */
+                currentPeriodStart?: string | null;
+                /** Format: date-time */
+                currentPeriodEnd?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            } | null;
+            payments: components["schemas"]["AdminPayment"][];
+            credits: {
+                /** Format: uuid */
+                creditId: string;
+                /** Format: uuid */
+                periodId: string;
+                ordinal: number;
+                state: string;
+                /** Format: int64 */
+                creditAllocationVnd: number;
+                /** Format: uuid */
+                appointmentId?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            appointments: {
+                /** Format: uuid */
+                appointmentId: string;
+                /** Format: uuid */
+                specialistAccountId: string;
+                /** Format: uuid */
+                serviceCreditId: string;
+                status: string;
+                modality: string;
+                sessionOutcome?: string | null;
+                /** Format: uuid */
+                completionFactId?: string | null;
+                /** Format: date-time */
+                scheduledStartAt: string;
+                /** Format: date-time */
+                scheduledEndAt: string;
+                /** Format: date-time */
+                sessionSettledAt?: string | null;
+            }[];
+            disputes: {
+                /** Format: uuid */
+                disputeId: string;
+                /** Format: uuid */
+                appointmentId: string;
+                openedByRole: string;
+                reasonCode: string;
+                status: string;
+                resolutionOutcome?: string | null;
+                resolutionReason?: string | null;
+                /** Format: date-time */
+                openedAt: string;
+                /** Format: date-time */
+                resolvedAt?: string | null;
+            }[];
+            earnings: {
+                /** Format: uuid */
+                earningId: string;
+                /** Format: uuid */
+                appointmentId: string;
+                /** Format: uuid */
+                consumedCreditId: string;
+                /** Format: uuid */
+                specialistAccountId: string;
+                planVersion: string;
+                /** Format: int64 */
+                creditAllocationVnd: number;
+                specialistShareBps: number;
+                /** Format: int64 */
+                specialistAmountVnd: number;
+                /** Format: int64 */
+                platformAllocationVnd: number;
+                status: string;
+                /** Format: date-time */
+                earnedAt: string;
+                /** Format: date-time */
+                settlementAvailableAt: string;
+                /** Format: date-time */
+                paidAt?: string | null;
+            }[];
+            payouts: components["schemas"]["AdminPayout"][];
         };
         AdminPayoutList: {
             /** Format: date-time */
@@ -4919,7 +5246,14 @@ export interface operations {
     };
     listAdminPayments: {
         parameters: {
-            query?: never;
+            query?: {
+                status?: "ALL" | "PENDING" | "SUCCEEDED" | "FAILED" | "CHARGEBACK";
+                from?: string;
+                to?: string;
+                subscriptionId?: string;
+                paymentId?: string;
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4941,7 +5275,14 @@ export interface operations {
     };
     listAdminPayouts: {
         parameters: {
-            query?: never;
+            query?: {
+                status?: "ALL" | "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
+                from?: string;
+                to?: string;
+                specialistAccountId?: string;
+                payoutId?: string;
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4957,6 +5298,108 @@ export interface operations {
                     "application/json": components["schemas"]["AdminPayoutList"];
                 };
             };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getAdminPayoutDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payoutId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detailed payout reconciliation record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPayoutDetail"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getAdminSubscriptionDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subscriptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detailed subscription commercial record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSubscriptionDetail"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getAdminCommercialDiscrepancies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative discrepancy report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommercialDiscrepancyReport"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getAdminCommercialProvenance: {
+        parameters: {
+            query?: {
+                paymentId?: string;
+                subscriptionId?: string;
+                creditId?: string;
+                appointmentId?: string;
+                earningId?: string;
+                payoutId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Complete provenance trace across the commercial bounded context */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommercialProvenance"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
         };

@@ -13,6 +13,17 @@ vi.mock('@/components/AdminDashboardManager', () => ({
   ),
 }))
 
+vi.mock(
+  '@/features/reconciliation/components/AdminCommercialReconciliationManager',
+  () => ({
+    default: () => (
+      <section aria-label="Commercial reconciliation">
+        Authoritative reconciliation
+      </section>
+    ),
+  }),
+)
+
 import AdminWorkspace from './AdminWorkspace'
 
 describe('AdminWorkspace', () => {
@@ -45,5 +56,26 @@ describe('AdminWorkspace', () => {
     expect(
       screen.getByRole('link', { name: 'Chi trả chuyên gia' }),
     ).toHaveAttribute('href', '/admin/payouts')
+    expect(
+      screen.getByRole('link', { name: 'Đối soát thương mại' }),
+    ).toHaveAttribute('href', '/admin/reconciliation')
+  })
+
+  it('renders commercial reconciliation manager on /admin/reconciliation section', () => {
+    render(
+      <AdminWorkspace
+        section="reconciliation"
+        workspaces={[
+          { role: 'ADMIN', label: 'Quản trị', path: '/admin/reconciliation' },
+        ]}
+      />,
+    )
+
+    expect(
+      screen.getByRole('region', { name: 'Commercial reconciliation' }),
+    ).toBeVisible()
+    expect(
+      screen.getByText('Authoritative reconciliation'),
+    ).toBeInTheDocument()
   })
 })
