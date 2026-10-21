@@ -110,7 +110,7 @@ const mockDeletions: DeletionRequest[] = [
       {
         ownerService: 'IDENTITY',
         status: 'HELD',
-        failureReason: 'LEGAL_HOLD_ACTIVE',
+        failureReason: null,
       },
     ],
   },
@@ -136,7 +136,7 @@ const mockDeletions: DeletionRequest[] = [
       {
         ownerService: 'COMMUNITY',
         status: 'FAILED',
-        failureReason: 'COMMUNITY_TIMEOUT',
+        failureReason: null,
       },
     ],
   },
@@ -489,9 +489,9 @@ describe('AdminRetentionGovernance Component', () => {
           requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf99',
           ownerFacts: [
             {
-              ownerService: 'COMMUNITY',
+              ownerService: 'IDENTITY',
               status: 'FAILED',
-              failureReason: 'COMMUNITY_TIMEOUT',
+              failureReason: 'ACCOUNT_NOT_FOUND',
             },
             {
               ownerService: 'CARE',
@@ -526,7 +526,7 @@ describe('AdminRetentionGovernance Component', () => {
     const factsPanel = screen.getByTestId(
       'facts-panel-948f9e80-d3bc-45aa-91f6-044dd5afbf99',
     )
-    expect(factsPanel).toHaveTextContent('Lý do: COMMUNITY_TIMEOUT')
+    expect(factsPanel).toHaveTextContent('Lý do: ACCOUNT_NOT_FOUND')
 
     // Verify privacy boundary fail-closed: raw PII/secrets/journal text are NEVER rendered
     expect(

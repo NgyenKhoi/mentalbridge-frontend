@@ -1001,7 +1001,7 @@ export interface components {
         /** @enum {string} */
         RetentionFailureCode: "PRIOR_EXECUTION_STALE" | "SWEEP_EXECUTION_FAILED";
         /** @enum {string} */
-        DeletionFailureReason: "ACCOUNT_NOT_FOUND" | "COMMUNITY_TIMEOUT" | "LEGAL_HOLD_ACTIVE";
+        DeletionFailureReason: "ACCOUNT_NOT_FOUND";
         /** @enum {string} */
         DeletionFailureCode: "ACCOUNT_NOT_FOUND" | "RETRY_LIMIT_EXHAUSTED";
         /** @enum {string} */

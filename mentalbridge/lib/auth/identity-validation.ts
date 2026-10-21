@@ -1072,8 +1072,6 @@ export const APPROVED_DELETION_FAILURE_CODES = new Set<string>([
 ])
 export const APPROVED_DELETION_FAILURE_REASONS = new Set<string>([
   'ACCOUNT_NOT_FOUND',
-  'COMMUNITY_TIMEOUT',
-  'LEGAL_HOLD_ACTIVE',
 ])
 export const APPROVED_FAILURE_CODES = new Set<string>([
   ...APPROVED_RETENTION_FAILURE_CODES,

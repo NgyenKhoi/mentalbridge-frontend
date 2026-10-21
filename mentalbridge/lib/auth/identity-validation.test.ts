@@ -230,6 +230,28 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
       evidenceReference: null,
       failureReason: 'ACCOUNT_NOT_FOUND',
     })
+
+    // Unapproved or uncontracted failure reasons must fail closed to null
+    const timeoutFact = parseDeletionOwnerFact({
+      ownerService: 'COMMUNITY',
+      status: 'FAILED',
+      failureReason: 'COMMUNITY_TIMEOUT',
+    })
+    expect(timeoutFact?.failureReason).toBeNull()
+
+    const holdFact = parseDeletionOwnerFact({
+      ownerService: 'IDENTITY',
+      status: 'HELD',
+      failureReason: 'LEGAL_HOLD_ACTIVE',
+    })
+    expect(holdFact?.failureReason).toBeNull()
+
+    const uppercaseFact = parseDeletionOwnerFact({
+      ownerService: 'CARE',
+      status: 'FAILED',
+      failureReason: 'PATIENT_EVALUATION_HIGH_SUICIDE_RISK',
+    })
+    expect(uppercaseFact?.failureReason).toBeNull()
   })
 
   it('sanitizes raw emails, clinical journal notes, chat transcripts and secrets to null', () => {
