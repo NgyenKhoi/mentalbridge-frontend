@@ -21,7 +21,6 @@ import {
   activateNativeSupportPlan,
   changeNativeActionOccurrenceState,
   changeNativeSupportPlanStatus,
-  continueSupportPlanCycle,
   getCurrentNativeSupportPlanDraft,
   getCurrentSupportPlanActions,
   getNativeSupportPlanEvaluationSource,
@@ -48,6 +47,7 @@ import {
 } from '../api/browser-support-plan'
 import type {
   ActionOccurrence,
+  AdaptiveReviewConfirmation,
   NativeSupportPlanReplacementReview,
   ReplaceSupportPlanChoicesRequest,
   SupportPlan,
@@ -67,7 +67,7 @@ import PlanHistory from './PlanHistory'
 import PlanPanel from './PlanPanel'
 import ProgressPanel from './ProgressPanel'
 import ProposalPreview from './ProposalPreview'
-import TodayPanel, { type Helpfulness } from './TodayPanel'
+import TodayPanel, { type Barrier, type Helpfulness } from './TodayPanel'
 import { useCompanion } from './use-companion'
 import {
   cycleLine,
@@ -261,7 +261,13 @@ const discardFirstDraftCopy = {
 export default function SupportPlanWorkspace({
   returnOrigin,
   invalidOrigin = false,
-}: Readonly<{ returnOrigin?: ReturnOrigin; invalidOrigin?: boolean }>) {
+  openReview: openReviewOnLoad = false,
+}: Readonly<{
+  returnOrigin?: ReturnOrigin
+  invalidOrigin?: boolean
+  /** Returning from a reassessment the plan review asked for. */
+  openReview?: boolean
+}>) {
   const { confirm } = useFeedback()
   const { access, retry: retryAccess } = usePlanAccess()
   const [loaded, setLoaded] = useState<Loaded>()
@@ -312,7 +318,6 @@ export default function SupportPlanWorkspace({
   const keys = useRef<{
     activation?: string
     replacement?: string
-    continuation?: string
   }>({})
   // v1 slot choices of an older resource-based draft (Care accepts choices only on drafts).
   const [adapterDraft, setAdapterDraft] = useState<SupportPlan>()
@@ -653,7 +658,39 @@ export default function SupportPlanWorkspace({
     })
   }
 
-  function rate(item: PlannedOccurrence, helpfulness: Helpfulness) {
+  /** Optional coded reason for a skipped native activity; reuse only when the user ticks it. */
+  function skipReason(
+    item: PlannedOccurrence,
+    barrierCode: Barrier,
+    reuse: boolean,
+  ) {
+    return rowCommand(item, async () => {
+      const { occurrence } = item
+      if (occurrence.representationMode !== 'NATIVE_V3')
+        throw new Error('Native activity required')
+      const result = await replaceNativeOccurrenceEngagement(
+        occurrence.occurrenceId,
+        occurrence.version,
+        {
+          state: 'SKIPPED',
+          hidden: occurrence.hidden ?? false,
+          helpfulness: null,
+          barrierCode,
+          reflection: occurrence.reflection ?? null,
+          summaryReuseApproved:
+            reuse || (occurrence.summaryReuseApproved ?? false),
+        },
+      )
+      updateOccurrence(result)
+      return 'Cảm ơn bạn. Câu trả lời này chỉ để bạn nhìn lại sau.'
+    })
+  }
+
+  function rate(
+    item: PlannedOccurrence,
+    helpfulness: Helpfulness,
+    reuse = false,
+  ) {
     return rowCommand(item, async () => {
       const { occurrence } = item
       if (occurrence.representationMode === 'NATIVE_V3') {
@@ -666,7 +703,8 @@ export default function SupportPlanWorkspace({
             helpfulness,
             barrierCode: null,
             reflection: occurrence.reflection ?? null,
-            summaryReuseApproved: occurrence.summaryReuseApproved ?? false,
+            summaryReuseApproved:
+              reuse || (occurrence.summaryReuseApproved ?? false),
           },
         )
         updateOccurrence(result)
@@ -911,20 +949,19 @@ export default function SupportPlanWorkspace({
     })
   }
 
-  async function continueCycle() {
-    if (!current) return
-    await command(async () => {
-      keys.current.continuation ??= crypto.randomUUID()
-      const next = await continueSupportPlanCycle(
-        current.supportPlanId,
-        current.version,
-        keys.current.continuation,
-      )
-      keys.current.continuation = undefined
-      setLoaded((value) => value && { ...value, current: next })
-      setTab('today')
-      setAnnouncement('Đã bắt đầu thêm 14 ngày với nhịp hiện tại.')
-    })
+  /** Care applied one reviewed option; show the authoritative plan on Today. */
+  async function reviewApplied(result: AdaptiveReviewConfirmation) {
+    // The review itself shows the keep outcome; nothing changed to reload.
+    if (result.result === 'KEPT') return
+    await reload()
+    // A prepared draft is compared in the review itself; stay on Adjust.
+    if (result.result === 'DRAFT_PREPARED') return
+    setTab('today')
+    setAnnouncement(
+      result.result === 'CYCLE_CONTINUED'
+        ? 'Đã bắt đầu thêm 14 ngày với nhịp hiện tại.'
+        : 'Đã cập nhật kế hoạch theo lựa chọn của bạn.',
+    )
   }
 
   async function proposeReplacement() {
@@ -1097,6 +1134,19 @@ export default function SupportPlanWorkspace({
       ),
     )
   }
+
+  const reviewRequested = useRef(openReviewOnLoad)
+  const hasCurrent = Boolean(current)
+  useEffect(() => {
+    if (!reviewRequested.current || !hasCurrent) return
+    const timer = window.setTimeout(() => {
+      reviewRequested.current = false
+      openReview()
+    }, 0)
+    return () => window.clearTimeout(timer)
+    // openReview only reads state setters and the tab helper.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasCurrent])
 
   const focus = current
     ? selectTodayFocus(current, occurrences, today)
@@ -1486,7 +1536,10 @@ export default function SupportPlanWorkspace({
               onSkip={(item) => void changeState(item, 'SKIPPED')}
               onReopen={(item) => void changeState(item, 'SCHEDULED')}
               onAcknowledge={(item) => void changeState(item, 'COMPLETED')}
-              onRate={(item, value) => void rate(item, value)}
+              onRate={(item, value, reuse) => void rate(item, value, reuse)}
+              onBarrier={(item, value, reuse) =>
+                void skipReason(item, value, reuse)
+              }
               onResume={() => void lifecycle(current, 'ACTIVE')}
               onOpenReview={openReview}
               onOpenPlan={() => void changeTab('plan')}
@@ -1517,7 +1570,11 @@ export default function SupportPlanWorkspace({
                 />
               }
               history={<PlanHistory />}
-              onContinueCycle={() => void continueCycle()}
+              onApplied={reviewApplied}
+              onDiscardDraft={async () => {
+                if (draft) await lifecycle(draft, 'DISCARDED')
+              }}
+              onRefreshPlan={async () => void (await reload())}
               onProposeReplacement={() => void proposeReplacement()}
               onReviewReplacement={() => void reviewReplacement()}
               onConfirmReplacement={() => void confirmReplacement()}

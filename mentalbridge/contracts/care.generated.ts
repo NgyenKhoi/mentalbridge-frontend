@@ -1459,6 +1459,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/support-plans/{supportPlanId}/adaptive-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the Care-governed adaptive review of the owner's current plan
+         * @description Owner-only, no-store, stateless read (support-plan-review-v1). Composes
+         *     the current ACTIVE or PAUSED native plan, its cycle and actual program
+         *     period, the latest owned canonical reassessment-summary-v2 (or the one
+         *     named by reassessmentSummaryId), approved engagement patterns, deterministic
+         *     contradictions and bounded Care-admitted options. Never creates a draft,
+         *     summary, cycle or schedule change. No global wellbeing, recovery or
+         *     adherence score is produced. Optional sources degrade independently;
+         *     an unavailable admission dependency makes currentAdmission UNAVAILABLE
+         *     and withholds commitment options instead of failing the whole review.
+         *     Owned review reads survive FREE or expired access; paid entitlement gates
+         *     only the mutation options (reported as ENTITLEMENT_REQUIRED).
+         */
+        get: operations["getAdaptiveSupportPlanReview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/adaptive-review/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply exactly one explicitly chosen adaptive review option
+         * @description Requires the strong current-plan If-Match and a durable Idempotency-Key.
+         *     Care resolves identity from the JWT, replays an identical command first,
+         *     then recomputes the review context and compares reviewFingerprint. A
+         *     changed source, summary, admission, option set or period rollover returns
+         *     409 ADAPTIVE_REVIEW_STALE without mutation; the client reloads and the user
+         *     chooses again. Exactly one existing owner operation runs:
+         *     KEEP_CURRENT before due returns the validated unchanged plan (no write);
+         *     KEEP_CURRENT when REVIEW_DUE runs cycle continuation; LOWER_WORKLOAD and
+         *     DIFFERENT_TIME run one versioned schedule update; ALTERNATIVE_ACTION and
+         *     DIFFERENT_FOCUS first prepare a DRAFT (request without proposedPlanId) and,
+         *     after the user compares it, replace the current plan (request with
+         *     proposedPlanId and proposedVersion). PROFESSIONAL_SUPPORT_NEXT_STEP is
+         *     navigation only and is rejected here. A PAUSED plan is never resumed implicitly.
+         */
+        post: operations["confirmAdaptiveSupportPlanReviewOption"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/support-plan-occurrences": {
         parameters: {
             query?: never;
@@ -2141,12 +2203,12 @@ export interface components {
              * Format: uuid
              * @description Present for canonical v2 snapshots, including failed jobs.
              */
-            jobId: string | null;
+            jobId?: string | null;
             /**
              * Format: uuid
              * @description Present only when Journal produced an analysis (or for a legacy v1 snapshot).
              */
-            analysisId: string | null;
+            analysisId?: string | null;
             sourceJournalRevisions: components["schemas"]["ReassessmentJournalSourceRevision"][];
             contextSignals: string[];
             emotionIndicators: string[];
@@ -2171,11 +2233,11 @@ export interface components {
             supportPlanId: string;
             /** Format: int64 */
             sourcePlanVersion: number;
-            sourceSlotId: string;
+            sourceSlotId: string | null;
             /** Format: uuid */
-            sourceResourceId: string;
+            sourceResourceId: string | null;
             /** Format: int64 */
-            sourceContentVersion: number;
+            sourceContentVersion: number | null;
             /** Format: date-time */
             scheduledAt: string;
             /** @enum {string} */
@@ -3282,7 +3344,7 @@ export interface components {
             /** @enum {string|null} */
             preferredDaypart: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
             estimatedDurationMinutes: number | null;
-            /** Format: time */
+            /** @description Local wall time without an offset; timezone supplies the IANA zone. */
             localTime: string;
             timezone: string;
             /** Format: date */
@@ -3307,7 +3369,7 @@ export interface components {
              * @enum {string|null}
              */
             preferredDaypart: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
-            /** Format: time */
+            /** @description Local wall time without an offset; timezone supplies the IANA zone. */
             localTime: string;
             estimatedDurationMinutes: number;
             timezone: string;
@@ -3326,6 +3388,202 @@ export interface components {
             reassessmentSummary: components["schemas"]["ReassessmentSummary"];
             /** Format: date-time */
             reviewedAt: string;
+        };
+        /**
+         * @description support-plan-review-v1 adaptive review. Each evidence source stays separate
+         *     with its own availability, period and provenance; nothing is combined into
+         *     a wellbeing, recovery or adherence score or verdict. Options are bounded,
+         *     Care-admitted and explain their supporting and conflicting evidence.
+         */
+        AdaptiveSupportPlanReview: {
+            /** @constant */
+            schemaVersion: "adaptive-support-plan-review-v1";
+            /** @constant */
+            policyVersion: "support-plan-review-v1";
+            /** Format: uuid */
+            supportPlanId: string;
+            planVersion: number;
+            /** @enum {string} */
+            planStatus: "ACTIVE" | "PAUSED";
+            cycle: components["schemas"]["SupportPlanCycle"] | null;
+            /** Format: date-time */
+            reviewedAt: string;
+            programPeriod: components["schemas"]["AdaptiveReviewProgramPeriod"];
+            /**
+             * @description EARLY is a factual review before the cycle checkpoint or on a plan without a cycle; it never claims a full program elapsed.
+             * @enum {string}
+             */
+            reviewState: "EARLY" | "REVIEW_DUE" | "PAUSED";
+            reassessment: components["schemas"]["AdaptiveReviewReassessment"];
+            /**
+             * @description UNAVAILABLE means admission could not be checked now; it is never treated as proven inadmissible.
+             * @enum {string}
+             */
+            currentAdmission: "ADMISSIBLE" | "INADMISSIBLE" | "UNAVAILABLE";
+            /**
+             * @description Null while currentAdmission is UNAVAILABLE.
+             * @enum {string|null}
+             */
+            outcome: "CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE" | "CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE" | "CURRENT_PLAN_NOT_ADMISSIBLE" | null;
+            patterns: components["schemas"]["AdaptiveReviewPattern"][];
+            contradictions: components["schemas"]["AdaptiveReviewContradiction"][];
+            options: components["schemas"]["AdaptiveReviewOption"][];
+            /** @description Option kinds Care could not offer now, with a closed reason; no candidate is invented. */
+            unavailableOptions: components["schemas"]["AdaptiveReviewUnavailableOption"][];
+            /** @description Opaque hash of the decision context. Confirm compares it after recomputation. */
+            reviewFingerprint: string;
+            evidenceContext?: components["schemas"]["AdaptiveReviewEvidenceContext"];
+        };
+        /**
+         * @description Current Care evidence remains available without a composed summary. UTC comparison
+         *     windows are separate from programPeriod. Reusable sources contain exact native
+         *     action and occurrence revisions; private activity reflection text is excluded.
+         *     The embedded summary is a display projection with withdrawn sources masked;
+         *     stored immutable summaries and their history remain unchanged.
+         */
+        AdaptiveReviewEvidenceContext: {
+            comparisonPolicyVersion: string;
+            previousPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            /** @constant */
+            timezone: "UTC";
+            selfReportedExperience: components["schemas"]["ReassessmentSelfReportedExperienceDimension"];
+            engagementSources: components["schemas"]["AdaptiveReviewEngagementSource"][];
+        };
+        AdaptiveReviewEngagementSource: {
+            /** Format: uuid */
+            occurrenceId: string;
+            occurrenceVersion: number;
+            /** Format: uuid */
+            actionId: string | null;
+            actionVersion: number | null;
+            /** Format: uuid */
+            supportPlanId: string;
+            sourcePlanVersion: number;
+            sourceSlotId: string | null;
+            /** Format: uuid */
+            sourceResourceId: string | null;
+            sourceContentVersion: number | null;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            state: "COMPLETED" | "SKIPPED";
+            helpfulness: string | null;
+            barrierCode: string | null;
+            /** Format: date-time */
+            engagementUpdatedAt: string | null;
+        };
+        /** @description Actual plan participation period in the cycle timezone. Missed occurrences never move dates; only pauses do. */
+        AdaptiveReviewProgramPeriod: {
+            /** Format: date */
+            startedOn: string;
+            /** Format: date */
+            asOf: string;
+            timezone: string;
+            elapsedDays: number;
+            pausedDays: number;
+            fullCycleElapsed: boolean;
+            scheduledCount: number;
+            completedCount: number;
+            skippedCount: number;
+            /** @description Past occurrences with no recorded outcome; factual, never a failure. */
+            openCount: number;
+        };
+        AdaptiveReviewReassessment: {
+            /**
+             * @description AVAILABLE has a current canonical reassessment-summary-v2. NOT_STARTED and
+             *     INCOMPLETE mean the paired PHQ-9/GAD-7 or canonical summary is missing; self-report is optional. STALE means
+             *     the latest summary is older than the replacement window; UNAVAILABLE means a
+             *     dependency failed. Only AVAILABLE allows replacement options.
+             * @enum {string}
+             */
+            state: "AVAILABLE" | "NOT_STARTED" | "INCOMPLETE" | "STALE" | "UNAVAILABLE";
+            reasonCode: string | null;
+            /** @description The owned canonical four-dimension snapshot; null unless AVAILABLE or STALE. */
+            summary: components["schemas"]["ReassessmentSummary"] | null;
+        };
+        AdaptiveReviewEvidenceRef: {
+            /** @enum {string} */
+            source: "SCREENING_PHQ9" | "SCREENING_GAD7" | "JOURNAL_CONTEXT" | "PLAN_ENGAGEMENT" | "SELF_REPORTED_EXPERIENCE" | "ACTIVITY_REFLECTION" | "PATTERN" | "PREFERENCES";
+            /** @description Source identity (assessment, analysis, report, occurrence or pattern id) when one exists. */
+            refId: string | null;
+        };
+        /**
+         * @description Practical pattern from explicitly reusable occurrence feedback. A repeat is at
+         *     least two distinct occurrences of the same code for the same action in the
+         *     period. Never a clinical or adherence ratio.
+         */
+        AdaptiveReviewPattern: {
+            patternId: string;
+            /** @enum {string} */
+            kind: "REPEATED_BARRIER" | "REPEATED_HELPFUL";
+            /** @enum {string} */
+            code: "NOT_ENOUGH_TIME" | "LOW_ENERGY" | "NOT_A_GOOD_FIT" | "HELPFUL";
+            /** Format: uuid */
+            actionId: string;
+            actionTitle: string;
+            count: number;
+            occurrenceIds: string[];
+        };
+        /** @description Deterministic disagreement between sources, kept visible and unresolved. */
+        AdaptiveReviewContradiction: {
+            contradictionId: string;
+            /** @enum {string} */
+            kind: "INSTRUMENT_DIRECTIONS_DIFFER" | "SELF_REPORT_DIFFERS_FROM_SCREENING" | "JOURNAL_DIFFERS_FROM_SCREENING";
+            evidenceRefs: components["schemas"]["AdaptiveReviewEvidenceRef"][];
+        };
+        AdaptiveReviewChange: {
+            /** @enum {string} */
+            field: "ACTION" | "ESTIMATED_DURATION_MINUTES" | "DAYS_PER_WEEK" | "PREFERRED_DAYPART" | "LOCAL_TIME" | "FOCUS_ORDER";
+            before: string | null;
+            after: string | null;
+        };
+        AdaptiveReviewOption: {
+            /** @description Opaque and deterministic for the fingerprinted context. */
+            optionId: string;
+            /** @enum {string} */
+            kind: "KEEP_CURRENT" | "LOWER_WORKLOAD" | "DIFFERENT_TIME" | "ALTERNATIVE_ACTION" | "DIFFERENT_FOCUS" | "PROFESSIONAL_SUPPORT_NEXT_STEP";
+            /**
+             * @description NAVIGATE_PROFESSIONAL_SUPPORT opens existing professional routing with no
+             *     appointment, consent or plan write and is not confirmed through this API.
+             * @enum {string}
+             */
+            executionKind: "NO_CHANGE" | "CONTINUE_CYCLE" | "UPDATE_SCHEDULE" | "PREPARE_REPLACEMENT" | "NAVIGATE_PROFESSIONAL_SUPPORT";
+            /** Format: uuid */
+            actionId: string | null;
+            focusId: string | null;
+            rationaleCodes: string[];
+            evidenceRefs: components["schemas"]["AdaptiveReviewEvidenceRef"][];
+            conflictingEvidenceRefs: components["schemas"]["AdaptiveReviewEvidenceRef"][];
+            /** @description Exact before/after consequence; empty for KEEP_CURRENT and navigation. */
+            changes: components["schemas"]["AdaptiveReviewChange"][];
+        };
+        AdaptiveReviewUnavailableOption: {
+            /** @enum {string} */
+            kind: "KEEP_CURRENT" | "LOWER_WORKLOAD" | "DIFFERENT_TIME" | "ALTERNATIVE_ACTION" | "DIFFERENT_FOCUS" | "PROFESSIONAL_SUPPORT_NEXT_STEP";
+            /** @enum {string} */
+            reasonCode: "NO_SUPPORTING_PATTERN" | "NO_TIME_PREFERENCE" | "NO_ADMITTED_CANDIDATE" | "REASSESSMENT_REQUIRED" | "ADMISSION_UNAVAILABLE" | "CURRENT_PLAN_NOT_ADMISSIBLE" | "PLAN_PAUSED" | "ENTITLEMENT_REQUIRED";
+        };
+        ConfirmAdaptiveReviewOptionRequest: {
+            reviewFingerprint: string;
+            optionId: string;
+            /** Format: uuid */
+            reassessmentSummaryId?: string;
+            /**
+             * Format: uuid
+             * @description Only for PREPARE_REPLACEMENT after the prepared DRAFT was compared; omit to prepare the draft.
+             */
+            proposedPlanId?: string;
+            proposedVersion?: number;
+        };
+        AdaptiveReviewConfirmation: {
+            /** @enum {string} */
+            result: "KEPT" | "CYCLE_CONTINUED" | "SCHEDULE_UPDATED" | "DRAFT_PREPARED" | "REPLACED";
+            optionId: string;
+            /** @description The authoritative current plan after the operation. */
+            plan: components["schemas"]["SupportPlanV3"];
+            /** @description The prepared DRAFT for DRAFT_PREPARED, otherwise null. */
+            draft: components["schemas"]["SupportPlanV3"] | null;
         };
         EmotionCheckInOccurrenceReconciliation: {
             /** @constant */
@@ -3498,7 +3756,7 @@ export interface components {
             scheduleVersion: number;
             /** Format: date */
             localDate: string;
-            /** Format: time */
+            /** @description Local wall time without an offset; timezone supplies the IANA zone. */
             localTime: string;
             timezone: string;
             /** Format: date-time */
@@ -3860,6 +4118,15 @@ export interface components {
         };
         /** @description The plan has no proposal cycle, is not ACTIVE and REVIEW_DUE, or reuses a key differently (SUPPORT_PLAN_MODEL_VERSION_UNSUPPORTED, SUPPORT_PLAN_CYCLE_NOT_REVIEW_DUE, or IDEMPOTENCY_KEY_REUSED); no cycle was started */
         SupportPlanCycleConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The review context changed or the choice is not allowed (ADAPTIVE_REVIEW_STALE, ADAPTIVE_REVIEW_OPTION_UNAVAILABLE, SUPPORT_PLAN_NOT_REVIEWABLE, SUPPORT_PLAN_DRAFT_EXISTS, or IDEMPOTENCY_KEY_REUSED); nothing was applied */
+        AdaptiveReviewConflictProblem: {
             headers: {
                 [name: string]: unknown;
             };
@@ -6178,6 +6445,82 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["SupportPlanEligibilityProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    getAdaptiveSupportPlanReview: {
+        parameters: {
+            query?: {
+                reassessmentSummaryId?: string;
+            };
+            header?: {
+                /** @example "3" */
+                "If-Match"?: components["parameters"]["OptionalIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Adaptive review with separate sourced evidence and bounded options */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdaptiveSupportPlanReview"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["AdaptiveReviewConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+        };
+    };
+    confirmAdaptiveSupportPlanReviewOption: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmAdaptiveReviewOptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Result of the one applied operation, or unchanged command replay */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdaptiveReviewConfirmation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["AdaptiveReviewConflictProblem"];
             412: components["responses"]["SupportPlanVersionProblem"];
             503: components["responses"]["SupportPlanDependencyProblem"];
         };

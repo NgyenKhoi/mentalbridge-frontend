@@ -4,6 +4,8 @@ vi.mock('@/lib/api/browser-client', () => ({ browserApiClient: client }))
 import {
   activateNativeSupportPlan,
   changeNativeActionOccurrenceState,
+  confirmAdaptiveReviewOption,
+  getAdaptiveSupportPlanReview,
   getSupportPlanActionOccurrences,
   proposeNativeSupportPlanDraft,
   reconcileEmotionCheckInOccurrence,
@@ -91,6 +93,32 @@ describe('Native SupportPlan same-origin browser transport', () => {
           'If-Match': '"1"',
           'Idempotency-Key': 'replacement-retry-key',
         },
+      },
+    )
+  })
+  it('reads the adaptive review without commands and confirms one option with retry identity', async () => {
+    await getAdaptiveSupportPlanReview('plan-id')
+    await getAdaptiveSupportPlanReview('plan-id', 'summary-id')
+    const body = {
+      reviewFingerprint: '3f2a9c4d7e1b6a5f8c0d2e4f6a8b0c1d',
+      optionId: 'keep-current-1',
+    }
+    await confirmAdaptiveReviewOption('plan-id', 3, body, 'review-retry-key')
+    expect(client.get).toHaveBeenNthCalledWith(
+      1,
+      '/care/v2/support-plans/plan-id/adaptive-review',
+      {},
+    )
+    expect(client.get).toHaveBeenNthCalledWith(
+      2,
+      '/care/v2/support-plans/plan-id/adaptive-review',
+      { params: { reassessmentSummaryId: 'summary-id' } },
+    )
+    expect(client.post).toHaveBeenCalledWith(
+      '/care/v2/support-plans/plan-id/adaptive-review/confirm',
+      body,
+      {
+        headers: { 'If-Match': '"3"', 'Idempotency-Key': 'review-retry-key' },
       },
     )
   })

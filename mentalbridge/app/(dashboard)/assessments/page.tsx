@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { ArrowRight, RotateCcw } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 
 import { CrisisSupportModal } from '@/components/crisis-support/CrisisSupportWidget'
 import { Disclosure } from '@/components/ui/Disclosure'
@@ -19,13 +20,27 @@ type AssessmentTab = 'history' | 'support' | 'reassessment'
 const assessmentTabs: AssessmentTab[] = ['history', 'support', 'reassessment']
 
 export default function AssessmentsPage() {
+  // useSearchParams needs a Suspense boundary for prerendering.
+  return (
+    <Suspense fallback={null}>
+      <AssessmentsContent />
+    </Suspense>
+  )
+}
+
+function AssessmentsContent() {
+  const searchParams = useSearchParams()
+  // MB-645: a plan review sends the user here to finish the reassessment and come back.
+  const planReview = searchParams?.get('returnTo') === 'plan-review'
   const [items, setItems] = useState<AssessmentSummary[]>([])
   const [cursor, setCursor] = useState<string>()
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [isCrisisOpen, setIsCrisisOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<AssessmentTab>('history')
+  const [activeTab, setActiveTab] = useState<AssessmentTab>(() =>
+    searchParams?.get('tab') === 'reassessment' ? 'reassessment' : 'history',
+  )
   const tabListRef = useRef<HTMLDivElement | null>(null)
 
   const load = useCallback(async (next?: string) => {
@@ -221,7 +236,7 @@ export default function AssessmentsPage() {
           hidden={activeTab !== 'reassessment'}
           className="assessment-tabpanel"
         >
-          <ReassessmentJourney />
+          <ReassessmentJourney planReview={planReview} />
         </section>
       </div>
 

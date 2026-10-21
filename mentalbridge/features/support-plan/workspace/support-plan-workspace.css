@@ -611,6 +611,199 @@
   outline-offset: 2px;
 }
 
+/* MB-645 adaptive review: separate sources, then choices, then one confirm. */
+.mbw-review {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.mbw-evidence {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 768px) {
+  .mbw-evidence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.mbw-evidence-item {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.mbw-evidence-item h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mbw-evidence-lines {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mbw-evidence-lines li {
+  display: grid;
+  gap: 2px;
+}
+
+.mbw-evidence-lines span {
+  font-size: var(--type-card-meta-size);
+  color: var(--ink-soft);
+}
+
+.mbw-evidence-lines strong {
+  font-weight: 600;
+}
+
+.mbw-review-note {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 68ch;
+}
+
+.mbw-options {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mbw-options legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.mbw-option {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-height: 48px;
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  /* Transparent until checked, so selecting never shifts the layout. */
+  border: 2px solid transparent;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+@media (hover: hover) {
+  .mbw-option:hover {
+    background: color-mix(in srgb, var(--teal-pale) 45%, var(--surface));
+  }
+}
+
+.mbw-option:active {
+  transform: scale(0.99);
+}
+
+.mbw-option:has(input:checked) {
+  background: var(--teal-pale);
+  border-color: var(--teal);
+}
+
+/* The whole card shows keyboard focus, also when checked (arrow keys check as they move). */
+.mbw-option:has(input:focus-visible) {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 3px;
+}
+
+.mbw-option input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--teal);
+}
+
+.mbw-option input:focus-visible {
+  outline: none;
+}
+
+.mbw-option > span {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mbw-option strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mbw-options:disabled .mbw-option {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* The check-answers step arrives under the choices instead of jumping in. */
+.mbw-check {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  animation: mbw-arrive var(--motion-medium) var(--ease-standard) both;
+}
+
+.mbw-check .mbw-primary[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mbw-check .mbw-primary[aria-disabled='true']:hover {
+  background: var(--primary);
+}
+
+.mbw-check .mbw-primary[aria-busy='true'] {
+  cursor: progress;
+}
+
+.mbw-review-more summary {
+  display: list-item;
+  padding-block: 11px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--teal-deep);
+  cursor: pointer;
+}
+
+.mbw-review-more summary:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.mbw-review-more ul {
+  display: grid;
+  gap: var(--space-1);
+  padding-left: var(--space-5);
+  list-style: disc;
+  color: var(--ink-soft);
+}
+
 .mbw-visually-hidden {
   position: absolute;
   width: 1px;
@@ -627,6 +820,12 @@
   }
 }
 
+@keyframes mbw-fade {
+  from {
+    opacity: 0;
+  }
+}
+
 @keyframes mbw-pulse {
   to {
     opacity: 0.55;
@@ -639,6 +838,12 @@
     animation: none;
   }
 
+  /* Keep a short fade without movement. */
+  .mbw-check {
+    animation: mbw-fade var(--motion-fast) linear both;
+  }
+
+  .mbw-option,
   .mbw-primary,
   .mbw-secondary,
   .mbw-tabs button,
@@ -646,4 +851,35 @@
   .mbw-chip {
     transition: none;
   }
+}
+
+/* MB-645: explicit, unticked-by-default consent to reuse a quick answer in the plan review. */
+.mbw-reuse {
+  display: flex;
+  flex-basis: 100%;
+  align-items: flex-start;
+  padding-top: 11px;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-size: var(--type-card-meta-size);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.mbw-reuse input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 2px;
+  accent-color: var(--teal);
+}
+
+.mbw-reuse input:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* Programmatic focus target after a reload; no ring around the whole review. */
+.mbw-review:focus {
+  outline: none;
 }

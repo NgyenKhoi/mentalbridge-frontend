@@ -132,6 +132,23 @@ describe('GuidedInitialCheck', () => {
     )
   })
 
+  it('keeps the plan-review token through the privacy detour', async () => {
+    mockServer.use(
+      http.get('http://localhost/api/care/initial-check', () =>
+        HttpResponse.json({ phase: 'CONSENT_REQUIRED' }),
+      ),
+    )
+    render(<GuidedInitialCheck purpose="REASSESSMENT" planReview />)
+    expect(
+      await screen.findByRole('link', {
+        name: 'Xem quyền riêng tư và tiếp tục',
+      }),
+    ).toHaveAttribute(
+      'href',
+      '/profile?returnTo=%2Finitial-check%3Fpurpose%3Dreassessment%26returnTo%3Dplan-review',
+    )
+  })
+
   it('routes a first-time user to profile readiness and back to the journey', async () => {
     mockServer.use(
       http.get('http://localhost/api/care/initial-check', () =>
@@ -146,6 +163,33 @@ describe('GuidedInitialCheck', () => {
       screen.getByRole('link', { name: 'Tạo hồ sơ và tiếp tục' }),
     ).toHaveAttribute('href', '/profile?returnTo=%2Finitial-check')
     expect(screen.getByText(/không yêu cầu nhật ký/i)).toBeVisible()
+  })
+
+  it('offers the way back to the plan review only for a reassessment the review asked for', async () => {
+    mockServer.use(
+      http.get('http://localhost/api/care/initial-check', () =>
+        HttpResponse.json(completedState()),
+      ),
+    )
+    const { unmount } = render(
+      <GuidedInitialCheck purpose="REASSESSMENT" planReview />,
+    )
+    expect(
+      await screen.findByRole('link', {
+        name: 'Chia sẻ cảm nhận rồi quay lại kế hoạch',
+      }),
+    ).toHaveAttribute(
+      'href',
+      '/assessments?tab=reassessment&returnTo=plan-review',
+    )
+    unmount()
+    render(<GuidedInitialCheck purpose="REASSESSMENT" />)
+    await screen.findByText(/Đã lưu kết quả/)
+    expect(
+      screen.queryByRole('link', {
+        name: 'Chia sẻ cảm nhận rồi quay lại kế hoạch',
+      }),
+    ).toBeNull()
   })
 
   it('keeps safety and every result block visible when optional resources fail', async () => {

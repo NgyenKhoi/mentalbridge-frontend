@@ -48,7 +48,12 @@ export default async function SupportPlanPage({
       <SupportPlanWorkspace invalidOrigin />
     )
   }
-  if (!query.has('occurrenceId')) return <SupportPlanWorkspace />
+  if (!query.has('occurrenceId'))
+    return values.review === 'open' ? (
+      <SupportPlanWorkspace openReview />
+    ) : (
+      <SupportPlanWorkspace />
+    )
   const emotion = parseEmotionPlanOrigin(query)
   return emotion ? (
     <SupportPlanWorkspace returnOrigin={{ kind: 'emotion', ...emotion }} />

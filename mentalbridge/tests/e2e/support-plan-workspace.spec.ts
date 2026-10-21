@@ -2,11 +2,13 @@ import { expect, type Page, type Route } from '@playwright/test'
 import { test } from './test-fixtures'
 import type {
   ActionOccurrence,
+  AdaptiveSupportPlanReview,
   NativeSupportPlanReplacementReview,
   PlanAction,
   SupportPlanV3,
 } from '../../features/support-plan/api/support-plan-contract'
 import { nativeSupportPlanReviewFixture } from '../../features/support-plan/testing/native-support-plan-review-fixture'
+import { adaptiveReviewFixture } from '../../features/support-plan/testing/adaptive-review-fixture'
 import {
   emotionActionId,
   emotionOccurrenceFixture,
@@ -159,6 +161,17 @@ type World = {
   replacementDraft?: SupportPlanV3
   replacementReview?: NativeSupportPlanReplacementReview
   reassessmentSummaryId?: string
+  adaptiveReview?: AdaptiveSupportPlanReview
+}
+
+/** Care's adaptive review for the world's current plan (synthetic fixture period, not real days). */
+function adaptiveReviewFor(plan: SupportPlanV3): AdaptiveSupportPlanReview {
+  return {
+    ...adaptiveReviewFixture(),
+    supportPlanId: plan.supportPlanId,
+    planVersion: plan.version,
+    cycle: plan.cycle ?? null,
+  }
 }
 
 async function authenticate(page: Page) {
@@ -274,6 +287,26 @@ async function mockPlanApi(page: Page, world: World) {
         cycle: world.current.cycle && cycle(),
       }
       return json(world.current)
+    }
+    if (
+      path.endsWith('/adaptive-review') &&
+      request.method() === 'GET' &&
+      world.current
+    )
+      return json(world.adaptiveReview ?? adaptiveReviewFor(world.current))
+    if (path.endsWith('/adaptive-review/confirm') && world.current) {
+      const { optionId } = request.postDataJSON() as { optionId: string }
+      world.current = {
+        ...world.current,
+        version: world.current.version + 1,
+        cycle: cycle({ cycleNumber: 2 }),
+      }
+      return json({
+        result: 'CYCLE_CONTINUED',
+        optionId,
+        plan: world.current,
+        draft: null,
+      })
     }
     if (path.endsWith('/cycle-continuation') && world.current) {
       world.current = {
@@ -604,14 +637,37 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
       calls.some((call) => call.path.endsWith('/cycle-continuation')),
     ).toBe(false)
     await page.getByRole('button', { name: /Xem lại kế hoạch/ }).click()
-    await page.getByRole('button', { name: 'Tiếp tục thêm 14 ngày' }).click()
+    // MB-645: the review shows separate sources and applies nothing until an explicit choice.
+    await expect(page.getByLabel('Những gì đã ghi nhận')).toBeVisible()
+    await expect(
+      page.getByText(/Hai bài sàng lọc đang đi theo hai hướng khác nhau/),
+    ).toBeVisible()
+    expect(
+      calls.some((call) => call.path.endsWith('/adaptive-review/confirm')),
+    ).toBe(false)
+    await page.getByRole('radio', { name: /Giữ nhịp này thêm 14 ngày/ }).check()
+    await page
+      .getByRole('button', { name: 'Giữ nhịp này thêm 14 ngày' })
+      .click()
     await expect
       .poll(
         () =>
-          calls.filter((call) => call.path.endsWith('/cycle-continuation'))
+          calls.filter((call) => call.path.endsWith('/adaptive-review/confirm'))
             .length,
       )
       .toBe(1)
+    const confirm = calls.find((call) =>
+      call.path.endsWith('/adaptive-review/confirm'),
+    )
+    expect(confirm?.headers['if-match']).toBe(`"${proposalPlan().version}"`)
+    expect(confirm?.headers['idempotency-key']).toBeTruthy()
+    expect(confirm?.body).toMatchObject({ optionId: 'keep-current-1' })
+    expect(
+      calls.some((call) => call.path.endsWith('/cycle-continuation')),
+    ).toBe(false)
+    await expect(
+      page.getByRole('heading', { name: 'Đến lúc cùng xem lại kế hoạch' }),
+    ).toHaveCount(0)
   })
 
   test('MB-644 load errors, stale commands and the FREE tier stay truthful', async ({

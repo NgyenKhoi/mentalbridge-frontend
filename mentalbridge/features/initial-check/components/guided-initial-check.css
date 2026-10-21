@@ -303,6 +303,26 @@
   gap: 20px;
 }
 
+/* MB-645: the way back to the plan review after a reassessment it asked for. */
+.initial-check-plan-review {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.initial-check-plan-review h2 {
+  font-size: 18px;
+}
+
+.initial-check-plan-review p {
+  max-width: 62ch;
+  line-height: 1.6;
+}
+
 .initial-check-restart-btns {
   display: flex;
   gap: 8px;

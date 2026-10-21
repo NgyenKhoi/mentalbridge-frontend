@@ -15,6 +15,10 @@ import {
   emotionOccurrenceId,
   nativeSupportPlanFixture,
 } from '../testing/native-support-plan-fixture'
+import {
+  adaptiveConfirmationFixture,
+  adaptiveReviewFixture,
+} from '../testing/adaptive-review-fixture'
 
 const api = vi.hoisted(() => ({
   getCurrentSupportPlanActions: vi.fn(),
@@ -27,6 +31,8 @@ const api = vi.hoisted(() => ({
   changeNativeSupportPlanStatus: vi.fn(),
   changeNativeActionOccurrenceState: vi.fn(),
   continueSupportPlanCycle: vi.fn(),
+  getAdaptiveSupportPlanReview: vi.fn(),
+  confirmAdaptiveReviewOption: vi.fn(),
   reconcileEmotionCheckInOccurrence: vi.fn(),
   reconcileJournalOccurrence: vi.fn(),
   replaceNativeOccurrenceEngagement: vi.fn(),
@@ -69,6 +75,14 @@ vi.mock('../api/browser-support-plan-actions', () => api)
 vi.mock('../api/browser-support-plan', () => legacy)
 vi.mock('@/features/support-guide/api/browser-support-guide', () => journey)
 vi.mock('@/features/assessment/api/browser-care', () => care)
+const emotion = vi.hoisted(() => ({ getEmotionCheckInProgress: vi.fn() }))
+vi.mock(
+  '@/features/emotion-check-in/api/browser-emotion-check-in',
+  () => emotion,
+)
+beforeEach(() => {
+  emotion.getEmotionCheckInProgress.mockRejectedValue(new Error('offline'))
+})
 vi.mock('@/components/ui/FeedbackProvider', () => ({
   useFeedback: () => feedback,
 }))
@@ -698,90 +712,687 @@ describe('SupportPlan workspace', () => {
     )
   })
 
-  it('makes the review the next step when due and keeps the plan only on request', async () => {
-    const user = userEvent.setup()
-    const due: SupportPlanV3 = {
+  function duePlan(): SupportPlanV3 {
+    return {
       ...nativeSupportPlanFixture(),
-      cycle: {
-        policyVersion: 'support-plan-cycle-v1',
-        lengthDays: 14,
-        timezone: 'Asia/Ho_Chi_Minh',
-        cycleNumber: 1,
-        startedOn: '2026-10-01',
-        reviewDueOn: '2026-10-14',
-        currentDay: 14,
-        pausedDays: 0,
-        state: 'REVIEW_DUE',
-      },
+      cycle: adaptiveReviewFixture().cycle,
     }
+  }
+
+  it('makes the review the next step when due and keeps the plan only on an explicit choice', async () => {
+    const user = userEvent.setup()
+    const due = duePlan()
     withCurrent(due, [occurrence()])
-    api.continueSupportPlanCycle.mockResolvedValue({
-      ...due,
-      cycle: {
-        ...due.cycle!,
-        cycleNumber: 2,
-        state: 'IN_PROGRESS',
-        currentDay: 1,
-      },
-    })
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(adaptiveReviewFixture())
+    api.confirmAdaptiveReviewOption.mockResolvedValue(
+      adaptiveConfirmationFixture('CYCLE_CONTINUED'),
+    )
     render(<SupportPlanWorkspace />)
     expect(
       await screen.findByRole('heading', {
         name: 'Đến lúc cùng xem lại kế hoạch',
       }),
     ).toBeVisible()
-    expect(api.continueSupportPlanCycle).not.toHaveBeenCalled()
+    expect(api.getAdaptiveSupportPlanReview).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: /Xem lại kế hoạch/ }))
+
+    const evidence = await screen.findByLabelText('Những gì đã ghi nhận')
+    expect(
+      within(evidence).getByText(/9 lần đã làm, 3 lần bỏ qua/),
+    ).toBeVisible()
+    expect(
+      within(evidence).getByText(/2 lần bạn ghi là thiếu năng lượng/),
+    ).toBeVisible()
+    expect(within(evidence).getByText('Khó khăn hơn trước')).toBeVisible()
+    expect(
+      screen.getByText(/Hai bài sàng lọc đang đi theo hai hướng khác nhau/),
+    ).toBeVisible()
+    // Sources stay separate: no combined score, ring or verdict.
+    expect(screen.queryByText(/\d+\s*điểm|\/27|\/21/)).toBeNull()
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.queryByRole('meter')).toBeNull()
+
+    // Nothing is preselected and nothing is applied until the user confirms.
+    for (const radio of screen.getAllByRole('radio'))
+      expect(radio).not.toBeChecked()
     await user.click(
-      await screen.findByRole('button', { name: 'Tiếp tục thêm 14 ngày' }),
+      screen.getByRole('radio', { name: /Giữ nhịp này thêm 14 ngày/ }),
+    )
+    expect(api.confirmAdaptiveReviewOption).not.toHaveBeenCalled()
+    await user.click(
+      screen.getByRole('button', { name: 'Giữ nhịp này thêm 14 ngày' }),
     )
     await waitFor(() =>
-      expect(api.continueSupportPlanCycle).toHaveBeenCalledWith(
+      expect(api.confirmAdaptiveReviewOption).toHaveBeenCalledWith(
         due.supportPlanId,
-        due.version,
+        1,
+        {
+          reviewFingerprint: adaptiveReviewFixture().reviewFingerprint,
+          optionId: 'keep-current-1',
+          reassessmentSummaryId:
+            adaptiveReviewFixture().reassessment.summary?.summaryId,
+        },
+        expect.any(String),
+      ),
+    )
+    expect(api.continueSupportPlanCycle).not.toHaveBeenCalled()
+  })
+
+  it('retries a lost confirmation with the same key and a new choice with a new key', async () => {
+    const user = userEvent.setup()
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(adaptiveReviewFixture())
+    api.confirmAdaptiveReviewOption
+      .mockRejectedValueOnce(new Error('network'))
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce(adaptiveConfirmationFixture('SCHEDULE_UPDATED'))
+    render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    await user.click(
+      await screen.findByRole('radio', { name: /Giữ nhịp này thêm 14 ngày/ }),
+    )
+    const keep = screen.getByRole('button', {
+      name: 'Giữ nhịp này thêm 14 ngày',
+    })
+    await user.click(keep)
+    expect(
+      await screen.findByText(/Chưa xác nhận được kết quả/),
+    ).toHaveTextContent('Hãy thử lại')
+    await user.click(keep)
+    await waitFor(() =>
+      expect(api.confirmAdaptiveReviewOption).toHaveBeenCalledTimes(2),
+    )
+    await user.click(screen.getByRole('radio', { name: /Làm nhẹ bớt/ }))
+    expect(screen.getByText('7 ngày mỗi tuần → 4 ngày mỗi tuần')).toBeVisible()
+    await user.click(
+      screen.getByRole('button', { name: 'Áp dụng thay đổi này' }),
+    )
+    await waitFor(() =>
+      expect(api.confirmAdaptiveReviewOption).toHaveBeenCalledTimes(3),
+    )
+    const [first, second, third] = api.confirmAdaptiveReviewOption.mock.calls
+    expect(second[3]).toBe(first[3])
+    expect(third[3]).not.toBe(first[3])
+  })
+
+  it('reloads the review after a stale choice and asks the user to choose again', async () => {
+    const user = userEvent.setup()
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(adaptiveReviewFixture())
+    api.confirmAdaptiveReviewOption.mockRejectedValueOnce(
+      new ApiError({
+        status: 409,
+        code: 'ADAPTIVE_REVIEW_STALE',
+        message: 'Review changed.',
+      }),
+    )
+    render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    await user.click(await screen.findByRole('radio', { name: /Làm nhẹ bớt/ }))
+    await user.click(
+      screen.getByRole('button', { name: 'Áp dụng thay đổi này' }),
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('hãy chọn lại')
+    await waitFor(() =>
+      expect(api.getAdaptiveSupportPlanReview).toHaveBeenCalledTimes(2),
+    )
+    for (const radio of screen.getAllByRole('radio'))
+      expect(radio).not.toBeChecked()
+    expect(api.confirmAdaptiveReviewOption).toHaveBeenCalledTimes(1)
+  })
+
+  it('compares a prepared replacement before switching and binds the draft to the choice', async () => {
+    const user = userEvent.setup()
+    const review = adaptiveReviewFixture()
+    review.options.push({
+      optionId: 'alternative-1',
+      kind: 'ALTERNATIVE_ACTION',
+      executionKind: 'PREPARE_REPLACEMENT',
+      actionId: emotionActionId,
+      focusId: null,
+      rationaleCodes: ['REPEATED_NOT_A_GOOD_FIT'],
+      evidenceRefs: [],
+      conflictingEvidenceRefs: [],
+      changes: [
+        { field: 'ACTION', before: 'Check-in cảm xúc', after: 'Viết nhật ký' },
+      ],
+    })
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(review)
+    const prepared = adaptiveConfirmationFixture(
+      'DRAFT_PREPARED',
+      'alternative-1',
+    )
+    api.confirmAdaptiveReviewOption
+      .mockImplementationOnce(async () => {
+        // Care now holds the DRAFT; the workspace reload reads it back.
+        api.getCurrentNativeSupportPlanDraft.mockResolvedValue(prepared.draft)
+        return prepared
+      })
+      .mockResolvedValueOnce(
+        adaptiveConfirmationFixture('REPLACED', 'alternative-1'),
+      )
+    render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    await user.click(
+      await screen.findByRole('radio', { name: /Thay bằng hoạt động khác/ }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Xem phương án thay thế' }),
+    )
+    expect(
+      await screen.findByRole('group', {
+        name: 'So sánh kế hoạch hiện tại và phương án thay thế',
+      }),
+    ).toBeVisible()
+    expect(api.confirmAdaptiveReviewOption).toHaveBeenCalledTimes(1)
+    await user.click(
+      screen.getByRole('button', { name: 'Chuyển sang phương án này' }),
+    )
+    await waitFor(() =>
+      expect(api.confirmAdaptiveReviewOption).toHaveBeenLastCalledWith(
+        nativeSupportPlanFixture().supportPlanId,
+        1,
+        expect.objectContaining({
+          optionId: 'alternative-1',
+          proposedPlanId: prepared.draft?.supportPlanId,
+          proposedVersion: prepared.draft?.version,
+        }),
         expect.any(String),
       ),
     )
   })
 
-  it('retries a lost continuation with the same key', async () => {
+  it('shows a visible keep outcome before the checkpoint and never claims a failed refresh undid a change', async () => {
     const user = userEvent.setup()
-    const due: SupportPlanV3 = {
-      ...nativeSupportPlanFixture(),
-      cycle: {
-        policyVersion: 'support-plan-cycle-v1',
-        lengthDays: 14,
-        timezone: 'Asia/Ho_Chi_Minh',
-        cycleNumber: 1,
-        startedOn: '2026-10-01',
-        reviewDueOn: '2026-10-14',
-        currentDay: 14,
-        pausedDays: 0,
-        state: 'REVIEW_DUE',
-      },
+    const review = adaptiveReviewFixture()
+    review.reviewState = 'EARLY'
+    review.options[0] = {
+      ...review.options[0],
+      executionKind: 'NO_CHANGE',
     }
-    withCurrent(due, [])
-    api.continueSupportPlanCycle
-      .mockRejectedValueOnce(new Error('network'))
-      .mockResolvedValueOnce({
-        ...due,
-        cycle: { ...due.cycle!, cycleNumber: 2, state: 'IN_PROGRESS' },
-      })
+    withCurrent(nativeSupportPlanFixture(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(review)
+    api.confirmAdaptiveReviewOption
+      .mockResolvedValueOnce(adaptiveConfirmationFixture('KEPT'))
+      .mockResolvedValueOnce(
+        adaptiveConfirmationFixture(
+          'SCHEDULE_UPDATED',
+          review.options[1].optionId,
+        ),
+      )
+    render(<SupportPlanWorkspace />)
+    await user.click(await screen.findByRole('tab', { name: /Điều chỉnh/ }))
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    await user.click(
+      await screen.findByRole('radio', { name: /Giữ kế hoạch như hiện tại/ }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Giữ kế hoạch' }))
+    expect(
+      await screen.findByText(/Bạn giữ kế hoạch như hiện tại/),
+    ).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Giữ kế hoạch' })).toBeNull()
+
+    api.getCurrentSupportPlanActions.mockRejectedValue(new Error('offline'))
+    await user.click(screen.getByRole('radio', { name: /Làm nhẹ bớt/ }))
+    await user.click(
+      screen.getByRole('button', { name: 'Áp dụng thay đổi này' }),
+    )
+    expect(await screen.findByText(/Đã cập nhật kế hoạch/)).toBeVisible()
+    expect(screen.queryByText(/chưa thay đổi/)).toBeNull()
+  })
+
+  it('records an optional skip reason and reuses it only when the user ticks the box', async () => {
+    const user = userEvent.setup()
+    const skipped = occurrence({ state: 'SKIPPED', displayState: 'SKIPPED' })
+    withCurrent(nativeSupportPlanFixture(), [skipped])
+    api.replaceNativeOccurrenceEngagement.mockResolvedValue({
+      ...skipped,
+      barrierCode: 'LOW_ENERGY',
+    })
+    render(<SupportPlanWorkspace />)
+    const group = await screen.findByRole('group', {
+      name: /Vì sao để .* sang hôm khác/,
+    })
+    const reuse = within(group).getByRole('checkbox', {
+      name: 'Dùng câu trả lời này khi xem lại kế hoạch',
+    })
+    expect(reuse).not.toBeChecked()
+    await user.click(reuse)
+    await user.click(
+      within(group).getByRole('button', { name: 'Thiếu năng lượng' }),
+    )
+    await waitFor(() =>
+      expect(api.replaceNativeOccurrenceEngagement).toHaveBeenCalledWith(
+        emotionOccurrenceId,
+        skipped.version,
+        expect.objectContaining({
+          state: 'SKIPPED',
+          barrierCode: 'LOW_ENERGY',
+          helpfulness: null,
+          summaryReuseApproved: true,
+        }),
+      ),
+    )
+  })
+
+  it('keeps an unticked helpfulness answer out of the plan review', async () => {
+    const user = userEvent.setup()
+    const done = occurrence({ state: 'COMPLETED', displayState: 'COMPLETED' })
+    withCurrent(nativeSupportPlanFixture(), [done])
+    api.replaceNativeOccurrenceEngagement.mockResolvedValue({
+      ...done,
+      helpfulness: 'HELPFUL',
+    })
+    render(<SupportPlanWorkspace />)
+    const group = await screen.findByRole('group', {
+      name: /có giúp bạn không/i,
+    })
+    await user.click(within(group).getByRole('button', { name: 'Có' }))
+    await waitFor(() =>
+      expect(api.replaceNativeOccurrenceEngagement).toHaveBeenCalledWith(
+        emotionOccurrenceId,
+        done.version,
+        expect.objectContaining({ summaryReuseApproved: false }),
+      ),
+    )
+  })
+
+  it('resumes a prepared draft after going back and asks to discard it before preparing another', async () => {
+    const user = userEvent.setup()
+    const review = adaptiveReviewFixture()
+    const alternative = (optionId: string, after: string) => ({
+      optionId,
+      kind: 'ALTERNATIVE_ACTION' as const,
+      executionKind: 'PREPARE_REPLACEMENT' as const,
+      actionId: emotionActionId,
+      focusId: null,
+      rationaleCodes: ['REPEATED_NOT_A_GOOD_FIT'],
+      evidenceRefs: [],
+      conflictingEvidenceRefs: [],
+      changes: [
+        { field: 'ACTION' as const, before: 'Check-in cảm xúc', after },
+      ],
+    })
+    review.options.push(alternative('alternative-1', 'Viết nhật ký'), {
+      ...alternative('alternative-2', 'Thở chậm'),
+      kind: 'DIFFERENT_FOCUS',
+    })
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(review)
+    const prepared = adaptiveConfirmationFixture(
+      'DRAFT_PREPARED',
+      'alternative-1',
+    )
+    api.confirmAdaptiveReviewOption.mockImplementationOnce(async () => {
+      api.getCurrentNativeSupportPlanDraft.mockResolvedValue(prepared.draft)
+      return prepared
+    })
+    feedback.confirm.mockResolvedValue(true)
+    api.changeNativeSupportPlanStatus.mockImplementation(async () => {
+      api.getCurrentNativeSupportPlanDraft.mockRejectedValue(notFound())
+      return { ...prepared.draft, status: 'DISCARDED' }
+    })
     render(<SupportPlanWorkspace />)
     await user.click(
       await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
     )
-    const keep = await screen.findByRole('button', {
-      name: 'Tiếp tục thêm 14 ngày',
-    })
-    await user.click(keep)
-    expect(await screen.findByRole('alert')).toHaveTextContent('Hãy thử lại')
-    await user.click(keep)
-    await waitFor(() =>
-      expect(api.continueSupportPlanCycle).toHaveBeenCalledTimes(2),
+    await user.click(
+      await screen.findByRole('radio', { name: /Thay bằng hoạt động khác/ }),
     )
-    const [first, second] = api.continueSupportPlanCycle.mock.calls
-    expect(second[2]).toBe(first[2])
+    await user.click(
+      screen.getByRole('button', { name: 'Xem phương án thay thế' }),
+    )
+    const compare = await screen.findByRole('group', {
+      name: 'So sánh kế hoạch hiện tại và phương án thay thế',
+    })
+    expect(compare).toBeVisible()
+    await user.click(
+      screen.getByRole('button', { name: 'Quay lại các lựa chọn' }),
+    )
+    expect(
+      screen.getByText('Đã chuẩn bị phương án, chưa áp dụng.'),
+    ).toBeVisible()
+    await user.click(
+      screen.getByRole('button', { name: 'So sánh phương án đã chuẩn bị' }),
+    )
+    expect(
+      await screen.findByRole('group', {
+        name: 'So sánh kế hoạch hiện tại và phương án thay thế',
+      }),
+    ).toBeVisible()
+    await user.click(
+      screen.getByRole('button', { name: 'Quay lại các lựa chọn' }),
+    )
+    await user.click(screen.getByRole('radio', { name: /Đổi thứ tự ưu tiên/ }))
+    expect(
+      screen.getByText(/Hãy bỏ phương án đó trước khi chuẩn bị phương án mới/),
+    ).toBeVisible()
+    await user.click(
+      screen.getByRole('button', { name: 'Bỏ phương án đã chuẩn bị' }),
+    )
+    await waitFor(() =>
+      expect(api.changeNativeSupportPlanStatus).toHaveBeenCalledWith(
+        prepared.draft?.supportPlanId,
+        prepared.draft?.version,
+        { status: 'DISCARDED' },
+      ),
+    )
+    expect(api.confirmAdaptiveReviewOption).toHaveBeenCalledTimes(1)
+    expect(
+      await screen.findByRole('button', { name: 'Xem phương án thay thế' }),
+    ).toBeVisible()
+  })
+
+  it('shows the exact-period self-report without a summary and a deleted one as deleted', async () => {
+    const user = userEvent.setup()
+    const review = adaptiveReviewFixture()
+    review.reassessment = {
+      state: 'NOT_STARTED',
+      reasonCode: 'REASSESSMENT_NOT_SUBMITTED',
+      summary: null,
+    }
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValueOnce(review)
+    const { unmount } = render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    const evidence = await screen.findByRole('group', {
+      name: 'Những gì đã ghi nhận',
+    })
+    expect(within(evidence).getByText('Khó khăn hơn trước')).toBeVisible()
+    expect(
+      screen.getByRole('radio', { name: /Dựa trên: Cảm nhận bạn đã chia sẻ/ }),
+    ).toBeVisible()
+    unmount()
+
+    const deleted = adaptiveReviewFixture()
+    deleted.evidenceContext = {
+      ...deleted.evidenceContext!,
+      selfReportedExperience: {
+        state: 'INSUFFICIENT_DATA',
+        unavailableReason: 'SOURCE_DELETED',
+        source: null,
+      },
+    }
+    api.getAdaptiveSupportPlanReview.mockResolvedValueOnce(deleted)
+    render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    expect(
+      await screen.findByText(/Bạn đã xoá câu trả lời cho giai đoạn này/),
+    ).toBeVisible()
+    expect(screen.queryByText('Khó khăn hơn trước')).toBeNull()
+  })
+
+  it('offers keep only when Care does and names each reassessment state', async () => {
+    const user = userEvent.setup()
+    const review = adaptiveReviewFixture()
+    review.currentAdmission = 'INADMISSIBLE'
+    review.outcome = 'CURRENT_PLAN_NOT_ADMISSIBLE'
+    review.options = review.options.filter(
+      (option) => option.kind !== 'KEEP_CURRENT',
+    )
+    review.reassessment = { ...review.reassessment, state: 'STALE' }
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(review)
+    render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    expect(
+      await screen.findByText(/Bài kiểm tra lại cần được cập nhật/),
+    ).toBeVisible()
+    expect(screen.queryByText(/Bạn vẫn có thể giữ kế hoạch/)).toBeNull()
+    expect(
+      screen.getByText(/Kế hoạch hiện tại không còn phù hợp/),
+    ).toBeVisible()
+  })
+
+  it('keeps the prepared draft bound to its option when discard is canceled or fails', async () => {
+    const user = userEvent.setup()
+    const review = adaptiveReviewFixture()
+    const replacement = (
+      optionId: string,
+      kind: 'ALTERNATIVE_ACTION' | 'DIFFERENT_FOCUS',
+    ) => ({
+      optionId,
+      kind,
+      executionKind: 'PREPARE_REPLACEMENT' as const,
+      actionId: emotionActionId,
+      focusId: null,
+      rationaleCodes: ['REPEATED_NOT_A_GOOD_FIT'],
+      evidenceRefs: [],
+      conflictingEvidenceRefs: [],
+      changes: [],
+    })
+    review.options.push(
+      replacement('alternative-1', 'ALTERNATIVE_ACTION'),
+      replacement('focus-1', 'DIFFERENT_FOCUS'),
+    )
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(review)
+    const prepared = adaptiveConfirmationFixture(
+      'DRAFT_PREPARED',
+      'alternative-1',
+    )
+    api.confirmAdaptiveReviewOption.mockImplementationOnce(async () => {
+      api.getCurrentNativeSupportPlanDraft.mockResolvedValue(prepared.draft)
+      return prepared
+    })
+    render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    await user.click(
+      await screen.findByRole('radio', { name: /Thay bằng hoạt động khác/ }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Xem phương án thay thế' }),
+    )
+    await screen.findByRole('group', {
+      name: 'So sánh kế hoạch hiện tại và phương án thay thế',
+    })
+    await user.click(
+      screen.getByRole('button', { name: 'Quay lại các lựa chọn' }),
+    )
+    // Cancel the discard confirmation, then let a confirmed discard fail.
+    feedback.confirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    api.changeNativeSupportPlanStatus.mockRejectedValueOnce(
+      new Error('offline'),
+    )
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await user.click(
+        screen.getByRole('radio', { name: /Đổi thứ tự ưu tiên/ }),
+      )
+      await user.click(
+        screen.getByRole('button', { name: 'Bỏ phương án đã chuẩn bị' }),
+      )
+      await waitFor(() =>
+        expect(feedback.confirm).toHaveBeenCalledTimes(attempt + 1),
+      )
+      await user.click(
+        screen.getByRole('radio', { name: /Thay bằng hoạt động khác/ }),
+      )
+      // Still bound: the same option reopens its comparison, no discard step.
+      expect(
+        await screen.findByRole('group', {
+          name: 'So sánh kế hoạch hiện tại và phương án thay thế',
+        }),
+      ).toBeVisible()
+      expect(
+        screen.queryByRole('button', { name: 'Bỏ phương án đã chuẩn bị' }),
+      ).toBeNull()
+      await user.click(
+        screen.getByRole('button', { name: 'Quay lại các lựa chọn' }),
+      )
+    }
+    expect(api.confirmAdaptiveReviewOption).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a failed 412 recovery stale and unconfirmable until a reload succeeds', async () => {
+    const user = userEvent.setup()
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(adaptiveReviewFixture())
+    api.confirmAdaptiveReviewOption.mockRejectedValueOnce(
+      new ApiError({
+        status: 412,
+        code: 'SUPPORT_PLAN_VERSION_MISMATCH',
+        message: 'Changed.',
+      }),
+    )
+    render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    await user.click(await screen.findByRole('radio', { name: /Làm nhẹ bớt/ }))
+    api.getCurrentSupportPlanActions.mockRejectedValueOnce(new Error('offline'))
+    await user.click(
+      screen.getByRole('button', { name: 'Áp dụng thay đổi này' }),
+    )
+    expect(await screen.findByText(/Chưa tải lại được kế hoạch/)).toBeVisible()
+    expect(screen.queryByText(/Phần xem lại đã được cập nhật/)).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: 'Áp dụng thay đổi này' }),
+    ).toBeNull()
+    for (const radio of screen.getAllByRole('radio')) {
+      expect(radio).not.toBeChecked()
+      expect(radio).toBeDisabled()
+    }
+    await user.click(
+      screen.getByRole('button', { name: 'Tải lại phần xem lại' }),
+    )
+    await waitFor(() => {
+      for (const radio of screen.getAllByRole('radio'))
+        expect(radio).toBeEnabled()
+    })
+    expect(api.confirmAdaptiveReviewOption).toHaveBeenCalledTimes(1)
+  })
+
+  it('reloads the plan and the review after a 412 and requires a new choice', async () => {
+    const user = userEvent.setup()
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(adaptiveReviewFixture())
+    api.confirmAdaptiveReviewOption.mockRejectedValueOnce(
+      new ApiError({
+        status: 412,
+        code: 'SUPPORT_PLAN_VERSION_MISMATCH',
+        message: 'Changed.',
+      }),
+    )
+    render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    await user.click(await screen.findByRole('radio', { name: /Làm nhẹ bớt/ }))
+    const plansBefore = api.getCurrentSupportPlanActions.mock.calls.length
+    await user.click(
+      screen.getByRole('button', { name: 'Áp dụng thay đổi này' }),
+    )
+    expect(
+      await screen.findByText(/Kế hoạch vừa thay đổi ở nơi khác/),
+    ).toBeVisible()
+    await waitFor(() =>
+      expect(
+        api.getCurrentSupportPlanActions.mock.calls.length,
+      ).toBeGreaterThan(plansBefore),
+    )
+    await waitFor(() =>
+      expect(api.getAdaptiveSupportPlanReview).toHaveBeenCalledTimes(2),
+    )
+    for (const radio of screen.getAllByRole('radio'))
+      expect(radio).not.toBeChecked()
+  })
+
+  it('shows dated Emotion check-in coverage separately and keeps the review when it fails', async () => {
+    const user = userEvent.setup()
+    emotion.getEmotionCheckInProgress.mockResolvedValueOnce({
+      asOfLocalDate: '2026-10-17',
+      timezone: 'Asia/Ho_Chi_Minh',
+      currentEmotion: null,
+      currentStreak: 2,
+      longestStreak: 4,
+      windows: [7, 14, 30].map((totalDays) => ({
+        totalDays,
+        checkedInDays: totalDays === 14 ? 9 : 3,
+        distribution: {},
+      })),
+      label: 'SELF_REPORTED_EMOTION',
+      interpretation: 'FACTUAL_COUNTS_NOT_DIAGNOSIS_OR_RECOVERY',
+    })
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(adaptiveReviewFixture())
+    render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    expect(
+      await screen.findByText(/9 trong 14 ngày gần nhất có ghi lại/),
+    ).toBeVisible()
+    expect(screen.getByText(/17\/10\/2026/)).toBeVisible()
+    expect(
+      screen.getByText('Chỉ để bạn tham khảo, không dùng cho gợi ý.'),
+    ).toBeVisible()
+    expect(api.confirmAdaptiveReviewOption).not.toHaveBeenCalled()
+  })
+
+  it('reopens the review when returning from the reassessment it asked for', async () => {
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(adaptiveReviewFixture())
+    render(<SupportPlanWorkspace openReview />)
+    expect(
+      await screen.findByRole('group', { name: 'Những gì đã ghi nhận' }),
+    ).toBeVisible()
+    expect(screen.getByRole('tab', { name: 'Điều chỉnh' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(api.confirmAdaptiveReviewOption).not.toHaveBeenCalled()
+  })
+
+  it('offers professional support as navigation only and explains missing reassessment', async () => {
+    const user = userEvent.setup()
+    const review = adaptiveReviewFixture()
+    review.reassessment = {
+      state: 'NOT_STARTED',
+      reasonCode: 'REASSESSMENT_NOT_SUBMITTED',
+      summary: null,
+    }
+    review.contradictions = []
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(review)
+    render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    expect(
+      await screen.findByText(/Bạn chưa làm bài kiểm tra lại/),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Làm bài kiểm tra lại' }),
+    ).toHaveAttribute(
+      'href',
+      '/initial-check?purpose=reassessment&returnTo=plan-review',
+    )
+    await user.click(
+      screen.getByRole('radio', { name: /Trao đổi với chuyên gia/ }),
+    )
+    expect(
+      within(document.getElementById('mbw-review')!).getByRole('link', {
+        name: 'Tìm chuyên gia',
+      }),
+    ).toHaveAttribute('href', '/specialists')
+    expect(api.confirmAdaptiveReviewOption).not.toHaveBeenCalled()
   })
 })
 

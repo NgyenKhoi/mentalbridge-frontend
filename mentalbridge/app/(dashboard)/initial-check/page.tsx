@@ -3,15 +3,17 @@ import GuidedInitialCheck from '@/features/initial-check/components/GuidedInitia
 export default async function InitialCheckPage({
   searchParams,
 }: {
-  searchParams: Promise<{ purpose?: string }>
+  searchParams: Promise<{ purpose?: string; returnTo?: string }>
 }) {
+  const params = await searchParams
   const purpose =
-    (await searchParams).purpose === 'reassessment'
-      ? 'REASSESSMENT'
-      : 'INITIAL_CHECK'
+    params.purpose === 'reassessment' ? 'REASSESSMENT' : 'INITIAL_CHECK'
   return (
     <main className="initial-check-page">
-      <GuidedInitialCheck purpose={purpose} />
+      <GuidedInitialCheck
+        purpose={purpose}
+        planReview={params.returnTo === 'plan-review'}
+      />
     </main>
   )
 }

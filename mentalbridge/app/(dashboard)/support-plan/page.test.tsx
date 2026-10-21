@@ -82,4 +82,10 @@ describe('SupportPlan return route discrimination', () => {
   it('opens plainly without return parameters', async () => {
     expect(await propsFor({})).toEqual({})
   })
+  it('reopens the plan review for the exact return token', async () => {
+    expect(await propsFor({ review: 'open' })).toEqual({ openReview: true })
+  })
+  it('ignores any other review value', async () => {
+    expect(await propsFor({ review: 'yes' })).toEqual({})
+  })
 })

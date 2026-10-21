@@ -2,6 +2,7 @@ import 'server-only'
 
 import type {
   ChangeSupportPlanStatusRequest,
+  ConfirmAdaptiveReviewOptionRequest,
   ProposeNativeSupportPlanRequest,
   ReplaceCurrentSupportPlanRequest,
   ReplaceSupportPlanOccurrenceEngagementRequest,
@@ -9,6 +10,8 @@ import type {
 import { ApiError } from '@/lib/api/api-error'
 import { careRequest } from './care-client'
 import {
+  parseAdaptiveReviewConfirmation,
+  parseAdaptiveSupportPlanReview,
   parseActionOccurrence,
   parseActionOccurrenceList,
   parseCanonicalSupportPlan,
@@ -274,6 +277,50 @@ export const supportPlanActionClient = {
       parseSuccess(value) {
         const parsed = parseJournalReconciliation(value)
         return parsed?.occurrenceId === id && parsed.journalId === journalId
+          ? parsed
+          : null
+      },
+    })
+  },
+  adaptiveReview(
+    authorization: string,
+    id: string,
+    ifMatch: number | undefined,
+    reassessmentSummaryId: string | undefined,
+    correlationId: string,
+  ) {
+    const query = reassessmentSummaryId
+      ? `?${new URLSearchParams({ reassessmentSummaryId })}`
+      : ''
+    return careRequest({
+      method: 'GET',
+      path: `${planPath(id)}/adaptive-review${query}`,
+      ifMatch,
+      authorization,
+      correlationId,
+      parseSuccess: identity(parseAdaptiveSupportPlanReview, id),
+    })
+  },
+  adaptiveConfirm(
+    authorization: string,
+    id: string,
+    ifMatch: number,
+    body: ConfirmAdaptiveReviewOptionRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'POST',
+      path: `${planPath(id)}/adaptive-review/confirm`,
+      body,
+      ifMatch,
+      idempotencyKey,
+      authorization,
+      correlationId,
+      parseSuccess(value) {
+        const parsed = parseAdaptiveReviewConfirmation(value)
+        return parsed?.optionId === body.optionId &&
+          (parsed.result === 'REPLACED' || parsed.plan.supportPlanId === id)
           ? parsed
           : null
       },
