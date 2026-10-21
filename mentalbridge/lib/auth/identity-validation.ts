@@ -1062,6 +1062,36 @@ const DELETION_FACT_STATUSES = new Set([
   'FAILED',
   'UNAVAILABLE',
 ])
+export const APPROVED_FAILURE_CODES = new Set<string>([
+  'ACCOUNT_NOT_FOUND',
+  'RETRY_LIMIT_EXHAUSTED',
+  'RETRY_EXHAUSTED',
+  'PRIOR_EXECUTION_STALE',
+  'SWEEP_EXECUTION_FAILED',
+  'LOCK_ACQUISITION_FAILED',
+  'CONCURRENT_SWEEP_RUNNING',
+  'CAPABILITY_UNAVAILABLE',
+  'ALREADY_COMPLETED',
+  'HOLD_ACTIVE',
+  'EXECUTION_SCHEDULE_NOT_REACHED',
+  'MISSING_OWNER_FACTS',
+  'MISSING_IDENTITY_FACT',
+  'EXTERNAL_OWNER_RETRY_UNSUPPORTED',
+])
+export const APPROVED_FAILURE_REASONS = new Set<string>([
+  'ACCOUNT_NOT_FOUND',
+  'COMMUNITY_TIMEOUT',
+  'LEGAL_HOLD_ACTIVE',
+  'AUTH_FAILED',
+  'KEY_EXPIRED',
+  'INVALID_REFERENCE',
+  'STATUTORY_INQUIRY',
+  'PENDING_DISPUTE',
+  'ACTIVE_SAFETY_REVIEW',
+  'SCHEDULED_APPOINTMENT_ACTIVE',
+  'USER_CONTESTED',
+  'AUDIT_COMPLIANCE_HOLD',
+])
 export const SAFE_FAILURE_CODE_PATTERN = /^[A-Z0-9_]{1,64}$/
 export const SAFE_FAILURE_REASON_PATTERN = /^[A-Z0-9_]{1,64}$/
 export const APPROVED_IDENTITY_EVIDENCE_PATTERN =
@@ -1104,8 +1134,8 @@ export function parseRetentionExecutionRecord(
     holdsHonored: value.holdsHonored,
     failureCode:
       typeof value.failureCode === 'string' &&
-      SAFE_FAILURE_CODE_PATTERN.test(value.failureCode.trim())
-        ? value.failureCode.trim()
+      APPROVED_FAILURE_CODES.has(value.failureCode.trim())
+        ? (value.failureCode.trim() as RetentionExecutionRecord['failureCode'])
         : null,
   }
 }
@@ -1201,7 +1231,9 @@ export function parseDeletionOwnerFact(
   const rawReason =
     typeof value.failureReason === 'string' ? value.failureReason.trim() : null
   const safeFailureReason =
-    rawReason && SAFE_FAILURE_REASON_PATTERN.test(rawReason) ? rawReason : null
+    rawReason && APPROVED_FAILURE_REASONS.has(rawReason)
+      ? (rawReason as DeletionOwnerFact['failureReason'])
+      : null
 
   return {
     ownerService: value.ownerService as DeletionOwnerFact['ownerService'],
@@ -1268,8 +1300,8 @@ export function parseDeletionRequest(value: unknown): DeletionRequest | null {
       value.escalationState as DeletionRequest['escalationState'],
     failureCode:
       typeof value.failureCode === 'string' &&
-      SAFE_FAILURE_CODE_PATTERN.test(value.failureCode.trim())
-        ? value.failureCode.trim()
+      APPROVED_FAILURE_CODES.has(value.failureCode.trim())
+        ? (value.failureCode.trim() as DeletionRequest['failureCode'])
         : null,
     requestedAt: value.requestedAt,
     scheduledExecutionAt: value.scheduledExecutionAt,

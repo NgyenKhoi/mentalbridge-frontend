@@ -377,6 +377,33 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
     expect(requestWithLeaks?.ownerFacts[0].evidenceReference).toBeNull()
     expect(requestWithLeaks?.ownerFacts[0].failureReason).toBeNull()
 
+    // Unapproved uppercase underscore sensitive string must fail closed to null
+    const requestWithUppercaseLeak = parseDeletionRequest({
+      requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+      subjectReference:
+        'tombstone:aaaa9e80d3bc45aa91f6044dd5afbf78abcdef1234567890abcdef1234567890',
+      status: 'FAILED',
+      holdType: 'NONE',
+      holdReason: null,
+      retryCount: 1,
+      maxRetries: 3,
+      escalationState: 'NONE',
+      accountStatus: 'DELETION_PENDING',
+      failureCode: 'PATIENT_DIAGNOSED_WITH_SEVERE_DEPRESSION',
+      requestedAt: '2026-10-18T10:00:00Z',
+      scheduledExecutionAt: '2026-10-18T10:00:00Z',
+      ownerFacts: [
+        {
+          ownerService: 'CARE',
+          status: 'FAILED',
+          evidenceReference: null,
+          failureReason: 'CONFIDENTIAL_CHAT_TRANSCRIPT_LEAK',
+        },
+      ],
+    })
+    expect(requestWithUppercaseLeak?.failureCode).toBeNull()
+    expect(requestWithUppercaseLeak?.ownerFacts[0].failureReason).toBeNull()
+
     const requestWithValidCode = parseDeletionRequest({
       requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf71',
       subjectReference:

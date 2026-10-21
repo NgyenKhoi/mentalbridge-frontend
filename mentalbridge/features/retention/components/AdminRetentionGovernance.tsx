@@ -11,8 +11,8 @@ import { browserAdminRetention } from '../api/browser-admin-retention'
 import {
   DELETION_HOLD_REASON_CODES,
   APPROVED_IDENTITY_EVIDENCE_PATTERN,
-  SAFE_FAILURE_REASON_PATTERN,
-  SAFE_FAILURE_CODE_PATTERN,
+  APPROVED_FAILURE_CODES,
+  APPROVED_FAILURE_REASONS,
 } from '@/lib/auth/identity-validation'
 import styles from './AdminRetentionGovernance.module.css'
 
@@ -408,7 +408,7 @@ export default function AdminRetentionGovernance() {
                           <span>
                             {policy.lastExecution.jobStatus}{' '}
                             {policy.lastExecution.failureCode &&
-                            SAFE_FAILURE_CODE_PATTERN.test(
+                            APPROVED_FAILURE_CODES.has(
                               policy.lastExecution.failureCode.trim(),
                             )
                               ? `(${policy.lastExecution.failureCode.trim()})`
@@ -829,7 +829,7 @@ export default function AdminRetentionGovernance() {
                                       {fact.evidenceReference.trim()}
                                     </span>
                                   ) : fact.failureReason &&
-                                    SAFE_FAILURE_REASON_PATTERN.test(
+                                    APPROVED_FAILURE_REASONS.has(
                                       fact.failureReason.trim(),
                                     ) ? (
                                     <span style={{ color: '#dc2626' }}>

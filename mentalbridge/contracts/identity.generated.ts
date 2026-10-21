@@ -986,7 +986,7 @@ export interface components {
             recordsPurged: number;
             tombstonesCreated: number;
             holdsHonored: number;
-            failureCode?: string | null;
+            failureCode?: components["schemas"]["RetentionFailureCode"] | null;
         };
         DeletionOwnerFact: {
             /** @enum {string} */
@@ -996,8 +996,14 @@ export interface components {
             /** Format: date-time */
             completedAt?: string | null;
             evidenceReference?: string | null;
-            failureReason?: string | null;
+            failureReason?: components["schemas"]["DeletionFailureReason"] | null;
         };
+        /** @enum {string} */
+        RetentionFailureCode: "ACCOUNT_NOT_FOUND" | "RETRY_LIMIT_EXHAUSTED" | "RETRY_EXHAUSTED" | "PRIOR_EXECUTION_STALE" | "SWEEP_EXECUTION_FAILED" | "LOCK_ACQUISITION_FAILED" | "CONCURRENT_SWEEP_RUNNING" | "CAPABILITY_UNAVAILABLE" | "ALREADY_COMPLETED" | "HOLD_ACTIVE" | "EXECUTION_SCHEDULE_NOT_REACHED" | "MISSING_OWNER_FACTS" | "MISSING_IDENTITY_FACT" | "EXTERNAL_OWNER_RETRY_UNSUPPORTED";
+        /** @enum {string} */
+        DeletionFailureReason: "ACCOUNT_NOT_FOUND" | "COMMUNITY_TIMEOUT" | "LEGAL_HOLD_ACTIVE" | "AUTH_FAILED" | "KEY_EXPIRED" | "INVALID_REFERENCE" | "STATUTORY_INQUIRY" | "PENDING_DISPUTE" | "ACTIVE_SAFETY_REVIEW" | "SCHEDULED_APPOINTMENT_ACTIVE" | "USER_CONTESTED" | "AUDIT_COMPLIANCE_HOLD";
+        /** @enum {string} */
+        DeletionFailureCode: "ACCOUNT_NOT_FOUND" | "RETRY_LIMIT_EXHAUSTED" | "RETRY_EXHAUSTED" | "PRIOR_EXECUTION_STALE" | "SWEEP_EXECUTION_FAILED" | "LOCK_ACQUISITION_FAILED" | "CONCURRENT_SWEEP_RUNNING" | "CAPABILITY_UNAVAILABLE" | "ALREADY_COMPLETED" | "HOLD_ACTIVE" | "EXECUTION_SCHEDULE_NOT_REACHED" | "MISSING_OWNER_FACTS" | "MISSING_IDENTITY_FACT" | "EXTERNAL_OWNER_RETRY_UNSUPPORTED";
         /** @enum {string} */
         DeletionHoldReason: "STATUTORY_INQUIRY" | "PENDING_DISPUTE" | "ACTIVE_SAFETY_REVIEW" | "SCHEDULED_APPOINTMENT_ACTIVE" | "USER_CONTESTED" | "AUDIT_COMPLIANCE_HOLD";
         DeletionRequest: {
@@ -1014,7 +1020,7 @@ export interface components {
             maxRetries: number;
             /** @enum {string} */
             escalationState: "NONE" | "RETRY_EXHAUSTED" | "MANUAL_ESCALATION_REQUIRED";
-            failureCode?: string | null;
+            failureCode?: components["schemas"]["DeletionFailureCode"] | null;
             /** Format: date-time */
             requestedAt: string;
             /** Format: date-time */
