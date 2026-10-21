@@ -48,4 +48,22 @@ describe('CommunityShell', () => {
       screen.getAllByRole('link', { name: 'Bảng tin' })[0],
     ).not.toHaveAttribute('aria-current')
   })
+
+  it('marks message deep links without marking the feed', () => {
+    navigation.pathname =
+      '/community/messages/20000000-0000-4000-8000-000000000001'
+
+    render(
+      <CommunityShell>
+        <p>Cuộc trò chuyện</p>
+      </CommunityShell>,
+    )
+
+    expect(
+      screen.getAllByRole('link', { name: 'Tin nhắn' })[0],
+    ).toHaveAttribute('aria-current', 'page')
+    expect(
+      screen.getAllByRole('link', { name: 'Bảng tin' })[0],
+    ).not.toHaveAttribute('aria-current')
+  })
 })

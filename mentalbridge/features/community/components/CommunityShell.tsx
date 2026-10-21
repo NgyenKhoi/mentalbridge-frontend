@@ -41,6 +41,18 @@ const communityLinks = [
     ),
   },
   {
+    href: '/community/messages',
+    label: 'Tin nhắn',
+    mobileLabel: 'Tin nhắn',
+    description: 'Trò chuyện riêng tư trong cộng đồng',
+    icon: (
+      <Icon>
+        <path d="M4 5h16v12H8l-4 3V5Z" />
+        <path d="M8 9h8M8 13h5" />
+      </Icon>
+    ),
+  },
+  {
     href: '/community/profile',
     label: 'Danh tính cộng đồng',
     mobileLabel: 'Danh tính',
@@ -64,7 +76,8 @@ export default function CommunityShell({
       ? pathname === '/community' ||
         (/^\/community\/[^/]+$/.test(pathname) &&
           pathname !== '/community/profile' &&
-          pathname !== '/community/saved')
+          pathname !== '/community/saved' &&
+          pathname !== '/community/messages')
       : pathname.startsWith(href)
 
   return (
