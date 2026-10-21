@@ -174,15 +174,20 @@ function JourneyProgress({ phase }: { phase: InitialCheckState['phase'] }) {
 function ReadinessStep({
   phase,
   purpose,
+  planReview,
 }: {
   phase: 'PROFILE_REQUIRED' | 'CONSENT_REQUIRED'
   purpose: 'INITIAL_CHECK' | 'REASSESSMENT'
+  planReview: boolean
 }) {
   const needsProfile = phase === 'PROFILE_REQUIRED'
+  // The plan-review token survives the profile/privacy detour (MB-645).
   const returnTo =
-    purpose === 'REASSESSMENT'
-      ? '/initial-check?purpose=reassessment'
-      : '/initial-check'
+    purpose !== 'REASSESSMENT'
+      ? '/initial-check'
+      : planReview
+        ? '/initial-check?purpose=reassessment&returnTo=plan-review'
+        : '/initial-check?purpose=reassessment'
   return (
     <section
       className="initial-check-readiness"
@@ -293,8 +298,11 @@ function UnifiedResult({
 
 export default function GuidedInitialCheck({
   purpose = 'INITIAL_CHECK',
+  planReview = false,
 }: {
   purpose?: 'INITIAL_CHECK' | 'REASSESSMENT'
+  /** Opened from the SupportPlan review: offer the way back once both checks are saved. */
+  planReview?: boolean
 }) {
   const { showActionToast } = useFeedback()
   const [state, setState] = useState<InitialCheckState | null>(null)
@@ -404,7 +412,11 @@ export default function GuidedInitialCheck({
       <JourneyProgress phase={state.phase} />
       {(state.phase === 'PROFILE_REQUIRED' ||
         state.phase === 'CONSENT_REQUIRED') && (
-        <ReadinessStep phase={state.phase} purpose={purpose} />
+        <ReadinessStep
+          phase={state.phase}
+          purpose={purpose}
+          planReview={planReview}
+        />
       )}
       {state.phase === 'PHQ9' && (
         <AssessmentFlow
@@ -458,6 +470,28 @@ export default function GuidedInitialCheck({
           confirmingRestart={confirmingRestart}
         />
       )}
+      {state.phase === 'COMPLETED' &&
+        planReview &&
+        purpose === 'REASSESSMENT' && (
+          <section
+            className="initial-check-plan-review"
+            aria-labelledby="initial-check-plan-review-title"
+          >
+            <h2 id="initial-check-plan-review-title">
+              Quay lại xem lại kế hoạch
+            </h2>
+            <p>
+              Bạn có thể chia sẻ thêm cảm nhận của mình, rồi quay lại phần xem
+              lại kế hoạch. Kế hoạch chưa thay đổi.
+            </p>
+            <Link
+              className="btn btn-outline"
+              href="/assessments?tab=reassessment&returnTo=plan-review"
+            >
+              Chia sẻ cảm nhận rồi quay lại kế hoạch
+            </Link>
+          </section>
+        )}
     </div>
   )
 }

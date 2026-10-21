@@ -2,7 +2,10 @@ import { browserApiClient } from '@/lib/api/browser-client'
 import type {
   ActionOccurrence,
   ActionOccurrenceList,
+  AdaptiveReviewConfirmation,
+  AdaptiveSupportPlanReview,
   ChangeSupportPlanStatusRequest,
+  ConfirmAdaptiveReviewOptionRequest,
   EmotionCheckInOccurrenceReconciliation,
   JournalOccurrenceReconciliation,
   NativeSupportPlanReplacementReview,
@@ -104,6 +107,36 @@ export async function reviewNativeSupportPlanReplacement(
       `${planPath(id)}/replacement-review`,
       request,
       { headers: { 'If-Match': `"${version}"` } },
+    )
+  ).data
+}
+export async function getAdaptiveSupportPlanReview(
+  id: string,
+  reassessmentSummaryId?: string,
+) {
+  return (
+    await browserApiClient.get<AdaptiveSupportPlanReview>(
+      `${planPath(id)}/adaptive-review`,
+      reassessmentSummaryId ? { params: { reassessmentSummaryId } } : {},
+    )
+  ).data
+}
+export async function confirmAdaptiveReviewOption(
+  id: string,
+  version: number,
+  request: ConfirmAdaptiveReviewOptionRequest,
+  idempotencyKey: string,
+) {
+  return (
+    await browserApiClient.post<AdaptiveReviewConfirmation>(
+      `${planPath(id)}/adaptive-review/confirm`,
+      request,
+      {
+        headers: {
+          'If-Match': `"${version}"`,
+          'Idempotency-Key': idempotencyKey,
+        },
+      },
     )
   ).data
 }

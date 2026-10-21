@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { ArrowRight, Check, Clock3, PauseCircle, RotateCcw } from 'lucide-react'
 import type {
   ActionOccurrence,
@@ -43,7 +44,8 @@ type Props = Readonly<{
   onSkip: (item: PlannedOccurrence) => void
   onReopen: (item: PlannedOccurrence) => void
   onAcknowledge: (item: PlannedOccurrence) => void
-  onRate: (item: PlannedOccurrence, value: Helpfulness) => void
+  onRate: (item: PlannedOccurrence, value: Helpfulness, reuse: boolean) => void
+  onBarrier: (item: PlannedOccurrence, value: Barrier, reuse: boolean) => void
   onResume: () => void
   onOpenReview: () => void
   onOpenPlan: () => void
@@ -111,6 +113,56 @@ const RATINGS: ReadonlyArray<readonly [Helpfulness, string]> = [
   ['NOT_HELPFUL', 'Chưa hợp'],
 ]
 
+export type Barrier = 'NOT_ENOUGH_TIME' | 'LOW_ENERGY' | 'NOT_A_GOOD_FIT'
+const BARRIERS: ReadonlyArray<readonly [Barrier, string]> = [
+  ['NOT_ENOUGH_TIME', 'Không đủ thời gian'],
+  ['LOW_ENERGY', 'Thiếu năng lượng'],
+  ['NOT_A_GOOD_FIT', 'Chưa hợp với mình'],
+]
+
+/** Optional quick answer; it is used in the plan review only if the user ticks the box. */
+function QuickAnswer<T extends string>({
+  label,
+  question,
+  choices,
+  disabled,
+  onAnswer,
+}: Readonly<{
+  label: string
+  question: string
+  choices: ReadonlyArray<readonly [T, string]>
+  disabled: boolean
+  onAnswer: (value: T, reuse: boolean) => void
+}>) {
+  const [reuse, setReuse] = useState(false)
+  return (
+    <div className="mbw-rate" role="group" aria-label={label}>
+      <span className="mbw-quiet">{question}</span>
+      {/* Consent comes before the answer: answering closes this group. */}
+      <label className="mbw-reuse">
+        <input
+          type="checkbox"
+          checked={reuse}
+          disabled={disabled}
+          onChange={(event) => setReuse(event.currentTarget.checked)}
+        />
+        Dùng câu trả lời này khi xem lại kế hoạch
+      </label>
+      {choices.map(([value, text]) => (
+        <button
+          key={value}
+          type="button"
+          className="mbw-chip"
+          disabled={disabled}
+          onClick={() => onAnswer(value, reuse)}
+        >
+          {text}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 const doneLabel = {
   COMPLETED: 'Đã xong',
   SKIPPED: 'Để hôm khác',
@@ -135,6 +187,7 @@ export default function TodayPanel({
   onReopen,
   onAcknowledge,
   onRate,
+  onBarrier,
   onResume,
   onOpenReview,
   onOpenPlan,
@@ -193,8 +246,8 @@ export default function TodayPanel({
         <section className="mbw-tile mbw-next" aria-labelledby="mbw-next-title">
           <h2 id="mbw-next-title">Đến lúc cùng xem lại kế hoạch</h2>
           <p>
-            Bạn đã đi qua 14 ngày. Hãy chọn giữ nhịp này thêm 14 ngày hoặc xem
-            một phương án khác.
+            Bạn đã đi qua 14 ngày. Cùng nhìn lại những gì đã ghi nhận rồi chọn
+            cách đi tiếp. Kế hoạch không đổi cho đến khi bạn chọn.
           </p>
           <div className="mbw-actions">
             <button
@@ -331,24 +384,30 @@ export default function TodayPanel({
                   plan.status === 'ACTIVE' &&
                   engageable.has(item.occurrence.occurrenceId) &&
                   !item.occurrence.helpfulness && (
-                    <div
-                      className="mbw-rate"
-                      role="group"
-                      aria-label={`Hoạt động “${item.action.presentation.title}” có giúp bạn không?`}
-                    >
-                      <span className="mbw-quiet">Có giúp bạn không?</span>
-                      {RATINGS.map(([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          className="mbw-chip"
-                          disabled={rows.busy[item.occurrence.occurrenceId]}
-                          onClick={() => onRate(item, value)}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
+                    <QuickAnswer
+                      label={`Hoạt động “${item.action.presentation.title}” có giúp bạn không?`}
+                      question="Có giúp bạn không?"
+                      choices={RATINGS}
+                      disabled={Boolean(
+                        rows.busy[item.occurrence.occurrenceId],
+                      )}
+                      onAnswer={(value, reuse) => onRate(item, value, reuse)}
+                    />
+                  )}
+                {item.occurrence.state === 'SKIPPED' &&
+                  plan.status === 'ACTIVE' &&
+                  item.occurrence.representationMode === 'NATIVE_V3' &&
+                  engageable.has(item.occurrence.occurrenceId) &&
+                  !item.occurrence.barrierCode && (
+                    <QuickAnswer
+                      label={`Vì sao để “${item.action.presentation.title}” sang hôm khác?`}
+                      question="Vì sao để sang hôm khác? (không bắt buộc)"
+                      choices={BARRIERS}
+                      disabled={Boolean(
+                        rows.busy[item.occurrence.occurrenceId],
+                      )}
+                      onAnswer={(value, reuse) => onBarrier(item, value, reuse)}
+                    />
                   )}
                 {item.occurrence.state === 'SKIPPED' &&
                   plan.status === 'ACTIVE' &&

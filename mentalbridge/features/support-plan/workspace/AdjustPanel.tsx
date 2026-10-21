@@ -1,12 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Disclosure } from '@/components/ui/Disclosure'
 import type {
+  AdaptiveReviewConfirmation,
   NativeSupportPlanReplacementReview,
   SupportPlanV3,
 } from '../api/support-plan-contract'
+import AdaptiveReview from './AdaptiveReview'
 import { dayLabel } from './TodayPanel'
 import { REASSESSMENT_HREF } from './workspace-links'
 import { planActions } from './workspace-model'
@@ -21,7 +23,9 @@ type Props = Readonly<{
   schedule: ReactNode
   preferences: ReactNode
   history: ReactNode
-  onContinueCycle: () => void
+  onApplied: (result: AdaptiveReviewConfirmation) => Promise<void> | void
+  onDiscardDraft: () => Promise<void> | void
+  onRefreshPlan: () => Promise<void> | void
   onProposeReplacement: () => void
   onReviewReplacement: () => void
   onConfirmReplacement: () => void
@@ -49,7 +53,9 @@ export default function AdjustPanel({
   schedule,
   preferences,
   history,
-  onContinueCycle,
+  onApplied,
+  onDiscardDraft,
+  onRefreshPlan,
   onProposeReplacement,
   onReviewReplacement,
   onConfirmReplacement,
@@ -59,6 +65,14 @@ export default function AdjustPanel({
 }: Props) {
   const cycle = plan.cycle
   const locked = busy || dirty
+  const due = cycle?.state === 'REVIEW_DUE'
+  const [reviewShown, setReviewShown] = useState(reviewOpen || due)
+  const [wasDue, setWasDue] = useState(due)
+  if (due !== wasDue) {
+    // Open the review when the plan becomes due while this tab is shown.
+    setWasDue(due)
+    if (due) setReviewShown(true)
+  }
   return (
     <div className="mbw-adjust">
       {dirty && (
@@ -66,41 +80,30 @@ export default function AdjustPanel({
           Hãy lưu hoặc hoàn tác thay đổi đang dở trước khi chọn việc khác.
         </p>
       )}
-      {cycle && (
-        <Disclosure
-          id="mbw-review"
-          summary="Xem lại sau 14 ngày"
-          open={reviewOpen || cycle.state === 'REVIEW_DUE' || undefined}
-        >
-          {cycle.state === 'REVIEW_DUE' ? (
-            <>
-              <p>
-                Bạn đã đi qua 14 ngày. Chọn giữ nhịp này thêm 14 ngày, hoặc làm
-                bài kiểm tra lại để xem phương án khác.
-              </p>
-              <div className="mbw-actions">
-                <button
-                  type="button"
-                  className="mbw-primary"
-                  disabled={locked}
-                  onClick={onContinueCycle}
-                >
-                  Tiếp tục thêm 14 ngày
-                </button>
-                <Link className="mbw-secondary" href={REASSESSMENT_HREF}>
-                  Làm bài kiểm tra lại
-                </Link>
-              </div>
-            </>
-          ) : (
-            <p>
-              {cycle.reviewDueOn
-                ? `Bạn sẽ được mời xem lại kế hoạch vào ${dayLabel(cycle.reviewDueOn)}.`
-                : 'Bạn sẽ được mời xem lại kế hoạch sau 14 ngày kể từ khi bắt đầu.'}
-            </p>
-          )}
-        </Disclosure>
-      )}
+      <Disclosure
+        id="mbw-review"
+        summary="Xem lại kế hoạch"
+        meta={
+          due
+            ? 'Đã đến lúc xem lại'
+            : cycle?.reviewDueOn
+              ? `Lời mời xem lại: ${dayLabel(cycle.reviewDueOn)}`
+              : undefined
+        }
+        open={reviewShown || undefined}
+        onToggle={(event) => setReviewShown(event.currentTarget.open)}
+      >
+        {reviewShown && (
+          <AdaptiveReview
+            plan={plan}
+            locked={locked}
+            pendingDraft={replacement}
+            onApplied={onApplied}
+            onDiscardDraft={onDiscardDraft}
+            onRefreshPlan={onRefreshPlan}
+          />
+        )}
+      </Disclosure>
 
       <Disclosure summary="Lịch và thời lượng">{schedule}</Disclosure>
       <Disclosure summary="Điều bạn muốn ưu tiên">{preferences}</Disclosure>

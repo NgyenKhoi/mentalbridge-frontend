@@ -1,5 +1,7 @@
 import type {
   ActionOccurrence,
+  AdaptiveReviewConfirmation,
+  AdaptiveSupportPlanReview,
   ActionOccurrenceList,
   CompletionEvidence,
   EmotionCheckInOccurrenceReconciliation,
@@ -9,7 +11,11 @@ import type {
   SupportPlanContextualCompanionMessage,
   SupportPlanV3,
 } from '@/features/support-plan/api/support-plan-contract'
-import { isUuid, parseReassessmentSummary } from './care-validation'
+import {
+  isReassessmentPeriod,
+  isUuid,
+  parseReassessmentSummary,
+} from './care-validation'
 import { parseSupportPlanV3 } from './support-plan-validation'
 
 function object(value: unknown): value is Record<string, unknown> {
@@ -749,5 +755,350 @@ export function parseNativeSupportPlanReplacementReview(
     proposed.status === 'DRAFT' &&
     summary?.summaryVersion === 'reassessment-summary-v2'
     ? (value as NativeSupportPlanReplacementReview)
+    : null
+}
+
+const OPTION_KINDS = [
+  'KEEP_CURRENT',
+  'LOWER_WORKLOAD',
+  'DIFFERENT_TIME',
+  'ALTERNATIVE_ACTION',
+  'DIFFERENT_FOCUS',
+  'PROFESSIONAL_SUPPORT_NEXT_STEP',
+]
+const EVIDENCE_SOURCES = [
+  'SCREENING_PHQ9',
+  'SCREENING_GAD7',
+  'JOURNAL_CONTEXT',
+  'PLAN_ENGAGEMENT',
+  'SELF_REPORTED_EXPERIENCE',
+  'ACTIVITY_REFLECTION',
+  'PATTERN',
+  'PREFERENCES',
+]
+
+function list(value: unknown, max: number, item: (entry: unknown) => boolean) {
+  return Array.isArray(value) && value.length <= max && value.every(item)
+}
+
+function evidenceRef(value: unknown) {
+  return (
+    exact(value, ['source', 'refId']) &&
+    EVIDENCE_SOURCES.includes(String(value.source)) &&
+    nullableText(value.refId, 128)
+  )
+}
+
+function reviewOption(value: unknown) {
+  return (
+    exact(value, [
+      'optionId',
+      'kind',
+      'executionKind',
+      'actionId',
+      'focusId',
+      'rationaleCodes',
+      'evidenceRefs',
+      'conflictingEvidenceRefs',
+      'changes',
+    ]) &&
+    text(value.optionId, 128) &&
+    OPTION_KINDS.includes(String(value.kind)) &&
+    [
+      'NO_CHANGE',
+      'CONTINUE_CYCLE',
+      'UPDATE_SCHEDULE',
+      'PREPARE_REPLACEMENT',
+      'NAVIGATE_PROFESSIONAL_SUPPORT',
+    ].includes(String(value.executionKind)) &&
+    (value.actionId === null || isUuid(String(value.actionId))) &&
+    nullableText(value.focusId, 128) &&
+    Array.isArray(value.rationaleCodes) &&
+    value.rationaleCodes.length >= 1 &&
+    list(value.rationaleCodes, 5, (code) => text(code, 128)) &&
+    list(value.evidenceRefs, 10, evidenceRef) &&
+    list(value.conflictingEvidenceRefs, 10, evidenceRef) &&
+    list(
+      value.changes,
+      6,
+      (change) =>
+        exact(change, ['field', 'before', 'after']) &&
+        [
+          'ACTION',
+          'ESTIMATED_DURATION_MINUTES',
+          'DAYS_PER_WEEK',
+          'PREFERRED_DAYPART',
+          'LOCAL_TIME',
+          'FOCUS_ORDER',
+        ].includes(String(change.field)) &&
+        nullableText(change.before, 255) &&
+        nullableText(change.after, 255),
+    )
+  )
+}
+
+function programPeriod(value: unknown) {
+  const counts = [
+    'elapsedDays',
+    'pausedDays',
+    'scheduledCount',
+    'completedCount',
+    'skippedCount',
+    'openCount',
+  ]
+  return (
+    exact(value, [
+      'startedOn',
+      'asOf',
+      'timezone',
+      'fullCycleElapsed',
+      ...counts,
+    ]) &&
+    isSupportPlanLocalDate(value.startedOn) &&
+    isSupportPlanLocalDate(value.asOf) &&
+    text(value.timezone, 64) &&
+    typeof value.fullCycleElapsed === 'boolean' &&
+    counts.every((key) => integer(value[key], key === 'elapsedDays' ? 1 : 0))
+  )
+}
+
+function pattern(value: unknown) {
+  return (
+    exact(value, [
+      'patternId',
+      'kind',
+      'code',
+      'actionId',
+      'actionTitle',
+      'count',
+      'occurrenceIds',
+    ]) &&
+    text(value.patternId, 128) &&
+    ['REPEATED_BARRIER', 'REPEATED_HELPFUL'].includes(String(value.kind)) &&
+    ['NOT_ENOUGH_TIME', 'LOW_ENERGY', 'NOT_A_GOOD_FIT', 'HELPFUL'].includes(
+      String(value.code),
+    ) &&
+    isUuid(String(value.actionId)) &&
+    text(value.actionTitle, 255) &&
+    integer(value.count, 2) &&
+    Array.isArray(value.occurrenceIds) &&
+    value.occurrenceIds.length >= 2 &&
+    list(value.occurrenceIds, 31, (id) => isUuid(String(id)))
+  )
+}
+
+function contradiction(value: unknown) {
+  return (
+    exact(value, ['contradictionId', 'kind', 'evidenceRefs']) &&
+    text(value.contradictionId, 128) &&
+    [
+      'INSTRUMENT_DIRECTIONS_DIFFER',
+      'SELF_REPORT_DIFFERS_FROM_SCREENING',
+      'JOURNAL_DIFFERS_FROM_SCREENING',
+    ].includes(String(value.kind)) &&
+    Array.isArray(value.evidenceRefs) &&
+    value.evidenceRefs.length >= 2 &&
+    list(value.evidenceRefs, 6, evidenceRef)
+  )
+}
+
+function unavailableOption(value: unknown) {
+  return (
+    exact(value, ['kind', 'reasonCode']) &&
+    OPTION_KINDS.includes(String(value.kind)) &&
+    [
+      'NO_SUPPORTING_PATTERN',
+      'NO_TIME_PREFERENCE',
+      'NO_ADMITTED_CANDIDATE',
+      'REASSESSMENT_REQUIRED',
+      'ADMISSION_UNAVAILABLE',
+      'CURRENT_PLAN_NOT_ADMISSIBLE',
+      'PLAN_PAUSED',
+      'ENTITLEMENT_REQUIRED',
+    ].includes(String(value.reasonCode))
+  )
+}
+
+function selfReportDimension(value: unknown) {
+  if (
+    !exact(value, ['state', 'unavailableReason', 'source']) ||
+    !['AVAILABLE', 'INSUFFICIENT_DATA', 'UNAVAILABLE'].includes(
+      String(value.state),
+    ) ||
+    ![null, 'NOT_PROVIDED', 'SOURCE_DELETED'].includes(
+      value.unavailableReason as string | null,
+    )
+  )
+    return false
+  const source = value.source
+  return (
+    source === null ||
+    (object(source) &&
+      isUuid(String(source.selfReportId)) &&
+      source.sourceVersion === 'reassessment-self-report-v1' &&
+      ['BETTER', 'ABOUT_THE_SAME', 'MORE_DIFFICULT', 'UNSURE'].includes(
+        String(source.currentExperience),
+      ))
+  )
+}
+
+function engagementSource(value: unknown) {
+  return (
+    exact(value, [
+      'occurrenceId',
+      'occurrenceVersion',
+      'actionId',
+      'actionVersion',
+      'supportPlanId',
+      'sourcePlanVersion',
+      'sourceSlotId',
+      'sourceResourceId',
+      'sourceContentVersion',
+      'scheduledAt',
+      'state',
+      'helpfulness',
+      'barrierCode',
+      'engagementUpdatedAt',
+    ]) &&
+    isUuid(String(value.occurrenceId)) &&
+    integer(value.occurrenceVersion) &&
+    (value.actionId === null || isUuid(String(value.actionId))) &&
+    (value.actionVersion === null || integer(value.actionVersion)) &&
+    isUuid(String(value.supportPlanId)) &&
+    integer(value.sourcePlanVersion) &&
+    nullableText(value.sourceSlotId, 128) &&
+    (value.sourceResourceId === null ||
+      isUuid(String(value.sourceResourceId))) &&
+    (value.sourceContentVersion === null ||
+      integer(value.sourceContentVersion)) &&
+    instant(value.scheduledAt) &&
+    ['COMPLETED', 'SKIPPED'].includes(String(value.state)) &&
+    nullableText(value.helpfulness, 64) &&
+    nullableText(value.barrierCode, 64) &&
+    nullableInstant(value.engagementUpdatedAt)
+  )
+}
+
+/** Exact-period Care facts that exist even when no summary was composed. */
+function evidenceContext(value: unknown) {
+  return (
+    exact(value, [
+      'comparisonPolicyVersion',
+      'previousPeriod',
+      'currentPeriod',
+      'timezone',
+      'selfReportedExperience',
+      'engagementSources',
+    ]) &&
+    text(value.comparisonPolicyVersion, 128) &&
+    isReassessmentPeriod(value.previousPeriod) &&
+    isReassessmentPeriod(value.currentPeriod) &&
+    value.timezone === 'UTC' &&
+    selfReportDimension(value.selfReportedExperience) &&
+    list(value.engagementSources, 200, engagementSource)
+  )
+}
+
+function reassessment(value: unknown) {
+  if (
+    !exact(value, ['state', 'reasonCode', 'summary']) ||
+    ![
+      'AVAILABLE',
+      'NOT_STARTED',
+      'INCOMPLETE',
+      'STALE',
+      'UNAVAILABLE',
+    ].includes(String(value.state)) ||
+    !nullableText(value.reasonCode, 128)
+  )
+    return false
+  if (value.summary === null) return value.state !== 'AVAILABLE'
+  return (
+    ['AVAILABLE', 'STALE'].includes(String(value.state)) &&
+    parseReassessmentSummary(value.summary)?.summaryVersion ===
+      'reassessment-summary-v2'
+  )
+}
+
+/** Strict adaptive-support-plan-review-v1; nothing is filled or inferred client-side. */
+export function parseAdaptiveSupportPlanReview(
+  value: unknown,
+): AdaptiveSupportPlanReview | null {
+  return exact(
+    value,
+    [
+      'schemaVersion',
+      'policyVersion',
+      'supportPlanId',
+      'planVersion',
+      'planStatus',
+      'cycle',
+      'reviewedAt',
+      'programPeriod',
+      'reviewState',
+      'reassessment',
+      'currentAdmission',
+      'outcome',
+      'patterns',
+      'contradictions',
+      'options',
+      'unavailableOptions',
+      'reviewFingerprint',
+    ],
+    ['evidenceContext'],
+  ) &&
+    (value.evidenceContext === undefined ||
+      evidenceContext(value.evidenceContext)) &&
+    value.schemaVersion === 'adaptive-support-plan-review-v1' &&
+    value.policyVersion === 'support-plan-review-v1' &&
+    isUuid(String(value.supportPlanId)) &&
+    integer(value.planVersion) &&
+    ['ACTIVE', 'PAUSED'].includes(String(value.planStatus)) &&
+    cycle(value.cycle) &&
+    instant(value.reviewedAt) &&
+    programPeriod(value.programPeriod) &&
+    ['EARLY', 'REVIEW_DUE', 'PAUSED'].includes(String(value.reviewState)) &&
+    reassessment(value.reassessment) &&
+    ['ADMISSIBLE', 'INADMISSIBLE', 'UNAVAILABLE'].includes(
+      String(value.currentAdmission),
+    ) &&
+    (value.outcome === null ||
+      [
+        'CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE',
+        'CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE',
+        'CURRENT_PLAN_NOT_ADMISSIBLE',
+      ].includes(String(value.outcome))) &&
+    (value.currentAdmission === 'UNAVAILABLE') === (value.outcome === null) &&
+    list(value.patterns, 20, pattern) &&
+    list(value.contradictions, 10, contradiction) &&
+    list(value.options, 8, reviewOption) &&
+    list(value.unavailableOptions, 6, unavailableOption) &&
+    text(value.reviewFingerprint, 128) &&
+    value.reviewFingerprint.length >= 16
+    ? (value as AdaptiveSupportPlanReview)
+    : null
+}
+
+export function parseAdaptiveReviewConfirmation(
+  value: unknown,
+): AdaptiveReviewConfirmation | null {
+  if (
+    !exact(value, ['result', 'optionId', 'plan', 'draft']) ||
+    ![
+      'KEPT',
+      'CYCLE_CONTINUED',
+      'SCHEDULE_UPDATED',
+      'DRAFT_PREPARED',
+      'REPLACED',
+    ].includes(String(value.result)) ||
+    !text(value.optionId, 128)
+  )
+    return null
+  const plan = parseCanonicalSupportPlan(value.plan)
+  const draft =
+    value.draft === null ? null : parseCanonicalSupportPlan(value.draft)
+  if (!plan || (value.draft !== null && draft?.status !== 'DRAFT')) return null
+  return (value.result === 'DRAFT_PREPARED') === (draft !== null)
+    ? (value as AdaptiveReviewConfirmation)
     : null
 }

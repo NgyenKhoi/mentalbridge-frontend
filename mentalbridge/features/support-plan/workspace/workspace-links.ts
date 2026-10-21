@@ -6,6 +6,8 @@ import type { PlannedOccurrence } from './workspace-model'
 export type ActionDestination = Readonly<{ href: string; label: string }>
 
 export const REASSESSMENT_HREF = '/initial-check?purpose=reassessment'
+/** Reassessment started from the plan review comes back to the review. */
+export const REVIEW_REASSESSMENT_HREF = `${REASSESSMENT_HREF}&returnTo=plan-review`
 
 /** Only the reviewed short-reflection intention may open writing from a plan. */
 export function isPlanJournalAction(action: PlanAction) {

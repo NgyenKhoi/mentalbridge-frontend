@@ -167,6 +167,49 @@ describe('Care profile page', () => {
     ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
   })
 
+  it('keeps the plan-review return token through privacy readiness', async () => {
+    window.history.pushState(
+      {},
+      '',
+      '/profile?returnTo=%2Finitial-check%3Fpurpose%3Dreassessment%26returnTo%3Dplan-review',
+    )
+    mockServer.use(
+      http.get('http://localhost/api/care/profile', () =>
+        HttpResponse.json(profile),
+      ),
+      http.get('http://localhost/api/care/privacy-disclosure', () =>
+        HttpResponse.json(disclosure),
+      ),
+      http.get('http://localhost/api/care/consents', () =>
+        HttpResponse.json({
+          decisions: [
+            {
+              decisionId: '10000000-0000-4000-8000-000000000020',
+              consentType: 'PRIVACY_POLICY',
+              policyVersion: 'privacy-capstone-v3',
+              granted: true,
+              decidedAt: '2026-09-02T00:01:00Z',
+            },
+          ],
+        }),
+      ),
+    )
+
+    renderProfile()
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Bạn có thể tiếp tục đánh giá lại',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Tiếp tục bước chưa hoàn tất' }),
+    ).toHaveAttribute(
+      'href',
+      '/initial-check?purpose=reassessment&returnTo=plan-review',
+    )
+  })
+
   it('keeps the persisted header separate from an editable draft and can cancel changes', async () => {
     mockServer.use(
       http.get('http://localhost/api/care/profile', () =>

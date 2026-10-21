@@ -35,12 +35,15 @@ type Operation =
   | 'reconcileJournal'
   | 'continueCycle'
   | 'occurrenceEngagement'
+  | 'adaptiveReview'
+  | 'adaptiveConfirm'
 const READS: readonly Operation[] = [
   'current',
   'draft',
   'detail',
   'history',
   'occurrences',
+  'adaptiveReview',
 ]
 const VERSION = /^"(0|[1-9]\d*)"$/
 const KEY = /^[!-~]{16,128}$/
@@ -133,6 +136,8 @@ export async function supportPlanActionHandler(
         'reconcileJournal',
         'continueCycle',
         'occurrenceEngagement',
+        'adaptiveReview',
+        'adaptiveConfirm',
       ].includes(operation) &&
       (!id || !isUuid(id))
     )
@@ -153,6 +158,7 @@ export async function supportPlanActionHandler(
         'occurrenceState',
         'continueCycle',
         'occurrenceEngagement',
+        'adaptiveConfirm',
       ].includes(operation)
     ) {
       const match = VERSION.exec(request.headers.get('if-match') ?? '')
@@ -161,7 +167,13 @@ export async function supportPlanActionHandler(
     }
     const key = request.headers.get('idempotency-key') ?? ''
     if (
-      ['propose', 'activate', 'replace', 'continueCycle'].includes(operation) &&
+      [
+        'propose',
+        'activate',
+        'replace',
+        'continueCycle',
+        'adaptiveConfirm',
+      ].includes(operation) &&
       !KEY.test(key)
     )
       invalid()
@@ -379,6 +391,76 @@ export async function supportPlanActionHandler(
           correlationId,
         )
         break
+      case 'adaptiveReview': {
+        const summaryId =
+          request.nextUrl.searchParams.get('reassessmentSummaryId') ?? undefined
+        const ifMatch = request.headers.get('if-match')
+        const match = ifMatch === null ? null : VERSION.exec(ifMatch)
+        if (
+          (summaryId !== undefined && !isUuid(summaryId)) ||
+          (ifMatch !== null &&
+            (!match || !Number.isSafeInteger(Number(match[1]))))
+        )
+          invalid()
+        result = await supportPlanActionClient.adaptiveReview(
+          token,
+          ownerId,
+          match ? Number(match[1]) : undefined,
+          summaryId,
+          correlationId,
+        )
+        break
+      }
+      case 'adaptiveConfirm': {
+        const body = await readBoundedJson(request, 1024)
+        const optional = [
+          'reassessmentSummaryId',
+          'proposedPlanId',
+          'proposedVersion',
+        ]
+        if (
+          !record(body) ||
+          Object.keys(body).some(
+            (field) =>
+              !['reviewFingerprint', 'optionId', ...optional].includes(field),
+          ) ||
+          typeof body.reviewFingerprint !== 'string' ||
+          !/^[!-~]{16,128}$/.test(body.reviewFingerprint) ||
+          typeof body.optionId !== 'string' ||
+          body.optionId.length < 1 ||
+          body.optionId.length > 128 ||
+          (Object.hasOwn(body, 'reassessmentSummaryId') &&
+            !isUuid(String(body.reassessmentSummaryId))) ||
+          Object.hasOwn(body, 'proposedPlanId') !==
+            Object.hasOwn(body, 'proposedVersion') ||
+          (Object.hasOwn(body, 'proposedPlanId') &&
+            (!isUuid(String(body.proposedPlanId)) ||
+              !Number.isSafeInteger(body.proposedVersion) ||
+              Number(body.proposedVersion) < 0))
+        )
+          invalid()
+        result = await supportPlanActionClient.adaptiveConfirm(
+          token,
+          ownerId,
+          version,
+          {
+            reviewFingerprint: body.reviewFingerprint,
+            optionId: body.optionId,
+            ...(Object.hasOwn(body, 'reassessmentSummaryId')
+              ? { reassessmentSummaryId: String(body.reassessmentSummaryId) }
+              : {}),
+            ...(Object.hasOwn(body, 'proposedPlanId')
+              ? {
+                  proposedPlanId: String(body.proposedPlanId),
+                  proposedVersion: Number(body.proposedVersion),
+                }
+              : {}),
+          },
+          key,
+          correlationId,
+        )
+        break
+      }
       case 'occurrenceEngagement': {
         const body = parseEngagementRequest(
           await readBoundedJson(request, 2048),
@@ -395,8 +477,15 @@ export async function supportPlanActionHandler(
       }
     }
     const response = careSuccessResponse(result, correlationId, status)
-    if (record(result) && Number.isSafeInteger(result.version))
-      response.headers.set('ETag', `"${result.version}"`)
+    const etagVersion = !record(result)
+      ? undefined
+      : operation === 'adaptiveReview'
+        ? result.planVersion
+        : operation === 'adaptiveConfirm' && record(result.plan)
+          ? result.plan.version
+          : result.version
+    if (Number.isSafeInteger(etagVersion))
+      response.headers.set('ETag', `"${etagVersion}"`)
     return carryCareSession(response, user)
   } catch (error) {
     const response =

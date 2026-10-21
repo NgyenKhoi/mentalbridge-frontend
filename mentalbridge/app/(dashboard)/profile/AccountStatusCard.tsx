@@ -62,7 +62,9 @@ export const AccountStatusCard: FC<AccountStatusCardProps> = ({
               className={`${styles.description} account-status-desc`}
               style={{ color: '#a3c2b3' }}
             >
-              {profileSaved ? 'Thông tin đã sẵn sàng' : 'Chưa hoàn tất thông tin'}
+              {profileSaved
+                ? 'Thông tin đã sẵn sàng'
+                : 'Chưa hoàn tất thông tin'}
             </span>
           </div>
 
@@ -77,7 +79,10 @@ export const AccountStatusCard: FC<AccountStatusCardProps> = ({
                 : 'rgba(138, 90, 18, 0.45)',
             }}
           >
-            <span className={`${styles.dot} account-status-dot`} aria-hidden="true" />
+            <span
+              className={`${styles.dot} account-status-dot`}
+              aria-hidden="true"
+            />
             <span>{profileSaved ? 'Đã lưu' : 'Chưa lưu'}</span>
           </div>
         </li>
@@ -132,7 +137,10 @@ export const AccountStatusCard: FC<AccountStatusCardProps> = ({
                 : 'rgba(102, 113, 108, 0.35)',
             }}
           >
-            <span className={`${styles.dot} account-status-dot`} aria-hidden="true" />
+            <span
+              className={`${styles.dot} account-status-dot`}
+              aria-hidden="true"
+            />
             <span>{screeningEnabled ? 'Đang bật' : 'Đã tắt'}</span>
           </div>
         </li>

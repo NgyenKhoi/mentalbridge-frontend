@@ -5,8 +5,14 @@ import {
   nativeSupportPlanFixture,
 } from '@/features/support-plan/testing/native-support-plan-fixture'
 import {
+  adaptiveConfirmationFixture,
+  adaptiveReviewFixture,
+} from '@/features/support-plan/testing/adaptive-review-fixture'
+import {
   isSupportPlanLocalDate,
   parseActionOccurrence,
+  parseAdaptiveReviewConfirmation,
+  parseAdaptiveSupportPlanReview,
   parseActionOccurrenceList,
   parseCanonicalSupportPlan,
   parseCompletionEvidence,
@@ -314,5 +320,115 @@ describe('Minimized Journal occurrence reconciliation', () => {
     expect(
       parseJournalReconciliation({ ...value, localDate: '2026-02-30' }),
     ).toBeNull()
+  })
+})
+
+describe('Adaptive SupportPlan review boundary', () => {
+  it('accepts the governed review and keeps every source separate', () => {
+    const review = adaptiveReviewFixture()
+    expect(parseAdaptiveSupportPlanReview(review)).toEqual(review)
+  })
+  it('rejects scores, inferred fields and inconsistent admission', () => {
+    const review = adaptiveReviewFixture()
+    for (const invalid of [
+      { ...review, wellbeingScore: 72 },
+      { ...review, schemaVersion: 'adaptive-support-plan-review-v2' },
+      { ...review, currentAdmission: 'UNAVAILABLE' },
+      { ...review, outcome: null },
+      { ...review, reviewFingerprint: 'short' },
+      { ...review, reassessment: { ...review.reassessment, summary: null } },
+      {
+        ...review,
+        reassessment: { ...review.reassessment, state: 'NOT_STARTED' },
+      },
+      { ...review, patterns: [{ ...review.patterns[0], count: 1 }] },
+      {
+        ...review,
+        contradictions: [
+          {
+            ...review.contradictions[0],
+            evidenceRefs: [review.contradictions[0].evidenceRefs[0]],
+          },
+        ],
+      },
+      {
+        ...review,
+        options: [{ ...review.options[0], kind: 'AUTO_APPLY' }],
+      },
+      {
+        ...review,
+        options: [{ ...review.options[1], rationaleCodes: [] }],
+      },
+    ])
+      expect(parseAdaptiveSupportPlanReview(invalid)).toBeNull()
+    expect(
+      parseAdaptiveSupportPlanReview({
+        ...review,
+        currentAdmission: 'UNAVAILABLE',
+        outcome: null,
+        reassessment: {
+          state: 'NOT_STARTED',
+          reasonCode: 'REASSESSMENT_NOT_SUBMITTED',
+          summary: null,
+        },
+      }),
+    ).not.toBeNull()
+  })
+  it('accepts a confirmation only with a draft exactly when one was prepared', () => {
+    expect(
+      parseAdaptiveReviewConfirmation(adaptiveConfirmationFixture()),
+    ).not.toBeNull()
+    const prepared = adaptiveConfirmationFixture('DRAFT_PREPARED', 'alt-1')
+    expect(parseAdaptiveReviewConfirmation(prepared)).not.toBeNull()
+    expect(
+      parseAdaptiveReviewConfirmation({ ...prepared, result: 'REPLACED' }),
+    ).toBeNull()
+    expect(
+      parseAdaptiveReviewConfirmation({
+        ...adaptiveConfirmationFixture(),
+        result: 'DRAFT_PREPARED',
+      }),
+    ).toBeNull()
+  })
+})
+
+describe('Adaptive review provider shapes', () => {
+  it('accepts an unavailable Journal source whose optional ids are omitted', () => {
+    const review = adaptiveReviewFixture()
+    const summary = structuredClone(review.reassessment.summary!)
+    const journal = summary.journalContext as Record<string, unknown>
+    delete journal.jobId
+    delete journal.analysisId
+    journal.state = 'UNAVAILABLE'
+    expect(
+      parseAdaptiveSupportPlanReview({
+        ...review,
+        reassessment: { ...review.reassessment, summary },
+      }),
+    ).not.toBeNull()
+  })
+  it('accepts the exact-period evidence context without a summary and rejects a reinterpreted one', () => {
+    const review = adaptiveReviewFixture()
+    const withoutSummary = {
+      ...review,
+      reassessment: {
+        state: 'NOT_STARTED',
+        reasonCode: 'REASSESSMENT_NOT_SUBMITTED',
+        summary: null,
+      },
+    }
+    expect(parseAdaptiveSupportPlanReview(withoutSummary)).not.toBeNull()
+    const context = review.evidenceContext!
+    for (const broken of [
+      { ...context, timezone: 'Asia/Ho_Chi_Minh' },
+      { ...context, wellbeingScore: 3 },
+      {
+        ...context,
+        engagementSources: [{ ...context.engagementSources[0], state: 'OPEN' }],
+      },
+    ])
+      expect(
+        parseAdaptiveSupportPlanReview({ ...review, evidenceContext: broken }),
+      ).toBeNull()
   })
 })
