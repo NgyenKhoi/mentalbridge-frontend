@@ -32,7 +32,7 @@ export type ChatRequest = Readonly<{
   version: string
 }>
 
-export type ChatConversation = Readonly<{
+export type ChatDirectConversation = Readonly<{
   conversationId: string
   kind: 'DIRECT'
   state: 'ACTIVE' | 'READ_ONLY'
@@ -40,6 +40,19 @@ export type ChatConversation = Readonly<{
   unreadCount: number
   version: string
 }>
+
+export type ChatGroupConversation = Readonly<{
+  conversationId: string
+  kind: 'GROUP'
+  state: 'ACTIVE' | 'ARCHIVED'
+  groupName: string
+  viewerRole: 'OWNER' | 'ADMIN' | 'MEMBER'
+  peers: ChatPeer[]
+  unreadCount: number
+  version: string
+}>
+
+export type ChatConversation = ChatDirectConversation | ChatGroupConversation
 
 export type ChatMessage = Readonly<{
   messageId: string
@@ -64,6 +77,24 @@ export type ChatSendResult = Readonly<{
 export type ChatReadResult = Readonly<{
   lastReadMessageId: string | null
   unreadCount: number
+}>
+
+export type ChatReportReason =
+  | 'HARASSMENT'
+  | 'SPAM'
+  | 'PRIVACY_CONCERN'
+  | 'SELF_HARM_OR_CRISIS_CONCERN'
+  | 'OTHER'
+
+export type ChatReportInput = Readonly<{
+  messageId: string
+  reasonCode: ChatReportReason
+  details?: string
+}>
+
+export type ChatReportResult = Readonly<{
+  caseId: string
+  state: 'RECEIVED'
 }>
 
 export const UUID_PATTERN =
@@ -193,30 +224,55 @@ export function parseChatRequest(value: unknown): ChatRequest | null {
 
 export function parseChatConversation(value: unknown): ChatConversation | null {
   const item = record(value)
+  if (!item || !Array.isArray(item.peers)) return null
+  const commonValid =
+    typeof item.conversationId === 'string' &&
+    UUID_PATTERN.test(item.conversationId) &&
+    item.peers.every((peer) => parseChatPeer(peer)) &&
+    Number.isInteger(item.unreadCount) &&
+    Number(item.unreadCount) >= 0 &&
+    typeof item.version === 'string' &&
+    VERSION_PATTERN.test(item.version)
+  if (item.kind === 'DIRECT') {
+    if (
+      !exactKeys(item, [
+        'conversationId',
+        'kind',
+        'state',
+        'peers',
+        'unreadCount',
+        'version',
+      ]) ||
+      !commonValid ||
+      item.peers.length > 2 ||
+      !['ACTIVE', 'READ_ONLY'].includes(String(item.state))
+    )
+      return null
+    return item as ChatDirectConversation
+  }
+
   if (
-    !item ||
+    item.kind !== 'GROUP' ||
     !exactKeys(item, [
       'conversationId',
       'kind',
       'state',
+      'groupName',
+      'viewerRole',
       'peers',
       'unreadCount',
       'version',
     ]) ||
-    typeof item.conversationId !== 'string' ||
-    !UUID_PATTERN.test(item.conversationId) ||
-    item.kind !== 'DIRECT' ||
-    !['ACTIVE', 'READ_ONLY'].includes(String(item.state)) ||
-    !Array.isArray(item.peers) ||
-    item.peers.length > 2 ||
-    !item.peers.every((peer) => parseChatPeer(peer)) ||
-    !Number.isInteger(item.unreadCount) ||
-    Number(item.unreadCount) < 0 ||
-    typeof item.version !== 'string' ||
-    !VERSION_PATTERN.test(item.version)
+    !commonValid ||
+    item.peers.length > 30 ||
+    !['ACTIVE', 'ARCHIVED'].includes(String(item.state)) ||
+    typeof item.groupName !== 'string' ||
+    [...item.groupName].length < 1 ||
+    [...item.groupName].length > 80 ||
+    !['OWNER', 'ADMIN', 'MEMBER'].includes(String(item.viewerRole))
   )
     return null
-  return item as ChatConversation
+  return item as ChatGroupConversation
 }
 
 export function parseChatMessage(value: unknown): ChatMessage | null {
@@ -339,5 +395,44 @@ export function parseReadInput(value: unknown) {
     typeof item.lastReadMessageId === 'string' &&
     UUID_PATTERN.test(item.lastReadMessageId)
     ? { lastReadMessageId: item.lastReadMessageId }
+    : null
+}
+
+const CHAT_REPORT_REASONS: ChatReportReason[] = [
+  'HARASSMENT',
+  'SPAM',
+  'PRIVACY_CONCERN',
+  'SELF_HARM_OR_CRISIS_CONCERN',
+  'OTHER',
+]
+
+export function parseChatReportInput(value: unknown): ChatReportInput | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(
+      item,
+      item.details === undefined
+        ? ['messageId', 'reasonCode']
+        : ['messageId', 'reasonCode', 'details'],
+    ) ||
+    typeof item.messageId !== 'string' ||
+    !UUID_PATTERN.test(item.messageId) ||
+    !CHAT_REPORT_REASONS.includes(item.reasonCode as ChatReportReason) ||
+    (item.details !== undefined &&
+      (typeof item.details !== 'string' || [...item.details].length > 1000))
+  )
+    return null
+  return item as ChatReportInput
+}
+
+export function parseChatReportResult(value: unknown): ChatReportResult | null {
+  const item = record(value)
+  return item &&
+    exactKeys(item, ['caseId', 'state']) &&
+    typeof item.caseId === 'string' &&
+    UUID_PATTERN.test(item.caseId) &&
+    item.state === 'RECEIVED'
+    ? (item as ChatReportResult)
     : null
 }

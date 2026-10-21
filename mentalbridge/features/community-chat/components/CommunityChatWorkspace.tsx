@@ -1,11 +1,42 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-import type { ChatPeer, ChatPrivacy } from '../api/community-chat-contract'
+import LightSelect from '@/components/LightSelect'
+import { Dialog } from '@/components/ui/Dialog'
+import { ApiError } from '@/lib/api/api-error'
+import {
+  reportChatMessage,
+  type ChatReportReason,
+} from '../api/browser-community-chat'
+import type {
+  ChatMessage,
+  ChatPeer,
+  ChatPrivacy,
+} from '../api/community-chat-contract'
 import { useCommunityChatWorkspace } from './useCommunityChatWorkspace'
 import styles from './CommunityChatWorkspace.module.css'
+
+const reportReasons: Array<{ value: ChatReportReason; label: string }> = [
+  { value: 'HARASSMENT', label: 'Quấy rối' },
+  { value: 'SPAM', label: 'Nội dung rác' },
+  { value: 'PRIVACY_CONCERN', label: 'Lo ngại về quyền riêng tư' },
+  {
+    value: 'SELF_HARM_OR_CRISIS_CONCERN',
+    label: 'Lo ngại tự hại hoặc khủng hoảng',
+  },
+  { value: 'OTHER', label: 'Lý do khác' },
+]
+
+function reportErrorMessage(error: unknown) {
+  if (
+    error instanceof ApiError &&
+    (error.status === 403 || error.status === 404)
+  )
+    return 'Bạn không thể báo cáo tin nhắn này hoặc tin nhắn không còn khả dụng.'
+  return 'Chưa thể gửi báo cáo lúc này. Hãy thử lại.'
+}
 
 function peerName(peer: ChatPeer | undefined) {
   return peer?.state === 'AVAILABLE'
@@ -126,14 +157,88 @@ export default function CommunityChatWorkspace({
     initialConversationId,
     recipientCommunityProfileId,
   })
+  const [reportTarget, setReportTarget] = useState<ChatMessage>()
+  const [reportReason, setReportReason] =
+    useState<ChatReportReason>('HARASSMENT')
+  const [reportDetails, setReportDetails] = useState('')
+  const [reportBusy, setReportBusy] = useState(false)
+  const [reportError, setReportError] = useState('')
+  const [reportNotice, setReportNotice] = useState('')
+  const reportGeneration = useRef(0)
+  const reportConversationId = useRef(initialConversationId)
+  const reportAttempt = useRef<{ signature: string; key: string } | undefined>(
+    undefined,
+  )
   const activeConversation =
-    chat.conversation ??
+    (chat.conversation?.conversationId === chat.selectedConversationId
+      ? chat.conversation
+      : undefined) ??
     chat.conversations.find(
       (item) => item.conversationId === chat.selectedConversationId,
     )
-  const activePeer =
-    chat.peer ??
-    activeConversation?.peers.find((peer) => peer.state === 'AVAILABLE')
+  const activePeer = activeConversation?.peers.find(
+    (peer) =>
+      peer.state === 'AVAILABLE' &&
+      peer.communityProfileId !== chat.viewerProfileId,
+  )
+  const visibleMessages = activeConversation
+    ? chat.messages.filter(
+        (message) =>
+          message.conversationId === activeConversation.conversationId,
+      )
+    : []
+  const lastMessageId = visibleMessages.at(-1)?.messageId
+  const markMessagesViewed = chat.markMessagesViewed
+
+  useEffect(() => {
+    if (initialConversationId && lastMessageId)
+      void markMessagesViewed(lastMessageId)
+  }, [initialConversationId, lastMessageId, markMessagesViewed])
+
+  useEffect(() => {
+    reportConversationId.current = initialConversationId
+    reportGeneration.current += 1
+    reportAttempt.current = undefined
+  }, [initialConversationId])
+
+  async function submitReport() {
+    if (
+      !reportTarget ||
+      reportTarget.conversationId !== reportConversationId.current ||
+      reportDetails.length > 1000 ||
+      reportBusy
+    )
+      return
+    const details = reportDetails.trim()
+    const signature = JSON.stringify({
+      messageId: reportTarget.messageId,
+      reasonCode: reportReason,
+      details,
+    })
+    if (reportAttempt.current?.signature !== signature)
+      reportAttempt.current = { signature, key: crypto.randomUUID() }
+    const generation = reportGeneration.current
+    setReportBusy(true)
+    setReportError('')
+    try {
+      await reportChatMessage(
+        {
+          messageId: reportTarget.messageId,
+          reasonCode: reportReason,
+          ...(details ? { details } : {}),
+        },
+        reportAttempt.current.key,
+      )
+      if (reportGeneration.current !== generation) return
+      setReportTarget(undefined)
+      setReportNotice('Đã gửi báo cáo cho riêng tin nhắn đã chọn.')
+    } catch (cause) {
+      if (reportGeneration.current === generation)
+        setReportError(reportErrorMessage(cause))
+    } finally {
+      if (reportGeneration.current === generation) setReportBusy(false)
+    }
+  }
 
   return (
     <section className={styles.page} aria-labelledby="community-chat-title">
@@ -149,6 +254,11 @@ export default function CommunityChatWorkspace({
       {chat.notice && (
         <p className={styles.notice} role="status">
           {chat.notice}
+        </p>
+      )}
+      {reportNotice && (
+        <p className={styles.notice} role="status">
+          {reportNotice}
         </p>
       )}
       {recipientCommunityProfileId && chat.busyKey === 'start' && (
@@ -403,10 +513,8 @@ export default function CommunityChatWorkspace({
                 <details className={styles.safetyMenu}>
                   <summary aria-label="Mở thao tác an toàn">•••</summary>
                   <div>
-                    <Link
-                      href={`/safety-directory?from=community-chat&conversationId=${activeConversation.conversationId}`}
-                    >
-                      Báo cáo hoặc tìm hỗ trợ
+                    <Link href="/safety-directory?trigger=community-chat">
+                      Tìm hỗ trợ
                     </Link>
                     <button
                       type="button"
@@ -420,8 +528,8 @@ export default function CommunityChatWorkspace({
               </header>
 
               <div className={styles.messages} aria-live="polite">
-                {chat.messages.length ? (
-                  chat.messages.map((message) => {
+                {visibleMessages.length ? (
+                  visibleMessages.map((message) => {
                     const mine =
                       message.sender.state === 'AVAILABLE' &&
                       message.sender.communityProfileId === chat.viewerProfileId
@@ -434,6 +542,22 @@ export default function CommunityChatWorkspace({
                         <time dateTime={message.createdAt}>
                           {time(message.createdAt)}
                         </time>
+                        <button
+                          type="button"
+                          className={styles.reportMessage}
+                          onClick={() => {
+                            setReportTarget(message)
+                            setReportReason('HARASSMENT')
+                            setReportDetails('')
+                            setReportBusy(false)
+                            setReportError('')
+                            setReportNotice('')
+                            reportAttempt.current = undefined
+                          }}
+                          aria-label={`Báo cáo tin nhắn: ${message.content}`}
+                        >
+                          Báo cáo tin nhắn
+                        </button>
                       </div>
                     )
                   })
@@ -499,10 +623,10 @@ export default function CommunityChatWorkspace({
                   disabled={
                     activeConversation.state !== 'ACTIVE' ||
                     !chat.draft.trim() ||
-                    chat.busyKey === 'send'
+                    chat.sendBusy
                   }
                 >
-                  {chat.busyKey === 'send' ? 'Đang gửi…' : 'Gửi'}
+                  {chat.sendBusy ? 'Đang gửi…' : 'Gửi'}
                 </button>
                 <small>
                   Tin đã lưu không đồng nghĩa người nhận đang trực tuyến hoặc đã
@@ -520,6 +644,72 @@ export default function CommunityChatWorkspace({
           )}
         </article>
       </div>
+
+      <Dialog
+        open={Boolean(
+          reportTarget && reportTarget.conversationId === initialConversationId,
+        )}
+        onOpenChange={(open) => {
+          if (!open && !reportBusy) setReportTarget(undefined)
+        }}
+        labelledBy="community-chat-report-title"
+        describedBy="community-chat-report-description"
+        className={styles.reportDialog}
+      >
+        <form
+          className={styles.reportForm}
+          onSubmit={(event) => {
+            event.preventDefault()
+            void submitReport()
+          }}
+        >
+          <h2 id="community-chat-report-title">Báo cáo tin nhắn</h2>
+          <p id="community-chat-report-description">
+            Chỉ tin nhắn này được gửi để đội ngũ kiểm duyệt xem xét. Các tin
+            nhắn khác không được đính kèm.
+          </p>
+          <label id="community-chat-report-reason-label">Lý do báo cáo</label>
+          <LightSelect
+            id="community-chat-report-reason"
+            value={reportReason}
+            labelledBy="community-chat-report-reason-label"
+            options={reportReasons}
+            disabled={reportBusy}
+            onChange={(value) => {
+              setReportReason(value as ChatReportReason)
+              setReportError('')
+            }}
+          />
+          <label htmlFor="community-chat-report-details">
+            Chi tiết bổ sung (không bắt buộc)
+          </label>
+          <textarea
+            id="community-chat-report-details"
+            rows={4}
+            maxLength={1000}
+            value={reportDetails}
+            disabled={reportBusy}
+            onChange={(event) => {
+              setReportDetails(event.target.value)
+              setReportError('')
+            }}
+          />
+          <small>{reportDetails.length}/1000 ký tự</small>
+          {reportError && <p role="alert">{reportError}</p>}
+          <div className={styles.reportActions}>
+            <button
+              type="button"
+              disabled={reportBusy}
+              onClick={() => setReportTarget(undefined)}
+            >
+              Hủy
+            </button>
+            <button type="submit" disabled={reportBusy}>
+              {reportBusy ? 'Đang gửi…' : 'Xác nhận gửi báo cáo'}
+            </button>
+          </div>
+        </form>
+      </Dialog>
     </section>
   )
 }

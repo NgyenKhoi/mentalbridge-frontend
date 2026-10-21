@@ -19,7 +19,7 @@ import {
   putChatPrivacy,
   sendChatMessage,
   startDirectConversation,
-  type ChatConversation,
+  type ChatDirectConversation,
   type ChatMessage,
   type ChatPrivacy,
   type ChatRequest,
@@ -27,13 +27,15 @@ import {
 import { UUID_PATTERN } from '../api/community-chat-contract'
 
 type FailedSend = Readonly<{
+  conversationId: string
   clientMessageId: string
   content: string
 }>
 
 function friendlyError(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.status === 404) return 'Cuộc trò chuyện này không còn khả dụng.'
+    if (error.status === 403 || error.status === 404)
+      return 'Cuộc trò chuyện này không còn khả dụng.'
     if (error.status === 409)
       return 'Dữ liệu vừa thay đổi ở nơi khác. Hãy tải lại và thử lại.'
     if (error.status === 429)
@@ -42,6 +44,20 @@ function friendlyError(error: unknown) {
       return 'Kết nối trò chuyện đang gián đoạn. Bạn có thể thử lại.'
   }
   return 'Chưa thể hoàn tất lúc này. Bạn có thể thử lại.'
+}
+
+function isAccessRevoked(error: unknown) {
+  return (
+    error instanceof ApiError && (error.status === 403 || error.status === 404)
+  )
+}
+
+function directConversations(
+  items: ReadonlyArray<ChatDirectConversation | { kind: string }>,
+) {
+  return items.filter(
+    (item): item is ChatDirectConversation => item.kind === 'DIRECT',
+  )
 }
 
 function mergeMessages(current: ChatMessage[], incoming: ChatMessage[]) {
@@ -76,21 +92,35 @@ export function useCommunityChatWorkspace({
   const router = useRouter()
   const startAttempted = useRef<string | undefined>(undefined)
   const threadGeneration = useRef(0)
-  const [conversations, setConversations] = useState<ChatConversation[]>([])
+  const messageCursorRef = useRef<string | null>(null)
+  const deferredMessages = useRef<ChatMessage[]>([])
+  const viewedMessage = useRef('')
+  const [conversations, setConversations] = useState<ChatDirectConversation[]>(
+    [],
+  )
   const [requests, setRequests] = useState<ChatRequest[]>([])
   const [privacy, setPrivacy] = useState<
     { version: string; preferences: ChatPrivacy } | undefined
   >()
   const [viewerProfileId, setViewerProfileId] = useState<string>()
-  const [conversation, setConversation] = useState<ChatConversation>()
+  const [conversation, setConversation] = useState<ChatDirectConversation>()
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [draft, setDraft] = useState('')
+  const [draftState, setDraftState] = useState({
+    conversationId: initialConversationId,
+    value: '',
+  })
   const [loading, setLoading] = useState(true)
   const [threadLoading, setThreadLoading] = useState(true)
   const [error, setError] = useState('')
-  const [threadError, setThreadError] = useState('')
+  const [threadErrorState, setThreadErrorState] = useState({
+    conversationId: initialConversationId,
+    message: '',
+  })
   const [notice, setNotice] = useState('')
   const [busyKey, setBusyKey] = useState('')
+  const [sendBusyConversationId, setSendBusyConversationId] = useState<
+    string | undefined
+  >()
   const [failedSend, setFailedSend] = useState<FailedSend>()
   const [conversationCursor, setConversationCursor] = useState<string | null>(
     null,
@@ -107,8 +137,13 @@ export function useCommunityChatWorkspace({
     'conversations',
   )
 
-  const selectedConversationId =
-    initialConversationId ?? conversations[0]?.conversationId
+  // The inbox route must never silently open or acknowledge its first item.
+  const selectedConversationId = initialConversationId
+
+  const setNextMessageCursor = useCallback((cursor: string | null) => {
+    messageCursorRef.current = cursor
+    setMessageCursor(cursor)
+  }, [])
 
   const loadOverview = useCallback(async () => {
     const [conversationResult, requestResult, privacyResult, profileResult] =
@@ -119,10 +154,9 @@ export function useCommunityChatWorkspace({
         getCommunityProfile(),
       ])
     if (conversationResult.status === 'fulfilled') {
-      setConversations(conversationResult.value.items)
+      setConversations(directConversations(conversationResult.value.items))
       setConversationCursor(conversationResult.value.nextCursor)
-      if (conversationResult.value.items.length === 0 && !initialConversationId)
-        setThreadLoading(false)
+      if (!initialConversationId) setThreadLoading(false)
     }
     if (requestResult.status === 'fulfilled') {
       setRequests(
@@ -177,25 +211,6 @@ export function useCommunityChatWorkspace({
       .finally(() => setBusyKey(''))
   }, [recipientCommunityProfileId, router])
 
-  const advanceViewedMessage = useCallback(
-    async (conversationId: string, messageId: string, generation: number) => {
-      try {
-        const read = await advanceChatReadCursor(conversationId, messageId)
-        if (threadGeneration.current !== generation) return
-        setConversations((current) =>
-          current.map((item) =>
-            item.conversationId === conversationId
-              ? { ...item, unreadCount: read.unreadCount }
-              : item,
-          ),
-        )
-      } catch {
-        // Reading history must remain usable if the best-effort cursor update fails.
-      }
-    },
-    [],
-  )
-
   const loadThread = useCallback(
     async (generation: number) => {
       if (!selectedConversationId) {
@@ -204,47 +219,93 @@ export function useCommunityChatWorkspace({
       }
       const conversationId = selectedConversationId
       setThreadLoading(true)
-      setThreadError('')
+      setThreadErrorState({ conversationId, message: '' })
       setConversation(undefined)
       setMessages([])
-      setMessageCursor(null)
+      setNextMessageCursor(null)
+      deferredMessages.current = []
+      viewedMessage.current = ''
+      setDraftState({ conversationId, value: '' })
+      setFailedSend(undefined)
+      setSendBusyConversationId(undefined)
       setMessagePageLoading(false)
       setMessagePageError('')
       try {
-        const [nextConversation, page] = await Promise.all([
-          getChatConversation(conversationId),
-          getChatMessages(conversationId),
-        ])
+        const nextConversation = await getChatConversation(conversationId)
+        if (threadGeneration.current !== generation) return
+        if (nextConversation.kind !== 'DIRECT') {
+          setThreadErrorState({
+            conversationId,
+            message: 'Trò chuyện nhóm chưa thể mở tại đây.',
+          })
+          return
+        }
+        const page = await getChatMessages(conversationId)
         if (threadGeneration.current !== generation) return
         setConversation(nextConversation)
         setMessages(mergeMessages([], page.items))
-        setMessageCursor(page.nextCursor)
+        setNextMessageCursor(page.nextCursor)
         setMessagePageError('')
-        const lastMessage = page.items.at(-1)
-        if (lastMessage)
-          void advanceViewedMessage(
-            conversationId,
-            lastMessage.messageId,
-            generation,
-          )
       } catch (cause) {
         if (threadGeneration.current !== generation) return
         setConversation(undefined)
         setMessages([])
-        setMessageCursor(null)
-        setThreadError(friendlyError(cause))
+        setNextMessageCursor(null)
+        deferredMessages.current = []
+        setThreadErrorState({
+          conversationId,
+          message: friendlyError(cause),
+        })
       } finally {
         if (threadGeneration.current === generation) setThreadLoading(false)
       }
     },
-    [advanceViewedMessage, selectedConversationId],
+    [selectedConversationId, setNextMessageCursor],
   )
 
   useEffect(() => {
     const generation = ++threadGeneration.current
     const timeout = window.setTimeout(() => void loadThread(generation), 0)
-    return () => window.clearTimeout(timeout)
+    return () => {
+      window.clearTimeout(timeout)
+      if (threadGeneration.current === generation) threadGeneration.current += 1
+    }
   }, [loadThread])
+
+  const markMessagesViewed = useCallback(
+    async (messageId: string) => {
+      if (
+        !selectedConversationId ||
+        !conversation ||
+        conversation.conversationId !== selectedConversationId ||
+        document.visibilityState === 'hidden'
+      )
+        return
+      const conversationId = selectedConversationId
+      const generation = threadGeneration.current
+      const marker = `${conversationId}:${messageId}`
+      if (viewedMessage.current === marker) return
+      viewedMessage.current = marker
+      try {
+        const read = await advanceChatReadCursor(conversationId, messageId)
+        if (
+          threadGeneration.current !== generation ||
+          selectedConversationId !== conversationId
+        )
+          return
+        setConversations((current) =>
+          current.map((item) =>
+            item.conversationId === conversationId
+              ? { ...item, unreadCount: read.unreadCount }
+              : item,
+          ),
+        )
+      } catch {
+        if (viewedMessage.current === marker) viewedMessage.current = ''
+      }
+    },
+    [conversation, selectedConversationId],
+  )
 
   async function loadMoreConversations() {
     if (!conversationCursor || conversationPageLoading) return
@@ -254,7 +315,11 @@ export function useCommunityChatWorkspace({
     try {
       const page = await getChatConversations(cursor)
       setConversations((current) =>
-        mergeById(current, page.items, (item) => item.conversationId),
+        mergeById(
+          current,
+          directConversations(page.items),
+          (item) => item.conversationId,
+        ),
       )
       setConversationCursor(page.nextCursor)
     } catch (cause) {
@@ -296,32 +361,43 @@ export function useCommunityChatWorkspace({
     try {
       const page = await getChatMessages(conversationId, cursor)
       if (threadGeneration.current !== generation) return
-      setMessages((current) => mergeMessages(current, page.items))
-      setMessageCursor(page.nextCursor)
-      const lastMessage = page.items.at(-1)
-      if (lastMessage)
-        void advanceViewedMessage(
-          conversationId,
-          lastMessage.messageId,
-          generation,
-        )
+      setNextMessageCursor(page.nextCursor)
+      const deferred = page.nextCursor === null ? deferredMessages.current : []
+      if (page.nextCursor === null) deferredMessages.current = []
+      setMessages((current) =>
+        mergeMessages(mergeMessages(current, page.items), deferred),
+      )
     } catch (cause) {
-      if (threadGeneration.current === generation)
+      if (threadGeneration.current !== generation) return
+      if (isAccessRevoked(cause)) {
+        setConversation(undefined)
+        setMessages([])
+        setNextMessageCursor(null)
+        deferredMessages.current = []
+        setMessagePageError('')
+        setThreadErrorState({
+          conversationId,
+          message: friendlyError(cause),
+        })
+      } else {
         setMessagePageError(friendlyError(cause))
+      }
     } finally {
       if (threadGeneration.current === generation) setMessagePageLoading(false)
     }
   }
 
-  const peer = useMemo(
-    () =>
-      conversation?.peers.find(
+  const peer = useMemo(() => {
+    if (!conversation || conversation.conversationId !== selectedConversationId)
+      return undefined
+    return (
+      conversation.peers.find(
         (item) =>
           item.state === 'AVAILABLE' &&
           item.communityProfileId !== viewerProfileId,
-      ) ?? conversation?.peers.find((item) => item.state === 'AVAILABLE'),
-    [conversation, viewerProfileId],
-  )
+      ) ?? conversation.peers.find((item) => item.state === 'AVAILABLE')
+    )
+  }, [conversation, selectedConversationId, viewerProfileId])
 
   async function decide(
     request: ChatRequest,
@@ -371,30 +447,79 @@ export function useCommunityChatWorkspace({
   }
 
   async function deliver(send: FailedSend) {
-    if (!selectedConversationId) return
-    setBusyKey('send')
-    setThreadError('')
+    if (send.conversationId !== selectedConversationId) return
+    const generation = threadGeneration.current
+    setSendBusyConversationId(send.conversationId)
+    setThreadErrorState({ conversationId: send.conversationId, message: '' })
     setFailedSend(undefined)
     try {
       const result = await sendChatMessage(
-        selectedConversationId,
+        send.conversationId,
         send.content,
         send.clientMessageId,
       )
-      setMessages((current) => mergeMessages(current, [result.message]))
-      setDraft('')
+      if (
+        threadGeneration.current !== generation ||
+        selectedConversationId !== send.conversationId
+      )
+        return
+      if (result.message.conversationId !== send.conversationId) {
+        setFailedSend(send)
+        setThreadErrorState({
+          conversationId: send.conversationId,
+          message: 'Phản hồi tin nhắn không khớp cuộc trò chuyện. Hãy thử lại.',
+        })
+        return
+      }
+      if (messageCursorRef.current) {
+        deferredMessages.current = mergeMessages(deferredMessages.current, [
+          result.message,
+        ])
+        setNotice(
+          'Tin nhắn đã được lưu. Tải phần lịch sử còn lại để xem đúng thứ tự.',
+        )
+      } else {
+        setMessages((current) => mergeMessages(current, [result.message]))
+      }
+      setDraftState({ conversationId: send.conversationId, value: '' })
     } catch (cause) {
+      if (
+        threadGeneration.current !== generation ||
+        selectedConversationId !== send.conversationId
+      )
+        return
       setFailedSend(send)
-      setThreadError(friendlyError(cause))
+      setThreadErrorState({
+        conversationId: send.conversationId,
+        message: friendlyError(cause),
+      })
     } finally {
-      setBusyKey('')
+      if (
+        threadGeneration.current === generation &&
+        selectedConversationId === send.conversationId
+      )
+        setSendBusyConversationId(undefined)
     }
   }
 
   function send() {
-    const content = draft.trim()
-    if (!content || [...content].length > 4000 || busyKey === 'send') return
-    void deliver({ clientMessageId: crypto.randomUUID(), content })
+    const visibleDraft =
+      draftState.conversationId === selectedConversationId
+        ? draftState.value
+        : ''
+    const content = visibleDraft.trim()
+    if (
+      !selectedConversationId ||
+      !content ||
+      [...content].length > 4000 ||
+      sendBusyConversationId === selectedConversationId
+    )
+      return
+    void deliver({
+      conversationId: selectedConversationId,
+      clientMessageId: crypto.randomUUID(),
+      content,
+    })
   }
 
   async function blockPeer() {
@@ -423,15 +548,27 @@ export function useCommunityChatWorkspace({
     peer,
     viewerProfileId,
     selectedConversationId,
-    draft,
-    setDraft,
+    draft:
+      draftState.conversationId === selectedConversationId
+        ? draftState.value
+        : '',
+    setDraft: (value: string) => {
+      setDraftState({ conversationId: selectedConversationId, value })
+    },
     loading,
     threadLoading,
     error,
-    threadError,
+    threadError:
+      threadErrorState.conversationId === selectedConversationId
+        ? threadErrorState.message
+        : '',
     notice,
     busyKey,
-    failedSend,
+    sendBusy: sendBusyConversationId === selectedConversationId,
+    failedSend:
+      failedSend?.conversationId === selectedConversationId
+        ? failedSend
+        : undefined,
     conversationCursor,
     requestCursor,
     messageCursor,
@@ -444,6 +581,7 @@ export function useCommunityChatWorkspace({
     loadMoreConversations,
     loadMoreRequests,
     loadMoreMessages,
+    markMessagesViewed,
     reload: () => {
       setLoading(true)
       setError('')
@@ -451,14 +589,21 @@ export function useCommunityChatWorkspace({
     },
     reloadThread: () => {
       setThreadLoading(true)
-      setThreadError('')
+      setThreadErrorState({
+        conversationId: selectedConversationId,
+        message: '',
+      })
       const generation = ++threadGeneration.current
       void loadThread(generation)
     },
     decide,
     savePrivacy,
     send,
-    retrySend: () => failedSend && void deliver(failedSend),
+    retrySend: () => {
+      if (!failedSend || failedSend.conversationId !== selectedConversationId)
+        return
+      void deliver(failedSend)
+    },
     blockPeer,
   }
 }

@@ -17,6 +17,8 @@ import {
   parseChatPrivacy,
   parseChatPrivacyView,
   parseChatReadResult,
+  parseChatReportInput,
+  parseChatReportResult,
   parseChatSendResult,
   parseConversationPage,
   parseDecisionInput,
@@ -171,6 +173,28 @@ async function handle(request: NextRequest, context: Context) {
       )
       return carryCommunitySession(
         communitySuccessResponse(result.data, correlationId),
+        user,
+      )
+    }
+    if (key === 'reports' && method === 'POST') {
+      const input = parseChatReportInput(await body(request))
+      const idempotencyKey = request.headers.get('Idempotency-Key')
+      if (!input || !idempotencyKey || !UUID_PATTERN.test(idempotencyKey))
+        return invalid(correlationId, user)
+      const result = await communityChatRequest(
+        '/api/v1/community/chat/reports',
+        user.accessToken,
+        correlationId,
+        parseChatReportResult,
+        {
+          method: 'POST',
+          body: input,
+          headers: { 'Idempotency-Key': idempotencyKey },
+          expectedStatus: 201,
+        },
+      )
+      return carryCommunitySession(
+        communitySuccessResponse(result.data, correlationId, undefined, 201),
         user,
       )
     }

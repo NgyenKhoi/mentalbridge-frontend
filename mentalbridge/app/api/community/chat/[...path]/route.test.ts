@@ -18,6 +18,8 @@ vi.mock('@/lib/community/authenticated-user', () => ({
 import { GET, POST } from './route'
 
 const conversationId = '20000000-0000-4000-8000-000000000001'
+const messageId = '40000000-0000-4000-8000-000000000001'
+const reportKey = '50000000-0000-4000-8000-000000000001'
 
 describe('/api/community/chat BFF', () => {
   beforeEach(() => {
@@ -81,6 +83,96 @@ describe('/api/community/chat BFF', () => {
       headers: { 'Idempotency-Key': clientMessageId },
       body: { clientMessageId, content: 'Một lời chào.' },
     })
+  })
+
+  it('forwards an exact-message report with its idempotency key', async () => {
+    upstream.mockResolvedValue({
+      data: {
+        caseId: '60000000-0000-4000-8000-000000000001',
+        state: 'RECEIVED',
+      },
+      status: 201,
+      etag: null,
+    })
+    const response = await POST(
+      new NextRequest('http://localhost/api/community/chat/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': reportKey,
+        },
+        body: JSON.stringify({
+          messageId,
+          reasonCode: 'PRIVACY_CONCERN',
+          details: 'Contains identifying information.',
+        }),
+      }),
+      { params: Promise.resolve({ path: ['reports'] }) },
+    )
+
+    expect(response.status).toBe(201)
+    expect(upstream).toHaveBeenCalledWith(
+      '/api/v1/community/chat/reports',
+      'access-token',
+      expect.any(String),
+      expect.any(Function),
+      {
+        method: 'POST',
+        body: {
+          messageId,
+          reasonCode: 'PRIVACY_CONCERN',
+          details: 'Contains identifying information.',
+        },
+        headers: { 'Idempotency-Key': reportKey },
+        expectedStatus: 201,
+      },
+    )
+  })
+
+  it('rejects report actor injection before upstream', async () => {
+    const response = await POST(
+      new NextRequest('http://localhost/api/community/chat/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': reportKey,
+        },
+        body: JSON.stringify({
+          messageId,
+          reasonCode: 'SPAM',
+          reporterId: '10000000-0000-4000-8000-000000000099',
+        }),
+      }),
+      { params: Promise.resolve({ path: ['reports'] }) },
+    )
+
+    expect(response.status).toBe(400)
+    expect(upstream).not.toHaveBeenCalled()
+  })
+
+  it('preserves an upstream report authorization denial', async () => {
+    upstream.mockRejectedValue(
+      new CommunityServiceError({
+        type: '/problems/forbidden',
+        title: 'Forbidden',
+        status: 403,
+        code: 'FORBIDDEN',
+      }),
+    )
+    const response = await POST(
+      new NextRequest('http://localhost/api/community/chat/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': reportKey,
+        },
+        body: JSON.stringify({ messageId, reasonCode: 'HARASSMENT' }),
+      }),
+      { params: Promise.resolve({ path: ['reports'] }) },
+    )
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toMatchObject({ code: 'FORBIDDEN' })
   })
 
   it('rejects malformed identifiers and unknown query keys before upstream', async () => {

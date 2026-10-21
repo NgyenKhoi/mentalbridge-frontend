@@ -10,6 +10,7 @@ const api = vi.hoisted(() => ({
   getChatMessages: vi.fn(),
   advanceChatReadCursor: vi.fn(),
   sendChatMessage: vi.fn(),
+  reportChatMessage: vi.fn(),
   decideChatRequest: vi.fn(),
   putChatPrivacy: vi.fn(),
   startDirectConversation: vi.fn(),
@@ -70,6 +71,16 @@ const privacy = {
     readReceiptsVisible: false,
   },
 }
+const groupConversation = {
+  conversationId: '20000000-0000-4000-8000-000000000099',
+  kind: 'GROUP' as const,
+  state: 'ACTIVE' as const,
+  groupName: 'Nhóm đồng hành',
+  viewerRole: 'MEMBER' as const,
+  peers: [peer],
+  unreadCount: 3,
+  version: '1',
+}
 
 function id(namespace: number, index: number) {
   return `${namespace}0000000-0000-4000-8000-${String(index).padStart(12, '0')}`
@@ -107,10 +118,12 @@ function messageAt(index: number, owner = conversationId) {
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((next) => {
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((next, fail) => {
     resolve = next
+    reject = fail
   })
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }
 
 describe('CommunityChatWorkspace', () => {
@@ -146,6 +159,10 @@ describe('CommunityChatWorkspace', () => {
     api.advanceChatReadCursor.mockResolvedValue({
       lastReadMessageId: message.messageId,
       unreadCount: 0,
+    })
+    api.reportChatMessage.mockResolvedValue({
+      caseId: '60000000-0000-4000-8000-000000000001',
+      state: 'RECEIVED',
     })
   })
 
@@ -196,6 +213,58 @@ describe('CommunityChatWorkspace', () => {
     expect(screen.getByText(/không đồng nghĩa người nhận/)).toBeVisible()
   })
 
+  it('keeps unread state on the list-only route until a thread is explicitly opened', async () => {
+    render(<CommunityChatWorkspace />)
+
+    expect(await screen.findByText('1 tin chưa đọc')).toBeVisible()
+    expect(api.getChatConversation).not.toHaveBeenCalled()
+    expect(api.getChatMessages).not.toHaveBeenCalled()
+    expect(api.advanceChatReadCursor).not.toHaveBeenCalled()
+  })
+
+  it('filters group items while preserving a group-only page cursor', async () => {
+    const directA = conversationAt(1)
+    const directB = conversationAt(2)
+    api.getChatConversations.mockImplementation(async (cursor?: string) =>
+      cursor
+        ? { items: [directA, groupConversation, directB], nextCursor: null }
+        : { items: [groupConversation], nextCursor: 'after-groups' },
+    )
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace />)
+
+    expect(await screen.findByText('Chưa có cuộc trò chuyện')).toBeVisible()
+    expect(
+      screen.queryByText(groupConversation.groupName),
+    ).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: 'Tải thêm cuộc trò chuyện' }),
+    )
+    expect(await screen.findByText('Bạn 1')).toBeVisible()
+    expect(screen.getByText('Bạn 2')).toBeVisible()
+    expect(
+      screen.queryByText(groupConversation.groupName),
+    ).not.toBeInTheDocument()
+    expect(api.getChatConversations).toHaveBeenLastCalledWith('after-groups')
+  })
+
+  it('fails safely when a group deep link is opened in the direct-chat UI', async () => {
+    api.getChatConversation.mockResolvedValue(groupConversation)
+    render(
+      <CommunityChatWorkspace
+        initialConversationId={groupConversation.conversationId}
+      />,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Trò chuyện nhóm chưa thể mở tại đây.',
+    )
+    expect(api.getChatMessages).not.toHaveBeenCalled()
+    expect(
+      screen.queryByRole('textbox', { name: 'Tin nhắn' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('keeps the same message id for an explicit retry after an uncertain failure', async () => {
     api.sendChatMessage
       .mockRejectedValueOnce(new Error('network uncertain'))
@@ -218,6 +287,94 @@ describe('CommunityChatWorkspace', () => {
     expect(api.sendChatMessage.mock.calls[0][2]).toBe(
       api.sendChatMessage.mock.calls[1][2],
     )
+  })
+
+  it('does not leak a delayed send success into a newly selected conversation', async () => {
+    const conversationB = conversationAt(2)
+    const messageB = messageAt(2, conversationB.conversationId)
+    const pendingSend = deferred<{
+      message: typeof message
+      persistence: 'SAVED'
+      delivery: 'UNCONFIRMED'
+    }>()
+    api.getChatConversation.mockImplementation((id: string) =>
+      Promise.resolve(id === conversationId ? conversation : conversationB),
+    )
+    api.getChatMessages.mockImplementation((id: string) =>
+      Promise.resolve({
+        items: [id === conversationId ? message : messageB],
+        nextCursor: null,
+      }),
+    )
+    api.sendChatMessage.mockReturnValue(pendingSend.promise)
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <CommunityChatWorkspace initialConversationId={conversationId} />,
+    )
+    await screen.findByText(message.content)
+    await user.type(screen.getByRole('textbox', { name: 'Tin nhắn' }), 'Từ A')
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+
+    rerender(
+      <CommunityChatWorkspace
+        initialConversationId={conversationB.conversationId}
+      />,
+    )
+    expect(await screen.findByText(messageB.content)).toBeVisible()
+    await act(async () => {
+      pendingSend.resolve({
+        message: { ...messageAt(81), content: 'Từ A' },
+        persistence: 'SAVED',
+        delivery: 'UNCONFIRMED',
+      })
+      await Promise.resolve()
+    })
+
+    expect(screen.queryByText('Từ A')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toHaveValue('')
+  })
+
+  it('drops delayed send failure and retry state across A to B to A navigation', async () => {
+    const conversationB = conversationAt(2)
+    const messageB = messageAt(2, conversationB.conversationId)
+    const pendingSend = deferred<never>()
+    api.getChatConversation.mockImplementation((id: string) =>
+      Promise.resolve(id === conversationId ? conversation : conversationB),
+    )
+    api.getChatMessages.mockImplementation((id: string) =>
+      Promise.resolve({
+        items: [id === conversationId ? message : messageB],
+        nextCursor: null,
+      }),
+    )
+    api.sendChatMessage.mockReturnValue(pendingSend.promise)
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <CommunityChatWorkspace initialConversationId={conversationId} />,
+    )
+    await screen.findByText(message.content)
+    await user.type(screen.getByRole('textbox', { name: 'Tin nhắn' }), 'Lỗi A')
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+    rerender(
+      <CommunityChatWorkspace
+        initialConversationId={conversationB.conversationId}
+      />,
+    )
+    await screen.findByText(messageB.content)
+    await act(async () => {
+      pendingSend.reject(new Error('network uncertain'))
+      await Promise.resolve()
+    })
+    expect(
+      screen.queryByRole('button', { name: 'Gửi lại' }),
+    ).not.toBeInTheDocument()
+
+    rerender(<CommunityChatWorkspace initialConversationId={conversationId} />)
+    await screen.findByText(message.content)
+    expect(
+      screen.queryByRole('button', { name: 'Gửi lại' }),
+    ).not.toBeInTheDocument()
+    expect(api.sendChatMessage).toHaveBeenCalledTimes(1)
   })
 
   it('shows text-free requests and only opens a thread after acceptance', async () => {
@@ -336,7 +493,44 @@ describe('CommunityChatWorkspace', () => {
     )
   })
 
-  it('keeps viewed messages and retries the same cursor when a later page is revoked', async () => {
+  it('places a sent message after unfinished history without timestamp sorting', async () => {
+    const messages = Array.from({ length: 80 }, (_, index) =>
+      messageAt(index + 1),
+    )
+    const sent = { ...messageAt(81), content: 'Tin vừa gửi 81' }
+    api.getChatMessages.mockImplementation(
+      async (_id: string, cursor?: string) =>
+        cursor
+          ? { items: messages.slice(50), nextCursor: null }
+          : { items: messages.slice(0, 50), nextCursor: 'message-page-2' },
+    )
+    api.sendChatMessage.mockResolvedValue({
+      message: sent,
+      persistence: 'SAVED',
+      delivery: 'UNCONFIRMED',
+    })
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace initialConversationId={conversationId} />)
+    await screen.findByText('Tin nhắn 50')
+    await user.type(
+      screen.getByRole('textbox', { name: 'Tin nhắn' }),
+      sent.content,
+    )
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+    await waitFor(() => expect(api.sendChatMessage).toHaveBeenCalledTimes(1))
+    expect(screen.queryByText(sent.content)).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Tải tin nhắn tiếp theo' }),
+    )
+    const historyTail = await screen.findByText('Tin nhắn 80')
+    const sentNode = await screen.findByText(sent.content)
+    expect(historyTail.compareDocumentPosition(sentNode)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+  })
+
+  it('fails closed without retry when access is revoked during continuation', async () => {
     api.getChatMessages
       .mockResolvedValueOnce({
         items: [messageAt(1)],
@@ -345,7 +539,6 @@ describe('CommunityChatWorkspace', () => {
       .mockRejectedValueOnce(
         new ApiError({ message: 'gone', code: 'NOT_FOUND', status: 404 }),
       )
-      .mockResolvedValueOnce({ items: [messageAt(2)], nextCursor: null })
     const user = userEvent.setup()
     render(<CommunityChatWorkspace initialConversationId={conversationId} />)
     await screen.findByText('Tin nhắn 1')
@@ -356,9 +549,32 @@ describe('CommunityChatWorkspace', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Cuộc trò chuyện này không còn khả dụng.',
     )
-    expect(screen.getByText('Tin nhắn 1')).toBeVisible()
+    expect(screen.queryByText('Tin nhắn 1')).not.toBeInTheDocument()
     expect(api.advanceChatReadCursor).toHaveBeenCalledTimes(1)
+    expect(
+      screen.queryByRole('button', { name: 'Thử tải lại tin nhắn' }),
+    ).not.toBeInTheDocument()
+    expect(api.getChatMessages).toHaveBeenCalledTimes(2)
+  })
 
+  it('keeps messages and retries the same cursor after a transient continuation failure', async () => {
+    api.getChatMessages
+      .mockResolvedValueOnce({ items: [messageAt(1)], nextCursor: 'page-2' })
+      .mockRejectedValueOnce(
+        new ApiError({ message: 'down', code: 'UNAVAILABLE', status: 503 }),
+      )
+      .mockResolvedValueOnce({ items: [messageAt(2)], nextCursor: null })
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace initialConversationId={conversationId} />)
+    await screen.findByText('Tin nhắn 1')
+
+    await user.click(
+      screen.getByRole('button', { name: 'Tải tin nhắn tiếp theo' }),
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Kết nối trò chuyện đang gián đoạn.',
+    )
+    expect(screen.getByText('Tin nhắn 1')).toBeVisible()
     await user.click(
       screen.getByRole('button', { name: 'Thử tải lại tin nhắn' }),
     )
@@ -366,33 +582,91 @@ describe('CommunityChatWorkspace', () => {
     expect(api.getChatMessages).toHaveBeenNthCalledWith(
       3,
       conversationId,
-      'stale-page',
+      'page-2',
     )
+  })
+
+  it('reports exactly one visible message with an idempotency key', async () => {
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace initialConversationId={conversationId} />)
+    await screen.findByText(message.content)
+    await user.click(
+      screen.getByRole('button', {
+        name: `Báo cáo tin nhắn: ${message.content}`,
+      }),
+    )
+    expect(
+      screen.getByText(/Chỉ tin nhắn này được gửi để đội ngũ kiểm duyệt/),
+    ).toBeVisible()
+    await user.type(
+      screen.getByRole('textbox', {
+        name: 'Chi tiết bổ sung (không bắt buộc)',
+      }),
+      'Nội dung nhắm vào cá nhân.',
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Xác nhận gửi báo cáo' }),
+    )
+
+    await waitFor(() =>
+      expect(api.reportChatMessage).toHaveBeenCalledWith(
+        {
+          messageId: message.messageId,
+          reasonCode: 'HARASSMENT',
+          details: 'Nội dung nhắm vào cá nhân.',
+        },
+        expect.stringMatching(/^[\da-f-]{36}$/i),
+      ),
+    )
+    expect(
+      await screen.findByText('Đã gửi báo cáo cho riêng tin nhắn đã chọn.'),
+    ).toBeVisible()
+  })
+
+  it('shows a safe denial when a message report is unauthorized', async () => {
+    api.reportChatMessage.mockRejectedValue(
+      new ApiError({ message: 'forbidden', code: 'FORBIDDEN', status: 403 }),
+    )
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace initialConversationId={conversationId} />)
+    await screen.findByText(message.content)
+    await user.click(
+      screen.getByRole('button', {
+        name: `Báo cáo tin nhắn: ${message.content}`,
+      }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Xác nhận gửi báo cáo' }),
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Bạn không thể báo cáo tin nhắn này',
+    )
+    expect(
+      screen.getByRole('heading', { name: 'Báo cáo tin nhắn' }),
+    ).toBeVisible()
   })
 
   it('ignores an older conversation response after selection changes', async () => {
     const conversationB = conversationAt(2)
     const messageB = messageAt(2, conversationB.conversationId)
     const conversationAResult = deferred<typeof conversation>()
-    const messagesAResult = deferred<{
-      items: (typeof message)[]
-      nextCursor: null
-    }>()
     api.getChatConversation.mockImplementation((id: string) =>
       id === conversationId
         ? conversationAResult.promise
         : Promise.resolve(conversationB),
     )
     api.getChatMessages.mockImplementation((id: string) =>
-      id === conversationId
-        ? messagesAResult.promise
-        : Promise.resolve({ items: [messageB], nextCursor: null }),
+      Promise.resolve({
+        items: [id === conversationId ? message : messageB],
+        nextCursor: null,
+      }),
     )
     const { rerender } = render(
       <CommunityChatWorkspace initialConversationId={conversationId} />,
     )
     await waitFor(() =>
-      expect(api.getChatMessages).toHaveBeenCalledWith(conversationId),
+      expect(api.getChatConversation).toHaveBeenCalledWith(conversationId),
     )
 
     rerender(
@@ -404,7 +678,6 @@ describe('CommunityChatWorkspace', () => {
 
     await act(async () => {
       conversationAResult.resolve(conversation)
-      messagesAResult.resolve({ items: [messageAt(1)], nextCursor: null })
       await Promise.resolve()
     })
     expect(screen.getByText('Tin nhắn 2')).toBeVisible()
@@ -413,5 +686,6 @@ describe('CommunityChatWorkspace', () => {
       conversationId,
       expect.any(String),
     )
+    expect(api.getChatMessages).not.toHaveBeenCalledWith(conversationId)
   })
 })

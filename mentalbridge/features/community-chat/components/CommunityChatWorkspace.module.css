@@ -365,6 +365,19 @@
   opacity: 0.72;
   text-align: right;
 }
+.reportMessage {
+  display: block;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  text-decoration: underline;
+  opacity: 0.76;
+}
 .mine {
   align-self: flex-end;
   border-bottom-right-radius: 4px !important;
@@ -441,6 +454,55 @@
 .composer small {
   grid-column: 1 / -1;
   color: #667166;
+}
+.reportDialog {
+  width: min(520px, calc(100vw - 28px));
+}
+.reportForm {
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+}
+.reportForm h2,
+.reportForm p {
+  margin: 0;
+}
+.reportForm textarea {
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid rgba(27, 42, 34, 0.2);
+  border-radius: 12px;
+  color: inherit;
+  font: inherit;
+}
+.reportForm small {
+  color: #667166;
+  text-align: right;
+}
+.reportForm [role='alert'] {
+  color: #8c3f30;
+}
+.reportActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.reportActions button {
+  padding: 10px 14px;
+  border: 1px solid #1e4a43;
+  border-radius: 12px;
+  background: #fff;
+  color: #1e4a43;
+  cursor: pointer;
+  font-weight: 750;
+}
+.reportActions button:last-child {
+  background: #1e4a43;
+  color: #fff;
+}
+.reportActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 @media (max-width: 760px) {

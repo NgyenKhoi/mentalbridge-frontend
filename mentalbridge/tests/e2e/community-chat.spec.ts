@@ -45,7 +45,9 @@ function json(route: Route, body: unknown, status = 200, headers = {}) {
 
 async function installChatFixture(page: Page) {
   let sendAttempts = 0
+  let readCursorCalls = 0
   const idempotencyKeys: string[] = []
+  const reportRequests: Array<{ body: unknown; idempotencyKey: string }> = []
   await page.route('**/api/community/profile', (route) =>
     json(
       route,
@@ -100,6 +102,20 @@ async function installChatFixture(page: Page) {
         ],
         nextCursor: null,
       })
+    if (path.endsWith('/reports')) {
+      reportRequests.push({
+        body: request.postDataJSON(),
+        idempotencyKey: request.headers()['idempotency-key'],
+      })
+      return json(
+        route,
+        {
+          caseId: '60000000-0000-4000-8000-000000000001',
+          state: 'RECEIVED',
+        },
+        201,
+      )
+    }
     if (path.endsWith(`/${requestId}/decision`))
       return request.postDataJSON().decision === 'ACCEPT'
         ? json(route, { state: 'ACTIVE', conversationId })
@@ -108,8 +124,10 @@ async function installChatFixture(page: Page) {
       return json(route, { items: [conversation], nextCursor: null })
     if (path.endsWith(`/conversations/${conversationId}`))
       return json(route, conversation)
-    if (path.endsWith(`/conversations/${conversationId}/read-cursor`))
+    if (path.endsWith(`/conversations/${conversationId}/read-cursor`)) {
+      readCursorCalls += 1
       return json(route, { lastReadMessageId: messageId, unreadCount: 0 })
+    }
     if (path.endsWith(`/conversations/${conversationId}/messages`)) {
       if (request.method() === 'GET')
         return json(route, {
@@ -163,7 +181,13 @@ async function installChatFixture(page: Page) {
     }
     return json(route, { code: 'TEST_ROUTE_NOT_FOUND' }, 404)
   })
-  return { idempotencyKeys }
+  return {
+    idempotencyKeys,
+    reportRequests,
+    get readCursorCalls() {
+      return readCursorCalls
+    },
+  }
 }
 
 test.describe('Community direct chat journey', () => {
@@ -207,6 +231,30 @@ test.describe('Community direct chat journey', () => {
     expect(fixture.idempotencyKeys).toHaveLength(2)
     expect(fixture.idempotencyKeys[0]).toBe(fixture.idempotencyKeys[1])
 
+    await page
+      .getByRole('button', { name: /Báo cáo tin nhắn:/ })
+      .first()
+      .click()
+    await expect(
+      page.getByText(/Chỉ tin nhắn này được gửi để đội ngũ kiểm duyệt/),
+    ).toBeVisible()
+    await page
+      .getByLabel('Chi tiết bổ sung (không bắt buộc)')
+      .fill('Nội dung cần được xem xét.')
+    await page.getByRole('button', { name: 'Xác nhận gửi báo cáo' }).click()
+    await expect(
+      page.getByText('Đã gửi báo cáo cho riêng tin nhắn đã chọn.'),
+    ).toBeVisible()
+    expect(fixture.reportRequests).toHaveLength(1)
+    expect(fixture.reportRequests[0]).toMatchObject({
+      body: {
+        messageId,
+        reasonCode: 'HARASSMENT',
+        details: 'Nội dung cần được xem xét.',
+      },
+      idempotencyKey: expect.stringMatching(/^[\da-f-]{36}$/i),
+    })
+
     await page.screenshot({
       path: 'docs/evidence/mb-686-community-chat-desktop.png',
       fullPage: true,
@@ -222,18 +270,20 @@ test.describe('Community direct chat journey', () => {
       (await request.post(`${identityFixtureUrl}/__test/reset`)).status(),
     ).toBe(204)
     await login(page)
-    await installChatFixture(page)
+    const fixture = await installChatFixture(page)
     await page.goto('/community/messages')
 
     await expect(page.getByRole('link', { name: /Mầm Nắng/ })).toBeVisible()
     await expect(
       page.getByRole('textbox', { name: 'Tin nhắn' }),
     ).not.toBeVisible()
+    expect(fixture.readCursorCalls).toBe(0)
     await page.getByRole('link', { name: /Mầm Nắng/ }).click()
     await expect(page).toHaveURL(
       new RegExp(`/community/messages/${conversationId}$`),
     )
     await expect(page.getByRole('textbox', { name: 'Tin nhắn' })).toBeVisible()
+    await expect.poll(() => fixture.readCursorCalls).toBe(1)
     await expect(page.getByRole('link', { name: '← Hộp thư' })).toBeVisible()
     expect(
       await page.evaluate(

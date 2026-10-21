@@ -7,6 +7,8 @@ import type {
   ChatPrivacy,
   ChatPrivacyView,
   ChatReadResult,
+  ChatReportInput,
+  ChatReportResult,
   ChatRequest,
   ChatSendResult,
   DirectConversationResult,
@@ -14,9 +16,14 @@ import type {
 
 export type {
   ChatConversation,
+  ChatDirectConversation,
+  ChatGroupConversation,
   ChatMessage,
   ChatPrivacy,
   ChatPrivacyView,
+  ChatReportInput,
+  ChatReportReason,
+  ChatReportResult,
   ChatRequest,
   DirectConversationResult,
 } from './community-chat-contract'
@@ -115,6 +122,18 @@ export async function advanceChatReadCursor(
   const response = await browserApiClient.put<ChatReadResult>(
     `/community/chat/conversations/${encodeURIComponent(conversationId)}/read-cursor`,
     { lastReadMessageId },
+  )
+  return response.data
+}
+
+export async function reportChatMessage(
+  input: ChatReportInput,
+  idempotencyKey: string,
+) {
+  const response = await browserApiClient.post<ChatReportResult>(
+    '/community/chat/reports',
+    input,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
   )
   return response.data
 }
