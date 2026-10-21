@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
   const limitParam = searchParams.get('limit')
   const limit = limitParam ? Number(limitParam) : undefined
   const pageParam = searchParams.get('page')
-  const pageNumber = pageParam !== null && pageParam !== undefined ? Number(pageParam) : undefined
+  const pageNumber =
+    pageParam !== null && pageParam !== undefined
+      ? Number(pageParam)
+      : undefined
 
   let actor
   try {

@@ -923,8 +923,8 @@ export default function AdminRetentionGovernance() {
               Lệnh Hold cấp điều phối viên (Coordinator) chặn xử lý xóa tại
               Identity và từ chối các lượt retry tiếp theo cho đến khi quản trị
               viên chủ động gỡ bỏ. Lưu ý: Lệnh Hold này không can thiệp trực
-              tiếp vào cơ sở dữ liệu riêng của các dịch vụ bên ngoài chưa có
-              hợp đồng thực thi.
+              tiếp vào cơ sở dữ liệu riêng của các dịch vụ bên ngoài chưa có hợp
+              đồng thực thi.
             </p>
 
             <div className={styles.formGroup}>
