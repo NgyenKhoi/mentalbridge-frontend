@@ -270,6 +270,64 @@ describe('SupportPlan workspace', () => {
     expect(api.proposeNativeSupportPlanDraft).not.toHaveBeenCalled()
   })
 
+  it.each(['RESOURCE_COMPLETION', 'RESOURCE_PRACTICE_SESSION'] as const)(
+    'shows accepted %s evidence as done in Today and Progress without a state toggle',
+    async (kind) => {
+      const user = userEvent.setup()
+      const plan = nativeSupportPlanFixture()
+      plan.focuses[0].actions[0].actionType = 'RESOURCE'
+      const completed = occurrence({
+        actionType: 'RESOURCE',
+        state: 'COMPLETED',
+        displayState: 'COMPLETED',
+        completionEvidence: {
+          ...emotionCompletionFixture(),
+          ownerDomain: 'CONTENT',
+          kind,
+          factRevision: '4',
+        },
+      })
+      withCurrent(plan, [completed])
+      render(<SupportPlanWorkspace />)
+
+      expect(
+        await screen.findByText('Đã ghi nhận từ bài luyện tập'),
+      ).toBeVisible()
+      expect(
+        screen.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
+      ).toBeVisible()
+      expect(
+        screen.queryByRole('button', {
+          name: /Làm lại hôm nay|Hoàn tác|Đã làm xong/,
+        }),
+      ).toBeNull()
+
+      await user.click(screen.getByRole('tab', { name: 'Tiến triển' }))
+      const resourceCount = screen
+        .getByText('Đã ghi nhận từ bài luyện tập')
+        .closest<HTMLElement>('.mbw-fact')!
+      expect(within(resourceCount).getByText('1 lần đã làm')).toBeVisible()
+      expect(api.changeNativeActionOccurrenceState).not.toHaveBeenCalled()
+      expect(legacy.changeSupportPlanOccurrenceState).not.toHaveBeenCalled()
+    },
+  )
+
+  it('keeps explicit Resource acknowledgement available until Care accepts evidence', async () => {
+    const user = userEvent.setup()
+    const plan = nativeSupportPlanFixture()
+    plan.focuses[0].actions[0].actionType = 'RESOURCE'
+    withCurrent(plan, [occurrence({ actionType: 'RESOURCE' })])
+    render(<SupportPlanWorkspace />)
+
+    expect(
+      await screen.findByRole('button', { name: 'Đã làm xong' }),
+    ).toBeEnabled()
+    expect(screen.queryByText('Đã ghi nhận từ bài luyện tập')).toBeNull()
+    await user.click(screen.getByRole('tab', { name: 'Tiến triển' }))
+    expect(screen.getByText('0 lần đã làm')).toBeVisible()
+    expect(screen.queryByText('Đã ghi nhận từ bài luyện tập')).toBeNull()
+  })
+
   it('auto-proposes once with the deterministic key and shows the preview', async () => {
     withoutPlan()
     api.proposeNativeSupportPlanDraft.mockResolvedValue(draftPlan())

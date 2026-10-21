@@ -12,6 +12,13 @@ import {
 } from 'react'
 
 import { Dialog } from '@/components/ui/Dialog'
+import { toApiError } from '@/lib/api/api-error'
+import { reconcileResourceOccurrence } from '@/features/support-plan/api/browser-support-plan-actions'
+import type { EmotionPlanOrigin } from '@/features/support-plan/emotion-plan-origin'
+import {
+  hasContentCompletion,
+  resolveResourcePlanOrigin,
+} from '@/features/support-plan/resource-plan-origin'
 import {
   guideReturnHref,
   type GuideReturnContext,
@@ -46,6 +53,7 @@ import { StretchResourceDetail } from './StretchResourceDetail'
 import { PurposeShapedActions } from './PurposeShapedActions'
 import { VietnameseCaptionedVideo } from './VietnameseCaptionedVideo'
 import styles from './resource-detail.module.css'
+import { ResourcePlanNotice, type ReconcileState } from './ResourcePlanNotice'
 
 function safeHttpUrl(value: string | null | undefined) {
   if (!value) return null
@@ -183,6 +191,7 @@ type Props = Readonly<{
   resourceId: string
   /** Exact plan return, carrying the occurrence the user left from. */
   supportPlanReturnHref?: string
+  supportPlanOrigin?: EmotionPlanOrigin
   returnSupportGuideId?: string
   returnGuideContext?: GuideReturnContext
   activityDate?: string
@@ -203,6 +212,7 @@ type ProgressLoadResult = Readonly<{
 export default function ResourceDetail({
   resourceId,
   supportPlanReturnHref,
+  supportPlanOrigin,
   returnSupportGuideId,
   returnGuideContext,
   activityDate,
@@ -212,6 +222,7 @@ export default function ResourceDetail({
     ? (activityDate as string)
     : localDate()
   const requestKey = `${resourceId}:${contentVersion ?? ''}:${date}`
+  const reconcileKey = `${requestKey}:${supportPlanOrigin?.occurrenceId ?? ''}`
   const [result, setResult] = useState<LoadResult>()
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [catalogueResult, setCatalogueResult] = useState<{
@@ -227,6 +238,12 @@ export default function ResourceDetail({
   )
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [reconciliation, setReconciliation] = useState<{
+    contextKey: string
+    state: ReconcileState
+  }>()
+  const reconcileState =
+    reconciliation?.contextKey === reconcileKey ? reconciliation.state : 'idle'
   const [reward, setReward] = useState(false)
   const [quizOpen, setQuizOpen] = useState(false)
   const [completionConfirmation, setCompletionConfirmation] = useState<
@@ -409,6 +426,62 @@ export default function ResourceDetail({
     return () => observer.disconnect()
   }, [interaction?.mode, resource])
 
+  const reconcilePlanProgress = useCallback(async () => {
+    if (!resource || !supportPlanOrigin) return
+    const setReconcileState = (state: ReconcileState) =>
+      setReconciliation({ contextKey: reconcileKey, state })
+    setReconcileState('pending')
+    try {
+      const occurrence = await resolveResourcePlanOrigin(
+        supportPlanOrigin,
+        resource.id,
+        contentVersion ?? resource.contentVersion,
+      )
+      if (!occurrence) {
+        setReconcileState('idle')
+        return
+      }
+      if (occurrence.state === 'COMPLETED') {
+        setReconcileState(
+          hasContentCompletion(occurrence) ? 'recorded' : 'done',
+        )
+        return
+      }
+      const recorded = await reconcileResourceOccurrence(
+        occurrence.occurrenceId,
+        occurrence.version,
+      )
+      // Only the saved Care response can confirm the plan activity.
+      setReconcileState(hasContentCompletion(recorded) ? 'recorded' : 'done')
+    } catch (error: unknown) {
+      const problem = toApiError(error)
+      if (problem.status === 409 && problem.code === 'OCCURRENCE_NOT_OPEN') {
+        try {
+          const occurrence = await resolveResourcePlanOrigin(
+            supportPlanOrigin,
+            resource.id,
+            contentVersion ?? resource.contentVersion,
+          )
+          setReconcileState(
+            occurrence && hasContentCompletion(occurrence)
+              ? 'recorded'
+              : 'done',
+          )
+        } catch {
+          setReconcileState('unavailable')
+        }
+        return
+      }
+      setReconcileState(
+        problem.status === 412
+          ? 'stale'
+          : problem.status === 409
+            ? 'missing'
+            : 'unavailable',
+      )
+    }
+  }, [contentVersion, reconcileKey, resource, supportPlanOrigin])
+
   const persistProgress = useCallback(
     async (
       nextActions: string[],
@@ -424,12 +497,15 @@ export default function ResourceDetail({
         const saved = await saveResourceProgress(resource.id, date, {
           status: nextStatus,
           completedActionIds: nextActions,
+          resourceVersion: contentVersion ?? resource.contentVersion,
           ...practice,
         })
         setCompletedActionIds(saved.completedActionIds)
         setStatus(saved.status)
         window.dispatchEvent(new CustomEvent('mb:resource-progress-updated'))
         if (saved.status === 'COMPLETED') setReward(true)
+        if (saved.status === 'COMPLETED' || practice?.practiceDurationSeconds)
+          await reconcilePlanProgress()
         return true
       } catch {
         setMessage('Chưa thể lưu tiến độ. Bạn thử lại sau một chút nhé.')
@@ -438,7 +514,14 @@ export default function ResourceDetail({
         setSaving(false)
       }
     },
-    [date, progressReady, resource, saving],
+    [
+      contentVersion,
+      date,
+      progressReady,
+      reconcilePlanProgress,
+      resource,
+      saving,
+    ],
   )
 
   useEffect(() => {
@@ -486,6 +569,14 @@ export default function ResourceDetail({
     : returnSupportGuideId
       ? 'Quay lại gợi ý hỗ trợ'
       : 'Quay lại Tài nguyên'
+
+  const planNotice = supportPlanReturnHref ? (
+    <ResourcePlanNotice
+      state={reconcileState}
+      returnHref={supportPlanReturnHref}
+      onRetry={() => void reconcilePlanProgress()}
+    />
+  ) : null
 
   if (loadState === 'loading') {
     return (
@@ -729,6 +820,7 @@ export default function ResourceDetail({
         progressLoadState={progressLoadState}
         saving={saving}
         message={message}
+        planNotice={planNotice}
         onRetryProgress={() => {
           setMessage('')
           setProgressResult(undefined)
@@ -764,6 +856,8 @@ export default function ResourceDetail({
         progressLoadState={progressLoadState}
         saving={saving}
         message={message}
+        planNotice={planNotice}
+        planCompletionRecorded={reconcileState === 'recorded'}
         onRetryProgress={() => {
           setMessage('')
           setProgressResult(undefined)
@@ -789,6 +883,7 @@ export default function ResourceDetail({
         progressLoadState={progressLoadState}
         saving={saving}
         message={message}
+        planNotice={planNotice}
         onRetryProgress={() => {
           setMessage('')
           setProgressResult(undefined)
@@ -826,6 +921,7 @@ export default function ResourceDetail({
         }}
         saving={saving}
         message={message}
+        planNotice={planNotice}
         confirmationOpen={completionConfirmation !== null}
         onConfirmationOpenChange={(open) => {
           if (!open && !saving) setCompletionConfirmation(null)
@@ -854,6 +950,7 @@ export default function ResourceDetail({
         progressLoadState={progressLoadState}
         saving={saving}
         message={message}
+        planNotice={planNotice}
         confirmationOpen={completionConfirmation !== null}
         onConfirmationOpenChange={(open) => {
           if (!open && !saving) setCompletionConfirmation(null)
@@ -1254,17 +1351,20 @@ export default function ResourceDetail({
                   onToggle={(actionId) => void toggleAction(actionId)}
                 />
               )}
+              {planNotice}
               {message && (
                 <p className={styles.error} role="alert">
                   {message}
                 </p>
               )}
-              {progressReady && status === 'COMPLETED' && (
-                <p className={styles.completionRecorded} role="status">
-                  Kết quả hoàn thành đã được ghi nhận. Bạn vẫn có thể điều chỉnh
-                  các dấu tick mà không làm mất kết quả này.
-                </p>
-              )}
+              {progressReady &&
+                status === 'COMPLETED' &&
+                reconcileState !== 'recorded' && (
+                  <p className={styles.completionRecorded} role="status">
+                    Kết quả hoàn thành đã được ghi nhận. Bạn vẫn có thể điều
+                    chỉnh các dấu tick mà không làm mất kết quả này.
+                  </p>
+                )}
               {progressReady &&
                 status === 'COMPLETED' &&
                 resource.repeatability === 'REPEATABLE' &&
@@ -1518,7 +1618,7 @@ export default function ResourceDetail({
         </div>
       </Dialog>
 
-      {reward && (
+      {reward && !supportPlanOrigin && (
         <div className={styles.reward} role="status">
           <div aria-hidden="true">
             {Array.from({ length: 10 }, (_, index) => (

@@ -15,6 +15,7 @@ import {
   REASSESSMENT_HREF,
 } from './workspace-links'
 import { journalPlanHref } from '../journal-plan-origin'
+import { hasContentCompletion } from '../resource-plan-origin'
 import {
   isDailyWork,
   joinOccurrences,
@@ -366,7 +367,9 @@ export default function TodayPanel({
                     {item.action.presentation.title}
                   </p>
                   <p className="mbw-quiet">
-                    {doneLabel[item.occurrence.state]}
+                    {hasContentCompletion(item.occurrence)
+                      ? 'Đã ghi nhận từ bài luyện tập'
+                      : doneLabel[item.occurrence.state]}
                   </p>
                 </div>
                 {acceptedJournalHref(item) && (

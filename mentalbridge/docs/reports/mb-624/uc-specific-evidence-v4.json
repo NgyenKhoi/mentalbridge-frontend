@@ -636,7 +636,7 @@
       "web": {
         "state": "CODE_READY",
         "source": "mentalbridge/tests/e2e/resources.spec.ts",
-        "scenario": "supports the daily challenge and interactive video detail journey",
+        "scenario": "supports catalogue bookmarks and interactive video Detail without a current plan",
         "assertions": [
           "page.getByRole('heading', { level: 1, name: catalogue[0].title })",
           "page.goto('/resources')"
@@ -658,7 +658,7 @@
       "web": {
         "state": "CODE_READY",
         "source": "mentalbridge/tests/e2e/resources.spec.ts",
-        "scenario": "supports the daily challenge and interactive video detail journey",
+        "scenario": "supports catalogue bookmarks and interactive video Detail without a current plan",
         "assertions": [
           "page.waitForURL(new RegExp(`/resources/${resourceId}`))",
           "const video = page.getByTitle(catalogue[0].title)"
