@@ -183,7 +183,9 @@ describe('ResourcesShowcase owner data', () => {
     })
     render(<ResourcesShowcase />)
     expect(await screen.findByText('4 ngày đã lưu')).toBeVisible()
-    expect(screen.getByText('1/1 hoạt động hôm nay đã ghi nhận')).toBeVisible()
+    expect(
+      await screen.findByText('1/1 hoạt động hôm nay đã ghi nhận'),
+    ).toBeVisible()
     expect(
       screen.getByText(
         'Một số ngày trước chưa tải được. Tiến độ hôm nay vẫn là dữ liệu đã lưu.',
