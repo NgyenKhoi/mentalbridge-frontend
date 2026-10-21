@@ -218,6 +218,35 @@
   border-top: 1px solid rgba(27, 42, 34, 0.1);
   background: #f7faf5;
 }
+.pageActions,
+.messagePageActions {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  color: #8c3f30;
+  font-size: 0.82rem;
+  text-align: center;
+}
+.pageActions {
+  border-top: 1px solid rgba(27, 42, 34, 0.1);
+}
+.pageActions button,
+.messagePageActions button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid #1e4a43;
+  border-radius: 999px;
+  background: #fff;
+  color: #1e4a43;
+  cursor: pointer;
+  font-weight: 700;
+}
+.pageActions button:disabled,
+.messagePageActions button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
 .privacy summary {
   padding: 16px;
   color: #1e4a43;
@@ -316,6 +345,12 @@
   max-width: min(78%, 560px);
   padding: 10px 13px;
   border-radius: 16px;
+}
+.messages > .messagePageActions {
+  width: 100%;
+  max-width: none;
+  align-self: stretch;
+  padding: 8px 0 0;
 }
 .messages p {
   margin: 0;

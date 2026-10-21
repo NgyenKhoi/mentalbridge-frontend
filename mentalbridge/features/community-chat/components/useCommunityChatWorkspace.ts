@@ -53,6 +53,19 @@ function mergeMessages(current: ChatMessage[], incoming: ChatMessage[]) {
   })
 }
 
+function mergeById<T>(current: T[], incoming: T[], id: (item: T) => string) {
+  const ids = new Set(current.map(id))
+  return [
+    ...current,
+    ...incoming.filter((item) => {
+      const itemId = id(item)
+      if (ids.has(itemId)) return false
+      ids.add(itemId)
+      return true
+    }),
+  ]
+}
+
 export function useCommunityChatWorkspace({
   initialConversationId,
   recipientCommunityProfileId,
@@ -62,6 +75,7 @@ export function useCommunityChatWorkspace({
 }>) {
   const router = useRouter()
   const startAttempted = useRef<string | undefined>(undefined)
+  const threadGeneration = useRef(0)
   const [conversations, setConversations] = useState<ChatConversation[]>([])
   const [requests, setRequests] = useState<ChatRequest[]>([])
   const [privacy, setPrivacy] = useState<
@@ -78,6 +92,17 @@ export function useCommunityChatWorkspace({
   const [notice, setNotice] = useState('')
   const [busyKey, setBusyKey] = useState('')
   const [failedSend, setFailedSend] = useState<FailedSend>()
+  const [conversationCursor, setConversationCursor] = useState<string | null>(
+    null,
+  )
+  const [requestCursor, setRequestCursor] = useState<string | null>(null)
+  const [messageCursor, setMessageCursor] = useState<string | null>(null)
+  const [conversationPageLoading, setConversationPageLoading] = useState(false)
+  const [requestPageLoading, setRequestPageLoading] = useState(false)
+  const [messagePageLoading, setMessagePageLoading] = useState(false)
+  const [conversationPageError, setConversationPageError] = useState('')
+  const [requestPageError, setRequestPageError] = useState('')
+  const [messagePageError, setMessagePageError] = useState('')
   const [activeTab, setActiveTab] = useState<'conversations' | 'requests'>(
     'conversations',
   )
@@ -95,15 +120,18 @@ export function useCommunityChatWorkspace({
       ])
     if (conversationResult.status === 'fulfilled') {
       setConversations(conversationResult.value.items)
+      setConversationCursor(conversationResult.value.nextCursor)
       if (conversationResult.value.items.length === 0 && !initialConversationId)
         setThreadLoading(false)
     }
-    if (requestResult.status === 'fulfilled')
+    if (requestResult.status === 'fulfilled') {
       setRequests(
         requestResult.value.items.filter(
           (request) => request.state === 'PENDING',
         ),
       )
+      setRequestCursor(requestResult.value.nextCursor)
+    }
     if (privacyResult.status === 'fulfilled') setPrivacy(privacyResult.value)
     if (profileResult.status === 'fulfilled')
       setViewerProfileId(profileResult.value.data.communityProfileId)
@@ -149,45 +177,141 @@ export function useCommunityChatWorkspace({
       .finally(() => setBusyKey(''))
   }, [recipientCommunityProfileId, router])
 
-  const loadThread = useCallback(async () => {
-    if (!selectedConversationId) {
-      return
-    }
-    try {
-      const [nextConversation, page] = await Promise.all([
-        getChatConversation(selectedConversationId),
-        getChatMessages(selectedConversationId),
-      ])
-      setConversation(nextConversation)
-      setMessages(mergeMessages([], page.items))
-      const lastMessage = page.items.at(-1)
-      if (lastMessage) {
-        void advanceChatReadCursor(
-          selectedConversationId,
-          lastMessage.messageId,
-        ).then((read) =>
-          setConversations((current) =>
-            current.map((item) =>
-              item.conversationId === selectedConversationId
-                ? { ...item, unreadCount: read.unreadCount }
-                : item,
-            ),
+  const advanceViewedMessage = useCallback(
+    async (conversationId: string, messageId: string, generation: number) => {
+      try {
+        const read = await advanceChatReadCursor(conversationId, messageId)
+        if (threadGeneration.current !== generation) return
+        setConversations((current) =>
+          current.map((item) =>
+            item.conversationId === conversationId
+              ? { ...item, unreadCount: read.unreadCount }
+              : item,
           ),
         )
+      } catch {
+        // Reading history must remain usable if the best-effort cursor update fails.
       }
-    } catch (cause) {
+    },
+    [],
+  )
+
+  const loadThread = useCallback(
+    async (generation: number) => {
+      if (!selectedConversationId) {
+        if (threadGeneration.current === generation) setThreadLoading(false)
+        return
+      }
+      const conversationId = selectedConversationId
+      setThreadLoading(true)
+      setThreadError('')
       setConversation(undefined)
       setMessages([])
-      setThreadError(friendlyError(cause))
-    } finally {
-      setThreadLoading(false)
-    }
-  }, [selectedConversationId])
+      setMessageCursor(null)
+      setMessagePageLoading(false)
+      setMessagePageError('')
+      try {
+        const [nextConversation, page] = await Promise.all([
+          getChatConversation(conversationId),
+          getChatMessages(conversationId),
+        ])
+        if (threadGeneration.current !== generation) return
+        setConversation(nextConversation)
+        setMessages(mergeMessages([], page.items))
+        setMessageCursor(page.nextCursor)
+        setMessagePageError('')
+        const lastMessage = page.items.at(-1)
+        if (lastMessage)
+          void advanceViewedMessage(
+            conversationId,
+            lastMessage.messageId,
+            generation,
+          )
+      } catch (cause) {
+        if (threadGeneration.current !== generation) return
+        setConversation(undefined)
+        setMessages([])
+        setMessageCursor(null)
+        setThreadError(friendlyError(cause))
+      } finally {
+        if (threadGeneration.current === generation) setThreadLoading(false)
+      }
+    },
+    [advanceViewedMessage, selectedConversationId],
+  )
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => void loadThread(), 0)
+    const generation = ++threadGeneration.current
+    const timeout = window.setTimeout(() => void loadThread(generation), 0)
     return () => window.clearTimeout(timeout)
   }, [loadThread])
+
+  async function loadMoreConversations() {
+    if (!conversationCursor || conversationPageLoading) return
+    const cursor = conversationCursor
+    setConversationPageLoading(true)
+    setConversationPageError('')
+    try {
+      const page = await getChatConversations(cursor)
+      setConversations((current) =>
+        mergeById(current, page.items, (item) => item.conversationId),
+      )
+      setConversationCursor(page.nextCursor)
+    } catch (cause) {
+      setConversationPageError(friendlyError(cause))
+    } finally {
+      setConversationPageLoading(false)
+    }
+  }
+
+  async function loadMoreRequests() {
+    if (!requestCursor || requestPageLoading) return
+    const cursor = requestCursor
+    setRequestPageLoading(true)
+    setRequestPageError('')
+    try {
+      const page = await getChatRequests(cursor)
+      setRequests((current) =>
+        mergeById(
+          current,
+          page.items.filter((request) => request.state === 'PENDING'),
+          (item) => item.requestId,
+        ),
+      )
+      setRequestCursor(page.nextCursor)
+    } catch (cause) {
+      setRequestPageError(friendlyError(cause))
+    } finally {
+      setRequestPageLoading(false)
+    }
+  }
+
+  async function loadMoreMessages() {
+    if (!selectedConversationId || !messageCursor || messagePageLoading) return
+    const conversationId = selectedConversationId
+    const cursor = messageCursor
+    const generation = threadGeneration.current
+    setMessagePageLoading(true)
+    setMessagePageError('')
+    try {
+      const page = await getChatMessages(conversationId, cursor)
+      if (threadGeneration.current !== generation) return
+      setMessages((current) => mergeMessages(current, page.items))
+      setMessageCursor(page.nextCursor)
+      const lastMessage = page.items.at(-1)
+      if (lastMessage)
+        void advanceViewedMessage(
+          conversationId,
+          lastMessage.messageId,
+          generation,
+        )
+    } catch (cause) {
+      if (threadGeneration.current === generation)
+        setMessagePageError(friendlyError(cause))
+    } finally {
+      if (threadGeneration.current === generation) setMessagePageLoading(false)
+    }
+  }
 
   const peer = useMemo(
     () =>
@@ -308,6 +432,18 @@ export function useCommunityChatWorkspace({
     notice,
     busyKey,
     failedSend,
+    conversationCursor,
+    requestCursor,
+    messageCursor,
+    conversationPageLoading,
+    requestPageLoading,
+    messagePageLoading,
+    conversationPageError,
+    requestPageError,
+    messagePageError,
+    loadMoreConversations,
+    loadMoreRequests,
+    loadMoreMessages,
     reload: () => {
       setLoading(true)
       setError('')
@@ -316,7 +452,8 @@ export function useCommunityChatWorkspace({
     reloadThread: () => {
       setThreadLoading(true)
       setThreadError('')
-      void loadThread()
+      const generation = ++threadGeneration.current
+      void loadThread(generation)
     },
     decide,
     savePrivacy,

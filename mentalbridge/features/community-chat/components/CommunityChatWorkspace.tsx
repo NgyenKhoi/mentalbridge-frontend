@@ -198,103 +198,164 @@ export default function CommunityChatWorkspace({
             </div>
           ) : chat.activeTab === 'conversations' ? (
             chat.conversations.length ? (
-              <ul className={styles.list}>
-                {chat.conversations.map((item) => {
-                  const peer =
-                    item.peers.find(
-                      (candidate) =>
-                        candidate.state === 'AVAILABLE' &&
-                        candidate.communityProfileId !== chat.viewerProfileId,
-                    ) ??
-                    item.peers.find(
-                      (candidate) => candidate.state === 'AVAILABLE',
-                    )
-                  return (
-                    <li key={item.conversationId}>
-                      <Link
-                        href={`/community/messages/${item.conversationId}`}
-                        aria-current={
-                          item.conversationId === chat.selectedConversationId
-                            ? 'page'
-                            : undefined
-                        }
-                      >
-                        <Avatar peer={peer} />
-                        <span className={styles.rowCopy}>
-                          <strong>{peerName(peer)}</strong>
-                          <small>
-                            {item.state === 'READ_ONLY'
-                              ? 'Chỉ có thể xem'
-                              : item.unreadCount
-                                ? `${item.unreadCount} tin chưa đọc`
-                                : 'Mở cuộc trò chuyện'}
-                          </small>
-                        </span>
-                        {item.unreadCount > 0 && (
-                          <span
-                            className={styles.badge}
-                            aria-label={`${item.unreadCount} tin chưa đọc`}
-                          >
-                            {item.unreadCount}
+              <>
+                <ul className={styles.list}>
+                  {chat.conversations.map((item) => {
+                    const peer =
+                      item.peers.find(
+                        (candidate) =>
+                          candidate.state === 'AVAILABLE' &&
+                          candidate.communityProfileId !== chat.viewerProfileId,
+                      ) ??
+                      item.peers.find(
+                        (candidate) => candidate.state === 'AVAILABLE',
+                      )
+                    return (
+                      <li key={item.conversationId}>
+                        <Link
+                          href={`/community/messages/${item.conversationId}`}
+                          aria-current={
+                            item.conversationId === chat.selectedConversationId
+                              ? 'page'
+                              : undefined
+                          }
+                        >
+                          <Avatar peer={peer} />
+                          <span className={styles.rowCopy}>
+                            <strong>{peerName(peer)}</strong>
+                            <small>
+                              {item.state === 'READ_ONLY'
+                                ? 'Chỉ có thể xem'
+                                : item.unreadCount
+                                  ? `${item.unreadCount} tin chưa đọc`
+                                  : 'Mở cuộc trò chuyện'}
+                            </small>
                           </span>
-                        )}
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
+                          {item.unreadCount > 0 && (
+                            <span
+                              className={styles.badge}
+                              aria-label={`${item.unreadCount} tin chưa đọc`}
+                            >
+                              {item.unreadCount}
+                            </span>
+                          )}
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+                {(chat.conversationCursor || chat.conversationPageError) && (
+                  <div className={styles.pageActions}>
+                    {chat.conversationPageError && (
+                      <span role="alert">{chat.conversationPageError}</span>
+                    )}
+                    <button
+                      type="button"
+                      disabled={chat.conversationPageLoading}
+                      onClick={() => void chat.loadMoreConversations()}
+                    >
+                      {chat.conversationPageLoading
+                        ? 'Đang tải…'
+                        : chat.conversationPageError
+                          ? 'Thử lại'
+                          : 'Tải thêm cuộc trò chuyện'}
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className={styles.state}>
                 <strong>Chưa có cuộc trò chuyện</strong>
                 <p>Bạn có thể nhắn từ một bài viết dùng danh tính cộng đồng.</p>
-                <Link href="/community">Khám phá bảng tin</Link>
+                {chat.conversationCursor ? (
+                  <button
+                    type="button"
+                    disabled={chat.conversationPageLoading}
+                    onClick={() => void chat.loadMoreConversations()}
+                  >
+                    {chat.conversationPageLoading
+                      ? 'Đang tải…'
+                      : 'Tải thêm cuộc trò chuyện'}
+                  </button>
+                ) : (
+                  <Link href="/community">Khám phá bảng tin</Link>
+                )}
               </div>
             )
           ) : chat.requests.length ? (
-            <ul className={styles.requests}>
-              {chat.requests.map((request) => (
-                <li key={request.requestId}>
-                  <div className={styles.requestIdentity}>
-                    <Avatar peer={request.requester} />
-                    <span>
-                      <strong>{peerName(request.requester)}</strong>
-                      <small>Hết hạn {day(request.expiresAt)}</small>
-                    </span>
-                  </div>
-                  <p>
-                    Lời mời không chứa nội dung tin nhắn. Chỉ chấp thuận nếu bạn
-                    thấy thoải mái.
-                  </p>
-                  <div className={styles.requestActions}>
-                    <button
-                      type="button"
-                      disabled={chat.busyKey === request.requestId}
-                      onClick={() => void chat.decide(request, 'ACCEPT')}
-                    >
-                      Chấp thuận
-                    </button>
-                    <button
-                      type="button"
-                      disabled={chat.busyKey === request.requestId}
-                      onClick={() => void chat.decide(request, 'DECLINE')}
-                    >
-                      Từ chối
-                    </button>
-                    <button
-                      type="button"
-                      disabled={chat.busyKey === request.requestId}
-                      onClick={() => void chat.decide(request, 'BLOCK')}
-                    >
-                      Chặn
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className={styles.requests}>
+                {chat.requests.map((request) => (
+                  <li key={request.requestId}>
+                    <div className={styles.requestIdentity}>
+                      <Avatar peer={request.requester} />
+                      <span>
+                        <strong>{peerName(request.requester)}</strong>
+                        <small>Hết hạn {day(request.expiresAt)}</small>
+                      </span>
+                    </div>
+                    <p>
+                      Lời mời không chứa nội dung tin nhắn. Chỉ chấp thuận nếu
+                      bạn thấy thoải mái.
+                    </p>
+                    <div className={styles.requestActions}>
+                      <button
+                        type="button"
+                        disabled={chat.busyKey === request.requestId}
+                        onClick={() => void chat.decide(request, 'ACCEPT')}
+                      >
+                        Chấp thuận
+                      </button>
+                      <button
+                        type="button"
+                        disabled={chat.busyKey === request.requestId}
+                        onClick={() => void chat.decide(request, 'DECLINE')}
+                      >
+                        Từ chối
+                      </button>
+                      <button
+                        type="button"
+                        disabled={chat.busyKey === request.requestId}
+                        onClick={() => void chat.decide(request, 'BLOCK')}
+                      >
+                        Chặn
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {(chat.requestCursor || chat.requestPageError) && (
+                <div className={styles.pageActions}>
+                  {chat.requestPageError && (
+                    <span role="alert">{chat.requestPageError}</span>
+                  )}
+                  <button
+                    type="button"
+                    disabled={chat.requestPageLoading}
+                    onClick={() => void chat.loadMoreRequests()}
+                  >
+                    {chat.requestPageLoading
+                      ? 'Đang tải…'
+                      : chat.requestPageError
+                        ? 'Thử lại'
+                        : 'Tải thêm lời mời'}
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <div className={styles.state}>
               <strong>Không có lời mời đang chờ</strong>
               <p>Bạn luôn có quyền chấp thuận, từ chối hoặc chặn.</p>
+              {chat.requestCursor && (
+                <button
+                  type="button"
+                  disabled={chat.requestPageLoading}
+                  onClick={() => void chat.loadMoreRequests()}
+                >
+                  {chat.requestPageLoading ? 'Đang tải…' : 'Tải thêm lời mời'}
+                </button>
+              )}
             </div>
           )}
 
@@ -383,6 +444,24 @@ export default function CommunityChatWorkspace({
                       Chỉ chia sẻ điều bạn thấy an toàn. Bạn có thể chặn và rời
                       đi bất cứ lúc nào.
                     </p>
+                  </div>
+                )}
+                {(chat.messageCursor || chat.messagePageError) && (
+                  <div className={styles.messagePageActions}>
+                    {chat.messagePageError && (
+                      <span role="alert">{chat.messagePageError}</span>
+                    )}
+                    <button
+                      type="button"
+                      disabled={chat.messagePageLoading}
+                      onClick={() => void chat.loadMoreMessages()}
+                    >
+                      {chat.messagePageLoading
+                        ? 'Đang tải…'
+                        : chat.messagePageError
+                          ? 'Thử tải lại tin nhắn'
+                          : 'Tải tin nhắn tiếp theo'}
+                    </button>
                   </div>
                 )}
               </div>
