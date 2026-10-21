@@ -1065,7 +1065,7 @@ const DELETION_FACT_STATUSES = new Set([
 export const SAFE_FAILURE_CODE_PATTERN = /^[A-Z0-9_]{1,64}$/
 export const SAFE_FAILURE_REASON_PATTERN = /^[A-Z0-9_]{1,64}$/
 export const APPROVED_IDENTITY_EVIDENCE_PATTERN =
-  /^audit:(identity:account-deleted:[0-9a-fA-F-]{1,64}|del:identity:[a-zA-Z0-9.-]{1,64})$/
+  /^audit:identity:account-deleted:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export function parseRetentionExecutionRecord(
   value: unknown,
@@ -1199,13 +1199,9 @@ export function parseDeletionOwnerFact(
       : null
 
   const rawReason =
-    typeof value.failureReason === 'string'
-      ? value.failureReason.trim()
-      : null
+    typeof value.failureReason === 'string' ? value.failureReason.trim() : null
   const safeFailureReason =
-    rawReason && SAFE_FAILURE_REASON_PATTERN.test(rawReason)
-      ? rawReason
-      : null
+    rawReason && SAFE_FAILURE_REASON_PATTERN.test(rawReason) ? rawReason : null
 
   return {
     ownerService: value.ownerService as DeletionOwnerFact['ownerService'],
@@ -1261,11 +1257,11 @@ export function parseDeletionRequest(value: unknown): DeletionRequest | null {
   return {
     requestId: value.requestId,
     subjectReference: value.subjectReference,
-    accountStatus: (value.accountStatus as DeletionRequest['accountStatus']) ?? null,
+    accountStatus:
+      (value.accountStatus as DeletionRequest['accountStatus']) ?? null,
     status: value.status as DeletionRequest['status'],
     holdType: value.holdType as DeletionRequest['holdType'],
-    holdReason:
-      (value.holdReason as DeletionRequest['holdReason']) ?? null,
+    holdReason: (value.holdReason as DeletionRequest['holdReason']) ?? null,
     retryCount: value.retryCount,
     maxRetries: value.maxRetries,
     escalationState:

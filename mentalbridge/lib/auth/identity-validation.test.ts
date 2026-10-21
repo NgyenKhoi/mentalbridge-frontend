@@ -20,23 +20,23 @@ const account = {
 }
 
 describe('admin account validation', () => {
-	it('accepts only contract-defined retention hold reason codes', () => {
-		expect(
-			parseApplyHoldRequest({
-				holdType: 'OPERATIONAL_HOLD',
-				holdReason: 'AUDIT_COMPLIANCE_HOLD',
-			}),
-		).toEqual({
-			holdType: 'OPERATIONAL_HOLD',
-			holdReason: 'AUDIT_COMPLIANCE_HOLD',
-		})
-		expect(
-			parseApplyHoldRequest({
-				holdType: 'OPERATIONAL_HOLD',
-				holdReason: 'arbitrary free text',
-			}),
-		).toBeNull()
-	})
+  it('accepts only contract-defined retention hold reason codes', () => {
+    expect(
+      parseApplyHoldRequest({
+        holdType: 'OPERATIONAL_HOLD',
+        holdReason: 'AUDIT_COMPLIANCE_HOLD',
+      }),
+    ).toEqual({
+      holdType: 'OPERATIONAL_HOLD',
+      holdReason: 'AUDIT_COMPLIANCE_HOLD',
+    })
+    expect(
+      parseApplyHoldRequest({
+        holdType: 'OPERATIONAL_HOLD',
+        holdReason: 'arbitrary free text',
+      }),
+    ).toBeNull()
+  })
 
   it('parses a bounded account page without accepting extra fields', () => {
     expect(parseAccountPage({ items: [account], nextCursor: null })).toEqual({
@@ -197,19 +197,21 @@ describe('admin account validation', () => {
 })
 
 describe('parseDeletionOwnerFact boundary sanitization', () => {
-  it('accepts approved safe codes and opaque references', () => {
+  it('accepts approved safe codes and the producer-backed Identity UUID reference', () => {
     const fact = parseDeletionOwnerFact({
       ownerService: 'IDENTITY',
       status: 'COMPLETED',
       completedAt: '2026-10-18T10:00:00Z',
-      evidenceReference: 'audit:del:identity:001',
+      evidenceReference:
+        'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
       failureReason: null,
     })
     expect(fact).toEqual({
       ownerService: 'IDENTITY',
       status: 'COMPLETED',
       completedAt: '2026-10-18T10:00:00Z',
-      evidenceReference: 'audit:del:identity:001',
+      evidenceReference:
+        'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
       failureReason: null,
     })
 
@@ -264,7 +266,7 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
     })
   })
 
-  it('sanitizes bare JWT, API keys, underscore sensitive text, and unapproved owner references in evidenceReference', () => {
+  it('keeps only the producer-backed Identity UUID evidence format', () => {
     // Bare JWT on IDENTITY -> null
     const jwtFact = parseDeletionOwnerFact({
       ownerService: 'IDENTITY',
@@ -282,14 +284,22 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
     })
     expect(apiKeyFact?.evidenceReference).toBeNull()
 
-    // Underscore-delimited sensitive clinical text on IDENTITY -> null
-    const clinicalUnderscoreFact = parseDeletionOwnerFact({
+    // Malformed UUID under the approved prefix -> null
+    const malformedUuidFact = parseDeletionOwnerFact({
+      ownerService: 'IDENTITY',
+      status: 'FAILED',
+      evidenceReference: 'audit:identity:account-deleted:not-a-uuid',
+    })
+    expect(malformedUuidFact?.evidenceReference).toBeNull()
+
+    // Secret disguised under the approved prefix -> null
+    const disguisedSecretFact = parseDeletionOwnerFact({
       ownerService: 'IDENTITY',
       status: 'FAILED',
       evidenceReference:
-        'PATIENT_DIAGNOSED_WITH_SEVERE_DEPRESSION_SUICIDE_RISK',
+        'audit:identity:account-deleted:opaque_secret_key_12345',
     })
-    expect(clinicalUnderscoreFact?.evidenceReference).toBeNull()
+    expect(disguisedSecretFact?.evidenceReference).toBeNull()
 
     // Valid approved audit reference on IDENTITY -> preserved
     const validIdFact = parseDeletionOwnerFact({
@@ -302,19 +312,20 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
       'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
     )
 
-    // Valid approved audit format del:identity -> preserved
-    const validDelFact = parseDeletionOwnerFact({
+    // Legacy format without a production producer -> null
+    const legacyFormatFact = parseDeletionOwnerFact({
       ownerService: 'IDENTITY',
       status: 'COMPLETED',
       evidenceReference: 'audit:del:identity:001',
     })
-    expect(validDelFact?.evidenceReference).toBe('audit:del:identity:001')
+    expect(legacyFormatFact?.evidenceReference).toBeNull()
 
-    // Unapproved external owner with audit prefix -> null
+    // External owner evidence remains null even when the string matches Identity's format
     const unapprovedOwnerFact = parseDeletionOwnerFact({
       ownerService: 'CARE',
       status: 'COMPLETED',
-      evidenceReference: 'audit:care:account-deleted:123',
+      evidenceReference:
+        'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
     })
     expect(unapprovedOwnerFact?.evidenceReference).toBeNull()
   })

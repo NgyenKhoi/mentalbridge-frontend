@@ -33,8 +33,7 @@ const mockPolicies: RetentionPolicy[] = [
     requiresManualReview: false,
     jobStatus: 'ACTIVE',
     jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
-    description:
-      'Bảo lưu các tệp trích xuất báo cáo phân tích trong 30 ngày.',
+    description: 'Bảo lưu các tệp trích xuất báo cáo phân tích trong 30 ngày.',
     lastExecution: {
       executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
       policyId: 'MB-IDENTITY-REPORTING-001',
@@ -61,8 +60,7 @@ const mockPolicies: RetentionPolicy[] = [
     requiresManualReview: false,
     jobStatus: 'UNAVAILABLE',
     jobName: 'NOTIFICATION_INBOX_RETENTION',
-    description:
-      'Hộp thư thông báo lưu trữ 90 ngày',
+    description: 'Hộp thư thông báo lưu trữ 90 ngày',
     unsupportedCapabilityNotice:
       'Chức năng dọn dẹp tự động của Content Service hiện chưa cung cấp endpoint kích hoạt từ Identity Service (Explicitly Unavailable).',
   },
@@ -86,7 +84,8 @@ const mockDeletions: DeletionRequest[] = [
         ownerService: 'IDENTITY',
         status: 'COMPLETED',
         completedAt: '2026-10-18T10:01:00Z',
-        evidenceReference: 'audit:del:identity:001',
+        evidenceReference:
+          'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
       },
       {
         ownerService: 'CARE',
@@ -131,7 +130,8 @@ const mockDeletions: DeletionRequest[] = [
       {
         ownerService: 'IDENTITY',
         status: 'COMPLETED',
-        evidenceReference: 'audit:del:identity:003',
+        evidenceReference:
+          'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf73',
       },
       {
         ownerService: 'COMMUNITY',
@@ -204,12 +204,16 @@ describe('AdminRetentionGovernance Component', () => {
       await screen.findByText('Chính sách bảo lưu hộp thư thông báo'),
     ).toBeInTheDocument()
 
-    const notice = screen.getByTestId('unavailable-notice-MB-CONTENT-NOTIFICATION-RETENTION-001')
+    const notice = screen.getByTestId(
+      'unavailable-notice-MB-CONTENT-NOTIFICATION-RETENTION-001',
+    )
     expect(notice).toHaveTextContent(
       /Chức năng dọn dẹp tự động của Content Service hiện chưa cung cấp endpoint/i,
     )
 
-    const disabledBtn = screen.getByTestId('sweep-disabled-MB-CONTENT-NOTIFICATION-RETENTION-001')
+    const disabledBtn = screen.getByTestId(
+      'sweep-disabled-MB-CONTENT-NOTIFICATION-RETENTION-001',
+    )
     expect(disabledBtn).toBeDisabled()
     expect(disabledBtn).toHaveTextContent('Thực thi không khả dụng')
   })
@@ -218,12 +222,16 @@ describe('AdminRetentionGovernance Component', () => {
     const user = userEvent.setup()
     render(<AdminRetentionGovernance />)
 
-    const sweepBtn = await screen.findByTestId('sweep-btn-MB-IDENTITY-REPORTING-001')
+    const sweepBtn = await screen.findByTestId(
+      'sweep-btn-MB-IDENTITY-REPORTING-001',
+    )
     expect(sweepBtn).toBeEnabled()
 
     await user.click(sweepBtn)
 
-    expect(apiMock.triggerSweep).toHaveBeenCalledWith('MB-IDENTITY-REPORTING-001')
+    expect(apiMock.triggerSweep).toHaveBeenCalledWith(
+      'MB-IDENTITY-REPORTING-001',
+    )
     expect(
       await screen.findByText(/Đã dọn dẹp 10 bản ghi hết hạn/i),
     ).toBeInTheDocument()
@@ -311,12 +319,16 @@ describe('AdminRetentionGovernance Component', () => {
 
     await user.click(screen.getByTestId('tab-deletions'))
 
-    expect(await screen.findByTestId('hold-badge-948f9e80-d3bc-45aa-91f6-044dd5afbf72')).toHaveTextContent(
-      'LEGAL_HOLD: STATUTORY_INQUIRY',
-    )
+    expect(
+      await screen.findByTestId(
+        'hold-badge-948f9e80-d3bc-45aa-91f6-044dd5afbf72',
+      ),
+    ).toHaveTextContent('LEGAL_HOLD: STATUTORY_INQUIRY')
 
     // Retry button for 948f9e80-d3bc-45aa-91f6-044dd5afbf72 (under hold) must be disabled
-    const retryBtnReq2 = screen.getByTestId('btn-retry-948f9e80-d3bc-45aa-91f6-044dd5afbf72')
+    const retryBtnReq2 = screen.getByTestId(
+      'btn-retry-948f9e80-d3bc-45aa-91f6-044dd5afbf72',
+    )
     expect(retryBtnReq2).toBeDisabled()
   })
 
@@ -328,9 +340,13 @@ describe('AdminRetentionGovernance Component', () => {
 
     // 948f9e80-d3bc-45aa-91f6-044dd5afbf73 has retryCount = 3, maxRetries = 3, RETRY_EXHAUSTED
     expect(
-      await screen.findByTestId('escalation-badge-948f9e80-d3bc-45aa-91f6-044dd5afbf73'),
+      await screen.findByTestId(
+        'escalation-badge-948f9e80-d3bc-45aa-91f6-044dd5afbf73',
+      ),
     ).toHaveTextContent('RETRY_EXHAUSTED')
-    const retryBtnReq3 = screen.getByTestId('btn-retry-948f9e80-d3bc-45aa-91f6-044dd5afbf73')
+    const retryBtnReq3 = screen.getByTestId(
+      'btn-retry-948f9e80-d3bc-45aa-91f6-044dd5afbf73',
+    )
     expect(retryBtnReq3).toBeDisabled()
   })
 
@@ -362,13 +378,19 @@ describe('AdminRetentionGovernance Component', () => {
 
     await user.click(screen.getByTestId('tab-deletions'))
 
-    const expandBtn = await screen.findByTestId('btn-expand-948f9e80-d3bc-45aa-91f6-044dd5afbf71')
+    const expandBtn = await screen.findByTestId(
+      'btn-expand-948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+    )
     await user.click(expandBtn)
 
-    const factsPanel = screen.getByTestId('facts-panel-948f9e80-d3bc-45aa-91f6-044dd5afbf71')
+    const factsPanel = screen.getByTestId(
+      'facts-panel-948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+    )
     expect(factsPanel).toBeInTheDocument()
     expect(factsPanel).toHaveTextContent('IDENTITY')
-    expect(factsPanel).toHaveTextContent('Bằng chứng: audit:del:identity:001')
+    expect(factsPanel).toHaveTextContent(
+      'Bằng chứng: audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+    )
     expect(factsPanel).toHaveTextContent('CARE')
     expect(factsPanel).toHaveTextContent('PENDING')
   })
@@ -379,7 +401,9 @@ describe('AdminRetentionGovernance Component', () => {
 
     await user.click(screen.getByTestId('tab-deletions'))
 
-    const applyHoldBtn = await screen.findByTestId('btn-apply-hold-948f9e80-d3bc-45aa-91f6-044dd5afbf71')
+    const applyHoldBtn = await screen.findByTestId(
+      'btn-apply-hold-948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+    )
     await user.click(applyHoldBtn)
 
     expect(screen.getByTestId('hold-modal')).toBeInTheDocument()
@@ -393,10 +417,13 @@ describe('AdminRetentionGovernance Component', () => {
     const confirmBtn = screen.getByTestId('btn-confirm-apply-hold')
     await user.click(confirmBtn)
 
-    expect(apiMock.applyHold).toHaveBeenCalledWith('948f9e80-d3bc-45aa-91f6-044dd5afbf71', {
-      holdType: 'LEGAL_HOLD',
-      holdReason: 'AUDIT_COMPLIANCE_HOLD',
-    })
+    expect(apiMock.applyHold).toHaveBeenCalledWith(
+      '948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+      {
+        holdType: 'LEGAL_HOLD',
+        holdReason: 'AUDIT_COMPLIANCE_HOLD',
+      },
+    )
   })
 
   it('renders pagination controls and navigates pages', async () => {
@@ -411,7 +438,9 @@ describe('AdminRetentionGovernance Component', () => {
     await user.click(screen.getByTestId('tab-deletions'))
 
     expect(await screen.findByTestId('pagination-controls')).toBeInTheDocument()
-    expect(screen.getByTestId('pagination-info')).toHaveTextContent('Trang 1 (Tổng cộng: 35 yêu cầu)')
+    expect(screen.getByTestId('pagination-info')).toHaveTextContent(
+      'Trang 1 (Tổng cộng: 35 yêu cầu)',
+    )
 
     const prevBtn = screen.getByTestId('btn-prev-page')
     const nextBtn = screen.getByTestId('btn-next-page')
@@ -445,7 +474,9 @@ describe('AdminRetentionGovernance Component', () => {
     render(<AdminRetentionGovernance />)
     await user.click(screen.getByTestId('tab-deletions'))
 
-    const row = await screen.findByTestId('deletion-row-948f9e80-d3bc-45aa-91f6-044dd5afbf71')
+    const row = await screen.findByTestId(
+      'deletion-row-948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+    )
     expect(row).toHaveTextContent('UNKNOWN')
   })
 
@@ -466,13 +497,16 @@ describe('AdminRetentionGovernance Component', () => {
               ownerService: 'CARE',
               status: 'FAILED',
               evidenceReference: 'raw.email@example.com',
-              failureReason: 'Patient diagnosed with severe depression session #42',
+              failureReason:
+                'Patient diagnosed with severe depression session #42',
             },
             {
               ownerService: 'CONSULTATION',
               status: 'FAILED',
-              evidenceReference: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret',
-              failureReason: 'User chat: please do not tell my parents about this',
+              evidenceReference:
+                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret',
+              failureReason:
+                'User chat: please do not tell my parents about this',
             },
           ],
         },
@@ -484,17 +518,25 @@ describe('AdminRetentionGovernance Component', () => {
     render(<AdminRetentionGovernance />)
     await user.click(screen.getByTestId('tab-deletions'))
 
-    const expandBtn = await screen.findByTestId('btn-expand-948f9e80-d3bc-45aa-91f6-044dd5afbf99')
+    const expandBtn = await screen.findByTestId(
+      'btn-expand-948f9e80-d3bc-45aa-91f6-044dd5afbf99',
+    )
     await user.click(expandBtn)
 
-    const factsPanel = screen.getByTestId('facts-panel-948f9e80-d3bc-45aa-91f6-044dd5afbf99')
+    const factsPanel = screen.getByTestId(
+      'facts-panel-948f9e80-d3bc-45aa-91f6-044dd5afbf99',
+    )
     expect(factsPanel).toHaveTextContent('Lý do: COMMUNITY_TIMEOUT')
 
     // Verify privacy boundary fail-closed: raw PII/secrets/journal text are NEVER rendered
-    expect(screen.queryByText(/raw\.email@example\.com/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/raw\.email@example\.com/),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText(/severe depression/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Bearer eyJhbGci/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/please do not tell my parents/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/please do not tell my parents/),
+    ).not.toBeInTheDocument()
   })
 
   it('sanitizes bare JWT, API keys, underscore sensitive text and unapproved owner evidence from UI', async () => {
@@ -509,7 +551,8 @@ describe('AdminRetentionGovernance Component', () => {
             {
               ownerService: 'IDENTITY',
               status: 'COMPLETED',
-              evidenceReference: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bare.jwt',
+              evidenceReference:
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bare.jwt',
             },
             {
               ownerService: 'IDENTITY',
@@ -520,19 +563,32 @@ describe('AdminRetentionGovernance Component', () => {
             {
               ownerService: 'IDENTITY',
               status: 'FAILED',
+              evidenceReference: 'audit:identity:account-deleted:not-a-uuid',
+              failureReason: 'INVALID_REFERENCE',
+            },
+            {
+              ownerService: 'IDENTITY',
+              status: 'FAILED',
               evidenceReference:
-                'PATIENT_DIAGNOSED_WITH_SEVERE_DEPRESSION_SUICIDE_RISK',
-              failureReason: 'CLINICAL_HOLD',
+                'audit:identity:account-deleted:opaque_secret_key_12345',
+              failureReason: 'INVALID_REFERENCE',
             },
             {
               ownerService: 'CARE',
               status: 'COMPLETED',
-              evidenceReference: 'audit:care:account-deleted:123',
+              evidenceReference:
+                'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf72',
             },
             {
               ownerService: 'IDENTITY',
               status: 'COMPLETED',
               evidenceReference: 'audit:del:identity:001',
+            },
+            {
+              ownerService: 'IDENTITY',
+              status: 'COMPLETED',
+              evidenceReference:
+                'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
             },
           ],
         },
@@ -544,19 +600,29 @@ describe('AdminRetentionGovernance Component', () => {
     render(<AdminRetentionGovernance />)
     await user.click(screen.getByTestId('tab-deletions'))
 
-    const expandBtn = await screen.findByTestId('btn-expand-948f9e80-d3bc-45aa-91f6-044dd5afbf88')
+    const expandBtn = await screen.findByTestId(
+      'btn-expand-948f9e80-d3bc-45aa-91f6-044dd5afbf88',
+    )
     await user.click(expandBtn)
 
-    const factsPanel = screen.getByTestId('facts-panel-948f9e80-d3bc-45aa-91f6-044dd5afbf88')
+    const factsPanel = screen.getByTestId(
+      'facts-panel-948f9e80-d3bc-45aa-91f6-044dd5afbf88',
+    )
 
-    // Approved audit reference renders correctly
-    expect(factsPanel).toHaveTextContent('Bằng chứng: audit:del:identity:001')
+    // The producer-backed Identity UUID reference renders correctly
+    expect(factsPanel).toHaveTextContent(
+      'Bằng chứng: audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+    )
 
     // Tokens and sensitive text do NOT appear anywhere in the DOM
     expect(screen.queryByText(/bare\.jwt/)).not.toBeInTheDocument()
     expect(screen.queryByText(/opaque_api_key/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/SEVERE_DEPRESSION/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/audit:care:account-deleted/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/opaque_secret_key/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/not-a-uuid/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/audit:del:identity/)).not.toBeInTheDocument()
+    expect(factsPanel).not.toHaveTextContent(
+      'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf72',
+    )
     expect(screen.queryByText(/request\.token/)).not.toBeInTheDocument()
   })
 })

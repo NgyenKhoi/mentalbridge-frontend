@@ -392,8 +392,7 @@ const initialRetentionPolicies = [
     requiresManualReview: false,
     jobStatus: 'UNAVAILABLE',
     jobName: 'NOTIFICATION_INBOX_RETENTION',
-    description:
-      'Hộp thư thông báo lưu trữ 90 ngày',
+    description: 'Hộp thư thông báo lưu trữ 90 ngày',
     unsupportedCapabilityNotice:
       'Chức năng tự động dọn dẹp chưa được triển khai tại Content Service (Explicitly Unavailable).',
   },
@@ -419,7 +418,8 @@ const initialDeletionRequests = [
         ownerService: 'IDENTITY',
         status: 'COMPLETED',
         completedAt: '2026-10-18T10:01:00Z',
-        evidenceReference: 'audit:del:identity:001',
+        evidenceReference:
+          'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
       },
       {
         ownerService: 'CARE',
@@ -3915,7 +3915,8 @@ const server = createServer(async (request, response) => {
       })
       const start = page * limit
       const items = filtered.slice(start, start + limit)
-      const nextCursor = start + limit < filtered.length ? String(page + 1) : null
+      const nextCursor =
+        start + limit < filtered.length ? String(page + 1) : null
       json(response, 200, { items, total: filtered.length, nextCursor })
       return
     }
