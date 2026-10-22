@@ -229,6 +229,16 @@ export async function sendChatMessage(
   return response.data
 }
 
+export async function retractChatMessage(
+  conversationId: string,
+  messageId: string,
+) {
+  const response = await browserApiClient.delete<ChatMessage>(
+    `/community/chat/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
+  )
+  return response.data
+}
+
 export async function advanceChatReadCursor(
   conversationId: string,
   lastReadMessageId: string,

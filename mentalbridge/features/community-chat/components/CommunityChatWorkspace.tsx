@@ -174,6 +174,7 @@ export default function CommunityChatWorkspace({
   })
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
   const [reportTarget, setReportTarget] = useState<ChatMessage>()
+  const [retractTarget, setRetractTarget] = useState<ChatMessage>()
   const [reportReason, setReportReason] =
     useState<ChatReportReason>('HARASSMENT')
   const [reportDetails, setReportDetails] = useState('')
@@ -621,31 +622,73 @@ export default function CommunityChatWorkspace({
                     const mine =
                       message.sender.state === 'AVAILABLE' &&
                       message.sender.communityProfileId === chat.viewerProfileId
+                    const retracting =
+                      chat.retractBusyMessageId === message.messageId
+                    const retractionFailed =
+                      chat.failedRetraction?.messageId === message.messageId
                     return (
                       <div
                         key={message.messageId}
-                        className={mine ? styles.mine : styles.theirs}
+                        className={[
+                          mine ? styles.mine : styles.theirs,
+                          message.state === 'RETRACTED' ? styles.retracted : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
                       >
-                        <p>{message.content}</p>
+                        <p>
+                          {message.state === 'ACTIVE'
+                            ? message.content
+                            : mine
+                              ? 'Bạn đã gỡ tin nhắn'
+                              : message.sender.state === 'AVAILABLE'
+                                ? `${message.sender.displayName} đã gỡ tin nhắn`
+                                : 'Tin nhắn đã được gỡ'}
+                        </p>
                         <time dateTime={message.createdAt}>
                           {time(message.createdAt)}
                         </time>
-                        <button
-                          type="button"
-                          className={styles.reportMessage}
-                          onClick={() => {
-                            setReportTarget(message)
-                            setReportReason('HARASSMENT')
-                            setReportDetails('')
-                            setReportBusy(false)
-                            setReportError('')
-                            setReportNotice('')
-                            reportAttempt.current = undefined
-                          }}
-                          aria-label={`Báo cáo tin nhắn: ${message.content}`}
-                        >
-                          Báo cáo tin nhắn
-                        </button>
+                        {message.state === 'ACTIVE' &&
+                          (mine ? (
+                            <button
+                              type="button"
+                              className={styles.messageAction}
+                              disabled={retracting}
+                              onClick={() => setRetractTarget(message)}
+                              aria-label="Gỡ tin nhắn này cho mọi người"
+                            >
+                              {retracting ? 'Đang gỡ…' : 'Gỡ tin nhắn'}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className={styles.messageAction}
+                              onClick={() => {
+                                setReportTarget(message)
+                                setReportReason('HARASSMENT')
+                                setReportDetails('')
+                                setReportBusy(false)
+                                setReportError('')
+                                setReportNotice('')
+                                reportAttempt.current = undefined
+                              }}
+                              aria-label={`Báo cáo tin nhắn: ${message.content}`}
+                            >
+                              Báo cáo tin nhắn
+                            </button>
+                          ))}
+                        {retractionFailed && (
+                          <span className={styles.retractFailure} role="alert">
+                            {chat.retractError}
+                            <button
+                              type="button"
+                              disabled={retracting}
+                              onClick={() => void chat.retryRetraction()}
+                            >
+                              Thử lại
+                            </button>
+                          </span>
+                        )}
                       </div>
                     )
                   })
@@ -743,6 +786,51 @@ export default function CommunityChatWorkspace({
         groups={groups}
         onOpenChange={setCreateGroupOpen}
       />
+
+      <Dialog
+        open={Boolean(
+          retractTarget &&
+          retractTarget.state === 'ACTIVE' &&
+          retractTarget.conversationId === initialConversationId,
+        )}
+        onOpenChange={(open) => {
+          if (!open && !chat.retractBusyMessageId) setRetractTarget(undefined)
+        }}
+        labelledBy="community-chat-retract-title"
+        describedBy="community-chat-retract-description"
+        className={styles.retractDialog}
+      >
+        <div className={styles.retractPrompt}>
+          <h2 id="community-chat-retract-title">Gỡ tin nhắn cho mọi người?</h2>
+          <p id="community-chat-retract-description">
+            Nội dung sẽ được thay bằng thông báo đã gỡ đối với mọi người trong
+            cuộc trò chuyện.
+          </p>
+          <div className={styles.reportActions}>
+            <button
+              type="button"
+              disabled={Boolean(chat.retractBusyMessageId)}
+              onClick={() => setRetractTarget(undefined)}
+            >
+              Giữ lại
+            </button>
+            <button
+              type="button"
+              disabled={Boolean(chat.retractBusyMessageId)}
+              onClick={() => {
+                if (!retractTarget) return
+                void chat
+                  .retractMessage(retractTarget.messageId)
+                  .then((succeeded) => {
+                    if (succeeded) setRetractTarget(undefined)
+                  })
+              }}
+            >
+              {chat.retractBusyMessageId ? 'Đang gỡ…' : 'Gỡ tin nhắn'}
+            </button>
+          </div>
+        </div>
+      </Dialog>
 
       <Dialog
         open={Boolean(

@@ -19,6 +19,7 @@ const api = vi.hoisted(() => ({
   getChatMessages: vi.fn(),
   advanceChatReadCursor: vi.fn(),
   sendChatMessage: vi.fn(),
+  retractChatMessage: vi.fn(),
   reportChatMessage: vi.fn(),
   decideChatRequest: vi.fn(),
   putChatPrivacy: vi.fn(),
@@ -67,6 +68,7 @@ const message = {
   conversationId,
   clientMessageId: '50000000-0000-4000-8000-000000000001',
   sender: peer,
+  state: 'ACTIVE' as const,
   content: 'Hôm nay bạn thế nào?',
   createdAt: '2026-10-20T08:00:00Z',
 }
@@ -246,6 +248,46 @@ describe('CommunityChatWorkspace', () => {
       expect.stringMatching(/^[\da-f-]{36}$/i),
     )
     expect(screen.getByText(/không đồng nghĩa người nhận/)).toBeVisible()
+  })
+
+  it('confirms own-message retraction and replaces the same cell with a tombstone', async () => {
+    const own = {
+      ...message,
+      sender: conversation.peers[0],
+      content: 'Nội dung riêng cần gỡ.',
+    }
+    api.getChatMessages.mockResolvedValue({ items: [own], nextCursor: null })
+    api.retractChatMessage.mockResolvedValue({
+      messageId: own.messageId,
+      conversationId,
+      clientMessageId: own.clientMessageId,
+      sender: own.sender,
+      state: 'RETRACTED',
+      createdAt: own.createdAt,
+      retractedAt: '2026-10-20T08:01:00Z',
+    })
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace initialConversationId={conversationId} />)
+
+    expect(await screen.findByText('Nội dung riêng cần gỡ.')).toBeVisible()
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Gỡ tin nhắn này cho mọi người',
+      }),
+    )
+    const dialog = screen.getByRole('dialog', {
+      name: 'Gỡ tin nhắn cho mọi người?',
+    })
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Gỡ tin nhắn' }),
+    )
+
+    expect(await screen.findByText('Bạn đã gỡ tin nhắn')).toBeVisible()
+    expect(screen.queryByText('Nội dung riêng cần gỡ.')).not.toBeInTheDocument()
+    expect(api.retractChatMessage).toHaveBeenCalledWith(
+      conversationId,
+      own.messageId,
+    )
   })
 
   it('keeps unread state on the list-only route until a thread is explicitly opened', async () => {
