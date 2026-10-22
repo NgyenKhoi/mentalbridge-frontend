@@ -578,7 +578,7 @@ describe('AdminCommercialReconciliationManager', () => {
     })
 
     vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockReturnValue(
-      discrepanciesPromise as Promise<any>,
+      discrepanciesPromise as ReturnType<typeof browserCommercialReconciliation.getDiscrepancies>,
     )
     vi.mocked(browserCommercialReconciliation.getPayments).mockResolvedValue({
       generatedAt: '2026-10-22T00:00:00Z',

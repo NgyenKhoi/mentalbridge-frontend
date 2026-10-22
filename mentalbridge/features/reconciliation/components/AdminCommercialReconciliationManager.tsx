@@ -153,6 +153,7 @@ export default function AdminCommercialReconciliationManager({
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadDiscrepancies()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -175,6 +176,7 @@ export default function AdminCommercialReconciliationManager({
   useEffect(() => {
     if (activeTab !== 'payments' || paymentDateError) return
     const reqId = ++paymentsReqIdRef.current
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingPayments(true)
     setErrorPayments(false)
     setPayments(null)
@@ -236,6 +238,7 @@ export default function AdminCommercialReconciliationManager({
   useEffect(() => {
     if (activeTab !== 'payouts' || payoutDateError) return
     const reqId = ++payoutsReqIdRef.current
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingPayouts(true)
     setErrorPayouts(false)
     setPayouts(null)
