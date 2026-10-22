@@ -232,14 +232,16 @@ test.describe('MB-641 canonical Emotion action', () => {
       ),
     )
     await expect(
-      page.getByText('Hôm nay bạn chưa ghi nhận cảm xúc.'),
+      page
+        .locator('#emotion-check-in')
+        .getByRole('radio', { name: 'Tốt', exact: true }),
     ).toBeVisible()
     // Playwright visibility does not reject an opacity:0 ancestor. The canonical
     // form must actually be painted after an asynchronous deep-link scroll.
     await expect
       .poll(() =>
         page
-          .locator('.ref-panel-mood')
+          .locator('#emotion-check-in')
           .evaluate((element) => getComputedStyle(element).opacity),
       )
       .toBe('1')

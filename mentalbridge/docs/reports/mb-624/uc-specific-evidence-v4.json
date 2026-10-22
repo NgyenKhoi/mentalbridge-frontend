@@ -10,17 +10,13 @@
         "state": "CODE_READY",
         "source": "mentalbridge/tests/e2e/smoke.spec.ts",
         "scenario": "registration follows the public contract and reaches a verification-pending state",
-        "assertions": [
-          "await route.fulfill({"
-        ]
+        "assertions": ["await route.fulfill({"]
       },
       "mobile": {
         "state": "CODE_READY",
         "source": "mobile/src/auth/identity-session-service.test.ts",
         "scenario": "registers only the USER actor allowed by this story",
-        "assertions": [
-          "expect(api.registerUser).toHaveBeenCalledWith("
-        ]
+        "assertions": ["expect(api.registerUser).toHaveBeenCalledWith("]
       }
     },
     {
@@ -47,9 +43,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/tests/e2e/identity-session.spec.ts",
         "scenario": "logs in a USER, enforces role authorization, and logs out locally and upstream",
-        "assertions": [
-          "await expectProtectedSession(context, page)"
-        ]
+        "assertions": ["await expectProtectedSession(context, page)"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -68,9 +62,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/auth/components/SessionActions.test.tsx",
         "scenario": "prevents repeated logout actions while revocation is pending",
-        "assertions": [
-          "mocks.terminate.mockReturnValue("
-        ]
+        "assertions": ["mocks.terminate.mockReturnValue("]
       },
       "mobile": {
         "state": "CODE_READY",
@@ -93,9 +85,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/tests/e2e/smoke.spec.ts",
         "scenario": "password reset removes its challenge and returns to a fresh login",
-        "assertions": [
-          "await expect(page).toHaveURL(/\\/reset-password$/)"
-        ]
+        "assertions": ["await expect(page).toHaveURL(/\\/reset-password$/)"]
       }
     },
     {
@@ -110,9 +100,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/tests/e2e/security-degradation.spec.ts",
         "scenario": "Care service outage on anonymous PHQ-9 shows explicit unavailable without inventing questions",
-        "assertions": [
-          "void route.fulfill({"
-        ]
+        "assertions": ["void route.fulfill({"]
       }
     },
     {
@@ -122,17 +110,13 @@
         "state": "CODE_READY",
         "source": "mentalbridge/tests/e2e/identity-session.spec.ts",
         "scenario": "routes a SPECIALIST from the confirmed backend role and logs out all sessions",
-        "assertions": [
-          "await expectProtectedSession(context, page)"
-        ]
+        "assertions": ["await expectProtectedSession(context, page)"]
       },
       "mobile": {
         "state": "CODE_READY",
         "source": "mobile/src/auth/identity-session-service.test.ts",
         "scenario": "signs in the Identity-confirmed active, verified SPECIALIST without client role selection",
-        "assertions": [
-          "api.login.mockResolvedValue(tokenPair)"
-        ]
+        "assertions": ["api.login.mockResolvedValue(tokenPair)"]
       }
     },
     {
@@ -271,10 +255,7 @@
         "state": "E2E_AUTHORED_NOT_RUN",
         "source": "mobile/.maestro/mb-627-journal.yaml",
         "scenario": "MB-627 private Journal to explicit authoritative AI safe outcome",
-        "assertions": [
-          "id: 'journal-save'",
-          "assertVisible: 'Đã lưu nhật ký.'"
-        ]
+        "assertions": ["id: 'journal-save'", "assertVisible: 'Đã lưu nhật ký.'"]
       }
     },
     {
@@ -293,10 +274,7 @@
         "state": "E2E_AUTHORED_NOT_RUN",
         "source": "mobile/.maestro/mb-627-journal.yaml",
         "scenario": "MB-627 private Journal to explicit authoritative AI safe outcome",
-        "assertions": [
-          "id: 'journal-entry-.*'",
-          "tapOn: 'Viết nhật ký'"
-        ]
+        "assertions": ["id: 'journal-entry-.*'", "tapOn: 'Viết nhật ký'"]
       }
     },
     {
@@ -337,9 +315,7 @@
         "state": "CODE_READY",
         "source": "mobile/src/journal/JournalScreen.test.tsx",
         "scenario": "edits a loaded entry with its exact revision and invalidates old AI",
-        "assertions": [
-          "revise: jest.fn().mockResolvedValue({"
-        ]
+        "assertions": ["revise: jest.fn().mockResolvedValue({"]
       }
     },
     {
@@ -370,9 +346,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/assessment/components/AssessmentFlow.test.tsx",
         "scenario": "submits only versioned answers and renders the server-owned result",
-        "assertions": [
-          "mockServer.use("
-        ]
+        "assertions": ["mockServer.use("]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -391,9 +365,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/assessment/components/AssessmentFlow.test.tsx",
         "scenario": "completes authenticated GAD-7 without inventing a safety policy",
-        "assertions": [
-          "mockServer.use("
-        ]
+        "assertions": ["mockServer.use("]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -412,10 +384,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/assessment/components/ScreeningEpisodeHistory.test.tsx",
         "scenario": "shows one card per exact saved pair and links to its meaning and persisted guide",
-        "assertions": [
-          "name: /Xem kết quả/",
-          "/assessments/results/"
-        ]
+        "assertions": ["name: /Xem kết quả/", "/assessments/results/"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -443,9 +412,7 @@
         "state": "CODE_READY",
         "source": "mobile/src/assessment/AssessmentJourneyScreen.test.tsx",
         "scenario": "reopens an owned result with its exact immutable questionnaire definition",
-        "assertions": [
-          "listAssessments: jest.fn().mockResolvedValue({"
-        ]
+        "assertions": ["listAssessments: jest.fn().mockResolvedValue({"]
       }
     },
     {
@@ -476,10 +443,7 @@
         "state": "E2E_AUTHORED_NOT_RUN",
         "source": "mobile/.maestro/mb-627-journal.yaml",
         "scenario": "MB-627 private Journal to explicit authoritative AI safe outcome",
-        "assertions": [
-          "id: 'journal-ai-request'",
-          "id: 'journal-ai-consent'"
-        ]
+        "assertions": ["id: 'journal-ai-request'", "id: 'journal-ai-consent'"]
       }
     },
     {
@@ -511,17 +475,13 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/journal/reflection/JournalReflection.test.tsx",
         "scenario": "shows failure and starts a manual retry without changing the journal",
-        "assertions": [
-          "vi.spyOn(crypto, 'randomUUID').mockReturnValue("
-        ]
+        "assertions": ["vi.spyOn(crypto, 'randomUUID').mockReturnValue("]
       },
       "mobile": {
         "state": "CODE_READY",
         "source": "mobile/src/journal/JournalAnalysisPanel.test.tsx",
         "scenario": "reconciles an ambiguous submission with the stored same key only on explicit retry",
-        "assertions": [
-          ".mocked(persistence.read)"
-        ]
+        "assertions": [".mocked(persistence.read)"]
       }
     },
     {
@@ -681,10 +641,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
         "scenario": "allows Free users to browse real details and slots without booking",
-        "assertions": [
-          "name: 'Chuyên gia An'",
-          "name: 'Hồ sơ'"
-        ]
+        "assertions": ["name: 'Chuyên gia An'", "name: 'Hồ sơ'"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -720,19 +677,13 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
         "scenario": "applies the selected support-area and language filters to discovery",
-        "assertions": [
-          "supportArea: 'ANXIETY_SYMPTOMS'",
-          "language: 'vi'"
-        ]
+        "assertions": ["supportArea: 'ANXIETY_SYMPTOMS'", "language: 'vi'"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
         "source": "mobile/.maestro/mb-629-discovery.yaml",
         "scenario": "MB-629 real approved discovery profile and exact slot handoff",
-        "assertions": [
-          "tapOn: 'Lo âu'",
-          "tapOn: 'Tiếng Việt'"
-        ]
+        "assertions": ["tapOn: 'Lo âu'", "tapOn: 'Tiếng Việt'"]
       }
     },
     {
@@ -742,10 +693,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
         "scenario": "allows Free users to browse real details and slots without booking",
-        "assertions": [
-          "name: 'Hồ sơ'",
-          "findByText(item.bio)"
-        ]
+        "assertions": ["name: 'Hồ sơ'", "findByText(item.bio)"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -792,9 +740,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
         "scenario": "renders server prices and exposes only MoMo purchase actions",
-        "assertions": [
-          "screen.findByText(/1\\.390\\.000\\s*₫/)"
-        ]
+        "assertions": ["screen.findByText(/1\\.390\\.000\\s*₫/)"]
       },
       "mobile": {
         "state": "NONE",
@@ -842,9 +788,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
         "scenario": "reuses the same command key after an ambiguous checkout failure",
-        "assertions": [
-          "expect(calls[1]).toEqual(calls[0])"
-        ]
+        "assertions": ["expect(calls[1]).toEqual(calls[0])"]
       },
       "mobile": {
         "state": "NONE",
@@ -933,10 +877,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/service-credits/components/ServiceCreditsPanel.test.tsx",
         "scenario": "shows the provider balance and labels demo provenance truthfully",
-        "assertions": [
-          "name: 'Lịch sử lượt tư vấn'",
-          "name: '2/2 lịch'"
-        ]
+        "assertions": ["name: 'Lịch sử lượt tư vấn'", "name: '2/2 lịch'"]
       },
       "mobile": {
         "state": "NONE",
@@ -972,18 +913,13 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/specialist-profile/components/SpecialistProfileWorkspace.test.tsx",
         "scenario": "loads, saves, and explicitly submits the real profile flow",
-        "assertions": [
-          "name: 'Lưu thay đổi'",
-          "api.save).toHaveBeenCalledWith"
-        ]
+        "assertions": ["name: 'Lưu thay đổi'", "api.save).toHaveBeenCalledWith"]
       },
       "mobile": {
         "state": "CODE_READY",
         "source": "mobile/src/specialist/SpecialistProfileScreen.test.tsx",
         "scenario": "updates a draft with its authoritative version",
-        "assertions": [
-          "getProfile: jest.fn().mockResolvedValue(draft),"
-        ]
+        "assertions": ["getProfile: jest.fn().mockResolvedValue(draft),"]
       }
     },
     {
@@ -1029,9 +965,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/specialist-availability/components/SpecialistAvailabilityManager.test.tsx",
         "scenario": "publishes an exact 60-minute UTC slot using a stable idempotency key",
-        "assertions": [
-          "await screen.findByText('Chat trong ứng dụng')"
-        ]
+        "assertions": ["await screen.findByText('Chat trong ứng dụng')"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -1108,9 +1042,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/specialist-availability/components/SpecialistAvailabilityManager.test.tsx",
         "scenario": "withdraws the current persisted version and keeps the tombstone visible",
-        "assertions": [
-          "await user.click("
-        ]
+        "assertions": ["await user.click("]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -1129,10 +1061,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
         "scenario": "opens directly to slots and requests the exact selected time after confirmation",
-        "assertions": [
-          "findByRole('radio')",
-          "item.selectableSlots[0].id"
-        ]
+        "assertions": ["findByRole('radio')", "item.selectableSlots[0].id"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -1238,9 +1167,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/appointments/components/SpecialistAppointmentDecisionPanel.test.tsx",
         "scenario": "accepts with the current version and updates the persisted outcome",
-        "assertions": [
-          "api.decide.mockResolvedValue({"
-        ]
+        "assertions": ["api.decide.mockResolvedValue({"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -1259,17 +1186,13 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/appointments/components/SpecialistAppointmentDecisionPanel.test.tsx",
         "scenario": "rejects only after confirmation and shows the released credit",
-        "assertions": [
-          "api.decide.mockResolvedValue({"
-        ]
+        "assertions": ["api.decide.mockResolvedValue({"]
       },
       "mobile": {
         "state": "CODE_READY",
         "source": "mobile/src/specialist-appointments/SpecialistAppointmentsScreen.test.tsx",
         "scenario": "handles %s success and reconciles authority",
-        "assertions": [
-          ".mockResolvedValueOnce(makeAppointmentList())"
-        ]
+        "assertions": [".mockResolvedValueOnce(makeAppointmentList())"]
       }
     },
     {
@@ -1279,17 +1202,13 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/appointments/components/AppointmentRequestPanel.test.tsx",
         "scenario": "cancels with the exact version and renders the persisted audit outcome after reload",
-        "assertions": [
-          "appointmentClient.slots.mockResolvedValue({"
-        ]
+        "assertions": ["appointmentClient.slots.mockResolvedValue({"]
       },
       "mobile": {
         "state": "CODE_READY",
         "source": "mobile/src/appointments/AppointmentsScreen.test.tsx",
         "scenario": "explicitly confirms cancellation and renders only the server settlement",
-        "assertions": [
-          "expect(service.api.cancel).not.toHaveBeenCalled()"
-        ]
+        "assertions": ["expect(service.api.cancel).not.toHaveBeenCalled()"]
       }
     },
     {
@@ -1313,9 +1232,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/appointments/components/AppointmentRequestPanel.test.tsx",
         "scenario": "carries the old appointment id and version through a replacement request",
-        "assertions": [
-          "appointmentClient.slots.mockResolvedValue({"
-        ]
+        "assertions": ["appointmentClient.slots.mockResolvedValue({"]
       },
       "mobile": {
         "state": "CODE_READY",
@@ -1361,9 +1278,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/appointments/model/appointment-view.test.ts",
         "scenario": "orders actionable appointments first and history from newest to oldest",
-        "assertions": [
-          "id: '55555555-5555-4555-8555-555555555555',"
-        ]
+        "assertions": ["id: '55555555-5555-4555-8555-555555555555',"]
       },
       "mobile": {
         "state": "CODE_READY",
@@ -1398,9 +1313,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/appointments/components/AppointmentMessagesWorkspace.test.tsx",
         "scenario": "loads only appointment conversations assigned to the specialist",
-        "assertions": [
-          "id: '55555555-5555-4555-8555-555555555555',"
-        ]
+        "assertions": ["id: '55555555-5555-4555-8555-555555555555',"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -1419,9 +1332,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/appointments/components/AppointmentMessagesWorkspace.test.tsx",
         "scenario": "shows specialist names to the user and keeps selection in the URL",
-        "assertions": [
-          "id: '77777777-7777-4777-8777-777777777777',"
-        ]
+        "assertions": ["id: '77777777-7777-4777-8777-777777777777',"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -1440,18 +1351,13 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/appointments/components/AppointmentChatPanel.test.tsx",
         "scenario": "serializes pending sends and clears only after acknowledgment",
-        "assertions": [
-          "api.chatEligibility.mockResolvedValue({"
-        ]
+        "assertions": ["api.chatEligibility.mockResolvedValue({"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
         "source": "mobile/.maestro/mb-631-chat.yaml",
         "scenario": "MB-631 real eligible appointment and durable chat",
-        "assertions": [
-          "id: chat-send",
-          "MB631 synthetic user message"
-        ]
+        "assertions": ["id: chat-send", "MB631 synthetic user message"]
       }
     },
     {
@@ -1535,9 +1441,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/appointments/components/AppointmentRatingDialog.test.tsx",
         "scenario": "creates a bounded rating for an unrated completed appointment",
-        "assertions": [
-          "client.rating.mockRejectedValue("
-        ]
+        "assertions": ["client.rating.mockRejectedValue("]
       },
       "mobile": {
         "state": "NONE",
@@ -1579,9 +1483,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/appointments/components/AppointmentRatingDialog.test.tsx",
         "scenario": "prefills and safely edits the current rating version",
-        "assertions": [
-          "client.rating.mockResolvedValue({"
-        ]
+        "assertions": ["client.rating.mockResolvedValue({"]
       },
       "mobile": {
         "state": "NONE",
@@ -1632,9 +1534,7 @@
         "state": "CODE_READY",
         "source": "mobile/src/support-plan/support-plan-action-api.test.ts",
         "scenario": "creates a separate native draft and activates with strong validators, preserving legacy model",
-        "assertions": [
-          ").toBe('NATIVE_V3')"
-        ]
+        "assertions": [").toBe('NATIVE_V3')"]
       }
     },
     {
@@ -1644,9 +1544,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/support-plan/workspace/SupportPlanWorkspace.test.tsx",
         "scenario": "shows the plan grouped by focus with plain cadence",
-        "assertions": [
-          "screen.getByText('Mỗi ngày · khoảng 5 phút')"
-        ]
+        "assertions": ["screen.getByText('Mỗi ngày · khoảng 5 phút')"]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",
@@ -1665,17 +1563,13 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/support-plan/components/SupportPlanScheduleEditor.test.tsx",
         "scenario": "reviews a persisted default and sends an explicit bounded schedule change",
-        "assertions": [
-          "const onSave = vi.fn().mockResolvedValue(undefined)"
-        ]
+        "assertions": ["const onSave = vi.fn().mockResolvedValue(undefined)"]
       },
       "mobile": {
         "state": "CODE_READY",
         "source": "mobile/src/support-plan/SupportPlanScheduleEditor.test.tsx",
         "scenario": "reviews and saves the same bounded schedule fields as web",
-        "assertions": [
-          "const onSave = jest.fn().mockResolvedValue(undefined)"
-        ]
+        "assertions": ["const onSave = jest.fn().mockResolvedValue(undefined)"]
       }
     },
     {
@@ -1732,9 +1626,7 @@
         "state": "CODE_READY",
         "source": "mobile/src/support-plan/SupportPlanActionWorkspace.test.tsx",
         "scenario": "only replaces a current v2 plan after authoritative reassessment comparison and explicit choice",
-        "assertions": [
-          "owner.reviewReplacement.mockResolvedValue({"
-        ]
+        "assertions": ["owner.reviewReplacement.mockResolvedValue({"]
       }
     },
     {
@@ -1808,11 +1700,12 @@
       "sourceTitle": "View Emotional Dashboard",
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/emotion-check-in/EmotionProgress.test.tsx",
-        "scenario": "renders authoritative factual streaks, rolling counts, and detail box with Option D layout",
+        "source": "mentalbridge/features/home/HomeEmotionSection.test.tsx",
+        "scenario": "renders real seven-day faces and yesterday copy without private context",
         "assertions": [
-          "screen.findByText('Chuỗi hiện tại')",
-          "screen.getByText('4/7')"
+          "within(days).getAllByRole('listitem')).toHaveLength(7)",
+          "within(days).getAllByLabelText(/Chưa ghi nhận/)).toHaveLength(6)",
+          "screen.queryByText('private context must not appear')"
         ]
       },
       "mobile": {
@@ -1830,11 +1723,12 @@
       "sourceTitle": "View Mood / Emotion Trend",
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/emotion-check-in/EmotionProgress.test.tsx",
-        "scenario": "renders authoritative factual streaks, rolling counts, and detail box with Option D layout",
+        "source": "mentalbridge/features/home/HomeEmotionSection.test.tsx",
+        "scenario": "refreshes today from persisted data when a check-in changes",
         "assertions": [
-          "screen.getByText('Cường độ 4/5')",
-          "list.mockResolvedValue"
+          "screen.getByLabelText('2026-10-22 · Hôm nay: Chưa ghi nhận')",
+          "window.dispatchEvent(new CustomEvent('mb:emotion-check-in-updated'))",
+          "await screen.findByLabelText('2026-10-22 · Hôm nay: Tốt')"
         ]
       },
       "mobile": {
@@ -1895,9 +1789,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/components/SpecialistDashboardManager.test.tsx",
         "scenario": "keeps the command dashboard layout and shows the compact real rating",
-        "assertions": [
-          "await screen.findByText('Chào bạn, Chuyên gia An'),"
-        ]
+        "assertions": ["await screen.findByText('Chào bạn, Chuyên gia An'),"]
       }
     },
     {
@@ -1993,10 +1885,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/components/SpecialistEarningsManager.test.tsx",
         "scenario": "renders an unknown payout in history without claiming success or failure",
-        "assertions": [
-          "payouts: [",
-          "screen.findByText('Chưa rõ kết quả')"
-        ]
+        "assertions": ["payouts: [", "screen.findByText('Chưa rõ kết quả')"]
       },
       "mobile": {
         "state": "NONE",
@@ -2032,10 +1921,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/auth/api/browser-auth.test.ts",
         "scenario": "logs in an ADMIN and resolves the protected admin workspace from the authoritative session",
-        "assertions": [
-          "roles: ['ADMIN']",
-          "path: '/admin/dashboard'"
-        ]
+        "assertions": ["roles: ['ADMIN']", "path: '/admin/dashboard'"]
       }
     },
     {
@@ -2063,9 +1949,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/auth/components/AdminAccountManager.test.tsx",
         "scenario": "searches by status, role and exact email",
-        "assertions": [
-          "await screen.findByText('member@example.com')"
-        ]
+        "assertions": ["await screen.findByText('member@example.com')"]
       }
     },
     {
@@ -2129,9 +2013,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/specialist-profile/components/AdminSpecialistReviewSection.test.tsx",
         "scenario": "loads the selected lifecycle queue instead of only pending profiles",
-        "assertions": [
-          "api.profiles.mockResolvedValue({"
-        ]
+        "assertions": ["api.profiles.mockResolvedValue({"]
       }
     },
     {
@@ -2195,9 +2077,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/specialist-profile/components/AdminSpecialistReviewSection.test.tsx",
         "scenario": "suspends an approved specialist and reports exact committed outcomes",
-        "assertions": [
-          "api.profiles.mockImplementation((status: string) =>"
-        ]
+        "assertions": ["api.profiles.mockImplementation((status: string) =>"]
       }
     },
     {
