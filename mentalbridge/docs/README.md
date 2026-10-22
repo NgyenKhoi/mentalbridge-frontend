@@ -48,6 +48,7 @@ không khôi phục chúng như coding standard hiện hành.
 
 Story-specific delivery evidence:
 
+- [MB-621 authoritative admin console closure](mb-621-admin-console.md)
 - [MB-624 cross-domain UC traceability rebaseline](reports/mb-624/README.md)
 - [MB-384 Web video-call continuity and focused controls](mb-384-video-call-continuity.md)
 - [MB-623 authoritative consultation journey closure](mb-623-consultation-journey.md)
