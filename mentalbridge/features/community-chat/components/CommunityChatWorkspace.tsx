@@ -170,6 +170,7 @@ export default function CommunityChatWorkspace({
     conversation: chat.conversation,
     viewerProfileId: chat.viewerProfileId,
     reloadOverview: chat.reload,
+    onConversationUpdated: chat.updateConversation,
   })
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
   const [reportTarget, setReportTarget] = useState<ChatMessage>()

@@ -529,6 +529,11 @@ export function useCommunityChatWorkspace({
     requests,
     privacy,
     conversation,
+    updateConversation: (updated: ChatConversation) => {
+      setConversation((current) =>
+        current?.conversationId === updated.conversationId ? updated : current,
+      )
+    },
     messages,
     peer,
     viewerProfileId,
