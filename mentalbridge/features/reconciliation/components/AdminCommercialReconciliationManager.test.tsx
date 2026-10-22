@@ -560,3 +560,61 @@ describe('AdminCommercialReconciliationManager', () => {
     })
   })
 })
+
+  it('prevents request counter collision between discrepancies and payments', async () => {
+    const slowDiscrepancies = {
+      generatedAt: '2026-10-22T00:00:00Z',
+      totalDiscrepancies: 1,
+      webhooks: [],
+      payouts: [],
+      heldEarnings: [],
+      disputes: [],
+    }
+
+    // Simulate slow discrepancies load and fast payment load to test counter isolation
+    let discrepanciesResolve: (value: unknown) => void
+    const discrepanciesPromise = new Promise((resolve) => {
+      discrepanciesResolve = resolve
+    })
+
+    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockReturnValue(
+      discrepanciesPromise as Promise<any>,
+    )
+    vi.mocked(browserCommercialReconciliation.getPayments).mockResolvedValue({
+      generatedAt: '2026-10-22T00:00:00Z',
+      count: 1,
+      items: [
+        {
+          paymentId: '62200000-0000-4000-8000-000000000001',
+          subscriptionId: '62200000-0000-4000-8000-000000000002',
+          planVersionId: '62200000-0000-4000-8000-000000000099',
+          planCode: 'PLUS' as const,
+          pricingPolicyVersion: 'sandbox-full-price-v1',
+          purpose: 'PURCHASE' as const,
+          provider: 'FAKE' as const,
+          status: 'SUCCEEDED' as const,
+          amountVnd: 500000,
+          currency: 'VND' as const,
+          createdAt: '2026-10-20T10:00:00Z',
+          paidAt: '2026-10-20T10:00:01Z',
+          failedAt: null,
+        },
+      ],
+    })
+
+    render(<AdminCommercialReconciliationManager />)
+
+    // Switch to payments tab immediately (before discrepancies load)
+    fireEvent.click(screen.getByRole('tab', { name: 'Giao dịch thanh toán' }))
+
+    // Wait for payments to render
+    expect(await screen.findByText('1 giao dịch được ghi nhận')).toBeInTheDocument()
+
+    // Now resolve discrepancies
+    discrepanciesResolve!(slowDiscrepancies)
+
+    // Verify payments remain visible (not overwritten by discrepancies using same counter)
+    await waitFor(() => {
+      expect(screen.getByText('1 giao dịch được ghi nhận')).toBeInTheDocument()
+    })
+  })

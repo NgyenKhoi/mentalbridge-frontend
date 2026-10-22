@@ -2408,6 +2408,7 @@ export interface components {
             queryIdentifierType: string;
             queryIdentifierValue: string;
             found: boolean;
+            /** @description True when at least one entity category exceeded the fetch limit */
             truncated: boolean;
             subscription?: {
                 /** Format: uuid */
@@ -5273,6 +5274,7 @@ export interface operations {
                 limit?: number;
                 orderId?: string;
                 idempotencyKey?: string;
+                /** @description Search payments by MoMo orderId or requestId */
                 momoRef?: string;
                 offset?: number;
             };

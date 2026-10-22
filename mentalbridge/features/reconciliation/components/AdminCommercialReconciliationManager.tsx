@@ -89,6 +89,7 @@ export default function AdminCommercialReconciliationManager({
 
   // Request sequence trackers to prevent out-of-order race conditions
   const traceReqIdRef = useRef(0)
+  const discrepanciesReqIdRef = useRef(0)
   const paymentsReqIdRef = useRef(0)
   const payoutsReqIdRef = useRef(0)
 
@@ -134,16 +135,16 @@ export default function AdminCommercialReconciliationManager({
   const loadDiscrepancies = useCallback(() => {
     setLoadingDiscrepancies(true)
     setErrorDiscrepancies(false)
-    const reqId = ++paymentsReqIdRef.current
+    const reqId = ++discrepanciesReqIdRef.current
     browserCommercialReconciliation.getDiscrepancies().then(
       (data) => {
-        if (paymentsReqIdRef.current === reqId) {
+        if (discrepanciesReqIdRef.current === reqId) {
           setDiscrepancies(data)
           setLoadingDiscrepancies(false)
         }
       },
       () => {
-        if (paymentsReqIdRef.current === reqId) {
+        if (discrepanciesReqIdRef.current === reqId) {
           setErrorDiscrepancies(true)
           setLoadingDiscrepancies(false)
         }
