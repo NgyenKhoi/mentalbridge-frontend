@@ -96,7 +96,7 @@ export default function AdminCommercialReconciliationManager({
   const [payments, setPayments] = useState<AdminPaymentList | null>(null)
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('ALL')
   const [paymentOrderIdFilter, setPaymentOrderIdFilter] = useState('')
-  const [paymentCorrelationFilter, setPaymentCorrelationFilter] = useState('')
+  const [paymentIdempotencyFilter, setPaymentIdempotencyFilter] = useState('')
   const [paymentFromDate, setPaymentFromDate] = useState('')
   const [paymentToDate, setPaymentToDate] = useState('')
   const [paymentPage, setPaymentPage] = useState(1)
@@ -106,7 +106,7 @@ export default function AdminCommercialReconciliationManager({
   // Payouts browse state
   const [payouts, setPayouts] = useState<AdminPayoutList | null>(null)
   const [payoutStatusFilter, setPayoutStatusFilter] = useState('ALL')
-  const [payoutCorrelationFilter, setPayoutCorrelationFilter] = useState('')
+  const [payoutIdempotencyFilter, setPayoutIdempotencyFilter] = useState('')
   const [payoutFromDate, setPayoutFromDate] = useState('')
   const [payoutToDate, setPayoutToDate] = useState('')
   const [payoutPage, setPayoutPage] = useState(1)
@@ -130,170 +130,154 @@ export default function AdminCommercialReconciliationManager({
       ? 'Từ ngày không thể lớn hơn đến ngày'
       : null
 
-  // Load discrepancies
-  const loadDiscrepancies = useCallback(async () => {
+  // Load discrepancies — single lifecycle, no duplicated fetch
+  const loadDiscrepancies = useCallback(() => {
     setLoadingDiscrepancies(true)
     setErrorDiscrepancies(false)
-    try {
-      const data = await browserCommercialReconciliation.getDiscrepancies()
-      setDiscrepancies(data)
-    } catch {
-      setErrorDiscrepancies(true)
-    } finally {
-      setLoadingDiscrepancies(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    let active = true
+    const reqId = ++paymentsReqIdRef.current
     browserCommercialReconciliation.getDiscrepancies().then(
       (data) => {
-        if (active) {
+        if (paymentsReqIdRef.current === reqId) {
           setDiscrepancies(data)
           setLoadingDiscrepancies(false)
         }
       },
       () => {
-        if (active) {
+        if (paymentsReqIdRef.current === reqId) {
           setErrorDiscrepancies(true)
           setLoadingDiscrepancies(false)
         }
       },
     )
-    return () => {
-      active = false
-    }
   }, [])
 
-  // Load payments on manual retry
-  const loadPayments = useCallback(async () => {
-    if (paymentDateError) return
-    const reqId = ++paymentsReqIdRef.current
-    setLoadingPayments(true)
-    setErrorPayments(false)
-    try {
-      const query: Record<string, string> = {
-        limit: '50',
-        offset: String((paymentPage - 1) * 50),
-      }
-      if (paymentStatusFilter !== 'ALL') query.status = paymentStatusFilter
-      if (paymentOrderIdFilter.trim()) query.orderId = paymentOrderIdFilter.trim()
-      if (paymentCorrelationFilter.trim()) query.correlationId = paymentCorrelationFilter.trim()
-      if (paymentFromDate) query.from = `${paymentFromDate}T00:00:00Z`
-      if (paymentToDate) query.to = `${paymentToDate}T23:59:59Z`
-
-      const data = await browserCommercialReconciliation.getPayments(query)
-      if (reqId === paymentsReqIdRef.current) {
-        setPayments(data)
-      }
-    } catch {
-      if (reqId === paymentsReqIdRef.current) {
-        setErrorPayments(true)
-        setPayments(null)
-      }
-    } finally {
-      if (reqId === paymentsReqIdRef.current) {
-        setLoadingPayments(false)
-      }
-    }
-  }, [paymentStatusFilter, paymentOrderIdFilter, paymentCorrelationFilter, paymentFromDate, paymentToDate, paymentPage, paymentDateError])
-
   useEffect(() => {
-    if (activeTab !== 'payments' || paymentDateError) return
-    let active = true
+    loadDiscrepancies()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Build payments query from current filter state
+  const buildPaymentsQuery = useCallback((): Record<string, string> => {
     const query: Record<string, string> = {
       limit: '50',
       offset: String((paymentPage - 1) * 50),
     }
     if (paymentStatusFilter !== 'ALL') query.status = paymentStatusFilter
     if (paymentOrderIdFilter.trim()) query.orderId = paymentOrderIdFilter.trim()
-    if (paymentCorrelationFilter.trim()) query.correlationId = paymentCorrelationFilter.trim()
+    if (paymentIdempotencyFilter.trim()) query.idempotencyKey = paymentIdempotencyFilter.trim()
     if (paymentFromDate) query.from = `${paymentFromDate}T00:00:00Z`
     if (paymentToDate) query.to = `${paymentToDate}T23:59:59Z`
+    return query
+  }, [paymentStatusFilter, paymentOrderIdFilter, paymentIdempotencyFilter, paymentFromDate, paymentToDate, paymentPage])
 
+  // Single payments lifecycle: auto-fetch on filter/page change when tab active
+  useEffect(() => {
+    if (activeTab !== 'payments' || paymentDateError) return
+    const reqId = ++paymentsReqIdRef.current
+    setLoadingPayments(true)
+    setErrorPayments(false)
+    setPayments(null)
+    const query = buildPaymentsQuery()
     browserCommercialReconciliation.getPayments(query).then(
       (data) => {
-        if (active) {
+        if (paymentsReqIdRef.current === reqId) {
           setPayments(data)
           setLoadingPayments(false)
         }
       },
       () => {
-        if (active) {
+        if (paymentsReqIdRef.current === reqId) {
           setErrorPayments(true)
-          setPayments(null)
           setLoadingPayments(false)
         }
       },
     )
-    return () => {
-      active = false
-    }
-  }, [activeTab, paymentStatusFilter, paymentOrderIdFilter, paymentCorrelationFilter, paymentFromDate, paymentToDate, paymentPage, paymentDateError])
+  }, [activeTab, buildPaymentsQuery, paymentDateError])
 
-  // Load payouts on manual retry
-  const loadPayouts = useCallback(async () => {
-    if (payoutDateError) return
-    const reqId = ++payoutsReqIdRef.current
-    setLoadingPayouts(true)
-    setErrorPayouts(false)
-    try {
-      const query: Record<string, string> = {
-        limit: '50',
-        offset: String((payoutPage - 1) * 50),
-      }
-      if (payoutStatusFilter !== 'ALL') query.status = payoutStatusFilter
-      if (payoutCorrelationFilter.trim()) query.correlationId = payoutCorrelationFilter.trim()
-      if (payoutFromDate) query.from = `${payoutFromDate}T00:00:00Z`
-      if (payoutToDate) query.to = `${payoutToDate}T23:59:59Z`
+  // Manual retry for payments resets page-local counter and re-triggers the effect
+  const loadPayments = useCallback(() => {
+    if (paymentDateError) return
+    const reqId = ++paymentsReqIdRef.current
+    setLoadingPayments(true)
+    setErrorPayments(false)
+    setPayments(null)
+    const query = buildPaymentsQuery()
+    browserCommercialReconciliation.getPayments(query).then(
+      (data) => {
+        if (paymentsReqIdRef.current === reqId) {
+          setPayments(data)
+          setLoadingPayments(false)
+        }
+      },
+      () => {
+        if (paymentsReqIdRef.current === reqId) {
+          setErrorPayments(true)
+          setLoadingPayments(false)
+        }
+      },
+    )
+  }, [buildPaymentsQuery, paymentDateError])
 
-      const data = await browserCommercialReconciliation.getPayouts(query)
-      if (reqId === payoutsReqIdRef.current) {
-        setPayouts(data)
-      }
-    } catch {
-      if (reqId === payoutsReqIdRef.current) {
-        setErrorPayouts(true)
-        setPayouts(null)
-      }
-    } finally {
-      if (reqId === payoutsReqIdRef.current) {
-        setLoadingPayouts(false)
-      }
-    }
-  }, [payoutStatusFilter, payoutCorrelationFilter, payoutFromDate, payoutToDate, payoutPage, payoutDateError])
-
-  useEffect(() => {
-    if (activeTab !== 'payouts' || payoutDateError) return
-    let active = true
+  // Build payouts query from current filter state
+  const buildPayoutsQuery = useCallback((): Record<string, string> => {
     const query: Record<string, string> = {
       limit: '50',
       offset: String((payoutPage - 1) * 50),
     }
     if (payoutStatusFilter !== 'ALL') query.status = payoutStatusFilter
-    if (payoutCorrelationFilter.trim()) query.correlationId = payoutCorrelationFilter.trim()
+    if (payoutIdempotencyFilter.trim()) query.idempotencyKey = payoutIdempotencyFilter.trim()
     if (payoutFromDate) query.from = `${payoutFromDate}T00:00:00Z`
     if (payoutToDate) query.to = `${payoutToDate}T23:59:59Z`
+    return query
+  }, [payoutStatusFilter, payoutIdempotencyFilter, payoutFromDate, payoutToDate, payoutPage])
 
+  // Single payouts lifecycle: auto-fetch on filter/page change when tab active
+  useEffect(() => {
+    if (activeTab !== 'payouts' || payoutDateError) return
+    const reqId = ++payoutsReqIdRef.current
+    setLoadingPayouts(true)
+    setErrorPayouts(false)
+    setPayouts(null)
+    const query = buildPayoutsQuery()
     browserCommercialReconciliation.getPayouts(query).then(
       (data) => {
-        if (active) {
+        if (payoutsReqIdRef.current === reqId) {
           setPayouts(data)
           setLoadingPayouts(false)
         }
       },
       () => {
-        if (active) {
+        if (payoutsReqIdRef.current === reqId) {
           setErrorPayouts(true)
-          setPayouts(null)
           setLoadingPayouts(false)
         }
       },
     )
-    return () => {
-      active = false
-    }
-  }, [activeTab, payoutStatusFilter, payoutCorrelationFilter, payoutFromDate, payoutToDate, payoutPage, payoutDateError])
+  }, [activeTab, buildPayoutsQuery, payoutDateError])
+
+  // Manual retry for payouts
+  const loadPayouts = useCallback(() => {
+    if (payoutDateError) return
+    const reqId = ++payoutsReqIdRef.current
+    setLoadingPayouts(true)
+    setErrorPayouts(false)
+    setPayouts(null)
+    const query = buildPayoutsQuery()
+    browserCommercialReconciliation.getPayouts(query).then(
+      (data) => {
+        if (payoutsReqIdRef.current === reqId) {
+          setPayouts(data)
+          setLoadingPayouts(false)
+        }
+      },
+      () => {
+        if (payoutsReqIdRef.current === reqId) {
+          setErrorPayouts(true)
+          setLoadingPayouts(false)
+        }
+      },
+    )
+  }, [buildPayoutsQuery, payoutDateError])
 
   // Handle provenance trace
   async function handleTrace(overrideType?: string, overrideValue?: string) {
@@ -372,9 +356,9 @@ export default function AdminCommercialReconciliationManager({
             className="acr-btn"
             disabled={loadingDiscrepancies}
             onClick={() => {
-              void loadDiscrepancies()
-              if (activeTab === 'payments') void loadPayments()
-              if (activeTab === 'payouts') void loadPayouts()
+              loadDiscrepancies()
+              if (activeTab === 'payments') loadPayments()
+              if (activeTab === 'payouts') loadPayouts()
               onNotice?.('Đang làm mới dữ liệu đối soát.')
             }}
           >
@@ -698,6 +682,13 @@ export default function AdminCommercialReconciliationManager({
                   </div>
                 ) : (
                   <div className="acr-timeline">
+                    {provenance.truncated && (
+                      <div className="acr-stage-box" style={{ marginBottom: '16px', background: '#fffbeb', borderColor: '#f59e0b' }}>
+                        <p style={{ margin: 0, fontSize: '0.875rem', color: '#92400e' }}>
+                          Một số danh sách đã đạt giới hạn hiển thị (100 bản ghi). Có thể còn dữ liệu chưa được liệt kê.
+                        </p>
+                      </div>
+                    )}
                     {/* Stage 1: Payments */}
                     <div className="acr-stage">
                       <h3>1. Thanh toán (Payment Transactions)</h3>
@@ -881,15 +872,15 @@ export default function AdminCommercialReconciliationManager({
                 />
               </label>
               <label>
-                Mã đối soát / Idempotency:{' '}
+                Mã idempotency:{' '}
                 <input
                   type="text"
                   className="acr-input"
                   style={{ width: '160px' }}
                   placeholder="Idempotency key..."
-                  value={paymentCorrelationFilter}
+                  value={paymentIdempotencyFilter}
                   onChange={(e) => {
-                    setPaymentCorrelationFilter(e.target.value)
+                    setPaymentIdempotencyFilter(e.target.value)
                     setPaymentPage(1)
                   }}
                 />
@@ -1038,15 +1029,15 @@ export default function AdminCommercialReconciliationManager({
                 </select>
               </label>
               <label>
-                Mã đối soát / Idempotency:{' '}
+                Mã idempotency:{' '}
                 <input
                   type="text"
                   className="acr-input"
                   style={{ width: '160px' }}
                   placeholder="Idempotency key..."
-                  value={payoutCorrelationFilter}
+                  value={payoutIdempotencyFilter}
                   onChange={(e) => {
-                    setPayoutCorrelationFilter(e.target.value)
+                    setPayoutIdempotencyFilter(e.target.value)
                     setPayoutPage(1)
                   }}
                 />

@@ -63,6 +63,7 @@ describe('reconciliation-validation', () => {
       queryIdentifierType: 'PAYMENT',
       queryIdentifierValue: '62200000-0000-4000-8000-000000000001',
       found: true,
+      truncated: false,
       subscription: {
         subscriptionId: '62200000-0000-4000-8000-000000000010',
         userAccountId: '62200000-0000-4000-8000-000000000011',

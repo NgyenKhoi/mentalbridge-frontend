@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { browserCommercialReconciliation } from '../api/browser-client'
 import AdminCommercialReconciliationManager from './AdminCommercialReconciliationManager'
+import type { AdminPaymentList } from '@/lib/consultation/billing-validation'
 
 vi.mock('../api/browser-client', () => ({
   browserCommercialReconciliation: {
@@ -72,6 +73,7 @@ describe('AdminCommercialReconciliationManager', () => {
     queryIdentifierType: 'paymentId',
     queryIdentifierValue: '62200000-0000-4000-8000-000000000001',
     found: true,
+    truncated: false,
     payments: [
       {
         paymentId: '62200000-0000-4000-8000-000000000001',
@@ -486,5 +488,75 @@ describe('AdminCommercialReconciliationManager', () => {
     const banner = await screen.findByText(/Ghi nhận tổng cộng/)
     expect(banner).toBeInTheDocument()
     expect(banner).toHaveTextContent('85')
+  })
+
+  it('shows truncated provenance banner when backend signals truncation', async () => {
+    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(sampleDiscrepancies)
+    vi.mocked(browserCommercialReconciliation.getProvenance).mockResolvedValue({
+      ...sampleProvenance,
+      truncated: true,
+    })
+
+    render(<AdminCommercialReconciliationManager />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Truy vết dòng tiền (Provenance)' }))
+    fireEvent.change(screen.getByLabelText('Giá trị mã định danh'), {
+      target: { value: '62200000-0000-4000-8000-000000000001' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Truy vết' }))
+
+    expect(
+      await screen.findByText(/Một số danh sách đã đạt giới hạn hiển thị/),
+    ).toBeInTheDocument()
+  })
+
+  it('ignores stale out-of-order responses in payments tab', async () => {
+    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(sampleDiscrepancies)
+
+    let resolveFirst!: (v: AdminPaymentList) => void
+    let resolveSecond!: (v: AdminPaymentList) => void
+
+    vi.mocked(browserCommercialReconciliation.getPayments)
+      .mockImplementationOnce(
+        () => new Promise((res) => { resolveFirst = res }),
+      )
+      .mockImplementationOnce(
+        () => new Promise((res) => { resolveSecond = res }),
+      )
+
+    render(<AdminCommercialReconciliationManager />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Giao dịch thanh toán' }))
+
+    const statusSelect = screen.getByRole('combobox', { name: /lọc trạng thái/i })
+    fireEvent.change(statusSelect, { target: { value: 'SUCCEEDED' } })
+
+    const successItem: AdminPaymentList = { generatedAt: '2026-10-22T00:00:00Z', count: 1, items: [{
+      paymentId: '62200000-0000-4000-8000-000000000001',
+      subscriptionId: '62200000-0000-4000-8000-000000000002',
+      planVersionId: '62200000-0000-4000-8000-000000000099',
+      planCode: 'PLUS' as const,
+      pricingPolicyVersion: 'sandbox-full-price-v1',
+      purpose: 'PURCHASE',
+      provider: 'FAKE',
+      status: 'SUCCEEDED',
+      amountVnd: 250000,
+      currency: 'VND',
+      createdAt: '2026-10-20T10:00:00Z',
+      paidAt: '2026-10-20T10:00:01Z',
+      failedAt: null,
+    }] }
+
+    // Resolve second (newer) first
+    resolveSecond(successItem)
+
+    await waitFor(() => {
+      expect(screen.getByText(/250\.000/)).toBeInTheDocument()
+    })
+
+    // Stale first response should be ignored
+    resolveFirst({ generatedAt: '2026-10-22T00:00:00Z', count: 99, items: [] })
+
+    await waitFor(() => {
+      expect(screen.queryByText(/99 giao dịch/)).not.toBeInTheDocument()
+    })
   })
 })

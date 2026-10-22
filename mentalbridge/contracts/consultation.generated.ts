@@ -2408,6 +2408,7 @@ export interface components {
             queryIdentifierType: string;
             queryIdentifierValue: string;
             found: boolean;
+            truncated: boolean;
             subscription?: {
                 /** Format: uuid */
                 subscriptionId: string;
@@ -5272,7 +5273,7 @@ export interface operations {
                 limit?: number;
                 orderId?: string;
                 idempotencyKey?: string;
-                correlationId?: string;
+                momoRef?: string;
                 offset?: number;
             };
             header?: never;
@@ -5305,7 +5306,6 @@ export interface operations {
                 limit?: number;
                 idempotencyKey?: string;
                 providerReference?: string;
-                correlationId?: string;
                 offset?: number;
             };
             header?: never;

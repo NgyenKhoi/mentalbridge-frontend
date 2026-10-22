@@ -64,6 +64,7 @@ export function parseAdminCommercialProvenance(
     typeof value.queryIdentifierType !== 'string' ||
     typeof value.queryIdentifierValue !== 'string' ||
     typeof value.found !== 'boolean' ||
+    typeof value.truncated !== 'boolean' ||
     !Array.isArray(value.payments) ||
     !Array.isArray(value.credits) ||
     !Array.isArray(value.appointments) ||
