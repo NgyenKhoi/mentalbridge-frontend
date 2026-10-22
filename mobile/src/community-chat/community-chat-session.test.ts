@@ -17,6 +17,7 @@ const message = {
   conversationId: id,
   clientMessageId: messageId,
   sender: peer,
+  state: 'ACTIVE' as const,
   content: 'Lời chào',
   createdAt: date,
 }
@@ -78,6 +79,15 @@ function fixture() {
       message,
       persistence: 'SAVED',
       delivery: 'UNCONFIRMED',
+    }),
+    retract: jest.fn().mockResolvedValue({
+      messageId,
+      conversationId: id,
+      clientMessageId: messageId,
+      sender: peer,
+      state: 'RETRACTED',
+      createdAt: date,
+      retractedAt: '2026-10-21T01:01:00Z',
     }),
     read: jest
       .fn()
@@ -198,6 +208,39 @@ it('uses socket messages only to repair REST order, dedupes IDs and replaces abs
     }),
   )
   expect(session.snapshot().conversation?.value.unreadCount).toBe(2)
+})
+it('replaces a loaded message in place for REST and realtime retraction without appending', async () => {
+  const { api, session, socket } = fixture()
+  await session.start()
+  expect(await session.retract(messageId)).toBe(true)
+  expect(session.snapshot().messages).toHaveLength(1)
+  expect(session.snapshot().messages[0]).toMatchObject({
+    messageId,
+    state: 'RETRACTED',
+  })
+
+  api.messages.mockResolvedValue({ items: [message], nextCursor: null })
+  await session.repair()
+  socket().fire(
+    'community.event',
+    event('community.message.updated', {
+      message: {
+        messageId,
+        conversationId: id,
+        clientMessageId: messageId,
+        sender: peer,
+        state: 'RETRACTED',
+        createdAt: date,
+        retractedAt: '2026-10-21T01:02:00Z',
+      },
+    }),
+  )
+  expect(session.snapshot().messages).toHaveLength(1)
+  expect(session.snapshot().messages[0]).toMatchObject({
+    messageId,
+    state: 'RETRACTED',
+    retractedAt: '2026-10-21T01:02:00Z',
+  })
 })
 it('clears badges immediately on disconnect or invalidation and rejects unknown peer presence', async () => {
   const { api, session, socket } = fixture()

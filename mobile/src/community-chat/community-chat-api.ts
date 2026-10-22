@@ -147,6 +147,23 @@ export function createCommunityChatApi(client: AxiosInstance) {
         chatMismatch()
       return value
     },
+    async retract(conversationId: string, messageId: string) {
+      const expectedConversation = id(conversationId)
+      const expectedMessage = id(messageId)
+      const value = c.retractedMessageSchema.parse(
+        (
+          await client.delete(
+            `${base}/conversations/${expectedConversation}/messages/${expectedMessage}`,
+          )
+        ).data,
+      )
+      if (
+        value.conversationId !== expectedConversation ||
+        value.messageId !== expectedMessage
+      )
+        chatMismatch()
+      return value
+    },
     async read(conversationId: string, messageId: string) {
       return c.readSchema.parse(
         (
