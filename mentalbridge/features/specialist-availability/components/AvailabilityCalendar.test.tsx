@@ -9,7 +9,6 @@ import type { AvailabilitySlot } from '@/lib/consultation/consultation-validatio
 
 const READINESS_LABELS: Record<AvailabilitySlot['readiness'], string> = {
   AVAILABLE: 'Có thể đặt',
-  BOOKED: 'Đã có người đặt',
   STARTED: 'Đã bắt đầu',
   WITHDRAWN: 'Đã rút',
   VIDEO_DISABLED: 'Video đang tắt',
@@ -17,7 +16,6 @@ const READINESS_LABELS: Record<AvailabilitySlot['readiness'], string> = {
 
 const mockSlot: AvailabilitySlot = {
   id: 'slot-1',
-  specialistAccountId: 'spec-1',
   startAt: '2026-10-25T02:00:00.000Z',
   endAt: '2026-10-25T03:00:00.000Z',
   timezone: 'Asia/Ho_Chi_Minh',
