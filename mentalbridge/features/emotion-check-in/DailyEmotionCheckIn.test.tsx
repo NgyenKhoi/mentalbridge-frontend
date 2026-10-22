@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api/api-error'
@@ -82,6 +82,24 @@ describe('DailyEmotionCheckIn', () => {
     vi.restoreAllMocks()
   })
 
+  it('reserves the idle choices and action row without exposing controls while loading', () => {
+    get.mockReturnValue(new Promise(() => {}))
+    render(<DailyEmotionCheckIn />)
+    const loading = screen.getByRole('status', {
+      name: 'Đang tải ghi nhận hôm nay',
+    })
+    expect(loading).toHaveTextContent('Đang tải ghi nhận hôm nay…')
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Lưu ghi nhận' })).toBeNull()
+    expect(loading.querySelectorAll('[aria-hidden="true"]')).toHaveLength(2)
+    expect(loading).toHaveTextContent('Rất tốt')
+    expect(loading).toHaveTextContent('Rất không tốt')
+    expect(loading).toHaveTextContent('Lưu ghi nhận')
+    expect(loading).toHaveTextContent(
+      'Chọn xong sẽ hiện mức độ và ghi chú riêng.',
+    )
+  })
+
   it('starts empty with no default and creates only after emotion and intensity are selected', async () => {
     const user = userEvent.setup()
     const onPersisted = vi.fn()
@@ -90,9 +108,10 @@ describe('DailyEmotionCheckIn', () => {
 
     render(<DailyEmotionCheckIn onPersisted={onPersisted} />)
 
+    await screen.findByRole('radio', { name: 'Tốt' })
     expect(
-      await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.'),
-    ).toBeVisible()
+      screen.queryByText('Hôm nay bạn chưa ghi nhận cảm xúc.'),
+    ).not.toBeInTheDocument()
     expect(
       screen
         .getAllByRole<HTMLInputElement>('radio')
@@ -100,12 +119,28 @@ describe('DailyEmotionCheckIn', () => {
     ).toBe(true)
     const save = screen.getByRole('button', { name: 'Lưu ghi nhận' })
     expect(save).toBeDisabled()
+    expect(screen.getAllByRole('radio')).toHaveLength(5)
+    expect(screen.queryByText('Mức độ cảm nhận')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Thêm bối cảnh riêng tư (không bắt buộc)'),
+    ).not.toBeInTheDocument()
     await user.click(screen.getByRole('radio', { name: 'Tốt' }))
+    await waitFor(() =>
+      expect(screen.getByText('Mức độ cảm nhận')).toBeVisible(),
+    )
     expect(save).toBeDisabled()
     await user.click(screen.getByRole('radio', { name: '4' }))
     await user.click(save)
 
     expect(await screen.findByText('Đã lưu ghi nhận hôm nay.')).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Đã ghi nhận: Tốt' }),
+    ).toBeVisible()
+    expect(screen.getByRole('status')).toHaveTextContent('Đã ghi nhận: Tốt.')
+    expect(screen.getByRole('status')).toHaveAttribute('aria-atomic', 'true')
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Chỉnh sửa ghi nhận' }))
+    expect(screen.getByRole('radio', { name: 'Tốt' })).toBeChecked()
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         emotion: 'GOOD',
@@ -198,7 +233,8 @@ describe('DailyEmotionCheckIn', () => {
       ),
     )
     render(<DailyEmotionCheckIn />)
-    await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.')
+    await screen.findByRole('radio', { name: 'Tốt' })
+    await user.click(screen.getByRole('radio', { name: 'Tốt' }))
     await user.click(
       screen.getByText('Thêm bối cảnh riêng tư (không bắt buộc)'),
     )
@@ -224,7 +260,7 @@ describe('DailyEmotionCheckIn', () => {
       .mockRejectedValueOnce(unavailable())
       .mockImplementationOnce(async (body) => record(body.localDate))
     render(<DailyEmotionCheckIn />)
-    await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.')
+    await screen.findByRole('radio', { name: 'Tốt' })
     await user.click(screen.getByRole('radio', { name: 'Bình thường' }))
     await user.click(screen.getByRole('radio', { name: '2' }))
     await user.click(screen.getByRole('button', { name: 'Lưu ghi nhận' }))
@@ -241,7 +277,7 @@ describe('DailyEmotionCheckIn', () => {
     expect(create.mock.calls[0]?.[1]).toBe(create.mock.calls[1]?.[1])
   })
 
-  it('keeps a changed selection explicitly unsaved and the comparison on persisted truth', async () => {
+  it('keeps a changed selection explicitly unsaved without showing a saved acknowledgement', async () => {
     const day = localDateInTimeZone(
       new Date(),
       Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
@@ -253,11 +289,8 @@ describe('DailyEmotionCheckIn', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'Rất tốt' }))
 
     expect(screen.getByText('Lựa chọn này chưa được lưu.')).toBeVisible()
-    const savedToday = screen
-      .getByText('Hôm nay · đã lưu')
-      .closest('div') as HTMLElement
-    expect(savedToday).toHaveTextContent('Tốt')
-    expect(savedToday).not.toHaveTextContent('Rất tốt')
+    expect(screen.queryByTestId('emotion-saved')).not.toBeInTheDocument()
+    expect(screen.queryByText('Hôm qua và hôm nay')).not.toBeInTheDocument()
   })
 
   it('deletes the persisted day and invalidates dependent progress', async () => {
@@ -333,7 +366,10 @@ describe('DailyEmotionCheckIn', () => {
 
     await act(async () => Promise.resolve())
     expect(get).toHaveBeenCalledWith(nextDay)
-    expect(screen.getByText('Hôm nay bạn chưa ghi nhận cảm xúc.')).toBeVisible()
+    expect(
+      screen.queryByText('Hôm nay bạn chưa ghi nhận cảm xúc.'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Lưu ghi nhận' })).toBeDisabled()
   })
 })
 

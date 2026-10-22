@@ -343,6 +343,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/home-next-step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the owner's single next step for Home
+         * @description Read-only, owner-scoped Home composition over the unchanged GuidedJourney
+         *     and persisted SupportPlan facts. Clients render Care's ordered journey
+         *     action and plan focus; safety and professional-support journey actions keep
+         *     their existing precedence over plan context. No Guide, plan, lifecycle
+         *     transition, assessment answer, score, journal or emotion content is created
+         *     or returned. Entitlement uncertainty retains the journey's fail-closed
+         *     resources step with entitlementStatus UNAVAILABLE. A missing published
+         *     support policy returns 503 SUPPORT_POLICY_UNAVAILABLE.
+         *     A supplied timezone must be an IANA zone; an invalid value returns 400.
+         *     When omitted, localDate uses the plan schedule time zone. Reads carry
+         *     Cache-Control no-store and are usable directly with an owner bearer token.
+         */
+        get: operations["getOwnHomeNextStep"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/screening-episodes/history": {
         parameters: {
             query?: never;
@@ -2632,6 +2662,71 @@ export interface components {
             /** @enum {string} */
             entitlementStatus: "NOT_REQUIRED" | "VERIFIED" | "UNAVAILABLE";
         };
+        HomeNextStep: {
+            /** @constant */
+            homePolicyVersion: "mb-home-next-step-v1";
+            journey: components["schemas"]["GuidedJourney"];
+            /** @description Present only for the owner's ACTIVE or PAUSED plan; a DRAFT remains journey.nextAction REVIEW_PLAN_DRAFT. */
+            plan: components["schemas"]["HomePlanStep"] | null;
+            /** @description Present only with no ACTIVE, PAUSED or DRAFT plan and when the newest plan in history is COMPLETED. */
+            lastCompletedPlan: components["schemas"]["HomeCompletedPlan"] | null;
+        };
+        /**
+         * @description Focus precedence is RESUME_PAUSED, then REVIEW_DUE, then DO_TODAY for
+         *     an open SCHEDULED/OVERDUE occurrence on localDate, then TODAY_DONE when
+         *     today's non-CANCELLED occurrences are all COMPLETED/SKIPPED, otherwise
+         *     NOTHING_TODAY. REVIEW_DUE changes no lifecycle state. The existing
+         *     cycle query supplies reviewDueOn. When timezone is omitted, localDate
+         *     uses the plan cycle zone, then its active/paused schedule zone, then
+         *     the existing profile-zone fallback.
+         */
+        HomePlanStep: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED";
+            /** @enum {string} */
+            focus: "RESUME_PAUSED" | "REVIEW_DUE" | "DO_TODAY" | "TODAY_DONE" | "NOTHING_TODAY";
+            /** Format: date */
+            reviewDueOn: string | null;
+            /** @description Current day from the plan cycle's currentDay; null when the plan has no cycle. */
+            cycleDay: number | null;
+            /** @description Length from the plan cycle's lengthDays; null when the plan has no cycle. */
+            cycleLengthDays: number | null;
+            /** Format: date */
+            localDate: string;
+            /** @description IANA zone used to determine localDate. */
+            timeZone: string;
+            today: components["schemas"]["HomeTodayProgress"];
+            /** @description Present only for DO_TODAY; earliest scheduledAt (null last), then plan focus and action order. */
+            nextOccurrence: components["schemas"]["HomeNextOccurrence"] | null;
+        };
+        HomeTodayProgress: {
+            /** @description Number of non-CANCELLED occurrences on localDate; includes SKIPPED. */
+            total: number;
+            /** @description Number of COMPLETED occurrences on localDate; excludes SKIPPED. */
+            completed: number;
+        };
+        HomeNextOccurrence: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** @description Native action identity or existing v2 slot identity from the adapter. */
+            actionId: string;
+            /** @enum {string} */
+            actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+            title: string;
+            /** @enum {string} */
+            displayState: "SCHEDULED" | "OVERDUE";
+            /** Format: date-time */
+            scheduledAt: string | null;
+            estimatedDurationMinutes: number | null;
+        };
+        HomeCompletedPlan: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** Format: date-time */
+            completedAt: string;
+        };
         ScreeningEpisodeEvaluationOutcome: {
             episode: components["schemas"]["ScreeningEpisode"];
             presentationEvaluation: components["schemas"]["SupportEvaluation"];
@@ -4881,6 +4976,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GuidedJourney"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            503: components["responses"]["DependencyProblem"];
+        };
+    };
+    getOwnHomeNextStep: {
+        parameters: {
+            query?: {
+                /**
+                 * @description IANA zone for today's local date; omitted uses the plan schedule time zone.
+                 * @example Asia/Ho_Chi_Minh
+                 */
+                timezone?: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current Home decision and minimized plan context */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeNextStep"];
                 };
             };
             400: components["responses"]["ValidationProblem"];
