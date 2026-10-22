@@ -189,6 +189,18 @@ describe('CommunityChatWorkspace', () => {
     })
   })
 
+  it('opens notification consent targets without granting transcript access', async () => {
+    render(<CommunityChatWorkspace initialTab="requests" />)
+    await expect(screen.findByText('Mầm Nắng')).resolves.toBeVisible()
+    expect(screen.getByRole('tab', { name: /Lời mời/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(api.getChatConversation).not.toHaveBeenCalled()
+    expect(api.getChatMessages).not.toHaveBeenCalled()
+    expect(api.advanceChatReadCursor).not.toHaveBeenCalled()
+  })
+
   it('loads the inbox and thread, advances unread state and sends a durable message', async () => {
     api.sendChatMessage.mockImplementation(
       async (

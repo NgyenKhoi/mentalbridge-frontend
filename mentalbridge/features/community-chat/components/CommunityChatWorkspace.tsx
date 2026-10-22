@@ -155,13 +155,16 @@ function PrivacyPanel({
 export default function CommunityChatWorkspace({
   initialConversationId,
   recipientCommunityProfileId,
+  initialTab,
 }: Readonly<{
   initialConversationId?: string
   recipientCommunityProfileId?: string
+  initialTab?: 'conversations' | 'requests'
 }>) {
   const chat = useCommunityChatWorkspace({
     initialConversationId,
     recipientCommunityProfileId,
+    initialTab,
   })
   const groups = useCommunityGroups({
     conversation: chat.conversation,
