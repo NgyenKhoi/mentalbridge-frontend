@@ -407,6 +407,81 @@ describe('CommunityChatWorkspace', () => {
     )
   })
 
+  it('invites a peer selected from private conversations without exposing profile ids', async () => {
+    const invitePeer = {
+      ...peer,
+      communityProfileId: '10000000-0000-4000-8000-000000000004',
+      displayName: 'Chồi Xanh',
+    }
+    api.getChatConversations.mockResolvedValue({
+      items: [
+        conversation,
+        {
+          ...conversation,
+          conversationId: '20000000-0000-4000-8000-000000000004',
+          peers: [conversation.peers[0], invitePeer],
+          unreadCount: 0,
+        },
+      ],
+      nextCursor: null,
+    })
+    api.getChatConversation.mockResolvedValue(ownerGroupConversation)
+    api.getChatGroupMembers.mockResolvedValue({
+      items: [
+        {
+          peer: conversation.peers[0],
+          role: 'OWNER',
+          joinedAt: '2026-10-19T00:00:00Z',
+        },
+      ],
+      nextCursor: null,
+    })
+    api.inviteChatGroupMember.mockResolvedValue({
+      invitation: {
+        invitationId: '30000000-0000-4000-8000-000000000088',
+        conversationId: ownerGroupConversation.conversationId,
+        groupName: ownerGroupConversation.groupName,
+        inviter: conversation.peers[0],
+        state: 'PENDING',
+        expiresAt: '2026-10-29T00:00:00Z',
+        version: '1',
+      },
+      version: '"8"',
+    })
+    const user = userEvent.setup()
+    render(
+      <CommunityChatWorkspace
+        initialConversationId={ownerGroupConversation.conversationId}
+      />,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: /Thành viên · Chủ nhóm/ }),
+    )
+    expect(
+      screen.queryByText(invitePeer.communityProfileId),
+    ).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole('combobox', {
+        name: 'Chọn người từ trò chuyện riêng',
+      }),
+    )
+    await user.click(
+      screen.getByRole('option', { name: invitePeer.displayName }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Mời thành viên' }))
+
+    expect(api.inviteChatGroupMember).toHaveBeenCalledWith(
+      ownerGroupConversation.conversationId,
+      invitePeer.communityProfileId,
+      '7',
+      expect.stringMatching(/^[\da-f-]{36}$/i),
+    )
+    expect(
+      await screen.findByText(/Người nhận phải tự chấp thuận/),
+    ).toBeVisible()
+  })
+
   it('keeps the same message id for an explicit retry after an uncertain failure', async () => {
     api.sendChatMessage
       .mockRejectedValueOnce(new Error('network uncertain'))

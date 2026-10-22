@@ -571,6 +571,18 @@
   display: grid;
   gap: 8px;
 }
+.inviteHint,
+.inviteEmpty {
+  margin: 0;
+  color: #667166;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.inviteEmpty {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(236, 246, 240, 0.72);
+}
 .inviteForm > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

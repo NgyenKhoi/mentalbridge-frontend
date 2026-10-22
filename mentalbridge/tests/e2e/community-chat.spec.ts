@@ -5,6 +5,7 @@ import { test } from './test-fixtures'
 const identityFixtureUrl = 'http://127.0.0.1:3201'
 const selfId = '10000000-0000-4000-8000-000000000001'
 const peerId = '10000000-0000-4000-8000-000000000002'
+const inviteeId = '10000000-0000-4000-8000-000000000004'
 const conversationId = '20000000-0000-4000-8000-000000000001'
 const requestId = '30000000-0000-4000-8000-000000000001'
 const messageId = '40000000-0000-4000-8000-000000000001'
@@ -14,6 +15,11 @@ const peer = {
   state: 'AVAILABLE',
   communityProfileId: peerId,
   displayName: 'Mầm Nắng',
+}
+const invitee = {
+  state: 'AVAILABLE',
+  communityProfileId: inviteeId,
+  displayName: 'Chồi Xanh',
 }
 const conversation = {
   conversationId,
@@ -25,6 +31,12 @@ const conversation = {
   ],
   unreadCount: 2,
   version: '1',
+}
+const inviteeConversation = {
+  ...conversation,
+  conversationId: '20000000-0000-4000-8000-000000000004',
+  peers: [conversation.peers[0], invitee],
+  unreadCount: 0,
 }
 const groupConversation = {
   conversationId: groupConversationId,
@@ -151,6 +163,31 @@ async function installChatFixture(page: Page) {
         version: '4',
       })
     }
+    if (
+      path.endsWith(`/groups/${groupConversationId}/invitations`) &&
+      request.method() === 'POST'
+    ) {
+      groupCommands.push({
+        method: request.method(),
+        path,
+        ifMatch: request.headers()['if-match'],
+        body: request.postDataJSON(),
+      })
+      return json(
+        route,
+        {
+          invitationId: '30000000-0000-4000-8000-000000000088',
+          conversationId: groupConversationId,
+          groupName: groupConversation.groupName,
+          inviter: conversation.peers[0],
+          state: 'PENDING',
+          expiresAt: '2026-10-29T07:00:00Z',
+          version: '1',
+        },
+        201,
+        { ETag: '"8"' },
+      )
+    }
     if (path.endsWith(`/groups/${groupConversationId}/members`))
       return json(route, {
         items: [
@@ -184,7 +221,7 @@ async function installChatFixture(page: Page) {
           joinedAt: '2026-10-19T07:00:00Z',
         },
         200,
-        { ETag: '"8"' },
+        { ETag: '"9"' },
       )
     }
     if (
@@ -218,7 +255,7 @@ async function installChatFixture(page: Page) {
         : route.fulfill({ status: 204 })
     if (path.endsWith('/conversations'))
       return json(route, {
-        items: [conversation, groupConversation],
+        items: [conversation, inviteeConversation, groupConversation],
         nextCursor: null,
       })
     if (path.endsWith(`/conversations/${groupConversationId}`))
@@ -436,13 +473,26 @@ test.describe('Community chat journey', () => {
     await page.getByRole('button', { name: /Thành viên · Chủ nhóm/ }).click()
     await expect(page.getByText('Quản lý thành viên')).toBeVisible()
 
+    await page
+      .getByRole('combobox', { name: 'Chọn người từ trò chuyện riêng' })
+      .click()
+    await page.getByRole('option', { name: invitee.displayName }).click()
+    await page.getByRole('button', { name: 'Mời thành viên' }).click()
+    await expect(page.getByText(/Người nhận phải tự chấp thuận/)).toBeVisible()
+    expect(fixture.groupCommands.at(-1)).toMatchObject({
+      method: 'POST',
+      ifMatch: '"7"',
+      body: { inviteeCommunityProfileId: inviteeId },
+    })
+    await expect(page.getByText(inviteeId)).toHaveCount(0)
+
     await page.getByRole('button', { name: 'Hạ quyền' }).click()
     await expect(
       page.getByText('Đã cập nhật vai trò thành viên.'),
     ).toBeVisible()
     expect(fixture.groupCommands.at(-1)).toMatchObject({
       method: 'PUT',
-      ifMatch: '"7"',
+      ifMatch: '"8"',
       body: { role: 'MEMBER' },
     })
 
@@ -462,7 +512,7 @@ test.describe('Community chat journey', () => {
     await expect(page).toHaveURL(/\/community\/messages$/)
     expect(fixture.groupCommands.at(-1)).toMatchObject({
       method: 'DELETE',
-      ifMatch: '"8"',
+      ifMatch: '"9"',
     })
 
     await page.setViewportSize({ width: 390, height: 844 })

@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 
+import LightSelect from '@/components/LightSelect'
 import { Dialog } from '@/components/ui/Dialog'
-import { UUID_PATTERN } from '../api/community-chat-contract'
 import type { ChatGroupMember } from '../api/browser-community-chat'
+import type { ChatPeer } from '../api/community-chat-contract'
 import type { useCommunityGroups } from './useCommunityGroups'
 import styles from './CommunityChatWorkspace.module.css'
 
@@ -181,7 +182,12 @@ export function GroupInvitations({ groups }: Readonly<{ groups: Groups }>) {
 export function GroupManagement({
   groups,
   viewerProfileId,
-}: Readonly<{ groups: Groups; viewerProfileId?: string }>) {
+  inviteCandidates,
+}: Readonly<{
+  groups: Groups
+  viewerProfileId?: string
+  inviteCandidates: ChatPeer[]
+}>) {
   const [open, setOpen] = useState(false)
   const [invitee, setInvitee] = useState('')
   const [confirm, setConfirm] = useState<
@@ -193,6 +199,27 @@ export function GroupManagement({
   if (!group) return null
   const canManage = group.viewerRole === 'OWNER' || group.viewerRole === 'ADMIN'
   const canInvite = canManage && group.state === 'ACTIVE'
+  const memberIds = new Set(
+    [...group.peers, ...groups.members.map((member) => member.peer)].flatMap(
+      (member) =>
+        member.state === 'AVAILABLE' ? [member.communityProfileId] : [],
+    ),
+  )
+  const eligibleInvitees = inviteCandidates.filter(
+    (candidate): candidate is Extract<ChatPeer, { state: 'AVAILABLE' }> =>
+      candidate.state === 'AVAILABLE' &&
+      candidate.communityProfileId !== viewerProfileId &&
+      !memberIds.has(candidate.communityProfileId),
+  )
+  const inviteOptions = eligibleInvitees.map((candidate) => ({
+    value: candidate.communityProfileId,
+    label: candidate.displayName,
+  }))
+  const selectedInvitee = inviteOptions.some(
+    (option) => option.value === invitee,
+  )
+    ? invitee
+    : ''
 
   async function confirmAction() {
     if (!confirm) return
@@ -227,32 +254,44 @@ export function GroupManagement({
               className={styles.inviteForm}
               onSubmit={(event) => {
                 event.preventDefault()
-                if (!UUID_PATTERN.test(invitee)) return
-                void groups.invite(invitee).then((sent) => {
+                if (!selectedInvitee) return
+                void groups.invite(selectedInvitee).then((sent) => {
                   if (sent) setInvitee('')
                 })
               }}
             >
-              <label htmlFor="community-group-invitee">
-                Mã hồ sơ cộng đồng của người được mời
+              <label id="community-group-invitee-label">
+                Chọn người từ trò chuyện riêng
               </label>
-              <div>
-                <input
-                  id="community-group-invitee"
-                  value={invitee}
-                  disabled={groups.busyKey === 'invite'}
-                  onChange={(event) => setInvitee(event.target.value.trim())}
-                  placeholder="00000000-0000-4000-8000-000000000000"
-                />
-                <button
-                  type="submit"
-                  disabled={
-                    !UUID_PATTERN.test(invitee) || groups.busyKey === 'invite'
-                  }
-                >
-                  {groups.busyKey === 'invite' ? 'Đang mời…' : 'Mời thành viên'}
-                </button>
-              </div>
+              <p className={styles.inviteHint}>
+                Chỉ những người bạn đang có trò chuyện riêng mới xuất hiện ở
+                đây. MentalBridge không hiển thị danh bạ cộng đồng công khai.
+              </p>
+              {inviteOptions.length ? (
+                <div>
+                  <LightSelect
+                    id="community-group-invitee"
+                    value={selectedInvitee}
+                    labelledBy="community-group-invitee-label"
+                    placeholder="Chọn người để mời"
+                    options={inviteOptions}
+                    disabled={groups.busyKey === 'invite'}
+                    onChange={setInvitee}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!selectedInvitee || groups.busyKey === 'invite'}
+                  >
+                    {groups.busyKey === 'invite'
+                      ? 'Đang mời…'
+                      : 'Mời thành viên'}
+                  </button>
+                </div>
+              ) : (
+                <p className={styles.inviteEmpty}>
+                  Chưa có người phù hợp để mời từ hộp thư riêng của bạn.
+                </p>
+              )}
             </form>
           )}
           {groups.memberLoading ? (

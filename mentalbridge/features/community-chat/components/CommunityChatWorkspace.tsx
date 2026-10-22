@@ -193,6 +193,19 @@ export default function CommunityChatWorkspace({
       peer.state === 'AVAILABLE' &&
       peer.communityProfileId !== chat.viewerProfileId,
   )
+  const inviteCandidates = Array.from(
+    new Map(
+      [chat.conversation, ...chat.conversations]
+        .filter((item) => item?.kind === 'DIRECT' && item.state === 'ACTIVE')
+        .flatMap((item) => item?.peers ?? [])
+        .filter(
+          (candidate): candidate is Extract<ChatPeer, { state: 'AVAILABLE' }> =>
+            candidate.state === 'AVAILABLE' &&
+            candidate.communityProfileId !== chat.viewerProfileId,
+        )
+        .map((candidate) => [candidate.communityProfileId, candidate] as const),
+    ).values(),
+  )
   const visibleMessages = activeConversation
     ? chat.messages.filter(
         (message) =>
@@ -594,6 +607,7 @@ export default function CommunityChatWorkspace({
                 <GroupManagement
                   groups={groups}
                   viewerProfileId={chat.viewerProfileId}
+                  inviteCandidates={inviteCandidates}
                 />
               )}
 
