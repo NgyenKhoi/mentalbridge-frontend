@@ -189,6 +189,18 @@ describe('CommunityChatWorkspace', () => {
     })
   })
 
+  it('opens notification consent targets without granting transcript access', async () => {
+    render(<CommunityChatWorkspace initialTab="requests" />)
+    await expect(screen.findByText('Mầm Nắng')).resolves.toBeVisible()
+    expect(screen.getByRole('tab', { name: /Lời mời/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(api.getChatConversation).not.toHaveBeenCalled()
+    expect(api.getChatMessages).not.toHaveBeenCalled()
+    expect(api.advanceChatReadCursor).not.toHaveBeenCalled()
+  })
+
   it('loads the inbox and thread, advances unread state and sends a durable message', async () => {
     api.sendChatMessage.mockImplementation(
       async (
@@ -405,6 +417,66 @@ describe('CommunityChatWorkspace', () => {
       ownerGroupConversation.conversationId,
       '8',
     )
+  })
+
+  it('reloads the authoritative viewer role after ownership transfer', async () => {
+    const admin = {
+      peer,
+      role: 'ADMIN' as const,
+      joinedAt: '2026-10-20T00:00:00Z',
+    }
+    api.getChatConversation
+      .mockResolvedValueOnce(ownerGroupConversation)
+      .mockResolvedValue({
+        ...ownerGroupConversation,
+        viewerRole: 'ADMIN',
+        version: '8',
+      })
+    api.getChatGroupMembers.mockResolvedValue({
+      items: [admin],
+      nextCursor: null,
+    })
+    api.transferChatGroupOwnership.mockResolvedValue({
+      conversationId: ownerGroupConversation.conversationId,
+      kind: 'GROUP',
+      name: ownerGroupConversation.groupName,
+      memberLimit: 50,
+      state: 'ACTIVE',
+      version: '8',
+    })
+    const user = userEvent.setup()
+    render(
+      <CommunityChatWorkspace
+        initialConversationId={ownerGroupConversation.conversationId}
+      />,
+    )
+    await user.click(
+      await screen.findByRole('button', { name: /Thành viên · Chủ nhóm/ }),
+    )
+    await user.click(
+      await screen.findByRole('button', { name: 'Chuyển quyền chủ nhóm' }),
+    )
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Xác nhận',
+      }),
+    )
+    expect(api.transferChatGroupOwnership).toHaveBeenCalledWith(
+      ownerGroupConversation.conversationId,
+      peerId,
+      '7',
+    )
+    await screen.findByText('Đã chuyển quyền chủ nhóm.')
+    expect(
+      screen.queryByRole('button', { name: 'Lưu trữ nhóm' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Chuyển quyền chủ nhóm' }),
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Đóng quản lý nhóm' }))
+    expect(
+      screen.getByRole('button', { name: /Thành viên · Quản trị viên/ }),
+    ).toBeInTheDocument()
   })
 
   it('invites a peer selected from private conversations without exposing profile ids', async () => {

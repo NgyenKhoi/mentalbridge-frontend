@@ -155,18 +155,22 @@ function PrivacyPanel({
 export default function CommunityChatWorkspace({
   initialConversationId,
   recipientCommunityProfileId,
+  initialTab,
 }: Readonly<{
   initialConversationId?: string
   recipientCommunityProfileId?: string
+  initialTab?: 'conversations' | 'requests'
 }>) {
   const chat = useCommunityChatWorkspace({
     initialConversationId,
     recipientCommunityProfileId,
+    initialTab,
   })
   const groups = useCommunityGroups({
     conversation: chat.conversation,
     viewerProfileId: chat.viewerProfileId,
     reloadOverview: chat.reload,
+    onConversationUpdated: chat.updateConversation,
   })
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
   const [reportTarget, setReportTarget] = useState<ChatMessage>()

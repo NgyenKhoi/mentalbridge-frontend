@@ -57,10 +57,12 @@ export function useCommunityGroups({
   conversation,
   viewerProfileId,
   reloadOverview,
+  onConversationUpdated,
 }: Readonly<{
   conversation?: ChatConversation
   viewerProfileId?: string
   reloadOverview: () => void
+  onConversationUpdated: (updated: ChatConversation) => void
 }>) {
   const router = useRouter()
   const memberGeneration = useRef(0)
@@ -316,11 +318,13 @@ export function useCommunityGroups({
     setBusyKey(member.peer.communityProfileId)
     setNotice('')
     try {
-      const updated = await transferChatGroupOwnership(
+      await transferChatGroupOwnership(
         group.conversationId,
         member.peer.communityProfileId,
         groupVersion,
       )
+      const updated = await getChatConversation(group.conversationId)
+      onConversationUpdated(updated)
       setGroupVersion(updated.version)
       await loadMembers(memberGeneration.current)
       reloadOverview()

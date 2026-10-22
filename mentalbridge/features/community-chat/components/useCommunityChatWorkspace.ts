@@ -77,9 +77,11 @@ function mergeById<T>(current: T[], incoming: T[], id: (item: T) => string) {
 export function useCommunityChatWorkspace({
   initialConversationId,
   recipientCommunityProfileId,
+  initialTab = 'conversations',
 }: Readonly<{
   initialConversationId?: string
   recipientCommunityProfileId?: string
+  initialTab?: 'conversations' | 'requests'
 }>) {
   const router = useRouter()
   const startAttempted = useRef<string | undefined>(undefined)
@@ -124,7 +126,7 @@ export function useCommunityChatWorkspace({
   const [requestPageError, setRequestPageError] = useState('')
   const [messagePageError, setMessagePageError] = useState('')
   const [activeTab, setActiveTab] = useState<'conversations' | 'requests'>(
-    'conversations',
+    initialTab,
   )
 
   // The inbox route must never silently open or acknowledge its first item.
@@ -527,6 +529,11 @@ export function useCommunityChatWorkspace({
     requests,
     privacy,
     conversation,
+    updateConversation: (updated: ChatConversation) => {
+      setConversation((current) =>
+        current?.conversationId === updated.conversationId ? updated : current,
+      )
+    },
     messages,
     peer,
     viewerProfileId,
