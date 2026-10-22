@@ -112,6 +112,15 @@ describe('AdminWorkspace', () => {
     expect(container).not.toHaveTextContent('Nguyễn Minh Anh')
     expect(container).not.toHaveTextContent('12.480')
     expect(
+      screen.getByRole('link', { name: 'Thanh toán gói' }),
+    ).toHaveAttribute('href', '/admin/payments')
+    expect(
+      screen.getByRole('link', { name: 'Chi trả chuyên gia' }),
+    ).toHaveAttribute('href', '/admin/payouts')
+    expect(
+      screen.getByRole('link', { name: 'Đối soát thương mại' }),
+    ).toHaveAttribute('href', '/admin/reconciliation')
+    expect(
       within(navigation).queryByRole('link', { name: /assessment|AI/i }),
     ).not.toBeInTheDocument()
   })
