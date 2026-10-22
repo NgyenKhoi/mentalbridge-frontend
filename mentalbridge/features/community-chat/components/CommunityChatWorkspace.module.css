@@ -74,6 +74,17 @@
   padding: 8px;
   background: #e9efe3;
 }
+.createGroupButton {
+  width: calc(100% - 16px);
+  min-height: 44px;
+  margin: 8px 8px 0;
+  border: 1px solid rgba(30, 74, 67, 0.28);
+  border-radius: 12px;
+  background: #f5faf7;
+  color: #1e4a43;
+  cursor: pointer;
+  font-weight: 800;
+}
 .tabs button {
   min-height: 44px;
   border: 0;
@@ -135,6 +146,21 @@
   color: #1e4a43;
   font-size: 0.78rem;
   font-weight: 800;
+}
+.groupAvatar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 14px;
+  background: #1e4a43;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.groupInvitations {
+  border-bottom: 1px solid rgba(27, 42, 34, 0.1);
 }
 .rowCopy {
   display: grid;
@@ -505,6 +531,143 @@
   opacity: 0.55;
 }
 
+.groupManagement {
+  border-bottom: 1px solid rgba(27, 42, 34, 0.12);
+  background: #f8faf5;
+}
+.manageGroupButton {
+  min-height: 44px;
+  margin: 10px 16px;
+  padding: 8px 14px;
+  border: 1px solid rgba(30, 74, 67, 0.25);
+  border-radius: 12px;
+  background: #fff;
+  color: #1e4a43;
+  cursor: pointer;
+  font-weight: 800;
+}
+.groupPanel {
+  display: grid;
+  max-height: 430px;
+  gap: 16px;
+  overflow: auto;
+  padding: 0 18px 18px;
+}
+.groupPanelHeader h2,
+.groupPanelHeader p,
+.groupDangerZone p {
+  margin: 0;
+}
+.groupPanelHeader h2 {
+  color: #1e4a43;
+  font-family: Georgia, serif;
+}
+.groupPanelHeader p,
+.groupDangerZone p {
+  color: #667166;
+  font-size: 0.86rem;
+}
+.inviteForm {
+  display: grid;
+  gap: 8px;
+}
+.inviteHint,
+.inviteEmpty {
+  margin: 0;
+  color: #667166;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.inviteEmpty {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(236, 246, 240, 0.72);
+}
+.inviteForm > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.inviteForm input,
+.groupForm input {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid rgba(27, 42, 34, 0.22);
+  border-radius: 12px;
+  color: inherit;
+  font: inherit;
+}
+.inviteForm button,
+.memberActions button,
+.groupDangerZone button,
+.groupPanel > button {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid rgba(30, 74, 67, 0.3);
+  border-radius: 10px;
+  background: #fff;
+  color: #1e4a43;
+  cursor: pointer;
+  font-weight: 700;
+}
+.memberList {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.memberList > li {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(27, 42, 34, 0.12);
+  border-radius: 14px;
+  background: #fff;
+}
+.memberList > li > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.memberList small {
+  color: #667166;
+}
+.memberActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dangerButton {
+  border-color: rgba(168, 60, 49, 0.35) !important;
+  background: #fff !important;
+  color: #9a352c !important;
+}
+.groupDangerZone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(27, 42, 34, 0.12);
+}
+.groupDialog {
+  width: min(520px, calc(100vw - 28px));
+}
+.groupForm {
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+}
+.groupForm h2,
+.groupForm p {
+  margin: 0;
+}
+.groupForm small {
+  color: #667166;
+  text-align: right;
+}
+
 @media (max-width: 760px) {
   .page {
     width: 100%;
@@ -544,6 +707,16 @@
   }
   .composer {
     padding: 12px;
+  }
+  .groupPanel {
+    max-height: none;
+  }
+  .inviteForm > div {
+    grid-template-columns: 1fr;
+  }
+  .groupDangerZone {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

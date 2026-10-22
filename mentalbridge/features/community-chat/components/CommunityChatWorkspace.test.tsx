@@ -1,10 +1,19 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const api = vi.hoisted(() => ({
   getChatConversations: vi.fn(),
   getChatRequests: vi.fn(),
+  getChatGroupInvitations: vi.fn(),
+  getChatGroupMembers: vi.fn(),
+  createChatGroup: vi.fn(),
+  decideChatGroupInvitation: vi.fn(),
+  inviteChatGroupMember: vi.fn(),
+  setChatGroupMemberRole: vi.fn(),
+  removeChatGroupMember: vi.fn(),
+  transferChatGroupOwnership: vi.fn(),
+  archiveChatGroup: vi.fn(),
   getChatPrivacy: vi.fn(),
   getChatConversation: vi.fn(),
   getChatMessages: vi.fn(),
@@ -81,6 +90,12 @@ const groupConversation = {
   unreadCount: 3,
   version: '1',
 }
+const ownerGroupConversation = {
+  ...groupConversation,
+  viewerRole: 'OWNER' as const,
+  version: '7',
+  peers: [conversation.peers[0], peer],
+}
 
 function id(namespace: number, index: number) {
   return `${namespace}0000000-0000-4000-8000-${String(index).padStart(12, '0')}`
@@ -144,6 +159,14 @@ describe('CommunityChatWorkspace', () => {
           version: '1',
         },
       ],
+      nextCursor: null,
+    })
+    api.getChatGroupInvitations.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    })
+    api.getChatGroupMembers.mockResolvedValue({
+      items: [],
       nextCursor: null,
     })
     api.getChatPrivacy.mockResolvedValue(privacy)
@@ -222,7 +245,7 @@ describe('CommunityChatWorkspace', () => {
     expect(api.advanceChatReadCursor).not.toHaveBeenCalled()
   })
 
-  it('filters group items while preserving a group-only page cursor', async () => {
+  it('renders group items while preserving a group-only page cursor', async () => {
     const directA = conversationAt(1)
     const directB = conversationAt(2)
     api.getChatConversations.mockImplementation(async (cursor?: string) =>
@@ -233,22 +256,17 @@ describe('CommunityChatWorkspace', () => {
     const user = userEvent.setup()
     render(<CommunityChatWorkspace />)
 
-    expect(await screen.findByText('Chưa có cuộc trò chuyện')).toBeVisible()
-    expect(
-      screen.queryByText(groupConversation.groupName),
-    ).not.toBeInTheDocument()
+    expect(await screen.findByText(groupConversation.groupName)).toBeVisible()
     await user.click(
       screen.getByRole('button', { name: 'Tải thêm cuộc trò chuyện' }),
     )
     expect(await screen.findByText('Bạn 1')).toBeVisible()
     expect(screen.getByText('Bạn 2')).toBeVisible()
-    expect(
-      screen.queryByText(groupConversation.groupName),
-    ).not.toBeInTheDocument()
+    expect(screen.getByText(groupConversation.groupName)).toBeVisible()
     expect(api.getChatConversations).toHaveBeenLastCalledWith('after-groups')
   })
 
-  it('fails safely when a group deep link is opened in the direct-chat UI', async () => {
+  it('opens an authorized group deep link with messages and management', async () => {
     api.getChatConversation.mockResolvedValue(groupConversation)
     render(
       <CommunityChatWorkspace
@@ -256,13 +274,212 @@ describe('CommunityChatWorkspace', () => {
       />,
     )
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Trò chuyện nhóm chưa thể mở tại đây.',
+    expect(await screen.findByText(groupConversation.groupName)).toBeVisible()
+    expect(screen.getByText(/Nhóm riêng/)).toBeVisible()
+    expect(api.getChatMessages).toHaveBeenCalledWith(
+      groupConversation.conversationId,
     )
-    expect(api.getChatMessages).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toBeVisible()
+    expect(screen.getByRole('button', { name: /Thành viên/ })).toBeVisible()
+  })
+
+  it('creates a private group with the authoritative provider result', async () => {
+    api.createChatGroup.mockResolvedValue({
+      conversationId: groupConversation.conversationId,
+      kind: 'GROUP',
+      name: groupConversation.groupName,
+      state: 'ACTIVE',
+      memberLimit: 30,
+      version: '1',
+    })
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace />)
+    await screen.findByText('Mầm Nắng')
+
+    await user.click(screen.getByRole('button', { name: /Tạo nhóm riêng/ }))
+    await user.type(screen.getByLabelText('Tên nhóm'), 'Góc bình yên')
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Tạo nhóm',
+      }),
+    )
+
+    await waitFor(() =>
+      expect(api.createChatGroup).toHaveBeenCalledWith(
+        'Góc bình yên',
+        expect.stringMatching(/^[\da-f-]{36}$/i),
+      ),
+    )
+    expect(router.push).toHaveBeenCalledWith(
+      `/community/messages/${groupConversation.conversationId}`,
+    )
+  })
+
+  it('accepts a group invitation with its own revision before opening the group', async () => {
+    const invitation = {
+      invitationId: '30000000-0000-4000-8000-000000000099',
+      conversationId: groupConversation.conversationId,
+      groupName: 'Bước chậm lại',
+      inviter: peer,
+      state: 'PENDING' as const,
+      expiresAt: '2026-10-28T00:00:00Z',
+      version: '3',
+    }
+    api.getChatGroupInvitations.mockResolvedValue({
+      items: [invitation],
+      nextCursor: null,
+    })
+    api.decideChatGroupInvitation.mockResolvedValue({
+      conversationId: groupConversation.conversationId,
+      kind: 'GROUP',
+      name: invitation.groupName,
+      state: 'ACTIVE',
+      memberLimit: 30,
+      version: '4',
+    })
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace />)
+
+    await user.click(await screen.findByRole('tab', { name: /Lời mời/ }))
+    expect(await screen.findByText(invitation.groupName)).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Tham gia' }))
+
+    expect(api.decideChatGroupInvitation).toHaveBeenCalledWith(
+      invitation.invitationId,
+      'ACCEPT',
+      '3',
+    )
+    expect(router.push).toHaveBeenCalledWith(
+      `/community/messages/${groupConversation.conversationId}`,
+    )
+  })
+
+  it('shows owner-only member controls and confirms archive', async () => {
+    const admin = {
+      peer,
+      role: 'ADMIN' as const,
+      joinedAt: '2026-10-20T00:00:00Z',
+    }
+    api.getChatConversation.mockResolvedValue(ownerGroupConversation)
+    api.getChatGroupMembers.mockResolvedValue({
+      items: [
+        {
+          peer: conversation.peers[0],
+          role: 'OWNER',
+          joinedAt: '2026-10-19T00:00:00Z',
+        },
+        admin,
+      ],
+      nextCursor: null,
+    })
+    api.setChatGroupMemberRole.mockResolvedValue({
+      member: { ...admin, role: 'MEMBER' },
+      version: '"8"',
+    })
+    api.archiveChatGroup.mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    render(
+      <CommunityChatWorkspace
+        initialConversationId={ownerGroupConversation.conversationId}
+      />,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: /Thành viên · Chủ nhóm/ }),
+    )
+    await user.click(await screen.findByRole('button', { name: 'Hạ quyền' }))
+    expect(api.setChatGroupMemberRole).toHaveBeenCalledWith(
+      ownerGroupConversation.conversationId,
+      peerId,
+      'MEMBER',
+      '7',
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Lưu trữ nhóm' }))
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Xác nhận',
+      }),
+    )
+    expect(api.archiveChatGroup).toHaveBeenCalledWith(
+      ownerGroupConversation.conversationId,
+      '8',
+    )
+  })
+
+  it('invites a peer selected from private conversations without exposing profile ids', async () => {
+    const invitePeer = {
+      ...peer,
+      communityProfileId: '10000000-0000-4000-8000-000000000004',
+      displayName: 'Chồi Xanh',
+    }
+    api.getChatConversations.mockResolvedValue({
+      items: [
+        conversation,
+        {
+          ...conversation,
+          conversationId: '20000000-0000-4000-8000-000000000004',
+          peers: [conversation.peers[0], invitePeer],
+          unreadCount: 0,
+        },
+      ],
+      nextCursor: null,
+    })
+    api.getChatConversation.mockResolvedValue(ownerGroupConversation)
+    api.getChatGroupMembers.mockResolvedValue({
+      items: [
+        {
+          peer: conversation.peers[0],
+          role: 'OWNER',
+          joinedAt: '2026-10-19T00:00:00Z',
+        },
+      ],
+      nextCursor: null,
+    })
+    api.inviteChatGroupMember.mockResolvedValue({
+      invitation: {
+        invitationId: '30000000-0000-4000-8000-000000000088',
+        conversationId: ownerGroupConversation.conversationId,
+        groupName: ownerGroupConversation.groupName,
+        inviter: conversation.peers[0],
+        state: 'PENDING',
+        expiresAt: '2026-10-29T00:00:00Z',
+        version: '1',
+      },
+      version: '"8"',
+    })
+    const user = userEvent.setup()
+    render(
+      <CommunityChatWorkspace
+        initialConversationId={ownerGroupConversation.conversationId}
+      />,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: /Thành viên · Chủ nhóm/ }),
+    )
     expect(
-      screen.queryByRole('textbox', { name: 'Tin nhắn' }),
+      screen.queryByText(invitePeer.communityProfileId),
     ).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole('combobox', {
+        name: 'Chọn người từ trò chuyện riêng',
+      }),
+    )
+    await user.click(
+      screen.getByRole('option', { name: invitePeer.displayName }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Mời thành viên' }))
+
+    expect(api.inviteChatGroupMember).toHaveBeenCalledWith(
+      ownerGroupConversation.conversationId,
+      invitePeer.communityProfileId,
+      '7',
+      expect.stringMatching(/^[\da-f-]{36}$/i),
+    )
+    expect(
+      await screen.findByText(/Người nhận phải tự chấp thuận/),
+    ).toBeVisible()
   })
 
   it('keeps the same message id for an explicit retry after an uncertain failure', async () => {
