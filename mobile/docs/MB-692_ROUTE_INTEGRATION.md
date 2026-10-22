@@ -22,9 +22,10 @@ then resolves a target against current owner/recipient data. A request/invitatio
 link cannot open a different list item or grant history access.
 
 Backend MB-749 #215 merged as `cd71159d`; feature #216 squash-merged into frontend
-`dev` as `060c361`. Only the integration commit was rebased onto that new `dev`
-base. PR #217 now targets `dev` with the intended 11-file diff. The rebase
-preserved the reviewed source tree; this document updates the delivery state.
+`dev` as `060c361`. The integration is now rebased onto frontend `dev` at
+`3fbc020`, including MB-621 / #209. PR #217 targets `dev` with the intended
+11-file diff. The rebase preserved the reviewed mobile source tree; this
+document updates the delivery state.
 Required CI must pass on the final head before integrator approval and merge.
 
 Verification in this worktree: non-emitting TypeScript and focused formatting;
