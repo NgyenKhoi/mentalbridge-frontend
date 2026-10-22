@@ -5271,6 +5271,7 @@ export interface operations {
                 paymentId?: string;
                 limit?: number;
                 orderId?: string;
+                idempotencyKey?: string;
                 correlationId?: string;
                 offset?: number;
             };
@@ -5302,6 +5303,8 @@ export interface operations {
                 specialistAccountId?: string;
                 payoutId?: string;
                 limit?: number;
+                idempotencyKey?: string;
+                providerReference?: string;
                 correlationId?: string;
                 offset?: number;
             };

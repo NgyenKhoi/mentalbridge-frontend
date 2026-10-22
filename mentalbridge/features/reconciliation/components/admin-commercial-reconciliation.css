@@ -259,3 +259,12 @@
   color: #475569;
 }
 
+.acr-pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+

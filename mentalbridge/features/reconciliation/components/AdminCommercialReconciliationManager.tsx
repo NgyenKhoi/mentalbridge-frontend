@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { browserCommercialReconciliation } from '../api/browser-client'
 import type {
@@ -33,6 +33,7 @@ const statusBadgeClass = (status?: string | null) => {
     case 'COMPLETED':
     case 'CONSUMED':
     case 'APPLIED':
+    case 'VERIFIED':
       return 'acr-badge acr-badge-success'
     case 'FAILED':
     case 'CHARGEBACK':
@@ -40,6 +41,11 @@ const statusBadgeClass = (status?: string | null) => {
     case 'EXPIRED':
     case 'CANCELLED':
     case 'UNKNOWN':
+    case 'REJECTED':
+    case 'DISABLED':
+    case 'PROCESSING_FAILED':
+    case 'DUPLICATE_DELIVERY':
+    case 'DUPLICATE_TRANS_ID':
       return 'acr-badge acr-badge-alert'
     case 'PENDING':
     case 'HELD':
@@ -47,6 +53,11 @@ const statusBadgeClass = (status?: string | null) => {
     case 'REQUESTED':
     case 'PENDING_PAYMENT':
     case 'PENDING_SETTLEMENT':
+    case 'UPGRADE_HELD':
+    case 'PENDING_PROCESSING':
+    case 'VERIFIED_UNMATCHED':
+    case 'DISPUTED':
+    case 'OPEN':
       return 'acr-badge acr-badge-warning'
     default:
       return 'acr-badge'
@@ -76,11 +87,19 @@ export default function AdminCommercialReconciliationManager({
   const [loadingProvenance, setLoadingProvenance] = useState(false)
   const [errorProvenance, setErrorProvenance] = useState<string | null>(null)
 
+  // Request sequence trackers to prevent out-of-order race conditions
+  const traceReqIdRef = useRef(0)
+  const paymentsReqIdRef = useRef(0)
+  const payoutsReqIdRef = useRef(0)
+
   // Payments browse state
   const [payments, setPayments] = useState<AdminPaymentList | null>(null)
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('ALL')
   const [paymentOrderIdFilter, setPaymentOrderIdFilter] = useState('')
   const [paymentCorrelationFilter, setPaymentCorrelationFilter] = useState('')
+  const [paymentFromDate, setPaymentFromDate] = useState('')
+  const [paymentToDate, setPaymentToDate] = useState('')
+  const [paymentPage, setPaymentPage] = useState(1)
   const [loadingPayments, setLoadingPayments] = useState(false)
   const [errorPayments, setErrorPayments] = useState(false)
 
@@ -88,6 +107,9 @@ export default function AdminCommercialReconciliationManager({
   const [payouts, setPayouts] = useState<AdminPayoutList | null>(null)
   const [payoutStatusFilter, setPayoutStatusFilter] = useState('ALL')
   const [payoutCorrelationFilter, setPayoutCorrelationFilter] = useState('')
+  const [payoutFromDate, setPayoutFromDate] = useState('')
+  const [payoutToDate, setPayoutToDate] = useState('')
+  const [payoutPage, setPayoutPage] = useState(1)
   const [loadingPayouts, setLoadingPayouts] = useState(false)
   const [errorPayouts, setErrorPayouts] = useState(false)
   const [selectedPayoutDetail, setSelectedPayoutDetail] =
@@ -96,6 +118,17 @@ export default function AdminCommercialReconciliationManager({
   // Subscription detail state
   const [selectedSubscriptionDetail, setSelectedSubscriptionDetail] =
     useState<AdminSubscriptionDetail | null>(null)
+
+  // Derived date validation errors (calculated during render without state/effects)
+  const paymentDateError =
+    paymentFromDate && paymentToDate && paymentFromDate > paymentToDate
+      ? 'Từ ngày không thể lớn hơn đến ngày'
+      : null
+
+  const payoutDateError =
+    payoutFromDate && payoutToDate && payoutFromDate > payoutToDate
+      ? 'Từ ngày không thể lớn hơn đến ngày'
+      : null
 
   // Load discrepancies
   const loadDiscrepancies = useCallback(async () => {
@@ -132,32 +165,52 @@ export default function AdminCommercialReconciliationManager({
     }
   }, [])
 
-  // Load payments when tab active
+  // Load payments on manual retry
   const loadPayments = useCallback(async () => {
+    if (paymentDateError) return
+    const reqId = ++paymentsReqIdRef.current
     setLoadingPayments(true)
     setErrorPayments(false)
     try {
-      const query: Record<string, string> = {}
+      const query: Record<string, string> = {
+        limit: '50',
+        offset: String((paymentPage - 1) * 50),
+      }
       if (paymentStatusFilter !== 'ALL') query.status = paymentStatusFilter
       if (paymentOrderIdFilter.trim()) query.orderId = paymentOrderIdFilter.trim()
       if (paymentCorrelationFilter.trim()) query.correlationId = paymentCorrelationFilter.trim()
+      if (paymentFromDate) query.from = `${paymentFromDate}T00:00:00Z`
+      if (paymentToDate) query.to = `${paymentToDate}T23:59:59Z`
+
       const data = await browserCommercialReconciliation.getPayments(query)
-      setPayments(data)
+      if (reqId === paymentsReqIdRef.current) {
+        setPayments(data)
+      }
     } catch {
-      setErrorPayments(true)
-      setPayments(null)
+      if (reqId === paymentsReqIdRef.current) {
+        setErrorPayments(true)
+        setPayments(null)
+      }
     } finally {
-      setLoadingPayments(false)
+      if (reqId === paymentsReqIdRef.current) {
+        setLoadingPayments(false)
+      }
     }
-  }, [paymentStatusFilter, paymentOrderIdFilter, paymentCorrelationFilter])
+  }, [paymentStatusFilter, paymentOrderIdFilter, paymentCorrelationFilter, paymentFromDate, paymentToDate, paymentPage, paymentDateError])
 
   useEffect(() => {
-    if (activeTab !== 'payments') return
+    if (activeTab !== 'payments' || paymentDateError) return
     let active = true
-    const query: Record<string, string> = {}
+    const query: Record<string, string> = {
+      limit: '50',
+      offset: String((paymentPage - 1) * 50),
+    }
     if (paymentStatusFilter !== 'ALL') query.status = paymentStatusFilter
     if (paymentOrderIdFilter.trim()) query.orderId = paymentOrderIdFilter.trim()
     if (paymentCorrelationFilter.trim()) query.correlationId = paymentCorrelationFilter.trim()
+    if (paymentFromDate) query.from = `${paymentFromDate}T00:00:00Z`
+    if (paymentToDate) query.to = `${paymentToDate}T23:59:59Z`
+
     browserCommercialReconciliation.getPayments(query).then(
       (data) => {
         if (active) {
@@ -176,32 +229,52 @@ export default function AdminCommercialReconciliationManager({
     return () => {
       active = false
     }
-  }, [activeTab, paymentStatusFilter, paymentOrderIdFilter, paymentCorrelationFilter])
+  }, [activeTab, paymentStatusFilter, paymentOrderIdFilter, paymentCorrelationFilter, paymentFromDate, paymentToDate, paymentPage, paymentDateError])
 
-  // Load payouts when tab active
+  // Load payouts on manual retry
   const loadPayouts = useCallback(async () => {
+    if (payoutDateError) return
+    const reqId = ++payoutsReqIdRef.current
     setLoadingPayouts(true)
     setErrorPayouts(false)
     try {
-      const query: Record<string, string> = {}
+      const query: Record<string, string> = {
+        limit: '50',
+        offset: String((payoutPage - 1) * 50),
+      }
       if (payoutStatusFilter !== 'ALL') query.status = payoutStatusFilter
       if (payoutCorrelationFilter.trim()) query.correlationId = payoutCorrelationFilter.trim()
+      if (payoutFromDate) query.from = `${payoutFromDate}T00:00:00Z`
+      if (payoutToDate) query.to = `${payoutToDate}T23:59:59Z`
+
       const data = await browserCommercialReconciliation.getPayouts(query)
-      setPayouts(data)
+      if (reqId === payoutsReqIdRef.current) {
+        setPayouts(data)
+      }
     } catch {
-      setErrorPayouts(true)
-      setPayouts(null)
+      if (reqId === payoutsReqIdRef.current) {
+        setErrorPayouts(true)
+        setPayouts(null)
+      }
     } finally {
-      setLoadingPayouts(false)
+      if (reqId === payoutsReqIdRef.current) {
+        setLoadingPayouts(false)
+      }
     }
-  }, [payoutStatusFilter, payoutCorrelationFilter])
+  }, [payoutStatusFilter, payoutCorrelationFilter, payoutFromDate, payoutToDate, payoutPage, payoutDateError])
 
   useEffect(() => {
-    if (activeTab !== 'payouts') return
+    if (activeTab !== 'payouts' || payoutDateError) return
     let active = true
-    const query: Record<string, string> = {}
+    const query: Record<string, string> = {
+      limit: '50',
+      offset: String((payoutPage - 1) * 50),
+    }
     if (payoutStatusFilter !== 'ALL') query.status = payoutStatusFilter
     if (payoutCorrelationFilter.trim()) query.correlationId = payoutCorrelationFilter.trim()
+    if (payoutFromDate) query.from = `${payoutFromDate}T00:00:00Z`
+    if (payoutToDate) query.to = `${payoutToDate}T23:59:59Z`
+
     browserCommercialReconciliation.getPayouts(query).then(
       (data) => {
         if (active) {
@@ -220,7 +293,7 @@ export default function AdminCommercialReconciliationManager({
     return () => {
       active = false
     }
-  }, [activeTab, payoutStatusFilter, payoutCorrelationFilter])
+  }, [activeTab, payoutStatusFilter, payoutCorrelationFilter, payoutFromDate, payoutToDate, payoutPage, payoutDateError])
 
   // Handle provenance trace
   async function handleTrace(overrideType?: string, overrideValue?: string) {
@@ -228,25 +301,33 @@ export default function AdminCommercialReconciliationManager({
     const val = (overrideValue || identifierValue).trim()
     if (!val) return
 
+    const reqId = ++traceReqIdRef.current
     setLoadingProvenance(true)
     setErrorProvenance(null)
+    setProvenance(null)
     try {
       const res = await browserCommercialReconciliation.getProvenance({
         [type]: val,
       })
-      setProvenance(res)
-      if (overrideType && overrideValue) {
-        setIdentifierType(overrideType)
-        setIdentifierValue(overrideValue)
-        setActiveTab('provenance')
+      if (reqId === traceReqIdRef.current) {
+        setProvenance(res)
+        if (overrideType && overrideValue) {
+          setIdentifierType(overrideType)
+          setIdentifierValue(overrideValue)
+          setActiveTab('provenance')
+        }
       }
     } catch (e: unknown) {
-      setProvenance(null)
-      setErrorProvenance(
-        e instanceof Error ? e.message : 'Chưa thể truy vết định danh này',
-      )
+      if (reqId === traceReqIdRef.current) {
+        setProvenance(null)
+        setErrorProvenance(
+          e instanceof Error ? e.message : 'Chưa thể truy vết định danh này',
+        )
+      }
     } finally {
-      setLoadingProvenance(false)
+      if (reqId === traceReqIdRef.current) {
+        setLoadingProvenance(false)
+      }
     }
   }
 
@@ -381,19 +462,28 @@ export default function AdminCommercialReconciliationManager({
               <div className="acr-grid-2">
                 <article className="acr-stat-card">
                   <span>Webhook IPN cần kiểm tra</span>
-                  <strong>{discrepancies.webhooks.length}</strong>
+                  <strong>
+                    {discrepancies.webhooks.length}
+                    {discrepancies.webhooks.length >= 50 ? ' (giới hạn)' : ''}
+                  </strong>
                   <p>
                     Giao dịch MoMo webhook chưa hoàn tất hoặc trùng lặp mã nhận.
                   </p>
                 </article>
                 <article className="acr-stat-card">
                   <span>Yêu cầu chi trả thất bại / nghi vấn</span>
-                  <strong>{discrepancies.payouts.length}</strong>
+                  <strong>
+                    {discrepancies.payouts.length}
+                    {discrepancies.payouts.length >= 50 ? ' (giới hạn)' : ''}
+                  </strong>
                   <p>Yêu cầu chi trả chuyển trạng thái FAILED hoặc UNKNOWN.</p>
                 </article>
                 <article className="acr-stat-card">
                   <span>Khoản thu đang giữ (Held Earnings)</span>
-                  <strong>{discrepancies.heldEarnings.length}</strong>
+                  <strong>
+                    {discrepancies.heldEarnings.length}
+                    {discrepancies.heldEarnings.length >= 50 ? ' (giới hạn)' : ''}
+                  </strong>
                   <p>
                     Đang trong thời gian chờ thanh toán (grace) hoặc bị chặn bởi
                     khiếu nại.
@@ -401,7 +491,10 @@ export default function AdminCommercialReconciliationManager({
                 </article>
                 <article className="acr-stat-card">
                   <span>Xem xét phiên tư vấn đang mở (Disputes)</span>
-                  <strong>{discrepancies.disputes.length}</strong>
+                  <strong>
+                    {discrepancies.disputes.length}
+                    {discrepancies.disputes.length >= 50 ? ' (giới hạn)' : ''}
+                  </strong>
                   <p>Khiếu nại OPEN hoặc yêu cầu hoàn tín chỉ dịch vụ.</p>
                 </article>
               </div>
@@ -410,8 +503,7 @@ export default function AdminCommercialReconciliationManager({
                 <div className="acr-empty">
                   <h3>Không ghi nhận sai lệch</h3>
                   <p>
-                    Tất cả sự kiện webhook, chi trả, thu nhập và khiếu nại đều ở
-                    trạng thái cân bằng.
+                    Không phát hiện sai lệch nào trong phạm vi giám sát hiện tại (webhook, chi trả thất bại, thu nhập bị giữ, khiếu nại mở).
                   </p>
                 </div>
               ) : (
@@ -762,7 +854,10 @@ export default function AdminCommercialReconciliationManager({
                 <select
                   className="acr-select"
                   value={paymentStatusFilter}
-                  onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                  onChange={(e) => {
+                    setPaymentStatusFilter(e.target.value)
+                    setPaymentPage(1)
+                  }}
                 >
                   <option value="ALL">Tất cả</option>
                   <option value="SUCCEEDED">Đã xác nhận</option>
@@ -776,24 +871,59 @@ export default function AdminCommercialReconciliationManager({
                 <input
                   type="text"
                   className="acr-input"
-                  style={{ width: '160px' }}
+                  style={{ width: '140px' }}
                   placeholder="Order ID..."
                   value={paymentOrderIdFilter}
-                  onChange={(e) => setPaymentOrderIdFilter(e.target.value)}
+                  onChange={(e) => {
+                    setPaymentOrderIdFilter(e.target.value)
+                    setPaymentPage(1)
+                  }}
                 />
               </label>
               <label>
-                Correlation ID:{' '}
+                Mã đối soát / Idempotency:{' '}
                 <input
                   type="text"
                   className="acr-input"
                   style={{ width: '160px' }}
-                  placeholder="Correlation ID..."
+                  placeholder="Idempotency key..."
                   value={paymentCorrelationFilter}
-                  onChange={(e) => setPaymentCorrelationFilter(e.target.value)}
+                  onChange={(e) => {
+                    setPaymentCorrelationFilter(e.target.value)
+                    setPaymentPage(1)
+                  }}
+                />
+              </label>
+              <label>
+                Từ ngày:{' '}
+                <input
+                  type="date"
+                  className="acr-input"
+                  value={paymentFromDate}
+                  onChange={(e) => {
+                    setPaymentFromDate(e.target.value)
+                    setPaymentPage(1)
+                  }}
+                />
+              </label>
+              <label>
+                Đến ngày:{' '}
+                <input
+                  type="date"
+                  className="acr-input"
+                  value={paymentToDate}
+                  onChange={(e) => {
+                    setPaymentToDate(e.target.value)
+                    setPaymentPage(1)
+                  }}
                 />
               </label>
             </div>
+            {paymentDateError && (
+              <div className="acr-alert" style={{ marginBottom: '12px', padding: '8px 12px' }} role="alert">
+                <p style={{ margin: 0 }}>{paymentDateError}</p>
+              </div>
+            )}
 
             {loadingPayments && !payments && <p role="status">Đang tải giao dịch…</p>}
 
@@ -813,11 +943,6 @@ export default function AdminCommercialReconciliationManager({
             {payments && (
               <div>
                 <p role="status">{payments.count} giao dịch được ghi nhận</p>
-                {payments.count >= 200 && (
-                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '-8px', marginBottom: '12px' }}>
-                    Hiển thị tối đa 200 giao dịch mới nhất. Hãy dùng bộ lọc để tìm kiếm chính xác hơn.
-                  </p>
-                )}
                 <table className="acr-table">
                   <thead>
                     <tr>
@@ -862,6 +987,27 @@ export default function AdminCommercialReconciliationManager({
                     ))}
                   </tbody>
                 </table>
+                <div className="acr-pagination">
+                  <button
+                    type="button"
+                    className="acr-btn"
+                    disabled={paymentPage <= 1 || loadingPayments}
+                    onClick={() => setPaymentPage((p) => Math.max(1, p - 1))}
+                  >
+                    Trang trước
+                  </button>
+                  <span style={{ fontSize: '0.875rem', color: '#475569' }}>
+                    Trang {paymentPage} ({payments.items.length} giao dịch)
+                  </span>
+                  <button
+                    type="button"
+                    className="acr-btn"
+                    disabled={payments.items.length < 50 || loadingPayments}
+                    onClick={() => setPaymentPage((p) => p + 1)}
+                  >
+                    Trang sau
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -879,7 +1025,10 @@ export default function AdminCommercialReconciliationManager({
                 <select
                   className="acr-select"
                   value={payoutStatusFilter}
-                  onChange={(e) => setPayoutStatusFilter(e.target.value)}
+                  onChange={(e) => {
+                    setPayoutStatusFilter(e.target.value)
+                    setPayoutPage(1)
+                  }}
                 >
                   <option value="ALL">Tất cả</option>
                   <option value="SUCCEEDED">Đã thanh toán</option>
@@ -889,17 +1038,49 @@ export default function AdminCommercialReconciliationManager({
                 </select>
               </label>
               <label>
-                Correlation ID:{' '}
+                Mã đối soát / Idempotency:{' '}
                 <input
                   type="text"
                   className="acr-input"
                   style={{ width: '160px' }}
-                  placeholder="Correlation ID..."
+                  placeholder="Idempotency key..."
                   value={payoutCorrelationFilter}
-                  onChange={(e) => setPayoutCorrelationFilter(e.target.value)}
+                  onChange={(e) => {
+                    setPayoutCorrelationFilter(e.target.value)
+                    setPayoutPage(1)
+                  }}
+                />
+              </label>
+              <label>
+                Từ ngày:{' '}
+                <input
+                  type="date"
+                  className="acr-input"
+                  value={payoutFromDate}
+                  onChange={(e) => {
+                    setPayoutFromDate(e.target.value)
+                    setPayoutPage(1)
+                  }}
+                />
+              </label>
+              <label>
+                Đến ngày:{' '}
+                <input
+                  type="date"
+                  className="acr-input"
+                  value={payoutToDate}
+                  onChange={(e) => {
+                    setPayoutToDate(e.target.value)
+                    setPayoutPage(1)
+                  }}
                 />
               </label>
             </div>
+            {payoutDateError && (
+              <div className="acr-alert" style={{ marginBottom: '12px', padding: '8px 12px' }} role="alert">
+                <p style={{ margin: 0 }}>{payoutDateError}</p>
+              </div>
+            )}
 
             {loadingPayouts && !payouts && <p role="status">Đang tải dữ liệu chi trả…</p>}
 
@@ -918,12 +1099,7 @@ export default function AdminCommercialReconciliationManager({
 
             {payouts && (
               <div>
-                <p role="status">{payouts.count} yêu cầu được ghi nhận</p>
-                {payouts.count >= 200 && (
-                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '-8px', marginBottom: '12px' }}>
-                    Hiển thị tối đa 200 chi trả mới nhất. Hãy dùng bộ lọc để tìm kiếm chính xác hơn.
-                  </p>
-                )}
+                <p role="status">{payouts.count} yêu cầu được ghi nhận (Trang {payoutPage})</p>
                 <table className="acr-table">
                   <thead>
                     <tr>
@@ -970,6 +1146,27 @@ export default function AdminCommercialReconciliationManager({
                     ))}
                   </tbody>
                 </table>
+                <div className="acr-pagination">
+                  <button
+                    type="button"
+                    className="acr-btn"
+                    disabled={payoutPage <= 1 || loadingPayouts}
+                    onClick={() => setPayoutPage((p) => Math.max(1, p - 1))}
+                  >
+                    Trang trước
+                  </button>
+                  <span style={{ fontSize: '0.875rem', color: '#475569' }}>
+                    Trang {payoutPage} ({payouts.items.length} yêu cầu)
+                  </span>
+                  <button
+                    type="button"
+                    className="acr-btn"
+                    disabled={payouts.items.length < 50 || loadingPayouts}
+                    onClick={() => setPayoutPage((p) => p + 1)}
+                  >
+                    Trang sau
+                  </button>
+                </div>
               </div>
             )}
           </div>
