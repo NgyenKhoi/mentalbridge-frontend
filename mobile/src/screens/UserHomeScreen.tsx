@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
+import { ReminderCenterEntry } from '@/reminders/ReminderCenterRoute'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 export function UserHomeScreen() {
@@ -20,6 +21,7 @@ export function UserHomeScreen() {
         xác nhận.
       </Text>
       <View style={styles.actions}>
+        <ReminderCenterEntry />
         <Pressable
           accessibilityRole="button"
           onPress={() => router.push('./notifications')}
