@@ -34,6 +34,8 @@ type Props = Readonly<{
   media: CommunityMediaTransport
   onBack: () => void
   onResource: (id: string) => void
+  onChat?: () => void
+  onPeerChat?: (id: string) => void
 }>
 type Panel = 'feed' | 'profile' | 'composer' | 'detail' | 'help'
 
@@ -45,6 +47,8 @@ function AccountCommunityScreen({
   media,
   onBack,
   onResource,
+  onChat,
+  onPeerChat,
   subject,
 }: Props & { subject: string }) {
   const client = useQueryClient()
@@ -130,6 +134,7 @@ function AccountCommunityScreen({
             }}
             onHelp={() => setPanel('help')}
             onResource={onResource}
+            {...(onPeerChat ? { onPeerChat } : {})}
             onGone={(message) => {
               setNotice(message)
               feed()
@@ -145,6 +150,9 @@ function AccountCommunityScreen({
               Chia sẻ trải nghiệm, lắng nghe và động viên nhau. Không gian này
               không thay thế tư vấn chuyên môn.
             </Text>
+            {onChat && (
+              <CommunityButton label="Trò chuyện cộng đồng" onPress={onChat} />
+            )}
             <View style={styles.row}>
               <CommunityButton
                 label="Bảng tin"

@@ -15,11 +15,12 @@ vi.mock('@/lib/community/authenticated-user', () => ({
   communityAuthenticationFailure: vi.fn(),
 }))
 
-import { GET, POST } from './route'
+import { DELETE, GET, POST, PUT } from './route'
 
 const conversationId = '20000000-0000-4000-8000-000000000001'
 const messageId = '40000000-0000-4000-8000-000000000001'
 const reportKey = '50000000-0000-4000-8000-000000000001'
+const memberId = '10000000-0000-4000-8000-000000000009'
 
 describe('/api/community/chat BFF', () => {
   beforeEach(() => {
@@ -218,5 +219,141 @@ describe('/api/community/chat BFF', () => {
       code: 'TARGET_UNAVAILABLE',
       title: 'Community chat target is unavailable.',
     })
+  })
+
+  it('forwards group creation without client-authored owner data', async () => {
+    upstream.mockResolvedValue({
+      data: {
+        conversationId,
+        kind: 'GROUP',
+        name: 'Góc bình yên',
+        state: 'ACTIVE',
+        memberLimit: 30,
+        version: '1',
+      },
+      status: 201,
+      etag: null,
+    })
+    const response = await POST(
+      new NextRequest('http://localhost/api/community/chat/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': reportKey,
+        },
+        body: JSON.stringify({ name: 'Góc bình yên' }),
+      }),
+      { params: Promise.resolve({ path: ['groups'] }) },
+    )
+
+    expect(response.status).toBe(201)
+    expect(upstream.mock.calls[0][4]).toMatchObject({
+      body: { name: 'Góc bình yên' },
+      headers: { 'Idempotency-Key': reportKey },
+    })
+
+    upstream.mockClear()
+    const injected = await POST(
+      new NextRequest('http://localhost/api/community/chat/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': reportKey,
+        },
+        body: JSON.stringify({ name: 'Góc bình yên', ownerId: memberId }),
+      }),
+      { params: Promise.resolve({ path: ['groups'] }) },
+    )
+    expect(injected.status).toBe(400)
+    expect(upstream).not.toHaveBeenCalled()
+  })
+
+  it('keeps group and invitation revisions on their distinct commands', async () => {
+    upstream.mockResolvedValue({
+      data: { peer: {}, role: 'ADMIN', joinedAt: '2026-10-20T00:00:00Z' },
+      status: 200,
+      etag: '"8"',
+    })
+    const roleResponse = await PUT(
+      new NextRequest(
+        `http://localhost/api/community/chat/groups/${conversationId}/members/${memberId}/role`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'If-Match': '"7"' },
+          body: JSON.stringify({ role: 'ADMIN' }),
+        },
+      ),
+      {
+        params: Promise.resolve({
+          path: ['groups', conversationId, 'members', memberId, 'role'],
+        }),
+      },
+    )
+    expect(roleResponse.status).toBe(200)
+    expect(roleResponse.headers.get('etag')).toBe('"8"')
+    expect(upstream.mock.calls[0][4]).toMatchObject({
+      headers: { 'If-Match': '"7"' },
+      body: { role: 'ADMIN' },
+    })
+
+    upstream.mockReset()
+    upstream.mockResolvedValue({ data: null, status: 204, etag: null })
+    const invitationId = '30000000-0000-4000-8000-000000000009'
+    const decline = await POST(
+      new NextRequest(
+        `http://localhost/api/community/chat/invitations/${invitationId}/decision`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'If-Match': '"2"' },
+          body: JSON.stringify({ decision: 'DECLINE' }),
+        },
+      ),
+      {
+        params: Promise.resolve({
+          path: ['invitations', invitationId, 'decision'],
+        }),
+      },
+    )
+    expect(decline.status).toBe(204)
+    expect(upstream.mock.calls[0][4]).toMatchObject({
+      headers: { 'If-Match': '"2"' },
+      body: { decision: 'DECLINE' },
+    })
+  })
+
+  it('forwards self-leave as a versioned delete and rejects malformed targets', async () => {
+    upstream.mockResolvedValue({ data: null, status: 204, etag: null })
+    const response = await DELETE(
+      new NextRequest(
+        `http://localhost/api/community/chat/groups/${conversationId}/members/${memberId}`,
+        { method: 'DELETE', headers: { 'If-Match': '"4"' } },
+      ),
+      {
+        params: Promise.resolve({
+          path: ['groups', conversationId, 'members', memberId],
+        }),
+      },
+    )
+    expect(response.status).toBe(204)
+    expect(upstream.mock.calls[0][4]).toMatchObject({
+      method: 'DELETE',
+      headers: { 'If-Match': '"4"' },
+      allowNoContent: true,
+    })
+
+    upstream.mockClear()
+    const invalid = await DELETE(
+      new NextRequest(
+        `http://localhost/api/community/chat/groups/${conversationId}/members/not-a-uuid`,
+        { method: 'DELETE', headers: { 'If-Match': '"4"' } },
+      ),
+      {
+        params: Promise.resolve({
+          path: ['groups', conversationId, 'members', 'not-a-uuid'],
+        }),
+      },
+    )
+    expect(invalid.status).toBe(400)
+    expect(upstream).not.toHaveBeenCalled()
   })
 })

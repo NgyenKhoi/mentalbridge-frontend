@@ -2,6 +2,9 @@ import { browserApiClient } from '@/lib/api/browser-client'
 
 import type {
   ChatConversation,
+  ChatGroup,
+  ChatGroupInvitation,
+  ChatGroupMember,
   ChatMessage,
   ChatPage,
   ChatPrivacy,
@@ -17,7 +20,10 @@ import type {
 export type {
   ChatConversation,
   ChatDirectConversation,
+  ChatGroup,
   ChatGroupConversation,
+  ChatGroupInvitation,
+  ChatGroupMember,
   ChatMessage,
   ChatPrivacy,
   ChatPrivacyView,
@@ -77,6 +83,114 @@ export async function getChatRequests(cursor?: string) {
     { params: { limit: 20, ...(cursor ? { cursor } : {}) } },
   )
   return response.data
+}
+
+export async function createChatGroup(name: string, idempotencyKey: string) {
+  const response = await browserApiClient.post<ChatGroup>(
+    '/community/chat/groups',
+    { name },
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  )
+  return response.data
+}
+
+export async function getChatGroupInvitations(cursor?: string) {
+  const response = await browserApiClient.get<ChatPage<ChatGroupInvitation>>(
+    '/community/chat/invitations',
+    { params: { limit: 20, ...(cursor ? { cursor } : {}) } },
+  )
+  return response.data
+}
+
+export async function decideChatGroupInvitation(
+  invitationId: string,
+  decision: 'ACCEPT' | 'DECLINE',
+  version: string,
+) {
+  const response = await browserApiClient.post<ChatGroup | undefined>(
+    `/community/chat/invitations/${encodeURIComponent(invitationId)}/decision`,
+    { decision },
+    { headers: { 'If-Match': `"${version}"` } },
+  )
+  return response.data
+}
+
+export async function getChatGroupMembers(
+  conversationId: string,
+  cursor?: string,
+) {
+  const response = await browserApiClient.get<ChatPage<ChatGroupMember>>(
+    `/community/chat/groups/${encodeURIComponent(conversationId)}/members`,
+    { params: { limit: 20, ...(cursor ? { cursor } : {}) } },
+  )
+  return response.data
+}
+
+export async function inviteChatGroupMember(
+  conversationId: string,
+  inviteeCommunityProfileId: string,
+  version: string,
+  idempotencyKey: string,
+) {
+  const response = await browserApiClient.post<ChatGroupInvitation>(
+    `/community/chat/groups/${encodeURIComponent(conversationId)}/invitations`,
+    { inviteeCommunityProfileId },
+    {
+      headers: {
+        'Idempotency-Key': idempotencyKey,
+        'If-Match': `"${version}"`,
+      },
+    },
+  )
+  return { invitation: response.data, version: response.headers.etag }
+}
+
+export async function setChatGroupMemberRole(
+  conversationId: string,
+  communityProfileId: string,
+  role: 'ADMIN' | 'MEMBER',
+  version: string,
+) {
+  const response = await browserApiClient.put<ChatGroupMember>(
+    `/community/chat/groups/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(communityProfileId)}/role`,
+    { role },
+    { headers: { 'If-Match': `"${version}"` } },
+  )
+  return { member: response.data, version: response.headers.etag }
+}
+
+export async function removeChatGroupMember(
+  conversationId: string,
+  communityProfileId: string,
+  version: string,
+) {
+  await browserApiClient.delete(
+    `/community/chat/groups/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(communityProfileId)}`,
+    { headers: { 'If-Match': `"${version}"` } },
+  )
+}
+
+export async function transferChatGroupOwnership(
+  conversationId: string,
+  newOwnerCommunityProfileId: string,
+  version: string,
+) {
+  const response = await browserApiClient.post<ChatGroup>(
+    `/community/chat/groups/${encodeURIComponent(conversationId)}/ownership`,
+    { newOwnerCommunityProfileId },
+    { headers: { 'If-Match': `"${version}"` } },
+  )
+  return response.data
+}
+
+export async function archiveChatGroup(
+  conversationId: string,
+  version: string,
+) {
+  await browserApiClient.delete(
+    `/community/chat/groups/${encodeURIComponent(conversationId)}`,
+    { headers: { 'If-Match': `"${version}"` } },
+  )
 }
 
 export async function decideChatRequest(
