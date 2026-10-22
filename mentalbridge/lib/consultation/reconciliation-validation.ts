@@ -73,6 +73,9 @@ export function parseAdminCommercialProvenance(
   ) {
     return null
   }
+  if (value.subscriptions !== undefined && !Array.isArray(value.subscriptions)) {
+    return null
+  }
   return value as unknown as AdminCommercialProvenance
 }
 

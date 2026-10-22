@@ -2425,6 +2425,23 @@ export interface components {
                 /** Format: date-time */
                 createdAt: string;
             } | null;
+            subscriptions: {
+                /** Format: uuid */
+                subscriptionId: string;
+                /** Format: uuid */
+                userAccountId: string;
+                /** Format: uuid */
+                planVersionId: string;
+                planCode: string;
+                pricingPolicyVersion: string;
+                status: string;
+                /** Format: date-time */
+                currentPeriodStart?: string | null;
+                /** Format: date-time */
+                currentPeriodEnd?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
             payments: components["schemas"]["AdminPayment"][];
             credits: {
                 /** Format: uuid */
@@ -5253,6 +5270,9 @@ export interface operations {
                 subscriptionId?: string;
                 paymentId?: string;
                 limit?: number;
+                orderId?: string;
+                correlationId?: string;
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -5282,6 +5302,8 @@ export interface operations {
                 specialistAccountId?: string;
                 payoutId?: string;
                 limit?: number;
+                correlationId?: string;
+                offset?: number;
             };
             header?: never;
             path?: never;

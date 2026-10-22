@@ -23,6 +23,36 @@ const money = (value: number) =>
 const date = (value?: string | null) =>
   value ? new Date(value).toLocaleString('vi-VN') : '—'
 
+const statusBadgeClass = (status?: string | null) => {
+  if (!status) return 'acr-badge'
+  switch (status.toUpperCase()) {
+    case 'SUCCEEDED':
+    case 'ACTIVE':
+    case 'AVAILABLE':
+    case 'SETTLED':
+    case 'COMPLETED':
+    case 'CONSUMED':
+    case 'APPLIED':
+      return 'acr-badge acr-badge-success'
+    case 'FAILED':
+    case 'CHARGEBACK':
+    case 'FORFEITED':
+    case 'EXPIRED':
+    case 'CANCELLED':
+    case 'UNKNOWN':
+      return 'acr-badge acr-badge-alert'
+    case 'PENDING':
+    case 'HELD':
+    case 'PROCESSING':
+    case 'REQUESTED':
+    case 'PENDING_PAYMENT':
+    case 'PENDING_SETTLEMENT':
+      return 'acr-badge acr-badge-warning'
+    default:
+      return 'acr-badge'
+  }
+}
+
 export default function AdminCommercialReconciliationManager({
   onNotice,
 }: {
@@ -49,12 +79,17 @@ export default function AdminCommercialReconciliationManager({
   // Payments browse state
   const [payments, setPayments] = useState<AdminPaymentList | null>(null)
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('ALL')
+  const [paymentOrderIdFilter, setPaymentOrderIdFilter] = useState('')
+  const [paymentCorrelationFilter, setPaymentCorrelationFilter] = useState('')
   const [loadingPayments, setLoadingPayments] = useState(false)
+  const [errorPayments, setErrorPayments] = useState(false)
 
   // Payouts browse state
   const [payouts, setPayouts] = useState<AdminPayoutList | null>(null)
   const [payoutStatusFilter, setPayoutStatusFilter] = useState('ALL')
+  const [payoutCorrelationFilter, setPayoutCorrelationFilter] = useState('')
   const [loadingPayouts, setLoadingPayouts] = useState(false)
+  const [errorPayouts, setErrorPayouts] = useState(false)
   const [selectedPayoutDetail, setSelectedPayoutDetail] =
     useState<AdminPayoutDetail | null>(null)
 
@@ -100,23 +135,29 @@ export default function AdminCommercialReconciliationManager({
   // Load payments when tab active
   const loadPayments = useCallback(async () => {
     setLoadingPayments(true)
+    setErrorPayments(false)
     try {
       const query: Record<string, string> = {}
       if (paymentStatusFilter !== 'ALL') query.status = paymentStatusFilter
+      if (paymentOrderIdFilter.trim()) query.orderId = paymentOrderIdFilter.trim()
+      if (paymentCorrelationFilter.trim()) query.correlationId = paymentCorrelationFilter.trim()
       const data = await browserCommercialReconciliation.getPayments(query)
       setPayments(data)
     } catch {
-      // Keep previous
+      setErrorPayments(true)
+      setPayments(null)
     } finally {
       setLoadingPayments(false)
     }
-  }, [paymentStatusFilter])
+  }, [paymentStatusFilter, paymentOrderIdFilter, paymentCorrelationFilter])
 
   useEffect(() => {
     if (activeTab !== 'payments') return
     let active = true
     const query: Record<string, string> = {}
     if (paymentStatusFilter !== 'ALL') query.status = paymentStatusFilter
+    if (paymentOrderIdFilter.trim()) query.orderId = paymentOrderIdFilter.trim()
+    if (paymentCorrelationFilter.trim()) query.correlationId = paymentCorrelationFilter.trim()
     browserCommercialReconciliation.getPayments(query).then(
       (data) => {
         if (active) {
@@ -126,6 +167,8 @@ export default function AdminCommercialReconciliationManager({
       },
       () => {
         if (active) {
+          setErrorPayments(true)
+          setPayments(null)
           setLoadingPayments(false)
         }
       },
@@ -133,28 +176,32 @@ export default function AdminCommercialReconciliationManager({
     return () => {
       active = false
     }
-  }, [activeTab, paymentStatusFilter])
+  }, [activeTab, paymentStatusFilter, paymentOrderIdFilter, paymentCorrelationFilter])
 
   // Load payouts when tab active
   const loadPayouts = useCallback(async () => {
     setLoadingPayouts(true)
+    setErrorPayouts(false)
     try {
       const query: Record<string, string> = {}
       if (payoutStatusFilter !== 'ALL') query.status = payoutStatusFilter
+      if (payoutCorrelationFilter.trim()) query.correlationId = payoutCorrelationFilter.trim()
       const data = await browserCommercialReconciliation.getPayouts(query)
       setPayouts(data)
     } catch {
-      // Keep previous
+      setErrorPayouts(true)
+      setPayouts(null)
     } finally {
       setLoadingPayouts(false)
     }
-  }, [payoutStatusFilter])
+  }, [payoutStatusFilter, payoutCorrelationFilter])
 
   useEffect(() => {
     if (activeTab !== 'payouts') return
     let active = true
     const query: Record<string, string> = {}
     if (payoutStatusFilter !== 'ALL') query.status = payoutStatusFilter
+    if (payoutCorrelationFilter.trim()) query.correlationId = payoutCorrelationFilter.trim()
     browserCommercialReconciliation.getPayouts(query).then(
       (data) => {
         if (active) {
@@ -164,6 +211,8 @@ export default function AdminCommercialReconciliationManager({
       },
       () => {
         if (active) {
+          setErrorPayouts(true)
+          setPayouts(null)
           setLoadingPayouts(false)
         }
       },
@@ -171,7 +220,7 @@ export default function AdminCommercialReconciliationManager({
     return () => {
       active = false
     }
-  }, [activeTab, payoutStatusFilter])
+  }, [activeTab, payoutStatusFilter, payoutCorrelationFilter])
 
   // Handle provenance trace
   async function handleTrace(overrideType?: string, overrideValue?: string) {
@@ -192,6 +241,7 @@ export default function AdminCommercialReconciliationManager({
         setActiveTab('provenance')
       }
     } catch (e: unknown) {
+      setProvenance(null)
       setErrorProvenance(
         e instanceof Error ? e.message : 'Chưa thể truy vết định danh này',
       )
@@ -366,6 +416,13 @@ export default function AdminCommercialReconciliationManager({
                 </div>
               ) : (
                 <div style={{ marginTop: '24px' }}>
+                  {discrepancies.totalDiscrepancies > 50 && (
+                    <div className="acr-stage-box" style={{ marginBottom: '16px', background: '#f8fafc', borderColor: '#cbd5e1' }}>
+                      <p style={{ margin: 0, fontSize: '0.875rem', color: '#475569' }}>
+                        Ghi nhận tổng cộng <strong>{discrepancies.totalDiscrepancies}</strong> trường hợp cần đối soát. Danh sách dưới đây hiển thị tối đa 50 bản ghi gần nhất cho từng nhóm.
+                      </p>
+                    </div>
+                  )}
                   {discrepancies.webhooks.length > 0 && (
                     <div>
                       <h3>Sự kiện Webhook ({discrepancies.webhooks.length})</h3>
@@ -557,7 +614,7 @@ export default function AdminCommercialReconciliationManager({
                           <div key={p.paymentId} className="acr-stage-box">
                             <div className="acr-item-row">
                               <span>Mã giao dịch: {p.paymentId}</span>
-                              <span className="acr-badge acr-badge-success">{p.status}</span>
+                              <span className={statusBadgeClass(p.status)}>{p.status}</span>
                             </div>
                             <div className="acr-item-row">
                               <span>Số tiền: <strong>{money(p.amountVnd)}</strong></span>
@@ -574,23 +631,33 @@ export default function AdminCommercialReconciliationManager({
                     {/* Stage 2: Subscription & Credits */}
                     <div className="acr-stage">
                       <h3>2. Thuê bao & Tín chỉ (Subscription & Service Credits)</h3>
-                      {provenance.subscription && (
-                        <div className="acr-stage-box" style={{ marginBottom: '8px' }}>
-                          <div className="acr-item-row">
-                            <span>Thuê bao: {provenance.subscription.subscriptionId}</span>
-                            <span className="acr-badge">{provenance.subscription.status}</span>
-                          </div>
-                          <span>Gói: {provenance.subscription.planCode} ({provenance.subscription.pricingPolicyVersion})</span>
-                          <small>Kỳ hạn: {date(provenance.subscription.currentPeriodStart)} → {date(provenance.subscription.currentPeriodEnd)}</small>
-                        </div>
-                      )}
+                      {(() => {
+                        const subs =
+                          provenance.subscriptions && provenance.subscriptions.length > 0
+                            ? provenance.subscriptions
+                            : provenance.subscription
+                            ? [provenance.subscription]
+                            : []
+                        return subs.length > 0 ? (
+                          subs.map((s) => (
+                            <div key={s.subscriptionId} className="acr-stage-box" style={{ marginBottom: '8px' }}>
+                              <div className="acr-item-row">
+                                <span>Thuê bao: {s.subscriptionId}</span>
+                                <span className={statusBadgeClass(s.status)}>{s.status}</span>
+                              </div>
+                              <span>Gói: {s.planCode} ({s.pricingPolicyVersion})</span>
+                              <small>Kỳ hạn: {date(s.currentPeriodStart)} → {date(s.currentPeriodEnd)}</small>
+                            </div>
+                          ))
+                        ) : null
+                      })()}
                       {provenance.credits.length ? (
                         <div className="acr-stage-box">
                           <strong>Tín chỉ ({provenance.credits.length} suất):</strong>
                           {provenance.credits.map((c) => (
                             <div key={c.creditId} className="acr-item-row">
                               <span>#{c.ordinal} · {c.creditId}</span>
-                              <span>{money(c.creditAllocationVnd)} · <strong>{c.state}</strong></span>
+                              <span>{money(c.creditAllocationVnd)} · <strong className={statusBadgeClass(c.state)}>{c.state}</strong></span>
                             </div>
                           ))}
                         </div>
@@ -607,7 +674,7 @@ export default function AdminCommercialReconciliationManager({
                           <div key={a.appointmentId} className="acr-stage-box" style={{ marginBottom: '8px' }}>
                             <div className="acr-item-row">
                               <span>Lịch hẹn: {a.appointmentId}</span>
-                              <span className="acr-badge">{a.status}</span>
+                              <span className={statusBadgeClass(a.status)}>{a.status}</span>
                             </div>
                             <div className="acr-item-row">
                               <span>Hình thức: {a.modality}</span>
@@ -623,7 +690,7 @@ export default function AdminCommercialReconciliationManager({
                         <div key={d.disputeId} className="acr-stage-box" style={{ borderColor: '#ef4444' }}>
                           <div className="acr-item-row">
                             <span>Khiếu nại: {d.disputeId}</span>
-                            <span className="acr-badge acr-badge-alert">{d.status}</span>
+                            <span className={statusBadgeClass(d.status)}>{d.status}</span>
                           </div>
                           <span>Lý do: {d.reasonCode} (mở bởi {d.openedByRole})</span>
                           <small>Kết quả: {d.resolutionOutcome || 'Đang chờ xử lý'} | {d.resolutionReason || ''}</small>
@@ -639,7 +706,7 @@ export default function AdminCommercialReconciliationManager({
                           <div key={e.earningId} className="acr-stage-box">
                             <div className="acr-item-row">
                               <span>Thu nhập: {e.earningId}</span>
-                              <span className="acr-badge acr-badge-success">{e.status}</span>
+                              <span className={statusBadgeClass(e.status)}>{e.status}</span>
                             </div>
                             <div className="acr-item-row">
                               <span>Chuyên gia nhận ({e.specialistShareBps / 100}%): <strong>{money(e.specialistAmountVnd)}</strong></span>
@@ -661,7 +728,7 @@ export default function AdminCommercialReconciliationManager({
                           <div key={p.payoutId} className="acr-stage-box">
                             <div className="acr-item-row">
                               <span>Chi trả: {p.payoutId}</span>
-                              <span className="acr-badge acr-badge-success">{p.status}</span>
+                              <span className={statusBadgeClass(p.status)}>{p.status}</span>
                             </div>
                             <div className="acr-item-row">
                               <span>Số tiền: <strong>{money(p.amountVnd)}</strong></span>
@@ -688,7 +755,7 @@ export default function AdminCommercialReconciliationManager({
       {activeTab === 'payments' && (
         <section aria-label="Giao dịch thanh toán">
           <div className="acr-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
               <h2>Giao dịch thanh toán</h2>
               <label>
                 Lọc trạng thái:{' '}
@@ -704,13 +771,53 @@ export default function AdminCommercialReconciliationManager({
                   <option value="CHARGEBACK">Cần đối soát</option>
                 </select>
               </label>
+              <label>
+                Mã đơn hàng:{' '}
+                <input
+                  type="text"
+                  className="acr-input"
+                  style={{ width: '160px' }}
+                  placeholder="Order ID..."
+                  value={paymentOrderIdFilter}
+                  onChange={(e) => setPaymentOrderIdFilter(e.target.value)}
+                />
+              </label>
+              <label>
+                Correlation ID:{' '}
+                <input
+                  type="text"
+                  className="acr-input"
+                  style={{ width: '160px' }}
+                  placeholder="Correlation ID..."
+                  value={paymentCorrelationFilter}
+                  onChange={(e) => setPaymentCorrelationFilter(e.target.value)}
+                />
+              </label>
             </div>
 
             {loadingPayments && !payments && <p role="status">Đang tải giao dịch…</p>}
 
+            {errorPayments && (
+              <div className="acr-alert" role="alert">
+                <p>Chưa thể tải dữ liệu thanh toán từ máy chủ.</p>
+                <button
+                  type="button"
+                  className="acr-btn"
+                  onClick={() => void loadPayments()}
+                >
+                  Thử lại
+                </button>
+              </div>
+            )}
+
             {payments && (
               <div>
                 <p role="status">{payments.count} giao dịch được ghi nhận</p>
+                {payments.count >= 200 && (
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '-8px', marginBottom: '12px' }}>
+                    Hiển thị tối đa 200 giao dịch mới nhất. Hãy dùng bộ lọc để tìm kiếm chính xác hơn.
+                  </p>
+                )}
                 <table className="acr-table">
                   <thead>
                     <tr>
@@ -729,7 +836,7 @@ export default function AdminCommercialReconciliationManager({
                         <td>{item.planCode} ({item.purpose})</td>
                         <td><strong>{money(item.amountVnd)}</strong></td>
                         <td>
-                          <span className={`acr-badge ${item.status === 'SUCCEEDED' ? 'acr-badge-success' : item.status === 'FAILED' ? 'acr-badge-alert' : 'acr-badge-warning'}`}>
+                          <span className={statusBadgeClass(item.status)}>
                             {item.status}
                           </span>
                         </td>
@@ -765,7 +872,7 @@ export default function AdminCommercialReconciliationManager({
       {activeTab === 'payouts' && (
         <section aria-label="Chi trả chuyên gia">
           <div className="acr-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
               <h2>Yêu cầu chi trả</h2>
               <label>
                 Lọc trạng thái:{' '}
@@ -781,13 +888,42 @@ export default function AdminCommercialReconciliationManager({
                   <option value="UNKNOWN">Cần đối soát</option>
                 </select>
               </label>
+              <label>
+                Correlation ID:{' '}
+                <input
+                  type="text"
+                  className="acr-input"
+                  style={{ width: '160px' }}
+                  placeholder="Correlation ID..."
+                  value={payoutCorrelationFilter}
+                  onChange={(e) => setPayoutCorrelationFilter(e.target.value)}
+                />
+              </label>
             </div>
 
             {loadingPayouts && !payouts && <p role="status">Đang tải dữ liệu chi trả…</p>}
 
+            {errorPayouts && (
+              <div className="acr-alert" role="alert">
+                <p>Chưa thể tải dữ liệu chi trả từ máy chủ.</p>
+                <button
+                  type="button"
+                  className="acr-btn"
+                  onClick={() => void loadPayouts()}
+                >
+                  Thử lại
+                </button>
+              </div>
+            )}
+
             {payouts && (
               <div>
                 <p role="status">{payouts.count} yêu cầu được ghi nhận</p>
+                {payouts.count >= 200 && (
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '-8px', marginBottom: '12px' }}>
+                    Hiển thị tối đa 200 chi trả mới nhất. Hãy dùng bộ lọc để tìm kiếm chính xác hơn.
+                  </p>
+                )}
                 <table className="acr-table">
                   <thead>
                     <tr>
@@ -807,7 +943,7 @@ export default function AdminCommercialReconciliationManager({
                         <td>{item.destinationHint}</td>
                         <td><strong>{money(item.amountVnd)}</strong></td>
                         <td>
-                          <span className={`acr-badge ${item.status === 'SUCCEEDED' ? 'acr-badge-success' : item.status === 'FAILED' ? 'acr-badge-alert' : 'acr-badge-warning'}`}>
+                          <span className={statusBadgeClass(item.status)}>
                             {item.status}
                           </span>
                         </td>
@@ -942,7 +1078,7 @@ export default function AdminCommercialReconciliationManager({
               <div key={att.attemptId} className="acr-stage-box" style={{ marginBottom: '6px' }}>
                 <div className="acr-item-row">
                   <span>Lần #{att.attemptNumber} ({att.provider})</span>
-                  <span className="acr-badge">{att.status}</span>
+                  <span className={statusBadgeClass(att.status)}>{att.status}</span>
                 </div>
                 <small>Tham chiếu: {att.providerReference || 'N/A'} | Mã lỗi: {att.failureCode || 'N/A'}</small>
               </div>
@@ -999,14 +1135,19 @@ export default function AdminCommercialReconciliationManager({
             <p>
               Người dùng: {selectedSubscriptionDetail.userAccountId} | Gói: {selectedSubscriptionDetail.planCode} ({selectedSubscriptionDetail.pricingPolicyVersion})
             </p>
-            <p>Trạng thái: {selectedSubscriptionDetail.status}</p>
+            <p>
+              Trạng thái:{' '}
+              <span className={statusBadgeClass(selectedSubscriptionDetail.status)}>
+                {selectedSubscriptionDetail.status}
+              </span>
+            </p>
 
             <h3 style={{ marginTop: '16px' }}>Tín chỉ ({selectedSubscriptionDetail.credits.length})</h3>
             {selectedSubscriptionDetail.credits.map((c) => (
               <div key={c.creditId} className="acr-stage-box" style={{ marginBottom: '6px' }}>
                 <div className="acr-item-row">
                   <span>Suất #{c.ordinal} ({c.creditId})</span>
-                  <span className="acr-badge">{c.state}</span>
+                  <span className={statusBadgeClass(c.state)}>{c.state}</span>
                 </div>
                 <small>Định giá: {money(c.creditAllocationVnd)} | Lịch hẹn: {c.appointmentId || 'Chưa gán'}</small>
               </div>

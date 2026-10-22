@@ -100,6 +100,7 @@ describe('AdminCommercialReconciliationManager', () => {
       currentPeriodEnd: '2026-11-20T10:00:00Z',
       createdAt: '2026-10-20T10:00:00Z',
     },
+    subscriptions: [],
     credits: [
       {
         creditId: '62200000-0000-4000-8000-000000000004',
@@ -353,5 +354,137 @@ describe('AdminCommercialReconciliationManager', () => {
     expect(
       screen.getByText(/Cơ chế giải ngân tiền thật đang tắt mặc định/),
     ).toBeInTheDocument()
+  })
+
+  it('renders multiple subscriptions linked to provenance with dynamic status badges', async () => {
+    const multiSubProvenance = {
+      ...sampleProvenance,
+      subscription: null,
+      subscriptions: [
+        {
+          subscriptionId: '62200000-0000-4000-8000-000000000002',
+          userAccountId: '62200000-0000-4000-8000-000000000003',
+          planVersionId: '62200000-0000-4000-8000-000000000099',
+          planCode: 'PREMIUM',
+          pricingPolicyVersion: 'sandbox-v1',
+          status: 'ACTIVE',
+          currentPeriodStart: '2026-10-01T00:00:00Z',
+          currentPeriodEnd: '2026-11-01T00:00:00Z',
+          createdAt: '2026-10-01T00:00:00Z',
+        },
+        {
+          subscriptionId: '62200000-0000-4000-8000-000000000009',
+          userAccountId: '62200000-0000-4000-8000-000000000008',
+          planVersionId: '62200000-0000-4000-8000-000000000098',
+          planCode: 'PLUS',
+          pricingPolicyVersion: 'sandbox-v1',
+          status: 'EXPIRED',
+          currentPeriodStart: '2026-09-01T00:00:00Z',
+          currentPeriodEnd: '2026-10-01T00:00:00Z',
+          createdAt: '2026-09-01T00:00:00Z',
+        },
+      ],
+      payments: [
+        {
+          paymentId: '62200000-0000-4000-8000-000000000001',
+          subscriptionId: '62200000-0000-4000-8000-000000000002',
+          planVersionId: '62200000-0000-4000-8000-000000000099',
+          planCode: 'PLUS' as const,
+          pricingPolicyVersion: 'sandbox-full-price-v1' as const,
+          purpose: 'PURCHASE' as const,
+          provider: 'FAKE' as const,
+          status: 'FAILED' as const,
+          amountVnd: 500000,
+          currency: 'VND' as const,
+          createdAt: '2026-10-20T10:00:00Z',
+          paidAt: null,
+          failedAt: '2026-10-20T10:01:00Z',
+        },
+      ],
+    }
+
+    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(sampleDiscrepancies)
+    vi.mocked(browserCommercialReconciliation.getProvenance).mockResolvedValue(multiSubProvenance)
+
+    render(<AdminCommercialReconciliationManager />)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Truy vết dòng tiền (Provenance)' }))
+    fireEvent.change(screen.getByLabelText('Giá trị mã định danh'), {
+      target: { value: '62200000-0000-4000-8000-000000000001' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Truy vết' }))
+
+    expect(await screen.findByText(/Thuê bao: 62200000-0000-4000-8000-000000000002/)).toBeInTheDocument()
+    expect(screen.getByText(/Thuê bao: 62200000-0000-4000-8000-000000000009/)).toBeInTheDocument()
+
+    // Status badges: FAILED should have acr-badge-alert
+    const failedBadge = screen.getByText('FAILED')
+    expect(failedBadge.className).toContain('acr-badge-alert')
+
+    // EXPIRED should have acr-badge-alert
+    const expiredBadge = screen.getByText('EXPIRED')
+    expect(expiredBadge.className).toContain('acr-badge-alert')
+  })
+
+  it('clears stale provenance state when subsequent trace fails', async () => {
+    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(sampleDiscrepancies)
+    vi.mocked(browserCommercialReconciliation.getProvenance).mockResolvedValueOnce(sampleProvenance)
+
+    render(<AdminCommercialReconciliationManager />)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Truy vết dòng tiền (Provenance)' }))
+    fireEvent.change(screen.getByLabelText('Giá trị mã định danh'), {
+      target: { value: '62200000-0000-4000-8000-000000000001' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Truy vết' }))
+
+    expect(await screen.findByText('1. Thanh toán (Payment Transactions)')).toBeInTheDocument()
+
+    // Now fail the next trace
+    vi.mocked(browserCommercialReconciliation.getProvenance).mockRejectedValueOnce(
+      new Error('Mã định danh không hợp lệ'),
+    )
+    fireEvent.change(screen.getByLabelText('Giá trị mã định danh'), {
+      target: { value: 'invalid-id' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Truy vết' }))
+
+    expect(await screen.findByText('Mã định danh không hợp lệ')).toBeInTheDocument()
+    // Stale provenance stages should be removed
+    expect(screen.queryByText('1. Thanh toán (Payment Transactions)')).not.toBeInTheDocument()
+  })
+
+  it('shows error state and retry in payments tab when fetch fails', async () => {
+    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(sampleDiscrepancies)
+    vi.mocked(browserCommercialReconciliation.getPayments).mockRejectedValueOnce(new Error('Network error'))
+
+    render(<AdminCommercialReconciliationManager />)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Giao dịch thanh toán' }))
+
+    expect(await screen.findByText('Chưa thể tải dữ liệu thanh toán từ máy chủ.')).toBeInTheDocument()
+
+    // Test retry
+    vi.mocked(browserCommercialReconciliation.getPayments).mockResolvedValueOnce({
+      generatedAt: '2026-10-22T00:00:00Z',
+      count: 0,
+      items: [],
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+
+    expect(await screen.findByText('0 giao dịch được ghi nhận')).toBeInTheDocument()
+  })
+
+  it('renders discrepancy truncation banner when totalDiscrepancies > 50', async () => {
+    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue({
+      ...sampleDiscrepancies,
+      totalDiscrepancies: 85,
+    })
+
+    render(<AdminCommercialReconciliationManager />)
+
+    const banner = await screen.findByText(/Ghi nhận tổng cộng/)
+    expect(banner).toBeInTheDocument()
+    expect(banner).toHaveTextContent('85')
   })
 })
