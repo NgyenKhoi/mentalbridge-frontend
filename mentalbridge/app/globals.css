@@ -16,7 +16,7 @@
   --color-danger: #b3402f;
   --color-text: #1a1c1e;
   --color-text-muted: #5b6470;
-  --color-text-faint: #6b7280;
+  --color-text-faint: #596573;
   --color-border: rgba(26, 28, 30, 0.07);
   --shadow-card: 0 4px 24px rgba(20, 40, 60, 0.05);
   --radius-card: 28px;
@@ -27,9 +27,9 @@
   --surface-glass: rgba(255, 255, 255, 0.7);
   --ink: #1b2a22;
   --ink-soft: #52604f;
-  --ink-faint: #8a9585;
+  --ink-faint: #5f6b5b;
   --teal-deep: #1e4a43;
-  --teal: #3d7a6e;
+  --teal: #32685d;
   --teal-pale: #cfe3d8;
   --amber: #e1a651;
   --amber-soft: #f5e6c6;
@@ -39,7 +39,7 @@
   --terracotta-soft: #f0dacc;
   --lavender: #9a8cae;
   --lavender-pale: #eae5f0;
-  --primary: #3d7a6e;
+  --primary: var(--teal);
   --primary-strong: #1e4a43;
   --primary-foreground: #ffffff;
   --line: rgba(27, 42, 34, 0.12);
@@ -4891,33 +4891,6 @@ nav {
   .motion-progress {
     display: none;
   }
-}
-
-/* CRITICAL FIX: Force all workspace buttons to have light backgrounds */
-[class*='role-']
-  button:not(.btn-primary):not(.btn-outline):not(.btn-ghost):not(
-    .light-select-trigger
-  ):not(.light-select-option):not([class*='close']):not(
-    [class*='collapse']
-  ):not([class*='menu']):not([class*='bell']):not([class*='logout']):not(
-    [data-appointment-ui]
-  ):not([data-availability-ui]):not([data-clients-ui]):not(
-    [data-messages-ui]
-  ):not([data-earnings-ui]):not([data-profile-ui]) {
-  background: transparent !important;
-  background-color: transparent !important;
-}
-
-[class*='specialist-']
-  button:not(.btn-primary):not(.btn-outline):not(.btn-ghost):not(
-    .light-select-trigger
-  ):not(.light-select-option):not([class*='close']):not(
-    [data-appointment-ui]
-  ):not([data-availability-ui]):not([data-clients-ui]):not(
-    [data-messages-ui]
-  ):not([data-earnings-ui]):not([data-profile-ui]) {
-  background: transparent !important;
-  background-color: transparent !important;
 }
 
 /* Stable light dropdown used instead of browser-native dark select popups. */

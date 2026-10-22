@@ -15,7 +15,6 @@ export default async function SpecialistVideoPage({
   return (
     <RoleWorkspace
       key={`${account.accountId}:${appointmentId}`}
-      role="specialist"
       sectionKey="appointments"
       workspaces={resolveWorkspaces(account.roles) ?? []}
       videoAppointmentId={appointmentId}

@@ -43,6 +43,11 @@ import {
   AvailabilityTimePicker,
 } from './AvailabilityPickers'
 import {
+  AvailabilityCalendar,
+  AvailabilityViewSwitch,
+  type AvailabilityView,
+} from './AvailabilityCalendar'
+import {
   addDays,
   availabilityWindow,
   dateInTimezone,
@@ -146,6 +151,7 @@ export default function SpecialistAvailabilityManager() {
   const [formError, setFormError] = useState('')
   const [notice, setNotice] = useState('')
   const [filter, setFilter] = useState<Filter>('ALL')
+  const [view, setView] = useState<AvailabilityView>('list')
   const [updatedAt, setUpdatedAt] = useState('')
   const [rangeAnchor, setRangeAnchor] = useState('')
   const [loadedAnchor, setLoadedAnchor] = useState('')
@@ -847,6 +853,7 @@ export default function SpecialistAvailabilityManager() {
                   Hôm nay
                 </button>
               )}
+              <AvailabilityViewSwitch value={view} onChange={setView} />
             </div>
             {filter !== 'ALL' && (
               <div className={styles.activeFilter}>
@@ -920,6 +927,26 @@ export default function SpecialistAvailabilityManager() {
                 <h3>Chưa có dữ liệu để hiển thị</h3>
                 <p>Tải lại lịch để tiếp tục quản lý khung giờ của bạn.</p>
               </div>
+            ) : view === 'calendar' ? (
+              <AvailabilityCalendar
+                key={`${loadedAnchor}:${safeTimezone}`}
+                slots={visibleSlots}
+                anchor={loadedAnchor || rangeAnchor || minDate}
+                today={minDate}
+                timezone={safeTimezone}
+                busy={reading || !!pending}
+                readinessLabels={READINESS_LABELS}
+                onNavigate={(date) => void load(date)}
+                onSelect={(slot) => {
+                  setView('list')
+                  setHighlighted(slot.id)
+                  requestAnimationFrame(() =>
+                    document
+                      .getElementById(`availability-slot-${slot.id}`)
+                      ?.focus(),
+                  )
+                }}
+              />
             ) : visibleSlots.length === 0 ? (
               <div className={styles.empty}>
                 <span className={styles.emptyIcon}>
@@ -967,6 +994,8 @@ export default function SpecialistAvailabilityManager() {
                 {visibleSlots.map((slot) => (
                   <li
                     key={slot.id}
+                    id={`availability-slot-${slot.id}`}
+                    tabIndex={-1}
                     className={styles.slot}
                     data-withdrawn={slot.status === 'WITHDRAWN'}
                     data-highlighted={slot.id === highlighted}
