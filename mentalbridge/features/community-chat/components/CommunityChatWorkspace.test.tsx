@@ -342,6 +342,54 @@ describe('CommunityChatWorkspace', () => {
     )
   })
 
+  it('clears an unconfirmed retraction across A to B to A navigation', async () => {
+    const conversationB = conversationAt(2)
+    const ownMessageA = {
+      ...messageAt(11, conversationId),
+      sender: conversation.peers[0],
+      content: 'Tin nhắn riêng ở cuộc trò chuyện A.',
+    }
+    const messageB = messageAt(12, conversationB.conversationId)
+    api.getChatConversation.mockImplementation((id: string) =>
+      Promise.resolve(id === conversationId ? conversation : conversationB),
+    )
+    api.getChatMessages.mockImplementation((id: string) =>
+      Promise.resolve({
+        items: [id === conversationId ? ownMessageA : messageB],
+        nextCursor: null,
+      }),
+    )
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <CommunityChatWorkspace initialConversationId={conversationId} />,
+    )
+
+    await screen.findByText(ownMessageA.content)
+    await user.click(
+      screen.getByRole('button', { name: 'Gỡ tin nhắn này cho mọi người' }),
+    )
+    expect(
+      screen.getByRole('heading', { name: 'Gỡ tin nhắn cho mọi người?' }),
+    ).toBeVisible()
+
+    rerender(
+      <CommunityChatWorkspace
+        initialConversationId={conversationB.conversationId}
+      />,
+    )
+    await screen.findByText(messageB.content)
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+
+    rerender(<CommunityChatWorkspace initialConversationId={conversationId} />)
+    await screen.findByText(ownMessageA.content)
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    expect(api.retractChatMessage).not.toHaveBeenCalled()
+  })
+
   it('keeps unread state on the list-only route until a thread is explicitly opened', async () => {
     render(<CommunityChatWorkspace />)
 
@@ -1028,6 +1076,75 @@ describe('CommunityChatWorkspace', () => {
     expect(
       screen.getByRole('heading', { name: 'Báo cáo tin nhắn' }),
     ).toBeVisible()
+  })
+
+  it('clears report target, form and error across A to B to A navigation', async () => {
+    const conversationB = conversationAt(2)
+    const messageB = messageAt(2, conversationB.conversationId)
+    api.getChatConversation.mockImplementation((id: string) =>
+      Promise.resolve(id === conversationId ? conversation : conversationB),
+    )
+    api.getChatMessages.mockImplementation((id: string) =>
+      Promise.resolve({
+        items: [id === conversationId ? message : messageB],
+        nextCursor: null,
+      }),
+    )
+    api.reportChatMessage.mockRejectedValue(
+      new ApiError({ message: 'down', code: 'UNAVAILABLE', status: 503 }),
+    )
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <CommunityChatWorkspace initialConversationId={conversationId} />,
+    )
+
+    await screen.findByText(message.content)
+    await user.click(
+      screen.getByRole('button', {
+        name: `Báo cáo tin nhắn: ${message.content}`,
+      }),
+    )
+    await user.type(
+      screen.getByRole('textbox', {
+        name: 'Chi tiết bổ sung (không bắt buộc)',
+      }),
+      'Chi tiết không được giữ lại.',
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Xác nhận gửi báo cáo' }),
+    )
+    expect(await screen.findByRole('alert')).toBeVisible()
+    expect(api.reportChatMessage).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <CommunityChatWorkspace
+        initialConversationId={conversationB.conversationId}
+      />,
+    )
+    await screen.findByText(messageB.content)
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+
+    rerender(<CommunityChatWorkspace initialConversationId={conversationId} />)
+    await screen.findByText(message.content)
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    expect(api.reportChatMessage).toHaveBeenCalledTimes(1)
+
+    await user.click(
+      screen.getByRole('button', {
+        name: `Báo cáo tin nhắn: ${message.content}`,
+      }),
+    )
+    expect(
+      screen.getByRole('textbox', {
+        name: 'Chi tiết bổ sung (không bắt buộc)',
+      }),
+    ).toHaveValue('')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(api.reportChatMessage).toHaveBeenCalledTimes(1)
   })
 
   it('ignores an older conversation response after selection changes', async () => {

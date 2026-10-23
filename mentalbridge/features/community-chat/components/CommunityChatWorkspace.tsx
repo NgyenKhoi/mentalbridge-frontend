@@ -181,6 +181,19 @@ export default function CommunityChatWorkspace({
   const [reportBusy, setReportBusy] = useState(false)
   const [reportError, setReportError] = useState('')
   const [reportNotice, setReportNotice] = useState('')
+  const [dialogConversationId, setDialogConversationId] = useState(
+    chat.selectedConversationId,
+  )
+  if (dialogConversationId !== chat.selectedConversationId) {
+    setDialogConversationId(chat.selectedConversationId)
+    setReportTarget(undefined)
+    setRetractTarget(undefined)
+    setReportReason('HARASSMENT')
+    setReportDetails('')
+    setReportBusy(false)
+    setReportError('')
+    setReportNotice('')
+  }
   const reportGeneration = useRef(0)
   const reportConversationId = useRef(chat.selectedConversationId)
   const reportAttempt = useRef<{ signature: string; key: string } | undefined>(
