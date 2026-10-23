@@ -10,6 +10,7 @@ import {
 } from '@/features/community/api/browser-community'
 import {
   advanceChatReadCursor,
+  clearChatConversation,
   decideChatRequest,
   getChatConversation,
   getChatConversations,
@@ -120,6 +121,11 @@ export function useCommunityChatWorkspace({
   const [retractBusyMessageId, setRetractBusyMessageId] = useState<string>()
   const [failedRetraction, setFailedRetraction] = useState<FailedRetraction>()
   const [retractError, setRetractError] = useState('')
+  const [clearBusy, setClearBusy] = useState(false)
+  const [clearError, setClearError] = useState('')
+  const clearAttempt = useRef<
+    { conversationId: string; idempotencyKey: string } | undefined
+  >(undefined)
   const [conversationCursor, setConversationCursor] = useState<string | null>(
     null,
   )
@@ -589,6 +595,81 @@ export function useCommunityChatWorkspace({
     }
   }
 
+  function finishClear(conversationId: string) {
+    setConversations((current) =>
+      current.filter((item) => item.conversationId !== conversationId),
+    )
+    if (selectedConversationId === conversationId) {
+      threadGeneration.current += 1
+      setSelectedConversationId(undefined)
+      setConversation(undefined)
+      setMessages([])
+      setNextMessageCursor(null)
+      deferredMessages.current = []
+      viewedMessage.current = ''
+      setThreadErrorState({ conversationId: undefined, message: '' })
+      router.replace('/community/messages')
+    }
+    clearAttempt.current = undefined
+    setClearError('')
+  }
+
+  async function conversationIsVisible(conversationId: string) {
+    let cursor: string | undefined
+    do {
+      const page = await getChatConversations(cursor)
+      if (page.items.some((item) => item.conversationId === conversationId))
+        return true
+      cursor = page.nextCursor ?? undefined
+    } while (cursor)
+    return false
+  }
+
+  async function clearConversation() {
+    if (!selectedConversationId || clearBusy) return false
+    const conversationId = selectedConversationId
+    const generation = threadGeneration.current
+    if (clearAttempt.current?.conversationId !== conversationId) {
+      clearAttempt.current = {
+        conversationId,
+        idempotencyKey: crypto.randomUUID(),
+      }
+    }
+    const attempt = clearAttempt.current
+    setClearBusy(true)
+    setClearError('')
+    try {
+      await clearChatConversation(conversationId, attempt.idempotencyKey)
+      if (
+        threadGeneration.current !== generation ||
+        selectedConversationId !== conversationId
+      )
+        return false
+      finishClear(conversationId)
+      return true
+    } catch (cause) {
+      if (
+        threadGeneration.current !== generation ||
+        selectedConversationId !== conversationId
+      )
+        return false
+      try {
+        if (!(await conversationIsVisible(conversationId))) {
+          finishClear(conversationId)
+          return true
+        }
+      } catch {
+        clearAttempt.current = attempt
+      }
+      setClearError(
+        `${friendlyError(cause)} Chưa xác nhận đã xóa; bạn có thể thử lại an toàn.`,
+      )
+      return false
+    } finally {
+      if (selectedConversationId === conversationId) setClearBusy(false)
+    }
+  }
+
   return {
     activeTab,
     setActiveTab,
@@ -633,6 +714,8 @@ export function useCommunityChatWorkspace({
         ? failedRetraction
         : undefined,
     retractError,
+    clearBusy,
+    clearError,
     conversationCursor,
     requestCursor,
     messageCursor,
@@ -679,6 +762,13 @@ export function useCommunityChatWorkspace({
       )
         return Promise.resolve(false)
       return retract(failedRetraction)
+    },
+    clearConversation,
+    resetClearAttempt: () => {
+      if (!clearBusy) {
+        clearAttempt.current = undefined
+        setClearError('')
+      }
     },
     blockPeer,
   }

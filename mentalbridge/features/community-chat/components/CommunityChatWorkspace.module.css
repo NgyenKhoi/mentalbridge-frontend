@@ -356,6 +356,28 @@
 .safetyMenu button {
   color: #a84f3d;
 }
+.clearDialog {
+  width: min(520px, calc(100vw - 32px));
+}
+.clearPrompt {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+.clearPrompt h2,
+.clearPrompt p {
+  margin: 0;
+}
+.clearPrompt > p {
+  color: #52604f;
+  line-height: 1.65;
+}
+.clearPrompt > p[role='alert'] {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f9ece9;
+  color: #8c3f30;
+}
 .messages {
   display: flex;
   min-height: 390px;

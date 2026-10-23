@@ -175,6 +175,7 @@ export default function CommunityChatWorkspace({
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
   const [reportTarget, setReportTarget] = useState<ChatMessage>()
   const [retractTarget, setRetractTarget] = useState<ChatMessage>()
+  const [clearConversationId, setClearConversationId] = useState<string>()
   const [reportReason, setReportReason] =
     useState<ChatReportReason>('HARASSMENT')
   const [reportDetails, setReportDetails] = useState('')
@@ -188,6 +189,7 @@ export default function CommunityChatWorkspace({
     setDialogConversationId(chat.selectedConversationId)
     setReportTarget(undefined)
     setRetractTarget(undefined)
+    setClearConversationId(undefined)
     setReportReason('HARASSMENT')
     setReportDetails('')
     setReportBusy(false)
@@ -213,6 +215,10 @@ export default function CommunityChatWorkspace({
   const activeRetractTarget =
     retractTarget?.conversationId === chat.selectedConversationId
       ? retractTarget
+      : undefined
+  const activeClearConversationId =
+    clearConversationId === chat.selectedConversationId
+      ? clearConversationId
       : undefined
   const activePeer = activeConversation?.peers.find(
     (peer) =>
@@ -616,6 +622,17 @@ export default function CommunityChatWorkspace({
                 <details className={styles.safetyMenu}>
                   <summary aria-label="Mở thao tác an toàn">•••</summary>
                   <div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        chat.resetClearAttempt()
+                        setClearConversationId(
+                          activeConversation.conversationId,
+                        )
+                      }}
+                    >
+                      Xóa phía tôi
+                    </button>
                     <Link href="/safety-directory?trigger=community-chat">
                       Tìm hỗ trợ
                     </Link>
@@ -810,6 +827,52 @@ export default function CommunityChatWorkspace({
         groups={groups}
         onOpenChange={setCreateGroupOpen}
       />
+
+      <Dialog
+        open={Boolean(activeClearConversationId)}
+        onOpenChange={(open) => {
+          if (!open && !chat.clearBusy) {
+            setClearConversationId(undefined)
+            chat.resetClearAttempt()
+          }
+        }}
+        labelledBy="community-chat-clear-title"
+        describedBy="community-chat-clear-description"
+        className={styles.clearDialog}
+      >
+        <div className={styles.clearPrompt}>
+          <h2 id="community-chat-clear-title">Xóa cuộc trò chuyện phía bạn?</h2>
+          <p id="community-chat-clear-description">
+            Cuộc trò chuyện và lịch sử hiện tại sẽ biến mất khỏi hộp thư của
+            bạn. Những người khác vẫn giữ nguyên lịch sử. Khi có tin nhắn mới,
+            cuộc trò chuyện sẽ xuất hiện lại và chỉ hiển thị tin nhắn mới.
+          </p>
+          {chat.clearError && <p role="alert">{chat.clearError}</p>}
+          <div className={styles.reportActions}>
+            <button
+              type="button"
+              disabled={chat.clearBusy}
+              onClick={() => {
+                setClearConversationId(undefined)
+                chat.resetClearAttempt()
+              }}
+            >
+              Giữ lại
+            </button>
+            <button
+              type="button"
+              disabled={chat.clearBusy}
+              onClick={() => {
+                void chat.clearConversation().then((succeeded) => {
+                  if (succeeded) setClearConversationId(undefined)
+                })
+              }}
+            >
+              {chat.clearBusy ? 'Đang xóa…' : 'Xóa phía tôi'}
+            </button>
+          </div>
+        </div>
+      </Dialog>
 
       <Dialog
         open={Boolean(
