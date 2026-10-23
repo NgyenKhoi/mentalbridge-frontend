@@ -10,8 +10,12 @@ Deploy the provider before this consumer. Until rollout, a genuine 404/501
 keeps the truthful unavailable state; other failures offer retry without fake rows.
 
 Frontend branch: `feat/mobile-reminder-center-(MB-678)`.
-Base: `origin/dev` at `7be39d3adc0402152c989dde34ae3847b8bb4e6a`, fast-forwarded
-after the Community/Notification integration advanced dev during delivery.
+Base: `origin/dev` at `80f627f549f266d1126091c7c49f2fad1f248d46`, updated by a
+normal merge on 2026-10-23 in response to integrator review. The four newer dev
+commits merge without conflicts; the reminder implementation is unchanged.
+OpenAPI v1.10.0 snapshot parity is checked again against the provider branch.
+The refreshed head requires its own quality gate and integrator re-review;
+backend PR #218 must still merge before mobile PR #220.
 The existing user-approved mobile-theme fallback remains in effect because
 Stitch tools are unavailable. No new styling framework or navigation shell is added.
 
