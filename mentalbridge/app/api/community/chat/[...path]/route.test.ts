@@ -86,6 +86,42 @@ describe('/api/community/chat BFF', () => {
     })
   })
 
+  it('forwards own-message retraction without a client-authored actor or body', async () => {
+    upstream.mockResolvedValue({
+      data: {
+        messageId,
+        conversationId,
+        clientMessageId: reportKey,
+        sender: { state: 'UNAVAILABLE' },
+        state: 'RETRACTED',
+        createdAt: '2026-10-20T08:00:00Z',
+        retractedAt: '2026-10-20T08:01:00Z',
+      },
+      status: 200,
+      etag: null,
+    })
+    const response = await DELETE(
+      new NextRequest(
+        `http://localhost/api/community/chat/conversations/${conversationId}/messages/${messageId}`,
+        { method: 'DELETE' },
+      ),
+      {
+        params: Promise.resolve({
+          path: ['conversations', conversationId, 'messages', messageId],
+        }),
+      },
+    )
+
+    expect(response.status).toBe(200)
+    expect(upstream).toHaveBeenCalledWith(
+      `/api/v1/community/chat/conversations/${conversationId}/messages/${messageId}`,
+      'access-token',
+      expect.any(String),
+      expect.any(Function),
+      { method: 'DELETE' },
+    )
+  })
+
   it('forwards an exact-message report with its idempotency key', async () => {
     upstream.mockResolvedValue({
       data: {

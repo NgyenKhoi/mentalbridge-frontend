@@ -14,6 +14,7 @@ import {
 } from '@/lib/community/bff-response'
 import {
   parseChatConversation,
+  parseChatMessage,
   parseChatGroup,
   parseChatGroupInvitation,
   parseChatGroupMember,
@@ -523,6 +524,24 @@ async function handle(request: NextRequest, context: Context) {
           user,
         )
       }
+    }
+    if (
+      path.length === 4 &&
+      path[0] === 'conversations' &&
+      path[2] === 'messages' &&
+      method === 'DELETE'
+    ) {
+      const result = await communityChatRequest(
+        `/api/v1/community/chat/conversations/${path[1]}/messages/${path[3]}`,
+        user.accessToken,
+        correlationId,
+        parseChatMessage,
+        { method: 'DELETE' },
+      )
+      return carryCommunitySession(
+        communitySuccessResponse(result.data, correlationId),
+        user,
+      )
     }
     if (
       path.length === 3 &&
