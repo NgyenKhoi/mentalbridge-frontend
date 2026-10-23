@@ -126,8 +126,10 @@ export function AnonymousAssessmentScreen({
   const [working, setWorking] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const submissionKey = useRef<string | null>(null)
+  const generation = useRef(0)
 
   const clearEphemeralState = useCallback(() => {
+    generation.current += 1
     setSession(null)
     setAnswers({})
     setStep(0)
@@ -182,6 +184,7 @@ export function AnonymousAssessmentScreen({
 
   const expireSession = useCallback(() => {
     clearEphemeralState()
+    setWorking(false)
     setError(null)
     setPhase('expired')
   }, [clearEphemeralState])
@@ -204,6 +207,7 @@ export function AnonymousAssessmentScreen({
 
   const readResult = useCallback(
     async (activeSession: AnonymousSession, activeAssessmentId: string) => {
+      const requestGeneration = generation.current
       setWorking(true)
       setError(null)
       setPhase('reading')
@@ -212,9 +216,11 @@ export function AnonymousAssessmentScreen({
           activeSession,
           activeAssessmentId,
         )
+        if (generation.current !== requestGeneration) return
         setResult(assessment)
         setPhase('result')
       } catch (readError) {
+        if (generation.current !== requestGeneration) return
         if (isUnavailableSession(readError)) {
           expireSession()
         } else {
@@ -222,7 +228,7 @@ export function AnonymousAssessmentScreen({
           setPhase('reading')
         }
       } finally {
-        setWorking(false)
+        if (generation.current === requestGeneration) setWorking(false)
       }
     },
     [api, expireSession],
@@ -237,6 +243,7 @@ export function AnonymousAssessmentScreen({
     ) {
       return
     }
+    const requestGeneration = generation.current
     setWorking(true)
     setError(null)
     submissionKey.current ??= createIdempotencyKey()
@@ -251,21 +258,24 @@ export function AnonymousAssessmentScreen({
         },
         submissionKey.current,
       )
+      if (generation.current !== requestGeneration) return
       setAssessmentId(accepted.assessmentId)
       await readResult(session, accepted.assessmentId)
     } catch (submitError) {
+      if (generation.current !== requestGeneration) return
       if (isUnavailableSession(submitError)) {
         expireSession()
       } else {
         setError(friendlyError(submitError))
       }
     } finally {
-      setWorking(false)
+      if (generation.current === requestGeneration) setWorking(false)
     }
   }
 
   const freshStart = () => {
     clearEphemeralState()
+    setWorking(false)
     setAcknowledged(false)
     setError(null)
     setPhase(definitions ? 'entry' : 'loading')
