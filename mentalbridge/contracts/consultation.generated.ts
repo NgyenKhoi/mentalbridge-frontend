@@ -2190,6 +2190,7 @@ export interface components {
         AdminPaymentList: {
             /** Format: date-time */
             generatedAt: string;
+            /** @description Number of items in this response page; not a total across matching payments. */
             count: number;
             items: components["schemas"]["AdminPayment"][];
         };
@@ -2523,6 +2524,7 @@ export interface components {
         AdminPayoutList: {
             /** Format: date-time */
             generatedAt: string;
+            /** @description Number of items in this response page; not a total across matching payouts. */
             count: number;
             items: components["schemas"]["AdminPayout"][];
         };
@@ -5268,7 +5270,10 @@ export interface operations {
             query?: {
                 status?: "ALL" | "PENDING" | "SUCCEEDED" | "FAILED" | "CHARGEBACK";
                 from?: string;
+                /** @description Inclusive upper bound on createdAt; retained for existing clients. Do not combine with toExclusive. */
                 to?: string;
+                /** @description Exclusive upper bound on createdAt. Must be after from; do not combine with to. */
+                toExclusive?: string;
                 subscriptionId?: string;
                 paymentId?: string;
                 limit?: number;
@@ -5302,11 +5307,15 @@ export interface operations {
             query?: {
                 status?: "ALL" | "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
                 from?: string;
+                /** @description Inclusive upper bound on requestedAt; retained for existing clients. Do not combine with toExclusive. */
                 to?: string;
+                /** @description Exclusive upper bound on requestedAt. Must be after from; do not combine with to. */
+                toExclusive?: string;
                 specialistAccountId?: string;
                 payoutId?: string;
                 limit?: number;
                 idempotencyKey?: string;
+                /** @description Exact provider payout reference from any persisted attempt; the list item displays the latest attempt's reference. */
                 providerReference?: string;
                 offset?: number;
             };

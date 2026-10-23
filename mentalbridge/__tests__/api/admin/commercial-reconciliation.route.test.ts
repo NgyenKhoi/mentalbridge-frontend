@@ -96,8 +96,10 @@ describe('Admin Commercial Reconciliation BFF routes', () => {
   })
 
   it('verifies ADMIN role and forwards payment query parameters', async () => {
+    const query =
+      '?status=SUCCEEDED&limit=51&momoRef=order-1&toExclusive=2026-10-23T17%3A00%3A00.000Z'
     const req = new NextRequest(
-      'http://localhost/api/consultation/admin/payments?status=SUCCEEDED&limit=50',
+      `http://localhost/api/consultation/admin/payments${query}`,
       { headers: { cookie: 'mentalbridge_access=valid' } },
     )
     const res = await getPayments(req)
@@ -106,13 +108,15 @@ describe('Admin Commercial Reconciliation BFF routes', () => {
     expect(mocks.adminPayments).toHaveBeenCalledWith(
       'admin-access-token',
       expect.any(String),
-      '?status=SUCCEEDED&limit=50',
+      query,
     )
   })
 
   it('verifies ADMIN role and forwards payout query parameters', async () => {
+    const query =
+      '?status=FAILED&providerReference=payout-ref-1&toExclusive=2026-10-23T17%3A00%3A00.000Z'
     const req = new NextRequest(
-      'http://localhost/api/consultation/admin/payouts?status=FAILED',
+      `http://localhost/api/consultation/admin/payouts${query}`,
       { headers: { cookie: 'mentalbridge_access=valid' } },
     )
     const res = await getPayouts(req)
@@ -120,7 +124,7 @@ describe('Admin Commercial Reconciliation BFF routes', () => {
     expect(mocks.adminPayouts).toHaveBeenCalledWith(
       'admin-access-token',
       expect.any(String),
-      '?status=FAILED',
+      query,
     )
   })
 

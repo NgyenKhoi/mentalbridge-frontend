@@ -12,6 +12,7 @@ import type {
 import type { AdminPaymentList } from '@/lib/consultation/billing-validation'
 import type { AdminPayoutList } from '@/lib/consultation/consultation-validation'
 import './admin-commercial-reconciliation.css'
+import { businessDateRange } from './business-date-range'
 
 const money = (value: number) =>
   new Intl.NumberFormat('vi-VN', {
@@ -21,7 +22,7 @@ const money = (value: number) =>
   }).format(value)
 
 const date = (value?: string | null) =>
-  value ? new Date(value).toLocaleString('vi-VN') : '—'
+  value ? new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '—'
 
 const statusBadgeClass = (status?: string | null) => {
   if (!status) return 'acr-badge'
@@ -98,6 +99,7 @@ export default function AdminCommercialReconciliationManager({
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('ALL')
   const [paymentOrderIdFilter, setPaymentOrderIdFilter] = useState('')
   const [paymentIdempotencyFilter, setPaymentIdempotencyFilter] = useState('')
+  const [paymentMomoRefFilter, setPaymentMomoRefFilter] = useState('')
   const [paymentFromDate, setPaymentFromDate] = useState('')
   const [paymentToDate, setPaymentToDate] = useState('')
   const [paymentPage, setPaymentPage] = useState(1)
@@ -108,6 +110,7 @@ export default function AdminCommercialReconciliationManager({
   const [payouts, setPayouts] = useState<AdminPayoutList | null>(null)
   const [payoutStatusFilter, setPayoutStatusFilter] = useState('ALL')
   const [payoutIdempotencyFilter, setPayoutIdempotencyFilter] = useState('')
+  const [payoutProviderReferenceFilter, setPayoutProviderReferenceFilter] = useState('')
   const [payoutFromDate, setPayoutFromDate] = useState('')
   const [payoutToDate, setPayoutToDate] = useState('')
   const [payoutPage, setPayoutPage] = useState(1)
@@ -121,15 +124,8 @@ export default function AdminCommercialReconciliationManager({
     useState<AdminSubscriptionDetail | null>(null)
 
   // Derived date validation errors (calculated during render without state/effects)
-  const paymentDateError =
-    paymentFromDate && paymentToDate && paymentFromDate > paymentToDate
-      ? 'Từ ngày không thể lớn hơn đến ngày'
-      : null
-
-  const payoutDateError =
-    payoutFromDate && payoutToDate && payoutFromDate > payoutToDate
-      ? 'Từ ngày không thể lớn hơn đến ngày'
-      : null
+  const paymentDateError = businessDateRange(paymentFromDate, paymentToDate).error
+  const payoutDateError = businessDateRange(payoutFromDate, payoutToDate).error
 
   // Load discrepancies — single lifecycle, no duplicated fetch
   const loadDiscrepancies = useCallback(() => {
@@ -161,16 +157,16 @@ export default function AdminCommercialReconciliationManager({
   // Build payments query from current filter state
   const buildPaymentsQuery = useCallback((): Record<string, string> => {
     const query: Record<string, string> = {
-      limit: '50',
+      limit: '51',
       offset: String((paymentPage - 1) * 50),
     }
     if (paymentStatusFilter !== 'ALL') query.status = paymentStatusFilter
     if (paymentOrderIdFilter.trim()) query.orderId = paymentOrderIdFilter.trim()
     if (paymentIdempotencyFilter.trim()) query.idempotencyKey = paymentIdempotencyFilter.trim()
-    if (paymentFromDate) query.from = `${paymentFromDate}T00:00:00Z`
-    if (paymentToDate) query.to = `${paymentToDate}T23:59:59Z`
+    if (paymentMomoRefFilter.trim()) query.momoRef = paymentMomoRefFilter.trim()
+    Object.assign(query, businessDateRange(paymentFromDate, paymentToDate).query)
     return query
-  }, [paymentStatusFilter, paymentOrderIdFilter, paymentIdempotencyFilter, paymentFromDate, paymentToDate, paymentPage])
+  }, [paymentStatusFilter, paymentOrderIdFilter, paymentIdempotencyFilter, paymentMomoRefFilter, paymentFromDate, paymentToDate, paymentPage])
 
   // Single payments lifecycle: auto-fetch on filter/page change when tab active
   useEffect(() => {
@@ -224,15 +220,15 @@ export default function AdminCommercialReconciliationManager({
   // Build payouts query from current filter state
   const buildPayoutsQuery = useCallback((): Record<string, string> => {
     const query: Record<string, string> = {
-      limit: '50',
+      limit: '51',
       offset: String((payoutPage - 1) * 50),
     }
     if (payoutStatusFilter !== 'ALL') query.status = payoutStatusFilter
     if (payoutIdempotencyFilter.trim()) query.idempotencyKey = payoutIdempotencyFilter.trim()
-    if (payoutFromDate) query.from = `${payoutFromDate}T00:00:00Z`
-    if (payoutToDate) query.to = `${payoutToDate}T23:59:59Z`
+    if (payoutProviderReferenceFilter.trim()) query.providerReference = payoutProviderReferenceFilter.trim()
+    Object.assign(query, businessDateRange(payoutFromDate, payoutToDate).query)
     return query
-  }, [payoutStatusFilter, payoutIdempotencyFilter, payoutFromDate, payoutToDate, payoutPage])
+  }, [payoutStatusFilter, payoutIdempotencyFilter, payoutProviderReferenceFilter, payoutFromDate, payoutToDate, payoutPage])
 
   // Single payouts lifecycle: auto-fetch on filter/page change when tab active
   useEffect(() => {
@@ -842,7 +838,7 @@ export default function AdminCommercialReconciliationManager({
       {activeTab === 'payments' && (
         <section aria-label="Giao dịch thanh toán">
           <div className="acr-card">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
+            <div className="acr-list-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
               <h2>Giao dịch thanh toán</h2>
               <label>
                 Lọc trạng thái:{' '}
@@ -885,6 +881,19 @@ export default function AdminCommercialReconciliationManager({
                   value={paymentIdempotencyFilter}
                   onChange={(e) => {
                     setPaymentIdempotencyFilter(e.target.value)
+                    setPaymentPage(1)
+                  }}
+                />
+              </label>
+              <label>
+                Mã MoMo:{' '}
+                <input
+                  type="text"
+                  className="acr-input"
+                  style={{ width: '160px' }}
+                  value={paymentMomoRefFilter}
+                  onChange={(e) => {
+                    setPaymentMomoRefFilter(e.target.value)
                     setPaymentPage(1)
                   }}
                 />
@@ -935,9 +944,10 @@ export default function AdminCommercialReconciliationManager({
               </div>
             )}
 
-            {payments && (
+            {!paymentDateError && payments && (
               <div>
-                <p role="status">{payments.count} giao dịch được ghi nhận</p>
+                <p role="status">{Math.min(payments.count, 50)} giao dịch trên trang này</p>
+                <div className="acr-table-scroll">
                 <table className="acr-table">
                   <thead>
                     <tr>
@@ -950,7 +960,7 @@ export default function AdminCommercialReconciliationManager({
                     </tr>
                   </thead>
                   <tbody>
-                    {payments.items.map((item) => (
+                    {payments.items.slice(0, 50).map((item) => (
                       <tr key={item.paymentId}>
                         <td>{item.paymentId}</td>
                         <td>{item.planCode} ({item.purpose})</td>
@@ -982,6 +992,7 @@ export default function AdminCommercialReconciliationManager({
                     ))}
                   </tbody>
                 </table>
+                </div>
                 <div className="acr-pagination">
                   <button
                     type="button"
@@ -992,12 +1003,12 @@ export default function AdminCommercialReconciliationManager({
                     Trang trước
                   </button>
                   <span style={{ fontSize: '0.875rem', color: '#475569' }}>
-                    Trang {paymentPage} ({payments.items.length} giao dịch)
+                    Trang {paymentPage} ({Math.min(payments.items.length, 50)} giao dịch)
                   </span>
                   <button
                     type="button"
                     className="acr-btn"
-                    disabled={payments.items.length < 50 || loadingPayments}
+                    disabled={payments.items.length <= 50 || loadingPayments}
                     onClick={() => setPaymentPage((p) => p + 1)}
                   >
                     Trang sau
@@ -1013,7 +1024,7 @@ export default function AdminCommercialReconciliationManager({
       {activeTab === 'payouts' && (
         <section aria-label="Chi trả chuyên gia">
           <div className="acr-card">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
+            <div className="acr-list-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
               <h2>Yêu cầu chi trả</h2>
               <label>
                 Lọc trạng thái:{' '}
@@ -1042,6 +1053,19 @@ export default function AdminCommercialReconciliationManager({
                   value={payoutIdempotencyFilter}
                   onChange={(e) => {
                     setPayoutIdempotencyFilter(e.target.value)
+                    setPayoutPage(1)
+                  }}
+                />
+              </label>
+              <label>
+                Mã tham chiếu chi trả:{' '}
+                <input
+                  type="text"
+                  className="acr-input"
+                  style={{ width: '180px' }}
+                  value={payoutProviderReferenceFilter}
+                  onChange={(e) => {
+                    setPayoutProviderReferenceFilter(e.target.value)
                     setPayoutPage(1)
                   }}
                 />
@@ -1092,9 +1116,10 @@ export default function AdminCommercialReconciliationManager({
               </div>
             )}
 
-            {payouts && (
+            {!payoutDateError && payouts && (
               <div>
-                <p role="status">{payouts.count} yêu cầu được ghi nhận (Trang {payoutPage})</p>
+                <p role="status">{Math.min(payouts.count, 50)} yêu cầu trên trang này (Trang {payoutPage})</p>
+                <div className="acr-table-scroll">
                 <table className="acr-table">
                   <thead>
                     <tr>
@@ -1108,7 +1133,7 @@ export default function AdminCommercialReconciliationManager({
                     </tr>
                   </thead>
                   <tbody>
-                    {payouts.items.map((item) => (
+                    {payouts.items.slice(0, 50).map((item) => (
                       <tr key={item.payoutId}>
                         <td>{item.payoutId}</td>
                         <td>{item.destinationHint}</td>
@@ -1141,6 +1166,7 @@ export default function AdminCommercialReconciliationManager({
                     ))}
                   </tbody>
                 </table>
+                </div>
                 <div className="acr-pagination">
                   <button
                     type="button"
@@ -1151,12 +1177,12 @@ export default function AdminCommercialReconciliationManager({
                     Trang trước
                   </button>
                   <span style={{ fontSize: '0.875rem', color: '#475569' }}>
-                    Trang {payoutPage} ({payouts.items.length} yêu cầu)
+                    Trang {payoutPage} ({Math.min(payouts.items.length, 50)} yêu cầu)
                   </span>
                   <button
                     type="button"
                     className="acr-btn"
-                    disabled={payouts.items.length < 50 || loadingPayouts}
+                    disabled={payouts.items.length <= 50 || loadingPayouts}
                     onClick={() => setPayoutPage((p) => p + 1)}
                   >
                     Trang sau

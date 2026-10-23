@@ -16,7 +16,7 @@ export const browserCommercialReconciliation = {
       throw new Error(`Failed to fetch discrepancies: HTTP ${response.status}`)
     }
     const result = await response.json()
-    return result.data
+    return result
   },
 
   async getProvenance(
@@ -30,7 +30,7 @@ export const browserCommercialReconciliation = {
       throw new Error(`Failed to trace provenance: HTTP ${response.status}`)
     }
     const result = await response.json()
-    return result.data
+    return result
   },
 
   async getPayments(query?: Record<string, string>): Promise<AdminPaymentList> {
@@ -40,7 +40,7 @@ export const browserCommercialReconciliation = {
       throw new Error(`Failed to fetch payments: HTTP ${response.status}`)
     }
     const result = await response.json()
-    return result.data
+    return result
   },
 
   async getPayouts(query?: Record<string, string>): Promise<AdminPayoutList> {
@@ -50,7 +50,7 @@ export const browserCommercialReconciliation = {
       throw new Error(`Failed to fetch payouts: HTTP ${response.status}`)
     }
     const result = await response.json()
-    return result.data
+    return result
   },
 
   async getPayoutDetail(payoutId: string): Promise<AdminPayoutDetail> {
@@ -61,7 +61,7 @@ export const browserCommercialReconciliation = {
       throw new Error(`Failed to fetch payout detail: HTTP ${response.status}`)
     }
     const result = await response.json()
-    return result.data
+    return result
   },
 
   async getSubscriptionDetail(
@@ -76,7 +76,6 @@ export const browserCommercialReconciliation = {
       )
     }
     const result = await response.json()
-    return result.data
+    return result
   },
 }
-

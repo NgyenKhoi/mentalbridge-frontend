@@ -474,7 +474,7 @@ describe('AdminCommercialReconciliationManager', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
 
-    expect(await screen.findByText('0 giao dịch được ghi nhận')).toBeInTheDocument()
+    expect(await screen.findByText('0 giao dịch trên trang này')).toBeInTheDocument()
   })
 
   it('renders discrepancy truncation banner when totalDiscrepancies > 50', async () => {
@@ -559,6 +559,109 @@ describe('AdminCommercialReconciliationManager', () => {
       expect(screen.queryByText(/99 giao dịch/)).not.toBeInTheDocument()
     })
   })
+
+  it('uses owner lookahead to stop at the final payment page', async () => {
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
+    const records = Array.from({ length: 51 }, (_, index) => ({
+      ...sampleProvenance.payments[0],
+      paymentId: `62200000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    }))
+    vi.mocked(browserCommercialReconciliation.getPayments).mockImplementation(
+      async (query) => {
+        const offset = Number(query?.offset ?? 0)
+        const items = records.slice(offset, offset + Number(query?.limit ?? 50))
+        return {
+          generatedAt: '2026-10-23T00:00:00Z',
+          count: items.length,
+          items,
+        }
+      },
+    )
+    render(<AdminCommercialReconciliationManager />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Giao dịch thanh toán' }))
+    await waitFor(() =>
+      expect(
+        screen.getByText('50 giao dịch trên trang này'),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getAllByRole('row')).toHaveLength(51)
+    expect(
+      vi.mocked(browserCommercialReconciliation.getPayments),
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: '51', offset: '0' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }))
+    await waitFor(() =>
+      expect(
+        screen.getByText('1 giao dịch trên trang này'),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getAllByRole('row')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Trang sau' })).toBeDisabled()
+  })
+
+  it('sends Vietnam local dates as a half-open UTC window for both lists', async () => {
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
+    vi.mocked(browserCommercialReconciliation.getPayments).mockResolvedValue({
+      generatedAt: '2026-10-23T00:00:00Z',
+      count: 0,
+      items: [],
+    })
+    vi.mocked(browserCommercialReconciliation.getPayouts).mockResolvedValue({
+      generatedAt: '2026-10-23T00:00:00Z',
+      count: 0,
+      items: [],
+    })
+    render(<AdminCommercialReconciliationManager />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Giao dịch thanh toán' }))
+    fireEvent.change(screen.getByLabelText('Mã MoMo:'), {
+      target: { value: '  provider-request-1  ' },
+    })
+    fireEvent.change(screen.getByLabelText('Từ ngày:'), {
+      target: { value: '2026-12-31' },
+    })
+    fireEvent.change(screen.getByLabelText('Đến ngày:'), {
+      target: { value: '2027-01-01' },
+    })
+    await waitFor(() =>
+      expect(browserCommercialReconciliation.getPayments).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: '2026-12-30T17:00:00.000Z',
+          toExclusive: '2027-01-01T17:00:00.000Z',
+          momoRef: 'provider-request-1',
+        }),
+      ),
+    )
+    fireEvent.click(screen.getByRole('tab', { name: 'Chi trả chuyên gia' }))
+    fireEvent.change(screen.getByLabelText('Mã tham chiếu chi trả:'), {
+      target: { value: '  payout-ref-1  ' },
+    })
+    fireEvent.change(screen.getByLabelText('Từ ngày:'), {
+      target: { value: '2026-10-23' },
+    })
+    fireEvent.change(screen.getByLabelText('Đến ngày:'), {
+      target: { value: '2026-10-23' },
+    })
+    await waitFor(() =>
+      expect(browserCommercialReconciliation.getPayouts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: '2026-10-22T17:00:00.000Z',
+          toExclusive: '2026-10-23T17:00:00.000Z',
+          providerReference: 'payout-ref-1',
+        }),
+      ),
+    )
+    const requestsBeforeInvalid = vi.mocked(browserCommercialReconciliation.getPayouts).mock.calls.length
+    fireEvent.change(screen.getByLabelText('Từ ngày:'), {
+      target: { value: '2026-10-24' },
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent('Từ ngày không thể lớn hơn đến ngày')
+    expect(vi.mocked(browserCommercialReconciliation.getPayouts)).toHaveBeenCalledTimes(requestsBeforeInvalid)
+  })
 })
 
   it('prevents request counter collision between discrepancies and payments', async () => {
@@ -608,13 +711,13 @@ describe('AdminCommercialReconciliationManager', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Giao dịch thanh toán' }))
 
     // Wait for payments to render
-    expect(await screen.findByText('1 giao dịch được ghi nhận')).toBeInTheDocument()
+    expect(await screen.findByText('1 giao dịch trên trang này')).toBeInTheDocument()
 
     // Now resolve discrepancies
     discrepanciesResolve!(slowDiscrepancies)
 
     // Verify payments remain visible (not overwritten by discrepancies using same counter)
     await waitFor(() => {
-      expect(screen.getByText('1 giao dịch được ghi nhận')).toBeInTheDocument()
+      expect(screen.getByText('1 giao dịch trên trang này')).toBeInTheDocument()
     })
   })
