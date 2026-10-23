@@ -14,6 +14,9 @@ import {
 } from '@/lib/community/bff-response'
 import {
   parseChatConversation,
+  parseChatGroup,
+  parseChatGroupInvitation,
+  parseChatGroupMember,
   parseChatPrivacy,
   parseChatPrivacyView,
   parseChatReadResult,
@@ -21,13 +24,20 @@ import {
   parseChatReportResult,
   parseChatSendResult,
   parseConversationPage,
+  parseCreateGroupInput,
   parseDecisionInput,
   parseDirectConversationResult,
   parseMessagePage,
+  parseGroupDecisionInput,
+  parseGroupInvitationPage,
+  parseGroupInviteInput,
+  parseGroupMemberPage,
   parseReadInput,
   parseRequestPage,
   parseSendInput,
   parseStartDirectInput,
+  parseSetGroupRoleInput,
+  parseTransferGroupOwnerInput,
   UUID_PATTERN,
 } from '@/features/community-chat/api/community-chat-contract'
 import { communityChatRequest } from '@/features/community-chat/server/community-chat-client'
@@ -176,6 +186,41 @@ async function handle(request: NextRequest, context: Context) {
         user,
       )
     }
+    if (key === 'groups' && method === 'POST') {
+      const input = parseCreateGroupInput(await body(request))
+      const idempotencyKey = request.headers.get('Idempotency-Key')
+      if (!input || !idempotencyKey || !UUID_PATTERN.test(idempotencyKey))
+        return invalid(correlationId, user)
+      const result = await communityChatRequest(
+        '/api/v1/community/chat/groups',
+        user.accessToken,
+        correlationId,
+        parseChatGroup,
+        {
+          method: 'POST',
+          body: input,
+          headers: { 'Idempotency-Key': idempotencyKey },
+          expectedStatus: 201,
+        },
+      )
+      return carryCommunitySession(
+        communitySuccessResponse(result.data, correlationId, undefined, 201),
+        user,
+      )
+    }
+    if (key === 'invitations' && method === 'GET') {
+      if (!validPageQuery(request)) return invalid(correlationId, user)
+      const result = await communityChatRequest(
+        `/api/v1/community/chat/invitations${upstreamQuery(request)}`,
+        user.accessToken,
+        correlationId,
+        parseGroupInvitationPage,
+      )
+      return carryCommunitySession(
+        communitySuccessResponse(result.data, correlationId),
+        user,
+      )
+    }
     if (key === 'reports' && method === 'POST') {
       const input = parseChatReportInput(await body(request))
       const idempotencyKey = request.headers.get('Idempotency-Key')
@@ -228,6 +273,201 @@ async function handle(request: NextRequest, context: Context) {
               correlationId,
               result.etag ? { ETag: result.etag } : undefined,
             ),
+        user,
+      )
+    }
+    if (
+      path.length === 3 &&
+      path[0] === 'invitations' &&
+      path[2] === 'decision' &&
+      method === 'POST'
+    ) {
+      const input = parseGroupDecisionInput(await body(request))
+      const version = request.headers.get('If-Match')
+      if (!input || !version || !quotedVersion.test(version))
+        return invalid(correlationId, user)
+      const result = await communityChatRequest(
+        `/api/v1/community/chat/invitations/${path[1]}/decision`,
+        user.accessToken,
+        correlationId,
+        parseChatGroup,
+        {
+          method: 'POST',
+          body: input,
+          headers: { 'If-Match': version },
+          allowNoContent: true,
+        },
+      )
+      return carryCommunitySession(
+        result.status === 204
+          ? communityNoContentResponse(correlationId)
+          : communitySuccessResponse(
+              result.data,
+              correlationId,
+              result.etag ? { ETag: result.etag } : undefined,
+            ),
+        user,
+      )
+    }
+    if (
+      path.length === 3 &&
+      path[0] === 'groups' &&
+      path[2] === 'members' &&
+      method === 'GET'
+    ) {
+      if (!validPageQuery(request)) return invalid(correlationId, user)
+      const result = await communityChatRequest(
+        `/api/v1/community/chat/groups/${path[1]}/members${upstreamQuery(request)}`,
+        user.accessToken,
+        correlationId,
+        parseGroupMemberPage,
+      )
+      return carryCommunitySession(
+        communitySuccessResponse(result.data, correlationId),
+        user,
+      )
+    }
+    if (
+      path.length === 3 &&
+      path[0] === 'groups' &&
+      path[2] === 'invitations' &&
+      method === 'POST'
+    ) {
+      const input = parseGroupInviteInput(await body(request))
+      const idempotencyKey = request.headers.get('Idempotency-Key')
+      const version = request.headers.get('If-Match')
+      if (
+        !input ||
+        !idempotencyKey ||
+        !UUID_PATTERN.test(idempotencyKey) ||
+        !version ||
+        !quotedVersion.test(version)
+      )
+        return invalid(correlationId, user)
+      const result = await communityChatRequest(
+        `/api/v1/community/chat/groups/${path[1]}/invitations`,
+        user.accessToken,
+        correlationId,
+        parseChatGroupInvitation,
+        {
+          method: 'POST',
+          body: input,
+          headers: {
+            'Idempotency-Key': idempotencyKey,
+            'If-Match': version,
+          },
+          expectedStatus: 201,
+        },
+      )
+      return carryCommunitySession(
+        communitySuccessResponse(
+          result.data,
+          correlationId,
+          result.etag ? { ETag: result.etag } : undefined,
+          201,
+        ),
+        user,
+      )
+    }
+    if (
+      path.length === 5 &&
+      path[0] === 'groups' &&
+      path[2] === 'members' &&
+      path[4] === 'role' &&
+      method === 'PUT'
+    ) {
+      const input = parseSetGroupRoleInput(await body(request))
+      const version = request.headers.get('If-Match')
+      if (!input || !version || !quotedVersion.test(version))
+        return invalid(correlationId, user)
+      const result = await communityChatRequest(
+        `/api/v1/community/chat/groups/${path[1]}/members/${path[3]}/role`,
+        user.accessToken,
+        correlationId,
+        parseChatGroupMember,
+        { method: 'PUT', body: input, headers: { 'If-Match': version } },
+      )
+      return carryCommunitySession(
+        communitySuccessResponse(
+          result.data,
+          correlationId,
+          result.etag ? { ETag: result.etag } : undefined,
+        ),
+        user,
+      )
+    }
+    if (
+      path.length === 4 &&
+      path[0] === 'groups' &&
+      path[2] === 'members' &&
+      method === 'DELETE'
+    ) {
+      const version = request.headers.get('If-Match')
+      if (!version || !quotedVersion.test(version))
+        return invalid(correlationId, user)
+      const result = await communityChatRequest(
+        `/api/v1/community/chat/groups/${path[1]}/members/${path[3]}`,
+        user.accessToken,
+        correlationId,
+        () => null,
+        {
+          method: 'DELETE',
+          headers: { 'If-Match': version },
+          allowNoContent: true,
+        },
+      )
+      return carryCommunitySession(
+        result.status === 204
+          ? communityNoContentResponse(correlationId)
+          : invalid(correlationId, user),
+        user,
+      )
+    }
+    if (
+      path.length === 3 &&
+      path[0] === 'groups' &&
+      path[2] === 'ownership' &&
+      method === 'POST'
+    ) {
+      const input = parseTransferGroupOwnerInput(await body(request))
+      const version = request.headers.get('If-Match')
+      if (!input || !version || !quotedVersion.test(version))
+        return invalid(correlationId, user)
+      const result = await communityChatRequest(
+        `/api/v1/community/chat/groups/${path[1]}/ownership`,
+        user.accessToken,
+        correlationId,
+        parseChatGroup,
+        { method: 'POST', body: input, headers: { 'If-Match': version } },
+      )
+      return carryCommunitySession(
+        communitySuccessResponse(
+          result.data,
+          correlationId,
+          result.etag ? { ETag: result.etag } : undefined,
+        ),
+        user,
+      )
+    }
+    if (path.length === 2 && path[0] === 'groups' && method === 'DELETE') {
+      const version = request.headers.get('If-Match')
+      if (!version || !quotedVersion.test(version))
+        return invalid(correlationId, user)
+      const result = await communityChatRequest(
+        `/api/v1/community/chat/groups/${path[1]}`,
+        user.accessToken,
+        correlationId,
+        () => null,
+        {
+          method: 'DELETE',
+          headers: { 'If-Match': version },
+          allowNoContent: true,
+        },
+      )
+      return carryCommunitySession(
+        result.status === 204
+          ? communityNoContentResponse(correlationId)
+          : invalid(correlationId, user),
         user,
       )
     }
@@ -316,3 +556,4 @@ async function handle(request: NextRequest, context: Context) {
 export const GET = handle
 export const POST = handle
 export const PUT = handle
+export const DELETE = handle

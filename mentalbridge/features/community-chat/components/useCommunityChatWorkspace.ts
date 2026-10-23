@@ -19,7 +19,7 @@ import {
   putChatPrivacy,
   sendChatMessage,
   startDirectConversation,
-  type ChatDirectConversation,
+  type ChatConversation,
   type ChatMessage,
   type ChatPrivacy,
   type ChatRequest,
@@ -52,14 +52,6 @@ function isAccessRevoked(error: unknown) {
   )
 }
 
-function directConversations(
-  items: ReadonlyArray<ChatDirectConversation | { kind: string }>,
-) {
-  return items.filter(
-    (item): item is ChatDirectConversation => item.kind === 'DIRECT',
-  )
-}
-
 function mergeMessages(current: ChatMessage[], incoming: ChatMessage[]) {
   const ids = new Set<string>()
   return [...current, ...incoming].filter((message) => {
@@ -85,9 +77,11 @@ function mergeById<T>(current: T[], incoming: T[], id: (item: T) => string) {
 export function useCommunityChatWorkspace({
   initialConversationId,
   recipientCommunityProfileId,
+  initialTab = 'conversations',
 }: Readonly<{
   initialConversationId?: string
   recipientCommunityProfileId?: string
+  initialTab?: 'conversations' | 'requests'
 }>) {
   const router = useRouter()
   const startAttempted = useRef<string | undefined>(undefined)
@@ -95,15 +89,13 @@ export function useCommunityChatWorkspace({
   const messageCursorRef = useRef<string | null>(null)
   const deferredMessages = useRef<ChatMessage[]>([])
   const viewedMessage = useRef('')
-  const [conversations, setConversations] = useState<ChatDirectConversation[]>(
-    [],
-  )
+  const [conversations, setConversations] = useState<ChatConversation[]>([])
   const [requests, setRequests] = useState<ChatRequest[]>([])
   const [privacy, setPrivacy] = useState<
     { version: string; preferences: ChatPrivacy } | undefined
   >()
   const [viewerProfileId, setViewerProfileId] = useState<string>()
-  const [conversation, setConversation] = useState<ChatDirectConversation>()
+  const [conversation, setConversation] = useState<ChatConversation>()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draftState, setDraftState] = useState({
     conversationId: initialConversationId,
@@ -134,7 +126,7 @@ export function useCommunityChatWorkspace({
   const [requestPageError, setRequestPageError] = useState('')
   const [messagePageError, setMessagePageError] = useState('')
   const [activeTab, setActiveTab] = useState<'conversations' | 'requests'>(
-    'conversations',
+    initialTab,
   )
 
   // The inbox route must never silently open or acknowledge its first item.
@@ -154,7 +146,7 @@ export function useCommunityChatWorkspace({
         getCommunityProfile(),
       ])
     if (conversationResult.status === 'fulfilled') {
-      setConversations(directConversations(conversationResult.value.items))
+      setConversations(conversationResult.value.items)
       setConversationCursor(conversationResult.value.nextCursor)
       if (!initialConversationId) setThreadLoading(false)
     }
@@ -233,13 +225,6 @@ export function useCommunityChatWorkspace({
       try {
         const nextConversation = await getChatConversation(conversationId)
         if (threadGeneration.current !== generation) return
-        if (nextConversation.kind !== 'DIRECT') {
-          setThreadErrorState({
-            conversationId,
-            message: 'Trò chuyện nhóm chưa thể mở tại đây.',
-          })
-          return
-        }
         const page = await getChatMessages(conversationId)
         if (threadGeneration.current !== generation) return
         setConversation(nextConversation)
@@ -315,11 +300,7 @@ export function useCommunityChatWorkspace({
     try {
       const page = await getChatConversations(cursor)
       setConversations((current) =>
-        mergeById(
-          current,
-          directConversations(page.items),
-          (item) => item.conversationId,
-        ),
+        mergeById(current, page.items, (item) => item.conversationId),
       )
       setConversationCursor(page.nextCursor)
     } catch (cause) {
@@ -388,7 +369,11 @@ export function useCommunityChatWorkspace({
   }
 
   const peer = useMemo(() => {
-    if (!conversation || conversation.conversationId !== selectedConversationId)
+    if (
+      !conversation ||
+      conversation.kind !== 'DIRECT' ||
+      conversation.conversationId !== selectedConversationId
+    )
       return undefined
     return (
       conversation.peers.find(
@@ -544,6 +529,11 @@ export function useCommunityChatWorkspace({
     requests,
     privacy,
     conversation,
+    updateConversation: (updated: ChatConversation) => {
+      setConversation((current) =>
+        current?.conversationId === updated.conversationId ? updated : current,
+      )
+    },
     messages,
     peer,
     viewerProfileId,

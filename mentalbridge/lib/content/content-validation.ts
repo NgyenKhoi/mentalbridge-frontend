@@ -1177,6 +1177,9 @@ const NOTIFICATION_KINDS = new Set([
   'COMMUNITY_COMMENT',
   'COMMUNITY_REPLY',
   'COMMUNITY_REACTION',
+  'COMMUNITY_MESSAGE',
+  'COMMUNITY_REQUEST',
+  'COMMUNITY_INVITATION',
   'ASSESSMENT_RESULT_AVAILABLE',
   'SUPPORT_GUIDE_AVAILABLE',
   'ACCOUNT_STATUS',
@@ -1189,6 +1192,19 @@ const TARGETLESS_NOTIFICATION_ACTIONS: Readonly<Record<string, string>> = {
   OPEN_RESOURCES: '/resources',
   OPEN_ASSESSMENTS: '/assessments',
   OPEN_SPECIALIST_APPOINTMENTS: '/specialist/appointments',
+}
+const COMMUNITY_CHAT_NOTIFICATION_ACTIONS: Readonly<
+  Record<string, { kind: string; segment: string }>
+> = {
+  OPEN_COMMUNITY_CONVERSATION: {
+    kind: 'COMMUNITY_MESSAGE',
+    segment: 'conversations',
+  },
+  OPEN_COMMUNITY_REQUEST: { kind: 'COMMUNITY_REQUEST', segment: 'requests' },
+  OPEN_COMMUNITY_INVITATION: {
+    kind: 'COMMUNITY_INVITATION',
+    segment: 'invitations',
+  },
 }
 
 export function parseNotification(value: unknown): Notification | null {
@@ -1243,7 +1259,17 @@ export function parseNotification(value: unknown): Notification | null {
     ) {
       return null
     }
-    if (action.type === 'OPEN_RESOURCE') {
+    const chat = COMMUNITY_CHAT_NOTIFICATION_ACTIONS[action.type]
+    if (chat) {
+      if (
+        item.kind !== chat.kind ||
+        typeof action.targetId !== 'string' ||
+        !UUID.test(action.targetId)
+      )
+        return null
+      if (action.href !== `/community/chat/${chat.segment}/${action.targetId}`)
+        return null
+    } else if (action.type === 'OPEN_RESOURCE') {
       if (typeof action.targetId !== 'string' || !UUID.test(action.targetId))
         return null
       if (action.href !== `/resources/${action.targetId}`) return null
