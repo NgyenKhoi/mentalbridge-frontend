@@ -5,6 +5,7 @@ import {
   parseChatGroup,
   parseChatGroupInvitation,
   parseChatGroupMember,
+  parseChatMessage,
   parseChatReportInput,
   parseChatReportResult,
   parseConversationPage,
@@ -88,6 +89,34 @@ describe('community chat contract', () => {
         state: 'RECEIVED',
       }),
     ).not.toBeNull()
+  })
+
+  it('accepts structured active and retracted messages without leaking tombstone content', () => {
+    const base = {
+      messageId: '40000000-0000-4000-8000-000000000001',
+      conversationId: '20000000-0000-4000-8000-000000000001',
+      clientMessageId: '50000000-0000-4000-8000-000000000001',
+      sender: peer,
+      createdAt: '2026-10-20T08:00:00Z',
+    }
+    expect(
+      parseChatMessage({ ...base, state: 'ACTIVE', content: 'Một lời chào.' }),
+    ).toMatchObject({ state: 'ACTIVE', content: 'Một lời chào.' })
+    expect(
+      parseChatMessage({
+        ...base,
+        state: 'RETRACTED',
+        retractedAt: '2026-10-20T08:01:00Z',
+      }),
+    ).toMatchObject({ state: 'RETRACTED' })
+    expect(
+      parseChatMessage({
+        ...base,
+        state: 'RETRACTED',
+        content: 'must not survive',
+        retractedAt: '2026-10-20T08:01:00Z',
+      }),
+    ).toBeNull()
   })
 
   it('strictly validates private-group results and commands', () => {
