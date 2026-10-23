@@ -20,6 +20,7 @@ import {
   chatFixtureConversation,
   chatFixtureDate,
   chatFixtureId as id,
+  chatFixtureMessage,
   chatFixtureOwnId as ownId,
   chatFixturePeerId as peerId,
   chatFixturePrivacy,
@@ -329,6 +330,60 @@ it('renders plain text, never invents presence, stops in background and reconnec
   await screen.findByText('<b>Lời chào an toàn</b>')
   expect(api.credential).toHaveBeenCalledTimes(2)
   expect(api.send).not.toHaveBeenCalled()
+  await view.unmount()
+  jest.restoreAllMocks()
+})
+it('confirms own-message retraction and replaces content with an in-place tombstone', async () => {
+  Object.defineProperty(AppState, 'currentState', {
+    configurable: true,
+    value: 'active',
+  })
+  jest.spyOn(AppState, 'addEventListener').mockReturnValue({
+    remove: jest.fn(),
+  })
+  const api = chatFixtureApi()
+  const ownMessage = {
+    ...chatFixtureMessage,
+    sender: {
+      state: 'AVAILABLE' as const,
+      communityProfileId: ownId,
+      displayName: 'Tôi',
+    },
+  }
+  jest
+    .mocked(api.messages)
+    .mockResolvedValue({ items: [ownMessage], nextCursor: null })
+  jest.mocked(api.retract).mockResolvedValue({
+    messageId: ownMessage.messageId,
+    conversationId: ownMessage.conversationId,
+    clientMessageId: ownMessage.clientMessageId,
+    sender: ownMessage.sender,
+    state: 'RETRACTED',
+    createdAt: ownMessage.createdAt,
+    retractedAt: '2026-10-21T01:01:00Z',
+  })
+  const view = await mount(
+    <CommunityConversationScreen
+      api={api}
+      community={{} as CommunityApi}
+      factory={() => new Socket()}
+      subject={subject}
+      ownId={ownId}
+      conversationId={id}
+      onBack={jest.fn()}
+    />,
+  )
+
+  await screen.findByText('<b>Lời chào an toàn</b>')
+  await fireEvent.press(screen.getByRole('button', { name: 'Gỡ tin nhắn' }))
+  expect(screen.getByText('Gỡ tin nhắn cho mọi người?')).toBeTruthy()
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xác nhận gỡ tin nhắn' }),
+  )
+  await screen.findByText('Bạn đã gỡ tin nhắn')
+  expect(screen.queryByText('<b>Lời chào an toàn</b>')).toBeNull()
+  expect(api.retract).toHaveBeenCalledWith(id, ownMessage.messageId)
+
   await view.unmount()
   jest.restoreAllMocks()
 })
