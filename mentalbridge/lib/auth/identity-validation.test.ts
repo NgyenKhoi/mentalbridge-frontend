@@ -36,10 +36,54 @@ describe('admin account validation', () => {
     ).toBe(true)
     expect(
       validateAccountStateChangeRequest({
+        status: 'ACTIVE',
+        reasonCode: 'REVIEW_COMPLETED',
+      }).success,
+    ).toBe(true)
+    expect(
+      validateAccountStateChangeRequest({
+        status: 'DISABLED',
+        reasonCode: 'REVIEW_COMPLETED',
+      }).success,
+    ).toBe(false)
+    expect(
+      validateAccountStateChangeRequest({
         status: 'DELETED',
         reasonCode: 'ANY_ARBITRARY_REASON',
       }).success,
     ).toBe(false)
+  })
+
+  it('accepts omitted optional nextCursor and audit fields without rejecting valid payloads', () => {
+    expect(parseAccountPage({ items: [account] })).toEqual({
+      items: [account],
+      nextCursor: null,
+    })
+
+    const event = {
+      eventId: '94464b2b-a7fd-46fd-9310-64ef4eac7de7',
+      occurredAt: '2026-10-01T00:00:00Z',
+      actorType: 'ADMIN',
+      actorIdentifier: 'account:94464b2b-a7fd-46fd-9310-64ef4eac7de7',
+      action: 'RESOURCE_ARCHIVED',
+      result: 'SUCCEEDED',
+      correlationId: '94464b2b-a7fd-46fd-9310-64ef4eac7de8',
+      sourceService: 'CONTENT',
+      domain: 'RESOURCE_MANAGEMENT',
+    }
+    expect(parseAdministrationAuditEventPage({
+      items: [event],
+      nextCursor: null,
+      effectiveFrom: '2026-09-01T00:00:00Z',
+      effectiveTo: '2026-10-01T00:00:00Z',
+      retentionCutoff: '2025-10-01T00:00:00Z',
+    })).toEqual({
+      items: [event],
+      nextCursor: null,
+      effectiveFrom: '2026-09-01T00:00:00Z',
+      effectiveTo: '2026-10-01T00:00:00Z',
+      retentionCutoff: '2025-10-01T00:00:00Z',
+    })
   })
 
   it('parses multi-service administration audit event pages', () => {
