@@ -71,13 +71,15 @@ describe('admin account validation', () => {
       sourceService: 'CONTENT',
       domain: 'RESOURCE_MANAGEMENT',
     }
-    expect(parseAdministrationAuditEventPage({
-      items: [event],
-      nextCursor: null,
-      effectiveFrom: '2026-09-01T00:00:00Z',
-      effectiveTo: '2026-10-01T00:00:00Z',
-      retentionCutoff: '2025-10-01T00:00:00Z',
-    })).toEqual({
+    expect(
+      parseAdministrationAuditEventPage({
+        items: [event],
+        nextCursor: null,
+        effectiveFrom: '2026-09-01T00:00:00Z',
+        effectiveTo: '2026-10-01T00:00:00Z',
+        retentionCutoff: '2025-10-01T00:00:00Z',
+      }),
+    ).toEqual({
       items: [event],
       nextCursor: null,
       effectiveFrom: '2026-09-01T00:00:00Z',

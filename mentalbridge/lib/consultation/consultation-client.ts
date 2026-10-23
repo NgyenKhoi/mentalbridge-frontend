@@ -621,7 +621,11 @@ export const consultationClient = {
       parse: parseAdminPaymentList,
     })
   },
-  adminSubscriptionDetail(token: string, correlationId: string, subscriptionId: string) {
+  adminSubscriptionDetail(
+    token: string,
+    correlationId: string,
+    subscriptionId: string,
+  ) {
     return request<AdminSubscriptionDetail>({
       method: 'GET',
       path: `/api/v1/admin/subscriptions/${encodeURIComponent(subscriptionId)}`,

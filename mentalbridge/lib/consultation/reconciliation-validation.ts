@@ -16,15 +16,24 @@ function isInstant(value: unknown): value is string {
   return typeof value === 'string' && !Number.isNaN(Date.parse(value))
 }
 
-export function parseAdminPayoutDetail(value: unknown): AdminPayoutDetail | null {
+export function parseAdminPayoutDetail(
+  value: unknown,
+): AdminPayoutDetail | null {
   if (!isRecord(value)) return null
-  if (!isRecord(value.payout) || !Array.isArray(value.attempts) || !Array.isArray(value.earnings) || !Array.isArray(value.events)) {
+  if (
+    !isRecord(value.payout) ||
+    !Array.isArray(value.attempts) ||
+    !Array.isArray(value.earnings) ||
+    !Array.isArray(value.events)
+  ) {
     return null
   }
   return value as unknown as AdminPayoutDetail
 }
 
-export function parseAdminSubscriptionDetail(value: unknown): AdminSubscriptionDetail | null {
+export function parseAdminSubscriptionDetail(
+  value: unknown,
+): AdminSubscriptionDetail | null {
   if (!isRecord(value)) return null
   if (
     typeof value.subscriptionId !== 'string' ||
@@ -74,9 +83,11 @@ export function parseAdminCommercialProvenance(
   ) {
     return null
   }
-  if (value.subscriptions !== undefined && !Array.isArray(value.subscriptions)) {
+  if (
+    value.subscriptions !== undefined &&
+    !Array.isArray(value.subscriptions)
+  ) {
     return null
   }
   return value as unknown as AdminCommercialProvenance
 }
-

@@ -491,7 +491,11 @@ export function parseAccountPage(value: unknown): AccountPage | null {
     items.push(detail)
   }
   const nextCursor = value.nextCursor
-  if (nextCursor !== undefined && nextCursor !== null && typeof nextCursor !== 'string')
+  if (
+    nextCursor !== undefined &&
+    nextCursor !== null &&
+    typeof nextCursor !== 'string'
+  )
     return null
   return { items, nextCursor: nextCursor ?? null }
 }
@@ -783,7 +787,11 @@ export function parsePlatformReport(value: unknown): PlatformReport | null {
   if (value.periodStart > value.periodEnd) return null
   for (const field of ['retryOf']) {
     const item = value[field]
-    if (item !== undefined && item !== null && (typeof item !== 'string' || !UUID_PATTERN.test(item)))
+    if (
+      item !== undefined &&
+      item !== null &&
+      (typeof item !== 'string' || !UUID_PATTERN.test(item))
+    )
       return null
   }
   for (const field of [
@@ -796,13 +804,21 @@ export function parsePlatformReport(value: unknown): PlatformReport | null {
     if (item !== undefined && item !== null && !isDateTime(item)) return null
   }
   if (
-    (value.failureCode !== undefined && value.failureCode !== null && typeof value.failureCode !== 'string') ||
-    (value.fileName !== undefined && value.fileName !== null && typeof value.fileName !== 'string') ||
-    (value.mediaType !== undefined && value.mediaType !== null && typeof value.mediaType !== 'string') ||
-    (value.contentLength !== undefined && value.contentLength !== null &&
+    (value.failureCode !== undefined &&
+      value.failureCode !== null &&
+      typeof value.failureCode !== 'string') ||
+    (value.fileName !== undefined &&
+      value.fileName !== null &&
+      typeof value.fileName !== 'string') ||
+    (value.mediaType !== undefined &&
+      value.mediaType !== null &&
+      typeof value.mediaType !== 'string') ||
+    (value.contentLength !== undefined &&
+      value.contentLength !== null &&
       (!Number.isInteger(value.contentLength) ||
         (value.contentLength as number) < 1)) ||
-    (value.contentSha256 !== undefined && value.contentSha256 !== null &&
+    (value.contentSha256 !== undefined &&
+      value.contentSha256 !== null &&
       (typeof value.contentSha256 !== 'string' ||
         !/^[0-9a-f]{64}$/.test(value.contentSha256)))
   )
@@ -822,7 +838,11 @@ export function parsePlatformReportPage(
   const items = value.items.map(parsePlatformReport)
   if (!items.every((item): item is PlatformReport => item !== null)) return null
   const nextCursor = value.nextCursor
-  if (nextCursor !== undefined && nextCursor !== null && typeof nextCursor !== 'string')
+  if (
+    nextCursor !== undefined &&
+    nextCursor !== null &&
+    typeof nextCursor !== 'string'
+  )
     return null
   return { items, nextCursor: nextCursor ?? null }
 }

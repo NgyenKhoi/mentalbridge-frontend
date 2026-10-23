@@ -158,9 +158,9 @@ describe('AdminCommercialReconciliationManager', () => {
   })
 
   it('renders discrepancy overview with authoritative owner facts', async () => {
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(
-      sampleDiscrepancies,
-    )
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
 
     render(<AdminCommercialReconciliationManager />)
 
@@ -177,7 +177,9 @@ describe('AdminCommercialReconciliationManager', () => {
   })
 
   it('renders empty discrepancy notice when zero discrepancies exist', async () => {
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue({
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue({
       generatedAt: '2026-10-22T00:00:00Z',
       totalDiscrepancies: 0,
       webhooks: [],
@@ -194,9 +196,9 @@ describe('AdminCommercialReconciliationManager', () => {
   })
 
   it('handles backend failure with friendly error state and retry button', async () => {
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockRejectedValue(
-      new Error('Connection failure'),
-    )
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockRejectedValue(new Error('Connection failure'))
 
     render(<AdminCommercialReconciliationManager />)
 
@@ -207,9 +209,9 @@ describe('AdminCommercialReconciliationManager', () => {
     const retryBtn = screen.getByRole('button', { name: 'Thử lại' })
     expect(retryBtn).toBeEnabled()
 
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(
-      sampleDiscrepancies,
-    )
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
     fireEvent.click(retryBtn)
 
     await waitFor(() => {
@@ -218,9 +220,9 @@ describe('AdminCommercialReconciliationManager', () => {
   })
 
   it('traces commercial provenance end-to-end without leaking clinical data', async () => {
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(
-      sampleDiscrepancies,
-    )
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
     vi.mocked(browserCommercialReconciliation.getProvenance).mockResolvedValue(
       sampleProvenance,
     )
@@ -248,7 +250,9 @@ describe('AdminCommercialReconciliationManager', () => {
     fireEvent.click(traceBtn)
 
     await waitFor(() => {
-      expect(browserCommercialReconciliation.getProvenance).toHaveBeenCalledWith({
+      expect(
+        browserCommercialReconciliation.getProvenance,
+      ).toHaveBeenCalledWith({
         paymentId: '62200000-0000-4000-8000-000000000001',
       })
     })
@@ -278,15 +282,13 @@ describe('AdminCommercialReconciliationManager', () => {
         name: '5. Chi trả (Specialist Payouts)',
       }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByText('Chưa tạo yêu cầu chi trả'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Chưa tạo yêu cầu chi trả')).toBeInTheDocument()
   })
 
   it('browses payments with authoritative filters and no fabricated data', async () => {
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(
-      sampleDiscrepancies,
-    )
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
     vi.mocked(browserCommercialReconciliation.getPayments).mockResolvedValue({
       generatedAt: '2026-10-22T00:00:00Z',
       count: 1,
@@ -312,9 +314,7 @@ describe('AdminCommercialReconciliationManager', () => {
     render(<AdminCommercialReconciliationManager />)
 
     // Switch to payments tab
-    fireEvent.click(
-      screen.getByRole('tab', { name: 'Giao dịch thanh toán' }),
-    )
+    fireEvent.click(screen.getByRole('tab', { name: 'Giao dịch thanh toán' }))
 
     await waitFor(() => {
       expect(browserCommercialReconciliation.getPayments).toHaveBeenCalled()
@@ -325,9 +325,9 @@ describe('AdminCommercialReconciliationManager', () => {
   })
 
   it('shows unapproved actions as disabled with proper security warnings', async () => {
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(
-      sampleDiscrepancies,
-    )
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
 
     render(<AdminCommercialReconciliationManager />)
 
@@ -343,9 +343,7 @@ describe('AdminCommercialReconciliationManager', () => {
     ).toBeInTheDocument()
 
     // Assert read-only / disabled badges
-    expect(
-      screen.getAllByText('Đang tắt (Read-only)'),
-    ).toHaveLength(3)
+    expect(screen.getAllByText('Đang tắt (Read-only)')).toHaveLength(3)
 
     expect(
       screen.getByText(/Chưa có API hoàn tiền trực tiếp được phê duyệt/),
@@ -405,19 +403,29 @@ describe('AdminCommercialReconciliationManager', () => {
       ],
     }
 
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(sampleDiscrepancies)
-    vi.mocked(browserCommercialReconciliation.getProvenance).mockResolvedValue(multiSubProvenance)
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
+    vi.mocked(browserCommercialReconciliation.getProvenance).mockResolvedValue(
+      multiSubProvenance,
+    )
 
     render(<AdminCommercialReconciliationManager />)
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Truy vết dòng tiền (Provenance)' }))
+    fireEvent.click(
+      screen.getByRole('tab', { name: 'Truy vết dòng tiền (Provenance)' }),
+    )
     fireEvent.change(screen.getByLabelText('Giá trị mã định danh'), {
       target: { value: '62200000-0000-4000-8000-000000000001' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Truy vết' }))
 
-    expect(await screen.findByText(/Thuê bao: 62200000-0000-4000-8000-000000000002/)).toBeInTheDocument()
-    expect(screen.getByText(/Thuê bao: 62200000-0000-4000-8000-000000000009/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/Thuê bao: 62200000-0000-4000-8000-000000000002/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Thuê bao: 62200000-0000-4000-8000-000000000009/),
+    ).toBeInTheDocument()
 
     // Status badges: FAILED should have acr-badge-alert
     const failedBadge = screen.getByText('FAILED')
@@ -429,56 +437,80 @@ describe('AdminCommercialReconciliationManager', () => {
   })
 
   it('clears stale provenance state when subsequent trace fails', async () => {
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(sampleDiscrepancies)
-    vi.mocked(browserCommercialReconciliation.getProvenance).mockResolvedValueOnce(sampleProvenance)
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
+    vi.mocked(
+      browserCommercialReconciliation.getProvenance,
+    ).mockResolvedValueOnce(sampleProvenance)
 
     render(<AdminCommercialReconciliationManager />)
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Truy vết dòng tiền (Provenance)' }))
+    fireEvent.click(
+      screen.getByRole('tab', { name: 'Truy vết dòng tiền (Provenance)' }),
+    )
     fireEvent.change(screen.getByLabelText('Giá trị mã định danh'), {
       target: { value: '62200000-0000-4000-8000-000000000001' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Truy vết' }))
 
-    expect(await screen.findByText('1. Thanh toán (Payment Transactions)')).toBeInTheDocument()
+    expect(
+      await screen.findByText('1. Thanh toán (Payment Transactions)'),
+    ).toBeInTheDocument()
 
     // Now fail the next trace
-    vi.mocked(browserCommercialReconciliation.getProvenance).mockRejectedValueOnce(
-      new Error('Mã định danh không hợp lệ'),
-    )
+    vi.mocked(
+      browserCommercialReconciliation.getProvenance,
+    ).mockRejectedValueOnce(new Error('Mã định danh không hợp lệ'))
     fireEvent.change(screen.getByLabelText('Giá trị mã định danh'), {
       target: { value: 'invalid-id' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Truy vết' }))
 
-    expect(await screen.findByText('Mã định danh không hợp lệ')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Mã định danh không hợp lệ'),
+    ).toBeInTheDocument()
     // Stale provenance stages should be removed
-    expect(screen.queryByText('1. Thanh toán (Payment Transactions)')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('1. Thanh toán (Payment Transactions)'),
+    ).not.toBeInTheDocument()
   })
 
   it('shows error state and retry in payments tab when fetch fails', async () => {
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(sampleDiscrepancies)
-    vi.mocked(browserCommercialReconciliation.getPayments).mockRejectedValueOnce(new Error('Network error'))
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
+    vi.mocked(
+      browserCommercialReconciliation.getPayments,
+    ).mockRejectedValueOnce(new Error('Network error'))
 
     render(<AdminCommercialReconciliationManager />)
 
     fireEvent.click(screen.getByRole('tab', { name: 'Giao dịch thanh toán' }))
 
-    expect(await screen.findByText('Chưa thể tải dữ liệu thanh toán từ máy chủ.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Chưa thể tải dữ liệu thanh toán từ máy chủ.'),
+    ).toBeInTheDocument()
 
     // Test retry
-    vi.mocked(browserCommercialReconciliation.getPayments).mockResolvedValueOnce({
+    vi.mocked(
+      browserCommercialReconciliation.getPayments,
+    ).mockResolvedValueOnce({
       generatedAt: '2026-10-22T00:00:00Z',
       count: 0,
       items: [],
     })
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
 
-    expect(await screen.findByText('0 giao dịch trên trang này')).toBeInTheDocument()
+    expect(
+      await screen.findByText('0 giao dịch trên trang này'),
+    ).toBeInTheDocument()
   })
 
   it('renders discrepancy truncation banner when totalDiscrepancies > 50', async () => {
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue({
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue({
       ...sampleDiscrepancies,
       totalDiscrepancies: 85,
     })
@@ -491,14 +523,18 @@ describe('AdminCommercialReconciliationManager', () => {
   })
 
   it('shows truncated provenance banner when backend signals truncation', async () => {
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(sampleDiscrepancies)
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
     vi.mocked(browserCommercialReconciliation.getProvenance).mockResolvedValue({
       ...sampleProvenance,
       truncated: true,
     })
 
     render(<AdminCommercialReconciliationManager />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Truy vết dòng tiền (Provenance)' }))
+    fireEvent.click(
+      screen.getByRole('tab', { name: 'Truy vết dòng tiền (Provenance)' }),
+    )
     fireEvent.change(screen.getByLabelText('Giá trị mã định danh'), {
       target: { value: '62200000-0000-4000-8000-000000000001' },
     })
@@ -510,40 +546,56 @@ describe('AdminCommercialReconciliationManager', () => {
   })
 
   it('ignores stale out-of-order responses in payments tab', async () => {
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockResolvedValue(sampleDiscrepancies)
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
 
     let resolveFirst!: (v: AdminPaymentList) => void
     let resolveSecond!: (v: AdminPaymentList) => void
 
     vi.mocked(browserCommercialReconciliation.getPayments)
       .mockImplementationOnce(
-        () => new Promise((res) => { resolveFirst = res }),
+        () =>
+          new Promise((res) => {
+            resolveFirst = res
+          }),
       )
       .mockImplementationOnce(
-        () => new Promise((res) => { resolveSecond = res }),
+        () =>
+          new Promise((res) => {
+            resolveSecond = res
+          }),
       )
 
     render(<AdminCommercialReconciliationManager />)
     fireEvent.click(screen.getByRole('tab', { name: 'Giao dịch thanh toán' }))
 
-    const statusSelect = screen.getByRole('combobox', { name: /lọc trạng thái/i })
+    const statusSelect = screen.getByRole('combobox', {
+      name: /lọc trạng thái/i,
+    })
     fireEvent.change(statusSelect, { target: { value: 'SUCCEEDED' } })
 
-    const successItem: AdminPaymentList = { generatedAt: '2026-10-22T00:00:00Z', count: 1, items: [{
-      paymentId: '62200000-0000-4000-8000-000000000001',
-      subscriptionId: '62200000-0000-4000-8000-000000000002',
-      planVersionId: '62200000-0000-4000-8000-000000000099',
-      planCode: 'PLUS' as const,
-      pricingPolicyVersion: 'sandbox-full-price-v1',
-      purpose: 'PURCHASE',
-      provider: 'FAKE',
-      status: 'SUCCEEDED',
-      amountVnd: 250000,
-      currency: 'VND',
-      createdAt: '2026-10-20T10:00:00Z',
-      paidAt: '2026-10-20T10:00:01Z',
-      failedAt: null,
-    }] }
+    const successItem: AdminPaymentList = {
+      generatedAt: '2026-10-22T00:00:00Z',
+      count: 1,
+      items: [
+        {
+          paymentId: '62200000-0000-4000-8000-000000000001',
+          subscriptionId: '62200000-0000-4000-8000-000000000002',
+          planVersionId: '62200000-0000-4000-8000-000000000099',
+          planCode: 'PLUS' as const,
+          pricingPolicyVersion: 'sandbox-full-price-v1',
+          purpose: 'PURCHASE',
+          provider: 'FAKE',
+          status: 'SUCCEEDED',
+          amountVnd: 250000,
+          currency: 'VND',
+          createdAt: '2026-10-20T10:00:00Z',
+          paidAt: '2026-10-20T10:00:01Z',
+          failedAt: null,
+        },
+      ],
+    }
 
     // Resolve second (newer) first
     resolveSecond(successItem)
@@ -655,69 +707,79 @@ describe('AdminCommercialReconciliationManager', () => {
         }),
       ),
     )
-    const requestsBeforeInvalid = vi.mocked(browserCommercialReconciliation.getPayouts).mock.calls.length
+    const requestsBeforeInvalid = vi.mocked(
+      browserCommercialReconciliation.getPayouts,
+    ).mock.calls.length
     fireEvent.change(screen.getByLabelText('Từ ngày:'), {
       target: { value: '2026-10-24' },
     })
-    expect(screen.getByRole('alert')).toHaveTextContent('Từ ngày không thể lớn hơn đến ngày')
-    expect(vi.mocked(browserCommercialReconciliation.getPayouts)).toHaveBeenCalledTimes(requestsBeforeInvalid)
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Từ ngày không thể lớn hơn đến ngày',
+    )
+    expect(
+      vi.mocked(browserCommercialReconciliation.getPayouts),
+    ).toHaveBeenCalledTimes(requestsBeforeInvalid)
   })
 })
 
-  it('prevents request counter collision between discrepancies and payments', async () => {
-    const slowDiscrepancies = {
-      generatedAt: '2026-10-22T00:00:00Z',
-      totalDiscrepancies: 1,
-      webhooks: [],
-      payouts: [],
-      heldEarnings: [],
-      disputes: [],
-    }
+it('prevents request counter collision between discrepancies and payments', async () => {
+  const slowDiscrepancies = {
+    generatedAt: '2026-10-22T00:00:00Z',
+    totalDiscrepancies: 1,
+    webhooks: [],
+    payouts: [],
+    heldEarnings: [],
+    disputes: [],
+  }
 
-    // Simulate slow discrepancies load and fast payment load to test counter isolation
-    let discrepanciesResolve: (value: unknown) => void
-    const discrepanciesPromise = new Promise((resolve) => {
-      discrepanciesResolve = resolve
-    })
-
-    vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockReturnValue(
-      discrepanciesPromise as ReturnType<typeof browserCommercialReconciliation.getDiscrepancies>,
-    )
-    vi.mocked(browserCommercialReconciliation.getPayments).mockResolvedValue({
-      generatedAt: '2026-10-22T00:00:00Z',
-      count: 1,
-      items: [
-        {
-          paymentId: '62200000-0000-4000-8000-000000000001',
-          subscriptionId: '62200000-0000-4000-8000-000000000002',
-          planVersionId: '62200000-0000-4000-8000-000000000099',
-          planCode: 'PLUS' as const,
-          pricingPolicyVersion: 'sandbox-full-price-v1',
-          purpose: 'PURCHASE' as const,
-          provider: 'FAKE' as const,
-          status: 'SUCCEEDED' as const,
-          amountVnd: 500000,
-          currency: 'VND' as const,
-          createdAt: '2026-10-20T10:00:00Z',
-          paidAt: '2026-10-20T10:00:01Z',
-          failedAt: null,
-        },
-      ],
-    })
-
-    render(<AdminCommercialReconciliationManager />)
-
-    // Switch to payments tab immediately (before discrepancies load)
-    fireEvent.click(screen.getByRole('tab', { name: 'Giao dịch thanh toán' }))
-
-    // Wait for payments to render
-    expect(await screen.findByText('1 giao dịch trên trang này')).toBeInTheDocument()
-
-    // Now resolve discrepancies
-    discrepanciesResolve!(slowDiscrepancies)
-
-    // Verify payments remain visible (not overwritten by discrepancies using same counter)
-    await waitFor(() => {
-      expect(screen.getByText('1 giao dịch trên trang này')).toBeInTheDocument()
-    })
+  // Simulate slow discrepancies load and fast payment load to test counter isolation
+  let discrepanciesResolve: (value: unknown) => void
+  const discrepanciesPromise = new Promise((resolve) => {
+    discrepanciesResolve = resolve
   })
+
+  vi.mocked(browserCommercialReconciliation.getDiscrepancies).mockReturnValue(
+    discrepanciesPromise as ReturnType<
+      typeof browserCommercialReconciliation.getDiscrepancies
+    >,
+  )
+  vi.mocked(browserCommercialReconciliation.getPayments).mockResolvedValue({
+    generatedAt: '2026-10-22T00:00:00Z',
+    count: 1,
+    items: [
+      {
+        paymentId: '62200000-0000-4000-8000-000000000001',
+        subscriptionId: '62200000-0000-4000-8000-000000000002',
+        planVersionId: '62200000-0000-4000-8000-000000000099',
+        planCode: 'PLUS' as const,
+        pricingPolicyVersion: 'sandbox-full-price-v1',
+        purpose: 'PURCHASE' as const,
+        provider: 'FAKE' as const,
+        status: 'SUCCEEDED' as const,
+        amountVnd: 500000,
+        currency: 'VND' as const,
+        createdAt: '2026-10-20T10:00:00Z',
+        paidAt: '2026-10-20T10:00:01Z',
+        failedAt: null,
+      },
+    ],
+  })
+
+  render(<AdminCommercialReconciliationManager />)
+
+  // Switch to payments tab immediately (before discrepancies load)
+  fireEvent.click(screen.getByRole('tab', { name: 'Giao dịch thanh toán' }))
+
+  // Wait for payments to render
+  expect(
+    await screen.findByText('1 giao dịch trên trang này'),
+  ).toBeInTheDocument()
+
+  // Now resolve discrepancies
+  discrepanciesResolve!(slowDiscrepancies)
+
+  // Verify payments remain visible (not overwritten by discrepancies using same counter)
+  await waitFor(() => {
+    expect(screen.getByText('1 giao dịch trên trang này')).toBeInTheDocument()
+  })
+})
