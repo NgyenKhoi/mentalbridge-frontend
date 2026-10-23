@@ -387,6 +387,137 @@ it('confirms own-message retraction and replaces content with an in-place tombst
   await view.unmount()
   jest.restoreAllMocks()
 })
+it('confirms a personal clear, keeps peers unchanged and returns to the inbox', async () => {
+  Object.defineProperty(AppState, 'currentState', {
+    configurable: true,
+    value: 'active',
+  })
+  jest.spyOn(AppState, 'addEventListener').mockReturnValue({
+    remove: jest.fn(),
+  })
+  const api = chatFixtureApi()
+  const onBack = jest.fn()
+  const view = await mount(
+    <CommunityConversationScreen
+      api={api}
+      community={{} as CommunityApi}
+      factory={() => new Socket()}
+      subject={subject}
+      ownId={ownId}
+      conversationId={id}
+      onBack={onBack}
+    />,
+  )
+
+  await screen.findByText('<b>Lời chào an toàn</b>')
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xóa cuộc trò chuyện phía tôi' }),
+  )
+  expect(screen.getByText('Xóa cuộc trò chuyện phía bạn?')).toBeOnTheScreen()
+  expect(
+    screen.getByText(/Những người khác vẫn giữ nguyên lịch sử/),
+  ).toBeOnTheScreen()
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xác nhận xóa phía tôi' }),
+  )
+
+  await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1))
+  expect(api.clearConversation).toHaveBeenCalledWith(id, expect.any(String))
+  expect(api.clearConversation).toHaveBeenCalledTimes(1)
+
+  await view.unmount()
+  jest.restoreAllMocks()
+})
+it('keeps a failed personal clear visible and reuses its command key on retry', async () => {
+  Object.defineProperty(AppState, 'currentState', {
+    configurable: true,
+    value: 'active',
+  })
+  jest.spyOn(AppState, 'addEventListener').mockReturnValue({
+    remove: jest.fn(),
+  })
+  const api = chatFixtureApi()
+  jest
+    .mocked(api.clearConversation)
+    .mockRejectedValueOnce(new Error('timeout'))
+    .mockResolvedValueOnce(undefined)
+  const onBack = jest.fn()
+  const view = await mount(
+    <CommunityConversationScreen
+      api={api}
+      community={{} as CommunityApi}
+      factory={() => new Socket()}
+      subject={subject}
+      ownId={ownId}
+      conversationId={id}
+      onBack={onBack}
+    />,
+  )
+
+  await screen.findByText('<b>Lời chào an toàn</b>')
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xóa cuộc trò chuyện phía tôi' }),
+  )
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xác nhận xóa phía tôi' }),
+  )
+  await screen.findByText(/Chưa xác nhận đã xóa/)
+  expect(onBack).not.toHaveBeenCalled()
+  expect(screen.getByText('<b>Lời chào an toàn</b>')).toBeOnTheScreen()
+
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xác nhận xóa phía tôi' }),
+  )
+  await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1))
+  expect(api.clearConversation).toHaveBeenCalledTimes(2)
+  expect(jest.mocked(api.clearConversation).mock.calls[1]?.[1]).toBe(
+    jest.mocked(api.clearConversation).mock.calls[0]?.[1],
+  )
+
+  await view.unmount()
+  jest.restoreAllMocks()
+})
+it('reconciles a timed-out personal clear before leaving the thread', async () => {
+  Object.defineProperty(AppState, 'currentState', {
+    configurable: true,
+    value: 'active',
+  })
+  jest.spyOn(AppState, 'addEventListener').mockReturnValue({
+    remove: jest.fn(),
+  })
+  const api = chatFixtureApi()
+  jest.mocked(api.clearConversation).mockRejectedValue(new Error('timeout'))
+  jest.mocked(api.conversations).mockResolvedValue({
+    items: [],
+    nextCursor: null,
+  })
+  const onBack = jest.fn()
+  const view = await mount(
+    <CommunityConversationScreen
+      api={api}
+      community={{} as CommunityApi}
+      factory={() => new Socket()}
+      subject={subject}
+      ownId={ownId}
+      conversationId={id}
+      onBack={onBack}
+    />,
+  )
+
+  await screen.findByText('<b>Lời chào an toàn</b>')
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xóa cuộc trò chuyện phía tôi' }),
+  )
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xác nhận xóa phía tôi' }),
+  )
+
+  await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1))
+  expect(screen.queryByText(/Chưa xác nhận đã xóa/)).toBeNull()
+
+  await view.unmount()
+  jest.restoreAllMocks()
+})
 it('renders archived history without a composer and hides history on permission failure', async () => {
   Object.defineProperty(AppState, 'currentState', {
     configurable: true,

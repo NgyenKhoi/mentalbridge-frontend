@@ -50,6 +50,18 @@ it('reports only an exact visible message reference and never copies chat conten
     { headers: { 'Idempotency-Key': key } },
   )
 })
+it('clears only the caller conversation view with a caller-preserved command key', async () => {
+  const { delete: del, api } = fixture()
+  const commandKey = '33333333-3333-4333-8333-333333333333'
+  del.mockResolvedValue({ status: 204 })
+
+  await api.clearConversation(conversationId, commandKey)
+
+  expect(del).toHaveBeenCalledWith(
+    `/api/v1/community/chat/conversations/${conversationId}`,
+    { headers: { 'Idempotency-Key': commandKey } },
+  )
+})
 it('uses authoritative body revisions when GET has no ETag, retaining exact large decimal versions', async () => {
   const { get, api } = fixture()
   get.mockResolvedValue({ data: conversation, headers: {} })

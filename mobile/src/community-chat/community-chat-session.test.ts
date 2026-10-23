@@ -152,6 +152,35 @@ it('discards an in-flight history result when permission invalidation arrives, e
   expect(session.snapshot().messages).toEqual([])
   expect(session.snapshot().phase).toBe('unavailable')
 })
+it('re-subscribes after private clear invalidation before accepting later live messages', async () => {
+  const { api, session, socket } = fixture()
+  await session.start()
+  const subscriptionCount = () =>
+    socket().emit.mock.calls.filter(
+      (call) =>
+        (call[1] as { commandType: string }).commandType ===
+        'community.conversation.subscribe',
+    ).length
+  expect(subscriptionCount()).toBe(1)
+  api.messages.mockResolvedValue({ items: [], nextCursor: null })
+  socket().fire(
+    'community.event',
+    event('community.conversation.invalidated', { conversationId: id }),
+  )
+  expect(session.snapshot().messages).toEqual([])
+  await flush()
+  expect(subscriptionCount()).toBe(2)
+  expect(session.snapshot().phase).toBe('ready')
+  expect(session.snapshot().messages).toEqual([])
+  const later = { ...message, messageId: peerId, content: 'Tin nhắn mới' }
+  api.messages.mockResolvedValue({ items: [later], nextCursor: null })
+  socket().fire(
+    'community.event',
+    event('community.message.created', { message: later }),
+  )
+  await flush()
+  expect(session.snapshot().messages).toEqual([later])
+})
 afterEach(() => {
   active.splice(0).forEach((session) => session.clear())
 })

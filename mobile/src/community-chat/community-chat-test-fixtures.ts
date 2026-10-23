@@ -52,6 +52,7 @@ export function chatFixtureApi(): CommunityChatApi {
       value: chatFixtureConversation,
       etag: '"9007199254740993"',
     }),
+    clearConversation: jest.fn().mockResolvedValue(undefined),
     startDirect: jest
       .fn()
       .mockResolvedValue({ state: 'PENDING', requestId: chatFixtureId }),
