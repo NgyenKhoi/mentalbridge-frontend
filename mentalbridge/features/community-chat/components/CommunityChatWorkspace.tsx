@@ -182,7 +182,7 @@ export default function CommunityChatWorkspace({
   const [reportError, setReportError] = useState('')
   const [reportNotice, setReportNotice] = useState('')
   const reportGeneration = useRef(0)
-  const reportConversationId = useRef(initialConversationId)
+  const reportConversationId = useRef(chat.selectedConversationId)
   const reportAttempt = useRef<{ signature: string; key: string } | undefined>(
     undefined,
   )
@@ -193,6 +193,14 @@ export default function CommunityChatWorkspace({
     chat.conversations.find(
       (item) => item.conversationId === chat.selectedConversationId,
     )
+  const activeReportTarget =
+    reportTarget?.conversationId === chat.selectedConversationId
+      ? reportTarget
+      : undefined
+  const activeRetractTarget =
+    retractTarget?.conversationId === chat.selectedConversationId
+      ? retractTarget
+      : undefined
   const activePeer = activeConversation?.peers.find(
     (peer) =>
       peer.state === 'AVAILABLE' &&
@@ -221,27 +229,27 @@ export default function CommunityChatWorkspace({
   const markMessagesViewed = chat.markMessagesViewed
 
   useEffect(() => {
-    if (initialConversationId && lastMessageId)
+    if (chat.selectedConversationId && lastMessageId)
       void markMessagesViewed(lastMessageId)
-  }, [initialConversationId, lastMessageId, markMessagesViewed])
+  }, [chat.selectedConversationId, lastMessageId, markMessagesViewed])
 
   useEffect(() => {
-    reportConversationId.current = initialConversationId
+    reportConversationId.current = chat.selectedConversationId
     reportGeneration.current += 1
     reportAttempt.current = undefined
-  }, [initialConversationId])
+  }, [chat.selectedConversationId])
 
   async function submitReport() {
     if (
-      !reportTarget ||
-      reportTarget.conversationId !== reportConversationId.current ||
+      !activeReportTarget ||
+      activeReportTarget.conversationId !== reportConversationId.current ||
       reportDetails.length > 1000 ||
       reportBusy
     )
       return
     const details = reportDetails.trim()
     const signature = JSON.stringify({
-      messageId: reportTarget.messageId,
+      messageId: activeReportTarget.messageId,
       reasonCode: reportReason,
       details,
     })
@@ -253,7 +261,7 @@ export default function CommunityChatWorkspace({
     try {
       await reportChatMessage(
         {
-          messageId: reportTarget.messageId,
+          messageId: activeReportTarget.messageId,
           reasonCode: reportReason,
           ...(details ? { details } : {}),
         },
@@ -303,7 +311,7 @@ export default function CommunityChatWorkspace({
       )}
 
       <div
-        className={`${styles.workspace} ${initialConversationId ? styles.hasSelected : ''}`}
+        className={`${styles.workspace} ${chat.selectedConversationId ? styles.hasSelected : ''}`}
       >
         <aside className={styles.inbox} aria-label="Hộp thư cộng đồng">
           <button
@@ -368,6 +376,9 @@ export default function CommunityChatWorkspace({
                       <li key={item.conversationId}>
                         <Link
                           href={`/community/messages/${item.conversationId}`}
+                          onClick={() =>
+                            chat.selectConversation(item.conversationId)
+                          }
                           aria-current={
                             item.conversationId === chat.selectedConversationId
                               ? 'page'
@@ -545,7 +556,7 @@ export default function CommunityChatWorkspace({
         </aside>
 
         <article className={styles.thread} aria-label="Cuộc trò chuyện đang mở">
-          {initialConversationId && (
+          {chat.selectedConversationId && (
             <Link className={styles.back} href="/community/messages">
               ← Hộp thư
             </Link>
@@ -789,9 +800,7 @@ export default function CommunityChatWorkspace({
 
       <Dialog
         open={Boolean(
-          retractTarget &&
-          retractTarget.state === 'ACTIVE' &&
-          retractTarget.conversationId === initialConversationId,
+          activeRetractTarget && activeRetractTarget.state === 'ACTIVE',
         )}
         onOpenChange={(open) => {
           if (!open && !chat.retractBusyMessageId) setRetractTarget(undefined)
@@ -818,9 +827,9 @@ export default function CommunityChatWorkspace({
               type="button"
               disabled={Boolean(chat.retractBusyMessageId)}
               onClick={() => {
-                if (!retractTarget) return
+                if (!activeRetractTarget) return
                 void chat
-                  .retractMessage(retractTarget.messageId)
+                  .retractMessage(activeRetractTarget.messageId)
                   .then((succeeded) => {
                     if (succeeded) setRetractTarget(undefined)
                   })
@@ -833,9 +842,7 @@ export default function CommunityChatWorkspace({
       </Dialog>
 
       <Dialog
-        open={Boolean(
-          reportTarget && reportTarget.conversationId === initialConversationId,
-        )}
+        open={Boolean(activeReportTarget)}
         onOpenChange={(open) => {
           if (!open && !reportBusy) setReportTarget(undefined)
         }}

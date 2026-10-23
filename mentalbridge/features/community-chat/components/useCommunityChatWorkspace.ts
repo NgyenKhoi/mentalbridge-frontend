@@ -136,7 +136,14 @@ export function useCommunityChatWorkspace({
   )
 
   // The inbox route must never silently open or acknowledge its first item.
-  const selectedConversationId = initialConversationId
+  const [selectedConversationId, setSelectedConversationId] = useState(
+    initialConversationId,
+  )
+  const [selectionSource, setSelectionSource] = useState(initialConversationId)
+  if (selectionSource !== initialConversationId) {
+    setSelectionSource(initialConversationId)
+    setSelectedConversationId(initialConversationId)
+  }
 
   const setNextMessageCursor = useCallback((cursor: string | null) => {
     messageCursorRef.current = cursor
@@ -598,6 +605,7 @@ export function useCommunityChatWorkspace({
     peer,
     viewerProfileId,
     selectedConversationId,
+    selectConversation: setSelectedConversationId,
     draft:
       draftState.conversationId === selectedConversationId
         ? draftState.value

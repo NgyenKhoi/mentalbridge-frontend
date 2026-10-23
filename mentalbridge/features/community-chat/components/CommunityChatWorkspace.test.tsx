@@ -290,6 +290,58 @@ describe('CommunityChatWorkspace', () => {
     )
   })
 
+  it('retracts exactly once after selecting a thread from the inbox route', async () => {
+    const own = {
+      ...message,
+      sender: conversation.peers[0],
+      content: 'Inbox message to retract.',
+    }
+    api.getChatMessages.mockResolvedValue({ items: [own], nextCursor: null })
+    api.retractChatMessage.mockResolvedValue({
+      messageId: own.messageId,
+      conversationId,
+      clientMessageId: own.clientMessageId,
+      sender: own.sender,
+      state: 'RETRACTED',
+      createdAt: own.createdAt,
+      retractedAt: '2026-10-20T08:01:00Z',
+    })
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace />)
+
+    const conversationLink = await screen.findByRole('link', {
+      name: new RegExp(peer.displayName),
+    })
+    conversationLink.addEventListener('click', (event) =>
+      event.preventDefault(),
+    )
+    await user.click(conversationLink)
+    const messageContent = await screen.findByText(own.content)
+    expect(messageContent).toBeVisible()
+
+    await user.click(
+      within(messageContent.parentElement as HTMLElement).getByRole('button'),
+    )
+    let dialog = screen.getByRole('dialog')
+    await user.click(within(dialog).getAllByRole('button')[0])
+    expect(api.retractChatMessage).not.toHaveBeenCalled()
+
+    await user.click(
+      within(messageContent.parentElement as HTMLElement).getByRole('button'),
+    )
+    dialog = screen.getByRole('dialog')
+    await user.click(within(dialog).getAllByRole('button')[1])
+
+    await waitFor(() =>
+      expect(screen.queryByText(own.content)).not.toBeInTheDocument(),
+    )
+    expect(api.retractChatMessage).toHaveBeenCalledTimes(1)
+    expect(api.retractChatMessage).toHaveBeenCalledWith(
+      conversationId,
+      own.messageId,
+    )
+  })
+
   it('keeps unread state on the list-only route until a thread is explicitly opened', async () => {
     render(<CommunityChatWorkspace />)
 
