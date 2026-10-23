@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -166,6 +167,42 @@ describe('anonymous mobile assessment journey', () => {
     await screen.findByText('1 điểm')
     expect(getAssessment).toHaveBeenCalledTimes(2)
     expect(assessmentApi.submitAssessment).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not resurrect an abandoned guest result when an old GET resolves late', async () => {
+    let releaseRead: ((value: AnonymousAssessment) => void) | undefined
+    const getAssessment = jest.fn(
+      () =>
+        new Promise<AnonymousAssessment>((resolve) => {
+          releaseRead = resolve
+        }),
+    )
+    const assessmentApi = api({ getAssessment })
+    await render(<AnonymousAssessmentScreen api={assessmentApi} />)
+
+    await answerAndSubmit(assessmentApi)
+    await screen.findByRole('header', {
+      name: 'Đang đọc kết quả từ máy chủ…',
+    })
+    await fireEvent.press(screen.getByRole('button', { name: 'Bắt đầu lại' }))
+    await screen.findByRole('header', {
+      name: 'Hiểu hơn về cảm xúc hiện tại',
+    })
+    expect(screen.getByRole('checkbox')).not.toBeChecked()
+
+    await act(async () => {
+      releaseRead?.(result)
+      await Promise.resolve()
+    })
+
+    expect(
+      screen.getByRole('header', { name: 'Hiểu hơn về cảm xúc hiện tại' }),
+    ).toBeOnTheScreen()
+    expect(screen.queryByText('1 điểm')).not.toBeOnTheScreen()
+    expect(
+      screen.queryByRole('header', { name: 'Bạn đã hoàn tất PHQ-9' }),
+    ).not.toBeOnTheScreen()
+    expect(getAssessment).toHaveBeenCalledTimes(1)
   })
 
   it('clears the session and never exposes stale result after expiry', async () => {
