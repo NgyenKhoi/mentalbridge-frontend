@@ -16,6 +16,7 @@ const api = vi.hoisted(() => ({
   archiveChatGroup: vi.fn(),
   getChatPrivacy: vi.fn(),
   getChatConversation: vi.fn(),
+  clearChatConversation: vi.fn(),
   getChatMessages: vi.fn(),
   advanceChatReadCursor: vi.fn(),
   sendChatMessage: vi.fn(),
@@ -177,6 +178,7 @@ describe('CommunityChatWorkspace', () => {
       etag: '"1"',
     })
     api.getChatConversation.mockResolvedValue(conversation)
+    api.clearChatConversation.mockResolvedValue(undefined)
     api.getChatMessages.mockResolvedValue({
       items: [message],
       nextCursor: null,
@@ -388,6 +390,134 @@ describe('CommunityChatWorkspace', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
     )
     expect(api.retractChatMessage).not.toHaveBeenCalled()
+  })
+
+  it('confirms a personal conversation clear and removes only the local row', async () => {
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace initialConversationId={conversationId} />)
+
+    await screen.findByText(message.content)
+    await user.click(screen.getByRole('button', { name: 'Xóa phía tôi' }))
+
+    const dialog = screen.getByRole('dialog', {
+      name: 'Xóa cuộc trò chuyện phía bạn?',
+    })
+    expect(dialog).toHaveTextContent('Những người khác vẫn giữ nguyên lịch sử')
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Xóa phía tôi' }),
+    )
+
+    await waitFor(() =>
+      expect(api.clearChatConversation).toHaveBeenCalledWith(
+        conversationId,
+        expect.stringMatching(/^[\da-f-]{36}$/i),
+      ),
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    expect(router.replace).toHaveBeenCalledWith('/community/messages')
+    expect(screen.queryByText(message.content)).not.toBeInTheDocument()
+  })
+
+  it('reconciles an unknown clear outcome before showing success', async () => {
+    api.clearChatConversation.mockRejectedValue(
+      new ApiError({ message: 'timeout', code: 'TIMEOUT', status: 504 }),
+    )
+    api.getChatConversations.mockImplementation(() =>
+      Promise.resolve({
+        items: api.clearChatConversation.mock.calls.length
+          ? []
+          : [conversation],
+        nextCursor: null,
+      }),
+    )
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace initialConversationId={conversationId} />)
+
+    await screen.findByText(message.content)
+    await user.click(screen.getByRole('button', { name: 'Xóa phía tôi' }))
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Xóa phía tôi',
+      }),
+    )
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    expect(router.replace).toHaveBeenCalledWith('/community/messages')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps the dialog on an unconfirmed failure and reuses its idempotency key', async () => {
+    api.clearChatConversation
+      .mockRejectedValueOnce(
+        new ApiError({ message: 'timeout', code: 'TIMEOUT', status: 504 }),
+      )
+      .mockResolvedValueOnce(undefined)
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace initialConversationId={conversationId} />)
+
+    await screen.findByText(message.content)
+    await user.click(screen.getByRole('button', { name: 'Xóa phía tôi' }))
+    const dialog = screen.getByRole('dialog')
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Xóa phía tôi' }),
+    )
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Chưa xác nhận đã xóa',
+    )
+    expect(screen.getByText(message.content)).toBeVisible()
+
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Xóa phía tôi' }),
+    )
+    await waitFor(() =>
+      expect(api.clearChatConversation).toHaveBeenCalledTimes(2),
+    )
+    expect(api.clearChatConversation.mock.calls[1][1]).toBe(
+      api.clearChatConversation.mock.calls[0][1],
+    )
+  })
+
+  it('clears an unconfirmed personal-clear dialog across A to B to A navigation', async () => {
+    const conversationB = conversationAt(2)
+    const messageB = messageAt(2, conversationB.conversationId)
+    api.getChatConversation.mockImplementation((id: string) =>
+      Promise.resolve(id === conversationId ? conversation : conversationB),
+    )
+    api.getChatMessages.mockImplementation((id: string) =>
+      Promise.resolve({
+        items: [id === conversationId ? message : messageB],
+        nextCursor: null,
+      }),
+    )
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <CommunityChatWorkspace initialConversationId={conversationId} />,
+    )
+
+    await screen.findByText(message.content)
+    await user.click(screen.getByRole('button', { name: 'Xóa phía tôi' }))
+    expect(screen.getByRole('dialog')).toBeVisible()
+
+    rerender(
+      <CommunityChatWorkspace
+        initialConversationId={conversationB.conversationId}
+      />,
+    )
+    await screen.findByText(messageB.content)
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+
+    rerender(<CommunityChatWorkspace initialConversationId={conversationId} />)
+    await screen.findByText(message.content)
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    expect(api.clearChatConversation).not.toHaveBeenCalled()
   })
 
   it('keeps unread state on the list-only route until a thread is explicitly opened', async () => {
