@@ -291,6 +291,20 @@ export class CommunityChatSession {
         presence: {},
         nextCursor: null,
       })
+      // Community invalidates the server subscription to prevent queued
+      // pre-clear messages from reaching any of the viewer's devices.
+      // Re-subscribe before reconciling so later messages remain live.
+      const generation = this.generation
+      void this.command('community.conversation.subscribe', {
+        conversationId: this.options.conversationId,
+      })
+        .then(() => {
+          if (this.current(generation)) void this.repair()
+        })
+        .catch((error) => {
+          if (this.current(generation)) this.fail(error)
+        })
+      return
     }
     if (
       event.eventType === 'community.read-state.changed' &&
