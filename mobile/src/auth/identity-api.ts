@@ -7,6 +7,8 @@ import {
   tokenPairSchema,
   type AccountDetail,
   type LoginRequest,
+  type PasswordChangeRequest,
+  type PasswordResetRequest,
   type RegistrationRequest,
   type RegistrationResponse,
   type TokenPair,
@@ -23,6 +25,9 @@ export interface IdentityApi {
   ): Promise<RegistrationResponse>
   verifyEmail(challenge: string): Promise<void>
   requestEmailVerification(email: string): Promise<void>
+  requestPasswordRecovery(email: string): Promise<void>
+  resetPassword(request: PasswordResetRequest): Promise<void>
+  changePassword(request: PasswordChangeRequest): Promise<void>
 }
 
 export function createIdentityApi(client: AxiosInstance): IdentityApi {
@@ -64,6 +69,15 @@ export function createIdentityApi(client: AxiosInstance): IdentityApi {
     },
     async requestEmailVerification(email) {
       await client.post('/api/v1/auth/email-verification-requests', { email })
+    },
+    async requestPasswordRecovery(email) {
+      await client.post('/api/v1/auth/password-recovery-requests', { email })
+    },
+    async resetPassword(request) {
+      await client.post('/api/v1/auth/password-resets', request)
+    },
+    async changePassword(request) {
+      await client.put('/api/v1/account/password', request)
     },
   }
 }

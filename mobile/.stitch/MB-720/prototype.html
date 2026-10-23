@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MB-720 mobile password flows prototype</title>
+    <style>
+      :root {
+        font-family: system-ui, sans-serif;
+        color: #1b2a22;
+        background: #f1f4eb;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      main {
+        width: min(100%, 390px);
+        min-height: 100vh;
+        padding: 48px 24px;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 32px;
+      }
+      button,
+      input {
+        font: inherit;
+        min-height: 48px;
+        border-radius: 12px;
+      }
+      button {
+        border: 1px solid #3d7a6e;
+        padding: 10px 14px;
+        color: #1e4a43;
+        background: white;
+        font-weight: 700;
+      }
+      button[aria-selected='true'],
+      .primary {
+        color: white;
+        background: #1e4a43;
+      }
+      section {
+        display: none;
+      }
+      section.active {
+        display: block;
+      }
+      .eyebrow {
+        color: #3d7a6e;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+      h1 {
+        margin: 8px 0;
+        font-size: 30px;
+        line-height: 1.25;
+      }
+      .description,
+      .hint {
+        color: #52604f;
+        line-height: 1.5;
+      }
+      label {
+        display: grid;
+        gap: 8px;
+        margin: 18px 0;
+        font-weight: 700;
+      }
+      input {
+        width: 100%;
+        border: 1px solid rgba(27, 42, 34, 0.18);
+        padding: 12px 16px;
+        color: #1b2a22;
+        background: white;
+      }
+      .primary {
+        width: 100%;
+        margin-top: 8px;
+      }
+      .notice {
+        margin: 18px 0;
+        border-radius: 12px;
+        padding: 14px;
+        background: #e9efe3;
+        line-height: 1.5;
+      }
+      .error {
+        color: #9b352d;
+        background: #fff3f0;
+      }
+      .back {
+        border: 0;
+        padding-left: 0;
+        background: transparent;
+      }
+      button:focus-visible,
+      input:focus-visible {
+        outline: 3px solid rgba(61, 122, 110, 0.35);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Prototype state">
+        <button aria-selected="true" data-target="recovery">Recovery</button>
+        <button aria-selected="false" data-target="reset">Reset</button>
+        <button aria-selected="false" data-target="change">Change</button>
+      </nav>
+
+      <section class="active" id="recovery">
+        <p class="eyebrow">KHÔI PHỤC TÀI KHOẢN</p>
+        <h1>Quên mật khẩu?</h1>
+        <p class="description">
+          Nhập email tài khoản. Phản hồi luôn giống nhau để bảo vệ trạng thái
+          tài khoản.
+        </p>
+        <label>Email<input type="email" autocomplete="email" /></label>
+        <div class="notice" role="status">
+          Kiểm tra email của bạn. Nếu tài khoản đủ điều kiện, liên kết đặt lại
+          mật khẩu sẽ được gửi.
+        </div>
+        <button class="primary">Gửi liên kết khôi phục</button>
+        <button class="back">Về trang đăng nhập</button>
+      </section>
+
+      <section id="reset">
+        <p class="eyebrow">ĐẶT LẠI MẬT KHẨU</p>
+        <h1>Tạo mật khẩu mới</h1>
+        <p class="description">
+          Liên kết chỉ dùng một lần và có hiệu lực trong 15 phút.
+        </p>
+        <label
+          >Mật khẩu mới<input type="password" autocomplete="new-password"
+        /></label>
+        <label
+          >Xác nhận mật khẩu mới<input
+            type="password"
+            autocomplete="new-password"
+        /></label>
+        <p class="hint">12–128 ký tự và tối đa 72 byte UTF-8.</p>
+        <div class="notice error" role="alert" hidden>
+          Liên kết không hợp lệ, đã hết hạn hoặc đã được sử dụng. Hãy yêu cầu
+          liên kết mới.
+        </div>
+        <button class="primary">Đặt lại mật khẩu</button>
+      </section>
+
+      <section id="change">
+        <button class="back">← Quay lại</button>
+        <p class="eyebrow">BẢO MẬT TÀI KHOẢN</p>
+        <h1>Đổi mật khẩu</h1>
+        <p class="description">
+          Thành công sẽ đăng xuất mọi thiết bị. Bạn cần đăng nhập lại bằng mật
+          khẩu mới.
+        </p>
+        <label
+          >Mật khẩu hiện tại<input
+            type="password"
+            autocomplete="current-password"
+        /></label>
+        <label
+          >Mật khẩu mới<input type="password" autocomplete="new-password"
+        /></label>
+        <label
+          >Xác nhận mật khẩu mới<input
+            type="password"
+            autocomplete="new-password"
+        /></label>
+        <p class="hint">12–128 ký tự và tối đa 72 byte UTF-8.</p>
+        <button class="primary">Đổi mật khẩu và đăng xuất</button>
+      </section>
+    </main>
+    <script>
+      const buttons = [...document.querySelectorAll('[data-target]')]
+      const show = (target) => {
+        buttons.forEach((item) =>
+          item.setAttribute(
+            'aria-selected',
+            String(item.dataset.target === target),
+          ),
+        )
+        document
+          .querySelectorAll('section')
+          .forEach((section) =>
+            section.classList.toggle('active', section.id === target),
+          )
+      }
+      buttons.forEach((button) =>
+        button.addEventListener('click', () => {
+          const target = button.dataset.target
+          if (!target) return
+          location.hash = target
+          show(target)
+        }),
+      )
+      const initial = location.hash.slice(1)
+      if (['recovery', 'reset', 'change'].includes(initial)) show(initial)
+    </script>
+  </body>
+</html>
