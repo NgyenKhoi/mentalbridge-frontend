@@ -79,14 +79,25 @@ export type ChatGroupMember = Readonly<{
   joinedAt: string
 }>
 
-export type ChatMessage = Readonly<{
+type ChatMessageBase = Readonly<{
   messageId: string
   conversationId: string
   clientMessageId: string
   sender: ChatPeer
-  content: string
   createdAt: string
 }>
+
+export type ChatMessage =
+  | (ChatMessageBase &
+      Readonly<{
+        state: 'ACTIVE'
+        content: string
+      }>)
+  | (ChatMessageBase &
+      Readonly<{
+        state: 'RETRACTED'
+        retractedAt: string
+      }>)
 
 export type ChatPage<T> = Readonly<{
   items: T[]
@@ -305,26 +316,45 @@ export function parseChatMessage(value: unknown): ChatMessage | null {
   const sender = item ? parseChatPeer(item.sender) : null
   if (
     !item ||
-    !exactKeys(item, [
-      'messageId',
-      'conversationId',
-      'clientMessageId',
-      'sender',
-      'content',
-      'createdAt',
-    ]) ||
     !['messageId', 'conversationId', 'clientMessageId'].every(
       (key) =>
         typeof item[key] === 'string' && UUID_PATTERN.test(String(item[key])),
     ) ||
     !sender ||
-    typeof item.content !== 'string' ||
-    [...item.content].length < 1 ||
-    [...item.content].length > 4000 ||
     !dateTime(item.createdAt)
   )
     return null
-  return { ...(item as Omit<ChatMessage, 'sender'>), sender }
+  if (
+    item.state === 'ACTIVE' &&
+    exactKeys(item, [
+      'messageId',
+      'conversationId',
+      'clientMessageId',
+      'sender',
+      'state',
+      'content',
+      'createdAt',
+    ]) &&
+    typeof item.content === 'string' &&
+    [...item.content].length >= 1 &&
+    [...item.content].length <= 4000
+  )
+    return { ...(item as Omit<ChatMessage, 'sender'>), sender } as ChatMessage
+  if (
+    item.state === 'RETRACTED' &&
+    exactKeys(item, [
+      'messageId',
+      'conversationId',
+      'clientMessageId',
+      'sender',
+      'state',
+      'createdAt',
+      'retractedAt',
+    ]) &&
+    dateTime(item.retractedAt)
+  )
+    return { ...(item as Omit<ChatMessage, 'sender'>), sender } as ChatMessage
+  return null
 }
 
 export function parseChatPage<T>(

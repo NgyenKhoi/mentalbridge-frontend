@@ -77,6 +77,16 @@ export async function getChatConversation(conversationId: string) {
   return response.data
 }
 
+export async function clearChatConversation(
+  conversationId: string,
+  idempotencyKey: string,
+) {
+  await browserApiClient.delete(
+    `/community/chat/conversations/${encodeURIComponent(conversationId)}`,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  )
+}
+
 export async function getChatRequests(cursor?: string) {
   const response = await browserApiClient.get<ChatPage<ChatRequest>>(
     '/community/chat/requests',
@@ -225,6 +235,16 @@ export async function sendChatMessage(
     `/community/chat/conversations/${encodeURIComponent(conversationId)}/messages`,
     { clientMessageId, content },
     { headers: { 'Idempotency-Key': clientMessageId } },
+  )
+  return response.data
+}
+
+export async function retractChatMessage(
+  conversationId: string,
+  messageId: string,
+) {
+  const response = await browserApiClient.delete<ChatMessage>(
+    `/community/chat/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
   )
   return response.data
 }

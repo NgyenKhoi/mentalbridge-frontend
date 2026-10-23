@@ -356,6 +356,28 @@
 .safetyMenu button {
   color: #a84f3d;
 }
+.clearDialog {
+  width: min(520px, calc(100vw - 32px));
+}
+.clearPrompt {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+.clearPrompt h2,
+.clearPrompt p {
+  margin: 0;
+}
+.clearPrompt > p {
+  color: #52604f;
+  line-height: 1.65;
+}
+.clearPrompt > p[role='alert'] {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f9ece9;
+  color: #8c3f30;
+}
 .messages {
   display: flex;
   min-height: 390px;
@@ -391,7 +413,7 @@
   opacity: 0.72;
   text-align: right;
 }
-.reportMessage {
+.messageAction {
   display: block;
   margin-top: 6px;
   padding: 0;
@@ -404,6 +426,10 @@
   text-decoration: underline;
   opacity: 0.76;
 }
+.messageAction:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
 .mine {
   align-self: flex-end;
   border-bottom-right-radius: 4px !important;
@@ -415,6 +441,35 @@
   border: 1px solid rgba(27, 42, 34, 0.1);
   border-bottom-left-radius: 4px !important;
   background: #fff;
+}
+.retracted {
+  border: 1px dashed rgba(27, 42, 34, 0.22);
+  background: #f1f4eb;
+  color: #52604f;
+  font-style: italic;
+}
+.mine.retracted {
+  color: #52604f;
+}
+.retractFailure {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid currentColor;
+  font-size: 0.76rem;
+  font-style: normal;
+}
+.retractFailure button {
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 750;
 }
 .emptyThread {
   margin: auto;
@@ -483,6 +538,22 @@
 }
 .reportDialog {
   width: min(520px, calc(100vw - 28px));
+}
+.retractDialog {
+  width: min(480px, calc(100vw - 28px));
+}
+.retractPrompt {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+}
+.retractPrompt h2,
+.retractPrompt p {
+  margin: 0;
+}
+.retractPrompt p {
+  color: #52604f;
+  line-height: 1.55;
 }
 .reportForm {
   display: grid;

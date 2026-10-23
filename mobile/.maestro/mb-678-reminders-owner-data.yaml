@@ -1,0 +1,23 @@
+appId: com.mentalbridge.mobile
+name: MB-678 owner-backed activities and bounded reminder estimates
+---
+- assertVisible: 'Hôm nay của bạn'
+- scrollUntilVisible:
+    element: 'Mở: Viết nhật ký'
+    direction: DOWN
+- tapOn:
+    text: 'Mở: Viết nhật ký'
+- assertVisible: 'Nhật ký riêng tư'
+- back
+- scrollUntilVisible:
+    element:
+      id: 'reminders-tab-upcoming'
+    direction: UP
+- tapOn:
+    id: 'reminders-tab-upcoming'
+- assertVisible: 'Nhắc viết nhật ký'
+- scrollUntilVisible:
+    element: 'Lịch nhắc chưa hỗ trợ:.*'
+    direction: DOWN
+- assertVisible: '.*Kế hoạch hỗ trợ.*'
+- takeScreenshot: 'mb-678-upcoming-owner-data'

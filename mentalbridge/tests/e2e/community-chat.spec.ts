@@ -70,7 +70,9 @@ function json(route: Route, body: unknown, status = 200, headers = {}) {
 async function installChatFixture(page: Page) {
   let sendAttempts = 0
   let readCursorCalls = 0
+  let cleared = false
   const idempotencyKeys: string[] = []
+  const clearKeys: string[] = []
   const reportRequests: Array<{ body: unknown; idempotencyKey: string }> = []
   const groupCommands: Array<{
     method: string
@@ -255,11 +257,23 @@ async function installChatFixture(page: Page) {
         : route.fulfill({ status: 204 })
     if (path.endsWith('/conversations'))
       return json(route, {
-        items: [conversation, inviteeConversation, groupConversation],
+        items: [
+          ...(cleared ? [] : [conversation]),
+          inviteeConversation,
+          groupConversation,
+        ],
         nextCursor: null,
       })
     if (path.endsWith(`/conversations/${groupConversationId}`))
       return json(route, groupConversation)
+    if (
+      path.endsWith(`/conversations/${conversationId}`) &&
+      request.method() === 'DELETE'
+    ) {
+      clearKeys.push(request.headers()['idempotency-key'])
+      cleared = true
+      return route.fulfill({ status: 204 })
+    }
     if (path.endsWith(`/conversations/${conversationId}`))
       return json(route, conversation)
     if (path.endsWith(`/conversations/${conversationId}/read-cursor`)) {
@@ -337,6 +351,7 @@ async function installChatFixture(page: Page) {
   })
   return {
     idempotencyKeys,
+    clearKeys,
     reportRequests,
     groupCommands,
     get readCursorCalls() {
@@ -450,6 +465,48 @@ test.describe('Community chat journey', () => {
       path: 'docs/evidence/mb-686-community-chat-mobile.png',
       fullPage: false,
     })
+  })
+
+  test('confirms a personal clear without implying deletion for peers', async ({
+    page,
+    request,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 960 })
+    expect(
+      (await request.post(`${identityFixtureUrl}/__test/reset`)).status(),
+    ).toBe(204)
+    await login(page)
+    const fixture = await installChatFixture(page)
+    await page.goto(`/community/messages/${conversationId}`)
+
+    await expect(
+      page.getByText('Mình ở đây và sẵn sàng lắng nghe.'),
+    ).toBeVisible()
+    await page.getByLabel('Mở thao tác an toàn').click()
+    await page.getByRole('button', { name: 'Xóa phía tôi' }).click()
+    const dialog = page.getByRole('dialog', {
+      name: 'Xóa cuộc trò chuyện phía bạn?',
+    })
+    await expect(dialog).toContainText(
+      'Những người khác vẫn giữ nguyên lịch sử',
+    )
+    await dialog.getByRole('button', { name: 'Giữ lại' }).click()
+    expect(fixture.clearKeys).toHaveLength(0)
+
+    await page.getByLabel('Mở thao tác an toàn').click()
+    await page.getByRole('button', { name: 'Xóa phía tôi' }).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Xóa phía tôi' })
+      .click()
+
+    await expect(page).toHaveURL(/\/community\/messages$/)
+    expect(fixture.clearKeys).toEqual([
+      expect.stringMatching(/^[\da-f-]{36}$/i),
+    ])
+    await expect(
+      page.getByText('Mình ở đây và sẵn sàng lắng nghe.'),
+    ).toHaveCount(0)
   })
 
   test('manages an invite-only group with exact management revisions', async ({

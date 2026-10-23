@@ -35,7 +35,9 @@ function PlanEmotionContent({
   query,
   onPersisted,
 }: Readonly<{ query: string; onPersisted?: () => void }>) {
-  const [context, setContext] = useState<Context>({ state: 'loading' })
+  const [context, setContext] = useState<Context>(() => ({
+    state: query ? 'loading' : 'normal',
+  }))
   const [attempt, setAttempt] = useState(0)
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
@@ -45,9 +47,6 @@ function PlanEmotionContent({
       params.has(key),
     )
     if (!requested) {
-      queueMicrotask(() => {
-        if (active) setContext({ state: 'normal' })
-      })
       return () => {
         active = false
       }

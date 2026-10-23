@@ -20,6 +20,7 @@ import {
   chatFixtureConversation,
   chatFixtureDate,
   chatFixtureId as id,
+  chatFixtureMessage,
   chatFixtureOwnId as ownId,
   chatFixturePeerId as peerId,
   chatFixturePrivacy,
@@ -329,6 +330,191 @@ it('renders plain text, never invents presence, stops in background and reconnec
   await screen.findByText('<b>Lời chào an toàn</b>')
   expect(api.credential).toHaveBeenCalledTimes(2)
   expect(api.send).not.toHaveBeenCalled()
+  await view.unmount()
+  jest.restoreAllMocks()
+})
+it('confirms own-message retraction and replaces content with an in-place tombstone', async () => {
+  Object.defineProperty(AppState, 'currentState', {
+    configurable: true,
+    value: 'active',
+  })
+  jest.spyOn(AppState, 'addEventListener').mockReturnValue({
+    remove: jest.fn(),
+  })
+  const api = chatFixtureApi()
+  const ownMessage = {
+    ...chatFixtureMessage,
+    sender: {
+      state: 'AVAILABLE' as const,
+      communityProfileId: ownId,
+      displayName: 'Tôi',
+    },
+  }
+  jest
+    .mocked(api.messages)
+    .mockResolvedValue({ items: [ownMessage], nextCursor: null })
+  jest.mocked(api.retract).mockResolvedValue({
+    messageId: ownMessage.messageId,
+    conversationId: ownMessage.conversationId,
+    clientMessageId: ownMessage.clientMessageId,
+    sender: ownMessage.sender,
+    state: 'RETRACTED',
+    createdAt: ownMessage.createdAt,
+    retractedAt: '2026-10-21T01:01:00Z',
+  })
+  const view = await mount(
+    <CommunityConversationScreen
+      api={api}
+      community={{} as CommunityApi}
+      factory={() => new Socket()}
+      subject={subject}
+      ownId={ownId}
+      conversationId={id}
+      onBack={jest.fn()}
+    />,
+  )
+
+  await screen.findByText('<b>Lời chào an toàn</b>')
+  await fireEvent.press(screen.getByRole('button', { name: 'Gỡ tin nhắn' }))
+  expect(screen.getByText('Gỡ tin nhắn cho mọi người?')).toBeTruthy()
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xác nhận gỡ tin nhắn' }),
+  )
+  await screen.findByText('Bạn đã gỡ tin nhắn')
+  expect(screen.queryByText('<b>Lời chào an toàn</b>')).toBeNull()
+  expect(api.retract).toHaveBeenCalledWith(id, ownMessage.messageId)
+
+  await view.unmount()
+  jest.restoreAllMocks()
+})
+it('confirms a personal clear, keeps peers unchanged and returns to the inbox', async () => {
+  Object.defineProperty(AppState, 'currentState', {
+    configurable: true,
+    value: 'active',
+  })
+  jest.spyOn(AppState, 'addEventListener').mockReturnValue({
+    remove: jest.fn(),
+  })
+  const api = chatFixtureApi()
+  const onBack = jest.fn()
+  const view = await mount(
+    <CommunityConversationScreen
+      api={api}
+      community={{} as CommunityApi}
+      factory={() => new Socket()}
+      subject={subject}
+      ownId={ownId}
+      conversationId={id}
+      onBack={onBack}
+    />,
+  )
+
+  await screen.findByText('<b>Lời chào an toàn</b>')
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xóa cuộc trò chuyện phía tôi' }),
+  )
+  expect(screen.getByText('Xóa cuộc trò chuyện phía bạn?')).toBeOnTheScreen()
+  expect(
+    screen.getByText(/Những người khác vẫn giữ nguyên lịch sử/),
+  ).toBeOnTheScreen()
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xác nhận xóa phía tôi' }),
+  )
+
+  await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1))
+  expect(api.clearConversation).toHaveBeenCalledWith(id, expect.any(String))
+  expect(api.clearConversation).toHaveBeenCalledTimes(1)
+
+  await view.unmount()
+  jest.restoreAllMocks()
+})
+it('keeps a failed personal clear visible and reuses its command key on retry', async () => {
+  Object.defineProperty(AppState, 'currentState', {
+    configurable: true,
+    value: 'active',
+  })
+  jest.spyOn(AppState, 'addEventListener').mockReturnValue({
+    remove: jest.fn(),
+  })
+  const api = chatFixtureApi()
+  jest
+    .mocked(api.clearConversation)
+    .mockRejectedValueOnce(new Error('timeout'))
+    .mockResolvedValueOnce(undefined)
+  const onBack = jest.fn()
+  const view = await mount(
+    <CommunityConversationScreen
+      api={api}
+      community={{} as CommunityApi}
+      factory={() => new Socket()}
+      subject={subject}
+      ownId={ownId}
+      conversationId={id}
+      onBack={onBack}
+    />,
+  )
+
+  await screen.findByText('<b>Lời chào an toàn</b>')
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xóa cuộc trò chuyện phía tôi' }),
+  )
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xác nhận xóa phía tôi' }),
+  )
+  await screen.findByText(/Chưa xác nhận đã xóa/)
+  expect(onBack).not.toHaveBeenCalled()
+  expect(screen.getByText('<b>Lời chào an toàn</b>')).toBeOnTheScreen()
+
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xác nhận xóa phía tôi' }),
+  )
+  await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1))
+  expect(api.clearConversation).toHaveBeenCalledTimes(2)
+  expect(jest.mocked(api.clearConversation).mock.calls[1]?.[1]).toBe(
+    jest.mocked(api.clearConversation).mock.calls[0]?.[1],
+  )
+
+  await view.unmount()
+  jest.restoreAllMocks()
+})
+it('reconciles a timed-out personal clear before leaving the thread', async () => {
+  Object.defineProperty(AppState, 'currentState', {
+    configurable: true,
+    value: 'active',
+  })
+  jest.spyOn(AppState, 'addEventListener').mockReturnValue({
+    remove: jest.fn(),
+  })
+  const api = chatFixtureApi()
+  jest.mocked(api.clearConversation).mockRejectedValue(new Error('timeout'))
+  jest.mocked(api.conversations).mockResolvedValue({
+    items: [],
+    nextCursor: null,
+  })
+  const onBack = jest.fn()
+  const view = await mount(
+    <CommunityConversationScreen
+      api={api}
+      community={{} as CommunityApi}
+      factory={() => new Socket()}
+      subject={subject}
+      ownId={ownId}
+      conversationId={id}
+      onBack={onBack}
+    />,
+  )
+
+  await screen.findByText('<b>Lời chào an toàn</b>')
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xóa cuộc trò chuyện phía tôi' }),
+  )
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xác nhận xóa phía tôi' }),
+  )
+
+  await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1))
+  expect(screen.queryByText(/Chưa xác nhận đã xóa/)).toBeNull()
+
   await view.unmount()
   jest.restoreAllMocks()
 })

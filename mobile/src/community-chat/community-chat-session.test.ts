@@ -17,6 +17,7 @@ const message = {
   conversationId: id,
   clientMessageId: messageId,
   sender: peer,
+  state: 'ACTIVE' as const,
   content: 'Lời chào',
   createdAt: date,
 }
@@ -78,6 +79,15 @@ function fixture() {
       message,
       persistence: 'SAVED',
       delivery: 'UNCONFIRMED',
+    }),
+    retract: jest.fn().mockResolvedValue({
+      messageId,
+      conversationId: id,
+      clientMessageId: messageId,
+      sender: peer,
+      state: 'RETRACTED',
+      createdAt: date,
+      retractedAt: '2026-10-21T01:01:00Z',
     }),
     read: jest
       .fn()
@@ -142,6 +152,35 @@ it('discards an in-flight history result when permission invalidation arrives, e
   expect(session.snapshot().messages).toEqual([])
   expect(session.snapshot().phase).toBe('unavailable')
 })
+it('re-subscribes after private clear invalidation before accepting later live messages', async () => {
+  const { api, session, socket } = fixture()
+  await session.start()
+  const subscriptionCount = () =>
+    socket().emit.mock.calls.filter(
+      (call) =>
+        (call[1] as { commandType: string }).commandType ===
+        'community.conversation.subscribe',
+    ).length
+  expect(subscriptionCount()).toBe(1)
+  api.messages.mockResolvedValue({ items: [], nextCursor: null })
+  socket().fire(
+    'community.event',
+    event('community.conversation.invalidated', { conversationId: id }),
+  )
+  expect(session.snapshot().messages).toEqual([])
+  await flush()
+  expect(subscriptionCount()).toBe(2)
+  expect(session.snapshot().phase).toBe('ready')
+  expect(session.snapshot().messages).toEqual([])
+  const later = { ...message, messageId: peerId, content: 'Tin nhắn mới' }
+  api.messages.mockResolvedValue({ items: [later], nextCursor: null })
+  socket().fire(
+    'community.event',
+    event('community.message.created', { message: later }),
+  )
+  await flush()
+  expect(session.snapshot().messages).toEqual([later])
+})
 afterEach(() => {
   active.splice(0).forEach((session) => session.clear())
 })
@@ -198,6 +237,39 @@ it('uses socket messages only to repair REST order, dedupes IDs and replaces abs
     }),
   )
   expect(session.snapshot().conversation?.value.unreadCount).toBe(2)
+})
+it('replaces a loaded message in place for REST and realtime retraction without appending', async () => {
+  const { api, session, socket } = fixture()
+  await session.start()
+  expect(await session.retract(messageId)).toBe(true)
+  expect(session.snapshot().messages).toHaveLength(1)
+  expect(session.snapshot().messages[0]).toMatchObject({
+    messageId,
+    state: 'RETRACTED',
+  })
+
+  api.messages.mockResolvedValue({ items: [message], nextCursor: null })
+  await session.repair()
+  socket().fire(
+    'community.event',
+    event('community.message.updated', {
+      message: {
+        messageId,
+        conversationId: id,
+        clientMessageId: messageId,
+        sender: peer,
+        state: 'RETRACTED',
+        createdAt: date,
+        retractedAt: '2026-10-21T01:02:00Z',
+      },
+    }),
+  )
+  expect(session.snapshot().messages).toHaveLength(1)
+  expect(session.snapshot().messages[0]).toMatchObject({
+    messageId,
+    state: 'RETRACTED',
+    retractedAt: '2026-10-21T01:02:00Z',
+  })
 })
 it('clears badges immediately on disconnect or invalidation and rejects unknown peer presence', async () => {
   const { api, session, socket } = fixture()
