@@ -70,6 +70,15 @@ export function createCommunityChatApi(client: AxiosInstance) {
       if (value.conversationId !== expected) chatMismatch()
       return versioned(value, r.headers.etag, true)
     },
+    async clearConversation(conversationId: string, key: string) {
+      const r = await client.delete(
+        `${base}/conversations/${id(conversationId)}`,
+        {
+          headers: command(key),
+        },
+      )
+      if (r.status !== 204) chatMismatch()
+    },
     async startDirect(profileId: string, key: string) {
       return c.directResultSchema.parse(
         (
