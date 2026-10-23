@@ -5,8 +5,9 @@
 - Public recovery request at `/reset-password` with a generic acknowledgement
   for every accepted email request.
 - One-time reset challenge handling on the same route. The challenge is copied
-  to volatile component memory, removed from Expo Router state, never rendered,
-  and cleared after successful use.
+  to volatile component memory during the first render, removed from the current
+  route with `router.setParams` without replacing or remounting the screen, never
+  rendered, and cleared after successful use.
 - Authenticated USER password change at `/change-password`, reached from the
   profile screen. A confirmed change clears local credentials, cached account
   data, and the in-memory session before returning to sign-in.
@@ -16,6 +17,17 @@
   - `PUT /api/v1/account/password`
 - Client validation mirrors the shared Identity policy: 12–128 Unicode code
   points and at most 72 UTF-8 bytes for a new password.
+
+## Recovery URL ownership
+
+- Identity currently owns the email destination through
+  `IDENTITY_PASSWORD_RECOVERY_URL`; its checked-in default is the web URL
+  `http://localhost:3000/reset-password`. The mobile app is therefore not
+  claimed as the production email-link target in MB-720.
+- The native `/reset-password` route accepts a challenge when it is opened by
+  app navigation or an explicitly configured app/deep link. Production email
+  delivery intentionally continues to the web fallback until deployment
+  configures a mobile universal/app link and its platform association.
 
 ## Design evidence
 
@@ -36,8 +48,8 @@ Run from `mobile/` on 2026-10-23:
 | `npm run typecheck`                          | PASS                           |
 | `npm run lint`                               | PASS                           |
 | Prettier check for every MB-720 changed file | PASS                           |
-| Focused password/auth/profile tests          | PASS — 8 suites, 47 tests      |
-| `npm run test:ci`                            | PASS — 93 suites, 820 tests    |
+| Focused recovery navigation tests            | PASS — 2 suites, 6 tests       |
+| `npm run test:ci`                            | PASS — 94 suites, 822 tests    |
 | `npm run build:bundle`                       | PASS — Android and iOS exports |
 
 The repository-wide `npm run format:check` reports the pre-existing CRLF

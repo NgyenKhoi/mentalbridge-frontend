@@ -1,4 +1,8 @@
-import { router, useLocalSearchParams } from 'expo-router'
+import {
+  router,
+  useLocalSearchParams,
+  useRootNavigationState,
+} from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { Text, TextInput, View } from 'react-native'
 
@@ -83,9 +87,13 @@ function PasswordField({
 
 export function PasswordRecoveryScreen() {
   const params = useLocalSearchParams<{ challenge?: string | string[] }>()
+  const rootNavigationState = useRootNavigationState()
   const { requestPasswordRecovery, resetPassword } = useSession()
+  const suppliedChallenge = Array.isArray(params.challenge)
+    ? params.challenge[0]
+    : params.challenge
   const initialized = useRef(false)
-  const challenge = useRef<string | null>(null)
+  const challenge = useRef<string | null>(suppliedChallenge ?? null)
   const submitting = useRef(false)
   const [mode, setMode] = useState<Mode>('initializing')
   const [email, setEmail] = useState('')
@@ -100,20 +108,19 @@ export function PasswordRecoveryScreen() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (initialized.current) return
+    if (!rootNavigationState?.key || initialized.current) return
     initialized.current = true
-    const supplied = Array.isArray(params.challenge)
-      ? params.challenge[0]
-      : params.challenge
-    router.replace('/reset-password')
-    challenge.current = supplied ?? null
 
     queueMicrotask(() => {
-      if (!supplied) {
+      if (params.challenge !== undefined) {
+        router.setParams({ challenge: undefined })
+      }
+
+      if (!suppliedChallenge) {
         setMode('request')
       } else {
         setMode('reset')
-        if (supplied.length < 32 || supplied.length > 512) {
+        if (suppliedChallenge.length < 32 || suppliedChallenge.length > 512) {
           setError(
             'Liên kết đặt lại mật khẩu không hợp lệ, đã hết hạn hoặc đã được sử dụng.',
           )
@@ -121,7 +128,7 @@ export function PasswordRecoveryScreen() {
         }
       }
     })
-  }, [params.challenge])
+  }, [params.challenge, rootNavigationState?.key, suppliedChallenge])
 
   const requestRecovery = async () => {
     if (submitting.current) return

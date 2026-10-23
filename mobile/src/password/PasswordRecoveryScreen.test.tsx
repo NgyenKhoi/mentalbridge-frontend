@@ -14,12 +14,17 @@ const genericAcknowledgement =
   'Kiểm tra email của bạn. Nếu tài khoản đủ điều kiện, liên kết đặt lại mật khẩu sẽ được gửi.'
 let mockChallenge: string | undefined
 const mockReplace = jest.fn()
+const mockSetParams = jest.fn()
 const mockRequestPasswordRecovery = jest.fn()
 const mockResetPassword = jest.fn()
 
 jest.mock('expo-router', () => ({
-  router: { replace: (path: string) => mockReplace(path) },
+  router: {
+    replace: (path: string) => mockReplace(path),
+    setParams: (params: { challenge: undefined }) => mockSetParams(params),
+  },
   useLocalSearchParams: () => ({ challenge: mockChallenge }),
+  useRootNavigationState: () => ({ key: 'test-root' }),
 }))
 
 jest.mock('@/auth/session-context', () => ({
@@ -75,7 +80,7 @@ describe('mobile password recovery and reset', () => {
     await render(<PasswordRecoveryScreen />)
 
     await screen.findByText('Tạo mật khẩu mới')
-    expect(mockReplace).toHaveBeenCalledWith('/reset-password')
+    expect(mockSetParams).toHaveBeenCalledWith({ challenge: undefined })
     await fireEvent.changeText(
       screen.getByLabelText('Mật khẩu mới'),
       'new-correct-password',
