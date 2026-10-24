@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api/api-error'
 
@@ -86,8 +86,19 @@ const notification = {
 }
 
 describe('Notification preferences page', () => {
+  const browserTimers: Pick<Window, 'setTimeout' | 'clearTimeout'> = window
+  const pendingTimeouts = new Set<ReturnType<Window['setTimeout']>>()
+
   beforeEach(() => {
     vi.clearAllMocks()
+    const scheduleTimeout = browserTimers.setTimeout.bind(window)
+    vi.spyOn(browserTimers, 'setTimeout').mockImplementation(
+      (handler, delay, ...args) => {
+        const timeout = scheduleTimeout(handler, delay, ...args)
+        pendingTimeouts.add(timeout)
+        return timeout
+      },
+    )
     api.get.mockResolvedValue({ preferences, etag: '"0"' })
     api.preview.mockResolvedValue({
       localDate: '2026-09-30',
@@ -105,6 +116,13 @@ describe('Notification preferences page', () => {
       hasMore: false,
       unreadCount: 0,
     })
+  })
+
+  afterEach(() => {
+    // Success toasts outlive these assertions; leave no callback for a torn-down DOM.
+    for (const timeout of pendingTimeouts) window.clearTimeout(timeout)
+    pendingTimeouts.clear()
+    vi.restoreAllMocks()
   })
 
   it('renders the persisted inbox and marks one item read before following its action', async () => {

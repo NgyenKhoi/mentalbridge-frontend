@@ -7,9 +7,11 @@ import {
   confirmAdaptiveReviewOption,
   getAdaptiveSupportPlanReview,
   getSupportPlanActionOccurrences,
+  getCurrentPlanResourceActions,
   proposeNativeSupportPlanDraft,
   reconcileEmotionCheckInOccurrence,
   reconcileJournalOccurrence,
+  reconcileResourceOccurrence,
   reviewNativeSupportPlanReplacement,
   replaceWithNativeSupportPlan,
 } from './browser-support-plan-actions'
@@ -19,6 +21,20 @@ describe('Native SupportPlan same-origin browser transport', () => {
     vi.clearAllMocks()
     for (const method of Object.values(client))
       method.mockResolvedValue({ data: { version: 1 } })
+  })
+  it('reads the minimized resource projection and reconciles without client facts', async () => {
+    const controller = new AbortController()
+    await getCurrentPlanResourceActions('2026-10-21', controller.signal)
+    expect(client.get).toHaveBeenCalledWith(
+      '/care/v2/support-plans/current/resource-actions',
+      { params: { localDate: '2026-10-21' }, signal: controller.signal },
+    )
+    await reconcileResourceOccurrence('occurrence-id', 3)
+    expect(client.post).toHaveBeenCalledWith(
+      '/care/v2/support-plan-occurrences/occurrence-id/resource/reconcile',
+      undefined,
+      { headers: { 'If-Match': '"3"' } },
+    )
   })
   it('sends only a Journal candidate ID for owner verification, never private content or a fact assertion', async () => {
     await reconcileJournalOccurrence('occurrence-id', 'journal-id')

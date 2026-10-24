@@ -24,6 +24,7 @@ const message = {
   conversationId,
   clientMessageId: key,
   sender: peer,
+  state: 'ACTIVE' as const,
   content: 'Một lời chào',
   createdAt: '2026-10-21T01:00:00Z',
 }
@@ -47,6 +48,18 @@ it('reports only an exact visible message reference and never copies chat conten
     '/api/v1/community/chat/reports',
     { messageId, reasonCode: 'PRIVACY_CONCERN' },
     { headers: { 'Idempotency-Key': key } },
+  )
+})
+it('clears only the caller conversation view with a caller-preserved command key', async () => {
+  const { delete: del, api } = fixture()
+  const commandKey = '33333333-3333-4333-8333-333333333333'
+  del.mockResolvedValue({ status: 204 })
+
+  await api.clearConversation(conversationId, commandKey)
+
+  expect(del).toHaveBeenCalledWith(
+    `/api/v1/community/chat/conversations/${conversationId}`,
+    { headers: { 'Idempotency-Key': commandKey } },
   )
 })
 it('uses authoritative body revisions when GET has no ETag, retaining exact large decimal versions', async () => {
@@ -108,6 +121,28 @@ it('binds sends to exact conversation/content/client message identity and caller
   await expect(
     api.send(conversationId, key, message.content, key),
   ).rejects.toMatchObject({ code: 'COMMUNITY_CHAT_CONTRACT_MISMATCH' })
+})
+it('retracts an exact own message and accepts only the matching content-free tombstone', async () => {
+  const { api, delete: remove } = fixture()
+  const tombstone = {
+    messageId,
+    conversationId,
+    clientMessageId: key,
+    sender: peer,
+    state: 'RETRACTED',
+    createdAt: message.createdAt,
+    retractedAt: '2026-10-21T01:01:00Z',
+  }
+  remove.mockResolvedValue({ data: tombstone })
+
+  await expect(api.retract(conversationId, messageId)).resolves.toEqual(
+    tombstone,
+  )
+  expect(remove).toHaveBeenCalledWith(
+    `/api/v1/community/chat/conversations/${conversationId}/messages/${messageId}`,
+  )
+  remove.mockResolvedValue({ data: { ...tombstone, content: 'leak' } })
+  await expect(api.retract(conversationId, messageId)).rejects.toThrow()
 })
 it('rejects cross-conversation history and repeated cursor before displaying a projection', async () => {
   const { api, get } = fixture()

@@ -24,6 +24,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from 'react'
 
 import { Dialog } from '@/components/ui/Dialog'
@@ -46,6 +47,7 @@ type Props = Readonly<{
   progressLoadState: 'loading' | 'ready' | 'error'
   saving: boolean
   message: string
+  planNotice?: ReactNode
   onRetryProgress: () => void
   onMarkViewed: () => Promise<boolean>
   onConfirmCompletion: () => Promise<boolean>
@@ -75,6 +77,7 @@ export function ProgressiveRelaxationResourceDetail({
   progressLoadState,
   saving,
   message,
+  planNotice,
   onRetryProgress,
   onMarkViewed,
   onConfirmCompletion,
@@ -663,6 +666,7 @@ export function ProgressiveRelaxationResourceDetail({
                 Tải lại tiến độ
               </button>
             )}
+            {planNotice}
             {message && (
               <p className={styles.progressError} role="alert">
                 {message}

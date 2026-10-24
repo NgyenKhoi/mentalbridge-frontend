@@ -18,6 +18,7 @@ import {
   parseEmotionCheckInReconciliation,
   parseJournalReconciliation,
   parseNativeSupportPlanReplacementReview,
+  parsePlanResourceActions,
   parseSupportPlanActionHistory,
   parseSupportPlanContextualCompanionMessage,
 } from './support-plan-action-validation'
@@ -38,6 +39,22 @@ function identity<T extends { supportPlanId: string }>(
 }
 
 export const supportPlanActionClient = {
+  resourceActions(
+    authorization: string,
+    localDate: string,
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v2/support-plans/current/resource-actions?${new URLSearchParams({ localDate })}`,
+      authorization,
+      correlationId,
+      parseSuccess(value) {
+        const parsed = parsePlanResourceActions(value)
+        return parsed?.localDate === localDate ? parsed : null
+      },
+    })
+  },
   current(authorization: string, correlationId: string) {
     return careRequest({
       method: 'GET',
@@ -277,6 +294,29 @@ export const supportPlanActionClient = {
       parseSuccess(value) {
         const parsed = parseJournalReconciliation(value)
         return parsed?.occurrenceId === id && parsed.journalId === journalId
+          ? parsed
+          : null
+      },
+    })
+  },
+  reconcileResource(
+    authorization: string,
+    id: string,
+    ifMatch: number,
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'POST',
+      path: `${occurrencePath(id)}/resource/reconcile`,
+      ifMatch,
+      authorization,
+      correlationId,
+      parseSuccess(value) {
+        const parsed = parseActionOccurrence(value)
+        return parsed?.occurrenceId === id &&
+          parsed.actionType === 'RESOURCE' &&
+          parsed.state === 'COMPLETED' &&
+          parsed.completionEvidence?.ownerDomain === 'CONTENT'
           ? parsed
           : null
       },

@@ -10,6 +10,7 @@ import {
 } from '@/features/community/api/browser-community'
 import {
   advanceChatReadCursor,
+  clearChatConversation,
   decideChatRequest,
   getChatConversation,
   getChatConversations,
@@ -17,9 +18,10 @@ import {
   getChatPrivacy,
   getChatRequests,
   putChatPrivacy,
+  retractChatMessage,
   sendChatMessage,
   startDirectConversation,
-  type ChatDirectConversation,
+  type ChatConversation,
   type ChatMessage,
   type ChatPrivacy,
   type ChatRequest,
@@ -30,6 +32,11 @@ type FailedSend = Readonly<{
   conversationId: string
   clientMessageId: string
   content: string
+}>
+
+type FailedRetraction = Readonly<{
+  conversationId: string
+  messageId: string
 }>
 
 function friendlyError(error: unknown) {
@@ -52,21 +59,10 @@ function isAccessRevoked(error: unknown) {
   )
 }
 
-function directConversations(
-  items: ReadonlyArray<ChatDirectConversation | { kind: string }>,
-) {
-  return items.filter(
-    (item): item is ChatDirectConversation => item.kind === 'DIRECT',
-  )
-}
-
 function mergeMessages(current: ChatMessage[], incoming: ChatMessage[]) {
-  const ids = new Set<string>()
-  return [...current, ...incoming].filter((message) => {
-    if (ids.has(message.messageId)) return false
-    ids.add(message.messageId)
-    return true
-  })
+  const byId = new Map(current.map((message) => [message.messageId, message]))
+  for (const message of incoming) byId.set(message.messageId, message)
+  return [...byId.values()]
 }
 
 function mergeById<T>(current: T[], incoming: T[], id: (item: T) => string) {
@@ -85,9 +81,11 @@ function mergeById<T>(current: T[], incoming: T[], id: (item: T) => string) {
 export function useCommunityChatWorkspace({
   initialConversationId,
   recipientCommunityProfileId,
+  initialTab = 'conversations',
 }: Readonly<{
   initialConversationId?: string
   recipientCommunityProfileId?: string
+  initialTab?: 'conversations' | 'requests'
 }>) {
   const router = useRouter()
   const startAttempted = useRef<string | undefined>(undefined)
@@ -95,15 +93,13 @@ export function useCommunityChatWorkspace({
   const messageCursorRef = useRef<string | null>(null)
   const deferredMessages = useRef<ChatMessage[]>([])
   const viewedMessage = useRef('')
-  const [conversations, setConversations] = useState<ChatDirectConversation[]>(
-    [],
-  )
+  const [conversations, setConversations] = useState<ChatConversation[]>([])
   const [requests, setRequests] = useState<ChatRequest[]>([])
   const [privacy, setPrivacy] = useState<
     { version: string; preferences: ChatPrivacy } | undefined
   >()
   const [viewerProfileId, setViewerProfileId] = useState<string>()
-  const [conversation, setConversation] = useState<ChatDirectConversation>()
+  const [conversation, setConversation] = useState<ChatConversation>()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draftState, setDraftState] = useState({
     conversationId: initialConversationId,
@@ -122,6 +118,14 @@ export function useCommunityChatWorkspace({
     string | undefined
   >()
   const [failedSend, setFailedSend] = useState<FailedSend>()
+  const [retractBusyMessageId, setRetractBusyMessageId] = useState<string>()
+  const [failedRetraction, setFailedRetraction] = useState<FailedRetraction>()
+  const [retractError, setRetractError] = useState('')
+  const [clearBusy, setClearBusy] = useState(false)
+  const [clearError, setClearError] = useState('')
+  const clearAttempt = useRef<
+    { conversationId: string; idempotencyKey: string } | undefined
+  >(undefined)
   const [conversationCursor, setConversationCursor] = useState<string | null>(
     null,
   )
@@ -134,11 +138,18 @@ export function useCommunityChatWorkspace({
   const [requestPageError, setRequestPageError] = useState('')
   const [messagePageError, setMessagePageError] = useState('')
   const [activeTab, setActiveTab] = useState<'conversations' | 'requests'>(
-    'conversations',
+    initialTab,
   )
 
   // The inbox route must never silently open or acknowledge its first item.
-  const selectedConversationId = initialConversationId
+  const [selectedConversationId, setSelectedConversationId] = useState(
+    initialConversationId,
+  )
+  const [selectionSource, setSelectionSource] = useState(initialConversationId)
+  if (selectionSource !== initialConversationId) {
+    setSelectionSource(initialConversationId)
+    setSelectedConversationId(initialConversationId)
+  }
 
   const setNextMessageCursor = useCallback((cursor: string | null) => {
     messageCursorRef.current = cursor
@@ -154,7 +165,7 @@ export function useCommunityChatWorkspace({
         getCommunityProfile(),
       ])
     if (conversationResult.status === 'fulfilled') {
-      setConversations(directConversations(conversationResult.value.items))
+      setConversations(conversationResult.value.items)
       setConversationCursor(conversationResult.value.nextCursor)
       if (!initialConversationId) setThreadLoading(false)
     }
@@ -227,19 +238,15 @@ export function useCommunityChatWorkspace({
       viewedMessage.current = ''
       setDraftState({ conversationId, value: '' })
       setFailedSend(undefined)
+      setFailedRetraction(undefined)
+      setRetractBusyMessageId(undefined)
+      setRetractError('')
       setSendBusyConversationId(undefined)
       setMessagePageLoading(false)
       setMessagePageError('')
       try {
         const nextConversation = await getChatConversation(conversationId)
         if (threadGeneration.current !== generation) return
-        if (nextConversation.kind !== 'DIRECT') {
-          setThreadErrorState({
-            conversationId,
-            message: 'Trò chuyện nhóm chưa thể mở tại đây.',
-          })
-          return
-        }
         const page = await getChatMessages(conversationId)
         if (threadGeneration.current !== generation) return
         setConversation(nextConversation)
@@ -315,11 +322,7 @@ export function useCommunityChatWorkspace({
     try {
       const page = await getChatConversations(cursor)
       setConversations((current) =>
-        mergeById(
-          current,
-          directConversations(page.items),
-          (item) => item.conversationId,
-        ),
+        mergeById(current, page.items, (item) => item.conversationId),
       )
       setConversationCursor(page.nextCursor)
     } catch (cause) {
@@ -388,7 +391,11 @@ export function useCommunityChatWorkspace({
   }
 
   const peer = useMemo(() => {
-    if (!conversation || conversation.conversationId !== selectedConversationId)
+    if (
+      !conversation ||
+      conversation.kind !== 'DIRECT' ||
+      conversation.conversationId !== selectedConversationId
+    )
       return undefined
     return (
       conversation.peers.find(
@@ -522,6 +529,57 @@ export function useCommunityChatWorkspace({
     })
   }
 
+  async function retract(target: FailedRetraction) {
+    if (target.conversationId !== selectedConversationId) return false
+    const generation = threadGeneration.current
+    setRetractBusyMessageId(target.messageId)
+    setFailedRetraction(undefined)
+    setRetractError('')
+    try {
+      const message = await retractChatMessage(
+        target.conversationId,
+        target.messageId,
+      )
+      if (
+        threadGeneration.current !== generation ||
+        selectedConversationId !== target.conversationId
+      )
+        return false
+      if (
+        message.conversationId !== target.conversationId ||
+        message.messageId !== target.messageId ||
+        message.state !== 'RETRACTED'
+      ) {
+        setFailedRetraction(target)
+        setRetractError(
+          'Phản hồi gỡ tin nhắn không khớp cuộc trò chuyện. Hãy thử lại.',
+        )
+        return false
+      }
+      setMessages((current) => mergeMessages(current, [message]))
+      deferredMessages.current = mergeMessages(deferredMessages.current, [
+        message,
+      ])
+      setNotice('Đã gỡ tin nhắn cho mọi người.')
+      return true
+    } catch (cause) {
+      if (
+        threadGeneration.current !== generation ||
+        selectedConversationId !== target.conversationId
+      )
+        return
+      setFailedRetraction(target)
+      setRetractError(friendlyError(cause))
+      return false
+    } finally {
+      if (
+        threadGeneration.current === generation &&
+        selectedConversationId === target.conversationId
+      )
+        setRetractBusyMessageId(undefined)
+    }
+  }
+
   async function blockPeer() {
     if (!peer || peer.state !== 'AVAILABLE') return
     setBusyKey('block')
@@ -537,6 +595,81 @@ export function useCommunityChatWorkspace({
     }
   }
 
+  function finishClear(conversationId: string) {
+    setConversations((current) =>
+      current.filter((item) => item.conversationId !== conversationId),
+    )
+    if (selectedConversationId === conversationId) {
+      threadGeneration.current += 1
+      setSelectedConversationId(undefined)
+      setConversation(undefined)
+      setMessages([])
+      setNextMessageCursor(null)
+      deferredMessages.current = []
+      viewedMessage.current = ''
+      setThreadErrorState({ conversationId: undefined, message: '' })
+      router.replace('/community/messages')
+    }
+    clearAttempt.current = undefined
+    setClearError('')
+  }
+
+  async function conversationIsVisible(conversationId: string) {
+    let cursor: string | undefined
+    do {
+      const page = await getChatConversations(cursor)
+      if (page.items.some((item) => item.conversationId === conversationId))
+        return true
+      cursor = page.nextCursor ?? undefined
+    } while (cursor)
+    return false
+  }
+
+  async function clearConversation() {
+    if (!selectedConversationId || clearBusy) return false
+    const conversationId = selectedConversationId
+    const generation = threadGeneration.current
+    if (clearAttempt.current?.conversationId !== conversationId) {
+      clearAttempt.current = {
+        conversationId,
+        idempotencyKey: crypto.randomUUID(),
+      }
+    }
+    const attempt = clearAttempt.current
+    setClearBusy(true)
+    setClearError('')
+    try {
+      await clearChatConversation(conversationId, attempt.idempotencyKey)
+      if (
+        threadGeneration.current !== generation ||
+        selectedConversationId !== conversationId
+      )
+        return false
+      finishClear(conversationId)
+      return true
+    } catch (cause) {
+      if (
+        threadGeneration.current !== generation ||
+        selectedConversationId !== conversationId
+      )
+        return false
+      try {
+        if (!(await conversationIsVisible(conversationId))) {
+          finishClear(conversationId)
+          return true
+        }
+      } catch {
+        clearAttempt.current = attempt
+      }
+      setClearError(
+        `${friendlyError(cause)} Chưa xác nhận đã xóa; bạn có thể thử lại an toàn.`,
+      )
+      return false
+    } finally {
+      if (selectedConversationId === conversationId) setClearBusy(false)
+    }
+  }
+
   return {
     activeTab,
     setActiveTab,
@@ -544,10 +677,16 @@ export function useCommunityChatWorkspace({
     requests,
     privacy,
     conversation,
+    updateConversation: (updated: ChatConversation) => {
+      setConversation((current) =>
+        current?.conversationId === updated.conversationId ? updated : current,
+      )
+    },
     messages,
     peer,
     viewerProfileId,
     selectedConversationId,
+    selectConversation: setSelectedConversationId,
     draft:
       draftState.conversationId === selectedConversationId
         ? draftState.value
@@ -569,6 +708,14 @@ export function useCommunityChatWorkspace({
       failedSend?.conversationId === selectedConversationId
         ? failedSend
         : undefined,
+    retractBusyMessageId,
+    failedRetraction:
+      failedRetraction?.conversationId === selectedConversationId
+        ? failedRetraction
+        : undefined,
+    retractError,
+    clearBusy,
+    clearError,
     conversationCursor,
     requestCursor,
     messageCursor,
@@ -603,6 +750,25 @@ export function useCommunityChatWorkspace({
       if (!failedSend || failedSend.conversationId !== selectedConversationId)
         return
       void deliver(failedSend)
+    },
+    retractMessage: (messageId: string) => {
+      if (!selectedConversationId) return Promise.resolve(false)
+      return retract({ conversationId: selectedConversationId, messageId })
+    },
+    retryRetraction: () => {
+      if (
+        !failedRetraction ||
+        failedRetraction.conversationId !== selectedConversationId
+      )
+        return Promise.resolve(false)
+      return retract(failedRetraction)
+    },
+    clearConversation,
+    resetClearAttempt: () => {
+      if (!clearBusy) {
+        clearAttempt.current = undefined
+        setClearError('')
+      }
     },
     blockPeer,
   }

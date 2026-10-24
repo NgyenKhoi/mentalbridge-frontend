@@ -21,8 +21,6 @@ import type { Workspace } from '../model/workspace'
 const SECTIONS = {
   dashboard: {
     label: 'Tổng quan',
-    description:
-      'Bảng điều khiển các chỉ số vận hành có thẩm quyền từ các dịch vụ nền tảng.',
   },
   retention: {
     label: 'Bảo lưu & xóa dữ liệu',
@@ -31,48 +29,33 @@ const SECTIONS = {
   },
   accounts: {
     label: 'Tài khoản',
-    description:
-      'Tra cứu, tạm ngưng và khôi phục tài khoản với quyền quản trị được bảo vệ.',
   },
   specialists: {
     label: 'Chuyên gia',
-    description:
-      'Khu vực xét duyệt chuyên gia. Không hiển thị hồ sơ giả hoặc dữ liệu cá nhân.',
   },
   content: {
     label: 'Tài nguyên tự chăm sóc',
-    description: 'Quản lý tài nguyên qua Content service được bảo vệ.',
   },
   moderation: {
     label: 'Kiểm duyệt Community',
-    description:
-      'Hàng đợi kiểm duyệt nội dung cộng đồng có nhật ký quyết định.',
   },
   appointments: {
     label: 'Lịch hẹn',
-    description: 'Giám sát vận hành lịch hẹn từ nguồn Consultation.',
   },
   disputes: {
     label: 'Xem xét phiên tư vấn',
-    description:
-      'Xử lý yêu cầu xem xét bằng các kết quả vận hành đã được phê duyệt.',
   },
   audit: {
     label: 'Nhật ký kiểm toán',
-    description:
-      'Tra cứu và xuất dấu vết hoạt động quản trị đã được tối thiểu hóa.',
   },
   reports: {
     label: 'Báo cáo',
-    description: 'Tạo, lên lịch và tải báo cáo tổng hợp hoạt động tài khoản.',
   },
   payments: {
     label: 'Thanh toán gói',
-    description: 'Tra cứu giao dịch gói dịch vụ đã được ghi nhận.',
   },
   payouts: {
     label: 'Chi trả chuyên gia',
-    description: 'Tra cứu yêu cầu chi trả và kết quả xử lý.',
   },
 } as const
 
@@ -82,6 +65,40 @@ export function isAdminSection(value: string): value is AdminSection {
   return Object.prototype.hasOwnProperty.call(SECTIONS, value)
 }
 
+function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
+  switch (section) {
+    case 'dashboard':
+      return (
+        <>
+          <AdminOperationsDashboard />
+          <ProductJourneyMetricsPanel />
+        </>
+      )
+    case 'retention':
+      return <AdminRetentionGovernance />
+    case 'accounts':
+      return <AdminAccountManager />
+    case 'specialists':
+      return <AdminSpecialistReviewSection />
+    case 'content':
+      return <AdminContentSection />
+    case 'moderation':
+      return <AdminCommunityModerationSection />
+    case 'appointments':
+      return <AdminAppointmentMonitor />
+    case 'disputes':
+      return <AdminAppointmentDisputes />
+    case 'audit':
+      return <AdminAuditLog />
+    case 'reports':
+      return <AdminReportsSection />
+    case 'payments':
+      return <AdminPaymentsManager />
+    case 'payouts':
+      return <AdminPayoutsManager />
+  }
+}
+
 export default function AdminWorkspace({
   section,
   workspaces,
@@ -89,8 +106,6 @@ export default function AdminWorkspace({
   section: AdminSection
   workspaces: readonly Workspace[]
 }>) {
-  const active = SECTIONS[section]
-
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
@@ -120,54 +135,7 @@ export default function AdminWorkspace({
       <main
         className={`${styles.main} ${section === 'specialists' || section === 'reports' || section === 'payments' || section === 'payouts' || section === 'retention' ? styles.reviewMain : ''}`}
       >
-        {section === 'dashboard' ? (
-          <>
-            <AdminOperationsDashboard />
-            <ProductJourneyMetricsPanel />
-          </>
-        ) : section === 'retention' ? (
-          <AdminRetentionGovernance />
-        ) : section === 'content' ? (
-          <AdminContentSection />
-        ) : section === 'specialists' ? (
-          <AdminSpecialistReviewSection />
-        ) : section === 'accounts' ? (
-          <AdminAccountManager />
-        ) : section === 'moderation' ? (
-          <AdminCommunityModerationSection />
-        ) : section === 'audit' ? (
-          <AdminAuditLog />
-        ) : section === 'appointments' ? (
-          <AdminAppointmentMonitor />
-        ) : section === 'disputes' ? (
-          <AdminAppointmentDisputes />
-        ) : section === 'reports' ? (
-          <AdminReportsSection />
-        ) : section === 'payments' ? (
-          <AdminPaymentsManager />
-        ) : section === 'payouts' ? (
-          <AdminPayoutsManager />
-        ) : (
-          <>
-            <span className={styles.eyebrow}>
-              Không gian quản trị được bảo vệ
-            </span>
-            <h1>{active.label}</h1>
-            <p>{active.description}</p>
-
-            <section className={styles.empty} aria-label="Trạng thái tích hợp">
-              <span aria-hidden="true">✓</span>
-              <div>
-                <h2>Quyền ADMIN đã được xác minh</h2>
-                <p>
-                  Trang khởi đầu không tải số liệu, tên, email hoặc nội dung
-                  nhạy cảm giả. Chức năng quản trị chỉ xuất hiện khi có API và
-                  quyền tương ứng.
-                </p>
-              </div>
-            </section>
-          </>
-        )}
+        <AdminSectionContent section={section} />
       </main>
     </div>
   )

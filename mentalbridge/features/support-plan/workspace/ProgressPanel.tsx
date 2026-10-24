@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import type { ActionOccurrence } from '../api/support-plan-contract'
 import { dayLabel } from './TodayPanel'
 import type { ProgressSummary } from './workspace-model'
+import { hasContentCompletion } from '../resource-plan-origin'
 
 const helpfulLabels = {
   VERY_HELPFUL: 'rất hữu ích',
@@ -48,6 +49,13 @@ export default function ProgressPanel({
   onRetry: () => void
 }>) {
   const rated = helpfulness(occurrences)
+  const contentCompletions = occurrences.filter(
+    (item) =>
+      hasContentCompletion(item) &&
+      summary &&
+      item.localDate >= summary.from &&
+      item.localDate <= summary.through,
+  )
   return (
     <div className="mbw-progress">
       <section className="mbw-tile" aria-labelledby="mbw-progress-title">
@@ -63,6 +71,11 @@ export default function ProgressPanel({
                 {summary.activities.skipped > 0 &&
                   `, ${summary.activities.skipped} lần để hôm khác`}
               </Row>
+              {contentCompletions.length > 0 && (
+                <Row label="Đã ghi nhận từ bài luyện tập">
+                  {contentCompletions.length} lần đã làm
+                </Row>
+              )}
               <Row label="Ghi lại cảm xúc">{summary.emotionDays} ngày</Row>
               <Row label="Nhật ký">{summary.journalDays} ngày</Row>
               <Row label="Mức hữu ích bạn chọn">

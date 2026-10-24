@@ -56,6 +56,35 @@ async function mount(
 }
 const press = (label: string) =>
   fireEvent.press(screen.getByRole('button', { name: label }))
+it('opens a fresh Community conversation descriptor after Content confirms mark-read', async () => {
+  const item = notification({
+    kind: 'COMMUNITY_MESSAGE',
+    title: 'Cập nhật cộng đồng',
+    action: {
+      type: 'OPEN_COMMUNITY_CONVERSATION',
+      targetId,
+      href: `/community/chat/conversations/${targetId}`,
+    },
+  })
+  const read = { ...item, read: true, readAt: date }
+  const api = fixtureApi({
+    list: jest
+      .fn()
+      .mockResolvedValueOnce(page([item]))
+      .mockResolvedValue(page([read])),
+    markRead: jest.fn().mockResolvedValue(read),
+  })
+  const value = await mount(api)
+  await screen.findByText('1 thông báo chưa đọc')
+  await press('Mở: Cập nhật cộng đồng')
+  await waitFor(() =>
+    expect(value.onOpen).toHaveBeenCalledWith({
+      pathname: '/(user)/community-chat',
+      params: { conversationId: targetId },
+    }),
+  )
+  await screen.findByText('0 thông báo chưa đọc')
+})
 it('opens only the fresh mark-read action, persists read and reloads the server inbox', async () => {
   const read = notification({
     read: true,

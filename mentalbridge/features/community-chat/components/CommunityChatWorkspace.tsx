@@ -16,6 +16,12 @@ import type {
   ChatPrivacy,
 } from '../api/community-chat-contract'
 import { useCommunityChatWorkspace } from './useCommunityChatWorkspace'
+import { useCommunityGroups } from './useCommunityGroups'
+import {
+  CreateGroupDialog,
+  GroupInvitations,
+  GroupManagement,
+} from './CommunityGroupControls'
 import styles from './CommunityChatWorkspace.module.css'
 
 const reportReasons: Array<{ value: ChatReportReason; label: string }> = [
@@ -149,23 +155,49 @@ function PrivacyPanel({
 export default function CommunityChatWorkspace({
   initialConversationId,
   recipientCommunityProfileId,
+  initialTab,
 }: Readonly<{
   initialConversationId?: string
   recipientCommunityProfileId?: string
+  initialTab?: 'conversations' | 'requests'
 }>) {
   const chat = useCommunityChatWorkspace({
     initialConversationId,
     recipientCommunityProfileId,
+    initialTab,
   })
+  const groups = useCommunityGroups({
+    conversation: chat.conversation,
+    viewerProfileId: chat.viewerProfileId,
+    reloadOverview: chat.reload,
+    onConversationUpdated: chat.updateConversation,
+  })
+  const [createGroupOpen, setCreateGroupOpen] = useState(false)
   const [reportTarget, setReportTarget] = useState<ChatMessage>()
+  const [retractTarget, setRetractTarget] = useState<ChatMessage>()
+  const [clearConversationId, setClearConversationId] = useState<string>()
   const [reportReason, setReportReason] =
     useState<ChatReportReason>('HARASSMENT')
   const [reportDetails, setReportDetails] = useState('')
   const [reportBusy, setReportBusy] = useState(false)
   const [reportError, setReportError] = useState('')
   const [reportNotice, setReportNotice] = useState('')
+  const [dialogConversationId, setDialogConversationId] = useState(
+    chat.selectedConversationId,
+  )
+  if (dialogConversationId !== chat.selectedConversationId) {
+    setDialogConversationId(chat.selectedConversationId)
+    setReportTarget(undefined)
+    setRetractTarget(undefined)
+    setClearConversationId(undefined)
+    setReportReason('HARASSMENT')
+    setReportDetails('')
+    setReportBusy(false)
+    setReportError('')
+    setReportNotice('')
+  }
   const reportGeneration = useRef(0)
-  const reportConversationId = useRef(initialConversationId)
+  const reportConversationId = useRef(chat.selectedConversationId)
   const reportAttempt = useRef<{ signature: string; key: string } | undefined>(
     undefined,
   )
@@ -176,10 +208,35 @@ export default function CommunityChatWorkspace({
     chat.conversations.find(
       (item) => item.conversationId === chat.selectedConversationId,
     )
+  const activeReportTarget =
+    reportTarget?.conversationId === chat.selectedConversationId
+      ? reportTarget
+      : undefined
+  const activeRetractTarget =
+    retractTarget?.conversationId === chat.selectedConversationId
+      ? retractTarget
+      : undefined
+  const activeClearConversationId =
+    clearConversationId === chat.selectedConversationId
+      ? clearConversationId
+      : undefined
   const activePeer = activeConversation?.peers.find(
     (peer) =>
       peer.state === 'AVAILABLE' &&
       peer.communityProfileId !== chat.viewerProfileId,
+  )
+  const inviteCandidates = Array.from(
+    new Map(
+      [chat.conversation, ...chat.conversations]
+        .filter((item) => item?.kind === 'DIRECT' && item.state === 'ACTIVE')
+        .flatMap((item) => item?.peers ?? [])
+        .filter(
+          (candidate): candidate is Extract<ChatPeer, { state: 'AVAILABLE' }> =>
+            candidate.state === 'AVAILABLE' &&
+            candidate.communityProfileId !== chat.viewerProfileId,
+        )
+        .map((candidate) => [candidate.communityProfileId, candidate] as const),
+    ).values(),
   )
   const visibleMessages = activeConversation
     ? chat.messages.filter(
@@ -191,27 +248,27 @@ export default function CommunityChatWorkspace({
   const markMessagesViewed = chat.markMessagesViewed
 
   useEffect(() => {
-    if (initialConversationId && lastMessageId)
+    if (chat.selectedConversationId && lastMessageId)
       void markMessagesViewed(lastMessageId)
-  }, [initialConversationId, lastMessageId, markMessagesViewed])
+  }, [chat.selectedConversationId, lastMessageId, markMessagesViewed])
 
   useEffect(() => {
-    reportConversationId.current = initialConversationId
+    reportConversationId.current = chat.selectedConversationId
     reportGeneration.current += 1
     reportAttempt.current = undefined
-  }, [initialConversationId])
+  }, [chat.selectedConversationId])
 
   async function submitReport() {
     if (
-      !reportTarget ||
-      reportTarget.conversationId !== reportConversationId.current ||
+      !activeReportTarget ||
+      activeReportTarget.conversationId !== reportConversationId.current ||
       reportDetails.length > 1000 ||
       reportBusy
     )
       return
     const details = reportDetails.trim()
     const signature = JSON.stringify({
-      messageId: reportTarget.messageId,
+      messageId: activeReportTarget.messageId,
       reasonCode: reportReason,
       details,
     })
@@ -223,7 +280,7 @@ export default function CommunityChatWorkspace({
     try {
       await reportChatMessage(
         {
-          messageId: reportTarget.messageId,
+          messageId: activeReportTarget.messageId,
           reasonCode: reportReason,
           ...(details ? { details } : {}),
         },
@@ -261,6 +318,11 @@ export default function CommunityChatWorkspace({
           {reportNotice}
         </p>
       )}
+      {groups.notice && (
+        <p className={styles.notice} role="status">
+          {groups.notice}
+        </p>
+      )}
       {recipientCommunityProfileId && chat.busyKey === 'start' && (
         <p className={styles.notice} role="status">
           Đang mở cuộc trò chuyện an toàn…
@@ -268,9 +330,16 @@ export default function CommunityChatWorkspace({
       )}
 
       <div
-        className={`${styles.workspace} ${initialConversationId ? styles.hasSelected : ''}`}
+        className={`${styles.workspace} ${chat.selectedConversationId ? styles.hasSelected : ''}`}
       >
         <aside className={styles.inbox} aria-label="Hộp thư cộng đồng">
+          <button
+            type="button"
+            className={styles.createGroupButton}
+            onClick={() => setCreateGroupOpen(true)}
+          >
+            + Tạo nhóm riêng
+          </button>
           <div
             className={styles.tabs}
             role="tablist"
@@ -291,7 +360,9 @@ export default function CommunityChatWorkspace({
               onClick={() => chat.setActiveTab('requests')}
             >
               Lời mời
-              {chat.requests.length > 0 && <span>{chat.requests.length}</span>}
+              {chat.requests.length + groups.invitations.length > 0 && (
+                <span>{chat.requests.length + groups.invitations.length}</span>
+              )}
             </button>
           </div>
 
@@ -324,21 +395,41 @@ export default function CommunityChatWorkspace({
                       <li key={item.conversationId}>
                         <Link
                           href={`/community/messages/${item.conversationId}`}
+                          onClick={() =>
+                            chat.selectConversation(item.conversationId)
+                          }
                           aria-current={
                             item.conversationId === chat.selectedConversationId
                               ? 'page'
                               : undefined
                           }
                         >
-                          <Avatar peer={peer} />
+                          {item.kind === 'GROUP' ? (
+                            <span
+                              className={styles.groupAvatar}
+                              aria-hidden="true"
+                            >
+                              {initials(item.groupName)}
+                            </span>
+                          ) : (
+                            <Avatar peer={peer} />
+                          )}
                           <span className={styles.rowCopy}>
-                            <strong>{peerName(peer)}</strong>
+                            <strong>
+                              {item.kind === 'GROUP'
+                                ? item.groupName
+                                : peerName(peer)}
+                            </strong>
                             <small>
-                              {item.state === 'READ_ONLY'
-                                ? 'Chỉ có thể xem'
-                                : item.unreadCount
-                                  ? `${item.unreadCount} tin chưa đọc`
-                                  : 'Mở cuộc trò chuyện'}
+                              {item.kind === 'GROUP'
+                                ? item.state === 'ARCHIVED'
+                                  ? 'Nhóm đã lưu trữ · Chỉ đọc'
+                                  : `${item.viewerRole === 'OWNER' ? 'Chủ nhóm' : item.viewerRole === 'ADMIN' ? 'Quản trị viên' : 'Thành viên'} · ${item.peers.length} người`
+                                : item.state === 'READ_ONLY'
+                                  ? 'Chỉ có thể xem'
+                                  : item.unreadCount
+                                    ? `${item.unreadCount} tin chưa đọc`
+                                    : 'Mở cuộc trò chuyện'}
                             </small>
                           </span>
                           {item.unreadCount > 0 && (
@@ -392,8 +483,12 @@ export default function CommunityChatWorkspace({
                 )}
               </div>
             )
-          ) : chat.requests.length ? (
+          ) : chat.requests.length ||
+            groups.invitations.length ||
+            groups.invitationLoading ||
+            groups.invitationError ? (
             <>
+              <GroupInvitations groups={groups} />
               <ul className={styles.requests}>
                 {chat.requests.map((request) => (
                   <li key={request.requestId}>
@@ -480,7 +575,7 @@ export default function CommunityChatWorkspace({
         </aside>
 
         <article className={styles.thread} aria-label="Cuộc trò chuyện đang mở">
-          {initialConversationId && (
+          {chat.selectedConversationId && (
             <Link className={styles.back} href="/community/messages">
               ← Hộp thư
             </Link>
@@ -501,31 +596,66 @@ export default function CommunityChatWorkspace({
           ) : activeConversation ? (
             <>
               <header className={styles.threadHeader}>
-                <Avatar peer={activePeer} />
+                {activeConversation.kind === 'GROUP' ? (
+                  <span className={styles.groupAvatar} aria-hidden="true">
+                    {initials(activeConversation.groupName)}
+                  </span>
+                ) : (
+                  <Avatar peer={activePeer} />
+                )}
                 <span>
-                  <strong>{peerName(activePeer)}</strong>
+                  <strong>
+                    {activeConversation.kind === 'GROUP'
+                      ? activeConversation.groupName
+                      : peerName(activePeer)}
+                  </strong>
                   <small>
-                    {activeConversation.state === 'READ_ONLY'
-                      ? 'Cuộc trò chuyện chỉ đọc'
-                      : 'Tin nhắn riêng tư trong cộng đồng'}
+                    {activeConversation.kind === 'GROUP'
+                      ? activeConversation.state === 'ARCHIVED'
+                        ? 'Nhóm riêng đã lưu trữ · Chỉ đọc'
+                        : `Nhóm riêng · ${activeConversation.peers.length} thành viên · Chỉ người đã chấp thuận mới có thể đọc và gửi tin`
+                      : activeConversation.state === 'READ_ONLY'
+                        ? 'Cuộc trò chuyện chỉ đọc'
+                        : 'Tin nhắn riêng tư trong cộng đồng'}
                   </small>
                 </span>
                 <details className={styles.safetyMenu}>
                   <summary aria-label="Mở thao tác an toàn">•••</summary>
                   <div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        chat.resetClearAttempt()
+                        setClearConversationId(
+                          activeConversation.conversationId,
+                        )
+                      }}
+                    >
+                      Xóa phía tôi
+                    </button>
                     <Link href="/safety-directory?trigger=community-chat">
                       Tìm hỗ trợ
                     </Link>
-                    <button
-                      type="button"
-                      disabled={chat.busyKey === 'block'}
-                      onClick={() => void chat.blockPeer()}
-                    >
-                      Chặn thành viên
-                    </button>
+                    {activeConversation.kind === 'DIRECT' && (
+                      <button
+                        type="button"
+                        disabled={chat.busyKey === 'block'}
+                        onClick={() => void chat.blockPeer()}
+                      >
+                        Chặn thành viên
+                      </button>
+                    )}
                   </div>
                 </details>
               </header>
+
+              {activeConversation.kind === 'GROUP' && (
+                <GroupManagement
+                  groups={groups}
+                  viewerProfileId={chat.viewerProfileId}
+                  inviteCandidates={inviteCandidates}
+                />
+              )}
 
               <div className={styles.messages} aria-live="polite">
                 {visibleMessages.length ? (
@@ -533,40 +663,87 @@ export default function CommunityChatWorkspace({
                     const mine =
                       message.sender.state === 'AVAILABLE' &&
                       message.sender.communityProfileId === chat.viewerProfileId
+                    const retracting =
+                      chat.retractBusyMessageId === message.messageId
+                    const retractionFailed =
+                      chat.failedRetraction?.messageId === message.messageId
                     return (
                       <div
                         key={message.messageId}
-                        className={mine ? styles.mine : styles.theirs}
+                        className={[
+                          mine ? styles.mine : styles.theirs,
+                          message.state === 'RETRACTED' ? styles.retracted : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
                       >
-                        <p>{message.content}</p>
+                        <p>
+                          {message.state === 'ACTIVE'
+                            ? message.content
+                            : mine
+                              ? 'Bạn đã gỡ tin nhắn'
+                              : message.sender.state === 'AVAILABLE'
+                                ? `${message.sender.displayName} đã gỡ tin nhắn`
+                                : 'Tin nhắn đã được gỡ'}
+                        </p>
                         <time dateTime={message.createdAt}>
                           {time(message.createdAt)}
                         </time>
-                        <button
-                          type="button"
-                          className={styles.reportMessage}
-                          onClick={() => {
-                            setReportTarget(message)
-                            setReportReason('HARASSMENT')
-                            setReportDetails('')
-                            setReportBusy(false)
-                            setReportError('')
-                            setReportNotice('')
-                            reportAttempt.current = undefined
-                          }}
-                          aria-label={`Báo cáo tin nhắn: ${message.content}`}
-                        >
-                          Báo cáo tin nhắn
-                        </button>
+                        {message.state === 'ACTIVE' &&
+                          (mine ? (
+                            <button
+                              type="button"
+                              className={styles.messageAction}
+                              disabled={retracting}
+                              onClick={() => setRetractTarget(message)}
+                              aria-label="Gỡ tin nhắn này cho mọi người"
+                            >
+                              {retracting ? 'Đang gỡ…' : 'Gỡ tin nhắn'}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className={styles.messageAction}
+                              onClick={() => {
+                                setReportTarget(message)
+                                setReportReason('HARASSMENT')
+                                setReportDetails('')
+                                setReportBusy(false)
+                                setReportError('')
+                                setReportNotice('')
+                                reportAttempt.current = undefined
+                              }}
+                              aria-label={`Báo cáo tin nhắn: ${message.content}`}
+                            >
+                              Báo cáo tin nhắn
+                            </button>
+                          ))}
+                        {retractionFailed && (
+                          <span className={styles.retractFailure} role="alert">
+                            {chat.retractError}
+                            <button
+                              type="button"
+                              disabled={retracting}
+                              onClick={() => void chat.retryRetraction()}
+                            >
+                              Thử lại
+                            </button>
+                          </span>
+                        )}
                       </div>
                     )
                   })
                 ) : (
                   <div className={styles.emptyThread}>
-                    <strong>Bắt đầu thật nhẹ nhàng</strong>
+                    <strong>
+                      {activeConversation.kind === 'GROUP'
+                        ? 'Bắt đầu cùng nhóm thật nhẹ nhàng'
+                        : 'Bắt đầu thật nhẹ nhàng'}
+                    </strong>
                     <p>
-                      Chỉ chia sẻ điều bạn thấy an toàn. Bạn có thể chặn và rời
-                      đi bất cứ lúc nào.
+                      {activeConversation.kind === 'GROUP'
+                        ? 'Chỉ thành viên đã chấp thuận mới có thể xem lịch sử và gửi tin trong nhóm này.'
+                        : 'Chỉ chia sẻ điều bạn thấy an toàn. Bạn có thể chặn và rời đi bất cứ lúc nào.'}
                     </p>
                   </div>
                 )}
@@ -645,10 +822,103 @@ export default function CommunityChatWorkspace({
         </article>
       </div>
 
+      <CreateGroupDialog
+        open={createGroupOpen}
+        groups={groups}
+        onOpenChange={setCreateGroupOpen}
+      />
+
+      <Dialog
+        open={Boolean(activeClearConversationId)}
+        onOpenChange={(open) => {
+          if (!open && !chat.clearBusy) {
+            setClearConversationId(undefined)
+            chat.resetClearAttempt()
+          }
+        }}
+        labelledBy="community-chat-clear-title"
+        describedBy="community-chat-clear-description"
+        className={styles.clearDialog}
+      >
+        <div className={styles.clearPrompt}>
+          <h2 id="community-chat-clear-title">Xóa cuộc trò chuyện phía bạn?</h2>
+          <p id="community-chat-clear-description">
+            Cuộc trò chuyện và lịch sử hiện tại sẽ biến mất khỏi hộp thư của
+            bạn. Những người khác vẫn giữ nguyên lịch sử. Khi có tin nhắn mới,
+            cuộc trò chuyện sẽ xuất hiện lại và chỉ hiển thị tin nhắn mới.
+          </p>
+          {chat.clearError && <p role="alert">{chat.clearError}</p>}
+          <div className={styles.reportActions}>
+            <button
+              type="button"
+              disabled={chat.clearBusy}
+              onClick={() => {
+                setClearConversationId(undefined)
+                chat.resetClearAttempt()
+              }}
+            >
+              Giữ lại
+            </button>
+            <button
+              type="button"
+              disabled={chat.clearBusy}
+              onClick={() => {
+                void chat.clearConversation().then((succeeded) => {
+                  if (succeeded) setClearConversationId(undefined)
+                })
+              }}
+            >
+              {chat.clearBusy ? 'Đang xóa…' : 'Xóa phía tôi'}
+            </button>
+          </div>
+        </div>
+      </Dialog>
+
       <Dialog
         open={Boolean(
-          reportTarget && reportTarget.conversationId === initialConversationId,
+          activeRetractTarget && activeRetractTarget.state === 'ACTIVE',
         )}
+        onOpenChange={(open) => {
+          if (!open && !chat.retractBusyMessageId) setRetractTarget(undefined)
+        }}
+        labelledBy="community-chat-retract-title"
+        describedBy="community-chat-retract-description"
+        className={styles.retractDialog}
+      >
+        <div className={styles.retractPrompt}>
+          <h2 id="community-chat-retract-title">Gỡ tin nhắn cho mọi người?</h2>
+          <p id="community-chat-retract-description">
+            Nội dung sẽ được thay bằng thông báo đã gỡ đối với mọi người trong
+            cuộc trò chuyện.
+          </p>
+          <div className={styles.reportActions}>
+            <button
+              type="button"
+              disabled={Boolean(chat.retractBusyMessageId)}
+              onClick={() => setRetractTarget(undefined)}
+            >
+              Giữ lại
+            </button>
+            <button
+              type="button"
+              disabled={Boolean(chat.retractBusyMessageId)}
+              onClick={() => {
+                if (!activeRetractTarget) return
+                void chat
+                  .retractMessage(activeRetractTarget.messageId)
+                  .then((succeeded) => {
+                    if (succeeded) setRetractTarget(undefined)
+                  })
+              }}
+            >
+              {chat.retractBusyMessageId ? 'Đang gỡ…' : 'Gỡ tin nhắn'}
+            </button>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(activeReportTarget)}
         onOpenChange={(open) => {
           if (!open && !reportBusy) setReportTarget(undefined)
         }}

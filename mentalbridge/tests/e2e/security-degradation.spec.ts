@@ -1,6 +1,7 @@
 import { expect, type BrowserContext } from '@playwright/test'
 
 import { test } from './test-fixtures'
+import { homeWorld, installHomeMocks } from './home-next-step-mocks'
 
 // All tests share the single fixture server and must run serially.
 test.describe.configure({ mode: 'serial' })
@@ -510,10 +511,11 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     page,
   }) => {
     await injectUserSession(context)
+    await installHomeMocks(page, homeWorld('first-use'))
     await page.goto('/dashboard')
 
     await expect(
-      page.getByRole('heading', { name: 'Kết quả sàng lọc', exact: true }),
+      page.getByRole('link', { name: 'Bắt đầu kiểm tra ban đầu', exact: true }),
     ).toBeVisible({ timeout: 10_000 })
 
     const html = await page.evaluate(() => document.body.innerHTML)
@@ -524,29 +526,31 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     expect(html).not.toMatch(/cấp cứu/i)
     expect(html).not.toMatch(/hotline/i)
 
-    // PHQ result card must show placeholder, not a fake result
+    // Home delegates tracking to its owning pages and shows no invented result.
     await expect(
-      page.getByText('Chưa có kết quả PHQ-9 nào được hiển thị.'),
-    ).toBeVisible()
+      page.getByRole('heading', { name: 'Kết quả sàng lọc', exact: true }),
+    ).toHaveCount(0)
   })
 
-  test('dashboard keeps appointments reachable without a client-side upgrade gate', async ({
+  test('dashboard keeps appointments in navigation without a client-side upgrade gate', async ({
     context,
     page,
   }) => {
     await injectUserSession(context)
+    await installHomeMocks(page, homeWorld('first-use'))
     await page.goto('/dashboard')
 
     await expect(
-      page.getByRole('heading', { name: 'Kết quả sàng lọc', exact: true }),
+      page.getByRole('link', { name: 'Bắt đầu kiểm tra ban đầu', exact: true }),
     ).toBeVisible({ timeout: 10_000 })
 
     // Entitlements are enforced by the backend when booking; the dashboard must
     // not lock the appointment entry behind a premium prompt it cannot verify.
-    const appointments = page.locator('.ref-appointment')
-    await expect(appointments).toBeVisible()
+    await expect(page.locator('.ref-appointment')).toHaveCount(0)
     await expect(
-      appointments.getByRole('link', { name: 'Xem tất cả →' }),
+      page
+        .getByRole('navigation', { name: 'Điều hướng chính', exact: true })
+        .getByRole('link', { name: /Lịch hẹn/ }),
     ).toHaveAttribute('href', '/appointments')
     await expect(
       page.getByRole('link', { name: /nâng cấp premium/i }),

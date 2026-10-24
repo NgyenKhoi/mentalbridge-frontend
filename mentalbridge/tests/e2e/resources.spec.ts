@@ -1,6 +1,13 @@
 import { expect, type BrowserContext, type Page } from '@playwright/test'
 
 import { test } from './test-fixtures'
+import {
+  installPlanResourcesMocks,
+  planActionId,
+  planOccurrenceId,
+  planResourceId,
+  resourceWorld,
+} from './plan-resources-mocks'
 
 test.describe('Resources journey', () => {
   test.skip(
@@ -46,7 +53,7 @@ test.describe('Resources journey', () => {
     })
   }
 
-  test('supports the daily challenge and interactive video detail journey', async ({
+  test('supports catalogue bookmarks and interactive video Detail without a current plan', async ({
     context,
     page,
   }) => {
@@ -71,6 +78,25 @@ test.describe('Resources journey', () => {
         sameSite: 'Lax',
       },
     ])
+    await context.route('**/api/consultation/service-credits', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          source: 'DEFAULT_FREE',
+          packageCode: 'FREE',
+          entitlementState: 'DEFAULT_FREE',
+          supportPlanEnabled: false,
+        }),
+      }),
+    )
+    await context.route('**/api/consultation/payments', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [], hasMore: false }),
+      }),
+    )
     await context.route('**/iframe_api', async (route) => {
       await route.fulfill({
         status: 200,
@@ -342,11 +368,8 @@ test.describe('Resources journey', () => {
         .locator('body')
         .evaluate((element) => getComputedStyle(element).fontFamily),
     ).toMatch(/Vietnam/i)
-    await expect(
-      page.getByRole('heading', {
-        name: 'Bingo hoạt động trong kế hoạch',
-      }),
-    ).toBeVisible()
+    // Bingo is scoped to the separately loaded plan section; the daily
+    // catalogue journey remains usable without a current-plan projection.
     await expect(page.getByText('Chưa có chuỗi thực hành')).toBeVisible()
     await expect(page.getByText(/\bXP\b/i)).toHaveCount(0)
     await expect(page.getByText(/huy hiệu|cấp độ/i)).toHaveCount(0)
@@ -373,27 +396,13 @@ test.describe('Resources journey', () => {
       page.getByRole('button', { name: 'Lưu hoạt động nổi bật' }).first(),
     ).toBeVisible()
 
-    await page.getByRole('button', { name: 'Tự đánh dấu' }).click()
-    await expect(page.getByText('Bạn tự đánh dấu')).toBeVisible()
-    await page.getByRole('button', { name: 'Bỏ tự đánh dấu' }).click()
+    await expect(page.getByTestId('today-plan-progress')).toHaveCount(0)
     await expect(
-      page.getByRole('button', { name: 'Tự đánh dấu' }),
-    ).toHaveAttribute('aria-pressed', 'false')
-
-    await page
-      .getByText('Hoạt động trong kế hoạch hôm nay', { exact: true })
-      .click()
-
-    await page
-      .getByRole('button', {
-        name: `Ghi nhận đã làm: ${catalogue[2].title}`,
-      })
-      .click()
-    await expect(
-      page.getByText(`Đã lưu hoàn thành “${catalogue[2].title}”.`),
-    ).toBeVisible()
-    await expect(page.getByText('1 ngày đã lưu')).toBeVisible()
-    await expect(page.getByText('✓ Đã xác minh', { exact: true })).toBeVisible()
+      page.getByRole('link', {
+        name: 'Hoạt động trong kế hoạch hôm nay',
+        exact: true,
+      }),
+    ).toHaveCount(0)
     for (const viewport of [
       { width: 1280, height: 800 },
       { width: 768, height: 1024 },
@@ -648,6 +657,551 @@ test.describe('Resources journey', () => {
 
     await expect(
       page.getByText('Dịch vụ tạm thời không khả dụng'),
+    ).toBeVisible()
+  })
+})
+
+test.describe('MB-670 plan resources and plan-scoped Bingo', () => {
+  test.skip(
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'Controlled resource-plan states do not use shared accounts.',
+  )
+
+  function planSection(page: Page) {
+    return page.getByRole('region', {
+      name: 'Trong kế hoạch của tôi',
+      exact: true,
+    })
+  }
+
+  test('keeps two resource placeholders while the plan is loading', async ({
+    page,
+  }) => {
+    const world = resourceWorld()
+    let release = () => {}
+    world.holdPlan = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    await expect(section).toHaveAttribute('aria-busy', 'true')
+    await expect(
+      section
+        .getByLabel('Đang tải tài nguyên kế hoạch')
+        .locator(':scope > div[aria-hidden="true"]'),
+    ).toHaveCount(2)
+    await expect(section.getByRole('status')).toHaveText('Đang tải…')
+    await expect(
+      section.getByRole('heading', { name: 'Bingo hoạt động trong kế hoạch' }),
+    ).toHaveCount(0)
+    release()
+    await expect(section).toHaveAttribute('aria-busy', 'false')
+    await expect(
+      section.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(2)
+  })
+
+  test('shows only the plan resources in order and opens exact-version Detail with its occurrence', async ({
+    page,
+  }) => {
+    const world = resourceWorld(4)
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    await expect(
+      section.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(3)
+    await expect(section.getByRole('heading', { level: 3 }).first()).toHaveText(
+      world.projection.actions[0].title,
+    )
+    const link = section
+      .getByRole('link', { name: 'Mở tài nguyên', exact: true })
+      .first()
+    const href = await link.getAttribute('href')
+    const detailUrl = new URL(href!, 'http://127.0.0.1:3100')
+    expect(detailUrl.pathname).toBe(`/resources/${planResourceId}`)
+    expect(Object.fromEntries(detailUrl.searchParams)).toMatchObject({
+      from: 'support-plan',
+      contentVersion: '3',
+      occurrenceId: planOccurrenceId,
+      actionId: planActionId,
+      localDate: world.projection.localDate,
+    })
+    await expect(
+      section.getByRole('article').getByText('Chưa làm', { exact: true }),
+    ).toHaveCount(3)
+    await section.getByRole('button', { name: 'Xem tất cả (4)' }).click()
+    await expect(
+      section.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(4)
+    const bingo = section.getByRole('region', {
+      name: 'Bingo hoạt động trong kế hoạch',
+    })
+    await expect(bingo.getByRole('listitem')).toHaveCount(4)
+    await expect(bingo.getByText('Một chút dịu dàng trong ngày')).toHaveCount(0)
+    expect(
+      world.calls.filter((call) => call.path.endsWith('/plan-sync')),
+    ).toHaveLength(1)
+    expect(
+      world.calls.filter(
+        (call) => call.method === 'GET' && call.path.includes('/bingo/'),
+      ),
+    ).toHaveLength(0)
+  })
+
+  test('renders no-plan and empty-plan states without a Bingo board', async ({
+    page,
+  }) => {
+    const world = resourceWorld(0)
+    world.projection.planState = 'NONE'
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    await expect(
+      section
+        .getByText('Bạn chưa có kế hoạch hỗ trợ.', { exact: true })
+        .and(section.locator(':not([role="status"])')),
+    ).toBeVisible()
+    await expect(
+      section.getByRole('link', { name: 'Tạo kế hoạch' }),
+    ).toHaveAttribute('href', '/support-plan')
+    await expect(
+      section.getByRole('heading', { name: 'Bingo hoạt động trong kế hoạch' }),
+    ).toHaveCount(0)
+    await expect(page.getByTestId('today-plan-progress')).toHaveCount(0)
+    await expect(page.getByLabel('Bảy ngày gần đây')).toHaveCount(0)
+    world.projection.planState = 'ACTIVE'
+    await page.reload()
+    await expect(
+      section
+        .getByText('Kế hoạch hiện tại chưa có tài nguyên nào.', {
+          exact: true,
+        })
+        .and(section.locator(':not([role="status"])')),
+    ).toBeVisible()
+    await expect(
+      section.getByRole('heading', { name: 'Bingo hoạt động trong kế hoạch' }),
+    ).toHaveCount(0)
+  })
+
+  for (const access of ['free', 'expired', 'unavailable'] as const) {
+    test(`gates ${access} entitlement before Care or Bingo calls`, async ({
+      page,
+    }) => {
+      const world = resourceWorld()
+      world.access = access
+      await installPlanResourcesMocks(page, world)
+      await page.goto('/resources')
+      const section = planSection(page)
+      await expect(
+        section
+          .getByText(
+            access === 'unavailable'
+              ? 'Chưa kiểm tra được kế hoạch của bạn lúc này.'
+              : 'Kế hoạch hỗ trợ chưa được mở với tài khoản của bạn.',
+            { exact: true },
+          )
+          .and(section.locator(':not([role="status"])')),
+      ).toBeVisible()
+      if (access === 'unavailable')
+        await expect(
+          section.getByRole('button', { name: 'Thử lại' }),
+        ).toBeEnabled()
+      else
+        await expect(
+          section.getByRole('link', { name: 'Tìm hiểu' }),
+        ).toHaveAttribute('href', '/support-plan')
+      expect(world.calls).toHaveLength(0)
+      await expect(page.getByTestId('today-plan-progress')).toHaveCount(0)
+      await expect(page.getByLabel('Bảy ngày gần đây')).toHaveCount(0)
+      await expect(
+        page
+          .getByRole('heading', { name: 'Một chút dịu dàng trong ngày' })
+          .first(),
+      ).toBeVisible()
+    })
+  }
+
+  test('keeps paused resources open while Bingo is read-only', async ({
+    page,
+  }) => {
+    const world = resourceWorld()
+    world.projection.planState = 'PAUSED'
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    await expect(
+      section
+        .getByText(
+          'Kế hoạch đang tạm dừng. Bạn vẫn mở được tài nguyên; tiến độ tiếp tục khi kế hoạch hoạt động lại.',
+        )
+        .and(section.locator(':not([role="status"])')),
+    ).toBeVisible()
+    await expect(
+      section.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(2)
+    const bingo = section.getByRole('region', {
+      name: 'Bingo hoạt động trong kế hoạch',
+    })
+    await expect(bingo).toBeVisible()
+    await expect(bingo.getByRole('listitem')).toHaveCount(2)
+    await expect(bingo.getByRole('button')).toHaveCount(0)
+    expect(
+      world.calls.filter((call) => call.path.includes('/items/')),
+    ).toHaveLength(0)
+  })
+
+  test('preserves retired evidence when a plan action ends and displays a switched plan', async ({
+    page,
+  }) => {
+    const world = resourceWorld(2)
+    const retired = world.board.items[0]
+    retired.retired = true
+    retired.evidence = 'CONTENT_VERIFIED'
+    retired.verifiedAt = new Date().toISOString()
+    retired.verificationSource = 'RESOURCE_COMPLETION'
+    world.projection.actions = [world.projection.actions[1]]
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    await expect(
+      section.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(1)
+    const tile = section
+      .getByRole('listitem')
+      .filter({ hasText: retired.label })
+    await expect(
+      tile.getByText('Không còn trong kế hoạch', { exact: true }),
+    ).toBeVisible()
+    await expect(tile.getByRole('button')).toHaveCount(0)
+    expect(world.board.items[0].verifiedAt).not.toBeNull()
+    world.projection.supportPlanId = 'b5000000-0000-4000-8000-000000000671'
+    world.projection.actions[0].title = 'Một nhịp mới trong kế hoạch'
+    world.board.items = [
+      { ...world.board.items[1], label: world.projection.actions[0].title },
+    ]
+    await page.reload()
+    await expect(
+      section.getByRole('heading', {
+        name: 'Một nhịp mới trong kế hoạch',
+        exact: true,
+      }),
+    ).toBeVisible()
+    await expect(section.getByText(retired.label, { exact: true })).toHaveCount(
+      0,
+    )
+  })
+
+  test('self-confirm and undo use the board ETag without completing a Care occurrence', async ({
+    page,
+  }) => {
+    const world = resourceWorld(1)
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    const toggle = section.getByRole('button', {
+      name: `Tự đánh dấu ${world.board.items[0].label}`,
+      exact: true,
+    })
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await toggle.click()
+    await expect(
+      section.getByText('Bạn đã đánh dấu', { exact: true }),
+    ).toBeVisible()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    await expect(
+      section.getByRole('article').getByText('Chưa làm', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      section.getByRole('listitem').getByText('Chưa làm', { exact: true }),
+    ).toHaveCount(0)
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    const toggles = world.calls.filter((call) => call.path.includes('/items/'))
+    expect(toggles.map((call) => call.headers['if-match'])).toEqual([
+      '"0"',
+      '"1"',
+    ])
+    expect(toggles.map((call) => call.body)).toEqual([
+      { selfConfirmed: true },
+      { selfConfirmed: false },
+    ])
+    expect(
+      world.calls.filter(
+        (call) => call.path.startsWith('/api/care/') && call.method !== 'GET',
+      ),
+    ).toHaveLength(0)
+  })
+
+  test('uses today occurrences from the plan projection for the side count and section link', async ({
+    page,
+  }) => {
+    const world = resourceWorld(4)
+    world.projection.actions[0].today!.displayState = 'COMPLETED'
+    world.projection.actions[3].today = null
+    const todayActions = world.projection.actions.filter(
+      (action) => action.today !== null,
+    )
+    const completed = todayActions.filter(
+      (action) => action.today?.displayState === 'COMPLETED',
+    ).length
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const progress = page.getByTestId('today-plan-progress')
+    await expect(progress).toContainText(
+      `${completed}/${todayActions.length} hoạt động hôm nay đã ghi nhận`,
+    )
+    const jump = page.getByRole('link', {
+      name: 'Hoạt động trong kế hoạch hôm nay',
+      exact: true,
+    })
+    await expect(jump).toHaveAttribute('href', '#plan-resources')
+    await jump.click()
+    await expect(page).toHaveURL(/\/resources#plan-resources$/)
+    await expect(planSection(page)).toBeInViewport()
+    world.projection.planState = 'PAUSED'
+    await page.reload()
+    await expect(progress).toContainText(
+      `${completed}/${todayActions.length} hoạt động hôm nay đã ghi nhận`,
+    )
+  })
+
+  test('keeps the Bingo board and previous check when a save fails, focuses retry, and retries only the save', async ({
+    page,
+  }) => {
+    const world = resourceWorld(2)
+    world.toggleStatus = 503
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    const toggle = section.getByRole('button', {
+      name: `Tự đánh dấu ${world.board.items[0].label}`,
+      exact: true,
+    })
+    await toggle.click()
+    const error = section.getByRole('alert')
+    const retry = error.getByRole('button', { name: 'Thử lại', exact: true })
+    await expect(error).toBeVisible()
+    await expect(retry).toBeFocused()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await expect(section.getByRole('listitem')).toHaveCount(2)
+    await expect(
+      section.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(2)
+    await expect(
+      section.getByText(
+        'Chưa tải được kế hoạch của bạn. Danh mục bên dưới vẫn dùng được.',
+        { exact: true },
+      ),
+    ).toHaveCount(0)
+    expect(world.board.items[0].selfConfirmedAt).toBeNull()
+    world.toggleStatus = 200
+    await retry.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    await expect(error).toHaveCount(0)
+    expect(
+      world.calls.filter((call) => call.path.includes('/items/')),
+    ).toHaveLength(2)
+    expect(
+      world.calls.filter((call) => call.path.endsWith('/plan-sync')),
+    ).toHaveLength(1)
+  })
+
+  test('places plan resources immediately after the hero before the activity panel on single-column layouts', async ({
+    page,
+  }) => {
+    const world = resourceWorld()
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    await expect(
+      section.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(2)
+    for (const width of [1024, 768, 375]) {
+      await page.setViewportSize({ width, height: 1000 })
+      const heroBounds = await page
+        .locator('section[aria-labelledby="resource-hero-title"]')
+        .boundingBox()
+      const planBounds = await section.boundingBox()
+      const activityBounds = await page
+        .getByRole('complementary', { name: 'Hoạt động đã ghi nhận' })
+        .boundingBox()
+      expect(heroBounds).not.toBeNull()
+      expect(planBounds).not.toBeNull()
+      expect(activityBounds).not.toBeNull()
+      expect(planBounds!.y).toBeGreaterThanOrEqual(
+        heroBounds!.y + heroBounds!.height,
+      )
+      expect(activityBounds!.y).toBeGreaterThanOrEqual(
+        planBounds!.y + planBounds!.height,
+      )
+    }
+  })
+
+  test('shows all resource cards but at most nine Bingo items', async ({
+    page,
+  }) => {
+    const world = resourceWorld(11)
+    world.board.unavailableActions = world.projection.actions
+      .slice(9)
+      .map((action) => ({ actionId: action.actionId, reason: 'BOARD_FULL' }))
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    await section.getByRole('button', { name: 'Xem tất cả (11)' }).click()
+    await expect(
+      section.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(11)
+    await expect(section.getByRole('listitem')).toHaveCount(9)
+  })
+
+  test('does not open a resource whose pinned version is unavailable', async ({
+    page,
+  }) => {
+    const world = resourceWorld(1)
+    world.board.items = []
+    world.board.unavailableActions = [
+      { actionId: planActionId, reason: 'RESOURCE_VERSION_UNAVAILABLE' },
+    ]
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    await expect(
+      section.getByText('Tài nguyên này hiện không còn khả dụng.', {
+        exact: true,
+      }),
+    ).toBeVisible()
+    await expect(
+      section.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(0)
+    await expect(
+      section.getByRole('heading', { name: 'Bingo hoạt động trong kế hoạch' }),
+    ).toHaveCount(0)
+  })
+
+  test('offers a reload on stale self-confirmation and refreshes the plan board', async ({
+    page,
+  }) => {
+    const world = resourceWorld(1)
+    world.toggleStatus = 412
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    await section
+      .getByRole('button', { name: /^Tự đánh dấu/, exact: true })
+      .click()
+    await expect(
+      section
+        .getByText('Kế hoạch vừa thay đổi.', { exact: true })
+        .and(section.locator(':not([role="status"])')),
+    ).toBeVisible()
+    world.toggleStatus = 200
+    await section.getByRole('button', { name: 'Tải lại', exact: true }).click()
+    await expect(
+      section.getByRole('button', { name: /^Tự đánh dấu/, exact: true }),
+    ).toBeEnabled()
+    expect(
+      world.calls.filter((call) => call.path.endsWith('/plan-sync')).length,
+    ).toBeGreaterThan(1)
+  })
+
+  test('keeps an unavailable resource closed after another tile is self-confirmed', async ({
+    page,
+  }) => {
+    const world = resourceWorld(2)
+    world.board.items = world.board.items.slice(1)
+    world.board.unavailableActions = [
+      { actionId: planActionId, reason: 'RESOURCE_VERSION_UNAVAILABLE' },
+    ]
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    const unavailable = section
+      .getByRole('article')
+      .filter({ hasText: world.projection.actions[0].title })
+    await expect(
+      unavailable.getByText('Tài nguyên này hiện không còn khả dụng.', {
+        exact: true,
+      }),
+    ).toBeVisible()
+    await expect(
+      unavailable.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(0)
+    await section.getByRole('button', { name: /^Tự đánh dấu/ }).click()
+    await expect(
+      section.getByText('Bạn đã đánh dấu', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      unavailable.getByText('Tài nguyên này hiện không còn khả dụng.', {
+        exact: true,
+      }),
+    ).toBeVisible()
+    await expect(
+      unavailable.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(0)
+  })
+
+  for (const dependency of ['Care', 'Content'] as const) {
+    test(`keeps catalogue usable when ${dependency} plan loading fails`, async ({
+      page,
+    }) => {
+      const world = resourceWorld()
+      if (dependency === 'Care') world.planStatus = 503
+      else world.syncStatus = 503
+      await installPlanResourcesMocks(page, world)
+      await page.goto('/resources')
+      const section = planSection(page)
+      await expect(
+        section
+          .getByText(
+            'Chưa tải được kế hoạch của bạn. Danh mục bên dưới vẫn dùng được.',
+            { exact: true },
+          )
+          .and(section.locator(':not([role="status"])')),
+      ).toBeVisible()
+      await expect(
+        section.getByRole('button', { name: 'Thử lại' }),
+      ).toBeEnabled()
+      await expect(
+        section.getByRole('heading', {
+          name: 'Bingo hoạt động trong kế hoạch',
+        }),
+      ).toHaveCount(0)
+      await expect(page.getByTestId('today-plan-progress')).toHaveCount(0)
+      await expect(page.getByLabel('Bảy ngày gần đây')).toHaveCount(0)
+      await expect(
+        page
+          .getByRole('heading', { name: 'Một chút dịu dàng trong ngày' })
+          .first(),
+      ).toBeVisible()
+      world.planStatus = 200
+      world.syncStatus = 200
+      await section.getByRole('button', { name: 'Thử lại' }).click()
+      await expect(
+        section.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+      ).toHaveCount(2)
+    })
+  }
+
+  test('keeps plan resources and catalogue usable when daily journey fails', async ({
+    page,
+  }) => {
+    const world = resourceWorld()
+    world.journeyStatus = 503
+    await installPlanResourcesMocks(page, world)
+    await page.goto('/resources')
+    const section = planSection(page)
+    await expect(
+      section.getByRole('link', { name: 'Mở tài nguyên', exact: true }),
+    ).toHaveCount(2)
+    await expect(
+      section.getByRole('heading', { name: 'Bingo hoạt động trong kế hoạch' }),
+    ).toBeVisible()
+    await expect(
+      page
+        .getByRole('heading', { name: 'Một chút dịu dàng trong ngày' })
+        .first(),
     ).toBeVisible()
   })
 })

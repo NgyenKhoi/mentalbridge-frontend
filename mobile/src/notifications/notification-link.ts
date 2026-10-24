@@ -1,14 +1,39 @@
 import type { NotificationAction } from './notification-contract'
+import { z } from 'zod'
 
 // Never pass a server href directly to router or Linking. Pair the action and
 // target with the exact published web path, then select an installed mobile route.
 export function notificationDestination(action: NotificationAction | null) {
   if (!action) return null
   if (
+    action.type === 'OPEN_COMMUNITY_CONVERSATION' ||
+    action.type === 'OPEN_COMMUNITY_REQUEST' ||
+    action.type === 'OPEN_COMMUNITY_INVITATION'
+  ) {
+    if (!z.uuid().safeParse(action.targetId).success) return null
+    const targetId = action.targetId
+    if (!targetId) return null
+    const segment =
+      action.type === 'OPEN_COMMUNITY_CONVERSATION'
+        ? 'conversations'
+        : action.type === 'OPEN_COMMUNITY_REQUEST'
+          ? 'requests'
+          : 'invitations'
+    if (action.href !== `/community/chat/${segment}/${targetId}`) return null
+    const params =
+      action.type === 'OPEN_COMMUNITY_CONVERSATION'
+        ? { conversationId: targetId }
+        : action.type === 'OPEN_COMMUNITY_REQUEST'
+          ? { requestId: targetId }
+          : { invitationId: targetId }
+    return { pathname: '/(user)/community-chat' as const, params }
+  }
+  if (
     action.type === 'OPEN_RESOURCE' ||
     action.type === 'OPEN_COMMUNITY_POST'
   ) {
-    if (!action.targetId) return null
+    if (!action.targetId || !z.uuid().safeParse(action.targetId).success)
+      return null
     const isResource = action.type === 'OPEN_RESOURCE'
     if (
       action.href !==
@@ -48,4 +73,5 @@ export function notificationDestination(action: NotificationAction | null) {
         ? { pathname: '/(user)/assessment' as const }
         : null
   }
+  return null
 }

@@ -11,12 +11,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ResourceBrowserError } from '../api/browser-resources'
 import ResourceDetail from './ResourceDetail'
+import { ApiError } from '@/lib/api/api-error'
+import { emotionOccurrenceFixture } from '@/features/support-plan/testing/native-support-plan-fixture'
 
 const api = vi.hoisted(() => ({
   getResourceDetail: vi.fn(),
   getResourceCatalogue: vi.fn(),
   getResourceProgress: vi.fn(),
   saveResourceProgress: vi.fn(),
+  resolveResourcePlanOrigin: vi.fn(),
+  reconcileResourceOccurrence: vi.fn(),
 }))
 
 const youtube = vi.hoisted(() => {
@@ -51,6 +55,18 @@ vi.mock('../api/browser-resource-progress', () => ({
   getResourceProgress: api.getResourceProgress,
   saveResourceProgress: api.saveResourceProgress,
 }))
+vi.mock('@/features/support-plan/api/browser-support-plan-actions', () => ({
+  reconcileResourceOccurrence: api.reconcileResourceOccurrence,
+}))
+vi.mock(
+  '@/features/support-plan/resource-plan-origin',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('@/features/support-plan/resource-plan-origin')
+    >()),
+    resolveResourcePlanOrigin: api.resolveResourcePlanOrigin,
+  }),
+)
 
 const resource = {
   id: '00000000-0000-4000-8000-000000000213',
@@ -118,6 +134,8 @@ describe('ResourceDetail', () => {
       hasMore: false,
     })
     api.getResourceProgress.mockResolvedValue([])
+    api.resolveResourcePlanOrigin.mockReset()
+    api.reconcileResourceOccurrence.mockReset()
     api.saveResourceProgress.mockImplementation(
       async (_resourceId: string, localDate: string, update: object) => ({
         resourceId: resource.id,
@@ -214,6 +232,7 @@ describe('ResourceDetail', () => {
       {
         status: 'IN_PROGRESS',
         completedActionIds: ['video-viewed'],
+        resourceVersion: '4',
       },
     )
 
@@ -237,6 +256,7 @@ describe('ResourceDetail', () => {
       {
         status: 'COMPLETED',
         completedActionIds: ['video-viewed', 'video-reflected'],
+        resourceVersion: '4',
       },
     )
     expect(await screen.findByText(/một bước nhỏ đã hoàn thành/i)).toBeVisible()
@@ -316,6 +336,7 @@ describe('ResourceDetail', () => {
       {
         status: 'COMPLETED',
         completedActionIds: ['write', 'reflect'],
+        resourceVersion: '4',
       },
     )
     expect(
@@ -556,6 +577,354 @@ describe('ResourceDetail', () => {
       '4',
       expect.anything(),
     )
+  })
+
+  async function completePlanResource() {
+    const user = userEvent.setup()
+    await user.click(
+      await screen.findByRole('button', { name: /đánh dấu đã xem xong/i }),
+    )
+    await user.click(screen.getByLabelText(/dừng lại hoặc giảm cường độ/i))
+    await user.click(screen.getByLabelText(/một bước nhỏ, an toàn/i))
+    await user.click(screen.getByRole('button', { name: 'Hoàn tất' }))
+  }
+
+  const planOccurrence = {
+    ...emotionOccurrenceFixture(),
+    actionType: 'RESOURCE' as const,
+    version: 6,
+  }
+  const planOrigin = {
+    occurrenceId: planOccurrence.occurrenceId,
+    actionId: planOccurrence.actionId,
+    localDate: planOccurrence.localDate,
+  }
+
+  it('saves the pinned version and waits for verified Care completion before showing plan success', async () => {
+    let confirm: (value: unknown) => void = () => undefined
+    api.resolveResourcePlanOrigin.mockResolvedValue(planOccurrence)
+    api.reconcileResourceOccurrence.mockReturnValue(
+      new Promise((resolve) => {
+        confirm = resolve
+      }),
+    )
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+        contentVersion="3"
+        supportPlanOrigin={planOrigin}
+        supportPlanReturnHref="/support-plan"
+      />,
+    )
+    await completePlanResource()
+    await waitFor(() =>
+      expect(api.reconcileResourceOccurrence).toHaveBeenCalledWith(
+        planOccurrence.occurrenceId,
+        6,
+      ),
+    )
+    expect(api.saveResourceProgress).toHaveBeenCalledWith(
+      resource.id,
+      expect.any(String),
+      expect.objectContaining({ resourceVersion: '3' }),
+    )
+    expect(screen.queryByText('Đã ghi nhận vào kế hoạch hôm nay.')).toBeNull()
+    expect(screen.queryByText('Một bước nhỏ đã hoàn thành!')).toBeNull()
+    await act(async () =>
+      confirm({
+        ...planOccurrence,
+        state: 'COMPLETED',
+        completionEvidence: {
+          kind: 'RESOURCE_COMPLETION',
+          ownerDomain: 'CONTENT',
+        },
+      }),
+    )
+    expect(
+      await screen.findByText('Đã ghi nhận vào kế hoạch hôm nay.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getAllByText('Đã ghi nhận vào kế hoạch hôm nay.'),
+    ).toHaveLength(1)
+    expect(
+      screen.getByRole('link', { name: 'Quay lại kế hoạch' }),
+    ).toHaveAttribute('href', '/support-plan')
+    expect(screen.queryByText('Đã ghi nhận từ bài luyện tập')).toBeNull()
+    expect(screen.queryByText(/Kết quả hoàn thành đã được ghi nhận/)).toBeNull()
+  })
+
+  it('keeps the Content save after reconcile 503 and retries reconciliation without saving twice', async () => {
+    api.resolveResourcePlanOrigin.mockResolvedValue(planOccurrence)
+    api.reconcileResourceOccurrence
+      .mockRejectedValueOnce(
+        new ApiError({
+          message: 'Unavailable',
+          code: 'CONTENT_UNAVAILABLE',
+          status: 503,
+        }),
+      )
+      .mockResolvedValue({
+        ...planOccurrence,
+        state: 'COMPLETED',
+        completionEvidence: {
+          kind: 'RESOURCE_COMPLETION',
+          ownerDomain: 'CONTENT',
+        },
+      })
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+        contentVersion="4"
+        supportPlanOrigin={planOrigin}
+        supportPlanReturnHref="/support-plan"
+      />,
+    )
+    await completePlanResource()
+    expect(
+      await screen.findByText(
+        'Đã lưu bài luyện tập. Kế hoạch sẽ cập nhật khi kết nối lại.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Đã ghi nhận vào kế hoạch hôm nay.')).toBeNull()
+    const saveCount = api.saveResourceProgress.mock.calls.length
+    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(
+      await screen.findByText('Đã ghi nhận vào kế hoạch hôm nay.'),
+    ).toBeInTheDocument()
+    expect(api.saveResourceProgress).toHaveBeenCalledTimes(saveCount)
+    expect(api.reconcileResourceOccurrence).toHaveBeenCalledTimes(2)
+  })
+
+  it('leaves explicit acknowledgement available on the plan when no verified fact exists', async () => {
+    api.resolveResourcePlanOrigin.mockResolvedValue(planOccurrence)
+    api.reconcileResourceOccurrence.mockRejectedValue(
+      new ApiError({
+        message: 'Missing',
+        code: 'RESOURCE_EVIDENCE_NOT_FOUND',
+        status: 409,
+      }),
+    )
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+        contentVersion="4"
+        supportPlanOrigin={planOrigin}
+        supportPlanReturnHref="/support-plan"
+      />,
+    )
+    await completePlanResource()
+    expect(
+      await screen.findByText(
+        'Đã lưu bài luyện tập. Bạn có thể xác nhận trong kế hoạch.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Xem trong kế hoạch' }),
+    ).toHaveAttribute('href', '/support-plan')
+    expect(screen.queryByText('Đã ghi nhận vào kế hoạch hôm nay.')).toBeNull()
+  })
+
+  it('does not reconcile when the owned target is historical, paused or an adapter', async () => {
+    api.resolveResourcePlanOrigin.mockResolvedValue(null)
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+        contentVersion="4"
+        supportPlanOrigin={planOrigin}
+        supportPlanReturnHref="/support-plan"
+      />,
+    )
+    await completePlanResource()
+    expect(api.reconcileResourceOccurrence).not.toHaveBeenCalled()
+    expect(
+      await screen.findByText(/Kết quả hoàn thành đã được ghi nhận/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Đã ghi nhận vào kế hoạch hôm nay.')).toBeNull()
+  })
+
+  it.each(['CONTENT', 'CARE'] as const)(
+    'skips reconcile for an already completed occurrence with %s evidence',
+    async (ownerDomain) => {
+      api.resolveResourcePlanOrigin.mockResolvedValue({
+        ...planOccurrence,
+        state: 'COMPLETED',
+        completionEvidence: {
+          ownerDomain,
+          kind:
+            ownerDomain === 'CONTENT'
+              ? 'RESOURCE_COMPLETION'
+              : 'USER_ACKNOWLEDGEMENT',
+        },
+      })
+      render(
+        <ResourceDetail
+          resourceId={resource.id}
+          contentVersion="4"
+          supportPlanOrigin={planOrigin}
+          supportPlanReturnHref="/support-plan"
+        />,
+      )
+      await completePlanResource()
+      expect(
+        await screen.findByText(
+          ownerDomain === 'CONTENT'
+            ? 'Đã ghi nhận vào kế hoạch hôm nay.'
+            : 'Hoạt động này không cần xác nhận thêm trong kế hoạch.',
+        ),
+      ).toBeInTheDocument()
+      expect(api.reconcileResourceOccurrence).not.toHaveBeenCalled()
+      expect(
+        screen.queryByText(/Bạn có thể xác nhận trong kế hoạch/),
+      ).toBeNull()
+    },
+  )
+
+  it.each(['CONTENT', 'CARE'] as const)(
+    'reloads a concurrently completed occurrence after OCCURRENCE_NOT_OPEN for %s evidence',
+    async (ownerDomain) => {
+      api.resolveResourcePlanOrigin
+        .mockResolvedValueOnce(planOccurrence)
+        .mockResolvedValueOnce({
+          ...planOccurrence,
+          state: 'COMPLETED',
+          completionEvidence: {
+            ownerDomain,
+            kind:
+              ownerDomain === 'CONTENT'
+                ? 'RESOURCE_COMPLETION'
+                : 'USER_ACKNOWLEDGEMENT',
+          },
+        })
+      api.reconcileResourceOccurrence.mockRejectedValue(
+        new ApiError({
+          status: 409,
+          code: 'OCCURRENCE_NOT_OPEN',
+          message: 'Occurrence is closed',
+        }),
+      )
+      render(
+        <ResourceDetail
+          resourceId={resource.id}
+          contentVersion="4"
+          supportPlanOrigin={planOrigin}
+          supportPlanReturnHref="/support-plan"
+        />,
+      )
+      await completePlanResource()
+      expect(
+        await screen.findByText(
+          ownerDomain === 'CONTENT'
+            ? 'Đã ghi nhận vào kế hoạch hôm nay.'
+            : 'Hoạt động này không cần xác nhận thêm trong kế hoạch.',
+        ),
+      ).toBeInTheDocument()
+      expect(api.resolveResourcePlanOrigin).toHaveBeenCalledTimes(2)
+      expect(api.reconcileResourceOccurrence).toHaveBeenCalledTimes(1)
+      expect(
+        screen.queryByText(/Bạn có thể xác nhận trong kế hoạch/),
+      ).toBeNull()
+    },
+  )
+
+  it('does not request plan evidence when the Content save fails', async () => {
+    api.saveResourceProgress.mockImplementation(
+      async (
+        _resourceId: string,
+        localDate: string,
+        update: { status: string },
+      ) => {
+        if (update.status === 'COMPLETED') throw new Error('Unavailable')
+        return { resourceId: resource.id, localDate, ...update }
+      },
+    )
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+        contentVersion="4"
+        supportPlanOrigin={planOrigin}
+        supportPlanReturnHref="/support-plan"
+      />,
+    )
+    await completePlanResource()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Chưa thể lưu tiến độ. Bạn thử lại sau một chút nhé.',
+    )
+    expect(api.resolveResourcePlanOrigin).not.toHaveBeenCalled()
+    expect(api.reconcileResourceOccurrence).not.toHaveBeenCalled()
+    expect(screen.queryByText('Đã ghi nhận vào kế hoạch hôm nay.')).toBeNull()
+  })
+
+  it('reloads the owned occurrence after a stale reconcile and uses its new version', async () => {
+    api.resolveResourcePlanOrigin
+      .mockResolvedValueOnce(planOccurrence)
+      .mockResolvedValueOnce({ ...planOccurrence, version: 7 })
+    api.reconcileResourceOccurrence
+      .mockRejectedValueOnce(
+        new ApiError({
+          message: 'Changed',
+          code: 'OCCURRENCE_VERSION_MISMATCH',
+          status: 412,
+        }),
+      )
+      .mockResolvedValueOnce({
+        ...planOccurrence,
+        state: 'COMPLETED',
+        completionEvidence: {
+          kind: 'RESOURCE_COMPLETION',
+          ownerDomain: 'CONTENT',
+        },
+      })
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+        contentVersion="4"
+        supportPlanOrigin={planOrigin}
+        supportPlanReturnHref="/support-plan"
+      />,
+    )
+    await completePlanResource()
+    expect(
+      await screen.findByText('Kế hoạch vừa thay đổi.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Đã ghi nhận vào kế hoạch hôm nay.')).toBeNull()
+    const saveCount = api.saveResourceProgress.mock.calls.length
+    await userEvent.click(screen.getByRole('button', { name: 'Tải lại' }))
+    expect(
+      await screen.findByText('Đã ghi nhận vào kế hoạch hôm nay.'),
+    ).toBeInTheDocument()
+    expect(api.resolveResourcePlanOrigin).toHaveBeenCalledTimes(2)
+    expect(api.reconcileResourceOccurrence).toHaveBeenLastCalledWith(
+      planOccurrence.occurrenceId,
+      7,
+    )
+    expect(api.saveResourceProgress).toHaveBeenCalledTimes(saveCount)
+  })
+
+  it('does not show plan completion from a completed response without CONTENT evidence', async () => {
+    api.resolveResourcePlanOrigin.mockResolvedValue(planOccurrence)
+    api.reconcileResourceOccurrence.mockResolvedValue({
+      ...planOccurrence,
+      state: 'COMPLETED',
+      completionEvidence: {
+        kind: 'USER_ACKNOWLEDGEMENT',
+        ownerDomain: 'CARE',
+      },
+    })
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+        contentVersion="4"
+        supportPlanOrigin={planOrigin}
+        supportPlanReturnHref="/support-plan"
+      />,
+    )
+    await completePlanResource()
+    expect(
+      await screen.findByText(
+        'Hoạt động này không cần xác nhận thêm trong kế hoạch.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Đã ghi nhận vào kế hoạch hôm nay.')).toBeNull()
   })
 
   it('shows a bounded not-found state', async () => {

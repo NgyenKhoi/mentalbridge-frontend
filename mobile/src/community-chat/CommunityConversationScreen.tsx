@@ -1,5 +1,5 @@
 import { randomUUID } from 'expo-crypto'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   AppState,
   BackHandler,
@@ -60,8 +60,13 @@ export function CommunityConversationScreen({
     [group, setGroup] = useState(false)
   const [reportId, setReportId] = useState<string | null>(null),
     [blocking, setBlocking] = useState(false)
+  const [retractId, setRetractId] = useState<string | null>(null)
   const [reportSent, setReportSent] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const [clearConfirm, setClearConfirm] = useState(false)
+  const [clearBusy, setClearBusy] = useState(false)
+  const [clearError, setClearError] = useState(false)
+  const clearAttempt = useRef<string | null>(null)
   const action = useCommunityAction(),
     key = useCommandKey()
   useEffect(() => {
@@ -85,7 +90,12 @@ export function CommunityConversationScreen({
         ) {
           setDraft('')
           setReportId(null)
+          setRetractId(null)
           setBlocking(false)
+          setClearConfirm(false)
+          setClearBusy(false)
+          setClearError(false)
+          clearAttempt.current = null
         }
       }),
     [runtime],
@@ -114,6 +124,50 @@ export function CommunityConversationScreen({
     if (await runtime.send(draft)) {
       setDraft('')
       setSaved(true)
+    }
+  }
+  const conversationIsVisible = async () => {
+    let cursor: string | undefined
+    do {
+      const page = await api.conversations(cursor)
+      if (page.items.some((item) => item.conversationId === conversationId))
+        return true
+      cursor = page.nextCursor ?? undefined
+    } while (cursor)
+    return false
+  }
+  const finishClear = () => {
+    runtime.clear()
+    setDraft('')
+    setReportId(null)
+    setRetractId(null)
+    setBlocking(false)
+    setClearConfirm(false)
+    setClearError(false)
+    clearAttempt.current = null
+    onBack()
+  }
+  const clearConversation = async () => {
+    if (clearBusy) return
+    clearAttempt.current ??= randomUUID()
+    const commandKey = clearAttempt.current
+    setClearBusy(true)
+    setClearError(false)
+    try {
+      await api.clearConversation(conversationId, commandKey)
+      finishClear()
+    } catch {
+      try {
+        if (!(await conversationIsVisible())) {
+          finishClear()
+          return
+        }
+      } catch {
+        clearAttempt.current = commandKey
+      }
+      setClearError(true)
+    } finally {
+      setClearBusy(false)
     }
   }
   if (group && value?.kind === 'GROUP')
@@ -188,6 +242,46 @@ export function CommunityConversationScreen({
               onPress={() => setGroup(true)}
             />
           )}
+          <ChatButton
+            label="Xóa cuộc trò chuyện phía tôi"
+            disabled={clearBusy}
+            onPress={() => {
+              clearAttempt.current = null
+              setClearError(false)
+              setClearConfirm(true)
+            }}
+          />
+          {clearConfirm && (
+            <View style={s.card} accessibilityRole="alert">
+              <Text style={s.heading}>Xóa cuộc trò chuyện phía bạn?</Text>
+              <ChatNotice>
+                Cuộc trò chuyện và lịch sử hiện tại sẽ biến mất khỏi hộp thư của
+                bạn. Những người khác vẫn giữ nguyên lịch sử. Khi có tin nhắn
+                mới, cuộc trò chuyện sẽ xuất hiện lại và chỉ hiển thị tin nhắn
+                mới.
+              </ChatNotice>
+              {clearError && (
+                <ChatNotice>
+                  Chưa xác nhận đã xóa. Hội thoại vẫn được giữ trên màn hình;
+                  bạn có thể thử lại an toàn.
+                </ChatNotice>
+              )}
+              <ChatButton
+                label="Giữ lại"
+                disabled={clearBusy}
+                onPress={() => {
+                  clearAttempt.current = null
+                  setClearError(false)
+                  setClearConfirm(false)
+                }}
+              />
+              <ChatButton
+                label={clearBusy ? 'Đang xóa…' : 'Xác nhận xóa phía tôi'}
+                disabled={clearBusy}
+                onPress={() => void clearConversation()}
+              />
+            </View>
+          )}
           {value.state !== 'ACTIVE' && (
             <ChatNotice>
               Hội thoại chỉ đọc. Bạn không thể gửi thêm tin nhắn.
@@ -199,38 +293,106 @@ export function CommunityConversationScreen({
               Chưa có tin nhắn trong lịch sử bạn được xem.
             </ChatNotice>
           )}
-          {state.messages.map((message) => (
-            <View
-              key={message.messageId}
-              style={[
-                styles.message,
-                message.sender.state === 'AVAILABLE' &&
-                  message.sender.communityProfileId === ownId &&
-                  styles.own,
-              ]}
-              testID="community-chat-message"
-            >
-              <Text style={s.heading}>{peerName(message.sender)}</Text>
-              <Text selectable style={s.body}>
-                {message.content}
-              </Text>
-              <Text style={s.muted}>
-                {new Date(message.createdAt).toLocaleString('vi-VN')}
-              </Text>
-              {!(
-                message.sender.state === 'AVAILABLE' &&
-                message.sender.communityProfileId === ownId
-              ) && (
+          {state.messages.map((message) => {
+            const mine =
+              message.sender.state === 'AVAILABLE' &&
+              message.sender.communityProfileId === ownId
+            return (
+              <View
+                key={message.messageId}
+                style={[
+                  styles.message,
+                  mine && styles.own,
+                  message.state === 'RETRACTED' && styles.retracted,
+                ]}
+                testID="community-chat-message"
+              >
+                <Text style={s.heading}>{peerName(message.sender)}</Text>
+                <Text
+                  selectable={message.state === 'ACTIVE'}
+                  style={[
+                    s.body,
+                    message.state === 'RETRACTED' && styles.retractedText,
+                  ]}
+                >
+                  {message.state === 'ACTIVE'
+                    ? message.content
+                    : mine
+                      ? 'Bạn đã gỡ tin nhắn'
+                      : message.sender.state === 'AVAILABLE'
+                        ? `${message.sender.displayName} đã gỡ tin nhắn`
+                        : 'Tin nhắn đã được gỡ'}
+                </Text>
+                <Text style={s.muted}>
+                  {new Date(message.createdAt).toLocaleString('vi-VN')}
+                </Text>
+                {message.state === 'ACTIVE' &&
+                  (mine ? (
+                    <ChatButton
+                      label={
+                        state.retracting === message.messageId
+                          ? 'Đang gỡ tin nhắn…'
+                          : 'Gỡ tin nhắn'
+                      }
+                      disabled={Boolean(state.retracting)}
+                      onPress={() => setRetractId(message.messageId)}
+                    />
+                  ) : (
+                    <ChatButton
+                      label={`Báo cáo tin nhắn của ${peerName(message.sender)}`}
+                      onPress={() => {
+                        setReportId(message.messageId)
+                        setReportSent(false)
+                      }}
+                    />
+                  ))}
+                {state.retractionIssue?.messageId === message.messageId && (
+                  <View style={styles.retractError}>
+                    <ChatNotice>
+                      Chưa thể gỡ tin nhắn lúc này. Nội dung vẫn được giữ
+                      nguyên.
+                    </ChatNotice>
+                    <ChatButton
+                      label="Thử lại gỡ tin nhắn"
+                      disabled={Boolean(state.retracting)}
+                      onPress={() => void runtime.retract(message.messageId)}
+                    />
+                  </View>
+                )}
+              </View>
+            )
+          })}
+          {retractId &&
+            state.messages.some(
+              (message) =>
+                message.messageId === retractId && message.state === 'ACTIVE',
+            ) && (
+              <View style={s.card} accessibilityRole="alert">
+                <Text style={s.heading}>Gỡ tin nhắn cho mọi người?</Text>
+                <ChatNotice>
+                  Nội dung sẽ được thay bằng thông báo đã gỡ đối với mọi người
+                  trong cuộc trò chuyện.
+                </ChatNotice>
                 <ChatButton
-                  label={`Báo cáo tin nhắn của ${peerName(message.sender)}`}
+                  label="Giữ lại"
+                  disabled={Boolean(state.retracting)}
+                  onPress={() => setRetractId(null)}
+                />
+                <ChatButton
+                  label={
+                    state.retracting === retractId
+                      ? 'Đang gỡ tin nhắn…'
+                      : 'Xác nhận gỡ tin nhắn'
+                  }
+                  disabled={Boolean(state.retracting)}
                   onPress={() => {
-                    setReportId(message.messageId)
-                    setReportSent(false)
+                    void runtime.retract(retractId).then((succeeded) => {
+                      if (succeeded) setRetractId(null)
+                    })
                   }}
                 />
-              )}
-            </View>
-          ))}
+              </View>
+            )}
           {state.nextCursor && (
             <ChatButton
               label="Xem tiếp tin nhắn"
@@ -321,7 +483,8 @@ export function CommunityConversationScreen({
           )}
           {reportId &&
             state.messages.some(
-              (message) => message.messageId === reportId,
+              (message) =>
+                message.messageId === reportId && message.state === 'ACTIVE',
             ) && (
               <View style={s.card}>
                 <Text style={s.heading}>Lý do báo cáo tin nhắn</Text>
@@ -379,4 +542,10 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   own: { backgroundColor: colors.tealPale },
+  retracted: {
+    backgroundColor: colors.surfaceSoft,
+    borderStyle: 'dashed',
+  },
+  retractedText: { color: colors.inkSoft, fontStyle: 'italic' },
+  retractError: { gap: spacing.sm },
 })

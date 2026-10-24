@@ -4,6 +4,8 @@ import { browserApiClient } from '@/lib/api/browser-client'
 
 export type ResourceBookmark = components['schemas']['ResourceBookmark']
 export type ResourceBingoBoard = components['schemas']['ResourceBingoBoard']
+export type ResourceBingoPlanSync =
+  components['schemas']['ResourceBingoPlanSync']
 
 function requiredEtag(value: unknown) {
   if (typeof value !== 'string' || !/^\"(0|[1-9]\d*)\"$/.test(value)) {
@@ -45,6 +47,17 @@ export async function getResourceBingo(weekStart: string) {
     board: response.data,
     etag: requiredEtag(response.headers.etag),
   }
+}
+
+export async function syncResourceBingoWithPlan(
+  weekStart: string,
+  timeZone: string,
+) {
+  const response = await browserApiClient.put<ResourceBingoPlanSync>(
+    `/resources/bingo/${encodeURIComponent(weekStart)}/plan-sync`,
+    { timeZone },
+  )
+  return { board: response.data, etag: requiredEtag(response.headers.etag) }
 }
 
 export async function setResourceBingoSelfConfirmation(

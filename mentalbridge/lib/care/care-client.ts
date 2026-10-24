@@ -29,6 +29,7 @@ import type {
   ReassessmentSummary,
   ReassessmentSummaryCreateRequest,
   GuidedJourney,
+  HomeNextStep,
   ScreeningEpisode,
   ScreeningEpisodeEvaluationOutcome,
   ScreeningEpisodeHistoryPage,
@@ -67,6 +68,7 @@ import {
   parseSupportGuideHistory,
 } from './support-guide-validation'
 import { parseGuidedJourney } from './guided-journey-validation'
+import { parseHomeNextStep } from './home-next-step-validation'
 import {
   parseCombinedScreeningMeaning,
   parseScreeningEpisodeHistory,
@@ -895,6 +897,22 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: parseGuidedJourney,
+    })
+  },
+
+  homeNextStep(
+    accessToken: string,
+    timezone: string | undefined,
+    correlationId: string,
+  ): Promise<HomeNextStep> {
+    const query = new URLSearchParams()
+    if (timezone !== undefined) query.set('timezone', timezone)
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/home-next-step${query.size ? `?${query}` : ''}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseHomeNextStep,
     })
   },
 
