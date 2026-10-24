@@ -54,14 +54,50 @@ export type ChatGroupConversation = Readonly<{
 
 export type ChatConversation = ChatDirectConversation | ChatGroupConversation
 
-export type ChatMessage = Readonly<{
+export type ChatGroup = Readonly<{
+  conversationId: string
+  kind: 'GROUP'
+  name: string
+  state: 'ACTIVE' | 'ARCHIVED'
+  memberLimit: number
+  version: string
+}>
+
+export type ChatGroupInvitation = Readonly<{
+  invitationId: string
+  conversationId: string
+  groupName: string
+  inviter: ChatPeer
+  state: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED' | 'EXPIRED'
+  expiresAt: string
+  version: string
+}>
+
+export type ChatGroupMember = Readonly<{
+  peer: ChatPeer
+  role: 'OWNER' | 'ADMIN' | 'MEMBER'
+  joinedAt: string
+}>
+
+type ChatMessageBase = Readonly<{
   messageId: string
   conversationId: string
   clientMessageId: string
   sender: ChatPeer
-  content: string
   createdAt: string
 }>
+
+export type ChatMessage =
+  | (ChatMessageBase &
+      Readonly<{
+        state: 'ACTIVE'
+        content: string
+      }>)
+  | (ChatMessageBase &
+      Readonly<{
+        state: 'RETRACTED'
+        retractedAt: string
+      }>)
 
 export type ChatPage<T> = Readonly<{
   items: T[]
@@ -280,26 +316,45 @@ export function parseChatMessage(value: unknown): ChatMessage | null {
   const sender = item ? parseChatPeer(item.sender) : null
   if (
     !item ||
-    !exactKeys(item, [
-      'messageId',
-      'conversationId',
-      'clientMessageId',
-      'sender',
-      'content',
-      'createdAt',
-    ]) ||
     !['messageId', 'conversationId', 'clientMessageId'].every(
       (key) =>
         typeof item[key] === 'string' && UUID_PATTERN.test(String(item[key])),
     ) ||
     !sender ||
-    typeof item.content !== 'string' ||
-    [...item.content].length < 1 ||
-    [...item.content].length > 4000 ||
     !dateTime(item.createdAt)
   )
     return null
-  return { ...(item as Omit<ChatMessage, 'sender'>), sender }
+  if (
+    item.state === 'ACTIVE' &&
+    exactKeys(item, [
+      'messageId',
+      'conversationId',
+      'clientMessageId',
+      'sender',
+      'state',
+      'content',
+      'createdAt',
+    ]) &&
+    typeof item.content === 'string' &&
+    [...item.content].length >= 1 &&
+    [...item.content].length <= 4000
+  )
+    return { ...(item as Omit<ChatMessage, 'sender'>), sender } as ChatMessage
+  if (
+    item.state === 'RETRACTED' &&
+    exactKeys(item, [
+      'messageId',
+      'conversationId',
+      'clientMessageId',
+      'sender',
+      'state',
+      'createdAt',
+      'retractedAt',
+    ]) &&
+    dateTime(item.retractedAt)
+  )
+    return { ...(item as Omit<ChatMessage, 'sender'>), sender } as ChatMessage
+  return null
 }
 
 export function parseChatPage<T>(
@@ -330,6 +385,85 @@ export const parseRequestPage = (value: unknown) =>
   parseChatPage(value, parseChatRequest)
 export const parseMessagePage = (value: unknown) =>
   parseChatPage(value, parseChatMessage)
+
+export function parseChatGroup(value: unknown): ChatGroup | null {
+  const item = record(value)
+  return item &&
+    exactKeys(item, [
+      'conversationId',
+      'kind',
+      'name',
+      'state',
+      'memberLimit',
+      'version',
+    ]) &&
+    typeof item.conversationId === 'string' &&
+    UUID_PATTERN.test(item.conversationId) &&
+    item.kind === 'GROUP' &&
+    typeof item.name === 'string' &&
+    [...item.name].length >= 1 &&
+    [...item.name].length <= 80 &&
+    ['ACTIVE', 'ARCHIVED'].includes(String(item.state)) &&
+    Number.isInteger(item.memberLimit) &&
+    Number(item.memberLimit) >= 20 &&
+    Number(item.memberLimit) <= 30 &&
+    typeof item.version === 'string' &&
+    VERSION_PATTERN.test(item.version)
+    ? (item as ChatGroup)
+    : null
+}
+
+export function parseChatGroupInvitation(
+  value: unknown,
+): ChatGroupInvitation | null {
+  const item = record(value)
+  const inviter = item ? parseChatPeer(item.inviter) : null
+  if (
+    !item ||
+    !exactKeys(item, [
+      'invitationId',
+      'conversationId',
+      'groupName',
+      'inviter',
+      'state',
+      'expiresAt',
+      'version',
+    ]) ||
+    typeof item.invitationId !== 'string' ||
+    !UUID_PATTERN.test(item.invitationId) ||
+    typeof item.conversationId !== 'string' ||
+    !UUID_PATTERN.test(item.conversationId) ||
+    typeof item.groupName !== 'string' ||
+    [...item.groupName].length < 1 ||
+    [...item.groupName].length > 80 ||
+    !inviter ||
+    !['PENDING', 'ACCEPTED', 'DECLINED', 'REVOKED', 'EXPIRED'].includes(
+      String(item.state),
+    ) ||
+    !dateTime(item.expiresAt) ||
+    typeof item.version !== 'string' ||
+    !VERSION_PATTERN.test(item.version)
+  )
+    return null
+  return { ...(item as Omit<ChatGroupInvitation, 'inviter'>), inviter }
+}
+
+export function parseChatGroupMember(value: unknown): ChatGroupMember | null {
+  const item = record(value)
+  const peer = item ? parseChatPeer(item.peer) : null
+  return item &&
+    exactKeys(item, ['peer', 'role', 'joinedAt']) &&
+    peer &&
+    ['OWNER', 'ADMIN', 'MEMBER'].includes(String(item.role)) &&
+    dateTime(item.joinedAt)
+    ? { ...(item as Omit<ChatGroupMember, 'peer'>), peer }
+    : null
+}
+
+export const parseGroupInvitationPage = (value: unknown) =>
+  parseChatPage(value, parseChatGroupInvitation)
+export const parseGroupMemberPage = (value: unknown) =>
+  parseChatPage(value, parseChatGroupMember)
 
 export function parseChatSendResult(value: unknown): ChatSendResult | null {
   const item = record(value)
@@ -372,6 +506,56 @@ export function parseDecisionInput(value: unknown) {
     exactKeys(item, ['decision']) &&
     ['ACCEPT', 'DECLINE', 'BLOCK'].includes(String(item.decision))
     ? { decision: item.decision as 'ACCEPT' | 'DECLINE' | 'BLOCK' }
+    : null
+}
+
+export function parseCreateGroupInput(value: unknown) {
+  const item = record(value)
+  return item &&
+    exactKeys(item, ['name']) &&
+    typeof item.name === 'string' &&
+    item.name.trim() === item.name &&
+    [...item.name].length >= 1 &&
+    [...item.name].length <= 80
+    ? { name: item.name }
+    : null
+}
+
+export function parseGroupInviteInput(value: unknown) {
+  const item = record(value)
+  return item &&
+    exactKeys(item, ['inviteeCommunityProfileId']) &&
+    typeof item.inviteeCommunityProfileId === 'string' &&
+    UUID_PATTERN.test(item.inviteeCommunityProfileId)
+    ? { inviteeCommunityProfileId: item.inviteeCommunityProfileId }
+    : null
+}
+
+export function parseGroupDecisionInput(value: unknown) {
+  const item = record(value)
+  return item &&
+    exactKeys(item, ['decision']) &&
+    ['ACCEPT', 'DECLINE'].includes(String(item.decision))
+    ? { decision: item.decision as 'ACCEPT' | 'DECLINE' }
+    : null
+}
+
+export function parseSetGroupRoleInput(value: unknown) {
+  const item = record(value)
+  return item &&
+    exactKeys(item, ['role']) &&
+    ['ADMIN', 'MEMBER'].includes(String(item.role))
+    ? { role: item.role as 'ADMIN' | 'MEMBER' }
+    : null
+}
+
+export function parseTransferGroupOwnerInput(value: unknown) {
+  const item = record(value)
+  return item &&
+    exactKeys(item, ['newOwnerCommunityProfileId']) &&
+    typeof item.newOwnerCommunityProfileId === 'string' &&
+    UUID_PATTERN.test(item.newOwnerCommunityProfileId)
+    ? { newOwnerCommunityProfileId: item.newOwnerCommunityProfileId }
     : null
 }
 

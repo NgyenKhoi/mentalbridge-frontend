@@ -33,6 +33,7 @@ export const chatFixtureMessage: CommunityMessage = {
   conversationId: chatFixtureId,
   clientMessageId: chatFixtureId,
   sender: chatFixturePeer,
+  state: 'ACTIVE',
   content: '<b>Lời chào an toàn</b>',
   createdAt: chatFixtureDate,
 }
@@ -51,6 +52,7 @@ export function chatFixtureApi(): CommunityChatApi {
       value: chatFixtureConversation,
       etag: '"9007199254740993"',
     }),
+    clearConversation: jest.fn().mockResolvedValue(undefined),
     startDirect: jest
       .fn()
       .mockResolvedValue({ state: 'PENDING', requestId: chatFixtureId }),
@@ -76,6 +78,7 @@ export function chatFixtureApi(): CommunityChatApi {
       persistence: 'SAVED',
       delivery: 'UNCONFIRMED',
     }),
+    retract: jest.fn(),
     read: jest
       .fn()
       .mockResolvedValue({ lastReadMessageId: chatFixtureId, unreadCount: 0 }),

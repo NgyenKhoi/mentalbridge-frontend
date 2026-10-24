@@ -38,5 +38,13 @@ describe('mobile startup shell', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục' }))
 
     expect(mockPush).toHaveBeenCalledWith('/sign-in')
+
+    await fireEvent.press(
+      screen.getByRole('button', {
+        name: 'Sàng lọc không cần tài khoản',
+      }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('/assessment/anonymous')
   })
 })

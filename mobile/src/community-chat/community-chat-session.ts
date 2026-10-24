@@ -26,6 +26,8 @@ export type CommunityChatState = Readonly<{
   issue: string | null
   sending: boolean
   unconfirmed: boolean
+  retracting: string | null
+  retractionIssue: Readonly<{ messageId: string; code: string }> | null
 }>
 const initial: CommunityChatState = {
   phase: 'checking',
@@ -36,6 +38,8 @@ const initial: CommunityChatState = {
   issue: null,
   sending: false,
   unconfirmed: false,
+  retracting: null,
+  retractionIssue: null,
 }
 export class CommunityChatSession {
   private state: CommunityChatState = initial
@@ -253,12 +257,31 @@ export class CommunityChatSession {
       return
     }
     const conversation =
-      event.eventType === 'community.message.created'
+      event.eventType === 'community.message.created' ||
+      event.eventType === 'community.message.updated'
         ? event.payload.message.conversationId
         : 'conversationId' in event.payload
           ? event.payload.conversationId
           : null
     if (conversation !== this.options.conversationId) return
+    if (event.eventType === 'community.message.updated') {
+      const replacement = event.payload.message
+      if (
+        this.state.messages.some(
+          (message) => message.messageId === replacement.messageId,
+        )
+      ) {
+        this.patch({
+          messages: this.state.messages.map((message) =>
+            message.messageId === replacement.messageId ? replacement : message,
+          ),
+          retractionIssue: null,
+        })
+        return
+      }
+      void this.repair()
+      return
+    }
     if (event.eventType === 'community.conversation.invalidated') {
       this.authorizationEpoch++
       this.patch({
@@ -268,6 +291,20 @@ export class CommunityChatSession {
         presence: {},
         nextCursor: null,
       })
+      // Community invalidates the server subscription to prevent queued
+      // pre-clear messages from reaching any of the viewer's devices.
+      // Re-subscribe before reconciling so later messages remain live.
+      const generation = this.generation
+      void this.command('community.conversation.subscribe', {
+        conversationId: this.options.conversationId,
+      })
+        .then(() => {
+          if (this.current(generation)) void this.repair()
+        })
+        .catch((error) => {
+          if (this.current(generation)) this.fail(error)
+        })
+      return
     }
     if (
       event.eventType === 'community.read-state.changed' &&
@@ -410,6 +447,54 @@ export class CommunityChatSession {
       return false
     } finally {
       if (this.current(generation)) this.patch({ sending: false })
+    }
+  }
+  async retract(messageId: string): Promise<boolean> {
+    if (
+      this.state.phase !== 'ready' ||
+      this.state.retracting ||
+      this.state.conversation?.value.state !== 'ACTIVE'
+    )
+      return false
+    const generation = this.generation
+    this.patch({ retracting: messageId, retractionIssue: null })
+    try {
+      const replacement = await this.options.api.retract(
+        this.options.conversationId,
+        messageId,
+      )
+      if (!this.current(generation)) return false
+      if (
+        !this.state.messages.some(
+          (message) => message.messageId === replacement.messageId,
+        )
+      )
+        chatMismatch()
+      this.patch({
+        messages: this.state.messages.map((message) =>
+          message.messageId === replacement.messageId ? replacement : message,
+        ),
+        retractionIssue: null,
+      })
+      return true
+    } catch (error) {
+      if (!this.current(generation)) return false
+      if (
+        error instanceof ApiError &&
+        [401, 403, 404].includes(error.status ?? 0)
+      )
+        this.fail(error)
+      else
+        this.patch({
+          retractionIssue: {
+            messageId,
+            code:
+              error instanceof ApiError ? error.code : 'DEPENDENCY_UNAVAILABLE',
+          },
+        })
+      return false
+    } finally {
+      if (this.current(generation)) this.patch({ retracting: null })
     }
   }
   async markRead() {

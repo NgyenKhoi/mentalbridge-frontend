@@ -32,6 +32,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react'
 
 import type { PublicResourceDetail } from '../api/browser-resources'
@@ -46,6 +47,7 @@ type Props = Readonly<{
   progressLoadState: 'loading' | 'ready' | 'error'
   saving: boolean
   message: string
+  planNotice?: ReactNode
   onRetryProgress: () => void
   onRecord: (watchedSeconds: number) => Promise<boolean>
 }>
@@ -96,6 +98,7 @@ export function StretchResourceDetail({
   progressLoadState,
   saving,
   message,
+  planNotice,
   onRetryProgress,
   onRecord,
 }: Props) {
@@ -998,7 +1001,7 @@ export function StretchResourceDetail({
               aria-labelledby="stretch-record-heading"
             >
               <h2 id="stretch-record-heading" className={styles.srOnly}>
-                Ghi nhận vào kế hoạch hỗ trợ hằng ngày
+                Ghi nhận bài tập
               </h2>
               <button
                 type="button"
@@ -1021,8 +1024,8 @@ export function StretchResourceDetail({
               </button>
               <p>
                 {status === 'COMPLETED'
-                  ? 'Bài tập đã được ghi nhận vào Kế hoạch hỗ trợ hằng ngày.'
-                  : 'Kết quả hoàn thành sẽ được lưu vào Kế hoạch hỗ trợ hằng ngày của bạn.'}
+                  ? 'Đã lưu kết quả hoàn thành bài tập.'
+                  : 'Kết quả hoàn thành sẽ được lưu vào tiến độ Tài nguyên của bạn.'}
               </p>
               {status !== 'COMPLETED' && progressLoadState === 'loading' && (
                 <p className={styles.recordHint} role="status">
@@ -1048,6 +1051,7 @@ export function StretchResourceDetail({
                     chưa xem không được tính.
                   </p>
                 )}
+              {planNotice}
               {recordState === 'error' && (
                 <p className={styles.recordError} role="alert">
                   {message || 'Chưa thể ghi nhận bài tập. Vui lòng thử lại.'}

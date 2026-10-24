@@ -28,6 +28,8 @@ export type NotificationOperationsSummary =
 export type ResourceBookmark = components['schemas']['ResourceBookmark']
 export type ResourceBookmarkList = components['schemas']['ResourceBookmarkList']
 export type ResourceBingoBoard = components['schemas']['ResourceBingoBoard']
+export type ResourceBingoPlanSync =
+  components['schemas']['ResourceBingoPlanSync']
 export type ResourceBingoSelfConfirmationUpdate =
   components['schemas']['ResourceBingoSelfConfirmationUpdate']
 export type AchievementCollection =
@@ -493,6 +495,7 @@ export function parseResourceBingoBoard(
       'version',
       'updatedAt',
       'items',
+      'unavailableActions',
     ]) ||
     typeof board.weekStart !== 'string' ||
     !isLocalDate(board.weekStart) ||
@@ -504,7 +507,24 @@ export function parseResourceBingoBoard(
     !CONTENT_VERSION.test(board.version) ||
     !dateTime(board.updatedAt) ||
     !Array.isArray(board.items) ||
-    board.items.length > 9
+    board.items.length > 9 ||
+    !(
+      board.unavailableActions === undefined ||
+      (Array.isArray(board.unavailableActions) &&
+        board.unavailableActions.every((value) => {
+          const unavailable = record(value)
+          return (
+            unavailable &&
+            exactKeys(unavailable, ['actionId', 'reason']) &&
+            typeof unavailable.actionId === 'string' &&
+            unavailable.actionId.length > 0 &&
+            unavailable.actionId.length <= 128 &&
+            ['BOARD_FULL', 'RESOURCE_VERSION_UNAVAILABLE'].includes(
+              String(unavailable.reason),
+            )
+          )
+        }))
+    )
   ) {
     return null
   }
@@ -523,6 +543,8 @@ export function parseResourceBingoBoard(
         'selfConfirmedAt',
         'verifiedAt',
         'verificationSource',
+        'actionId',
+        'retired',
       ]) ||
       !Number.isSafeInteger(item.position) ||
       (item.position as number) < 1 ||
@@ -545,7 +567,14 @@ export function parseResourceBingoBoard(
         item.verificationSource === null ||
         item.verificationSource === 'RESOURCE_COMPLETION' ||
         item.verificationSource === 'PRACTICE_SESSION'
-      )
+      ) ||
+      !(
+        item.actionId === null ||
+        (typeof item.actionId === 'string' &&
+          item.actionId.length > 0 &&
+          item.actionId.length <= 128)
+      ) ||
+      typeof item.retired !== 'boolean'
     ) {
       return null
     }
@@ -578,6 +607,17 @@ export function parseResourceBingoSelfConfirmationUpdate(
     Object.keys(update).length === 1 &&
     typeof update.selfConfirmed === 'boolean'
     ? (update as ResourceBingoSelfConfirmationUpdate)
+    : null
+}
+
+export function parseResourceBingoPlanSync(
+  value: unknown,
+): ResourceBingoPlanSync | null {
+  const board = record(value)
+  return parseResourceBingoBoard(value) &&
+    board &&
+    Array.isArray(board.unavailableActions)
+    ? (board as ResourceBingoPlanSync)
     : null
 }
 
@@ -749,9 +789,15 @@ export function parseResourceProgressUpdate(
       'practiceSessionId',
       'practiceStartedAt',
       'practiceDurationSeconds',
+      'resourceVersion',
     ]) ||
     typeof update.status !== 'string' ||
     !PROGRESS_STATUSES.has(update.status) ||
+    !(
+      update.resourceVersion === undefined ||
+      (typeof update.resourceVersion === 'string' &&
+        CONTENT_VERSION.test(update.resourceVersion))
+    ) ||
     !Array.isArray(update.completedActionIds) ||
     update.completedActionIds.length > 32 ||
     !update.completedActionIds.every(
@@ -1131,6 +1177,9 @@ const NOTIFICATION_KINDS = new Set([
   'COMMUNITY_COMMENT',
   'COMMUNITY_REPLY',
   'COMMUNITY_REACTION',
+  'COMMUNITY_MESSAGE',
+  'COMMUNITY_REQUEST',
+  'COMMUNITY_INVITATION',
   'ASSESSMENT_RESULT_AVAILABLE',
   'SUPPORT_GUIDE_AVAILABLE',
   'ACCOUNT_STATUS',
@@ -1143,6 +1192,19 @@ const TARGETLESS_NOTIFICATION_ACTIONS: Readonly<Record<string, string>> = {
   OPEN_RESOURCES: '/resources',
   OPEN_ASSESSMENTS: '/assessments',
   OPEN_SPECIALIST_APPOINTMENTS: '/specialist/appointments',
+}
+const COMMUNITY_CHAT_NOTIFICATION_ACTIONS: Readonly<
+  Record<string, { kind: string; segment: string }>
+> = {
+  OPEN_COMMUNITY_CONVERSATION: {
+    kind: 'COMMUNITY_MESSAGE',
+    segment: 'conversations',
+  },
+  OPEN_COMMUNITY_REQUEST: { kind: 'COMMUNITY_REQUEST', segment: 'requests' },
+  OPEN_COMMUNITY_INVITATION: {
+    kind: 'COMMUNITY_INVITATION',
+    segment: 'invitations',
+  },
 }
 
 export function parseNotification(value: unknown): Notification | null {
@@ -1197,7 +1259,17 @@ export function parseNotification(value: unknown): Notification | null {
     ) {
       return null
     }
-    if (action.type === 'OPEN_RESOURCE') {
+    const chat = COMMUNITY_CHAT_NOTIFICATION_ACTIONS[action.type]
+    if (chat) {
+      if (
+        item.kind !== chat.kind ||
+        typeof action.targetId !== 'string' ||
+        !UUID.test(action.targetId)
+      )
+        return null
+      if (action.href !== `/community/chat/${chat.segment}/${action.targetId}`)
+        return null
+    } else if (action.type === 'OPEN_RESOURCE') {
       if (typeof action.targetId !== 'string' || !UUID.test(action.targetId))
         return null
       if (action.href !== `/resources/${action.targetId}`) return null

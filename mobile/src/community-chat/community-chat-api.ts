@@ -70,6 +70,15 @@ export function createCommunityChatApi(client: AxiosInstance) {
       if (value.conversationId !== expected) chatMismatch()
       return versioned(value, r.headers.etag, true)
     },
+    async clearConversation(conversationId: string, key: string) {
+      const r = await client.delete(
+        `${base}/conversations/${id(conversationId)}`,
+        {
+          headers: command(key),
+        },
+      )
+      if (r.status !== 204) chatMismatch()
+    },
     async startDirect(profileId: string, key: string) {
       return c.directResultSchema.parse(
         (
@@ -143,6 +152,23 @@ export function createCommunityChatApi(client: AxiosInstance) {
         value.message.conversationId !== expected ||
         value.message.clientMessageId !== body.clientMessageId ||
         value.message.content !== body.content
+      )
+        chatMismatch()
+      return value
+    },
+    async retract(conversationId: string, messageId: string) {
+      const expectedConversation = id(conversationId)
+      const expectedMessage = id(messageId)
+      const value = c.retractedMessageSchema.parse(
+        (
+          await client.delete(
+            `${base}/conversations/${expectedConversation}/messages/${expectedMessage}`,
+          )
+        ).data,
+      )
+      if (
+        value.conversationId !== expectedConversation ||
+        value.messageId !== expectedMessage
       )
         chatMismatch()
       return value

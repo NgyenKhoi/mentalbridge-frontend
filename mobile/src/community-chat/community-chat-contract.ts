@@ -50,14 +50,27 @@ export const conversationSchema = z.discriminatedUnion('kind', [
     version: chatVersion,
   }),
 ])
-export const messageSchema = z.strictObject({
+const messageBase = {
   messageId: chatId,
   conversationId: chatId,
   clientMessageId: chatId,
   sender: peerSchema,
-  content: boundedText(4000),
   createdAt: instant,
+}
+export const activeMessageSchema = z.strictObject({
+  ...messageBase,
+  state: z.literal('ACTIVE'),
+  content: boundedText(4000),
 })
+export const retractedMessageSchema = z.strictObject({
+  ...messageBase,
+  state: z.literal('RETRACTED'),
+  retractedAt: instant,
+})
+export const messageSchema = z.discriminatedUnion('state', [
+  activeMessageSchema,
+  retractedMessageSchema,
+])
 export const requestSchema = z.strictObject({
   requestId: chatId,
   requester: peerSchema,
@@ -114,7 +127,7 @@ export const sendSchema = z.strictObject({
   content: messageContentSchema,
 })
 export const savedSchema = z.strictObject({
-  message: messageSchema,
+  message: activeMessageSchema,
   persistence: z.literal('SAVED'),
   delivery: z.literal('UNCONFIRMED'),
 })
@@ -138,7 +151,12 @@ export const eventSchema = z.discriminatedUnion('eventType', [
   z.strictObject({
     ...event,
     eventType: z.literal('community.message.created'),
-    payload: z.strictObject({ message: messageSchema }),
+    payload: z.strictObject({ message: activeMessageSchema }),
+  }),
+  z.strictObject({
+    ...event,
+    eventType: z.literal('community.message.updated'),
+    payload: z.strictObject({ message: retractedMessageSchema }),
   }),
   z.strictObject({
     ...event,

@@ -124,7 +124,10 @@ export function PurposeShapedActions({
                   {String(index + 1).padStart(2, '0')}
                 </span>
                 <strong>{action.label}</strong>
-                <label className={styles.purposeActionToggle}>
+                <label
+                  className={styles.purposeActionToggle}
+                  data-resource-ink={selected ? 'light' : undefined}
+                >
                   <input
                     type="checkbox"
                     aria-label={action.label}

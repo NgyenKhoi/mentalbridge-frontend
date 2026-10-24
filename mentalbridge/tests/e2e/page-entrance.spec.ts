@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
 import { test } from './test-fixtures'
+import { homeWorld, installHomeMocks } from './home-next-step-mocks'
 
 const entranceName = /^mb-(unfold|title-rise|focus-in|pop|slide-in)$/
 
@@ -42,32 +43,31 @@ async function entranceNames(page: Page) {
     )
 }
 
-test('USER blocks enter in order while the clinical dashboard stays still', async ({
+test('Home content enters in order while its decision uses its own motion', async ({
   page,
 }) => {
+  await installHomeMocks(page, homeWorld('first-use'))
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
-  await expectStillDuringEntrance(page.locator('.ref-panel-result'))
-  const blocks = await page
-    .locator('.ref-today, .ref-quick, .ref-journal-streak')
-    .evaluateAll((elements) =>
-      elements.map((element) => {
-        const style = getComputedStyle(element)
-        return {
-          name: style.animationName,
-          delay: Number.parseFloat(style.animationDelay),
-        }
-      }),
-    )
-  expect(blocks).toHaveLength(3)
-  expect(blocks.map((block) => block.name)).toEqual([
-    'mb-unfold',
-    'mb-unfold',
-    'mb-unfold',
-  ])
-  expect(blocks.map((block) => block.delay)).toEqual([0.18, 0.24, 0.3])
+  await expect(
+    page.getByRole('region', { name: 'Bước tiếp theo', exact: true }),
+  ).toBeVisible()
+  const blocks = await page.locator('.home-data-rise').evaluateAll((elements) =>
+    elements.map((element) => {
+      const style = getComputedStyle(element)
+      return {
+        name: style.animationName,
+        delay: Number.parseFloat(style.animationDelay),
+      }
+    }),
+  )
+  expect(blocks.length).toBeGreaterThanOrEqual(4)
+  expect(blocks.every((block) => block.name !== 'none')).toBe(true)
+  expect(blocks.every((block) => block.delay >= 0 && block.delay <= 0.7)).toBe(
+    true,
+  )
   await expect(page.locator('main.ref-content')).toHaveAttribute('data-entered')
-  await expect(page.locator('.ref-quick')).toHaveCSS('opacity', '1')
-  await expect(page.locator('.ref-quick')).toHaveCSS('transform', 'none')
+  await expect(page.locator('.home-explore')).toHaveCSS('opacity', '1')
+  await expect(page.locator('.home-explore')).toHaveCSS('transform', 'none')
 })
 
 test('clinical history is still before its asynchronous results arrive', async ({
@@ -118,6 +118,7 @@ test('chat and SupportPlan keep their owning surfaces still', async ({
 test('navigation preserves the shell and later dialogs do not replay entrances', async ({
   page,
 }) => {
+  await installHomeMocks(page, homeWorld('first-use'))
   await page.goto('/dashboard')
   const content = page.locator('main.ref-content')
   await expect(content).toHaveAttribute('data-entered')
@@ -150,26 +151,44 @@ test('navigation preserves the shell and later dialogs do not replay entrances',
 test('reduced motion, a preference change and printing show final content', async ({
   page,
 }) => {
+  await installHomeMocks(page, homeWorld('first-use'))
+  const enteringTile = page.locator('.home-explore .home-data-rise').first()
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
   expect(
     (await entranceNames(page)).some((name) => entranceName.test(name)),
   ).toBe(false)
-  await expect(page.locator('.ref-quick')).toHaveCSS('opacity', '1')
+  await expect(page.locator('.home-explore')).toHaveCSS('opacity', '1')
+  await expect(page.locator('.home-explore')).toHaveCSS(
+    'animation-name',
+    'none',
+  )
+  await expect(enteringTile).toHaveCSS('animation-name', 'home-fade')
+  await expect(enteringTile).toHaveCSS('transform', 'none')
+  await expect(enteringTile).toHaveCSS('opacity', '1')
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
-  await expect(page.locator('.ref-quick')).toHaveCSS(
-    'animation-name',
-    'mb-unfold',
-  )
+  await expect(
+    page.getByRole('region', { name: 'Bước tiếp theo', exact: true }),
+  ).toBeVisible()
+  await expect(enteringTile).toHaveCSS('animation-name', 'home-rise')
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await expect(page.locator('.ref-quick')).toHaveCSS('animation-name', 'none')
-  await expect(page.locator('.ref-quick')).toHaveCSS('transform', 'none')
+  await expect(page.locator('.home-explore')).toHaveCSS(
+    'animation-name',
+    'none',
+  )
+  await expect(page.locator('.home-explore')).toHaveCSS('transform', 'none')
+  await expect(enteringTile).toHaveCSS('animation-name', 'home-fade')
+  await expect(enteringTile).toHaveCSS('transform', 'none')
+  await expect(enteringTile).toHaveCSS('opacity', '1')
   await page.emulateMedia({ media: 'print', reducedMotion: 'no-preference' })
   expect(
     (await entranceNames(page)).some((name) => entranceName.test(name)),
   ).toBe(false)
-  await expect(page.locator('.ref-quick')).toHaveCSS('opacity', '1')
+  await expect(page.locator('.home-explore')).toHaveCSS('opacity', '1')
+  await expect(enteringTile).toHaveCSS('animation-name', 'none')
+  await expect(enteringTile).toHaveCSS('transform', 'none')
+  await expect(enteringTile).toHaveCSS('opacity', '1')
 })
 
 test.describe('without JavaScript', () => {
@@ -179,17 +198,18 @@ test.describe('without JavaScript', () => {
     page,
   }) => {
     await page.goto('/dashboard')
-    await expect(page.locator('.ref-quick')).toHaveCSS('opacity', '1')
-    await expect(page.locator('.ref-quick')).toHaveCSS('transform', 'none')
-    await expect(page.locator('.ref-dashboard h1')).toHaveCSS(
-      'transform',
-      'none',
-    )
+    await expect(page.locator('.home-explore')).toHaveCSS('opacity', '1')
+    await expect(page.locator('.home-explore')).toHaveCSS('transform', 'none')
+    await expect(page.locator('.home-hub h1')).toHaveCSS('transform', 'none')
     await expect(page.locator('main.ref-content')).not.toHaveAttribute(
       'data-entered',
     )
-    await expect(
-      page.getByRole('link', { name: /Bắt đầu kiểm tra ban đầu/ }),
-    ).toBeVisible()
+    const resourcesLink = page
+      .locator('.home-explore')
+      .getByRole('link', { name: /^Tài nguyên/ })
+    await expect(resourcesLink).toBeVisible()
+    await expect(resourcesLink).toHaveAttribute('href', '/resources')
+    await expect(resourcesLink).toHaveCSS('opacity', '1')
+    await expect(resourcesLink).toHaveCSS('transform', 'none')
   })
 })

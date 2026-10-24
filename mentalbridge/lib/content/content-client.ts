@@ -19,6 +19,7 @@ import {
   parseResourceBookmark,
   parseResourceBookmarkList,
   parseResourceBingoBoard,
+  parseResourceBingoPlanSync,
   parseAchievementCollection,
   parseResourceRewardReadModel,
   type AdminResourceDetail,
@@ -43,6 +44,7 @@ import {
   type ResourceBookmark,
   type ResourceBookmarkList,
   type ResourceBingoBoard,
+  type ResourceBingoPlanSync,
   type ResourceBingoSelfConfirmationUpdate,
   type AchievementCollection,
   type AchievementPreferenceUpdate,
@@ -321,7 +323,10 @@ export const contentResourceJourneyClient = {
   },
 }
 
-function bingoResult(board: ResourceBingoBoard, etag: string | undefined) {
+function bingoResult<T extends ResourceBingoBoard>(
+  board: T,
+  etag: string | undefined,
+) {
   if (!etag || !/^\"(0|[1-9]\d*)\"$/.test(etag)) {
     throw localError(
       502,
@@ -329,10 +334,44 @@ function bingoResult(board: ResourceBingoBoard, etag: string | undefined) {
       'Content returned an invalid Bingo board version.',
     )
   }
+  if (etag !== `"${board.version}"`) {
+    throw localError(
+      502,
+      'CONTENT_MALFORMED_RESPONSE',
+      'Content returned mismatched Bingo board versions.',
+    )
+  }
   return { board, etag }
 }
 
 export const contentResourceEngagementClient = {
+  async syncBingoWithPlan(
+    accessToken: string,
+    weekStart: string,
+    timeZone: string,
+    correlationId: string,
+  ) {
+    let etag: string | undefined
+    const board = await contentRequest<ResourceBingoPlanSync>({
+      method: 'PUT',
+      path: `/api/v1/resource-bingo/${encodeURIComponent(weekStart)}/plan-sync`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: { timeZone },
+      parseSuccess: (value) => {
+        const parsed = parseResourceBingoPlanSync(value)
+        return parsed?.weekStart === weekStart && parsed.timeZone === timeZone
+          ? parsed
+          : null
+      },
+      mutation: true,
+      onSuccessResponse: (response) => {
+        etag = response.headers.get('etag') ?? undefined
+      },
+    })
+    return bingoResult(board, etag)
+  },
   listBookmarks(accessToken: string, correlationId: string) {
     return contentRequest<ResourceBookmarkList>({
       method: 'GET',

@@ -343,6 +343,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/home-next-step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the owner's single next step for Home
+         * @description Read-only, owner-scoped Home composition over the unchanged GuidedJourney
+         *     and persisted SupportPlan facts. Clients render Care's ordered journey
+         *     action and plan focus; safety and professional-support journey actions keep
+         *     their existing precedence over plan context. No Guide, plan, lifecycle
+         *     transition, assessment answer, score, journal or emotion content is created
+         *     or returned. Entitlement uncertainty retains the journey's fail-closed
+         *     resources step with entitlementStatus UNAVAILABLE. A missing published
+         *     support policy returns 503 SUPPORT_POLICY_UNAVAILABLE.
+         *     A supplied timezone must be an IANA zone; an invalid value returns 400.
+         *     When omitted, localDate uses the plan schedule time zone. Reads carry
+         *     Cache-Control no-store and are usable directly with an owner bearer token.
+         */
+        get: operations["getOwnHomeNextStep"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/screening-episodes/history": {
         parameters: {
             query?: never;
@@ -1599,6 +1629,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/support-plans/current/resource-actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the current plan's minimized resource actions in plan order
+         * @description Owner-only USER read for web, mobile and Content. Returns ACTIVE resource
+         *     actions of the current ACTIVE or PAUSED plan without rationale, why text,
+         *     screening data or entitlement inference. No current plan returns 200 with
+         *     planState NONE and an empty actions array. V2_RESOURCE_ADAPTER actions are
+         *     included with today null and cannot use native resource reconciliation.
+         *     localDate selects the occurrence projection; it never proves completion.
+         */
+        get: operations["getOwnCurrentPlanResourceActions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/resource/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconcile one resource occurrence with exact Content-owned evidence
+         * @description Explicit USER command with no request body or client-supplied fact identity.
+         *     Requires an owned native RESOURCE occurrence of an ACTIVE plan. Care reads
+         *     Content outside a transaction using the action's exact resource identity
+         *     and revision and the occurrence date in the plan time zone. A qualifying
+         *     server occurredAt must fall on that date. One Content fact may complete
+         *     only one occurrence. An identical accepted retry returns the persisted
+         *     occurrence without changing its evidence, completion instant or version.
+         *     A missing fact or dependency failure leaves the occurrence unchanged.
+         *     Self-confirmation, opening content and resource_learning_completion are
+         *     never evidence. A completed occurrence cannot be reopened by state PUT.
+         */
+        post: operations["reconcileOwnResourceOccurrence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/support-plan-occurrences/{occurrenceId}/emotion-check-in/reconcile": {
         parameters: {
             query?: never;
@@ -2577,6 +2661,71 @@ export interface components {
             currentSupportPlanId: string | null;
             /** @enum {string} */
             entitlementStatus: "NOT_REQUIRED" | "VERIFIED" | "UNAVAILABLE";
+        };
+        HomeNextStep: {
+            /** @constant */
+            homePolicyVersion: "mb-home-next-step-v1";
+            journey: components["schemas"]["GuidedJourney"];
+            /** @description Present only for the owner's ACTIVE or PAUSED plan; a DRAFT remains journey.nextAction REVIEW_PLAN_DRAFT. */
+            plan: components["schemas"]["HomePlanStep"] | null;
+            /** @description Present only with no ACTIVE, PAUSED or DRAFT plan and when the newest plan in history is COMPLETED. */
+            lastCompletedPlan: components["schemas"]["HomeCompletedPlan"] | null;
+        };
+        /**
+         * @description Focus precedence is RESUME_PAUSED, then REVIEW_DUE, then DO_TODAY for
+         *     an open SCHEDULED/OVERDUE occurrence on localDate, then TODAY_DONE when
+         *     today's non-CANCELLED occurrences are all COMPLETED/SKIPPED, otherwise
+         *     NOTHING_TODAY. REVIEW_DUE changes no lifecycle state. The existing
+         *     cycle query supplies reviewDueOn. When timezone is omitted, localDate
+         *     uses the plan cycle zone, then its active/paused schedule zone, then
+         *     the existing profile-zone fallback.
+         */
+        HomePlanStep: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED";
+            /** @enum {string} */
+            focus: "RESUME_PAUSED" | "REVIEW_DUE" | "DO_TODAY" | "TODAY_DONE" | "NOTHING_TODAY";
+            /** Format: date */
+            reviewDueOn: string | null;
+            /** @description Current day from the plan cycle's currentDay; null when the plan has no cycle. */
+            cycleDay: number | null;
+            /** @description Length from the plan cycle's lengthDays; null when the plan has no cycle. */
+            cycleLengthDays: number | null;
+            /** Format: date */
+            localDate: string;
+            /** @description IANA zone used to determine localDate. */
+            timeZone: string;
+            today: components["schemas"]["HomeTodayProgress"];
+            /** @description Present only for DO_TODAY; earliest scheduledAt (null last), then plan focus and action order. */
+            nextOccurrence: components["schemas"]["HomeNextOccurrence"] | null;
+        };
+        HomeTodayProgress: {
+            /** @description Number of non-CANCELLED occurrences on localDate; includes SKIPPED. */
+            total: number;
+            /** @description Number of COMPLETED occurrences on localDate; excludes SKIPPED. */
+            completed: number;
+        };
+        HomeNextOccurrence: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** @description Native action identity or existing v2 slot identity from the adapter. */
+            actionId: string;
+            /** @enum {string} */
+            actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+            title: string;
+            /** @enum {string} */
+            displayState: "SCHEDULED" | "OVERDUE";
+            /** Format: date-time */
+            scheduledAt: string | null;
+            estimatedDurationMinutes: number | null;
+        };
+        HomeCompletedPlan: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** Format: date-time */
+            completedAt: string;
         };
         ScreeningEpisodeEvaluationOutcome: {
             episode: components["schemas"]["ScreeningEpisode"];
@@ -3585,6 +3734,47 @@ export interface components {
             /** @description The prepared DRAFT for DRAFT_PREPARED, otherwise null. */
             draft: components["schemas"]["SupportPlanV3"] | null;
         };
+        PlanResourceActionsV1: {
+            /** @enum {string} */
+            planState: "ACTIVE" | "PAUSED" | "NONE";
+            /** Format: uuid */
+            supportPlanId?: string;
+            supportPlanVersion?: number;
+            /** @enum {string} */
+            representationMode?: "NATIVE_V3" | "V2_RESOURCE_ADAPTER";
+            /** @description Plan time zone used for weekly board boundaries. */
+            timeZone?: string;
+            /** Format: date */
+            localDate: string;
+            /** @description ACTIVE RESOURCE actions in plan order, without rationale or treatment meaning. */
+            actions: components["schemas"]["PlanResourceAction"][];
+        } & (unknown & unknown);
+        PlanResourceAction: {
+            /** @description Native action UUID or v2 adapter slot identity. */
+            actionId: string;
+            actionVersion: number;
+            title: string;
+            resource: {
+                /** Format: uuid */
+                resourceId: string;
+                resourceVersion: string;
+                /** Format: uuid */
+                publicationId: string;
+            };
+            /** @description Current action schedule, or null when no schedule applies. */
+            schedule: components["schemas"]["ActionSchedule"] | null;
+            /** @description Occurrence for localDate, or null for an unscheduled date or V2_RESOURCE_ADAPTER. */
+            today: null | {
+                /** Format: uuid */
+                occurrenceId: string;
+                occurrenceVersion: number;
+                /** @description Pinned occurrence IANA time zone used to determine its local today and reconcile evidence. */
+                timeZone?: string;
+                /** @enum {string} */
+                displayState: "SCHEDULED" | "OVERDUE" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+                completionEvidence: components["schemas"]["CompletionEvidence"] | null;
+            };
+        };
         EmotionCheckInOccurrenceReconciliation: {
             /** @constant */
             schemaVersion: "emotion-check-in-occurrence-reconciliation-v1";
@@ -3693,12 +3883,12 @@ export interface components {
             summaryReuseApproved?: boolean;
             /** Format: date-time */
             engagementUpdatedAt?: string | null;
-        } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
+        } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
         CompletionEvidence: {
             /** @enum {string} */
-            kind: "USER_ACKNOWLEDGEMENT" | "JOURNAL_ENTRY" | "EMOTION_CHECK_IN" | "APPOINTMENT_FULFILMENT" | "ASSESSMENT_HISTORY" | "SELF_REPORT_REVIEW";
+            kind: "USER_ACKNOWLEDGEMENT" | "JOURNAL_ENTRY" | "EMOTION_CHECK_IN" | "APPOINTMENT_FULFILMENT" | "ASSESSMENT_HISTORY" | "SELF_REPORT_REVIEW" | "RESOURCE_PRACTICE_SESSION" | "RESOURCE_COMPLETION";
             /** @enum {string} */
-            ownerDomain: "CARE" | "JOURNAL_AI" | "CONSULTATION";
+            ownerDomain: "CARE" | "JOURNAL_AI" | "CONSULTATION" | "CONTENT";
             /** @description Opaque authoritative fact identifier; never a copied source payload. */
             factId: string;
             factRevision: string | null;
@@ -3706,7 +3896,7 @@ export interface components {
             occurredAt: string;
             /** Format: date-time */
             verifiedAt: string;
-        } & (unknown & unknown & unknown);
+        } & (unknown & unknown & unknown & unknown);
         ChangeSupportPlanOccurrenceStateRequest: {
             /** @enum {string} */
             state: "COMPLETED" | "SKIPPED";
@@ -4786,6 +4976,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GuidedJourney"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            503: components["responses"]["DependencyProblem"];
+        };
+    };
+    getOwnHomeNextStep: {
+        parameters: {
+            query?: {
+                /**
+                 * @description IANA zone for today's local date; omitted uses the plan schedule time zone.
+                 * @example Asia/Ho_Chi_Minh
+                 */
+                timezone?: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current Home decision and minimized plan context */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeNextStep"];
                 };
             };
             400: components["responses"]["ValidationProblem"];
@@ -6665,6 +6889,196 @@ export interface operations {
             404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
             409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
             412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    getOwnCurrentPlanResourceActions: {
+        parameters: {
+            query: {
+                localDate: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current plan resource projection, including an explicit NONE state */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "planState": "ACTIVE",
+                     *       "supportPlanId": "71000000-0000-4000-8000-000000000001",
+                     *       "supportPlanVersion": 3,
+                     *       "representationMode": "NATIVE_V3",
+                     *       "timeZone": "Asia/Ho_Chi_Minh",
+                     *       "localDate": "2026-10-21",
+                     *       "actions": [
+                     *         {
+                     *           "actionId": "72000000-0000-4000-8000-000000000001",
+                     *           "actionVersion": 1,
+                     *           "title": "Slow breathing practice",
+                     *           "resource": {
+                     *             "resourceId": "73000000-0000-4000-8000-000000000001",
+                     *             "resourceVersion": "2",
+                     *             "publicationId": "74000000-0000-4000-8000-000000000001"
+                     *           },
+                     *           "schedule": {
+                     *             "scheduleId": "75000000-0000-4000-8000-000000000001",
+                     *             "version": 1,
+                     *             "schedulePolicyVersion": "support-plan-schedule-v3",
+                     *             "recurrenceType": "DAILY",
+                     *             "recurrenceDayOfWeek": null,
+                     *             "daysOfWeek": [],
+                     *             "preferredDaypart": "EVENING",
+                     *             "estimatedDurationMinutes": 5,
+                     *             "localTime": "19:00:00",
+                     *             "timezone": "Asia/Ho_Chi_Minh",
+                     *             "effectiveFrom": "2026-10-19",
+                     *             "effectiveUntil": null,
+                     *             "reminderEnabled": false,
+                     *             "status": "ACTIVE"
+                     *           },
+                     *           "today": {
+                     *             "occurrenceId": "76000000-0000-4000-8000-000000000001",
+                     *             "timeZone": "Asia/Ho_Chi_Minh",
+                     *             "occurrenceVersion": 0,
+                     *             "displayState": "SCHEDULED",
+                     *             "completionEvidence": null
+                     *           }
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["PlanResourceActionsV1"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    reconcileOwnResourceOccurrence: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted occurrence completed with Content evidence, including identical retries */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "occurrenceId": "76000000-0000-4000-8000-000000000001",
+                     *       "actionId": "72000000-0000-4000-8000-000000000001",
+                     *       "actionType": "RESOURCE",
+                     *       "actionVersion": 1,
+                     *       "scheduleId": "75000000-0000-4000-8000-000000000001",
+                     *       "scheduleVersion": 1,
+                     *       "representationMode": "NATIVE_V3",
+                     *       "version": 1,
+                     *       "localDate": "2026-10-21",
+                     *       "scheduledAt": "2026-10-21T12:00:00Z",
+                     *       "state": "COMPLETED",
+                     *       "displayState": "COMPLETED",
+                     *       "stateReason": null,
+                     *       "completionEvidence": {
+                     *         "kind": "RESOURCE_PRACTICE_SESSION",
+                     *         "ownerDomain": "CONTENT",
+                     *         "factId": "77000000-0000-4000-8000-000000000001",
+                     *         "factRevision": "2",
+                     *         "occurredAt": "2026-10-21T12:00:00Z",
+                     *         "verifiedAt": "2026-10-21T12:02:00Z"
+                     *       },
+                     *       "outcomeRecordedAt": "2026-10-21T12:00:00Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionOccurrence"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            /** @description RESOURCE_EVIDENCE_NOT_FOUND, RESOURCE_EVIDENCE_ALREADY_USED, SUPPORT_PLAN_NOT_ACTIVE, OCCURRENCE_NOT_OPEN or RESOURCE_ACTION_REQUIRED; occurrence unchanged */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_EVIDENCE_NOT_FOUND",
+                     *       "title": "Resource completion evidence not found",
+                     *       "status": 409,
+                     *       "detail": "No exact-version Content fact belongs to this occurrence date.",
+                     *       "code": "RESOURCE_EVIDENCE_NOT_FOUND",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description OCCURRENCE_VERSION_MISMATCH; reload the occurrence and its ETag */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/OCCURRENCE_VERSION_MISMATCH",
+                     *       "title": "Occurrence version mismatch",
+                     *       "status": 412,
+                     *       "detail": "The occurrence changed since it was read.",
+                     *       "code": "OCCURRENCE_VERSION_MISMATCH",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description RESOURCE_EVIDENCE_UNAVAILABLE; Content evidence could not be verified and occurrence is unchanged */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_EVIDENCE_UNAVAILABLE",
+                     *       "title": "Resource evidence unavailable",
+                     *       "status": 503,
+                     *       "detail": "Content evidence could not be verified. Retry later.",
+                     *       "code": "RESOURCE_EVIDENCE_UNAVAILABLE",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     reconcileOwnEmotionCheckInOccurrence: {

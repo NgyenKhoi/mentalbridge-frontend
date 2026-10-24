@@ -11,6 +11,7 @@ import {
   parseResourceBookmark,
   parseResourceBookmarkList,
   parseResourceBingoBoard,
+  parseResourceBingoPlanSync,
   parseResourceBingoSelfConfirmationUpdate,
   parseResourceProgressItem,
   parseResourceProgressList,
@@ -222,6 +223,8 @@ describe('Content response validation', () => {
       resourceId: requiredSummary.id,
       contentVersion: '4',
       label: 'Thở chậm',
+      actionId: null,
+      retired: false,
       evidence: 'SELF_CONFIRMED',
       selfConfirmedAt: '2026-09-29T02:00:00.000Z',
       verifiedAt: null,
@@ -235,6 +238,40 @@ describe('Content response validation', () => {
       items: [item],
     }
     expect(parseResourceBingoBoard(board)).toEqual(board)
+    expect(
+      parseResourceBingoBoard({
+        ...board,
+        items: [{ ...item, actionId: undefined }],
+      }),
+    ).toBeNull()
+    expect(
+      parseResourceBingoBoard({
+        ...board,
+        items: [{ ...item, retired: undefined }],
+      }),
+    ).toBeNull()
+    expect(
+      parseResourceBingoBoard({
+        ...board,
+        items: [item, { ...item, position: 2, actionId: 'another-action' }],
+      }),
+    ).toBeNull()
+    const sync = {
+      ...board,
+      unavailableActions: [
+        { actionId: 'another-action', reason: 'BOARD_FULL' },
+      ],
+    }
+    expect(parseResourceBingoPlanSync(sync)).toEqual(sync)
+    expect(parseResourceBingoPlanSync(board)).toBeNull()
+    expect(
+      parseResourceBingoPlanSync({
+        ...sync,
+        unavailableActions: [
+          { actionId: 'a'.repeat(129), reason: 'BOARD_FULL' },
+        ],
+      }),
+    ).toBeNull()
     expect(
       parseResourceBingoBoard({ ...board, weekStart: '2026-09-29' }),
     ).toBeNull()
