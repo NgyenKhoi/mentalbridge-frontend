@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     const result = await consultationClient.adminPayouts(
       actor.accessToken,
       correlationId,
+      request.nextUrl.search,
     )
     return carryConsultationSession(
       consultationSuccess(result.data, correlationId),
