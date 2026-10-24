@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/api/api-error'
 import type {
   ApplyHoldRequest,
@@ -83,6 +83,8 @@ export default function AdminRetentionGovernance() {
     null,
   )
   const [sweepFeedback, setSweepFeedback] = useState<string | null>(null)
+  const [selectedSweepPolicy, setSelectedSweepPolicy] =
+    useState<RetentionPolicy | null>(null)
 
   // Deletions state
   const [deletions, setDeletions] = useState<DeletionRequest[]>([])
@@ -98,6 +100,12 @@ export default function AdminRetentionGovernance() {
   const [totalItems, setTotalItems] = useState<number>(0)
   const [hasNextPage, setHasNextPage] = useState<boolean>(false)
   const pageSize = 20
+  const deletionRequestEpoch = useRef(0)
+  const deletionQuery = useRef({
+    status: undefined as string | undefined,
+    holdType: undefined as string | undefined,
+    page: 0,
+  })
 
   // Hold Modal state
   const [selectedHoldRequestId, setSelectedHoldRequestId] = useState<
@@ -125,32 +133,48 @@ export default function AdminRetentionGovernance() {
     }
   }, [])
 
-  const loadDeletions = useCallback(
-    async (pageToLoad = currentPage) => {
-      setDeletionsLoading(true)
-      setDeletionsError(null)
-      try {
-        const data = await browserAdminRetention.getDeletions({
-          status: statusFilter || undefined,
-          holdType: holdFilter || undefined,
-          limit: pageSize,
-          page: pageToLoad,
-        })
+  useEffect(() => {
+    deletionQuery.current = {
+      status: statusFilter || undefined,
+      holdType: holdFilter || undefined,
+      page: currentPage,
+    }
+  }, [statusFilter, holdFilter, currentPage])
+
+  const loadDeletions = useCallback(async () => {
+    const requestEpoch = ++deletionRequestEpoch.current
+    const query = deletionQuery.current
+    setDeletionsLoading(true)
+    setDeletionsError(null)
+    setDeletions([])
+    setTotalItems(0)
+    setHasNextPage(false)
+    try {
+      const data = await browserAdminRetention.getDeletions({
+        status: query.status,
+        holdType: query.holdType,
+        limit: pageSize,
+        page: query.page,
+      })
+      if (requestEpoch === deletionRequestEpoch.current) {
         setDeletions(data.items)
         setTotalItems(data.total)
         setHasNextPage(Boolean(data.nextCursor))
-      } catch (err) {
+      }
+    } catch (err) {
+      if (requestEpoch === deletionRequestEpoch.current) {
         setDeletionsError(
           err instanceof ApiError
             ? err.message
             : 'Không thể tải danh sách yêu cầu xóa dữ liệu.',
         )
-      } finally {
+      }
+    } finally {
+      if (requestEpoch === deletionRequestEpoch.current) {
         setDeletionsLoading(false)
       }
-    },
-    [statusFilter, holdFilter, currentPage, pageSize],
-  )
+    }
+  }, [pageSize])
 
   useEffect(() => {
     let active = true
@@ -178,46 +202,25 @@ export default function AdminRetentionGovernance() {
 
   useEffect(() => {
     if (activeTab !== 'deletions') return
-    let active = true
-    browserAdminRetention
-      .getDeletions({
-        status: statusFilter || undefined,
-        holdType: holdFilter || undefined,
-        limit: pageSize,
-        page: currentPage,
-      })
-      .then((data) => {
-        if (active) {
-          setDeletions(data.items)
-          setTotalItems(data.total)
-          setHasNextPage(Boolean(data.nextCursor))
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) {
-          setDeletionsError(
-            err instanceof ApiError
-              ? err.message
-              : 'Không thể tải danh sách yêu cầu xóa dữ liệu.',
-          )
-        }
-      })
-      .finally(() => {
-        if (active) setDeletionsLoading(false)
-      })
+    const loadTimer = setTimeout(() => {
+      void loadDeletions()
+    }, 0)
     return () => {
-      active = false
+      clearTimeout(loadTimer)
+      deletionRequestEpoch.current += 1
     }
-  }, [activeTab, statusFilter, holdFilter, currentPage, pageSize])
+  }, [activeTab, statusFilter, holdFilter, currentPage, loadDeletions])
 
-  const handleTriggerSweep = async (policyId: string) => {
-    setSweepActionLoading(policyId)
+  const handleTriggerSweep = async (policy: RetentionPolicy) => {
+    if (sweepActionLoading !== null) return
+    setSweepActionLoading(policy.policyId)
     setSweepFeedback(null)
     try {
-      const result = await browserAdminRetention.triggerSweep(policyId)
+      const result = await browserAdminRetention.triggerSweep(policy.policyId)
       setSweepFeedback(
-        `Thực thi dọn dẹp thành công cho ${policyId}. Đã dọn dẹp ${result.recordsPurged} bản ghi hết hạn.`,
+        `Thực thi dọn dẹp thành công cho ${policy.policyId}. Đã dọn dẹp ${result.recordsPurged} bản ghi hết hạn.`,
       )
+      setSelectedSweepPolicy(null)
       await loadPolicies()
     } catch (err) {
       setSweepFeedback(
@@ -439,6 +442,16 @@ export default function AdminRetentionGovernance() {
                         : 'Không áp dụng'}
                     </span>
                   </div>
+                  <div className={styles.metaItem}>
+                    <strong>Nguồn trạng thái tác vụ</strong>
+                    <span data-testid={`job-status-source-${policy.policyId}`}>
+                      {policy.jobStatusSource === 'NO_AUTHORITATIVE_SIGNAL'
+                        ? 'Không có tín hiệu trạng thái authoritative từ owner'
+                        : policy.jobStatusSource === 'IDENTITY_EXECUTION_RECORD'
+                          ? 'Nhật ký thực thi authoritative của Identity'
+                          : 'Danh mục chính sách authoritative của Identity'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className={styles.actionRow}>
@@ -453,7 +466,7 @@ export default function AdminRetentionGovernance() {
                       <button
                         type="button"
                         className={styles.btnPrimary}
-                        onClick={() => handleTriggerSweep(policy.policyId)}
+                        onClick={() => setSelectedSweepPolicy(policy)}
                         disabled={
                           sweepActionLoading === policy.policyId ||
                           sweepUnavailableReason(policy) !== null
@@ -573,7 +586,7 @@ export default function AdminRetentionGovernance() {
               type="button"
               className={styles.btnSecondary}
               onClick={() => {
-                loadDeletions(currentPage)
+                void loadDeletions()
               }}
               style={{ marginLeft: 'auto' }}
               data-testid="btn-refresh-deletions"
@@ -896,6 +909,54 @@ export default function AdminRetentionGovernance() {
             </div>
           )}
         </section>
+      )}
+
+      {selectedSweepPolicy && (
+        <div className={styles.modalBackdrop} data-testid="sweep-confirm-modal">
+          <div
+            className={styles.modalContent}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sweep-confirm-title"
+          >
+            <div className={styles.modalHeader}>
+              <h2 id="sweep-confirm-title">Xác nhận dọn dẹp dữ liệu</h2>
+            </div>
+            <p>
+              Chính sách: <strong>{selectedSweepPolicy.name}</strong> (
+              {selectedSweepPolicy.policyId})
+            </p>
+            <p>
+              Chủ sở hữu authoritative:{' '}
+              <strong>{selectedSweepPolicy.ownerService}</strong>. Thao tác này
+              sẽ xóa vĩnh viễn các tệp báo cáo tổng hợp đã hết hạn sau{' '}
+              {selectedSweepPolicy.retentionDays ?? 'thời hạn được phê duyệt'}{' '}
+              ngày; không thể hoàn tác.
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => setSelectedSweepPolicy(null)}
+                disabled={sweepActionLoading !== null}
+                data-testid="btn-cancel-sweep"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                onClick={() => handleTriggerSweep(selectedSweepPolicy)}
+                disabled={sweepActionLoading !== null}
+                data-testid="btn-confirm-sweep"
+              >
+                {sweepActionLoading !== null
+                  ? 'Đang thực thi...'
+                  : 'Xác nhận xóa dữ liệu hết hạn'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal Áp dụng Hold */}

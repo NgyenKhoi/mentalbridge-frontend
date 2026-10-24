@@ -278,6 +278,7 @@ const initialRetentionPolicies = [
     manualHoldSupported: false,
     requiresManualReview: false,
     jobStatus: 'ACTIVE',
+    jobStatusSource: 'IDENTITY_EXECUTION_RECORD',
     jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
     description:
       'Tệp báo cáo tổng hợp hoạt động tài khoản được lưu trữ an toàn trong 30 ngày trước khi dọn dẹp tự động.',
@@ -306,6 +307,7 @@ const initialRetentionPolicies = [
     manualHoldSupported: false,
     requiresManualReview: false,
     jobStatus: 'PARTIALLY_SUPPORTED',
+    jobStatusSource: 'IDENTITY_POLICY_CATALOG',
     jobName: 'IDENTITY_AUDIT_RETENTION',
     description:
       'Nhật ký kiểm toán tối thiểu hóa danh tính được bảo lưu bất biến trong 365 ngày (MB-587). Không hỗ trợ quét xóa thủ công từ quản trị.',
@@ -322,7 +324,8 @@ const initialRetentionPolicies = [
     automatedExecutionSupported: false,
     manualHoldSupported: true,
     requiresManualReview: true,
-    jobStatus: 'PARTIALLY_SUPPORTED',
+    jobStatus: 'UNAVAILABLE',
+    jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
     jobName: 'CARE_ANONYMOUS_EXPIRY_SWEEP',
     description:
       'Phiên ẩn danh TTL 30 phút, tối đa 2 giờ; Đánh giá có tài khoản được bảo lưu có kiểm soát phục vụ tái đánh giá; Không xóa trước thời hạn quy định',
@@ -339,7 +342,8 @@ const initialRetentionPolicies = [
     automatedExecutionSupported: false,
     manualHoldSupported: true,
     requiresManualReview: true,
-    jobStatus: 'ACTIVE',
+    jobStatus: 'UNAVAILABLE',
+    jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
     jobName: 'CONSULTATION_METADATA_RETENTION',
     description:
       'Metadata phòng LiveKit lưu trữ 90 ngày (ADR 0039); Bằng chứng tài chính và giao dịch được bảo lưu theo quy định kế toán; Giữ lại vô thời hạn nếu có tranh chấp',
@@ -356,7 +360,8 @@ const initialRetentionPolicies = [
     automatedExecutionSupported: false,
     manualHoldSupported: true,
     requiresManualReview: false,
-    jobStatus: 'ACTIVE',
+    jobStatus: 'UNAVAILABLE',
+    jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
     jobName: 'JOURNAL_AI_TOMBSTONE_PURGE',
     description:
       'Xóa dữ liệu nhật ký sẽ lập tức xóa bản mã hóa (ciphertext); giữ lại tombstone có giới hạn trước khi chuyển thành MISSING; Tuyệt đối không xuất thô nội dung',
@@ -373,7 +378,8 @@ const initialRetentionPolicies = [
     automatedExecutionSupported: false,
     manualHoldSupported: false,
     requiresManualReview: false,
-    jobStatus: 'PARTIALLY_SUPPORTED',
+    jobStatus: 'UNAVAILABLE',
+    jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
     jobName: 'COMMUNITY_MEDIA_SWEEP',
     description:
       'Gỡ bài đăng sẽ lưu tombstone; Phương tiện chưa liên kết bị xóa sau 7 ngày',
@@ -391,6 +397,7 @@ const initialRetentionPolicies = [
     manualHoldSupported: false,
     requiresManualReview: false,
     jobStatus: 'UNAVAILABLE',
+    jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
     jobName: 'NOTIFICATION_INBOX_RETENTION',
     description: 'Hộp thư thông báo lưu trữ 90 ngày',
     unsupportedCapabilityNotice:

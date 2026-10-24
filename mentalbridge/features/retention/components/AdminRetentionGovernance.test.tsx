@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminRetentionGovernance from './AdminRetentionGovernance'
@@ -16,6 +16,16 @@ const apiMock = vi.hoisted(() => ({
   releaseHold: vi.fn(),
 }))
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
 vi.mock('../api/browser-admin-retention', () => ({
   browserAdminRetention: apiMock,
 }))
@@ -32,6 +42,7 @@ const mockPolicies: RetentionPolicy[] = [
     manualHoldSupported: false,
     requiresManualReview: false,
     jobStatus: 'ACTIVE',
+    jobStatusSource: 'IDENTITY_EXECUTION_RECORD',
     jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
     description: 'Bảo lưu các tệp trích xuất báo cáo phân tích trong 30 ngày.',
     lastExecution: {
@@ -59,6 +70,7 @@ const mockPolicies: RetentionPolicy[] = [
     manualHoldSupported: false,
     requiresManualReview: false,
     jobStatus: 'UNAVAILABLE',
+    jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
     jobName: 'NOTIFICATION_INBOX_RETENTION',
     description: 'Hộp thư thông báo lưu trữ 90 ngày',
     unsupportedCapabilityNotice:
@@ -216,9 +228,14 @@ describe('AdminRetentionGovernance Component', () => {
     )
     expect(disabledBtn).toBeDisabled()
     expect(disabledBtn).toHaveTextContent('Thực thi không khả dụng')
+    expect(
+      screen.getByTestId(
+        'job-status-source-MB-CONTENT-NOTIFICATION-RETENTION-001',
+      ),
+    ).toHaveTextContent('Không có tín hiệu trạng thái authoritative từ owner')
   })
 
-  it('allows triggering sweep for supported policy and shows safe aggregate feedback', async () => {
+  it('requires explicit policy/owner/impact confirmation before triggering a sweep', async () => {
     const user = userEvent.setup()
     render(<AdminRetentionGovernance />)
 
@@ -229,12 +246,91 @@ describe('AdminRetentionGovernance Component', () => {
 
     await user.click(sweepBtn)
 
+    expect(apiMock.triggerSweep).not.toHaveBeenCalled()
+    const dialog = screen.getByRole('dialog', {
+      name: 'Xác nhận dọn dẹp dữ liệu',
+    })
+    expect(dialog).toHaveTextContent('MB-IDENTITY-REPORTING-001')
+    expect(dialog).toHaveTextContent('IDENTITY')
+    expect(dialog).toHaveTextContent('30 ngày')
+    expect(dialog).toHaveTextContent('không thể hoàn tác')
+
+    await user.click(screen.getByTestId('btn-confirm-sweep'))
+
     expect(apiMock.triggerSweep).toHaveBeenCalledWith(
       'MB-IDENTITY-REPORTING-001',
     )
     expect(
       await screen.findByText(/Đã dọn dẹp 10 bản ghi hết hạn/i),
     ).toBeInTheDocument()
+  })
+
+  it('cancels sweep confirmation without sending a destructive request', async () => {
+    const user = userEvent.setup()
+    render(<AdminRetentionGovernance />)
+
+    await user.click(
+      await screen.findByTestId('sweep-btn-MB-IDENTITY-REPORTING-001'),
+    )
+    await user.click(screen.getByTestId('btn-cancel-sweep'))
+
+    expect(screen.queryByTestId('sweep-confirm-modal')).not.toBeInTheDocument()
+    expect(apiMock.triggerSweep).not.toHaveBeenCalled()
+  })
+
+  it('prevents duplicate sweep submissions while confirmation is in flight', async () => {
+    const user = userEvent.setup()
+    const pendingSweep =
+      deferred<Awaited<ReturnType<typeof apiMock.triggerSweep>>>()
+    apiMock.triggerSweep.mockReturnValueOnce(pendingSweep.promise)
+    render(<AdminRetentionGovernance />)
+
+    await user.click(
+      await screen.findByTestId('sweep-btn-MB-IDENTITY-REPORTING-001'),
+    )
+    const confirmButton = screen.getByTestId('btn-confirm-sweep')
+    await user.click(confirmButton)
+    await user.click(confirmButton)
+
+    expect(apiMock.triggerSweep).toHaveBeenCalledTimes(1)
+    expect(confirmButton).toBeDisabled()
+    pendingSweep.resolve({
+      executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
+      policyId: 'MB-IDENTITY-REPORTING-001',
+      ownerService: 'IDENTITY',
+      jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
+      jobStatus: 'SUCCEEDED',
+      startedAt: '2026-10-19T22:00:00Z',
+      completedAt: '2026-10-19T22:01:00Z',
+      itemsEvaluated: 50,
+      recordsPurged: 10,
+      tombstonesCreated: 0,
+      holdsHonored: 0,
+    })
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId('sweep-confirm-modal'),
+      ).not.toBeInTheDocument(),
+    )
+  })
+
+  it('keeps sweep confirmation available and shows safe feedback when execution fails', async () => {
+    const user = userEvent.setup()
+    apiMock.triggerSweep.mockRejectedValueOnce(new Error('network failure'))
+    render(<AdminRetentionGovernance />)
+
+    await user.click(
+      await screen.findByTestId('sweep-btn-MB-IDENTITY-REPORTING-001'),
+    )
+    await user.click(screen.getByTestId('btn-confirm-sweep'))
+
+    expect(
+      await screen.findByText(
+        'Không thể kích hoạt dọn dẹp cho chính sách này.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('sweep-confirm-modal')).toBeInTheDocument()
+    expect(screen.getByTestId('btn-confirm-sweep')).toBeEnabled()
   })
 
   it('disables sweep button and displays hint when job is RUNNING', async () => {
@@ -457,6 +553,86 @@ describe('AdminRetentionGovernance Component', () => {
     expect(apiMock.getDeletions).toHaveBeenCalledWith(
       expect.objectContaining({ page: 1 }),
     )
+  })
+
+  it('ignores a stale deletion response after filters change', async () => {
+    const user = userEvent.setup()
+    const staleResponse = deferred<{
+      items: DeletionRequest[]
+      total: number
+      nextCursor: string | null
+    }>()
+    const heldRequest = mockDeletions[1]
+    apiMock.getDeletions
+      .mockReturnValueOnce(staleResponse.promise)
+      .mockResolvedValueOnce({
+        items: [heldRequest],
+        total: 1,
+        nextCursor: null,
+      })
+
+    render(<AdminRetentionGovernance />)
+    await user.click(screen.getByTestId('tab-deletions'))
+    await waitFor(() => expect(apiMock.getDeletions).toHaveBeenCalledTimes(1))
+    await user.selectOptions(screen.getByTestId('filter-status'), 'HELD')
+
+    expect(
+      await screen.findByTestId(`deletion-row-${heldRequest.requestId}`),
+    ).toBeInTheDocument()
+    staleResponse.resolve({
+      items: [mockDeletions[0]],
+      total: 1,
+      nextCursor: null,
+    })
+
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId(`deletion-row-${mockDeletions[0].requestId}`),
+      ).not.toBeInTheDocument(),
+    )
+  })
+
+  it('refreshes a completed mutation with the latest deletion filters', async () => {
+    const user = userEvent.setup()
+    const retryableRequest: DeletionRequest = {
+      ...mockDeletions[0],
+      status: 'FAILED',
+      retryCount: 0,
+      ownerFacts: [{ ownerService: 'IDENTITY', status: 'FAILED' }],
+    }
+    const pendingRetry = deferred<DeletionRequest>()
+    apiMock.getDeletions.mockResolvedValue({
+      items: [retryableRequest],
+      total: 1,
+      nextCursor: null,
+    })
+    apiMock.retryDeletion.mockReturnValueOnce(pendingRetry.promise)
+
+    render(<AdminRetentionGovernance />)
+    await user.click(screen.getByTestId('tab-deletions'))
+    await user.click(
+      await screen.findByTestId(`btn-retry-${retryableRequest.requestId}`),
+    )
+
+    apiMock.getDeletions.mockResolvedValue({
+      items: [mockDeletions[1]],
+      total: 1,
+      nextCursor: null,
+    })
+    await user.selectOptions(screen.getByTestId('filter-status'), 'HELD')
+    expect(
+      await screen.findByTestId(`deletion-row-${mockDeletions[1].requestId}`),
+    ).toBeInTheDocument()
+
+    pendingRetry.resolve(retryableRequest)
+    await waitFor(() =>
+      expect(apiMock.getDeletions).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: 'HELD', page: 0 }),
+      ),
+    )
+    expect(
+      screen.queryByTestId(`deletion-row-${retryableRequest.requestId}`),
+    ).not.toBeInTheDocument()
   })
 
   it('renders UNKNOWN fallback when accountStatus is null', async () => {

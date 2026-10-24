@@ -60,11 +60,24 @@ test.describe('admin retention and deletion governance journey', () => {
     )
     await expect(disabledSweep).toBeDisabled()
     await expect(disabledSweep).toHaveText('Thực thi không khả dụng')
+    await expect(
+      page.getByTestId(
+        'job-status-source-MB-CONTENT-NOTIFICATION-RETENTION-001',
+      ),
+    ).toContainText('Không có tín hiệu trạng thái authoritative từ owner')
 
-    // 4. Trigger supported sweep and check audit-safe feedback
+    // 4. Confirm the exact destructive scope before triggering the sweep
     const activeSweep = page.getByTestId('sweep-btn-MB-IDENTITY-REPORTING-001')
     await expect(activeSweep).toBeEnabled()
     await activeSweep.click()
+    const confirmation = page.getByRole('dialog', {
+      name: 'Xác nhận dọn dẹp dữ liệu',
+    })
+    await expect(confirmation).toContainText('MB-IDENTITY-REPORTING-001')
+    await expect(confirmation).toContainText('IDENTITY')
+    await expect(confirmation).toContainText('30 ngày')
+    await expect(confirmation).toContainText('không thể hoàn tác')
+    await page.getByTestId('btn-confirm-sweep').click()
     await expect(
       page.getByText(
         /Thực thi dọn dẹp thành công cho MB-IDENTITY-REPORTING-001/i,

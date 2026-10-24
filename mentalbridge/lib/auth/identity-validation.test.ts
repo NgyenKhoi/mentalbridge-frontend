@@ -6,6 +6,7 @@ import {
   parseDeletionOwnerFact,
   parseDeletionRequest,
   parseRetentionExecutionRecord,
+  parseRetentionPolicy,
   validateAccountStateChangeRequest,
 } from './identity-validation'
 
@@ -550,5 +551,38 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
       failureCode: 'UNKNOWN_AUDIT_ERROR',
     })
     expect(unapprovedCode?.failureCode).toBeNull()
+  })
+
+  it('requires explicit retention job-status provenance', () => {
+    const externalPolicy = {
+      policyId: 'consultation-journey-v1',
+      name: 'Consultation retention',
+      version: '1.0',
+      ownerService: 'CONSULTATION',
+      status: 'APPROVED',
+      description: 'Owner-managed retention policy.',
+      retentionDays: 90,
+      jobName: 'CONSULTATION_METADATA_RETENTION',
+      jobStatus: 'UNAVAILABLE',
+      jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
+      automatedExecutionSupported: false,
+      manualHoldSupported: true,
+      requiresManualReview: true,
+      unsupportedCapabilityNotice: 'No approved owner status contract.',
+      lastExecution: null,
+    }
+
+    expect(parseRetentionPolicy(externalPolicy)?.jobStatusSource).toBe(
+      'NO_AUTHORITATIVE_SIGNAL',
+    )
+    expect(
+      parseRetentionPolicy({
+        ...externalPolicy,
+        jobStatusSource: 'OWNER_LIVE',
+      }),
+    ).toBeNull()
+    const missingSource: Record<string, unknown> = { ...externalPolicy }
+    delete missingSource.jobStatusSource
+    expect(parseRetentionPolicy(missingSource)).toBeNull()
   })
 })

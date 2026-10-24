@@ -965,6 +965,8 @@ export interface components {
             jobName: string;
             /** @enum {string} */
             jobStatus: "ACTIVE" | "IDLE" | "PARTIALLY_SUPPORTED" | "UNAVAILABLE" | "SUCCEEDED" | "FAILED" | "RUNNING" | "STALE";
+            /** @enum {string} */
+            jobStatusSource: "IDENTITY_POLICY_CATALOG" | "IDENTITY_EXECUTION_RECORD" | "NO_AUTHORITATIVE_SIGNAL";
             automatedExecutionSupported: boolean;
             manualHoldSupported: boolean;
             requiresManualReview: boolean;

@@ -1028,6 +1028,11 @@ const RETENTION_JOB_STATUSES = new Set([
   'FAILED',
   'RUNNING',
 ])
+const RETENTION_JOB_STATUS_SOURCES = new Set([
+  'IDENTITY_POLICY_CATALOG',
+  'IDENTITY_EXECUTION_RECORD',
+  'NO_AUTHORITATIVE_SIGNAL',
+])
 const DELETION_REQUEST_STATUSES = new Set([
   'PENDING',
   'IN_PROGRESS',
@@ -1144,6 +1149,8 @@ export function parseRetentionPolicy(value: unknown): RetentionPolicy | null {
     typeof value.jobName !== 'string' ||
     typeof value.jobStatus !== 'string' ||
     !RETENTION_JOB_STATUSES.has(value.jobStatus) ||
+    typeof value.jobStatusSource !== 'string' ||
+    !RETENTION_JOB_STATUS_SOURCES.has(value.jobStatusSource) ||
     typeof value.automatedExecutionSupported !== 'boolean' ||
     typeof value.manualHoldSupported !== 'boolean' ||
     typeof value.requiresManualReview !== 'boolean'
@@ -1166,6 +1173,8 @@ export function parseRetentionPolicy(value: unknown): RetentionPolicy | null {
     retentionDays: (value.retentionDays as number) ?? null,
     jobName: value.jobName,
     jobStatus: value.jobStatus as RetentionPolicy['jobStatus'],
+    jobStatusSource:
+      value.jobStatusSource as RetentionPolicy['jobStatusSource'],
     automatedExecutionSupported: value.automatedExecutionSupported,
     manualHoldSupported: value.manualHoldSupported,
     requiresManualReview: value.requiresManualReview,
