@@ -22,6 +22,12 @@ import type {
   PlatformReportRequest,
   PlatformReportType,
   ProductJourneyMetrics,
+  ApplyHoldRequest,
+  DeletionOwnerFact,
+  DeletionRequest,
+  DeletionRequestPage,
+  RetentionExecutionRecord,
+  RetentionPolicy,
 } from '@/features/auth/api/identity-contract'
 
 const ACCOUNT_STATUSES = new Set([
@@ -997,4 +1003,340 @@ export function parseProductJourneyMetrics(
   }
 
   return value as ProductJourneyMetrics
+}
+
+const RETENTION_OWNER_SERVICES = new Set([
+  'IDENTITY',
+  'CARE',
+  'CONSULTATION',
+  'JOURNAL_AI',
+  'COMMUNITY',
+  'CONTENT',
+])
+const RETENTION_POLICY_STATUSES = new Set([
+  'APPROVED',
+  'ENFORCED',
+  'PARTIALLY_SUPPORTED',
+  'UNAVAILABLE',
+])
+const RETENTION_JOB_STATUSES = new Set([
+  'ACTIVE',
+  'IDLE',
+  'PARTIALLY_SUPPORTED',
+  'UNAVAILABLE',
+  'SUCCEEDED',
+  'FAILED',
+  'RUNNING',
+])
+const RETENTION_JOB_STATUS_SOURCES = new Set([
+  'IDENTITY_POLICY_CATALOG',
+  'IDENTITY_EXECUTION_RECORD',
+  'NO_AUTHORITATIVE_SIGNAL',
+])
+const DELETION_REQUEST_STATUSES = new Set([
+  'PENDING',
+  'IN_PROGRESS',
+  'HELD',
+  'COMPLETED',
+  'FAILED',
+])
+const DELETION_HOLD_TYPES = new Set([
+  'NONE',
+  'LEGAL_HOLD',
+  'OPERATIONAL_HOLD',
+  'DISPUTE_HOLD',
+])
+export const DELETION_HOLD_REASON_CODES = [
+  'STATUTORY_INQUIRY',
+  'PENDING_DISPUTE',
+  'ACTIVE_SAFETY_REVIEW',
+  'SCHEDULED_APPOINTMENT_ACTIVE',
+  'USER_CONTESTED',
+  'AUDIT_COMPLIANCE_HOLD',
+] as const satisfies ReadonlyArray<ApplyHoldRequest['holdReason']>
+const DELETION_HOLD_REASONS = new Set<string>(DELETION_HOLD_REASON_CODES)
+const DELETION_ESCALATION_STATES = new Set([
+  'NONE',
+  'RETRY_EXHAUSTED',
+  'MANUAL_ESCALATION_REQUIRED',
+])
+const DELETION_FACT_STATUSES = new Set([
+  'PENDING',
+  'COMPLETED',
+  'HELD',
+  'FAILED',
+  'UNAVAILABLE',
+])
+export const APPROVED_RETENTION_FAILURE_CODES = new Set<string>([
+  'PRIOR_EXECUTION_STALE',
+  'SWEEP_EXECUTION_FAILED',
+])
+export const APPROVED_DELETION_FAILURE_CODES = new Set<string>([
+  'ACCOUNT_NOT_FOUND',
+  'RETRY_LIMIT_EXHAUSTED',
+])
+export const APPROVED_DELETION_FAILURE_REASONS = new Set<string>([
+  'ACCOUNT_NOT_FOUND',
+])
+export const APPROVED_FAILURE_CODES = new Set<string>([
+  ...APPROVED_RETENTION_FAILURE_CODES,
+  ...APPROVED_DELETION_FAILURE_CODES,
+])
+export const APPROVED_FAILURE_REASONS = APPROVED_DELETION_FAILURE_REASONS
+export const SAFE_FAILURE_CODE_PATTERN = /^[A-Z0-9_]{1,64}$/
+export const SAFE_FAILURE_REASON_PATTERN = /^[A-Z0-9_]{1,64}$/
+export const APPROVED_IDENTITY_EVIDENCE_PATTERN =
+  /^audit:identity:account-deleted:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export function parseRetentionExecutionRecord(
+  value: unknown,
+): RetentionExecutionRecord | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.executionId !== 'string' ||
+    !UUID_PATTERN.test(value.executionId) ||
+    typeof value.policyId !== 'string' ||
+    !value.policyId.trim() ||
+    typeof value.ownerService !== 'string' ||
+    typeof value.jobName !== 'string' ||
+    typeof value.jobStatus !== 'string' ||
+    !isDateTime(value.startedAt) ||
+    (value.completedAt !== null &&
+      value.completedAt !== undefined &&
+      !isDateTime(value.completedAt)) ||
+    typeof value.itemsEvaluated !== 'number' ||
+    typeof value.recordsPurged !== 'number' ||
+    typeof value.tombstonesCreated !== 'number' ||
+    typeof value.holdsHonored !== 'number'
+  )
+    return null
+
+  return {
+    executionId: value.executionId,
+    policyId: value.policyId,
+    ownerService: value.ownerService,
+    jobName: value.jobName,
+    jobStatus: value.jobStatus,
+    startedAt: value.startedAt,
+    completedAt: (value.completedAt as string) ?? null,
+    itemsEvaluated: value.itemsEvaluated,
+    recordsPurged: value.recordsPurged,
+    tombstonesCreated: value.tombstonesCreated,
+    holdsHonored: value.holdsHonored,
+    failureCode:
+      typeof value.failureCode === 'string' &&
+      APPROVED_RETENTION_FAILURE_CODES.has(value.failureCode.trim())
+        ? (value.failureCode.trim() as RetentionExecutionRecord['failureCode'])
+        : null,
+  }
+}
+
+export function parseRetentionPolicy(value: unknown): RetentionPolicy | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.policyId !== 'string' ||
+    !value.policyId.trim() ||
+    typeof value.name !== 'string' ||
+    typeof value.version !== 'string' ||
+    typeof value.ownerService !== 'string' ||
+    !RETENTION_OWNER_SERVICES.has(value.ownerService) ||
+    typeof value.status !== 'string' ||
+    !RETENTION_POLICY_STATUSES.has(value.status) ||
+    typeof value.description !== 'string' ||
+    (value.retentionDays !== null &&
+      value.retentionDays !== undefined &&
+      typeof value.retentionDays !== 'number') ||
+    typeof value.jobName !== 'string' ||
+    typeof value.jobStatus !== 'string' ||
+    !RETENTION_JOB_STATUSES.has(value.jobStatus) ||
+    typeof value.jobStatusSource !== 'string' ||
+    !RETENTION_JOB_STATUS_SOURCES.has(value.jobStatusSource) ||
+    typeof value.automatedExecutionSupported !== 'boolean' ||
+    typeof value.manualHoldSupported !== 'boolean' ||
+    typeof value.requiresManualReview !== 'boolean'
+  )
+    return null
+
+  let lastExecution: RetentionExecutionRecord | null = null
+  if (value.lastExecution !== null && value.lastExecution !== undefined) {
+    lastExecution = parseRetentionExecutionRecord(value.lastExecution)
+    if (!lastExecution) return null
+  }
+
+  return {
+    policyId: value.policyId,
+    name: value.name,
+    version: value.version,
+    ownerService: value.ownerService as RetentionPolicy['ownerService'],
+    status: value.status as RetentionPolicy['status'],
+    description: value.description,
+    retentionDays: (value.retentionDays as number) ?? null,
+    jobName: value.jobName,
+    jobStatus: value.jobStatus as RetentionPolicy['jobStatus'],
+    jobStatusSource:
+      value.jobStatusSource as RetentionPolicy['jobStatusSource'],
+    automatedExecutionSupported: value.automatedExecutionSupported,
+    manualHoldSupported: value.manualHoldSupported,
+    requiresManualReview: value.requiresManualReview,
+    unsupportedCapabilityNotice:
+      (value.unsupportedCapabilityNotice as string) ?? null,
+    lastExecution,
+  }
+}
+
+export function parseRetentionPolicies(
+  value: unknown,
+): RetentionPolicy[] | null {
+  if (!Array.isArray(value)) return null
+  const result: RetentionPolicy[] = []
+  for (const item of value) {
+    const policy = parseRetentionPolicy(item)
+    if (!policy) return null
+    result.push(policy)
+  }
+  return result
+}
+
+export function parseDeletionOwnerFact(
+  value: unknown,
+): DeletionOwnerFact | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.ownerService !== 'string' ||
+    !RETENTION_OWNER_SERVICES.has(value.ownerService) ||
+    typeof value.status !== 'string' ||
+    !DELETION_FACT_STATUSES.has(value.status) ||
+    (value.completedAt !== null &&
+      value.completedAt !== undefined &&
+      !isDateTime(value.completedAt))
+  )
+    return null
+
+  const rawEvidence =
+    typeof value.evidenceReference === 'string'
+      ? value.evidenceReference.trim()
+      : null
+  const safeEvidenceReference =
+    value.ownerService === 'IDENTITY' &&
+    rawEvidence &&
+    APPROVED_IDENTITY_EVIDENCE_PATTERN.test(rawEvidence)
+      ? rawEvidence
+      : null
+
+  const rawReason =
+    typeof value.failureReason === 'string' ? value.failureReason.trim() : null
+  const safeFailureReason =
+    rawReason && APPROVED_DELETION_FAILURE_REASONS.has(rawReason)
+      ? (rawReason as DeletionOwnerFact['failureReason'])
+      : null
+
+  return {
+    ownerService: value.ownerService as DeletionOwnerFact['ownerService'],
+    status: value.status as DeletionOwnerFact['status'],
+    completedAt: (value.completedAt as string) ?? null,
+    evidenceReference: safeEvidenceReference,
+    failureReason: safeFailureReason,
+  }
+}
+
+export function parseDeletionRequest(value: unknown): DeletionRequest | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.requestId !== 'string' ||
+    !UUID_PATTERN.test(value.requestId) ||
+    typeof value.subjectReference !== 'string' ||
+    !/^tombstone:[0-9a-f]{64}$/i.test(value.subjectReference) ||
+    (value.accountStatus !== null &&
+      value.accountStatus !== undefined &&
+      (typeof value.accountStatus !== 'string' ||
+        !ACCOUNT_STATUSES.has(value.accountStatus))) ||
+    typeof value.status !== 'string' ||
+    !DELETION_REQUEST_STATUSES.has(value.status) ||
+    typeof value.holdType !== 'string' ||
+    !DELETION_HOLD_TYPES.has(value.holdType) ||
+    (value.holdReason !== null &&
+      value.holdReason !== undefined &&
+      (typeof value.holdReason !== 'string' ||
+        !DELETION_HOLD_REASONS.has(value.holdReason))) ||
+    typeof value.retryCount !== 'number' ||
+    typeof value.maxRetries !== 'number' ||
+    typeof value.escalationState !== 'string' ||
+    !DELETION_ESCALATION_STATES.has(value.escalationState) ||
+    !isDateTime(value.requestedAt) ||
+    !isDateTime(value.scheduledExecutionAt) ||
+    (value.completedAt !== null &&
+      value.completedAt !== undefined &&
+      !isDateTime(value.completedAt)) ||
+    (value.lastAttemptAt !== null &&
+      value.lastAttemptAt !== undefined &&
+      !isDateTime(value.lastAttemptAt)) ||
+    !Array.isArray(value.ownerFacts)
+  )
+    return null
+
+  const facts: DeletionOwnerFact[] = []
+  for (const fact of value.ownerFacts) {
+    const parsed = parseDeletionOwnerFact(fact)
+    if (!parsed) return null
+    facts.push(parsed)
+  }
+
+  return {
+    requestId: value.requestId,
+    subjectReference: value.subjectReference,
+    accountStatus:
+      (value.accountStatus as DeletionRequest['accountStatus']) ?? null,
+    status: value.status as DeletionRequest['status'],
+    holdType: value.holdType as DeletionRequest['holdType'],
+    holdReason: (value.holdReason as DeletionRequest['holdReason']) ?? null,
+    retryCount: value.retryCount,
+    maxRetries: value.maxRetries,
+    escalationState:
+      value.escalationState as DeletionRequest['escalationState'],
+    failureCode:
+      typeof value.failureCode === 'string' &&
+      APPROVED_DELETION_FAILURE_CODES.has(value.failureCode.trim())
+        ? (value.failureCode.trim() as DeletionRequest['failureCode'])
+        : null,
+    requestedAt: value.requestedAt,
+    scheduledExecutionAt: value.scheduledExecutionAt,
+    completedAt: (value.completedAt as string) ?? null,
+    lastAttemptAt: (value.lastAttemptAt as string) ?? null,
+    ownerFacts: facts,
+  }
+}
+
+export function parseDeletionRequestPage(
+  value: unknown,
+): DeletionRequestPage | null {
+  if (!isRecord(value) || !Array.isArray(value.items)) return null
+  const items: DeletionRequest[] = []
+  for (const item of value.items) {
+    const parsed = parseDeletionRequest(item)
+    if (!parsed) return null
+    items.push(parsed)
+  }
+  const total = typeof value.total === 'number' ? value.total : items.length
+  return {
+    items,
+    total,
+    nextCursor: (value.nextCursor as string) ?? null,
+  }
+}
+
+export function parseApplyHoldRequest(value: unknown): ApplyHoldRequest | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.holdType !== 'string' ||
+    !DELETION_HOLD_TYPES.has(value.holdType) ||
+    value.holdType === 'NONE' ||
+    typeof value.holdReason !== 'string' ||
+    !DELETION_HOLD_REASONS.has(value.holdReason)
+  )
+    return null
+
+  return {
+    holdType: value.holdType as ApplyHoldRequest['holdType'],
+    holdReason: value.holdReason as ApplyHoldRequest['holdReason'],
+  }
 }

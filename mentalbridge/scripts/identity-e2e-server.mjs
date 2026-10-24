@@ -266,6 +266,220 @@ const communityPostVersions = new Map([
   ['50000000-0000-4000-8000-000000000002', 1],
 ])
 
+const initialRetentionPolicies = [
+  {
+    policyId: 'MB-IDENTITY-REPORTING-001',
+    name: 'Chính sách bảo lưu tệp báo cáo tổng hợp',
+    ownerService: 'IDENTITY',
+    version: '1.0',
+    status: 'APPROVED',
+    retentionDays: 30,
+    automatedExecutionSupported: true,
+    manualHoldSupported: false,
+    requiresManualReview: false,
+    jobStatus: 'ACTIVE',
+    jobStatusSource: 'IDENTITY_EXECUTION_RECORD',
+    jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
+    description:
+      'Tệp báo cáo tổng hợp hoạt động tài khoản được lưu trữ an toàn trong 30 ngày trước khi dọn dẹp tự động.',
+    lastExecution: {
+      executionId: '948f9e80-d3bc-45aa-91f6-044dd5afbf81',
+      policyId: 'MB-IDENTITY-REPORTING-001',
+      ownerService: 'IDENTITY',
+      jobName: 'REPORT_ARTIFACT_RETENTION_SWEEP',
+      jobStatus: 'SUCCEEDED',
+      startedAt: '2026-10-19T02:00:00Z',
+      completedAt: '2026-10-19T02:05:00Z',
+      itemsEvaluated: 120,
+      recordsPurged: 15,
+      tombstonesCreated: 0,
+      holdsHonored: 0,
+    },
+  },
+  {
+    policyId: 'MB-IDENTITY-AUDIT-001',
+    name: 'Chính sách bảo lưu nhật ký kiểm toán Identity',
+    ownerService: 'IDENTITY',
+    version: '1.0',
+    status: 'APPROVED',
+    retentionDays: 365,
+    automatedExecutionSupported: false,
+    manualHoldSupported: false,
+    requiresManualReview: false,
+    jobStatus: 'PARTIALLY_SUPPORTED',
+    jobStatusSource: 'IDENTITY_POLICY_CATALOG',
+    jobName: 'IDENTITY_AUDIT_RETENTION',
+    description:
+      'Nhật ký kiểm toán tối thiểu hóa danh tính được bảo lưu bất biến trong 365 ngày (MB-587). Không hỗ trợ quét xóa thủ công từ quản trị.',
+    unsupportedCapabilityNotice:
+      'Nhật ký kiểm toán được bảo lưu bất biến trong 365 ngày theo chính sách MB-587; không hỗ trợ quét xóa sớm hoặc xóa thủ công từ giao diện quản trị.',
+  },
+  {
+    policyId: 'MB-PRIVACY-CARE-001',
+    name: 'Chính sách bảo lưu sàng lọc & đồng ý chăm sóc',
+    ownerService: 'CARE',
+    version: '1.1-capstone',
+    status: 'APPROVED',
+    retentionDays: null,
+    automatedExecutionSupported: false,
+    manualHoldSupported: true,
+    requiresManualReview: true,
+    jobStatus: 'UNAVAILABLE',
+    jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
+    jobName: 'CARE_ANONYMOUS_EXPIRY_SWEEP',
+    description:
+      'Phiên ẩn danh TTL 30 phút, tối đa 2 giờ; Đánh giá có tài khoản được bảo lưu có kiểm soát phục vụ tái đánh giá; Không xóa trước thời hạn quy định',
+    unsupportedCapabilityNotice:
+      'Identity không có quyền can thiệp cơ sở dữ liệu Care Service. Quá trình dọn dẹp do Care Service tự thực thi độc lập.',
+  },
+  {
+    policyId: 'consultation-journey-v1',
+    name: 'Chính sách bảo lưu phiên tư vấn & đối soát giao dịch',
+    ownerService: 'CONSULTATION',
+    version: '1.0-scope-v2',
+    status: 'APPROVED',
+    retentionDays: 90,
+    automatedExecutionSupported: false,
+    manualHoldSupported: true,
+    requiresManualReview: true,
+    jobStatus: 'UNAVAILABLE',
+    jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
+    jobName: 'CONSULTATION_METADATA_RETENTION',
+    description:
+      'Metadata phòng LiveKit lưu trữ 90 ngày (ADR 0039); Bằng chứng tài chính và giao dịch được bảo lưu theo quy định kế toán; Giữ lại vô thời hạn nếu có tranh chấp',
+    unsupportedCapabilityNotice:
+      'Identity không thể xóa dữ liệu giao dịch hoặc lịch hẹn Consultation. Phải tôn trọng giữ lại khi có tranh chấp (DISPUTE_HOLD).',
+  },
+  {
+    policyId: 'MB-DAILY-EMOTION-CHECK-IN-001',
+    name: 'Chính sách bảo lưu & xóa nhật ký cảm xúc',
+    ownerService: 'JOURNAL_AI',
+    version: '1.0',
+    status: 'APPROVED',
+    retentionDays: null,
+    automatedExecutionSupported: false,
+    manualHoldSupported: true,
+    requiresManualReview: false,
+    jobStatus: 'UNAVAILABLE',
+    jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
+    jobName: 'JOURNAL_AI_TOMBSTONE_PURGE',
+    description:
+      'Xóa dữ liệu nhật ký sẽ lập tức xóa bản mã hóa (ciphertext); giữ lại tombstone có giới hạn trước khi chuyển thành MISSING; Tuyệt đối không xuất thô nội dung',
+    unsupportedCapabilityNotice:
+      'Dữ liệu nhật ký mã hóa thuộc quyền riêng tư của Journal AI. Identity chỉ điều phối sự kiện xóa, không truy cập trực tiếp.',
+  },
+  {
+    policyId: 'MB-COMMUNITY-RETENTION-001',
+    name: 'Chính sách bảo lưu nội dung cộng đồng',
+    ownerService: 'COMMUNITY',
+    version: '1.0',
+    status: 'APPROVED',
+    retentionDays: 7,
+    automatedExecutionSupported: false,
+    manualHoldSupported: false,
+    requiresManualReview: false,
+    jobStatus: 'UNAVAILABLE',
+    jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
+    jobName: 'COMMUNITY_MEDIA_SWEEP',
+    description:
+      'Gỡ bài đăng sẽ lưu tombstone; Phương tiện chưa liên kết bị xóa sau 7 ngày',
+    unsupportedCapabilityNotice:
+      'Tính năng tự động dọn dẹp phương tiện đang thử nghiệm. Không hỗ trợ xóa tức thì qua quyền quản trị.',
+  },
+  {
+    policyId: 'MB-CONTENT-NOTIFICATION-RETENTION-001',
+    name: 'Chính sách bảo lưu hộp thư thông báo',
+    ownerService: 'CONTENT',
+    version: '1.0',
+    status: 'APPROVED',
+    retentionDays: 90,
+    automatedExecutionSupported: false,
+    manualHoldSupported: false,
+    requiresManualReview: false,
+    jobStatus: 'UNAVAILABLE',
+    jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
+    jobName: 'NOTIFICATION_INBOX_RETENTION',
+    description: 'Hộp thư thông báo lưu trữ 90 ngày',
+    unsupportedCapabilityNotice:
+      'Chức năng tự động dọn dẹp chưa được triển khai tại Content Service (Explicitly Unavailable).',
+  },
+]
+const retentionPolicies = structuredClone(initialRetentionPolicies)
+
+const initialDeletionRequests = [
+  {
+    requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+    subjectReference:
+      'tombstone:948f9e80d3bc45aa91f6044dd5afbf78e2e001e2e001e2e001e2e001e2e001e2',
+    accountStatus: 'DELETION_PENDING',
+    status: 'IN_PROGRESS',
+    holdType: 'NONE',
+    holdReason: null,
+    retryCount: 1,
+    maxRetries: 3,
+    escalationState: 'NONE',
+    requestedAt: '2026-10-18T10:00:00Z',
+    scheduledExecutionAt: '2026-10-18T10:00:00Z',
+    ownerFacts: [
+      {
+        ownerService: 'IDENTITY',
+        status: 'COMPLETED',
+        completedAt: '2026-10-18T10:01:00Z',
+        evidenceReference:
+          'audit:identity:account-deleted:948f9e80-d3bc-45aa-91f6-044dd5afbf71',
+      },
+      {
+        ownerService: 'CARE',
+        status: 'PENDING',
+      },
+    ],
+  },
+  {
+    requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf72',
+    subjectReference:
+      'tombstone:bbbb9e80d3bc45aa91f6044dd5afbf78e2e002e2e002e2e002e2e002e2e002e2',
+    accountStatus: 'DISABLED',
+    status: 'HELD',
+    holdType: 'LEGAL_HOLD',
+    holdReason: 'STATUTORY_INQUIRY',
+    retryCount: 0,
+    maxRetries: 3,
+    escalationState: 'NONE',
+    requestedAt: '2026-10-18T10:30:00Z',
+    scheduledExecutionAt: '2026-10-18T10:30:00Z',
+    ownerFacts: [
+      {
+        ownerService: 'IDENTITY',
+        status: 'HELD',
+        failureReason: 'Active legal hold blocks deletion execution',
+      },
+    ],
+  },
+  {
+    requestId: '948f9e80-d3bc-45aa-91f6-044dd5afbf73',
+    subjectReference:
+      'tombstone:cccc9e80d3bc45aa91f6044dd5afbf78e2e003e2e003e2e003e2e003e2e003e2',
+    accountStatus: 'DELETION_PENDING',
+    status: 'FAILED',
+    holdType: 'NONE',
+    holdReason: null,
+    retryCount: 3,
+    maxRetries: 3,
+    escalationState: 'RETRY_EXHAUSTED',
+    requestedAt: '2026-10-17T08:00:00Z',
+    scheduledExecutionAt: '2026-10-17T08:00:00Z',
+    ownerFacts: [
+      {
+        ownerService: 'COMMUNITY',
+        status: 'FAILED',
+        failureReason:
+          'Community service timeout during post de-identification',
+      },
+    ],
+  },
+]
+const deletionRequests = structuredClone(initialDeletionRequests)
+
 const accessSessions = new Map()
 const refreshSessions = new Map()
 const anonymousCareSessions = new Map()
@@ -353,6 +567,16 @@ function reset() {
     0,
     adminAccounts.length,
     ...structuredClone(initialAdminAccounts),
+  )
+  retentionPolicies.splice(
+    0,
+    retentionPolicies.length,
+    ...structuredClone(initialRetentionPolicies),
+  )
+  deletionRequests.splice(
+    0,
+    deletionRequests.length,
+    ...structuredClone(initialDeletionRequests),
   )
   contentCreateByKey.clear()
   communityCreateByKey.clear()
@@ -3611,6 +3835,216 @@ const server = createServer(async (request, response) => {
       refreshSessions.delete(body.refreshToken)
       state.refreshCount += 1
       json(response, 200, tokenPair(actor, `${actor.accountId}-rotated`))
+      return
+    }
+
+    if (url.pathname === '/api/v1/admin/retention/policies') {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      if (request.method !== 'GET') {
+        problem(response, 405, 'METHOD_NOT_ALLOWED', 'Method is not allowed')
+        return
+      }
+      json(response, 200, retentionPolicies)
+      return
+    }
+
+    const sweepMatch = url.pathname.match(
+      /^\/api\/v1\/admin\/retention\/policies\/([^/]+)\/sweep$/,
+    )
+    if (request.method === 'POST' && sweepMatch) {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      const policyId = sweepMatch[1]
+      const target = retentionPolicies.find((p) => p.policyId === policyId)
+      if (!target) {
+        problem(
+          response,
+          404,
+          'POLICY_NOT_FOUND',
+          'Retention policy was not found',
+        )
+        return
+      }
+      if (!target.automatedExecutionSupported) {
+        problem(
+          response,
+          422,
+          'CAPABILITY_UNSUPPORTED',
+          target.unsupportedCapabilityNotice ??
+            'Capability unsupported by owner',
+        )
+        return
+      }
+      const executionRecord = {
+        executionId: crypto.randomUUID(),
+        policyId: target.policyId,
+        ownerService: target.ownerService,
+        jobName: target.jobName,
+        jobStatus: 'SUCCEEDED',
+        startedAt: new Date(Date.now() - 30000).toISOString(),
+        completedAt: new Date().toISOString(),
+        itemsEvaluated: 120,
+        recordsPurged: 15,
+        tombstonesCreated: 0,
+        holdsHonored: 0,
+      }
+      target.lastExecution = executionRecord
+      json(response, 200, executionRecord)
+      return
+    }
+
+    if (url.pathname === '/api/v1/admin/retention/deletions') {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      if (request.method !== 'GET') {
+        problem(response, 405, 'METHOD_NOT_ALLOWED', 'Method is not allowed')
+        return
+      }
+      const statusFilter = url.searchParams.get('status')
+      const holdFilter = url.searchParams.get('holdType')
+      const limit = Number(url.searchParams.get('limit') ?? '20')
+      const page = Number(url.searchParams.get('page') ?? '0')
+      const filtered = deletionRequests.filter((candidate) => {
+        return (
+          (!statusFilter || candidate.status === statusFilter) &&
+          (!holdFilter || candidate.holdType === holdFilter)
+        )
+      })
+      const start = page * limit
+      const items = filtered.slice(start, start + limit)
+      const nextCursor =
+        start + limit < filtered.length ? String(page + 1) : null
+      json(response, 200, { items, total: filtered.length, nextCursor })
+      return
+    }
+
+    const retryMatch = url.pathname.match(
+      /^\/api\/v1\/admin\/retention\/deletions\/([^/]+)\/retry$/,
+    )
+    if (request.method === 'POST' && retryMatch) {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      const requestId = retryMatch[1]
+      const target = deletionRequests.find((d) => d.requestId === requestId)
+      if (!target) {
+        problem(
+          response,
+          404,
+          'DELETION_REQUEST_NOT_FOUND',
+          'Deletion request was not found',
+        )
+        return
+      }
+      if (target.holdType !== 'NONE') {
+        problem(
+          response,
+          409,
+          'DELETION_HOLD_ACTIVE',
+          'Cannot execute deletion while an active hold is in place',
+        )
+        return
+      }
+      if (target.retryCount >= target.maxRetries) {
+        problem(
+          response,
+          409,
+          'DELETION_RETRY_EXHAUSTED',
+          'Deletion retry limit reached. Manual escalation is required.',
+        )
+        return
+      }
+      target.retryCount += 1
+      if (target.retryCount >= target.maxRetries) {
+        target.status = 'FAILED'
+        target.escalationState = 'RETRY_EXHAUSTED'
+      } else {
+        target.status = 'IN_PROGRESS'
+      }
+      json(response, 200, target)
+      return
+    }
+
+    const holdsMatch = url.pathname.match(
+      /^\/api\/v1\/admin\/retention\/deletions\/([^/]+)\/holds$/,
+    )
+    if (holdsMatch) {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      const requestId = holdsMatch[1]
+      const target = deletionRequests.find((d) => d.requestId === requestId)
+      if (!target) {
+        problem(
+          response,
+          404,
+          'DELETION_REQUEST_NOT_FOUND',
+          'Deletion request was not found',
+        )
+        return
+      }
+      if (request.method === 'POST' || request.method === 'PUT') {
+        if (target.status === 'COMPLETED') {
+          problem(
+            response,
+            409,
+            'CONFLICT',
+            'Không thể áp dụng Hold lên yêu cầu xóa đã hoàn tất (COMPLETED).',
+          )
+          return
+        }
+        const body = await readBody(request)
+        const allowedReasons = new Set([
+          'STATUTORY_INQUIRY',
+          'PENDING_DISPUTE',
+          'ACTIVE_SAFETY_REVIEW',
+          'SCHEDULED_APPOINTMENT_ACTIVE',
+          'USER_CONTESTED',
+          'AUDIT_COMPLIANCE_HOLD',
+        ])
+        if (!body.holdReason || !allowedReasons.has(body.holdReason)) {
+          problem(
+            response,
+            400,
+            'VALIDATION_FAILED',
+            'Mã lý do Hold không hợp lệ hoặc chứa nội dung không an toàn.',
+          )
+          return
+        }
+        target.holdType = body.holdType
+        target.holdReason = body.holdReason
+        target.status = 'HELD'
+        json(response, 200, target)
+        return
+      }
+      if (request.method === 'DELETE') {
+        target.holdType = 'NONE'
+        target.holdReason = null
+        if (target.retryCount >= target.maxRetries && target.maxRetries > 0) {
+          target.status = 'FAILED'
+        } else if (target.retryCount > 0) {
+          target.status = 'IN_PROGRESS'
+        } else {
+          target.status = 'PENDING'
+        }
+        json(response, 200, target)
+        return
+      }
+      problem(response, 405, 'METHOD_NOT_ALLOWED', 'Method is not allowed')
       return
     }
 
