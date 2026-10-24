@@ -22,6 +22,9 @@ function createSessionService(): jest.Mocked<SessionService> {
     registerUser: jest.fn(),
     verifyEmail: jest.fn(),
     requestEmailVerification: jest.fn(),
+    requestPasswordRecovery: jest.fn(),
+    resetPassword: jest.fn(),
+    changePassword: jest.fn(),
   }
 }
 
@@ -37,6 +40,19 @@ function SignOutHarness() {
         onPress={() => setMuted(!muted)}
       />
     </View>
+  )
+}
+
+function PasswordChangeHarness() {
+  const { changePassword, status } = useSession()
+
+  return (
+    <Button
+      title={status}
+      onPress={() =>
+        void changePassword('correct-password', 'new-correct-password')
+      }
+    />
   )
 }
 
@@ -102,6 +118,39 @@ describe('mobile session context', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'authenticated' }))
 
     await waitFor(() => {
+      expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+      expect(
+        screen.getByRole('button', { name: 'unauthenticated' }),
+      ).toBeOnTheScreen()
+    })
+  })
+
+  it('clears the authenticated state only after Identity changes the password', async () => {
+    const queryClient = createQueryClient()
+    const service = createSessionService()
+    service.changePassword.mockResolvedValue()
+    queryClient.setQueryData(['care-profile', 'account-1'], {
+      displayName: 'Sensitive profile',
+    })
+
+    await render(
+      <QueryClientProvider client={queryClient}>
+        <SessionProvider
+          initialSession={{ role: 'USER', subject: 'account-1' }}
+          service={service}
+        >
+          <PasswordChangeHarness />
+        </SessionProvider>
+      </QueryClientProvider>,
+    )
+
+    await fireEvent.press(screen.getByRole('button', { name: 'authenticated' }))
+
+    await waitFor(() => {
+      expect(service.changePassword).toHaveBeenCalledWith(
+        'correct-password',
+        'new-correct-password',
+      )
       expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
       expect(
         screen.getByRole('button', { name: 'unauthenticated' }),
