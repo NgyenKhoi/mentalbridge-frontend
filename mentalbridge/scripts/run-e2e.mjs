@@ -6,6 +6,7 @@ const identityPort = 3201
 const carePort = 3202
 const frontendPort = 3100
 const standaloneDirectory = resolve('.next', 'standalone')
+const playwrightCli = resolve('node_modules', '@playwright', 'test', 'cli.js')
 
 const inheritedEnvironment = Object.entries(process.env).reduce(
   (environment, [key, value]) => {
@@ -17,6 +18,8 @@ const inheritedEnvironment = Object.entries(process.env).reduce(
 
 const children = []
 let cleaningUp = false
+const gracefulShutdownMs = 5_000
+const forcedShutdownMs = 2_000
 
 function start(command, args, environment, cwd = process.cwd()) {
   const child = spawn(command, args, {
@@ -71,23 +74,55 @@ async function waitFor(url, label, child) {
 function terminate(child) {
   if (child.exitCode !== null || child.signalCode !== null) return
 
-  if (process.platform === 'win32') {
-    return new Promise((resolve) => {
-      const killer = spawn(
-        'taskkill',
-        ['/pid', String(child.pid), '/T', '/F'],
-        {
-          stdio: 'ignore',
-          windowsHide: true,
-        },
-      )
-      killer.once('exit', resolve)
-      killer.once('error', resolve)
-    })
-  }
+  return new Promise((resolve, reject) => {
+    let forceTimer
+    let failureTimer
 
-  child.kill('SIGTERM')
-  return new Promise((resolve) => child.once('exit', resolve))
+    const clearTimers = () => {
+      clearTimeout(forceTimer)
+      clearTimeout(failureTimer)
+    }
+    const finished = () => {
+      clearTimers()
+      resolve()
+    }
+    const failed = (error) => {
+      clearTimers()
+      reject(error)
+    }
+
+    child.once('close', finished)
+    child.once('error', failed)
+
+    try {
+      child.kill('SIGTERM')
+    } catch (error) {
+      failed(error)
+      return
+    }
+
+    forceTimer = setTimeout(() => {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        finished()
+        return
+      }
+
+      try {
+        child.kill('SIGKILL')
+      } catch (error) {
+        failed(error)
+        return
+      }
+
+      failureTimer = setTimeout(() => {
+        failed(
+          new Error(
+            `E2E child process ${child.pid ?? 'unknown'} did not exit after forced shutdown`,
+          ),
+        )
+      }, forcedShutdownMs)
+    }, gracefulShutdownMs)
+  })
 }
 
 async function cleanup() {
@@ -105,10 +140,9 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 
 async function run() {
   if (process.env.PLAYWRIGHT_BASE_URL) {
-    const command = process.platform === 'win32' ? 'npx.cmd' : 'npx'
     const playwright = start(
-      command,
-      ['playwright', 'test', ...process.argv.slice(2)],
+      process.execPath,
+      [playwrightCli, 'test', ...process.argv.slice(2)],
       {
         ...inheritedEnvironment,
       },
@@ -167,10 +201,9 @@ async function run() {
     frontend,
   )
 
-  const command = process.platform === 'win32' ? 'npx.cmd' : 'npx'
   const playwright = start(
-    command,
-    ['playwright', 'test', ...process.argv.slice(2)],
+    process.execPath,
+    [playwrightCli, 'test', ...process.argv.slice(2)],
     {
       ...inheritedEnvironment,
       PLAYWRIGHT_BASE_URL: `http://${host}:${frontendPort}`,
