@@ -963,12 +963,18 @@ export interface components {
             description: string;
             retentionDays?: number | null;
             jobName: string;
-            /** @enum {string} */
+            /**
+             * @description Latest authoritative execution outcome when one exists; otherwise the catalog capability state. FAILED reports the latest failed execution and does not by itself mean retries are exhausted.
+             * @enum {string}
+             */
             jobStatus: "ACTIVE" | "IDLE" | "PARTIALLY_SUPPORTED" | "UNAVAILABLE" | "SUCCEEDED" | "FAILED" | "RUNNING" | "STALE";
             /** @enum {string} */
             jobStatusSource: "IDENTITY_POLICY_CATALOG" | "IDENTITY_EXECUTION_RECORD" | "NO_AUTHORITATIVE_SIGNAL";
             automatedExecutionSupported: boolean;
+            /** @description Whether the policy owner exposes an authoritative owner-level manual Hold contract. Identity coordinator Hold remains available through deletion-request Hold endpoints and does not imply enforcement by an external owner. */
             manualHoldSupported: boolean;
+            /** @description True only after three consecutive failed or stale executions exhaust automated retry and require manual intervention. */
+            manualEscalationRequired?: boolean;
             requiresManualReview: boolean;
             unsupportedCapabilityNotice?: string | null;
             lastExecution?: components["schemas"]["RetentionExecutionRecord"] | null;
@@ -997,6 +1003,7 @@ export interface components {
             status: "PENDING" | "COMPLETED" | "HELD" | "FAILED" | "UNAVAILABLE";
             /** Format: date-time */
             completedAt?: string | null;
+            /** @description Identity-only opaque reference whose UUID suffix identifies the committed authoritative Identity audit event for the successful account-deletion attempt. External owners remain null until an approved authoritative evidence contract exists. */
             evidenceReference?: string | null;
             failureReason?: components["schemas"]["DeletionFailureReason"] | null;
         };

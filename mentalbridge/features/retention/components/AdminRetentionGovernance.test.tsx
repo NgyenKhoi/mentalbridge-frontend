@@ -40,6 +40,7 @@ const mockPolicies: RetentionPolicy[] = [
     retentionDays: 30,
     automatedExecutionSupported: true,
     manualHoldSupported: false,
+    manualEscalationRequired: false,
     requiresManualReview: false,
     jobStatus: 'ACTIVE',
     jobStatusSource: 'IDENTITY_EXECUTION_RECORD',
@@ -68,6 +69,7 @@ const mockPolicies: RetentionPolicy[] = [
     retentionDays: 90,
     automatedExecutionSupported: false,
     manualHoldSupported: false,
+    manualEscalationRequired: false,
     requiresManualReview: false,
     jobStatus: 'UNAVAILABLE',
     jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
@@ -233,6 +235,18 @@ describe('AdminRetentionGovernance Component', () => {
         'job-status-source-MB-CONTENT-NOTIFICATION-RETENTION-001',
       ),
     ).toHaveTextContent('Không có tín hiệu trạng thái authoritative từ owner')
+    expect(
+      screen.getByTestId(
+        'hold-capability-MB-CONTENT-NOTIFICATION-RETENTION-001',
+      ),
+    ).toHaveTextContent('Hold tại owner: Chưa có contract authoritative')
+    expect(
+      screen.getByTestId(
+        'hold-capability-MB-CONTENT-NOTIFICATION-RETENTION-001',
+      ),
+    ).toHaveTextContent(
+      'Hold tại Identity coordinator: quản lý trong tab Yêu cầu xóa',
+    )
   })
 
   it('requires explicit policy/owner/impact confirmation before triggering a sweep', async () => {
@@ -365,6 +379,7 @@ describe('AdminRetentionGovernance Component', () => {
       {
         ...mockPolicies[0],
         jobStatus: 'FAILED',
+        manualEscalationRequired: true,
         lastExecution: {
           ...mockPolicies[0].lastExecution!,
           jobStatus: 'FAILED',
@@ -385,6 +400,33 @@ describe('AdminRetentionGovernance Component', () => {
 
     await user.click(sweepBtn)
     expect(apiMock.triggerSweep).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed execution without disabling retry before exhaustion', async () => {
+    apiMock.getPolicies.mockResolvedValueOnce([
+      {
+        ...mockPolicies[0],
+        jobStatus: 'FAILED',
+        manualEscalationRequired: false,
+        lastExecution: {
+          ...mockPolicies[0].lastExecution!,
+          jobStatus: 'FAILED',
+          failureCode: 'SWEEP_EXECUTION_FAILED',
+        },
+      },
+    ])
+    const user = userEvent.setup()
+    render(<AdminRetentionGovernance />)
+
+    const sweepBtn = await screen.findByTestId(
+      'sweep-btn-MB-IDENTITY-REPORTING-001',
+    )
+    expect(screen.getByText('JOB: FAILED')).toBeInTheDocument()
+    expect(sweepBtn).toBeEnabled()
+    expect(sweepBtn).toHaveTextContent('Thử lại dọn dẹp')
+
+    await user.click(sweepBtn)
+    expect(screen.getByTestId('sweep-confirm-modal')).toBeInTheDocument()
   })
 
   it('switches to deletions tab and renders minimized identifiers without raw secrets or text', async () => {

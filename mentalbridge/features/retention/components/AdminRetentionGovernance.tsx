@@ -64,7 +64,7 @@ function sweepUnavailableReason(policy: RetentionPolicy): string | null {
   ) {
     return 'Tiến trình dọn dẹp đang được thực thi (RUNNING). Vui lòng đợi hoàn tất trước khi kích hoạt lại.'
   }
-  if (policy.jobStatus === 'FAILED') {
+  if (policy.manualEscalationRequired) {
     return 'Tiến trình dọn dẹp đã thất bại liên tiếp và cần xử lý leo thang thủ công (MANUAL_ESCALATION_REQUIRED).'
   }
   return null
@@ -435,11 +435,16 @@ export default function AdminRetentionGovernance() {
                     </span>
                   </div>
                   <div className={styles.metaItem}>
-                    <strong>Hỗ trợ lệnh Hold</strong>
-                    <span>
+                    <strong>Khả năng Hold</strong>
+                    <span data-testid={`hold-capability-${policy.policyId}`}>
+                      Hold tại owner:{' '}
                       {policy.manualHoldSupported
-                        ? 'Có hỗ trợ'
-                        : 'Không áp dụng'}
+                        ? 'Có contract authoritative'
+                        : 'Chưa có contract authoritative'}
+                      <span style={{ display: 'block' }}>
+                        Hold tại Identity coordinator: quản lý trong tab Yêu cầu
+                        xóa
+                      </span>
                     </span>
                   </div>
                   <div className={styles.metaItem}>
@@ -484,9 +489,11 @@ export default function AdminRetentionGovernance() {
                           : policy.jobStatus === 'RUNNING' ||
                               policy.lastExecution?.jobStatus === 'RUNNING'
                             ? 'Đang chạy (RUNNING)'
-                            : policy.jobStatus === 'FAILED'
+                            : policy.manualEscalationRequired
                               ? 'Cần xử lý thủ công'
-                              : 'Kích hoạt dọn dẹp ngay'}
+                              : policy.jobStatus === 'FAILED'
+                                ? 'Thử lại dọn dẹp'
+                                : 'Kích hoạt dọn dẹp ngay'}
                       </button>
                     </>
                   ) : (

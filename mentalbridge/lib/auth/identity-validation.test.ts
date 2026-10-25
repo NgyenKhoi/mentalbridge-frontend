@@ -566,7 +566,8 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
       jobStatus: 'UNAVAILABLE',
       jobStatusSource: 'NO_AUTHORITATIVE_SIGNAL',
       automatedExecutionSupported: false,
-      manualHoldSupported: true,
+      manualHoldSupported: false,
+      manualEscalationRequired: false,
       requiresManualReview: true,
       unsupportedCapabilityNotice: 'No approved owner status contract.',
       lastExecution: null,
@@ -574,6 +575,28 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
 
     expect(parseRetentionPolicy(externalPolicy)?.jobStatusSource).toBe(
       'NO_AUTHORITATIVE_SIGNAL',
+    )
+    expect(parseRetentionPolicy(externalPolicy)?.manualHoldSupported).toBe(
+      false,
+    )
+    expect(
+      parseRetentionPolicy({
+        ...externalPolicy,
+        ownerService: 'IDENTITY',
+        jobStatus: 'STALE',
+        jobStatusSource: 'IDENTITY_EXECUTION_RECORD',
+      })?.jobStatus,
+    ).toBe('STALE')
+    expect(
+      parseRetentionPolicy({
+        ...externalPolicy,
+        manualEscalationRequired: true,
+      })?.manualEscalationRequired,
+    ).toBe(true)
+    const legacyPolicy: Record<string, unknown> = { ...externalPolicy }
+    delete legacyPolicy.manualEscalationRequired
+    expect(parseRetentionPolicy(legacyPolicy)?.manualEscalationRequired).toBe(
+      false,
     )
     expect(
       parseRetentionPolicy({
@@ -584,5 +607,11 @@ describe('parseDeletionOwnerFact boundary sanitization', () => {
     const missingSource: Record<string, unknown> = { ...externalPolicy }
     delete missingSource.jobStatusSource
     expect(parseRetentionPolicy(missingSource)).toBeNull()
+    expect(
+      parseRetentionPolicy({
+        ...externalPolicy,
+        manualEscalationRequired: 'true',
+      }),
+    ).toBeNull()
   })
 })

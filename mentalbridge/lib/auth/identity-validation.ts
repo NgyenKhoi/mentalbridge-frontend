@@ -1027,6 +1027,7 @@ const RETENTION_JOB_STATUSES = new Set([
   'SUCCEEDED',
   'FAILED',
   'RUNNING',
+  'STALE',
 ])
 const RETENTION_JOB_STATUS_SOURCES = new Set([
   'IDENTITY_POLICY_CATALOG',
@@ -1153,6 +1154,8 @@ export function parseRetentionPolicy(value: unknown): RetentionPolicy | null {
     !RETENTION_JOB_STATUS_SOURCES.has(value.jobStatusSource) ||
     typeof value.automatedExecutionSupported !== 'boolean' ||
     typeof value.manualHoldSupported !== 'boolean' ||
+    (value.manualEscalationRequired !== undefined &&
+      typeof value.manualEscalationRequired !== 'boolean') ||
     typeof value.requiresManualReview !== 'boolean'
   )
     return null
@@ -1177,6 +1180,7 @@ export function parseRetentionPolicy(value: unknown): RetentionPolicy | null {
       value.jobStatusSource as RetentionPolicy['jobStatusSource'],
     automatedExecutionSupported: value.automatedExecutionSupported,
     manualHoldSupported: value.manualHoldSupported,
+    manualEscalationRequired: value.manualEscalationRequired ?? false,
     requiresManualReview: value.requiresManualReview,
     unsupportedCapabilityNotice:
       (value.unsupportedCapabilityNotice as string) ?? null,
