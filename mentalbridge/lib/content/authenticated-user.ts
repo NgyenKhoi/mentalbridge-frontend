@@ -15,18 +15,36 @@ import {
   resolveSession,
 } from '@/lib/auth/session-service'
 
-export async function authenticatedContentUser(
+async function authenticatedContentPrincipal(
   request: NextRequest,
   correlationId: string,
+  roles: readonly ('USER' | 'SPECIALIST')[],
 ) {
   const credentials = readSessionCredentials(request.cookies)
   const session = await resolveSession(credentials, correlationId)
-  ensureRole(session.account, ['USER'])
+  ensureRole(session.account, [...roles])
   const accessToken =
     session.rotatedTokens?.accessToken ?? credentials.accessToken
   if (!accessToken)
     throw new Error('Resolved session has no access credential.')
   return { accessToken, rotatedTokens: session.rotatedTokens }
+}
+
+export function authenticatedContentUser(
+  request: NextRequest,
+  correlationId: string,
+) {
+  return authenticatedContentPrincipal(request, correlationId, ['USER'])
+}
+
+export function authenticatedNotificationOwner(
+  request: NextRequest,
+  correlationId: string,
+) {
+  return authenticatedContentPrincipal(request, correlationId, [
+    'USER',
+    'SPECIALIST',
+  ])
 }
 
 export function contentAuthenticationFailure(

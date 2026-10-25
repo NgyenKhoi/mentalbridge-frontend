@@ -2,11 +2,16 @@ import { browserApiClient } from '@/lib/api/browser-client'
 import type {
   ActionOccurrence,
   ActionOccurrenceList,
+  AdaptiveReviewConfirmation,
+  AdaptiveSupportPlanReview,
   ChangeSupportPlanStatusRequest,
+  ConfirmAdaptiveReviewOptionRequest,
   EmotionCheckInOccurrenceReconciliation,
   JournalOccurrenceReconciliation,
   NativeSupportPlanReplacementReview,
+  PlanResourceActionsV1,
   ReplaceCurrentSupportPlanRequest,
+  ReplaceSupportPlanOccurrenceEngagementRequest,
   SupportPlanActionHistory,
   SupportPlanV3,
 } from './support-plan-contract'
@@ -30,6 +35,17 @@ export async function getNativeSupportPlanEvaluationSource(
 export async function getCurrentSupportPlanActions() {
   return (
     await browserApiClient.get<SupportPlanV3>('/care/v2/support-plans/current')
+  ).data
+}
+export async function getCurrentPlanResourceActions(
+  localDate: string,
+  signal?: AbortSignal,
+) {
+  return (
+    await browserApiClient.get<PlanResourceActionsV1>(
+      '/care/v2/support-plans/current/resource-actions',
+      { params: { localDate }, signal },
+    )
   ).data
 }
 export async function getCurrentNativeSupportPlanDraft() {
@@ -106,6 +122,36 @@ export async function reviewNativeSupportPlanReplacement(
     )
   ).data
 }
+export async function getAdaptiveSupportPlanReview(
+  id: string,
+  reassessmentSummaryId?: string,
+) {
+  return (
+    await browserApiClient.get<AdaptiveSupportPlanReview>(
+      `${planPath(id)}/adaptive-review`,
+      reassessmentSummaryId ? { params: { reassessmentSummaryId } } : {},
+    )
+  ).data
+}
+export async function confirmAdaptiveReviewOption(
+  id: string,
+  version: number,
+  request: ConfirmAdaptiveReviewOptionRequest,
+  idempotencyKey: string,
+) {
+  return (
+    await browserApiClient.post<AdaptiveReviewConfirmation>(
+      `${planPath(id)}/adaptive-review/confirm`,
+      request,
+      {
+        headers: {
+          'If-Match': `"${version}"`,
+          'Idempotency-Key': idempotencyKey,
+        },
+      },
+    )
+  ).data
+}
 export async function replaceWithNativeSupportPlan(
   id: string,
   version: number,
@@ -153,6 +199,48 @@ export async function reconcileEmotionCheckInOccurrence(id: string) {
   return (
     await browserApiClient.post<EmotionCheckInOccurrenceReconciliation>(
       `${occurrencePath(id)}/emotion-check-in/reconcile`,
+    )
+  ).data
+}
+
+export async function reconcileResourceOccurrence(id: string, version: number) {
+  return (
+    await browserApiClient.post<ActionOccurrence>(
+      `${occurrencePath(id)}/resource/reconcile`,
+      undefined,
+      { headers: { 'If-Match': `"${version}"` } },
+    )
+  ).data
+}
+
+export async function continueSupportPlanCycle(
+  id: string,
+  version: number,
+  idempotencyKey: string,
+) {
+  return (
+    await browserApiClient.post<SupportPlanV3>(
+      `${planPath(id)}/cycle-continuation`,
+      undefined,
+      {
+        headers: {
+          'If-Match': `"${version}"`,
+          'Idempotency-Key': idempotencyKey,
+        },
+      },
+    )
+  ).data
+}
+export async function replaceNativeOccurrenceEngagement(
+  id: string,
+  version: number,
+  request: ReplaceSupportPlanOccurrenceEngagementRequest,
+) {
+  return (
+    await browserApiClient.put<ActionOccurrence>(
+      `${occurrencePath(id)}/engagement`,
+      request,
+      { headers: { 'If-Match': `"${version}"` } },
     )
   ).data
 }

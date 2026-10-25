@@ -126,19 +126,19 @@ export const appointmentSchema = z
       return item.sessionPolicyVersion !== 'livekit-video-completion-v1'
     if (!['SESSION_ENDED', 'COMPLETED'].includes(item.status))
       return item.sessionPolicyVersion === null
-    if (
-      item.sessionPolicyVersion !== 'livekit-video-completion-v1' ||
-      item.sessionEndedAt === null
-    )
-      return false
+    if (item.sessionEndedAt === null) return false
     if (item.status === 'SESSION_ENDED')
       return (
+        item.sessionPolicyVersion === 'livekit-video-completion-v1' &&
         item.sessionOutcome === null &&
         item.sessionSettledAt === null &&
         item.completionFactId === null &&
         item.creditState === 'HELD'
       )
     return (
+      (item.sessionPolicyVersion === 'livekit-video-completion-v1' ||
+        (item.sessionPolicyVersion === 'chat-session-completion-v1' &&
+          item.sessionOutcomeReason === 'EVIDENCE_REQUIREMENTS_MET')) &&
       item.sessionOutcome === 'COMPLETED' &&
       item.sessionSettledAt !== null &&
       item.completionFactId !== null &&

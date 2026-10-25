@@ -1,0 +1,32 @@
+appId: com.mentalbridge.mobile
+name: MB-692 private group invitation membership and departed link source
+---
+- runFlow: mb-692-sign-in.yaml
+- openLink: 'mentalbridge:///community-chat?invitationId=${MAESTRO_MB_COMMUNITY_INVITATION_ID}'
+- assertVisible: 'Tham gia nhóm'
+- assertNotVisible:
+    id: community-chat-composer
+- tapOn: 'Tham gia nhóm'
+- extendedWaitUntil:
+    visible:
+      id: community-chat-composer
+    timeout: 30000
+- assertNotVisible: 'MB692 synthetic pre-membership message'
+- tapOn: 'Thành viên và quản lý nhóm'
+- assertVisible: 'Vai trò của bạn: Thành viên'
+- assertNotVisible: 'Lưu trữ nhóm'
+- assertNotVisible: 'Chuyển quyền chủ nhóm'
+- scrollUntilVisible:
+    element:
+      text: 'Rời nhóm'
+    direction: DOWN
+- tapOn: 'Rời nhóm'
+- tapOn: 'Xác nhận thay đổi'
+- assertVisible: 'Trò chuyện cộng đồng'
+- openLink: 'mentalbridge:///community-chat?conversationId=${MAESTRO_MB_COMMUNITY_GROUP_ID}'
+- extendedWaitUntil:
+    visible: 'Chưa thể xác nhận kết nối hoặc quyền truy cập.*'
+    timeout: 30000
+- assertNotVisible:
+    id: community-chat-composer
+- assertNotVisible: 'MB692 synthetic pre-membership message'

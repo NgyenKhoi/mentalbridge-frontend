@@ -1,4 +1,8 @@
 import ResourceDetail from '@/features/resources/components/ResourceDetail'
+import {
+  parseEmotionPlanOrigin,
+  resourcePlanHref,
+} from '@/features/support-plan/emotion-plan-origin'
 import { isUuid } from '@/lib/care/care-validation'
 
 type Props = Readonly<{
@@ -10,8 +14,19 @@ type Props = Readonly<{
     supportGuideId?: string | string[]
     guideHistory?: string | string[]
     resultEvaluationId?: string | string[]
+    occurrenceId?: string | string[]
+    actionId?: string | string[]
+    localDate?: string | string[]
   }>
 }>
+
+function planOrigin(query: Awaited<Props['searchParams']>) {
+  if (query.from !== 'support-plan') return undefined
+  const params = new URLSearchParams()
+  for (const key of ['occurrenceId', 'actionId', 'localDate'] as const)
+    for (const value of [query[key] ?? []].flat()) params.append(key, value)
+  return parseEmotionPlanOrigin(params) ?? undefined
+}
 
 export default async function ResourceDetailPage({
   params,
@@ -20,10 +35,18 @@ export default async function ResourceDetailPage({
   const [{ resourceId }, query] = await Promise.all([params, searchParams])
   const guideHistory =
     query.from === 'support-guide' && query.guideHistory === '1'
+  const origin = planOrigin(query)
   return (
     <ResourceDetail
       resourceId={resourceId}
-      fromSupportPlan={query.from === 'support-plan'}
+      supportPlanReturnHref={
+        query.from === 'support-plan'
+          ? origin
+            ? resourcePlanHref(origin)
+            : '/support-plan'
+          : undefined
+      }
+      supportPlanOrigin={origin}
       returnSupportGuideId={
         query.from === 'support-guide' && isUuid(query.supportGuideId)
           ? query.supportGuideId
@@ -36,7 +59,9 @@ export default async function ResourceDetailPage({
             ? query.resultEvaluationId
             : undefined,
       }}
-      activityDate={typeof query.date === 'string' ? query.date : undefined}
+      activityDate={
+        typeof query.date === 'string' ? query.date : origin?.localDate
+      }
       contentVersion={
         typeof query.contentVersion === 'string'
           ? query.contentVersion

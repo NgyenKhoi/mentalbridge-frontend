@@ -46,7 +46,11 @@ export default async function LoginPage(props: PageProps<'/login'>) {
 
             <LoginForm
               notice={notice}
-              warning={logout === 'unconfirmed' ? 'Đã đăng xuất trên thiết bị này. Chưa xác nhận được trạng thái đăng xuất trên các thiết bị khác; vui lòng thử lại sau khi đăng nhập.' : undefined}
+              warning={
+                logout === 'unconfirmed'
+                  ? 'Đã đăng xuất trên thiết bị này. Chưa xác nhận được trạng thái đăng xuất trên các thiết bị khác; vui lòng thử lại sau khi đăng nhập.'
+                  : undefined
+              }
             />
 
             <div className="anonymous-cta">

@@ -43,6 +43,11 @@ import {
   AvailabilityTimePicker,
 } from './AvailabilityPickers'
 import {
+  AvailabilityCalendar,
+  AvailabilityViewSwitch,
+  type AvailabilityView,
+} from './AvailabilityCalendar'
+import {
   addDays,
   availabilityWindow,
   dateInTimezone,
@@ -146,6 +151,7 @@ export default function SpecialistAvailabilityManager() {
   const [formError, setFormError] = useState('')
   const [notice, setNotice] = useState('')
   const [filter, setFilter] = useState<Filter>('ALL')
+  const [view, setView] = useState<AvailabilityView>('list')
   const [updatedAt, setUpdatedAt] = useState('')
   const [rangeAnchor, setRangeAnchor] = useState('')
   const [loadedAnchor, setLoadedAnchor] = useState('')
@@ -276,10 +282,10 @@ export default function SpecialistAvailabilityManager() {
       }
     try {
       const range = localSlotToUtc(form.date, form.startTime, form.timezone)
-      if (Date.parse(range.startAt) <= now)
+      if (Date.parse(range.endAt) <= now)
         return {
           range,
-          issue: 'Giờ này đã qua. Hãy chọn thời điểm bắt đầu trong tương lai.',
+          issue: 'Giờ này đã qua. Hãy chọn khung giờ chưa kết thúc.',
           overlap: false,
         }
       const overlap = slots.some(
@@ -342,7 +348,7 @@ export default function SpecialistAvailabilityManager() {
   }
   const publish = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (selection.range && Date.parse(selection.range.startAt) <= Date.now()) {
+    if (selection.range && Date.parse(selection.range.endAt) <= Date.now()) {
       setNow(Date.now())
       return
     }
@@ -465,7 +471,7 @@ export default function SpecialistAvailabilityManager() {
     if (!validTimezone(form.timezone)) return 'Múi giờ chưa hợp lệ'
     try {
       const range = localSlotToUtc(form.date, time, safeTimezone)
-      if (Date.parse(range.startAt) <= now) return 'Thời điểm đã qua'
+      if (Date.parse(range.endAt) <= now) return 'Khung giờ đã kết thúc'
       if (
         slots.some(
           (slot) =>
@@ -847,6 +853,7 @@ export default function SpecialistAvailabilityManager() {
                   Hôm nay
                 </button>
               )}
+              <AvailabilityViewSwitch value={view} onChange={setView} />
             </div>
             {filter !== 'ALL' && (
               <div className={styles.activeFilter}>
@@ -920,6 +927,26 @@ export default function SpecialistAvailabilityManager() {
                 <h3>Chưa có dữ liệu để hiển thị</h3>
                 <p>Tải lại lịch để tiếp tục quản lý khung giờ của bạn.</p>
               </div>
+            ) : view === 'calendar' ? (
+              <AvailabilityCalendar
+                key={`${loadedAnchor}:${safeTimezone}`}
+                slots={visibleSlots}
+                anchor={loadedAnchor || rangeAnchor || minDate}
+                today={minDate}
+                timezone={safeTimezone}
+                busy={reading || !!pending}
+                readinessLabels={READINESS_LABELS}
+                onNavigate={(date) => void load(date)}
+                onSelect={(slot) => {
+                  setView('list')
+                  setHighlighted(slot.id)
+                  requestAnimationFrame(() =>
+                    document
+                      .getElementById(`availability-slot-${slot.id}`)
+                      ?.focus(),
+                  )
+                }}
+              />
             ) : visibleSlots.length === 0 ? (
               <div className={styles.empty}>
                 <span className={styles.emptyIcon}>
@@ -967,6 +994,8 @@ export default function SpecialistAvailabilityManager() {
                 {visibleSlots.map((slot) => (
                   <li
                     key={slot.id}
+                    id={`availability-slot-${slot.id}`}
+                    tabIndex={-1}
                     className={styles.slot}
                     data-withdrawn={slot.status === 'WITHDRAWN'}
                     data-highlighted={slot.id === highlighted}

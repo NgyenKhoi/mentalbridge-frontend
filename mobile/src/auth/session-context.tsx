@@ -15,6 +15,7 @@ import type {
   SessionService,
 } from './identity-session-service'
 import type { AppSession } from './session'
+import { resetCompanionSessionPreferences } from '@/support-plan-companion/companion-session'
 
 export type SessionStatus =
   'restoring' | 'authenticated' | 'unauthenticated' | 'unavailable'
@@ -33,6 +34,9 @@ type SessionContextValue = Readonly<{
   ): Promise<void>
   verifyEmail(challenge: string): Promise<void>
   requestEmailVerification(email: string): Promise<void>
+  requestPasswordRecovery(email: string): Promise<void>
+  resetPassword(challenge: string, newPassword: string): Promise<void>
+  changePassword(currentPassword: string, newPassword: string): Promise<void>
 }>
 
 const SessionContext = createContext<SessionContextValue | null>(null)
@@ -65,6 +69,7 @@ export function SessionProvider({
 
   const applyUnauthenticated = useCallback(() => {
     accessExpiresAt.current = null
+    resetCompanionSessionPreferences()
     queryClient.clear()
     setSession(null)
     setStatus('unauthenticated')
@@ -140,6 +145,15 @@ export function SessionProvider({
       verifyEmail: (challenge) => service.verifyEmail(challenge),
       requestEmailVerification: (email) =>
         service.requestEmailVerification(email),
+      requestPasswordRecovery: (email) =>
+        service.requestPasswordRecovery(email),
+      resetPassword: (challenge, newPassword) =>
+        service.resetPassword(challenge, newPassword),
+      async changePassword(currentPassword, newPassword) {
+        await service.changePassword(currentPassword, newPassword)
+        setNotice(null)
+        applyUnauthenticated()
+      },
     }),
     [
       applyAuthenticated,

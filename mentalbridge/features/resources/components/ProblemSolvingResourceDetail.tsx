@@ -33,13 +33,11 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react'
 
 import type { PublicResourceDetail } from '../api/browser-resources'
-import {
-  problemSolvingLessonConfig,
-  type LessonStep,
-} from '../data/problem-solving-lesson'
+import { problemSolvingLessonConfig } from '../data/problem-solving-lesson'
 import styles from './problem-solving-resource-detail.module.css'
 
 type Props = Readonly<{
@@ -50,6 +48,8 @@ type Props = Readonly<{
   progressLoadState: 'loading' | 'ready' | 'error'
   saving: boolean
   message: string
+  planNotice?: ReactNode
+  planCompletionRecorded?: boolean
   onRetryProgress: () => void
   onRecord: (watchedSeconds: number, practiceNote?: string) => Promise<boolean>
 }>
@@ -107,7 +107,8 @@ export function ProblemSolvingResourceDetail({
   progressLoadState,
   saving,
   message,
-  onRetryProgress,
+  planNotice,
+  planCompletionRecorded = false,
   onRecord,
 }: Props) {
   const config = problemSolvingLessonConfig
@@ -138,29 +139,33 @@ export function ProblemSolvingResourceDetail({
   const [playbackSpeedIndex, setPlaybackSpeedIndex] = useState(0)
   const [captionsEnabled, setCaptionsEnabled] = useState(true)
   const [centerButtonVisible, setCenterButtonVisible] = useState(true)
-  const [saved, setSaved] = useState(false)
+  const [saved, setSaved] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return (
+        window.localStorage.getItem(`mb:resource-bookmark:${resource.id}`) ===
+        'true'
+      )
+    } catch {
+      return false
+    }
+  })
   const [shareToast, setShareToast] = useState('')
-  const [practiceNote, setPracticeNote] = useState('')
+  const [practiceNote, setPracticeNote] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    try {
+      return (
+        window.localStorage.getItem(
+          `mb:practice-draft:problem-solving:${resource.id}`,
+        ) ?? ''
+      )
+    } catch {
+      return ''
+    }
+  })
   const [recordState, setRecordState] = useState<
     'idle' | 'sending' | 'success' | 'error'
   >('idle')
-  const [feedbackOpen, setFeedbackOpen] = useState(false)
-
-  // Load bookmark & draft practice note from localStorage
-  useEffect(() => {
-    try {
-      setSaved(
-        window.localStorage.getItem(`mb:resource-bookmark:${resource.id}`) ===
-          'true',
-      )
-      const draft = window.localStorage.getItem(
-        `mb:practice-draft:problem-solving:${resource.id}`,
-      )
-      if (draft) setPracticeNote(draft)
-    } catch {
-      // Ignored for restricted storage
-    }
-  }, [resource.id])
 
   // Save practice note draft on changes
   useEffect(() => {
@@ -527,7 +532,7 @@ export function ProblemSolvingResourceDetail({
         <div className={styles.topBar}>
           <nav className={styles.breadcrumb} aria-label="Đường dẫn trang">
             <Link href={backHref} className={styles.breadcrumbLink}>
-              Tài nguyên
+              {backLabel || 'Tài nguyên'}
             </Link>
             <ChevronRight
               size={14}
@@ -941,7 +946,6 @@ export function ProblemSolvingResourceDetail({
             {steps.map((step, index) => {
               const isComplete = ended || currentTime >= step.end
               const isActive = !ended && index === activeIndex
-              const isUpcoming = !isComplete && !isActive
 
               const stepDuration = step.end - step.start
               const stepElapsed = Math.max(
@@ -1053,7 +1057,9 @@ export function ProblemSolvingResourceDetail({
                   </p>
                 </div>
               </div>
-              <span className={styles.xpBadge}>+15 XP Tinh Thần</span>
+              <span className={styles.xpBadge}>
+                Bản nháp lưu trên thiết bị này
+              </span>
             </div>
 
             <div className={styles.practicePrompt}>
@@ -1096,9 +1102,10 @@ export function ProblemSolvingResourceDetail({
                 </p>
               )}
 
-              {recordState === 'success' && (
+              {planNotice}
+              {recordState === 'success' && !planCompletionRecorded && (
                 <p className={styles.recordSuccess} role="status">
-                  ✓ Đã ghi nhận thành công vào Kế hoạch hỗ trợ!
+                  Đã lưu kết quả hoàn thành bài tập.
                 </p>
               )}
 
@@ -1123,10 +1130,10 @@ export function ProblemSolvingResourceDetail({
                 <PenTool size={16} aria-hidden="true" />
                 <span>
                   {status === 'COMPLETED'
-                    ? 'Đã ghi nhận vào Kế hoạch hỗ trợ'
+                    ? 'Đã ghi nhận bài tập'
                     : saving || recordState === 'sending'
                       ? 'Đang ghi nhận…'
-                      : 'Ghi nhận vào Kế hoạch hỗ trợ'}
+                      : 'Ghi nhận bài tập'}
                 </span>
               </button>
             </div>

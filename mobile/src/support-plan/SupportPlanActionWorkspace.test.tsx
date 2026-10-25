@@ -98,6 +98,7 @@ function api(): jest.Mocked<SupportPlanActionApi> {
     changeOccurrenceState: jest.fn(),
     reconcileEmotion: jest.fn().mockResolvedValue(reconciliation()),
     reconcileJournal: jest.fn(),
+    requestCompanionExplanation: jest.fn(),
   }
 }
 const legacy = {} as SupportPlanApi

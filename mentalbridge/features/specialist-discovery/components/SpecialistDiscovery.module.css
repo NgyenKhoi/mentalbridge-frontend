@@ -214,7 +214,11 @@
 }
 
 .statDarkTitle strong {
-  font-family: var(--font-be-vietnam), -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
   font-size: 15.5px !important;
   font-weight: 700 !important;
   color: #ffffff !important;
@@ -448,7 +452,6 @@
 .benefitRight {
   color: #366050;
   font-weight: 500;
-  white-space: nowrap;
 }
 
 /* Trust & Security Banner */

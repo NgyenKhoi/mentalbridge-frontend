@@ -1,0 +1,885 @@
+/* MB-644 unified plan workspace. Tokens only (app/globals.css); calm, one accent per section. */
+
+.mbw-page {
+  display: grid;
+  gap: var(--space-6);
+  width: min(100%, var(--wrap));
+  margin-inline: auto;
+  padding: var(--space-8) var(--space-4) var(--space-12);
+  color: var(--ink);
+}
+
+.mbw-header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mbw-header h1 {
+  font-size: var(--type-page-title-size);
+  line-height: var(--type-page-title-leading);
+  text-wrap: balance;
+}
+
+.mbw-lead {
+  font-size: var(--type-page-lead-size);
+  line-height: var(--type-page-lead-leading);
+  color: var(--ink-soft);
+  max-width: 62ch;
+}
+
+/* Underline tabs: quiet when inactive, one clear active marker. */
+.mbw-tabs {
+  display: flex;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.mbw-tabs button {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+
+.mbw-tabs button::after {
+  content: '';
+  position: absolute;
+  inset: auto var(--space-3) 0;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.mbw-tabs button:hover {
+  color: var(--ink);
+}
+
+.mbw-tabs button.is-active {
+  color: var(--teal-deep);
+  font-weight: 600;
+}
+
+.mbw-tabs button.is-active::after {
+  background: var(--teal);
+}
+
+.mbw-tabs button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -2px;
+}
+
+.mbw-layout {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .mbw-layout:has(.mbw-aside) {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+
+.mbw-tabpanel,
+.mbw-today,
+.mbw-plan,
+.mbw-progress,
+.mbw-adjust,
+.mbw-proposal {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.mbw-tile {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--surface);
+  border-radius: var(--radius-panel);
+}
+
+.mbw-tile h2 {
+  font-size: var(--type-card-title-size);
+  line-height: var(--type-card-title-leading);
+  text-wrap: balance;
+}
+
+/* The one primary moment of Today. */
+.mbw-next {
+  gap: var(--space-4);
+  padding: var(--space-8);
+  animation: mbw-arrive var(--motion-medium) var(--ease-standard) both;
+}
+
+.mbw-next h2 {
+  font-size: clamp(24px, 3vw, 30px);
+}
+
+.mbw-next:focus-visible,
+.mbw-later li:focus-visible,
+.mbw-action-list li:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* Clear the sticky shell header when a returned item or section is focused. */
+.mbw-next,
+.mbw-later li,
+.mbw-action-list li,
+#mbw-review {
+  scroll-margin-top: 96px;
+}
+
+.mbw-row-title,
+.mbw-next h2 {
+  overflow-wrap: anywhere;
+}
+
+.mbw-next.is-returned,
+.mbw-later li.is-returned {
+  outline: 2px solid var(--teal-pale);
+  outline-offset: 2px;
+}
+
+.mbw-next-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--teal);
+}
+
+.mbw-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-card-meta-size);
+  color: var(--ink-soft);
+}
+
+.mbw-why {
+  font-size: 16px;
+  line-height: 1.65;
+  max-width: 62ch;
+}
+
+.mbw-quiet {
+  font-size: var(--type-card-meta-size);
+  line-height: var(--type-card-meta-leading);
+  color: var(--ink-soft);
+}
+
+.mbw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.mbw-primary,
+.mbw-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-control);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+.mbw-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.mbw-primary:hover {
+  background: var(--primary-strong);
+}
+
+.mbw-secondary {
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+}
+
+.mbw-secondary:hover {
+  background: var(--teal-pale);
+}
+
+.mbw-primary:active,
+.mbw-secondary:active {
+  transform: translateY(1px);
+}
+
+.mbw-primary:focus-visible,
+.mbw-secondary:focus-visible,
+.mbw-text-button:focus-visible,
+.mbw-text-link:focus-visible,
+.mbw-link-button:focus-visible,
+.mbw-row-link:focus-visible,
+.mbw-chip:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* Keep focused controls above the sticky start bar. */
+.mbw-proposal :is(summary, button, a, input, select, textarea) {
+  scroll-margin-bottom: 120px;
+}
+
+.mbw-primary:disabled,
+.mbw-secondary:disabled,
+.mbw-text-button:disabled,
+.mbw-row-link:disabled,
+.mbw-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mbw-text-button,
+.mbw-text-link,
+.mbw-link-button,
+.mbw-row-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--teal-deep);
+  text-decoration: underline;
+  text-decoration-color: var(--teal-pale);
+  text-underline-offset: 4px;
+  transition: text-decoration-color var(--motion-fast) var(--ease-standard);
+}
+
+.mbw-text-button:hover,
+.mbw-text-link:hover,
+.mbw-link-button:hover,
+.mbw-row-link:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Rows: space and a tone step instead of divider lines. */
+.mbw-later {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.mbw-later h3,
+.mbw-focus h3 {
+  font-size: 18px;
+}
+
+.mbw-later ul,
+.mbw-action-list,
+.mbw-history ul,
+.mbw-compare ul {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mbw-later li,
+.mbw-action-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+}
+
+.mbw-action-list li {
+  display: grid;
+  justify-content: stretch;
+  gap: var(--space-1);
+  background: var(--surface-soft);
+}
+
+.mbw-row-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.mbw-row-note {
+  flex-basis: 100%;
+  font-size: var(--type-card-meta-size);
+  color: var(--ink-soft);
+}
+
+.mbw-rate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  flex-basis: 100%;
+}
+
+.mbw-chip {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+  font-size: 15px;
+  font-weight: 600;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.mbw-chip:hover {
+  background: var(--teal-pale);
+}
+
+.mbw-focus {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.mbw-focus h2 {
+  font-size: var(--type-card-title-size);
+}
+
+.mbw-proposal-head {
+  gap: var(--space-4);
+  padding: var(--space-8);
+}
+
+.mbw-proposal-head h2 {
+  font-size: clamp(26px, 3.4vw, 34px);
+}
+
+.mbw-first {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-soft);
+  border-radius: var(--radius-control);
+}
+
+.mbw-proposal-focuses {
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* The one start action stays reachable without hunting for it. */
+.mbw-sticky-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  background: var(--bg);
+}
+
+@media (max-width: 640px) {
+  .mbw-page {
+    padding-top: var(--space-6);
+    gap: var(--space-5);
+  }
+
+  .mbw-tile,
+  .mbw-next,
+  .mbw-proposal-head {
+    padding: var(--space-5);
+  }
+
+  .mbw-sticky-actions {
+    margin-inline: calc(var(--space-4) * -1);
+    padding: var(--space-3) var(--space-4)
+      calc(var(--space-3) + env(safe-area-inset-bottom));
+  }
+
+  .mbw-sticky-actions .mbw-primary,
+  .mbw-next .mbw-actions > .mbw-primary {
+    flex: 1 1 100%;
+  }
+
+  /* The stacked phone bar is taller; keep focused controls above it. */
+  .mbw-proposal :is(summary, button, a, input, select, textarea) {
+    scroll-margin-bottom: 190px;
+  }
+
+  .mbw-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+  }
+
+  .mbw-tabs button {
+    padding: 0 2px;
+    font-size: clamp(12px, 3.6vw, 14px);
+    white-space: nowrap;
+  }
+}
+
+.mbw-facts {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.mbw-fact {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-soft);
+  border-radius: var(--radius-control);
+}
+
+.mbw-fact dt {
+  font-size: var(--type-card-meta-size);
+  color: var(--ink-soft);
+}
+
+.mbw-fact dd {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 768px) {
+  .mbw-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.mbw-compare {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .mbw-compare {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.mbw-compare section {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-soft);
+  border-radius: var(--radius-control);
+}
+
+.mbw-replacement,
+.mbw-history {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.mbw-state.is-safety {
+  background: var(--amber-soft);
+}
+
+.mbw-state.is-safety .mbw-next-icon {
+  color: var(--amber-deep);
+}
+
+.mbw-state-body {
+  display: grid;
+  gap: var(--space-3);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.mbw-inline-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--terracotta-soft);
+  border-radius: var(--radius-control);
+  font-size: 15px;
+}
+
+.mbw-disclaimer {
+  font-size: var(--type-card-meta-size);
+  color: var(--ink-soft);
+  max-width: 62ch;
+}
+
+.mbw-aside {
+  min-width: 0;
+}
+
+.mbw-skeleton {
+  display: block;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+  animation: mbw-pulse 1.4s var(--ease-standard) infinite alternate;
+}
+
+.mbw-skeleton-title {
+  height: 28px;
+  width: min(70%, 420px);
+}
+
+.mbw-skeleton-line {
+  width: min(90%, 560px);
+}
+
+.mbw-skeleton-line.is-short {
+  width: min(50%, 300px);
+}
+
+.mbw-choices {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.mbw-choices fieldset {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mbw-choices legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  font-weight: 600;
+}
+
+.mbw-choices label {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-height: 44px;
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.mbw-choices label:has(input:checked) {
+  outline: 2px solid var(--teal);
+  outline-offset: -2px;
+}
+
+.mbw-choices button[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.mbw-choices fieldset:disabled label {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.mbw-choices label > span {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mbw-choices input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--teal);
+}
+
+.mbw-choices input:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* MB-645 adaptive review: separate sources, then choices, then one confirm. */
+.mbw-review {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.mbw-evidence {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 768px) {
+  .mbw-evidence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.mbw-evidence-item {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.mbw-evidence-item h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mbw-evidence-lines {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mbw-evidence-lines li {
+  display: grid;
+  gap: 2px;
+}
+
+.mbw-evidence-lines span {
+  font-size: var(--type-card-meta-size);
+  color: var(--ink-soft);
+}
+
+.mbw-evidence-lines strong {
+  font-weight: 600;
+}
+
+.mbw-review-note {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 68ch;
+}
+
+.mbw-options {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mbw-options legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.mbw-option {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-height: 48px;
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  /* Transparent until checked, so selecting never shifts the layout. */
+  border: 2px solid transparent;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+@media (hover: hover) {
+  .mbw-option:hover {
+    background: color-mix(in srgb, var(--teal-pale) 45%, var(--surface));
+  }
+}
+
+.mbw-option:active {
+  transform: scale(0.99);
+}
+
+.mbw-option:has(input:checked) {
+  background: var(--teal-pale);
+  border-color: var(--teal);
+}
+
+/* The whole card shows keyboard focus, also when checked (arrow keys check as they move). */
+.mbw-option:has(input:focus-visible) {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 3px;
+}
+
+.mbw-option input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--teal);
+}
+
+.mbw-option input:focus-visible {
+  outline: none;
+}
+
+.mbw-option > span {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mbw-option strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mbw-options:disabled .mbw-option {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* The check-answers step arrives under the choices instead of jumping in. */
+.mbw-check {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  animation: mbw-arrive var(--motion-medium) var(--ease-standard) both;
+}
+
+.mbw-check .mbw-primary[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mbw-check .mbw-primary[aria-disabled='true']:hover {
+  background: var(--primary);
+}
+
+.mbw-check .mbw-primary[aria-busy='true'] {
+  cursor: progress;
+}
+
+.mbw-review-more summary {
+  display: list-item;
+  padding-block: 11px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--teal-deep);
+  cursor: pointer;
+}
+
+.mbw-review-more summary:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.mbw-review-more ul {
+  display: grid;
+  gap: var(--space-1);
+  padding-left: var(--space-5);
+  list-style: disc;
+  color: var(--ink-soft);
+}
+
+.mbw-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes mbw-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-sm));
+  }
+}
+
+@keyframes mbw-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes mbw-pulse {
+  to {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mbw-next,
+  .mbw-skeleton {
+    animation: none;
+  }
+
+  /* Keep a short fade without movement. */
+  .mbw-check {
+    animation: mbw-fade var(--motion-fast) linear both;
+  }
+
+  .mbw-option,
+  .mbw-primary,
+  .mbw-secondary,
+  .mbw-tabs button,
+  .mbw-tabs button::after,
+  .mbw-chip {
+    transition: none;
+  }
+}
+
+/* MB-645: explicit, unticked-by-default consent to reuse a quick answer in the plan review. */
+.mbw-reuse {
+  display: flex;
+  flex-basis: 100%;
+  align-items: flex-start;
+  padding-top: 11px;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-size: var(--type-card-meta-size);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.mbw-reuse input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 2px;
+  accent-color: var(--teal);
+}
+
+.mbw-reuse input:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* Programmatic focus target after a reload; no ring around the whole review. */
+.mbw-review:focus {
+  outline: none;
+}

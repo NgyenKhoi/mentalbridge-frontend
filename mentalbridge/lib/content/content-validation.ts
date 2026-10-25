@@ -23,9 +23,13 @@ export type ResourceProgressUpdate =
 export type ResourceJourney = components['schemas']['ResourceJourney']
 export type ResourceJourneyRequest =
   components['schemas']['ResourceJourneyRequest']
+export type NotificationOperationsSummary =
+  components['schemas']['NotificationOperationsSummary']
 export type ResourceBookmark = components['schemas']['ResourceBookmark']
 export type ResourceBookmarkList = components['schemas']['ResourceBookmarkList']
 export type ResourceBingoBoard = components['schemas']['ResourceBingoBoard']
+export type ResourceBingoPlanSync =
+  components['schemas']['ResourceBingoPlanSync']
 export type ResourceBingoSelfConfirmationUpdate =
   components['schemas']['ResourceBingoSelfConfirmationUpdate']
 export type AchievementCollection =
@@ -33,6 +37,10 @@ export type AchievementCollection =
 export type AchievementItem = components['schemas']['AchievementItem']
 export type AchievementPreferenceUpdate =
   components['schemas']['AchievementPreferenceUpdate']
+export type ResourceRewardReadModel =
+  components['schemas']['ResourceRewardReadModel']
+export type ResourceRewardVisibilityUpdate =
+  components['schemas']['ResourceRewardVisibilityUpdate']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -78,6 +86,7 @@ const COMPLETION_MODES = new Set([
 ])
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/
 const ACTION_ID = /^[A-Za-z0-9:_-]{1,64}$/
+const REWARD_VERSION = /^[a-z0-9][a-z0-9-]{2,63}$/
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -486,6 +495,7 @@ export function parseResourceBingoBoard(
       'version',
       'updatedAt',
       'items',
+      'unavailableActions',
     ]) ||
     typeof board.weekStart !== 'string' ||
     !isLocalDate(board.weekStart) ||
@@ -497,7 +507,24 @@ export function parseResourceBingoBoard(
     !CONTENT_VERSION.test(board.version) ||
     !dateTime(board.updatedAt) ||
     !Array.isArray(board.items) ||
-    board.items.length > 9
+    board.items.length > 9 ||
+    !(
+      board.unavailableActions === undefined ||
+      (Array.isArray(board.unavailableActions) &&
+        board.unavailableActions.every((value) => {
+          const unavailable = record(value)
+          return (
+            unavailable &&
+            exactKeys(unavailable, ['actionId', 'reason']) &&
+            typeof unavailable.actionId === 'string' &&
+            unavailable.actionId.length > 0 &&
+            unavailable.actionId.length <= 128 &&
+            ['BOARD_FULL', 'RESOURCE_VERSION_UNAVAILABLE'].includes(
+              String(unavailable.reason),
+            )
+          )
+        }))
+    )
   ) {
     return null
   }
@@ -516,6 +543,8 @@ export function parseResourceBingoBoard(
         'selfConfirmedAt',
         'verifiedAt',
         'verificationSource',
+        'actionId',
+        'retired',
       ]) ||
       !Number.isSafeInteger(item.position) ||
       (item.position as number) < 1 ||
@@ -538,7 +567,14 @@ export function parseResourceBingoBoard(
         item.verificationSource === null ||
         item.verificationSource === 'RESOURCE_COMPLETION' ||
         item.verificationSource === 'PRACTICE_SESSION'
-      )
+      ) ||
+      !(
+        item.actionId === null ||
+        (typeof item.actionId === 'string' &&
+          item.actionId.length > 0 &&
+          item.actionId.length <= 128)
+      ) ||
+      typeof item.retired !== 'boolean'
     ) {
       return null
     }
@@ -571,6 +607,17 @@ export function parseResourceBingoSelfConfirmationUpdate(
     Object.keys(update).length === 1 &&
     typeof update.selfConfirmed === 'boolean'
     ? (update as ResourceBingoSelfConfirmationUpdate)
+    : null
+}
+
+export function parseResourceBingoPlanSync(
+  value: unknown,
+): ResourceBingoPlanSync | null {
+  const board = record(value)
+  return parseResourceBingoBoard(value) &&
+    board &&
+    Array.isArray(board.unavailableActions)
+    ? (board as ResourceBingoPlanSync)
     : null
 }
 
@@ -742,9 +789,15 @@ export function parseResourceProgressUpdate(
       'practiceSessionId',
       'practiceStartedAt',
       'practiceDurationSeconds',
+      'resourceVersion',
     ]) ||
     typeof update.status !== 'string' ||
     !PROGRESS_STATUSES.has(update.status) ||
+    !(
+      update.resourceVersion === undefined ||
+      (typeof update.resourceVersion === 'string' &&
+        CONTENT_VERSION.test(update.resourceVersion))
+    ) ||
     !Array.isArray(update.completedActionIds) ||
     update.completedActionIds.length > 32 ||
     !update.completedActionIds.every(
@@ -774,6 +827,98 @@ export function parseResourceProgressUpdate(
     return null
   }
   return update as ResourceProgressUpdate
+}
+
+export function parseResourceRewardReadModel(
+  value: unknown,
+): ResourceRewardReadModel | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'totalXp',
+      'level',
+      'nextLevelXp',
+      'visibilityState',
+      'preferenceVersion',
+      'policyVersion',
+      'sourceAvailability',
+      'calculatedAt',
+      'recentGrants',
+    ]) ||
+    !Number.isSafeInteger(item.totalXp) ||
+    (item.totalXp as number) < 0 ||
+    !Number.isSafeInteger(item.level) ||
+    (item.level as number) < 0 ||
+    !(
+      item.nextLevelXp === null ||
+      (Number.isSafeInteger(item.nextLevelXp) &&
+        (item.nextLevelXp as number) >= 0)
+    ) ||
+    !['VISIBLE', 'HIDDEN'].includes(item.visibilityState as string) ||
+    typeof item.preferenceVersion !== 'string' ||
+    !CONTENT_VERSION.test(item.preferenceVersion) ||
+    typeof item.policyVersion !== 'string' ||
+    !REWARD_VERSION.test(item.policyVersion) ||
+    item.sourceAvailability !== 'AVAILABLE' ||
+    !dateTime(item.calculatedAt) ||
+    !Array.isArray(item.recentGrants) ||
+    item.recentGrants.length > 10 ||
+    !item.recentGrants.every((value) => {
+      const grant = record(value)
+      return Boolean(
+        grant &&
+        exactKeys(grant, [
+          'grantId',
+          'kind',
+          'xp',
+          'resourceId',
+          'contentVersion',
+          'localDate',
+          'grantedAt',
+          'sourceReference',
+          'ruleVersion',
+        ]) &&
+        typeof grant.grantId === 'string' &&
+        /^[a-f0-9]{64}$/.test(grant.grantId) &&
+        ['RESOURCE_COMPLETION', 'VERIFIED_PRACTICE'].includes(
+          grant.kind as string,
+        ) &&
+        Number.isSafeInteger(grant.xp) &&
+        (grant.xp as number) >= 1 &&
+        (grant.xp as number) <= 100 &&
+        typeof grant.resourceId === 'string' &&
+        UUID.test(grant.resourceId) &&
+        typeof grant.contentVersion === 'string' &&
+        CONTENT_VERSION.test(grant.contentVersion) &&
+        typeof grant.localDate === 'string' &&
+        isLocalDate(grant.localDate) &&
+        dateTime(grant.grantedAt) &&
+        typeof grant.sourceReference === 'string' &&
+        grant.sourceReference.length >= 1 &&
+        grant.sourceReference.length <= 160 &&
+        typeof grant.ruleVersion === 'string' &&
+        REWARD_VERSION.test(grant.ruleVersion),
+      )
+    })
+  ) {
+    return null
+  }
+  return item as ResourceRewardReadModel
+}
+
+export function parseResourceRewardVisibilityUpdate(
+  value: unknown,
+): ResourceRewardVisibilityUpdate | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, ['visibilityState']) ||
+    !['VISIBLE', 'HIDDEN'].includes(item.visibilityState as string)
+  ) {
+    return null
+  }
+  return item as ResourceRewardVisibilityUpdate
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -1032,6 +1177,12 @@ const NOTIFICATION_KINDS = new Set([
   'COMMUNITY_COMMENT',
   'COMMUNITY_REPLY',
   'COMMUNITY_REACTION',
+  'COMMUNITY_MESSAGE',
+  'COMMUNITY_REQUEST',
+  'COMMUNITY_INVITATION',
+  'ASSESSMENT_RESULT_AVAILABLE',
+  'SUPPORT_GUIDE_AVAILABLE',
+  'ACCOUNT_STATUS',
 ])
 const NOTIFICATION_PRIORITIES = new Set(['LOW', 'NORMAL', 'HIGH'])
 const TARGETLESS_NOTIFICATION_ACTIONS: Readonly<Record<string, string>> = {
@@ -1040,6 +1191,20 @@ const TARGETLESS_NOTIFICATION_ACTIONS: Readonly<Record<string, string>> = {
   OPEN_APPOINTMENTS: '/appointments',
   OPEN_RESOURCES: '/resources',
   OPEN_ASSESSMENTS: '/assessments',
+  OPEN_SPECIALIST_APPOINTMENTS: '/specialist/appointments',
+}
+const COMMUNITY_CHAT_NOTIFICATION_ACTIONS: Readonly<
+  Record<string, { kind: string; segment: string }>
+> = {
+  OPEN_COMMUNITY_CONVERSATION: {
+    kind: 'COMMUNITY_MESSAGE',
+    segment: 'conversations',
+  },
+  OPEN_COMMUNITY_REQUEST: { kind: 'COMMUNITY_REQUEST', segment: 'requests' },
+  OPEN_COMMUNITY_INVITATION: {
+    kind: 'COMMUNITY_INVITATION',
+    segment: 'invitations',
+  },
 }
 
 export function parseNotification(value: unknown): Notification | null {
@@ -1094,7 +1259,17 @@ export function parseNotification(value: unknown): Notification | null {
     ) {
       return null
     }
-    if (action.type === 'OPEN_RESOURCE') {
+    const chat = COMMUNITY_CHAT_NOTIFICATION_ACTIONS[action.type]
+    if (chat) {
+      if (
+        item.kind !== chat.kind ||
+        typeof action.targetId !== 'string' ||
+        !UUID.test(action.targetId)
+      )
+        return null
+      if (action.href !== `/community/chat/${chat.segment}/${action.targetId}`)
+        return null
+    } else if (action.type === 'OPEN_RESOURCE') {
       if (typeof action.targetId !== 'string' || !UUID.test(action.targetId))
         return null
       if (action.href !== `/resources/${action.targetId}`) return null
@@ -1102,6 +1277,10 @@ export function parseNotification(value: unknown): Notification | null {
       if (typeof action.targetId !== 'string' || !UUID.test(action.targetId))
         return null
       if (action.href !== `/community/${action.targetId}`) return null
+    } else if (action.type === 'OPEN_SUPPORT_GUIDE') {
+      if (typeof action.targetId !== 'string' || !UUID.test(action.targetId))
+        return null
+      if (action.href !== `/support-guides/${action.targetId}`) return null
     } else if (
       TARGETLESS_NOTIFICATION_ACTIONS[action.type] !== action.href ||
       action.targetId !== null
@@ -1196,4 +1375,68 @@ export function parseContentProblem(
     }
   }
   return problem as ContentProblem
+}
+
+export function parseNotificationOperationsSummary(
+  value: unknown,
+): NotificationOperationsSummary | null {
+  const data = record(value)
+  if (!data) return null
+  if (
+    data.source !== 'CONTENT_NOTIFICATION' ||
+    typeof data.asOf !== 'string' ||
+    !Number.isFinite(Date.parse(data.asOf))
+  ) {
+    return null
+  }
+  const inApp = record(data.inApp)
+  const email = record(data.emailReminders)
+  if (!inApp || !email) return null
+
+  if (
+    typeof inApp.total !== 'number' ||
+    typeof inApp.delivered !== 'number' ||
+    typeof inApp.pending !== 'number' ||
+    typeof inApp.failed !== 'number' ||
+    typeof inApp.cancelled !== 'number' ||
+    typeof inApp.unread !== 'number' ||
+    typeof inApp.read !== 'number'
+  ) {
+    return null
+  }
+
+  if (
+    typeof email.total !== 'number' ||
+    typeof email.pending !== 'number' ||
+    typeof email.processing !== 'number' ||
+    typeof email.delivered !== 'number' ||
+    typeof email.failed !== 'number' ||
+    typeof email.suppressed !== 'number' ||
+    typeof email.invalidated !== 'number'
+  ) {
+    return null
+  }
+
+  return {
+    source: 'CONTENT_NOTIFICATION',
+    asOf: data.asOf,
+    inApp: {
+      total: inApp.total,
+      delivered: inApp.delivered,
+      pending: inApp.pending,
+      failed: inApp.failed,
+      cancelled: inApp.cancelled,
+      unread: inApp.unread,
+      read: inApp.read,
+    },
+    emailReminders: {
+      total: email.total,
+      pending: email.pending,
+      processing: email.processing,
+      delivered: email.delivered,
+      failed: email.failed,
+      suppressed: email.suppressed,
+      invalidated: email.invalidated,
+    },
+  }
 }

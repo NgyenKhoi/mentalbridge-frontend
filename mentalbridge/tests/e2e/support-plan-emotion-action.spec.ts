@@ -13,7 +13,7 @@ test.describe('MB-641 canonical Emotion action', () => {
     'Controlled origin/evidence states must not mutate shared accounts.',
   )
 
-  test('returns to the exact action, explicitly verifies completion and preserves accepted history', async ({
+  test('returns to the exact action and checks completion once from owner evidence', async ({
     page,
     context,
   }, testInfo) => {
@@ -66,14 +66,16 @@ test.describe('MB-641 canonical Emotion action', () => {
       if (path === '/api/care/v2/support-plans/history')
         return json({ items: [], hasMore: false, nextCursor: null })
       if (path === '/api/care/v2/support-plan-occurrences') {
-        expect(url.searchParams.get('from')).toBe('2026-10-13')
-        expect(url.searchParams.get('through')).toBe('2026-10-13')
+        // The plan reads its 7+7 day window; the dashboard reads one exact day.
+        expect(['2026-10-07..2026-10-20', '2026-10-13..2026-10-13']).toContain(
+          `${url.searchParams.get('from')}..${url.searchParams.get('through')}`,
+        )
         return json({
           supportPlanId: plan.supportPlanId,
           supportPlanStatus: 'ACTIVE',
           representationMode: 'NATIVE_V3',
-          from: '2026-10-13',
-          through: '2026-10-13',
+          from: url.searchParams.get('from'),
+          through: url.searchParams.get('through'),
           occurrences: [occurrence],
           interpretationCode:
             'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
@@ -109,6 +111,8 @@ test.describe('MB-641 canonical Emotion action', () => {
           completedAt: occurrence.outcomeRecordedAt,
         })
       }
+      if (path === '/api/care/guided-journey')
+        return problem(503, 'CARE_UNAVAILABLE')
       if (path.startsWith('/api/care/v2/'))
         throw new Error(
           `Unexpected native command: ${request.method()} ${path}`,
@@ -187,7 +191,7 @@ test.describe('MB-641 canonical Emotion action', () => {
     })
     await page.goto('/support-plan')
     const activity = () =>
-      page.getByRole('article', { name: 'Check-in cảm xúc', exact: true })
+      page.getByRole('region', { name: 'Check-in cảm xúc', exact: true })
     await expect(activity()).toBeVisible()
     expect(checks).toBe(0)
     for (const [width, height] of [
@@ -210,7 +214,7 @@ test.describe('MB-641 canonical Emotion action', () => {
         ),
       ).toBe(true)
       const target = await activity()
-        .getByRole('link', { name: 'Ghi nhận cảm xúc', exact: true })
+        .getByRole('link', { name: 'Ghi lại cảm xúc' })
         .boundingBox()
       expect(target?.height).toBeGreaterThanOrEqual(44)
       await page.screenshot({
@@ -220,26 +224,24 @@ test.describe('MB-641 canonical Emotion action', () => {
       })
     }
     await page.setViewportSize({ width: 1280, height: 800 })
-    await activity().getByRole('button', { name: 'Kiểm tra ghi nhận' }).click()
-    await expect(activity()).toContainText('Chưa có ghi nhận cảm xúc phù hợp')
     expect(occurrence.state).toBe('SCHEDULED')
-    await activity()
-      .getByRole('link', { name: 'Ghi nhận cảm xúc', exact: true })
-      .click()
+    await activity().getByRole('link', { name: 'Ghi lại cảm xúc' }).click()
     await expect(page).toHaveURL(
       new RegExp(
         `/dashboard\\?occurrenceId=${occurrence.occurrenceId}&actionId=${occurrence.actionId}&localDate=2026-10-13#emotion-check-in`,
       ),
     )
     await expect(
-      page.getByText('Hôm nay bạn chưa ghi nhận cảm xúc.'),
+      page
+        .locator('#emotion-check-in')
+        .getByRole('radio', { name: 'Tốt', exact: true }),
     ).toBeVisible()
     // Playwright visibility does not reject an opacity:0 ancestor. The canonical
     // form must actually be painted after an asynchronous deep-link scroll.
     await expect
       .poll(() =>
         page
-          .locator('.ref-panel-mood')
+          .locator('#emotion-check-in')
           .evaluate((element) => getComputedStyle(element).opacity),
       )
       .toBe('1')
@@ -276,7 +278,7 @@ test.describe('MB-641 canonical Emotion action', () => {
     ).toBeVisible()
     expect(saveKeys[0]).toBeTruthy()
     expect(saveKeys[1]).toBe(saveKeys[0])
-    expect(checks).toBe(1)
+    expect(checks).toBe(0)
     expect(occurrence.state).toBe('SCHEDULED')
     await page.screenshot({
       path: testInfo.outputPath('canonical-emotion-saved.png'),
@@ -286,43 +288,23 @@ test.describe('MB-641 canonical Emotion action', () => {
     await page
       .getByRole('link', { name: 'Quay lại hoạt động trong kế hoạch' })
       .click()
-    await expect(
-      activity().getByRole('heading', { name: 'Check-in cảm xúc' }),
-    ).toBeFocused()
-    await expect(activity()).not.toContainText('Đã ghi nhận hoàn thành')
+    const done = page.getByRole('region', { name: 'Đã ghi nhận hôm nay' })
+    await expect(done).toContainText('Check-in cảm xúc')
+    await expect(done).toContainText('Đã xong')
     expect(checks).toBe(1)
-    await activity().getByRole('button', { name: 'Kiểm tra ghi nhận' }).click()
-    await expect(activity()).toContainText('Đã ghi nhận hoàn thành')
+    expect(occurrence.state).toBe('COMPLETED')
     await page.reload()
-    await expect(activity()).toContainText('Đã ghi nhận hoàn thành')
-    expect(checks).toBe(2)
-    source = 'DELETED'
-    checkIn = null
-    await activity().getByRole('button', { name: 'Kiểm tra ghi nhận' }).click()
-    await expect(activity()).toContainText(
-      'Lần hoàn thành được chấp nhận trước đó vẫn được giữ',
-    )
+    await expect(done).toContainText('Đã xong')
+    // Accepted completion is not re-checked on every reload.
+    expect(checks).toBe(1)
     unavailable = true
-    await activity().getByRole('button', { name: 'Kiểm tra ghi nhận' }).click()
-    await expect(activity().getByRole('alert')).toContainText(
-      'Thông tin đã ghi nhận',
-    )
-    await expect(activity()).toContainText('Đã ghi nhận hoàn thành')
-    await page.screenshot({
-      path: testInfo.outputPath('deleted-source-outage-preserves-history.png'),
-      fullPage: true,
-      animations: 'disabled',
-    })
-    unavailable = false
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await activity().getByRole('button', { name: 'Kiểm tra ghi nhận' }).click()
-    await expect(activity().getByRole('alert')).toHaveCount(0)
-    expect(occurrence.version).toBe(1)
     await page.getByRole('tab', { name: 'Tiến triển' }).click()
     await expect(
-      page.getByText('Chuỗi hiện tại', { exact: true }),
+      page.getByRole('definition').filter({ hasText: '1 ngày' }).first(),
     ).toBeVisible()
-    await expect(page.getByText('0/7', { exact: true })).toBeVisible()
+    await expect(page.locator('.mbw-page')).not.toContainText('%')
+    expect(occurrence.version).toBe(1)
     expect(runtimeErrors).toEqual([])
   })
 })

@@ -78,7 +78,7 @@
   min-height: 60px;
   max-width: 210px;
   padding: 10px 18px;
-  border: 1px solid var(--color-border, rgba(26,28,30,.09));
+  border: 1px solid var(--color-border, rgba(26, 28, 30, 0.09));
   border-radius: 11px;
   background: #fff;
   color: var(--color-text, #1a1c1e);
@@ -105,7 +105,7 @@
   gap: 20px;
   min-width: 0;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--color-border, rgba(26,28,30,.08));
+  border-bottom: 1px solid var(--color-border, rgba(26, 28, 30, 0.08));
 }
 
 .filters {
@@ -136,7 +136,7 @@
 .filters button[aria-pressed='true'] {
   background: var(--color-primary, #1f5c3f);
   color: #fff;
-  box-shadow: 0 3px 9px rgba(31,92,63,.12);
+  box-shadow: 0 3px 9px rgba(31, 92, 63, 0.12);
 }
 
 .panel .filters button[aria-pressed='true'] .tabCount {
@@ -157,7 +157,7 @@
   height: 21px;
   padding-inline: 4px;
   border-radius: 50%;
-  background: rgba(255,255,255,.18);
+  background: rgba(255, 255, 255, 0.18);
   font-size: 11px;
 }
 
@@ -173,7 +173,7 @@
 
 .priority strong {
   padding: 7px 11px;
-  border: 1px solid var(--color-border, rgba(26,28,30,.08));
+  border: 1px solid var(--color-border, rgba(26, 28, 30, 0.08));
   border-radius: 7px;
   background: #fff;
   color: #26303a;
@@ -247,7 +247,7 @@
 .weekCard,
 .rulesCard {
   background: #fff;
-  box-shadow: 0 4px 24px rgba(20,40,60,.05);
+  box-shadow: 0 4px 24px rgba(20, 40, 60, 0.05);
 }
 
 .requestCard {
@@ -259,7 +259,9 @@
   padding: 27px 26px 25px;
   border: 2px solid #f3cd3e;
   border-radius: 19px;
-  box-shadow: 0 0 0 3px rgba(245,194,38,.08), 0 6px 25px rgba(187,143,0,.08);
+  box-shadow:
+    0 0 0 3px rgba(245, 194, 38, 0.08),
+    0 6px 25px rgba(187, 143, 0, 0.08);
   overflow: hidden;
 }
 
@@ -268,14 +270,14 @@
   position: absolute;
   inset: 0 0 auto;
   height: 6px;
-  background: linear-gradient(90deg,#f8cc35,#f3a50a);
+  background: linear-gradient(90deg, #f8cc35, #f3a50a);
 }
 
 .requestTop {
   display: grid;
   gap: 10px;
   padding-bottom: 17px;
-  border-bottom: 1px solid rgba(26,28,30,.05);
+  border-bottom: 1px solid rgba(26, 28, 30, 0.05);
 }
 
 .requestBadges {
@@ -305,7 +307,7 @@
   border-radius: 999px;
   background: #fffaf0;
   color: #a66618;
-  letter-spacing: .02em;
+  letter-spacing: 0.02em;
 }
 
 .waitingStatus > span {
@@ -394,7 +396,7 @@
   color: #98a0a9;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
 }
 
 .method strong {
@@ -455,7 +457,7 @@
   gap: 9px;
   margin-top: auto;
   padding-top: 20px;
-  border-top: 1px solid rgba(26,28,30,.05);
+  border-top: 1px solid rgba(26, 28, 30, 0.05);
 }
 
 .actions button {
@@ -495,7 +497,7 @@
   border: 1px solid var(--color-primary, #1f5c3f);
   background: var(--color-primary, #1f5c3f) !important;
   color: #fff;
-  box-shadow: 0 3px 9px rgba(31,92,63,.14);
+  box-shadow: 0 3px 9px rgba(31, 92, 63, 0.14);
 }
 
 .group {
@@ -508,7 +510,7 @@
   color: #31424e;
   font-size: 15px;
   font-weight: 750;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
 }
 
 .compactCard {
@@ -521,11 +523,15 @@
   border-radius: 14px;
 }
 
-.compactCard[data-modality='IN_APP_VIDEO']:has(> section[aria-label='Tóm tắt được người dùng phê duyệt']) {
+.compactCard[data-modality='IN_APP_VIDEO']:has(
+    > section[aria-label='Tóm tắt được người dùng phê duyệt']
+  ) {
   padding-right: 155px;
 }
 
-.compactCard[data-modality='IN_APP_VIDEO']:has(> section > :not(dialog) [role='status']),
+.compactCard[data-modality='IN_APP_VIDEO']:has(
+    > section > :not(dialog) [role='status']
+  ),
 .compactCard[data-modality='IN_APP_VIDEO']:has(> section > :not(dialog) ul) {
   padding-right: 20px;
 }
@@ -590,16 +596,27 @@
   font-weight: 700;
   text-decoration: none;
 }
+.compactCard[data-modality='IN_APP_VIDEO'] .compactAction {
+  min-height: 44px;
+  justify-self: start;
+}
 
-.compactCard[data-modality='IN_APP_VIDEO'] > section[aria-label='Tóm tắt được người dùng phê duyệt'] {
+.compactCard[data-modality='IN_APP_VIDEO']
+  > section[aria-label='Tóm tắt được người dùng phê duyệt'] {
   position: absolute;
   top: 19px;
   right: 20px;
   max-width: calc(100% - 40px);
 }
 
-.compactCard[data-modality='IN_APP_VIDEO'] > section[aria-label='Tóm tắt được người dùng phê duyệt']:has(> :not(dialog) [role='status']),
-.compactCard[data-modality='IN_APP_VIDEO'] > section[aria-label='Tóm tắt được người dùng phê duyệt']:has(> :not(dialog) ul) {
+.compactCard[data-modality='IN_APP_VIDEO']
+  > section[aria-label='Tóm tắt được người dùng phê duyệt']:has(
+    > :not(dialog) [role='status']
+  ),
+.compactCard[data-modality='IN_APP_VIDEO']
+  > section[aria-label='Tóm tắt được người dùng phê duyệt']:has(
+    > :not(dialog) ul
+  ) {
   position: static;
   grid-column: 1;
   max-width: none;
@@ -619,9 +636,9 @@
   min-height: 348px;
   padding: 25px;
   border-radius: 20px;
-  background: linear-gradient(130deg,#1f5c3f,#143c2e);
+  background: linear-gradient(130deg, #1f5c3f, #143c2e);
   color: #fff;
-  box-shadow: 0 8px 21px rgba(19,58,43,.12);
+  box-shadow: 0 8px 21px rgba(19, 58, 43, 0.12);
 }
 
 .panel .nextAppointment :is(h3, p, span, strong) {
@@ -634,7 +651,7 @@
   justify-content: space-between;
   gap: 10px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255,255,255,.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .nextTop > span {
@@ -644,7 +661,7 @@
   color: #dcefe6;
   font-size: 12px;
   font-weight: 750;
-  letter-spacing: .05em;
+  letter-spacing: 0.05em;
 }
 
 .nextTop i {
@@ -657,7 +674,7 @@
 .nextTop > strong {
   padding: 5px 10px;
   border-radius: 999px;
-  background: rgba(255,255,255,.1);
+  background: rgba(255, 255, 255, 0.1);
   font-size: 11px;
   white-space: nowrap;
 }
@@ -665,7 +682,7 @@
 .nextTime h3 {
   color: #fff;
   font-family: var(--font-be-vietnam), sans-serif;
-  font-size: clamp(24px,2.7vw,31px);
+  font-size: clamp(24px, 2.7vw, 31px);
   font-weight: 750;
   line-height: 1.3;
   white-space: nowrap;
@@ -684,9 +701,9 @@
   justify-content: space-between;
   gap: 12px;
   padding: 16px;
-  border: 1px solid rgba(255,255,255,.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 13px;
-  background: rgba(255,255,255,.09);
+  background: rgba(255, 255, 255, 0.09);
 }
 
 .nextClient > div {
@@ -740,7 +757,7 @@
 }
 
 .nextActionUnavailable {
-  background: rgba(255,255,255,.13);
+  background: rgba(255, 255, 255, 0.13);
   color: #fff;
 }
 
@@ -805,7 +822,7 @@
 
 .weekGrid {
   display: grid;
-  grid-template-columns: repeat(7,minmax(0,1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -894,7 +911,7 @@
   font-family: var(--font-be-vietnam), sans-serif;
   font-size: 12px;
   font-weight: 750;
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
 }
 
 .rulesCard ul {
@@ -943,7 +960,7 @@
   line-height: 1.6;
 }
 
-.panel :is(button,a):focus-visible {
+.panel :is(button, a):focus-visible {
   outline: 2px solid var(--color-primary, #1f5c3f);
   outline-offset: 2px;
 }
@@ -952,7 +969,7 @@
   cursor: not-allowed;
 }
 
-@media (hover:hover) and (pointer:fine) {
+@media (hover: hover) and (pointer: fine) {
   .refresh:hover:not(:disabled),
   .filters button:hover:not([aria-pressed='true']),
   .compactAction:hover {
@@ -994,7 +1011,7 @@
 
 @container (max-width: 850px) {
   .workspace {
-    grid-template-columns: minmax(0,1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .filterBar {
@@ -1017,7 +1034,7 @@
 
   .headerActions {
     display: grid;
-    grid-template-columns: repeat(2,minmax(0,1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 
@@ -1064,7 +1081,8 @@
     padding-right: 20px;
   }
 
-  .compactCard[data-modality='IN_APP_VIDEO'] > section[aria-label='Tóm tắt được người dùng phê duyệt'] {
+  .compactCard[data-modality='IN_APP_VIDEO']
+    > section[aria-label='Tóm tắt được người dùng phê duyệt'] {
     position: static;
     max-width: none;
   }
@@ -1120,12 +1138,12 @@
   }
 }
 
-@media (prefers-reduced-motion:reduce) {
+@media (prefers-reduced-motion: reduce) {
   .panel *,
   .panel *::before,
   .panel *::after {
-    animation-duration: .01ms !important;
-    transition-duration: .01ms !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

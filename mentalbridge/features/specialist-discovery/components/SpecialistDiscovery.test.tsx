@@ -1,4 +1,11 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
@@ -92,7 +99,36 @@ describe('SpecialistDiscovery', () => {
       .mockResolvedValue({ balance: { available: 2 } })
   })
 
-  it('shows compact API cards and lets Free users browse both tabs without booking', async () => {
+  it('applies the selected support-area and language filters to discovery', async () => {
+    const user = userEvent.setup()
+    discoveryClient.list.mockResolvedValue(page('FREE'))
+    renderDiscovery()
+    await screen.findByRole('heading', { name: 'Chuyên gia An' })
+
+    await user.click(
+      screen.getByRole('button', { name: /Lo âu & Căng thẳng/i }),
+    )
+    await waitFor(() =>
+      expect(discoveryClient.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ supportArea: 'ANXIETY_SYMPTOMS' }),
+      ),
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /Ngôn ngữ/i }),
+      'vi',
+    )
+    await waitFor(() =>
+      expect(discoveryClient.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          supportArea: 'ANXIETY_SYMPTOMS',
+          language: 'vi',
+        }),
+      ),
+    )
+  })
+
+  it('allows Free users to browse real details and slots without booking', async () => {
     const user = userEvent.setup()
     discoveryClient.list.mockResolvedValue(page('FREE'))
     renderDiscovery()
@@ -114,7 +150,7 @@ describe('SpecialistDiscovery', () => {
     expect(appointmentClient.request).not.toHaveBeenCalled()
   })
 
-  it('opens directly to slots and requests the exact chosen time after confirmation', async () => {
+  it('opens directly to slots and requests the exact selected time after confirmation', async () => {
     const user = userEvent.setup()
     discoveryClient.list.mockResolvedValue(page('PLUS'))
     appointmentClient.request.mockResolvedValue({ id: 'appointment-id' })
@@ -169,6 +205,214 @@ describe('SpecialistDiscovery', () => {
     ).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Quay lại' }))
     expect(slot).toBeChecked()
+  })
+
+  it('refreshes authoritative slots when the user returns from the specialist tab', async () => {
+    discoveryClient.list
+      .mockResolvedValueOnce({ ...page('PLUS'), items: [], count: 0 })
+      .mockResolvedValue(page('PLUS'))
+
+    renderDiscovery()
+    await screen.findByText('Chưa có chuyên gia phù hợp')
+    fireEvent(window, new Event('focus'))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Chuyên gia An' }),
+    ).toBeInTheDocument()
+  })
+
+  it.each([
+    [
+      'MATCHED',
+      'Có lĩnh vực hỗ trợ trùng với gợi ý sau bài sàng lọc bạn đã chọn dùng.',
+    ],
+    [
+      'NOT_MATCHED',
+      'Chưa có lĩnh vực hỗ trợ trùng với gợi ý sau bài sàng lọc.',
+    ],
+    [
+      'UNAVAILABLE',
+      'Hiện chưa thể dùng gợi ý sau bài sàng lọc; các tiêu chí còn lại vẫn được áp dụng.',
+    ],
+    ['NEUTRAL', 'Thứ tự chung không sử dụng nội dung bài sàng lọc.'],
+  ] as const)(
+    'explains why a %s profile appears without inventing clinical claims',
+    async (compatibility, message) => {
+      const user = userEvent.setup()
+      const explained = {
+        ...item,
+        explanation: {
+          ...item.explanation,
+          compatibility,
+          languageMatched: false,
+          ratingTieBreakerApplied: true,
+        },
+      }
+      discoveryClient.list.mockResolvedValue(page('PLUS'))
+      discoveryClient.detail.mockResolvedValue(explained)
+      renderDiscovery()
+      await user.click(await screen.findByRole('button', { name: 'Hồ sơ' }))
+      const why = await within(await screen.findByRole('dialog')).findByRole(
+        'region',
+        { name: 'Vì sao hồ sơ này xuất hiện?' },
+      )
+      expect(
+        within(why)
+          .getAllByRole('listitem')
+          .map((entry) => entry.textContent),
+      ).toEqual([
+        message,
+        'Chưa có ngôn ngữ bạn ưu tiên.',
+        'Có khung giờ 60 phút đang chọn được.',
+        'Điểm đánh giá chỉ được dùng để phân định khi các yếu tố chính bằng nhau.',
+      ])
+    },
+  )
+
+  it('re-reads a stale zero balance on return so booking is no longer blocked', async () => {
+    const user = userEvent.setup()
+    discoveryClient.list.mockResolvedValue(page('PLUS'))
+    creditsClient.get.mockResolvedValue({ balance: { available: 0 } })
+    renderDiscovery()
+    await user.click(await screen.findByRole('button', { name: 'Hồ sơ' }))
+    const dialog = await screen.findByRole('dialog')
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('button', { name: 'Đặt lịch gần nhất' }),
+      ).toBeDisabled(),
+    )
+
+    creditsClient.get.mockResolvedValue({ balance: { available: 1 } })
+    fireEvent(window, new Event('focus'))
+
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('button', { name: 'Đặt lịch gần nhất' }),
+      ).toBeEnabled(),
+    )
+    expect(within(dialog).getByText(/1 lượt khả dụng/)).toBeInTheDocument()
+  })
+
+  it('keeps the newest balance when an older zero read finishes last', async () => {
+    const user = userEvent.setup()
+    discoveryClient.list.mockResolvedValue(page('PLUS'))
+    let finishOlder: (value: unknown) => void = () => {}
+    creditsClient.get
+      .mockResolvedValueOnce({ balance: { available: 0 } })
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (finishOlder = resolve)),
+      )
+      .mockResolvedValue({ balance: { available: 1 } })
+    renderDiscovery()
+    // Opening the profile starts a read that is still pending (the older one).
+    await user.click(await screen.findByRole('button', { name: 'Hồ sơ' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent(window, new Event('focus'))
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('button', { name: 'Đặt lịch gần nhất' }),
+      ).toBeEnabled(),
+    )
+
+    await act(async () => finishOlder({ balance: { available: 0 } }))
+
+    expect(
+      within(dialog).getByRole('button', { name: 'Đặt lịch gần nhất' }),
+    ).toBeEnabled()
+    expect(within(dialog).getByText(/1 lượt khả dụng/)).toBeInTheDocument()
+  })
+
+  it('uses the enabled backend video capability for discovery filtering', async () => {
+    const user = userEvent.setup()
+    discoveryClient.list.mockResolvedValue({
+      ...page('PLUS'),
+      videoEnabled: true,
+    })
+
+    renderDiscovery()
+    const video = await screen.findByRole('button', { name: /^Video$/ })
+    expect(video).toBeEnabled()
+    await user.click(video)
+
+    await waitFor(() =>
+      expect(discoveryClient.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ modality: 'IN_APP_VIDEO' }),
+      ),
+    )
+  })
+
+  it('retains the originating PlanAction only after the user explicitly books', async () => {
+    const user = userEvent.setup()
+    const actionId = '20000000-0000-4000-8000-000000000643'
+    window.history.replaceState({}, '', `/specialists?planActionId=${actionId}`)
+    discoveryClient.list.mockResolvedValue(page('PLUS'))
+    appointmentClient.request.mockResolvedValue({ id: 'appointment-id' })
+
+    renderDiscovery()
+    await user.click(await screen.findByRole('button', { name: 'Lịch trống' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(await within(dialog).findByRole('radio'))
+    await user.click(within(dialog).getByRole('button', { name: 'Tiếp tục' }))
+    expect(appointmentClient.request).not.toHaveBeenCalled()
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Xác nhận đặt lịch' }),
+    )
+
+    await waitFor(() =>
+      expect(appointmentClient.request).toHaveBeenCalledWith(
+        item.selectableSlots[0].id,
+        'IN_APP_CHAT',
+        expect.stringMatching(/^appointment-/),
+        undefined,
+        undefined,
+        actionId,
+      ),
+    )
+  })
+
+  it('links back to the originating support guide', async () => {
+    const guideId = '30000000-0000-4000-8000-000000000668'
+    discoveryClient.list.mockResolvedValue(page('PLUS'))
+    render(
+      <FeedbackProvider>
+        <SpecialistDiscovery returnSupportGuideId={guideId} />
+      </FeedbackProvider>,
+    )
+
+    expect(
+      await screen.findByRole('link', { name: 'Quay lại gợi ý hỗ trợ' }),
+    ).toHaveAttribute('href', `/support-guides/${guideId}`)
+  })
+
+  it('renders empty discovery without inventing specialists or slots', async () => {
+    discoveryClient.list.mockResolvedValue({
+      ...page('PLUS'),
+      items: [],
+      count: 0,
+    })
+    renderDiscovery()
+
+    expect(
+      await screen.findByText('Chưa có chuyên gia phù hợp'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('article')).not.toBeInTheDocument()
+    expect(screen.getByText('0 chuyên gia')).toBeInTheDocument()
+  })
+
+  it('shows a retry state when discovery is unavailable', async () => {
+    const user = userEvent.setup()
+    discoveryClient.list
+      .mockRejectedValueOnce(
+        new ApiError({ message: 'Down', code: 'UNAVAILABLE', status: 503 }),
+      )
+      .mockResolvedValue(page('PLUS'))
+    renderDiscovery()
+
+    const alert = await screen.findByRole('alert')
+    await user.click(within(alert).getByRole('button', { name: 'Thử lại' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Chuyên gia An' }),
+    ).toBeInTheDocument()
   })
 
   it('filters the loaded list from the topbar search event', async () => {

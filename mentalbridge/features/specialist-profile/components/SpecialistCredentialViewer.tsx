@@ -19,32 +19,41 @@ export default function SpecialistCredentialViewer({
   documents: CredentialDocument[]
   selectedId: string | null
 }) {
-  const [activeId, setActiveId] = useState<string | null>(selectedId)
-  const [url, setUrl] = useState<string | null>(null)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [prevSelectedId, setPrevSelectedId] = useState<string | null>(
+    selectedId,
+  )
+  if (selectedId !== prevSelectedId) {
+    setPrevSelectedId(selectedId)
+    setActiveId(null)
+  }
+  const [loadedDoc, setLoadedDoc] = useState<{
+    id: string
+    url: string | null
+  } | null>(null)
   const [error, setError] = useState('')
   const [zoom, setZoom] = useState(100)
+  const effectiveId = activeId ?? selectedId ?? documents[0]?.id ?? null
   const selected =
-    documents.find((item) => item.id === activeId) ?? documents[0] ?? null
-
-  useEffect(() => {
-    if (open) setActiveId(selectedId ?? documents[0]?.id ?? null)
-  }, [open, selectedId, documents])
+    documents.find((item) => item.id === effectiveId) ?? documents[0] ?? null
+  // Bound to the document id so a late response for another document is never shown.
+  const url =
+    loadedDoc && selected && loadedDoc.id === selected.id ? loadedDoc.url : null
 
   useEffect(() => {
     if (!open || !selected) return
     let active = true
-    setUrl(null)
     browserConsultation
       .credentialFile(selected.id)
       .then((result) => {
         if (active) {
-          setUrl(result.data.url)
+          setLoadedDoc({ id: selected.id, url: result.data.url })
           setError('')
         }
       })
       .catch(() => {
         if (active) {
-          setUrl(null)
+          setLoadedDoc({ id: selected.id, url: null })
           setError('Không thể mở tệp. Hãy thử lại.')
         }
       })
@@ -204,11 +213,16 @@ export default function SpecialistCredentialViewer({
                   <button
                     type="button"
                     onClick={() => {
-                      setUrl(null)
+                      setLoadedDoc(null)
                       void browserConsultation
                         .credentialFile(selected.id)
                         .then((result) => {
-                          setUrl(result.data.url)
+                          // A newer load for another document wins over this late reload.
+                          setLoadedDoc((current) =>
+                            current && current.id !== selected.id
+                              ? current
+                              : { id: selected.id, url: result.data.url },
+                          )
                           setError('')
                         })
                         .catch(() => setError('Không thể mở tệp. Hãy thử lại.'))

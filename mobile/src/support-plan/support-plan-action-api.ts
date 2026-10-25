@@ -13,6 +13,7 @@ import {
   emotionReconciliationSchema,
   journalReconciliationSchema,
   nativeReplacementReviewSchema,
+  supportPlanCompanionMessageSchema,
   supportPlanActionHistorySchema,
   type ActionOccurrence,
   type ActionOccurrenceList,
@@ -20,6 +21,7 @@ import {
   type EmotionReconciliation,
   type JournalReconciliation,
   type NativeReplacementReview,
+  type SupportPlanCompanionMessage,
   type SupportPlanActionHistory,
 } from './support-plan-action-contract'
 
@@ -101,6 +103,11 @@ export interface SupportPlanActionApi {
     id: string,
     journalId: string,
   ): Promise<JournalReconciliation>
+  requestCompanionExplanation(
+    supportPlanId: string,
+    actionId: string,
+    surface: 'TODAY' | 'PLAN',
+  ): Promise<SupportPlanCompanionMessage>
 }
 
 function ownedPlan(value: unknown, id: string) {
@@ -327,6 +334,26 @@ export function createSupportPlanActionApi(
       )
       if (parsed.occurrenceId !== id || parsed.journalId !== body.journalId)
         throw new Error('Journal reconciliation identity mismatch.')
+      return parsed
+    },
+    async requestCompanionExplanation(supportPlanId, actionId, surface) {
+      const parsedPlanId = idSchema.parse(supportPlanId)
+      const parsedActionId = idSchema.parse(actionId)
+      const parsedSurface = z.enum(['TODAY', 'PLAN']).parse(surface)
+      const parsed = supportPlanCompanionMessageSchema.parse(
+        (
+          await client.post(
+            `${planPath(parsedPlanId)}/actions/${encodeURIComponent(parsedActionId)}/companion-explanation`,
+            { surface: parsedSurface },
+          )
+        ).data,
+      )
+      if (
+        parsed.supportPlanId !== parsedPlanId ||
+        parsed.actionId !== parsedActionId ||
+        parsed.surface !== parsedSurface
+      )
+        throw new Error('Companion response identity mismatch.')
       return parsed
     },
   }

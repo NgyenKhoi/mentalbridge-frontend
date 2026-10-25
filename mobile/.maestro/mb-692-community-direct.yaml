@@ -1,0 +1,57 @@
+appId: com.mentalbridge.mobile
+name: MB-692 approval direct unread and privacy source
+---
+- runFlow: mb-692-sign-in.yaml
+- tapOn: 'Mở cộng đồng'
+- tapOn: 'Trò chuyện cộng đồng'
+- assertVisible: 'Trò chuyện cộng đồng'
+- openLink: 'mentalbridge:///community-chat?requestId=${MAESTRO_MB_COMMUNITY_REQUEST_ID}'
+- assertVisible: 'Chấp nhận trò chuyện'
+- assertNotVisible:
+    id: community-chat-composer
+- tapOn: 'Chấp nhận trò chuyện'
+- extendedWaitUntil:
+    visible:
+      id: community-chat-composer
+    timeout: 30000
+- assertVisible: 'MB692 synthetic peer message'
+- tapOn:
+    id: community-chat-composer
+- inputText: 'MB692 synthetic mobile message'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: community-chat-send
+    direction: DOWN
+- tapOn:
+    id: community-chat-send
+- assertVisible: 'Tin nhắn đã được lưu.*'
+- scrollUntilVisible:
+    element:
+      text: 'Đánh dấu phần đã xem là đã đọc'
+    direction: UP
+- tapOn: 'Đánh dấu phần đã xem là đã đọc'
+- assertVisible: '0 tin chưa đọc'
+- scrollUntilVisible:
+    element:
+      text: 'Về hộp trò chuyện'
+    direction: UP
+- tapOn: 'Về hộp trò chuyện'
+- scrollUntilVisible:
+    element:
+      text: 'Quyền riêng tư trò chuyện'
+    direction: DOWN
+- tapOn: 'Quyền riêng tư trò chuyện'
+- tapOn: 'Cho phép nhắn trực tiếp'
+- scrollUntilVisible:
+    element:
+      text: 'Lưu quyền riêng tư'
+    direction: DOWN
+- tapOn: 'Lưu quyền riêng tư'
+- openLink: 'mentalbridge:///community-chat?peerId=${MAESTRO_MB_COMMUNITY_OPEN_PEER_ID}'
+- tapOn: 'Bắt đầu trò chuyện'
+- extendedWaitUntil:
+    visible:
+      id: community-chat-composer
+    timeout: 30000
+- assertNotVisible: 'Chấp nhận trò chuyện'

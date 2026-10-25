@@ -108,6 +108,42 @@
   margin: 0;
   line-height: 1.6;
 }
+.why {
+  display: grid;
+  gap: 8px;
+  border-radius: 13px;
+  padding: 14px 16px;
+  background: #f7faf8;
+}
+.why h3 {
+  color: #21382c;
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+.why ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.why li {
+  position: relative;
+  padding-left: 16px;
+  color: #3d5246;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.why li::before {
+  content: '';
+  position: absolute;
+  top: 0.62em;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4f8a6b;
+}
 .facts,
 .confirmFacts {
   display: grid;

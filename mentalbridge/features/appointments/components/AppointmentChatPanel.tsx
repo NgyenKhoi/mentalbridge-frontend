@@ -848,7 +848,14 @@ export default function AppointmentChatPanel({
                       <button
                         key={reply}
                         type="button"
-                        onClick={() => setContent(reply)}
+                        onClick={() =>
+                          setContent((current) =>
+                            (current.trim()
+                              ? `${current.trimEnd()} ${reply}`
+                              : reply
+                            ).slice(0, 4000),
+                          )
+                        }
                       >
                         {index === 0 ? 'Gửi lời chào' : 'Xác nhận sẵn sàng'}
                       </button>
@@ -934,7 +941,14 @@ export default function AppointmentChatPanel({
                       type="button"
                       key={reply}
                       title={reply}
-                      onClick={() => setContent(reply)}
+                      onClick={() =>
+                        setContent((current) =>
+                          (current.trim()
+                            ? `${current.trimEnd()} ${reply}`
+                            : reply
+                          ).slice(0, 4000),
+                        )
+                      }
                     >
                       {index === 0 ? 'Chào đón ấm áp' : 'Xác nhận sẵn sàng'}
                     </button>

@@ -60,7 +60,7 @@ function continuationFor(
   const firstResource = guide.resources[0]
   if (nextAction === 'EXPLORE_GUIDE_RESOURCES' && firstResource) {
     return {
-      path: `./resources/${encodeURIComponent(firstResource.resourceId)}`,
+      path: `./resources/${encodeURIComponent(firstResource.resourceId)}` as const,
       label: 'Bắt đầu với bài tập đầu tiên',
     }
   }

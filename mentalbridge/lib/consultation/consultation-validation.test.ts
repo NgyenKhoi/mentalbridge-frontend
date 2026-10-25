@@ -19,6 +19,7 @@ import {
   parseSpecialistDiscoveryPage,
   parseSpecialistDecisionInput,
   parseSpecialistSuspensionResult,
+  parseConsultationOperationsSummary,
 } from './consultation-validation'
 
 const profile = {
@@ -345,6 +346,35 @@ describe('Consultation contract validation', () => {
     expect(
       parseServiceCreditAccount({ ...account, source: 'DEFAULT_FREE' }),
     ).toBeNull()
+    const withAccess = {
+      ...account,
+      entitlementState: 'ACTIVE',
+      supportPlanEnabled: true,
+    }
+    expect(parseServiceCreditAccount(withAccess)).toEqual(withAccess)
+    expect(
+      parseServiceCreditAccount({ ...withAccess, supportPlanEnabled: false }),
+    ).toBeNull()
+    const free = {
+      ...account,
+      packageCode: 'FREE',
+      source: 'DEFAULT_FREE',
+      sourceReference: null,
+      periodStart: null,
+      periodEnd: null,
+      balance: { ...account.balance, available: 0, held: 0, total: 0 },
+      history: [],
+    }
+    expect(parseServiceCreditAccount(free)).toEqual(free)
+    expect(
+      parseServiceCreditAccount({ ...free, supportPlanEnabled: true }),
+    ).toBeNull()
+    expect(
+      parseServiceCreditAccount({ ...account, entitlementState: 'EXPIRED' }),
+    ).toBeNull()
+    expect(
+      parseServiceCreditAccount({ ...account, supportPlanEnabled: 'yes' }),
+    ).toBeNull()
   })
 
   it('accepts online appointment snapshots and rejects physical or external modes', () => {
@@ -431,6 +461,47 @@ describe('Consultation contract validation', () => {
       creditState: 'CONSUMED',
     }
     expect(parseAppointment(videoCompleted)).toEqual(videoCompleted)
+    const historicalVideoCompleted = {
+      ...videoCompleted,
+      id: '11111111-2222-4333-8444-555555555555',
+      sessionPolicyVersion: 'chat-session-completion-v1',
+      sessionOutcomeReason: 'EVIDENCE_REQUIREMENTS_MET',
+    }
+    expect(parseAppointment(historicalVideoCompleted)).toEqual(
+      historicalVideoCompleted,
+    )
+    const mixedVideoHistory = {
+      items: [videoCompleted, historicalVideoCompleted],
+      count: 2,
+      generatedAt: '2026-10-14T03:00:00Z',
+    }
+    expect(parseAppointmentList(mixedVideoHistory)).toEqual(mixedVideoHistory)
+    expect(
+      parseAppointment({
+        ...historicalVideoCompleted,
+        creditState: 'AVAILABLE',
+      }),
+    ).not.toBeNull()
+    for (const incomplete of [
+      { completionFactId: null },
+      { sessionSettledAt: null },
+      { sessionEndedAt: null },
+      { creditState: 'HELD' },
+      { sessionOutcomeReason: null },
+    ]) {
+      expect(
+        parseAppointment({ ...historicalVideoCompleted, ...incomplete }),
+      ).toBeNull()
+    }
+    expect(
+      parseAppointmentList({
+        ...mixedVideoHistory,
+        items: [
+          videoCompleted,
+          { ...historicalVideoCompleted, completionFactId: null },
+        ],
+      }),
+    ).toBeNull()
     expect(
       parseAppointment({ ...videoCompleted, creditState: 'AVAILABLE' }),
     ).not.toBeNull()
@@ -659,5 +730,53 @@ describe('Consultation contract validation', () => {
     expect(() =>
       discoveryQuery(new URLSearchParams('supportArea=ANXIETY_SYMPTOMS'), true),
     ).toThrow(ConsultationInputError)
+  })
+
+  it('validates and parses consultation operations summary with all 11 appointment statuses', () => {
+    const rawSummary = {
+      source: 'CONSULTATION',
+      asOf: '2026-10-06T00:00:00Z',
+      specialists: {
+        total: 10,
+        pendingReview: 2,
+        active: 7,
+        rejected: 1,
+        suspended: 0,
+      },
+      appointments: {
+        total: 20,
+        requested: 2,
+        confirmed: 5,
+        inProgress: 1,
+        sessionEnded: 1,
+        completed: 6,
+        cancelled: 2,
+        rejected: 1,
+        expired: 1,
+        userNoShow: 1,
+        specialistNoShow: 0,
+        bothNoShow: 0,
+      },
+    }
+
+    const parsed = parseConsultationOperationsSummary(rawSummary)
+    expect(parsed).toEqual(rawSummary)
+
+    // Fails closed if missing any of the 11 statuses
+    const incomplete = {
+      ...rawSummary,
+      appointments: {
+        total: 20,
+        requested: 2,
+        confirmed: 5,
+        inProgress: 1,
+        sessionEnded: 1,
+        completed: 6,
+        cancelled: 2,
+        rejected: 1,
+        expired: 1,
+      },
+    }
+    expect(parseConsultationOperationsSummary(incomplete)).toBeNull()
   })
 })

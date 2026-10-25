@@ -18,7 +18,13 @@ import {
   VolumeX,
   Waves,
 } from 'lucide-react'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 
 import { Dialog } from '@/components/ui/Dialog'
 
@@ -37,6 +43,7 @@ type Props = Readonly<{
   progressLoadState: 'loading' | 'ready' | 'error'
   saving: boolean
   message: string
+  planNotice?: ReactNode
   confirmationOpen: boolean
   onConfirmationOpenChange: (open: boolean) => void
   onRetryProgress: () => void
@@ -57,6 +64,7 @@ export function MindfulnessResourceDetail({
   progressLoadState,
   saving,
   message,
+  planNotice,
   confirmationOpen,
   onConfirmationOpenChange,
   onRetryProgress,
@@ -130,16 +138,15 @@ export function MindfulnessResourceDetail({
 
   useEffect(() => {
     if (!running || remaining === 0) return
-    const timeout = window.setTimeout(
-      () => setRemaining((value) => value - 1),
-      1000,
-    )
+    const timeout = window.setTimeout(() => {
+      setRemaining((value) => {
+        const next = Math.max(0, value - 1)
+        if (next === 0) setRunning(false)
+        return next
+      })
+    }, 1000)
     return () => window.clearTimeout(timeout)
   }, [remaining, running])
-
-  useEffect(() => {
-    if (remaining === 0) setRunning(false)
-  }, [remaining])
 
   useEffect(() => {
     const audio = soundRef.current
@@ -147,8 +154,9 @@ export function MindfulnessResourceDetail({
   }, [volume])
 
   useEffect(() => {
+    const audio = soundRef.current
     return () => {
-      soundRef.current?.pause()
+      audio?.pause()
     }
   }, [])
 
@@ -514,6 +522,7 @@ export function MindfulnessResourceDetail({
           )}
         </section>
 
+        {planNotice}
         {Array.isArray(resource.safetyNotes) &&
           resource.safetyNotes.length > 0 && (
             <p className={styles.safetyNote}>

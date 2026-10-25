@@ -78,8 +78,9 @@ test('one specialist identity, usable collapsed menu, consistent floating suppor
       await page.keyboard.press('Escape')
       await expect(account).toBeFocused()
     } else {
-      await page.getByRole('button', { name: 'Mở menu' }).click()
-      const drawer = page.getByRole('dialog', { name: 'Điều hướng chuyên gia' })
+      await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
+      const drawer = page.locator('.role-sidebar')
+      await expect(drawer).toBeInViewport()
       const account = drawer.getByRole('button', {
         name: 'Mở menu tài khoản chuyên gia',
       })
@@ -91,11 +92,11 @@ test('one specialist identity, usable collapsed menu, consistent floating suppor
         drawer.getByRole('menuitem', { name: 'Đăng xuất', exact: true }),
       ).toBeVisible()
       await page.keyboard.press('Escape')
-      await expect(drawer).toBeVisible()
+      await expect(drawer).toBeInViewport()
       await expect(account).toBeFocused()
       await expect(drawer.getByRole('menu')).toHaveCount(0)
       await page.keyboard.press('Escape')
-      await expect(drawer).not.toBeVisible()
+      await expect(drawer).not.toBeInViewport()
     }
     await expect(
       page.locator('[data-overview-artwork] canvas'),
@@ -118,8 +119,12 @@ test('one specialist identity, usable collapsed menu, consistent floating suppor
   await expect(profile).toHaveText('Hồ sơ chuyên gia')
   await profile.focus()
   await page.keyboard.press('Tab')
+  // A specialist-only account has no personal subscription entry.
   await expect(
     sidebar.getByRole('menuitem', { name: 'Gói dịch vụ' }),
+  ).toHaveCount(0)
+  await expect(
+    sidebar.getByRole('menuitem', { name: 'Đăng xuất', exact: true }),
   ).toBeFocused()
   await page.screenshot({
     path: info.outputPath('single-account-collapsed-menu.png'),

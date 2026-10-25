@@ -619,23 +619,20 @@ test.describe('Care-backed PHQ-9 screening', () => {
     )
 
     const resultHeading = page.getByRole('heading', {
-      name: 'Lắng nghe nhịp điệu tâm trí của bạn',
+      name: 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp',
     })
     await expect(resultHeading).toBeVisible()
     await expect(
-      page.getByText(/Không thay thế chẩn đoán bác sĩ/),
-    ).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Ưu tiên xem hướng dẫn an toàn' }),
+      page.getByText(/không phải chẩn đoán y khoa/).first(),
     ).toBeVisible()
     await expect(
       page.getByText(/chủ động liên hệ dịch vụ khẩn cấp/i),
     ).toBeVisible()
-    const safety = page.locator('.initial-check-safety.positive')
+    const safety = page.locator('.combined-meaning-safety')
     await expect(
       safety.getByRole('link', { name: /Xem hỗ trợ/ }),
     ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
-    const scoreCards = page.locator('.initial-check-score-card')
+    const scoreCards = page.locator('.combined-meaning-score')
     await expect(scoreCards).toHaveCount(2)
     expect((await safety.boundingBox())!.y).toBeLessThan(
       (await scoreCards.first().boundingBox())!.y,
@@ -692,7 +689,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
       ),
     ).toBe(true)
     const restartButton = page.getByRole('button', {
-      name: 'Bắt đầu lượt kiểm tra mới',
+      name: 'Làm lại bài sàng lọc',
     })
     expect((await restartButton.boundingBox())?.height).toBeGreaterThanOrEqual(
       44,

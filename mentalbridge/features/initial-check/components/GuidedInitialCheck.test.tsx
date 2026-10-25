@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { combinedMeaningFixture } from '@/tests/fixtures/combined-meaning'
 import { mockServer } from '@/tests/mocks/server'
 
 import GuidedInitialCheck from './GuidedInitialCheck'
@@ -96,6 +97,7 @@ function completedState() {
       disclaimer:
         'Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.',
     },
+    combinedMeaning: combinedMeaningFixture(),
   }
 }
 
@@ -130,6 +132,23 @@ describe('GuidedInitialCheck', () => {
     )
   })
 
+  it('keeps the plan-review token through the privacy detour', async () => {
+    mockServer.use(
+      http.get('http://localhost/api/care/initial-check', () =>
+        HttpResponse.json({ phase: 'CONSENT_REQUIRED' }),
+      ),
+    )
+    render(<GuidedInitialCheck purpose="REASSESSMENT" planReview />)
+    expect(
+      await screen.findByRole('link', {
+        name: 'Xem quyền riêng tư và tiếp tục',
+      }),
+    ).toHaveAttribute(
+      'href',
+      '/profile?returnTo=%2Finitial-check%3Fpurpose%3Dreassessment%26returnTo%3Dplan-review',
+    )
+  })
+
   it('routes a first-time user to profile readiness and back to the journey', async () => {
     mockServer.use(
       http.get('http://localhost/api/care/initial-check', () =>
@@ -146,6 +165,33 @@ describe('GuidedInitialCheck', () => {
     expect(screen.getByText(/không yêu cầu nhật ký/i)).toBeVisible()
   })
 
+  it('offers the way back to the plan review only for a reassessment the review asked for', async () => {
+    mockServer.use(
+      http.get('http://localhost/api/care/initial-check', () =>
+        HttpResponse.json(completedState()),
+      ),
+    )
+    const { unmount } = render(
+      <GuidedInitialCheck purpose="REASSESSMENT" planReview />,
+    )
+    expect(
+      await screen.findByRole('link', {
+        name: 'Chia sẻ cảm nhận rồi quay lại kế hoạch',
+      }),
+    ).toHaveAttribute(
+      'href',
+      '/assessments?tab=reassessment&returnTo=plan-review',
+    )
+    unmount()
+    render(<GuidedInitialCheck purpose="REASSESSMENT" />)
+    await screen.findByText(/Đã lưu kết quả/)
+    expect(
+      screen.queryByRole('link', {
+        name: 'Chia sẻ cảm nhận rồi quay lại kế hoạch',
+      }),
+    ).toBeNull()
+  })
+
   it('keeps safety and every result block visible when optional resources fail', async () => {
     mockServer.use(
       http.get('http://localhost/api/care/initial-check', () =>
@@ -158,27 +204,29 @@ describe('GuidedInitialCheck', () => {
 
     const { container } = render(<GuidedInitialCheck />)
 
+    // The result is Care's saved combined meaning, not client-written copy.
     await screen.findByRole('heading', {
-      name: 'Lắng nghe nhịp điệu tâm trí của bạn',
+      level: 1,
+      name: 'Dấu hiệu trầm cảm ở mức nhẹ, lo âu rất ít.',
     })
+    expect(screen.getByText(/Đã lưu kết quả kiểm tra ban đầu/)).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: 'Khí sắc & Thể chất' }),
+      screen.getByRole('heading', { name: 'Dấu hiệu trầm cảm' }),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: 'Căng thẳng & Lo âu' }),
+      screen.getByRole('heading', { name: 'Dấu hiệu lo âu' }),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', {
-        name: 'Bạn không cần phải tự mình vượt qua tất cả',
-      }),
-    ).toBeVisible()
+      screen.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
+    ).toHaveAttribute('href', '/support-guides')
     expect(
-      screen.getByRole('heading', { name: 'Tài nguyên nuôi dưỡng hôm nay' }),
-    ).toBeVisible()
+      screen.queryByRole('heading', { name: /hướng dẫn an toàn/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/[ⓘ⚠✓]/)).not.toBeInTheDocument()
     expect(container.textContent).not.toMatch(/sprint|backend|demo|test/i)
 
     await userEvent.click(
-      screen.getByRole('button', { name: 'Bắt đầu lượt kiểm tra mới' }),
+      screen.getByRole('button', { name: 'Làm lại bài sàng lọc' }),
     )
     const confirmation = screen.getByRole('group', {
       name: 'Xác nhận bắt đầu lượt mới',
@@ -194,6 +242,9 @@ describe('GuidedInitialCheck', () => {
     expect(
       screen.queryByRole('group', { name: 'Xác nhận bắt đầu lượt mới' }),
     ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Làm lại bài sàng lọc' }),
+    ).toHaveFocus()
   })
 
   it('offers a retry without discarding completed assessments when evaluation is unavailable', async () => {

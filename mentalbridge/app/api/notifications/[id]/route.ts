@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server'
 
 import { correlationIdFrom } from '@/lib/auth/bff-response'
 import {
-  authenticatedContentUser,
+  authenticatedNotificationOwner,
   carryContentSession,
   contentAuthenticationFailure,
 } from '@/lib/content/authenticated-user'
@@ -19,9 +19,9 @@ export async function DELETE(
   context: RouteContext<'/api/notifications/[id]'>,
 ) {
   const correlationId = correlationIdFrom(request)
-  let user: Awaited<ReturnType<typeof authenticatedContentUser>>
+  let user: Awaited<ReturnType<typeof authenticatedNotificationOwner>>
   try {
-    user = await authenticatedContentUser(request, correlationId)
+    user = await authenticatedNotificationOwner(request, correlationId)
   } catch (error) {
     return contentAuthenticationFailure(error, correlationId)
   }

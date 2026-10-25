@@ -3,6 +3,7 @@ import 'server-only'
 import type { NextRequest } from 'next/server'
 import { correlationIdFrom } from '@/lib/auth/bff-response'
 import { readBoundedJson, RequestBodyError } from '@/lib/auth/request-body'
+import { isSameOrigin } from '@/lib/auth/same-origin'
 import {
   authenticatedCareUser,
   careAuthenticationFailure,
@@ -16,9 +17,11 @@ import {
 import { isUuid } from './care-validation'
 import { supportPlanActionClient } from './support-plan-action-client'
 import { isSupportPlanLocalDate } from './support-plan-action-validation'
+import { parseEngagementRequest } from './support-plan-engagement-request'
 
 type Operation =
   | 'current'
+  | 'resourceActions'
   | 'draft'
   | 'detail'
   | 'history'
@@ -32,12 +35,19 @@ type Operation =
   | 'reconcile'
   | 'companionExplanation'
   | 'reconcileJournal'
+  | 'reconcileResource'
+  | 'continueCycle'
+  | 'occurrenceEngagement'
+  | 'adaptiveReview'
+  | 'adaptiveConfirm'
 const READS: readonly Operation[] = [
   'current',
+  'resourceActions',
   'draft',
   'detail',
   'history',
   'occurrences',
+  'adaptiveReview',
 ]
 const VERSION = /^"(0|[1-9]\d*)"$/
 const KEY = /^[!-~]{16,128}$/
@@ -94,10 +104,7 @@ export async function supportPlanActionHandler(
     return careAuthenticationFailure(error, correlationId)
   }
   try {
-    if (
-      !READS.includes(operation) &&
-      request.headers.get('origin') !== request.nextUrl.origin
-    ) {
+    if (!READS.includes(operation) && !isSameOrigin(request)) {
       throw new RequestBodyError(
         403,
         'CROSS_ORIGIN_REQUEST',
@@ -115,6 +122,11 @@ export async function supportPlanActionHandler(
         'reconcile',
         'companionExplanation',
         'reconcileJournal',
+        'reconcileResource',
+        'continueCycle',
+        'occurrenceEngagement',
+        'adaptiveReview',
+        'adaptiveConfirm',
       ].includes(operation) &&
       (!id || !isUuid(id))
     )
@@ -127,9 +139,17 @@ export async function supportPlanActionHandler(
     const ownerId = id ?? ''
     let version = 0
     if (
-      ['activate', 'status', 'review', 'replace', 'occurrenceState'].includes(
-        operation,
-      )
+      [
+        'activate',
+        'status',
+        'review',
+        'replace',
+        'occurrenceState',
+        'reconcileResource',
+        'continueCycle',
+        'occurrenceEngagement',
+        'adaptiveConfirm',
+      ].includes(operation)
     ) {
       const match = VERSION.exec(request.headers.get('if-match') ?? '')
       if (!match || !Number.isSafeInteger(Number(match[1]))) invalid()
@@ -137,11 +157,21 @@ export async function supportPlanActionHandler(
     }
     const key = request.headers.get('idempotency-key') ?? ''
     if (
-      ['propose', 'activate', 'replace'].includes(operation) &&
+      [
+        'propose',
+        'activate',
+        'replace',
+        'continueCycle',
+        'adaptiveConfirm',
+      ].includes(operation) &&
       !KEY.test(key)
     )
       invalid()
-    if (['activate', 'reconcile'].includes(operation)) {
+    if (
+      ['activate', 'reconcile', 'reconcileResource', 'continueCycle'].includes(
+        operation,
+      )
+    ) {
       await requireEmptyBody(request)
     }
     let result: unknown
@@ -151,6 +181,16 @@ export async function supportPlanActionHandler(
       case 'current':
         result = await supportPlanActionClient.current(token, correlationId)
         break
+      case 'resourceActions': {
+        const localDate = request.nextUrl.searchParams.get('localDate')
+        if (!isSupportPlanLocalDate(localDate)) invalid()
+        result = await supportPlanActionClient.resourceActions(
+          token,
+          localDate,
+          correlationId,
+        )
+        break
+      }
       case 'draft':
         result = await supportPlanActionClient.draft(token, correlationId)
         break
@@ -346,10 +386,118 @@ export async function supportPlanActionHandler(
         )
         break
       }
+      case 'reconcileResource':
+        result = await supportPlanActionClient.reconcileResource(
+          token,
+          ownerId,
+          version,
+          correlationId,
+        )
+        break
+      case 'continueCycle':
+        result = await supportPlanActionClient.continueCycle(
+          token,
+          ownerId,
+          version,
+          key,
+          correlationId,
+        )
+        break
+      case 'adaptiveReview': {
+        const summaryId =
+          request.nextUrl.searchParams.get('reassessmentSummaryId') ?? undefined
+        const ifMatch = request.headers.get('if-match')
+        const match = ifMatch === null ? null : VERSION.exec(ifMatch)
+        if (
+          (summaryId !== undefined && !isUuid(summaryId)) ||
+          (ifMatch !== null &&
+            (!match || !Number.isSafeInteger(Number(match[1]))))
+        )
+          invalid()
+        result = await supportPlanActionClient.adaptiveReview(
+          token,
+          ownerId,
+          match ? Number(match[1]) : undefined,
+          summaryId,
+          correlationId,
+        )
+        break
+      }
+      case 'adaptiveConfirm': {
+        const body = await readBoundedJson(request, 1024)
+        const optional = [
+          'reassessmentSummaryId',
+          'proposedPlanId',
+          'proposedVersion',
+        ]
+        if (
+          !record(body) ||
+          Object.keys(body).some(
+            (field) =>
+              !['reviewFingerprint', 'optionId', ...optional].includes(field),
+          ) ||
+          typeof body.reviewFingerprint !== 'string' ||
+          !/^[!-~]{16,128}$/.test(body.reviewFingerprint) ||
+          typeof body.optionId !== 'string' ||
+          body.optionId.length < 1 ||
+          body.optionId.length > 128 ||
+          (Object.hasOwn(body, 'reassessmentSummaryId') &&
+            !isUuid(String(body.reassessmentSummaryId))) ||
+          Object.hasOwn(body, 'proposedPlanId') !==
+            Object.hasOwn(body, 'proposedVersion') ||
+          (Object.hasOwn(body, 'proposedPlanId') &&
+            (!isUuid(String(body.proposedPlanId)) ||
+              !Number.isSafeInteger(body.proposedVersion) ||
+              Number(body.proposedVersion) < 0))
+        )
+          invalid()
+        result = await supportPlanActionClient.adaptiveConfirm(
+          token,
+          ownerId,
+          version,
+          {
+            reviewFingerprint: body.reviewFingerprint,
+            optionId: body.optionId,
+            ...(Object.hasOwn(body, 'reassessmentSummaryId')
+              ? { reassessmentSummaryId: String(body.reassessmentSummaryId) }
+              : {}),
+            ...(Object.hasOwn(body, 'proposedPlanId')
+              ? {
+                  proposedPlanId: String(body.proposedPlanId),
+                  proposedVersion: Number(body.proposedVersion),
+                }
+              : {}),
+          },
+          key,
+          correlationId,
+        )
+        break
+      }
+      case 'occurrenceEngagement': {
+        const body = parseEngagementRequest(
+          await readBoundedJson(request, 2048),
+        )
+        if (!body) invalid()
+        result = await supportPlanActionClient.occurrenceEngagement(
+          token,
+          ownerId,
+          version,
+          body,
+          correlationId,
+        )
+        break
+      }
     }
     const response = careSuccessResponse(result, correlationId, status)
-    if (record(result) && Number.isSafeInteger(result.version))
-      response.headers.set('ETag', `"${result.version}"`)
+    const etagVersion = !record(result)
+      ? undefined
+      : operation === 'adaptiveReview'
+        ? result.planVersion
+        : operation === 'adaptiveConfirm' && record(result.plan)
+          ? result.plan.version
+          : result.version
+    if (Number.isSafeInteger(etagVersion))
+      response.headers.set('ETag', `"${etagVersion}"`)
     return carryCareSession(response, user)
   } catch (error) {
     const response =

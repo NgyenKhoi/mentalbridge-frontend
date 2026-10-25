@@ -74,7 +74,9 @@
   padding: 22px 20px 20px;
   background: #ffffff;
   box-shadow: 0 3px 12px rgba(18, 56, 44, 0.04);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .card:hover {

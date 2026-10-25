@@ -48,7 +48,9 @@ không khôi phục chúng như coding standard hiện hành.
 
 Story-specific delivery evidence:
 
+- [MB-621 authoritative admin console closure](mb-621-admin-console.md)
 - [MB-624 cross-domain UC traceability rebaseline](reports/mb-624/README.md)
+- [MB-384 Web video-call continuity and focused controls](mb-384-video-call-continuity.md)
 - [MB-623 authoritative consultation journey closure](mb-623-consultation-journey.md)
 - [MB-642 private Journal action in SupportPlan](mb-642-journal-plan-action.md)
 - [MB-637 SupportGuide and SupportPlan v3 product boundary](ADR_SUPPORTPLAN_V3_PRODUCT_BOUNDARY.md)
@@ -61,6 +63,8 @@ Story-specific delivery evidence:
 - [MB-379 appointment decisions and expiry evidence](mb-379-appointment-decisions-evidence.md)
 - [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
 - [MB-593 specialist operational analytics evidence](mb-593-specialist-operational-analytics-evidence.md)
+- [MB-596 aggregate product journey metrics evidence](mb-596-product-journey-metrics-evidence.md)
+- [MB-594 specialist notification center evidence](mb-594-specialist-notification-center-evidence.md)
 - [MB-609 standalone Community peer-support experience](mb-609-community-standalone-evidence.md)
 - [MB-577 Community comments and one-level replies](mb-577-community-comments-evidence.md)
 - [MB-578 Community reports, blocks, and moderation](mb-578-community-moderation-evidence.md)
@@ -73,6 +77,7 @@ Story-specific delivery evidence:
 - [MB-619 appointment dispute UI evidence](mb-619-appointment-disputes-evidence.md)
 - [MB-656 truthful Resources progress evidence](MB-656-resources-truthful-progress.md)
 - [MB-653 SupportPlan Companion hardening evidence](evidence/mb-653-support-plan-companion-hardening.md)
+- [MB-652 adaptive SupportPlan review Companion evidence](evidence/mb-652-adaptive-review-companion.md)
 - [MB-549 appointment reminder consumer evidence](evidence/mb-549-appointment-reminder-consumer.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 

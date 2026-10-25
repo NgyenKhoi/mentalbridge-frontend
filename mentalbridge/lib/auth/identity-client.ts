@@ -9,6 +9,8 @@ import type {
   AccountPage,
   AccountStateChangeRequest,
   AccountSummary,
+  AdministrationAuditEventPage,
+  AccountsSummary,
   ChallengeRequest,
   EmailRequest,
   LoginRequest,
@@ -23,6 +25,7 @@ import type {
   PlatformReportType,
   PlatformReportSchedule,
   PlatformReportScheduleRequest,
+  ProductJourneyMetrics,
 } from '@/features/auth/api/identity-contract'
 import { readIdentityServerConfig } from '@/lib/config/server'
 
@@ -30,11 +33,14 @@ import {
   parseAccountDetail,
   parseAccountPage,
   parseAccountSummary,
+  parseAdministrationAuditEventPage,
+  parseAccountsSummary,
   parseRegistrationResponse,
   parseTokenPair,
   parsePlatformReport,
   parsePlatformReportCatalogue,
   parsePlatformReportPage,
+  parseProductJourneyMetrics,
 } from './identity-validation'
 import {
   parseReportSchedule,
@@ -55,6 +61,20 @@ type RequestOptions<T> = Readonly<{
 }>
 
 const MAX_IDENTITY_RESPONSE_BYTES = 64 * 1_024
+const MAX_IDENTITY_EXPORT_BYTES = 5 * 1_024 * 1_024
+
+export type AdministrationAuditSearch = Readonly<{
+  from?: string
+  to?: string
+  sourceService?: string
+  domain?: string
+  actorType?: string
+  action?: string
+  result?: string
+  targetIdentifier?: string
+  cursor?: string
+  limit?: number
+}>
 
 function upstreamUrl(baseUrl: string, path: string) {
   return new URL(path.replace(/^\//, ''), baseUrl)
@@ -199,6 +219,98 @@ async function identityRequest<T>(options: RequestOptions<T>): Promise<T> {
       message: 'Identity is unavailable.',
       code: 'IDENTITY_UNAVAILABLE',
       status: 503,
+      cause: error,
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function auditPath(path: string, params: AdministrationAuditSearch) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) query.set(key, String(value))
+  }
+  const queryString = query.toString()
+  return `${path}${queryString ? `?${queryString}` : ''}`
+}
+
+async function identityCsvRequest(
+  accessToken: string,
+  params: AdministrationAuditSearch,
+  correlationId: string,
+) {
+  const config = readIdentityServerConfig()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetch(
+      upstreamUrl(
+        config.baseUrl,
+        auditPath('/api/v1/admin/audit-events/export', params),
+      ),
+      {
+        cache: 'no-store',
+        redirect: 'error',
+        signal: controller.signal,
+        headers: {
+          Accept: 'text/csv, application/problem+json',
+          Authorization: `Bearer ${accessToken}`,
+          'X-Correlation-Id': correlationId,
+        },
+      },
+    )
+    if (!response.ok) {
+      const body = await readJson(response)
+      if (isProblemDetails(body)) {
+        throw new ApiError({
+          message: body.title,
+          code: body.code,
+          status: response.status,
+          correlationId: body.correlationId,
+          problem: body,
+        })
+      }
+      throw new ApiError({
+        message: 'Identity returned an invalid error response.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const contentType = response.headers.get('content-type') ?? ''
+    const contentLength = Number(response.headers.get('content-length'))
+    if (
+      !contentType.toLowerCase().startsWith('text/csv') ||
+      (Number.isFinite(contentLength) &&
+        contentLength > MAX_IDENTITY_EXPORT_BYTES)
+    ) {
+      throw new ApiError({
+        message: 'Identity returned an invalid export.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    if (bytes.byteLength > MAX_IDENTITY_EXPORT_BYTES) {
+      throw new ApiError({
+        message: 'Identity returned an oversized export.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    return {
+      bytes,
+      contentDisposition:
+        response.headers.get('content-disposition') ??
+        'attachment; filename="mentalbridge-audit.csv"',
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    const timedOut = controller.signal.aborted
+    throw new ApiError({
+      message: timedOut ? 'Identity timed out.' : 'Identity is unavailable.',
+      code: timedOut ? 'IDENTITY_TIMEOUT' : 'IDENTITY_UNAVAILABLE',
+      status: timedOut ? 504 : 503,
       cause: error,
     })
   } finally {
@@ -469,6 +581,29 @@ export const identityClient = {
     })
   },
 
+  browseAdministrationAuditEvents(
+    accessToken: string,
+    params: AdministrationAuditSearch,
+    correlationId: string,
+  ) {
+    return identityRequest<AdministrationAuditEventPage>({
+      method: 'GET',
+      path: auditPath('/api/v1/admin/audit-events', params),
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAdministrationAuditEventPage,
+    })
+  },
+
+  exportAdministrationAuditEvents(
+    accessToken: string,
+    params: AdministrationAuditSearch,
+    correlationId: string,
+  ) {
+    return identityCsvRequest(accessToken, params, correlationId)
+  },
+
   getAccountById(
     accessToken: string,
     accountId: string,
@@ -504,6 +639,17 @@ export const identityClient = {
       ifMatch: formattedIfMatch,
       body: request,
       parseSuccess: parseAccountDetail,
+    })
+  },
+
+  getAccountsSummary(accessToken: string, correlationId: string) {
+    return identityRequest<AccountsSummary>({
+      method: 'GET',
+      path: '/api/v1/admin/accounts/summary',
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAccountsSummary,
     })
   },
 
@@ -576,6 +722,28 @@ export const identityClient = {
       authorization: accessToken,
       correlationId,
       emptySuccess: true,
+    })
+  },
+
+  productJourneyMetrics(
+    accessToken: string,
+    params: { from: string; to: string },
+    correlationId: string,
+  ) {
+    const query = new URLSearchParams({ from: params.from, to: params.to })
+    return identityRequest<ProductJourneyMetrics>({
+      method: 'GET',
+      path: `/api/v1/admin/product-journey-metrics?${query.toString()}`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: (value) => {
+        const parsed = parseProductJourneyMetrics(value)
+        return parsed?.window.from === params.from &&
+          parsed.window.to === params.to
+          ? parsed
+          : null
+      },
     })
   },
 

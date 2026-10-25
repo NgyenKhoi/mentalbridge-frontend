@@ -27,6 +27,9 @@ export interface SessionService {
   ): Promise<void>
   verifyEmail(challenge: string): Promise<void>
   requestEmailVerification(email: string): Promise<void>
+  requestPasswordRecovery(email: string): Promise<void>
+  resetPassword(challenge: string, newPassword: string): Promise<void>
+  changePassword(currentPassword: string, newPassword: string): Promise<void>
 }
 
 type SessionServiceOptions = Readonly<{
@@ -190,6 +193,16 @@ export function createSessionService({
     },
     requestEmailVerification(email) {
       return api.requestEmailVerification(email)
+    },
+    requestPasswordRecovery(email) {
+      return api.requestPasswordRecovery(email)
+    },
+    resetPassword(challenge, newPassword) {
+      return api.resetPassword({ challenge, newPassword })
+    },
+    async changePassword(currentPassword, newPassword) {
+      await api.changePassword({ currentPassword, newPassword })
+      await credentials.clear()
     },
   }
 }

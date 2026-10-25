@@ -988,9 +988,13 @@
 }
 
 .purposeActionToggle:has(input:checked) {
-  border-color: #2f7565;
-  background: #2f7565;
-  color: white;
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+  color: var(--primary-foreground);
+}
+
+.actionsSection .purposeActionToggle input:checked + span {
+  background: transparent;
 }
 
 .purposeActions textarea {
@@ -1640,7 +1644,98 @@
   }
 }
 
+.planNotice {
+  max-width: 1120px;
+  margin: 20px auto 0;
+  padding: 16px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.planNotice > div {
+  flex: 1 1 240px;
+}
+
+.planNoticeCheck {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--primary-strong);
+}
+
+.planNoticeCheck path {
+  stroke-dasharray: 1;
+  animation: plan-notice-check var(--motion-base) var(--ease-standard) both;
+}
+
+@keyframes plan-notice-check {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.planNotice button,
+.planNotice a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--primary-strong);
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .planNotice button:hover {
+    background: var(--surface-soft);
+  }
+
+  .planNotice a:hover {
+    color: var(--teal-deep);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.planNotice button:active,
+.planNotice a:active {
+  transform: scale(var(--motion-scale-enter));
+}
+
+.planNotice button:focus-visible,
+.planNotice a:focus-visible {
+  outline: 2px solid var(--primary-strong);
+  outline-offset: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .planNoticeCheck path {
+    animation: none;
+  }
+
+  .planNotice button,
+  .planNotice a {
+    transition: none;
+    transform: none;
+  }
+
   .loader,
   .breathOrb.isBreathing,
   .reward,

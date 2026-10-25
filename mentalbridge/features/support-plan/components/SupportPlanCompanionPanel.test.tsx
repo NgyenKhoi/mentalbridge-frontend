@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import SupportPlanCompanionPanel, {
   type SupportPlanGuidedContext,
 } from './SupportPlanCompanionPanel'
+import { nativeSupportPlanReviewFixture } from '../testing/native-support-plan-review-fixture'
 
 const context: SupportPlanGuidedContext = {
   supportPlanId: '10000000-0000-4000-8000-000000000651',
@@ -165,22 +166,63 @@ describe('SupportPlanCompanionPanel', () => {
   })
 
   it('offers review explanation only for an authoritative available review', () => {
-    const view = render(<SupportPlanCompanionPanel {...baseProps} />)
+    const onRequest = vi.fn()
+    const view = render(
+      <SupportPlanCompanionPanel {...baseProps} onRequest={onRequest} />,
+    )
     expect(screen.queryByRole('button', { name: /lần xem lại này/ })).toBeNull()
 
     view.rerender(
       <SupportPlanCompanionPanel
         {...baseProps}
         surface="adjust"
-        context={{ ...context, reviewAvailable: true }}
+        context={{ ...context, review: nativeSupportPlanReviewFixture() }}
+        onRequest={onRequest}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /lần xem lại này/ }))
     expect(
+      screen.getByRole('heading', { name: 'Điều MentalBridge đã ghi nhận' }),
+    ).toBeVisible()
+    expect(screen.getByText('PHQ-9: thấp hơn giai đoạn trước.')).toBeVisible()
+    expect(screen.getByText('GAD-7: cao hơn giai đoạn trước.')).toBeVisible()
+    expect(
       screen.getByText(
-        /Bạn đồng hành không chọn hoặc áp dụng thay đổi thay bạn/,
+        'Hoạt động “Check-in cảm xúc” được trình bày trong phương án mới là “Check-in cảm xúc vào buổi sáng”.',
       ),
     ).toBeVisible()
+    expect(
+      screen.getByText(/Các tín hiệu chưa hoàn toàn cùng chiều/),
+    ).toBeVisible()
+    expect(onRequest).not.toHaveBeenCalled()
+  })
+
+  it('navigates to the authoritative review UI without issuing a plan mutation', () => {
+    const onNavigate = vi.fn()
+    const planMutation = vi.fn()
+    render(
+      <>
+        <SupportPlanCompanionPanel
+          {...baseProps}
+          surface="adjust"
+          context={{ ...context, review: nativeSupportPlanReviewFixture() }}
+          onNavigate={onNavigate}
+        />
+        <button type="button" onClick={planMutation}>
+          Chuyển kế hoạch
+        </button>
+      </>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /lần xem lại này/ }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Xem chi tiết tại mục Điều chỉnh',
+      }),
+    )
+
+    expect(onNavigate).toHaveBeenCalledWith({ surface: 'adjust' })
+    expect(planMutation).not.toHaveBeenCalled()
   })
 
   it('clears the temporary guided turn after an independent remount', () => {

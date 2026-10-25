@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ComponentProps } from 'react'
-import type SupportPlanEntry from '@/features/support-plan/components/SupportPlanEntry'
-vi.mock('@/features/support-plan/components/SupportPlanEntry', () => ({
-  default: (props: ComponentProps<typeof SupportPlanEntry>) => (
-    <pre data-testid="entry">{JSON.stringify(props)}</pre>
+import type SupportPlanWorkspace from '@/features/support-plan/workspace/SupportPlanWorkspace'
+vi.mock('@/features/support-plan/workspace/SupportPlanWorkspace', () => ({
+  default: (props: ComponentProps<typeof SupportPlanWorkspace>) => (
+    <pre data-testid="workspace">{JSON.stringify(props)}</pre>
   ),
 }))
 import SupportPlanPage from './page'
@@ -20,7 +20,7 @@ async function propsFor(query: Record<string, string | string[]>) {
       searchParams: Promise.resolve(query),
     }),
   )
-  return JSON.parse(screen.getByTestId('entry').textContent ?? '{}')
+  return JSON.parse(screen.getByTestId('workspace').textContent ?? '{}')
 }
 describe('SupportPlan return route discrimination', () => {
   it('passes Journal origin separately and never as an Emotion origin', async () => {
@@ -31,11 +31,17 @@ describe('SupportPlan return route discrimination', () => {
         journalId: '70000000-0000-4000-8000-000000000642',
       }),
     ).toEqual({
-      journalOrigin: {
+      returnOrigin: {
         source: 'journal',
+        kind: 'journal',
         ...fields,
         journalId: '70000000-0000-4000-8000-000000000642',
       },
+    })
+  })
+  it('passes a Resource return as its own origin', async () => {
+    expect(await propsFor({ source: 'resource', ...fields })).toEqual({
+      returnOrigin: { kind: 'resource', ...fields },
     })
   })
   it.each([
@@ -55,13 +61,31 @@ describe('SupportPlan return route discrimination', () => {
     },
     { source: 'unknown', ...fields },
     { ...fields, journalId: '70000000-0000-4000-8000-000000000642' },
+    {
+      source: 'resource',
+      ...fields,
+      journalId: '70000000-0000-4000-8000-000000000642',
+    },
+    { source: ['resource', 'resource'], ...fields },
+    { ...fields, occurrenceId: 'not-a-uuid' },
   ])(
-    'shows recovery instead of rerouting an invalid Journal origin %j',
+    'shows recovery instead of rerouting an invalid origin %j',
     async (query) => {
-      expect(await propsFor(query)).toEqual({ invalidJournalOrigin: true })
+      expect(await propsFor(query)).toEqual({ invalidOrigin: true })
     },
   )
-  it('preserves the existing Emotion route without a Journal discriminator', async () => {
-    expect(await propsFor(fields)).toEqual({ origin: fields })
+  it('preserves the existing Emotion route without a discriminator', async () => {
+    expect(await propsFor(fields)).toEqual({
+      returnOrigin: { kind: 'emotion', ...fields },
+    })
+  })
+  it('opens plainly without return parameters', async () => {
+    expect(await propsFor({})).toEqual({})
+  })
+  it('reopens the plan review for the exact return token', async () => {
+    expect(await propsFor({ review: 'open' })).toEqual({ openReview: true })
+  })
+  it('ignores any other review value', async () => {
+    expect(await propsFor({ review: 'yes' })).toEqual({})
   })
 })

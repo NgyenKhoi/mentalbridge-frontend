@@ -32,6 +32,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react'
 
 import type { PublicResourceDetail } from '../api/browser-resources'
@@ -46,6 +47,7 @@ type Props = Readonly<{
   progressLoadState: 'loading' | 'ready' | 'error'
   saving: boolean
   message: string
+  planNotice?: ReactNode
   onRetryProgress: () => void
   onRecord: (watchedSeconds: number) => Promise<boolean>
 }>
@@ -96,6 +98,7 @@ export function StretchResourceDetail({
   progressLoadState,
   saving,
   message,
+  planNotice,
   onRetryProgress,
   onRecord,
 }: Props) {
@@ -119,7 +122,17 @@ export function StretchResourceDetail({
   const [volume, setVolume] = useState(80)
   const [muted, setMuted] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [saved, setSaved] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return (
+        window.localStorage.getItem(`mb:resource-bookmark:${resource.id}`) ===
+        'true'
+      )
+    } catch {
+      return false
+    }
+  })
   const [shareMessage, setShareMessage] = useState('')
   const [announcement, setAnnouncement] = useState('')
   const [recordState, setRecordState] = useState<
@@ -127,17 +140,7 @@ export function StretchResourceDetail({
   >('idle')
   const [showCues, setShowCues] = useState(true)
   const [playbackRate, setPlaybackRate] = useState(1)
-
-  useEffect(() => {
-    try {
-      setSaved(
-        window.localStorage.getItem(`mb:resource-bookmark:${resource.id}`) ===
-          'true',
-      )
-    } catch {
-      setSaved(false)
-    }
-  }, [resource.id])
+  const [videoHeight, setVideoHeight] = useState(0)
 
   useEffect(() => {
     const onFullscreenChange = () =>
@@ -224,15 +227,15 @@ export function StretchResourceDetail({
   const sourceUrl = resource.sourceUrl?.startsWith('https://')
     ? resource.sourceUrl
     : null
-  const videoHeight = videoRef.current?.videoHeight ?? 0
-
   useEffect(() => {
     if (!hasPlayed) return
-    setAnnouncement(
-      ended
-        ? 'Bài tập đã hoàn thành'
-        : `Động tác ${activeIndex + 1}: ${activeStep.title}`,
-    )
+    queueMicrotask(() => {
+      setAnnouncement(
+        ended
+          ? 'Bài tập đã hoàn thành'
+          : `Động tác ${activeIndex + 1}: ${activeStep.title}`,
+      )
+    })
     const rail = stepsRef.current
     const card = stepRefs.current[activeIndex]
     if (!rail || !card) return
@@ -493,8 +496,8 @@ export function StretchResourceDetail({
               <Zap size={23} fill="currentColor" aria-hidden="true" />
             </span>
             <div>
-              <span>PHẦN THƯỞNG HOÀN THÀNH</span>
-              <strong>+15 XP Sức khỏe · Cột mốc ngày</strong>
+              <span>TIẾN ĐỘ HOÀN THÀNH</span>
+              <strong>Ghi nhận bài tập đã hoàn thành</strong>
             </div>
           </div>
         </header>
@@ -521,6 +524,7 @@ export function StretchResourceDetail({
                     playsInline
                     onLoadedMetadata={(event) => {
                       const seconds = event.currentTarget.duration
+                      setVideoHeight(event.currentTarget.videoHeight || 0)
                       if (Number.isFinite(seconds) && seconds > 0) {
                         setDuration(seconds)
                         setMediaState('ready')
@@ -997,7 +1001,7 @@ export function StretchResourceDetail({
               aria-labelledby="stretch-record-heading"
             >
               <h2 id="stretch-record-heading" className={styles.srOnly}>
-                Ghi nhận vào kế hoạch hỗ trợ hằng ngày
+                Ghi nhận bài tập
               </h2>
               <button
                 type="button"
@@ -1016,12 +1020,12 @@ export function StretchResourceDetail({
                   ? 'Đã ghi nhận hoàn thành'
                   : saving || recordState === 'sending'
                     ? 'Đang ghi nhận…'
-                    : 'Ghi nhận hoàn thành bài tập (+15 XP)'}
+                    : 'Ghi nhận hoàn thành bài tập'}
               </button>
               <p>
                 {status === 'COMPLETED'
-                  ? 'Bài tập đã được ghi nhận vào Kế hoạch hỗ trợ hằng ngày.'
-                  : 'Kết quả hoàn thành sẽ được lưu vào Kế hoạch hỗ trợ hằng ngày của bạn.'}
+                  ? 'Đã lưu kết quả hoàn thành bài tập.'
+                  : 'Kết quả hoàn thành sẽ được lưu vào tiến độ Tài nguyên của bạn.'}
               </p>
               {status !== 'COMPLETED' && progressLoadState === 'loading' && (
                 <p className={styles.recordHint} role="status">
@@ -1047,6 +1051,7 @@ export function StretchResourceDetail({
                     chưa xem không được tính.
                   </p>
                 )}
+              {planNotice}
               {recordState === 'error' && (
                 <p className={styles.recordError} role="alert">
                   {message || 'Chưa thể ghi nhận bài tập. Vui lòng thử lại.'}

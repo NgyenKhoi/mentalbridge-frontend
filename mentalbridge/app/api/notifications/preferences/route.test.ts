@@ -7,17 +7,15 @@ import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
 const contentMocks = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn() }))
 const sessionMocks = vi.hoisted(() => ({
   resolveSession: vi.fn(),
-  ensureRole: vi.fn(),
 }))
 
 vi.mock('@/lib/content/content-client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/content/content-client')>()),
   contentPreferenceClient: contentMocks,
 }))
-vi.mock('@/lib/auth/session-service', () => ({
-  RefreshFailedError: class RefreshFailedError extends Error {},
+vi.mock('@/lib/auth/session-service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth/session-service')>()),
   resolveSession: sessionMocks.resolveSession,
-  ensureRole: sessionMocks.ensureRole,
 }))
 
 import { GET, PATCH } from './route'
@@ -86,9 +84,41 @@ describe('/api/notifications/preferences', () => {
       'identity-access-secret',
       expect.any(String),
     )
-    expect(sessionMocks.ensureRole).toHaveBeenCalledWith(expect.any(Object), [
-      'USER',
-    ])
+  })
+
+  it('allows a specialist to load and update owner-scoped preferences', async () => {
+    sessionMocks.resolveSession.mockResolvedValue({
+      account: {
+        accountId: '10000000-0000-4000-8000-000000000010',
+        roles: ['SPECIALIST'],
+      },
+    })
+    contentMocks.get.mockResolvedValue({ preferences, etag: '"0"' })
+    contentMocks.update.mockResolvedValue({
+      preferences: { ...preferences, version: 1 },
+      etag: '"1"',
+    })
+
+    expect((await GET(request('GET'))).status).toBe(200)
+    expect(
+      (
+        await PATCH(
+          request(
+            'PATCH',
+            {
+              contentGroups: { appointmentMessage: false },
+            },
+            '"0"',
+          ),
+        )
+      ).status,
+    ).toBe(200)
+    expect(contentMocks.update).toHaveBeenCalledWith(
+      'identity-access-secret',
+      { contentGroups: { appointmentMessage: false } },
+      '"0"',
+      expect.any(String),
+    )
   })
 
   it('forwards an exact partial update and optimistic version', async () => {

@@ -18,6 +18,7 @@ import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import type { EmotionApi } from '@/emotion/emotion-api'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import { SupportPlanCompanion } from '@/support-plan-companion/SupportPlanCompanion'
 
 import {
   emotionReconciliationMessage,
@@ -533,6 +534,19 @@ export function NativeSupportPlanScreen({
         <Text accessibilityLiveRegion="polite" style={styles.notice}>
           {notice}
         </Text>
+      ) : null}
+      {plan && subject ? (
+        <SupportPlanCompanion
+          api={api}
+          subject={subject}
+          plan={plan}
+          occurrences={ordered}
+          now={now}
+          {...(returned
+            ? { preferredOccurrenceId: returned.occurrenceId }
+            : {})}
+          interrupted={busy || dirty || confirmation !== null}
+        />
       ) : null}
       <SupportPlanPersonalizationCard
         api={legacyApi}

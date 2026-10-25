@@ -196,8 +196,9 @@
   border: 0 !important;
   border-radius: 28px !important;
   overflow: hidden !important;
-  box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.25),
-              0 12px 24px -8px rgba(15, 23, 42, 0.12) !important;
+  box-shadow:
+    0 24px 60px -12px rgba(15, 23, 42, 0.25),
+    0 12px 24px -8px rgba(15, 23, 42, 0.12) !important;
 }
 
 .modalContainer {

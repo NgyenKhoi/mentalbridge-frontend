@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Activity,
   Check,
@@ -44,26 +44,27 @@ export function SpecialistConsultationBrief({
   const [brief, setBrief] = useState<Brief | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const request = useRef(0)
 
   async function load() {
+    const sequence = ++request.current
     setLoading(true)
     setError('')
     setBrief(null)
     try {
-      setBrief(await consultationBriefBrowserClient.specialist(appointmentId))
+      const result =
+        await consultationBriefBrowserClient.specialist(appointmentId)
+      if (sequence === request.current) setBrief(result)
     } catch (caught) {
-      setError(denied(caught))
+      if (sequence === request.current) setError(denied(caught))
     } finally {
-      setLoading(false)
+      if (sequence === request.current) setLoading(false)
     }
   }
 
   async function handleToggle() {
     if (open) {
-      setOpen(false)
-      setBrief(null)
-      setError('')
-      setLoading(false)
+      handleClose()
     } else {
       setOpen(true)
       await load()
@@ -71,6 +72,7 @@ export function SpecialistConsultationBrief({
   }
 
   function handleClose() {
+    request.current++
     setOpen(false)
     setBrief(null)
     setError('')

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CalendarDays,
+  Video,
   Check,
   ChevronRight,
   Clock3,
@@ -22,12 +23,12 @@ import { appointmentBrowserClient } from '../api/browser-client'
 import {
   matchesAppointmentFilter,
   nextAppointment,
+  orderSpecialistAppointments,
   type AppointmentFilter,
 } from '../model/appointment-view'
 import styles from './SpecialistAppointmentDecisionPanel.module.css'
 import { SpecialistConsultationBrief } from './SpecialistConsultationBrief'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
-import { VideoConsultationPanel } from './VideoConsultationPanel'
 import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 
 type Decision = 'accept' | 'reject'
@@ -148,6 +149,7 @@ export default function SpecialistAppointmentDecisionPanel({
   const [error, setError] = useState('')
   const [pendingCommand, setPendingCommand] = useState<string | null>(null)
   const commandKeys = useRef(new Map<string, string>())
+  const commandBusy = useRef(false)
   const focusedAppointment = useRef('')
 
   const load = useCallback(async () => {
@@ -204,7 +206,7 @@ export default function SpecialistAppointmentDecisionPanel({
   )
   const visibleAppointments = useMemo(
     () =>
-      appointments.filter((appointment) =>
+      orderSpecialistAppointments(appointments).filter((appointment) =>
         matchesAppointmentFilter(appointment, filter, now),
       ),
     [appointments, filter, now],
@@ -279,6 +281,8 @@ export default function SpecialistAppointmentDecisionPanel({
   const weekLabel = isoWeek(weekAnchor)
 
   const decide = async (appointment: Appointment, decision: Decision) => {
+    if (commandBusy.current || loading) return
+    commandBusy.current = true
     if (decision === 'reject') {
       const confirmed = await confirm({
         title: 'Từ chối yêu cầu lịch hẹn?',
@@ -287,7 +291,10 @@ export default function SpecialistAppointmentDecisionPanel({
         confirmLabel: 'Từ chối yêu cầu',
         tone: 'warning',
       })
-      if (!confirmed) return
+      if (!confirmed) {
+        commandBusy.current = false
+        return
+      }
     }
 
     const commandId = `${appointment.id}:${decision}`
@@ -316,6 +323,12 @@ export default function SpecialistAppointmentDecisionPanel({
             : 'Khung giờ đã được mở lại và lượt tư vấn được hoàn lại.',
         tone: 'success',
       })
+      requestAnimationFrame(() => {
+        const target =
+          document.getElementById(`appointment-${updated.id}`) ??
+          document.getElementById('appointment-list-title')
+        target?.focus({ preventScroll: true })
+      })
     } catch (caught) {
       const shouldReload =
         caught instanceof ApiError && RELOAD_CODES.has(caught.code)
@@ -327,6 +340,7 @@ export default function SpecialistAppointmentDecisionPanel({
       )
         commandKeys.current.delete(commandId)
     } finally {
+      commandBusy.current = false
       setPendingCommand(null)
     }
   }
@@ -423,7 +437,7 @@ export default function SpecialistAppointmentDecisionPanel({
                 data-appointment-ui
                 type="button"
                 className={styles.reject}
-                disabled={Boolean(pendingCommand)}
+                disabled={Boolean(pendingCommand) || loading}
                 onClick={() => void decide(appointment, 'reject')}
                 aria-label="Từ chối"
               >
@@ -434,7 +448,7 @@ export default function SpecialistAppointmentDecisionPanel({
                 data-appointment-ui
                 type="button"
                 className={styles.accept}
-                disabled={Boolean(pendingCommand)}
+                disabled={Boolean(pendingCommand) || loading}
                 onClick={() => void decide(appointment, 'accept')}
                 aria-label="Xác nhận"
               >
@@ -481,17 +495,27 @@ export default function SpecialistAppointmentDecisionPanel({
               Thân chủ: Người đặt lịch <span aria-hidden="true">·</span>{' '}
               <span>{CREDIT_LABELS[appointment.creditState]}</span>
             </p>
+            {appointment.modality === 'IN_APP_VIDEO' &&
+              [
+                'CONFIRMED',
+                'IN_PROGRESS',
+                'SESSION_ENDED',
+                'COMPLETED',
+              ].includes(appointment.status) && (
+                <Link
+                  className={styles.compactAction}
+                  href={`/specialist/appointments/${encodeURIComponent(appointment.id)}/video`}
+                  aria-label={`${['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) ? 'Mở phòng tư vấn' : 'Xem phiên tư vấn video'}, buổi ${displayDate(appointment)} ${displayTimeRange(appointment)}`}
+                >
+                  {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status)
+                    ? 'Mở phòng tư vấn'
+                    : 'Xem phiên tư vấn video'}
+                </Link>
+              )}
             {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) && (
               <SpecialistConsultationBrief
                 appointmentId={appointment.id}
                 compact
-              />
-            )}
-            {appointment.modality === 'IN_APP_VIDEO' && (
-              <VideoConsultationPanel
-                appointmentId={appointment.id}
-                role="SPECIALIST"
-                onVerified={() => void load()}
               />
             )}
             {appointment.status === 'COMPLETED' && (
@@ -594,7 +618,9 @@ export default function SpecialistAppointmentDecisionPanel({
         <div className={styles.workColumn}>
           <div className={styles.toolbar}>
             <div>
-              <h2>Yêu cầu giao cho bạn</h2>
+              <h2 id="appointment-list-title" tabIndex={-1}>
+                Yêu cầu giao cho bạn
+              </h2>
               <span className={styles.waitingCount}>
                 {counts.waiting} Cần duyệt
               </span>
@@ -626,8 +652,10 @@ export default function SpecialistAppointmentDecisionPanel({
             )}
           </div>
 
-          {loading ? (
-            <p className={styles.state}>Đang tải lịch hẹn…</p>
+          {loading && !generatedAt ? (
+            <p className={styles.state} role="status">
+              Đang tải lịch hẹn…
+            </p>
           ) : !generatedAt && error ? null : appointments.length === 0 ? (
             <div className={styles.empty}>
               <h2>Chưa có yêu cầu lịch hẹn</h2>
@@ -640,6 +668,13 @@ export default function SpecialistAppointmentDecisionPanel({
             <div className={styles.empty}>
               <h2>Không có lịch hẹn trong nhóm này</h2>
               <p>Chọn một bộ lọc khác để xem các lịch hẹn còn lại.</p>
+              <button
+                type="button"
+                data-appointment-ui
+                onClick={() => setFilter('all')}
+              >
+                Xem tất cả lịch hẹn
+              </button>
             </div>
           ) : (
             <>
@@ -729,9 +764,13 @@ export default function SpecialistAppointmentDecisionPanel({
                   Mở cửa sổ tin nhắn tư vấn
                 </Link>
               ) : (
-                <div className={styles.nextActionUnavailable}>
-                  Phiên video trong ứng dụng
-                </div>
+                <Link
+                  className={styles.nextAction}
+                  href={`/specialist/appointments/${encodeURIComponent(next.id)}/video`}
+                >
+                  <Video size={17} aria-hidden="true" />
+                  Mở phòng tư vấn video
+                </Link>
               )}
             </section>
           ) : (

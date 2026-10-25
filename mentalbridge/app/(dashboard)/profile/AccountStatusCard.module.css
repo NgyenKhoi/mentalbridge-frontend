@@ -58,7 +58,11 @@
 }
 
 .title {
-  font-family: var(--font-be-vietnam), -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   font-size: 15px;
   font-weight: 600;
   line-height: 1.35;
@@ -67,7 +71,11 @@
 }
 
 .description {
-  font-family: var(--font-be-vietnam), -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   font-size: 13px;
   color: #8fa99c;
   margin-top: 3px;
@@ -81,7 +89,11 @@
   gap: 6px;
   padding: 5px 12px;
   border-radius: 999px;
-  font-family: var(--font-be-vietnam), -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   font-size: 12px;
   font-weight: 600;
   line-height: 1;

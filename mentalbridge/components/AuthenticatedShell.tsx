@@ -186,6 +186,22 @@ export default function AuthenticatedShell({
   const [generalSearch, setGeneralSearch] = useState('')
   const [appointmentCount, setAppointmentCount] = useState<number | null>(null)
 
+  // MB-744: the page entrance (globals.css) plays only while a route is fresh,
+  // so dialogs, async rows and re-renders later never replay it.
+  const [enteredPath, setEnteredPath] = useState<string | null>(null)
+  const [shownPath, setShownPath] = useState(pathname)
+  if (shownPath !== pathname) {
+    // A route revisited within the window (A → B → A) enters again.
+    setShownPath(pathname)
+    setEnteredPath(null)
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setEnteredPath(pathname), 1200)
+    return () => window.clearTimeout(timer)
+  }, [pathname])
+
+
   useEffect(() => {
     const resetSearch = () => setSpecialistSearch('')
     const refreshAppointments = () => {
@@ -352,6 +368,17 @@ export default function AuthenticatedShell({
                   ? 'Thả lỏng cơ theo từng vùng'
                   : 'Thư giãn cơ tiến triển'}
               </span>
+
+            </nav>
+          ) : isScreeningJourney ? (
+            <nav
+              className="ref-screening-crumb"
+              aria-label="Đường dẫn trên cùng"
+            >
+              <Link href="/dashboard">Không gian của bạn</Link>
+              <span aria-hidden="true">/</span>
+              <span aria-current="page">{resolveContextLabel(pathname)}</span>
+
             </nav>
           ) : (
             <div className="ref-context">
@@ -363,7 +390,9 @@ export default function AuthenticatedShell({
               <strong>
                 {pathname === '/appointments'
                   ? 'Lịch hẹn tư vấn'
-                  : (labels[pathname] ?? 'MentalBridge')}
+
+                  : resolveContextLabel(pathname)}
+
               </strong>
             </div>
           )}
@@ -425,6 +454,7 @@ export default function AuthenticatedShell({
                 <span>+ Đặt lịch mới</span>
               </button>
             )}
+
             {isProgressiveRelaxation && (
               <Link
                 href="/support-guides"
@@ -438,6 +468,7 @@ export default function AuthenticatedShell({
                 </Svg>
               </Link>
             )}
+
             {pathname !== '/appointments' && (
               <Link
                 href="/community"
@@ -490,7 +521,10 @@ export default function AuthenticatedShell({
           </div>
         </header>
         <main
-          className={`ref-content ${pathname === '/dashboard' ? 'ref-content-dashboard' : 'ref-content-page'}`}
+
+          className={`ref-content ${pathname === '/dashboard' ? 'ref-content-dashboard' : isScreeningJourney ? 'ref-content-screening' : 'ref-content-page'}`}
+          data-entered={enteredPath === pathname ? '' : undefined}
+
         >
           {children}
         </main>

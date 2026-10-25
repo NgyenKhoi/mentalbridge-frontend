@@ -1,5 +1,12 @@
 # Synthetic browser evidence
 
+MB-652 explains Care's adaptive SupportPlan replacement review inside the
+bounded Companion while keeping every evidence dimension separate and all plan
+mutation in the normal Adjust UI. Its contradictory, sparse, unchanged,
+alternative, current-not-admissible, dependency-independent, desktop/mobile,
+and no-mutation evidence is recorded in
+[`mb-652-adaptive-review-companion.md`](mb-652-adaptive-review-companion.md).
+
 MB-648 adds the bounded, presentation-only SupportPlan Companion shell. Its
 state-machine, isolation, fallback, accessibility, responsive, performance, and
 Stitch evidence is recorded in
@@ -89,6 +96,10 @@ equivalence, explicit source/runtime budgets, dependency-failure coverage, and
 desktop/mobile accessibility evidence. Its compliance matrix and release
 checklist are recorded in
 [`mb-653-support-plan-companion-hardening.md`](mb-653-support-plan-companion-hardening.md).
+MB-659 replaces presentation-only Resource rewards with a Content-authoritative,
+versioned and hideable participation read model. Contract, BFF, component,
+failure-recovery, accessibility and controlled browser evidence is recorded in
+[`../mb-659-resource-reward-evidence.md`](../mb-659-resource-reward-evidence.md).
 
 MB-563 delivers the server-backed notification inbox and lifecycle. Its
 contract/BFF/component/fixture coverage is recorded in

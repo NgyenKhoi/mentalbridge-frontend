@@ -139,7 +139,11 @@ function ResultPanel({
   const instrumentLabel = instrumentLabels[assessment.instrument]
 
   return (
-    <section className="care-result" aria-labelledby="care-result-title">
+    <section
+      className="care-result"
+      aria-labelledby="care-result-title"
+      data-page-motion="off"
+    >
       <header>
         <span className="eyebrow">Kết quả sàng lọc của bạn</span>
         <h1 id="care-result-title">{instrumentLabel.resultTitle}</h1>
@@ -331,12 +335,6 @@ function ResultPanel({
                 : 'Bạn có thể tìm người có chuyên môn để trao đổi về điều mình đang trải qua.'}
             </span>
           </Link>
-          {mode === 'authenticated' && (
-            <Link href="/subscription" className="care-next-step">
-              <strong>Xem quyền lợi kết nối</strong>
-              <span>Tìm hiểu gói dịch vụ trước khi đặt lịch chuyên gia.</span>
-            </Link>
-          )}
           <Link href="/community" className="care-next-step">
             <strong>Chia sẻ trong cộng đồng</strong>
             <span>

@@ -88,6 +88,8 @@ function dependencies(community: CommunityApi) {
     } satisfies CommunityMediaTransport,
     onBack: jest.fn(),
     onResource: jest.fn(),
+    onChat: jest.fn(),
+    onPeerChat: jest.fn(),
   }
 }
 async function mount(community: CommunityApi, initialPostId?: string) {
@@ -127,6 +129,47 @@ async function draft() {
 }
 
 describe('mobile Community peer-support journey', () => {
+  it('opens Community chat inside the feed without replacing the appointment journey', async () => {
+    const value = await mount(api())
+    await screen.findByText(fixturePost.content)
+    await press('Trò chuyện cộng đồng')
+    expect(value.props.onChat).toHaveBeenCalledTimes(1)
+  })
+  it.each([
+    ['ACTIVE', null, true],
+    ['ACTIVE', '"0"', false],
+    ['ANONYMOUS', null, false],
+    ['DELETED', null, false],
+  ] as const)(
+    'offers peer chat only for an available non-owner author: %s %s',
+    async (state, etag, expected) => {
+      const post = {
+        ...fixturePost,
+        author: {
+          ...fixturePost.author,
+          state,
+          ...(state === 'ANONYMOUS'
+            ? { communityProfileId: null, avatarPreset: null }
+            : {}),
+        },
+      }
+      const value = await mount(
+        api({ detail: jest.fn().mockResolvedValue({ post, etag }) }),
+        fixturePostId,
+      )
+      await screen.findByText(fixturePost.content)
+      const button = screen.queryByRole('button', {
+        name: 'Trò chuyện với tác giả',
+      })
+      if (expected) {
+        expect(button).toBeOnTheScreen()
+        await press('Trò chuyện với tác giả')
+        expect(value.props.onPeerChat).toHaveBeenCalledWith(
+          fixturePost.author.communityProfileId,
+        )
+      } else expect(button).toBeNull()
+    },
+  )
   it('opens the exact notification target directly and loads authoritative post detail', async () => {
     const community = api()
     await mount(community, fixturePostId)

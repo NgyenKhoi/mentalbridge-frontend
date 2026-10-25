@@ -11,6 +11,7 @@ import {
   parseResourceBookmark,
   parseResourceBookmarkList,
   parseResourceBingoBoard,
+  parseResourceBingoPlanSync,
   parseResourceBingoSelfConfirmationUpdate,
   parseResourceProgressItem,
   parseResourceProgressList,
@@ -222,6 +223,8 @@ describe('Content response validation', () => {
       resourceId: requiredSummary.id,
       contentVersion: '4',
       label: 'Thở chậm',
+      actionId: null,
+      retired: false,
       evidence: 'SELF_CONFIRMED',
       selfConfirmedAt: '2026-09-29T02:00:00.000Z',
       verifiedAt: null,
@@ -235,6 +238,40 @@ describe('Content response validation', () => {
       items: [item],
     }
     expect(parseResourceBingoBoard(board)).toEqual(board)
+    expect(
+      parseResourceBingoBoard({
+        ...board,
+        items: [{ ...item, actionId: undefined }],
+      }),
+    ).toBeNull()
+    expect(
+      parseResourceBingoBoard({
+        ...board,
+        items: [{ ...item, retired: undefined }],
+      }),
+    ).toBeNull()
+    expect(
+      parseResourceBingoBoard({
+        ...board,
+        items: [item, { ...item, position: 2, actionId: 'another-action' }],
+      }),
+    ).toBeNull()
+    const sync = {
+      ...board,
+      unavailableActions: [
+        { actionId: 'another-action', reason: 'BOARD_FULL' },
+      ],
+    }
+    expect(parseResourceBingoPlanSync(sync)).toEqual(sync)
+    expect(parseResourceBingoPlanSync(board)).toBeNull()
+    expect(
+      parseResourceBingoPlanSync({
+        ...sync,
+        unavailableActions: [
+          { actionId: 'a'.repeat(129), reason: 'BOARD_FULL' },
+        ],
+      }),
+    ).toBeNull()
     expect(
       parseResourceBingoBoard({ ...board, weekStart: '2026-09-29' }),
     ).toBeNull()
@@ -352,6 +389,9 @@ describe('Content response validation', () => {
       'COMMUNITY_COMMENT',
       'COMMUNITY_REPLY',
       'COMMUNITY_REACTION',
+      'ASSESSMENT_RESULT_AVAILABLE',
+      'SUPPORT_GUIDE_AVAILABLE',
+      'ACCOUNT_STATUS',
     ] as const) {
       expect(parseNotification({ ...notification, kind })).not.toBeNull()
     }
@@ -359,6 +399,29 @@ describe('Content response validation', () => {
       parseNotification({
         ...notification,
         action: { ...notification.action, href: 'https://untrusted.example' },
+      }),
+    ).toBeNull()
+    const supportGuideId = '523e4567-e89b-42d3-a456-426614174000'
+    expect(
+      parseNotification({
+        ...notification,
+        kind: 'SUPPORT_GUIDE_AVAILABLE',
+        action: {
+          type: 'OPEN_SUPPORT_GUIDE',
+          targetId: supportGuideId,
+          href: `/support-guides/${supportGuideId}`,
+        },
+      }),
+    ).not.toBeNull()
+    expect(
+      parseNotification({
+        ...notification,
+        kind: 'SUPPORT_GUIDE_AVAILABLE',
+        action: {
+          type: 'OPEN_SUPPORT_GUIDE',
+          targetId: supportGuideId,
+          href: '/support-guides/623e4567-e89b-42d3-a456-426614174000',
+        },
       }),
     ).toBeNull()
     const communityPostId = '423e4567-e89b-42d3-a456-426614174000'

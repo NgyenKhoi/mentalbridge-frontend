@@ -16,6 +16,15 @@ access stops at endsAt; reconnect never extends the appointment. A local deadlin
 can stop media, never grant access or prove attendance. Backend provider closure
 remains authoritative.
 
+The approved local/dev DEMO exception is backend-only and opt-in via
+`CONSULTATION_DEMO_IMMEDIATE_VIDEO_ENABLED=true`. Effective DEMO entitlement and
+held DEMO credit allow future video booking without four-hour lead time and
+server-authoritative ACTIVE access immediately after Specialist confirmation.
+Clients trust returned join flags, not their own clock or a client demo flag.
+Booked timestamps/end cutoff stay unchanged; early demo ending remains pending
+verification with HELD credit, without completion facts or earning. PAID/FREE,
+chat, staging/production and the disabled baseline retain normal timing.
+
 Camera and microphone start off on join and reflect SDK track state when enabled.
 The Android adapter requests runtime permission, uses communication audio and
 offers available speaker/earpiece/headset/Bluetooth routes. Backgrounding,
@@ -45,6 +54,14 @@ TanStack Query, navigation URLs, SecureStore, logs or UI error text. SDK logging
 is disabled. Subject/appointment-keyed boundaries prevent state carry-over.
 The approved MB-384 login amendment accepts a single ACTIVE, email-verified USER
 or SPECIALIST from Identity; registration remains USER-only and ADMIN is rejected.
+
+Appointment history preserves terminal `COMPLETED` video records settled under
+the earlier `chat-session-completion-v1` policy. Web and mobile accept that exact
+historical policy only with `EVIDENCE_REQUIREMENTS_MET`, persisted completion fact,
+end/settlement timestamps and `CONSUMED` or subsequently released `AVAILABLE`
+credit. Neither the policy nor historical settlement data is rewritten. Current
+pending video verification still requires `livekit-video-completion-v1`; this
+read compatibility does not grant joining or invoke completion/settlement.
 
 ## Backend configuration and webhook
 

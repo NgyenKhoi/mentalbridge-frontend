@@ -13,7 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Explicit assigned approved Specialist assertion of actual consultation end, accepted immediately without waiting for scheduled end or webhook grace. Stable idempotency and strong Appointment If-Match are required. Provider closure and paired trusted evidence are verified separately. Incomplete verification remains SESSION_ENDED with HELD credit, including after 24h; no timeout release, no-show, refund or earning is authorized. Verified completion reuses the existing immutable completion fact, consumed-credit ledger and MB-516 earning contract. */
+        /** @description Explicit assigned approved Specialist assertion of actual consultation end, accepted immediately without waiting for scheduled end or webhook grace. Stable idempotency and strong Appointment If-Match are required. The opt-in local/dev effective-DEMO video exception permits explicitly ending pre-start demo transport, but it remains pending verification with HELD credit and never supplies valid completion evidence. Provider closure and paired trusted evidence are verified separately. Incomplete verification remains SESSION_ENDED with HELD credit, including after 24h; no timeout release, no-show, refund or earning is authorized. Verified completion reuses the existing immutable completion fact, consumed-credit ledger and MB-516 earning contract. */
         post: operations["confirmVideoConsultationFinished"];
         delete?: never;
         options?: never;
@@ -45,7 +45,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Assigned USER or SPECIALIST only. Waiting begins five minutes early for local preview, without a provider connection or attendance. Current authorization is authoritative; no media event completes an appointment. */
+        /** @description Assigned USER or SPECIALIST only. Normally waiting begins five minutes early for local preview without a provider connection or attendance. The disabled-by-default immediate video demo exception applies only to explicit local/dev/test profiles and effective DEMO entitlement plus held DEMO credit; a CONFIRMED/IN_PROGRESS demo may report ACTIVE before scheduled start. Booked timestamps and end cutoff remain unchanged. Current authorization is authoritative; early demo media is not completion evidence and no media event completes an appointment. */
         get: operations["getAppointmentVideoSession"];
         put?: never;
         post?: never;
@@ -64,7 +64,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description No request body. Rechecks exact assigned actor/role, approved specialist, held credit, video modality, CONFIRMED/IN_PROGRESS and [startsAt,endsAt). Uses the owner room mapping, never a client room/actor. Token is room-scoped, in-memory only, 30–300 seconds maximum and expires no later than endsAt. LiveKit SDK refresh does not extend the appointment; server revocation/closure remains required. */
+        /** @description No request body. Rechecks exact assigned actor/role, approved specialist, held credit, video modality, CONFIRMED/IN_PROGRESS and normally [startsAt,endsAt). Only the opt-in local/dev/test effective-DEMO video exception may connect before startsAt; it never permits REQUESTED, cancelled, completed, expired or post-endsAt access. Early demo transport is not valid completion evidence. Uses the owner room mapping, never a client room/actor. Token is room-scoped, in-memory only, 30–300 seconds maximum and expires no later than endsAt. LiveKit SDK refresh does not extend the appointment; server revocation/closure remains required. */
         post: operations["issueAppointmentVideoAccess"];
         delete?: never;
         options?: never;
@@ -199,6 +199,26 @@ export interface paths {
         };
         /** @description Returns only approved, verified credentials that the specialist opted to show. Original files and identifiers are never returned. */
         get: operations["getPublicSpecialistCredentialBadges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-journey-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read privacy-bounded appointment journey aggregates
+         * @description Counts the appointment cohort requested inside the explicit half-open window and the members of that cohort that reached confirmation or completion before the window ended. No participant, brief, summary, chat, clinical, or private-note data is returned.
+         */
+        get: operations["getConsultationProductJourneyMetrics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -681,7 +701,7 @@ export interface paths {
         /** @description Lists the authenticated specialist's slots in a bounded UTC interval, including tombstones when requested. */
         get: operations["listOwnAvailabilitySlots"];
         put?: never;
-        /** @description Publishes one exact future 60-minute online slot. Replaying the same Idempotency-Key with the same command returns the same slot identity and current state. */
+        /** @description Publishes one exact 60-minute online slot whose end is still future, including the current active window. There is no advance booking delay. Replaying the same Idempotency-Key with the same command returns the same slot identity and current state. */
         post: operations["publishOwnAvailabilitySlot"];
         delete?: never;
         options?: never;
@@ -715,7 +735,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Lists approved specialists' currently selectable exact 60-minute online slots. Disabled video slots and slots already held by an active appointment are excluded. */
+        /** @description Lists approved specialists' unexpired selectable exact 60-minute online slots, including currently active windows without advance booking delay. Disabled video slots and slots already held by an active appointment are excluded. */
         get: operations["listBookableSlots"];
         put?: never;
         post?: never;
@@ -732,7 +752,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns only current APPROVED profiles and their current selectable exact 60-minute online slots. FREE, PLUS, and PREMIUM may browse. Optional personalization reads one exact owned Care SupportEvaluation server-to-server; its health content is never returned or persisted, and unavailable context degrades to a neutral explained rank. */
+        /** @description Returns only current APPROVED profiles and their unexpired selectable exact 60-minute online slots, including currently active windows without advance booking delay. FREE, PLUS, and PREMIUM may browse. Optional personalization reads one exact owned Care SupportEvaluation server-to-server; its health content is never returned or persisted, and unavailable context degrades to a neutral explained rank. */
         get: operations["discoverApprovedSpecialists"];
         put?: never;
         post?: never;
@@ -786,7 +806,7 @@ export interface paths {
         /** @description Lists at most 100 newest authoritative appointment snapshots owned by the authenticated user. When originatingPlanActionId is supplied, the exact owner-and-action filter is applied before the bound so a caller can recover correlated SupportPlan progress without scanning general history. */
         get: operations["listOwnAppointments"];
         put?: never;
-        /** @description Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. A replacement inherits an omitted originatingPlanActionId from the owned appointment and rejects a conflicting explicit value. Exact command replays return the original appointment. */
+        /** @description Atomically creates a REQUESTED appointment for one exact unexpired slot, including an already-started active window, after enforcing available-credit and concurrent-reservation limits. No minimum advance booking interval applies. The assigned specialist must confirm before interactive access. When the ordinary decision buffer has elapsed, the decision cutoff is slot end. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. A replacement inherits an omitted originatingPlanActionId from the owned appointment and rejects a conflicting explicit value. Exact command replays return the original appointment. */
         post: operations["requestAppointment"];
         delete?: never;
         options?: never;
@@ -1107,6 +1127,23 @@ export interface paths {
         put?: never;
         /** @description Moves one still-eligible assigned REQUESTED appointment to REJECTED and releases its slot and exact held credit once. Exact command replay returns the current appointment without duplicate history or ledger events. */
         post: operations["rejectAssignedAppointment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/operations/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns authoritative aggregate consultation operations metrics for the admin operations dashboard including specialist profiles and appointment lifecycle status counts. */
+        get: operations["getAdminOperationsSummary"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1483,6 +1520,29 @@ export interface components {
             userFee?: number;
             promotionInfo?: unknown;
         };
+        ConsultationProductJourneyMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** @constant */
+            sourceVersion: "consultation-product-journey-v3";
+            /** Format: date-time */
+            asOf: string;
+            /**
+             * Format: int64
+             * @description Appointments requested inside [from,to).
+             */
+            consultationsRequested: number;
+            /**
+             * Format: int64
+             * @description Requested cohort members that reached CONFIRMED before to.
+             */
+            consultationsConfirmed: number;
+            /**
+             * Format: int64
+             * @description Requested cohort members that reached COMPLETED before to.
+             */
+            consultationsCompleted: number;
+        };
         AppointmentNotificationEligibility: {
             /** Format: uuid */
             appointmentId: string;
@@ -1559,6 +1619,13 @@ export interface components {
             /** Format: uuid */
             accountId: string;
             packageCode: components["schemas"]["ServicePackage"];
+            /**
+             * @description Always emitted by the provider; optional for additive rollout. ACTIVE is an effective paid or explicit demo grant at generatedAt. EXPIRED is a retained grant whose exclusive end is at or before generatedAt and returns effective FREE/DEFAULT_FREE with null current dates. DEFAULT_FREE has neither an effective nor an ended grant and may have a future grant.
+             * @enum {string}
+             */
+            entitlementState?: "ACTIVE" | "EXPIRED" | "DEFAULT_FREE";
+            /** @description Always emitted by the provider; optional for additive rollout. The exact purchased-version capability for ACTIVE PAID, or the explicit paid-package policy for ACTIVE DEMO, resolved at the same instant as entitlementState. False for EXPIRED and DEFAULT_FREE. Missing or inconsistent required grant facts return 503 rather than FREE. */
+            supportPlanEnabled?: boolean;
             source: components["schemas"]["CreditSource"];
             sourceReference: string | null;
             /** Format: date-time */
@@ -1832,6 +1899,35 @@ export interface components {
             nextAppointment: components["schemas"]["SpecialistDashboardNextAppointment"];
             availability: components["schemas"]["SpecialistDashboardAvailabilityCollection"];
             actionRequired: components["schemas"]["SpecialistDashboardActionItem"][];
+        };
+        AdminSpecialistOperationsSummary: {
+            total: number;
+            pendingReview: number;
+            active: number;
+            rejected: number;
+            suspended: number;
+        };
+        AdminAppointmentOperationsSummary: {
+            total: number;
+            requested: number;
+            confirmed: number;
+            inProgress: number;
+            sessionEnded: number;
+            completed: number;
+            cancelled: number;
+            rejected: number;
+            expired: number;
+            userNoShow: number;
+            specialistNoShow: number;
+            bothNoShow: number;
+        };
+        ConsultationOperationsSummary: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            specialists: components["schemas"]["AdminSpecialistOperationsSummary"];
+            appointments: components["schemas"]["AdminAppointmentOperationsSummary"];
         };
         /** @enum {string} */
         SpecialistAnalyticsDataState: "AVAILABLE" | "EMPTY" | "BLOCKED" | "UNAVAILABLE" | "STALE";
@@ -2749,6 +2845,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Required entitlement grant, purchased-version, or period facts are missing or inconsistent (ENTITLEMENT_UNAVAILABLE). */
+        EntitlementUnavailableProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Invalid body, path, or query parameter (VALIDATION_FAILED). */
         ValidationProblem: {
             headers: {
@@ -2869,6 +2974,8 @@ export interface components {
     };
     parameters: {
         CredentialDocumentId: string;
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        CorrelationId: string;
         SpecialistAccountId: string;
         /** @description Omit only when creating the first profile; otherwise quote the current non-negative version. */
         OptionalIfMatch: string;
@@ -3313,6 +3420,32 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
         };
     };
+    getConsultationProductJourneyMetrics: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregate request-cohort lifecycle progress observed by the end of the requested window */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationProductJourneyMetrics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     getOwnProfileAmendment: {
         parameters: {
             query?: never;
@@ -3681,6 +3814,7 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["EntitlementForbiddenProblem"];
             409: components["responses"]["CreditConflictProblem"];
+            503: components["responses"]["EntitlementUnavailableProblem"];
         };
     };
     listActiveServicePlanVersions: {
@@ -5007,6 +5141,28 @@ export interface operations {
             428: components["responses"]["AppointmentVersionRequiredProblem"];
         };
     };
+    getAdminOperationsSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative consultation operations summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationOperationsSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     getAssignedAppointmentDispute: {
         parameters: {
             query?: never;
@@ -5185,6 +5341,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];
@@ -5217,6 +5375,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];
@@ -5254,6 +5414,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];
@@ -5291,6 +5453,8 @@ export interface operations {
             header: {
                 /** @description Quoted current non-negative profile version. */
                 "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
             };
             path: {
                 specialistAccountId: components["parameters"]["SpecialistAccountId"];

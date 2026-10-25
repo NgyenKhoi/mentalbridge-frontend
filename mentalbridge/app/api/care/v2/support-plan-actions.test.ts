@@ -6,6 +6,10 @@ import {
   emotionOccurrenceFixture,
   nativeSupportPlanFixture,
 } from '@/features/support-plan/testing/native-support-plan-fixture'
+import {
+  adaptiveConfirmationFixture,
+  adaptiveReviewFixture,
+} from '@/features/support-plan/testing/adaptive-review-fixture'
 
 const client = vi.hoisted(() => ({
   current: vi.fn(),
@@ -22,6 +26,10 @@ const client = vi.hoisted(() => ({
   reconcile: vi.fn(),
   companionExplanation: vi.fn(),
   reconcileJournal: vi.fn(),
+  continueCycle: vi.fn(),
+  occurrenceEngagement: vi.fn(),
+  adaptiveReview: vi.fn(),
+  adaptiveConfirm: vi.fn(),
 }))
 const session = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -66,6 +74,75 @@ describe('Native SupportPlan bounded BFF', () => {
     for (const method of Object.values(client))
       method.mockResolvedValue(nativeSupportPlanFixture())
   })
+  it.each([
+    [
+      'https://0.0.0.0:3000',
+      'staging.mentalbridge.online',
+      'https://staging.mentalbridge.online',
+    ],
+    ['http://0.0.0.0:3000', 'localhost:3000', 'http://localhost:3000'],
+  ])(
+    'accepts a mutation addressed to the public Host behind the proxy: %s',
+    async (baseUrl, host, origin) => {
+      const response = await supportPlanActionHandler(
+        new NextRequest(`${baseUrl}/api/care/v2/support-plans`, {
+          method: 'POST',
+          headers: {
+            host,
+            origin,
+            cookie: `${ACCESS_COOKIE_NAME}=server-token-only`,
+            'content-type': 'application/json',
+            'idempotency-key': key,
+          },
+          body: JSON.stringify({ sourceSupportEvaluationId: id }),
+        }),
+        'propose',
+      )
+      expect(response.status).toBe(201)
+      expect(client.propose).toHaveBeenCalledWith(
+        'server-token-only',
+        { sourceSupportEvaluationId: id },
+        key,
+        expect.any(String),
+      )
+    },
+  )
+  it.each([
+    undefined,
+    'null',
+    'not-a-url',
+    'https://other.test',
+    'http://staging.mentalbridge.online',
+    'https://staging.mentalbridge.online:3000',
+    'https://staging.mentalbridge.online/path',
+    'https://attacker@staging.mentalbridge.online',
+    'https://0.0.0.0:3000',
+  ])(
+    'rejects missing, malformed or foreign origin behind the proxy: %s',
+    async (origin) => {
+      const response = await supportPlanActionHandler(
+        new NextRequest('https://0.0.0.0:3000/api/care/v2/support-plans', {
+          method: 'POST',
+          headers: {
+            host: 'staging.mentalbridge.online',
+            ...(origin === undefined ? {} : { origin }),
+            'x-forwarded-host': origin ?? 'other.test',
+            'x-forwarded-proto': 'http',
+            cookie: `${ACCESS_COOKIE_NAME}=server-token-only`,
+            'content-type': 'application/json',
+            'idempotency-key': key,
+          },
+          body: JSON.stringify({ sourceSupportEvaluationId: id }),
+        }),
+        'propose',
+      )
+      expect(response.status).toBe(403)
+      expect(await response.json()).toMatchObject({
+        code: 'CROSS_ORIGIN_REQUEST',
+      })
+      expect(client.propose).not.toHaveBeenCalled()
+    },
+  )
   it('forwards exactly one Journal candidate using the authoritative USER session', async () => {
     client.reconcileJournal.mockResolvedValue({
       version: 1,
@@ -502,6 +579,209 @@ describe('Native SupportPlan bounded BFF', () => {
         )
       ).status,
     ).toBe(200)
+  })
+  it('continues a review-due cycle only with strong If-Match, a retry key and no body', async () => {
+    const headers = { 'if-match': '"3"', 'idempotency-key': key }
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('POST', undefined, headers),
+          'continueCycle',
+          id,
+        )
+      ).status,
+    ).toBe(200)
+    expect(client.continueCycle).toHaveBeenCalledWith(
+      'server-token-only',
+      id,
+      3,
+      key,
+      expect.any(String),
+    )
+    for (const [body, extra] of [
+      [undefined, { 'if-match': '"3"' }],
+      [undefined, { 'idempotency-key': key }],
+      [{ cycleNumber: 9 }, headers],
+    ] as const) {
+      expect(
+        (
+          await supportPlanActionHandler(
+            request('POST', body, extra),
+            'continueCycle',
+            id,
+          )
+        ).status,
+      ).toBe(400)
+    }
+    expect(client.continueCycle).toHaveBeenCalledTimes(1)
+  })
+  it('reads the adaptive review with optional If-Match and summary id, exposing the plan ETag', async () => {
+    client.adaptiveReview.mockResolvedValue(adaptiveReviewFixture())
+    const summaryId = 'c0000000-0000-4000-8000-000000000652'
+    const response = await supportPlanActionHandler(
+      new NextRequest(
+        `http://localhost/api/care/v2/support-plans/${id}/adaptive-review?reassessmentSummaryId=${summaryId}`,
+        {
+          headers: {
+            cookie: `${ACCESS_COOKIE_NAME}=server-token-only`,
+            'if-match': '"1"',
+          },
+        },
+      ),
+      'adaptiveReview',
+      id,
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get('etag')).toBe('"1"')
+    expect(response.headers.get('cache-control')).toContain('no-store')
+    expect(client.adaptiveReview).toHaveBeenCalledWith(
+      'server-token-only',
+      id,
+      1,
+      summaryId,
+      expect.any(String),
+    )
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('GET', undefined, {}),
+          'adaptiveReview',
+          id,
+        )
+      ).status,
+    ).toBe(200)
+    expect(client.adaptiveReview).toHaveBeenLastCalledWith(
+      'server-token-only',
+      id,
+      undefined,
+      undefined,
+      expect.any(String),
+    )
+    for (const [headers, query] of [
+      [{ 'if-match': 'W/"1"' }, ''],
+      [{}, '?reassessmentSummaryId=not-a-uuid'],
+    ] as const) {
+      expect(
+        (
+          await supportPlanActionHandler(
+            request('GET', undefined, headers, query),
+            'adaptiveReview',
+            id,
+          )
+        ).status,
+      ).toBe(400)
+    }
+    expect(client.adaptiveReview).toHaveBeenCalledTimes(2)
+  })
+  it('confirms one adaptive option only with If-Match, a retry key and the bounded body', async () => {
+    client.adaptiveConfirm.mockResolvedValue(adaptiveConfirmationFixture())
+    const headers = { 'if-match': '"1"', 'idempotency-key': key }
+    const body = {
+      reviewFingerprint: '3f2a9c4d7e1b6a5f8c0d2e4f6a8b0c1d',
+      optionId: 'keep-current-1',
+    }
+    const response = await supportPlanActionHandler(
+      request('POST', body, headers),
+      'adaptiveConfirm',
+      id,
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get('etag')).toBe('"2"')
+    expect(client.adaptiveConfirm).toHaveBeenCalledWith(
+      'server-token-only',
+      id,
+      1,
+      body,
+      key,
+      expect.any(String),
+    )
+    for (const [payload, extra] of [
+      [body, { 'if-match': '"1"' }],
+      [body, { 'idempotency-key': key }],
+      [{ ...body, apply: true }, headers],
+      [{ ...body, proposedPlanId: id }, headers],
+      [{ ...body, reviewFingerprint: 'short' }, headers],
+      [{ optionId: 'keep-current-1' }, headers],
+    ] as const) {
+      expect(
+        (
+          await supportPlanActionHandler(
+            request('POST', payload, extra),
+            'adaptiveConfirm',
+            id,
+          )
+        ).status,
+      ).toBe(400)
+    }
+    const replace = { ...body, proposedPlanId: id, proposedVersion: 0 }
+    await supportPlanActionHandler(
+      request('POST', replace, headers),
+      'adaptiveConfirm',
+      id,
+    )
+    expect(client.adaptiveConfirm).toHaveBeenLastCalledWith(
+      'server-token-only',
+      id,
+      1,
+      replace,
+      key,
+      expect.any(String),
+    )
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('POST', body, { ...headers, origin: 'https://evil.test' }),
+          'adaptiveConfirm',
+          id,
+        )
+      ).status,
+    ).toBe(403)
+    expect(client.adaptiveConfirm).toHaveBeenCalledTimes(2)
+  })
+  it('records native helpfulness only through the bounded engagement shape', async () => {
+    client.occurrenceEngagement.mockResolvedValue(emotionOccurrenceFixture())
+    const body = {
+      state: 'COMPLETED',
+      hidden: false,
+      helpfulness: 'HELPFUL',
+      barrierCode: null,
+      reflection: null,
+      summaryReuseApproved: false,
+    }
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('PUT', body, { 'if-match': '"1"' }),
+          'occurrenceEngagement',
+          id,
+        )
+      ).status,
+    ).toBe(200)
+    expect(client.occurrenceEngagement).toHaveBeenCalledWith(
+      'server-token-only',
+      id,
+      1,
+      body,
+      expect.any(String),
+    )
+    for (const invalid of [
+      { ...body, helpfulness: 'AMAZING' },
+      { ...body, completionEvidence: { factId: id } },
+      { ...body, state: 'SKIPPED' },
+      { ...body, state: ['SCHEDULED'], helpfulness: null },
+      { ...body, helpfulness: ['HELPFUL'] },
+    ]) {
+      expect(
+        (
+          await supportPlanActionHandler(
+            request('PUT', invalid, { 'if-match': '"1"' }),
+            'occurrenceEngagement',
+            id,
+          )
+        ).status,
+      ).toBe(400)
+    }
+    expect(client.occurrenceEngagement).toHaveBeenCalledTimes(1)
   })
   it('validates lifecycle reason and cursor bounds', async () => {
     expect(

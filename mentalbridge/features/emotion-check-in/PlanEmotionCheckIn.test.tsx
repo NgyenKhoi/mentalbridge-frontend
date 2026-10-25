@@ -40,6 +40,19 @@ const originParams = () =>
     actionId: occurrence.actionId,
     localDate: occurrence.localDate,
   })
+
+async function expectEmptyEmotionForm() {
+  expect(
+    await screen.findByRole('group', { name: 'Cảm xúc hôm nay' }),
+  ).toBeVisible()
+  expect(screen.getAllByRole('radio')).toHaveLength(5)
+  expect(screen.queryByRole('radio', { checked: true })).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('group', { name: 'Mức độ cảm nhận' }),
+  ).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Lưu ghi nhận' })).toBeDisabled()
+}
+
 describe('Canonical Emotion entry from an owned plan', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -80,9 +93,7 @@ describe('Canonical Emotion entry from an owned plan', () => {
   it('reuses the canonical form with the owner frozen timezone and returns exact origin without auto-completing', async () => {
     const user = userEvent.setup()
     render(<PlanEmotionCheckIn />)
-    expect(
-      await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.'),
-    ).toBeVisible()
+    await expectEmptyEmotionForm()
     const back = screen.getByRole('link', {
       name: 'Quay lại hoạt động trong kế hoạch',
     })
@@ -142,7 +153,7 @@ describe('Canonical Emotion entry from an owned plan', () => {
     await user.click(
       screen.getByRole('button', { name: 'Thử tải lại hoạt động' }),
     )
-    await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.')
+    await expectEmptyEmotionForm()
     expect(api.reconcile).not.toHaveBeenCalled()
   })
   it('rejects malformed hints instead of completing another activity', async () => {
@@ -172,7 +183,7 @@ describe('Canonical Emotion entry from an owned plan', () => {
       }),
     )
     render(<PlanEmotionCheckIn />)
-    await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.')
+    await expectEmptyEmotionForm()
     await user.click(screen.getByRole('radio', { name: 'Tốt' }))
     await user.click(screen.getByRole('radio', { name: '4' }))
     await user.click(screen.getByRole('button', { name: 'Lưu ghi nhận' }))
@@ -216,7 +227,7 @@ describe('Canonical Emotion entry from an owned plan', () => {
   it('blocks a plan-origin save when the owner local day rolls over', async () => {
     const user = userEvent.setup()
     render(<PlanEmotionCheckIn />)
-    await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.')
+    await expectEmptyEmotionForm()
     await user.click(screen.getByRole('radio', { name: 'Tốt' }))
     await user.click(screen.getByRole('radio', { name: '4' }))
     act(() => {
@@ -234,7 +245,7 @@ describe('Canonical Emotion entry from an owned plan', () => {
   })
   it('revalidates a changed client-side origin instead of keeping the previous action', async () => {
     const view = render(<PlanEmotionCheckIn />)
-    await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.')
+    await expectEmptyEmotionForm()
     const params = originParams()
     params.set('actionId', '20000000-0000-4000-8000-000000000642')
     window.history.replaceState(null, '', `/dashboard?${params}`)
@@ -257,7 +268,7 @@ describe('Canonical Emotion entry from an owned plan', () => {
       }),
     )
     render(<PlanEmotionCheckIn />)
-    await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.')
+    await expectEmptyEmotionForm()
     await user.click(screen.getByRole('radio', { name: 'Tốt' }))
     await user.click(screen.getByRole('radio', { name: '4' }))
     await user.click(screen.getByRole('button', { name: 'Lưu ghi nhận' }))
@@ -266,7 +277,7 @@ describe('Canonical Emotion entry from an owned plan', () => {
       window.dispatchEvent(new Event('focus'))
     })
     await waitFor(() => expect(api.get).toHaveBeenLastCalledWith('2026-10-14'))
-    await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.')
+    await expectEmptyEmotionForm()
     await act(async () => {
       finishSave({
         id: '70000000-0000-4000-8000-000000000641',
@@ -282,7 +293,7 @@ describe('Canonical Emotion entry from an owned plan', () => {
         updatedAt: '2026-10-13T16:59:59Z',
       })
     })
-    expect(screen.getByText('Hôm nay bạn chưa ghi nhận cảm xúc.')).toBeVisible()
+    await expectEmptyEmotionForm()
     expect(screen.getByRole('radio', { name: 'Tốt' })).not.toBeChecked()
     expect(screen.getByRole('button', { name: 'Lưu ghi nhận' })).toBeDisabled()
     expect(

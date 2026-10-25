@@ -6,12 +6,102 @@ import {
   emotionActionId,
   emotionCompletionFixture,
   emotionOccurrenceId,
+  emotionOccurrenceFixture,
   nativeSupportPlanFixture,
 } from '@/features/support-plan/testing/native-support-plan-fixture'
 import { supportPlanActionClient } from './support-plan-action-client'
 
 describe('Care native action transport', () => {
   afterEach(() => vi.unstubAllEnvs())
+  it('binds the resource projection to the requested date and rejects private rationale', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    let reply: unknown = {
+      planState: 'NONE',
+      localDate: '2026-10-21',
+      actions: [],
+    }
+    mockServer.use(
+      http.get(
+        'http://care.test/api/v2/support-plans/current/resource-actions',
+        ({ request }) => {
+          expect(new URL(request.url).searchParams.get('localDate')).toBe(
+            '2026-10-21',
+          )
+          expect(request.headers.get('authorization')).toBe(
+            'Bearer owner-token',
+          )
+          expect(request.headers.get('x-correlation-id')).toBe('correlation')
+          return HttpResponse.json(reply as object)
+        },
+      ),
+    )
+    expect(
+      await supportPlanActionClient.resourceActions(
+        'owner-token',
+        '2026-10-21',
+        'correlation',
+      ),
+    ).toEqual(reply)
+    reply = { planState: 'NONE', localDate: '2026-10-20', actions: [] }
+    await expect(
+      supportPlanActionClient.resourceActions(
+        'owner-token',
+        '2026-10-21',
+        'correlation',
+      ),
+    ).rejects.toMatchObject({ status: 502, code: 'CARE_MALFORMED_RESPONSE' })
+  })
+  it('forwards the occurrence ETag without a fact body and binds Content completion to that occurrence', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    const completed = {
+      ...emotionOccurrenceFixture(),
+      actionType: 'RESOURCE',
+      state: 'COMPLETED',
+      displayState: 'COMPLETED',
+      version: 2,
+      completionEvidence: {
+        kind: 'RESOURCE_COMPLETION',
+        ownerDomain: 'CONTENT',
+        factId: '30000000-0000-4000-8000-000000000670:2026-10-13',
+        factRevision: '7',
+        occurredAt: '2026-10-13T02:00:00Z',
+        verifiedAt: '2026-10-13T02:01:00Z',
+      },
+      outcomeRecordedAt: '2026-10-13T02:01:00Z',
+    }
+    let response = completed
+    mockServer.use(
+      http.post(
+        `http://care.test/api/v2/support-plan-occurrences/${emotionOccurrenceId}/resource/reconcile`,
+        async ({ request }) => {
+          expect(request.headers.get('if-match')).toBe('"1"')
+          expect(request.headers.get('authorization')).toBe(
+            'Bearer owner-token',
+          )
+          expect(request.headers.get('x-correlation-id')).toBe('correlation')
+          expect(await request.text()).toBe('')
+          return HttpResponse.json(response)
+        },
+      ),
+    )
+    expect(
+      await supportPlanActionClient.reconcileResource(
+        'owner-token',
+        emotionOccurrenceId,
+        1,
+        'correlation',
+      ),
+    ).toEqual(completed)
+    response = { ...completed, occurrenceId: emotionActionId }
+    await expect(
+      supportPlanActionClient.reconcileResource(
+        'owner-token',
+        emotionOccurrenceId,
+        1,
+        'correlation',
+      ),
+    ).rejects.toMatchObject({ status: 502, code: 'CARE_MALFORMED_RESPONSE' })
+  })
   it('checks a Journal candidate through the exact bounded owner path and rejects a swapped response', async () => {
     vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
     const journalId = '50000000-0000-4000-8000-000000000642'
@@ -150,5 +240,33 @@ describe('Care native action transport', () => {
         'correlation',
       ),
     ).toEqual(plan)
+  })
+  it('passes a replayed proposal that is no longer a draft to the workspace', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    const discarded = {
+      ...nativeSupportPlanFixture(),
+      status: 'DISCARDED',
+      activatedAt: null,
+      discardedAt: '2026-10-17T02:00:00Z',
+    }
+    let reply: Record<string, unknown> = discarded
+    mockServer.use(
+      http.post('http://care.test/api/v2/support-plans', () =>
+        HttpResponse.json(reply, { status: 200 }),
+      ),
+    )
+    const propose = () =>
+      supportPlanActionClient.propose(
+        'owner-token',
+        { sourceSupportEvaluationId: emotionActionId },
+        'auto-proposal-replay',
+        'correlation',
+      )
+    expect(await propose()).toEqual(discarded)
+    reply = { ...discarded, representationMode: 'V2_RESOURCE_ADAPTER' }
+    await expect(propose()).rejects.toMatchObject({
+      status: 502,
+      code: 'CARE_MALFORMED_RESPONSE',
+    })
   })
 })

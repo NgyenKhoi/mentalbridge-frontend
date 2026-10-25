@@ -1,0 +1,26 @@
+.face {
+  display: block;
+  flex-shrink: 0;
+}
+.fill {
+  fill: var(--mood-fill);
+}
+.GREAT {
+  --mood-fill: color-mix(in srgb, var(--teal-pale) 80%, var(--teal) 20%);
+}
+.GOOD {
+  --mood-fill: color-mix(in srgb, var(--teal-pale) 75%, var(--surface) 25%);
+}
+.OKAY {
+  --mood-fill: color-mix(
+    in srgb,
+    var(--amber-soft) 60%,
+    var(--surface-soft) 40%
+  );
+}
+.LOW {
+  --mood-fill: var(--amber-soft);
+}
+.VERY_LOW {
+  --mood-fill: var(--terracotta-soft);
+}

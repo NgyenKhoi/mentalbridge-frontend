@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ApiError } from '@/lib/api/api-error'
+import { useEffect, useMemo, useState } from 'react'
 import { TodayEmotionSummary } from '@/features/emotion-check-in/TodayEmotionSummary'
 
 import {
@@ -12,19 +11,14 @@ import {
 } from '../api/browser-resources'
 import {
   getResourceProgress,
-  saveResourceProgress,
   type ResourceProgressItem,
 } from '../api/browser-resource-progress'
+import type { PlanResourceActionsV1 } from '@/features/support-plan/api/support-plan-contract'
 import {
   getResourceJourney,
   ResourceJourneyBrowserError,
   type ResourceJourney,
 } from '../api/browser-resource-journey'
-import {
-  getResourceBingo,
-  setResourceBingoSelfConfirmation,
-  type ResourceBingoBoard,
-} from '../api/browser-resource-engagement'
 import { useResourceBookmarks } from '../hooks/useResourceBookmarks'
 import {
   localDate,
@@ -37,7 +31,7 @@ import {
   type AchievementCollection,
 } from '@/features/achievements/api/browser-achievements'
 import { AnimatedResourceSticker } from './AnimatedResourceSticker'
-import { ResourceBingoPanel } from './ResourceBingoPanel'
+import { PlanResourcesSection } from './PlanResourcesSection'
 import styles from './resources-showcase.module.css'
 
 type Filter = 'all' | 'short' | 'medium' | 'challenge'
@@ -136,21 +130,12 @@ function ResourceArt({ resource }: { resource: PublicResourceSummary }) {
 export default function ResourcesShowcase() {
   const today = useMemo(() => localDate(), [])
   const dates = useMemo(() => recentDates(today), [today])
-  const weekStart = useMemo(() => {
-    const date = new Date(`${today}T00:00:00Z`)
-    date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7))
-    return date.toISOString().slice(0, 10)
-  }, [today])
   const bookmarks = useResourceBookmarks()
   const [resources, setResources] = useState<PublicResourceSummary[]>([])
   const [progress, setProgress] = useState<ResourceProgressItem[]>([])
   const [journeys, setJourneys] = useState<Record<string, ResourceJourney>>({})
-  const [bingoBoard, setBingoBoard] = useState<ResourceBingoBoard | null>(null)
-  const [bingoEtag, setBingoEtag] = useState('')
-  const [bingoState, setBingoState] = useState<
-    'loading' | 'ready' | 'missing' | 'error' | 'stale'
-  >('loading')
-  const [pendingPosition, setPendingPosition] = useState<number | null>(null)
+  const [planProjection, setPlanProjection] =
+    useState<PlanResourceActionsV1 | null>(null)
   const [catalogueState, setCatalogueState] = useState<
     'loading' | 'ready' | 'empty' | 'error'
   >('loading')
@@ -168,8 +153,6 @@ export default function ResourcesShowcase() {
   const [partialHistory, setPartialHistory] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
   const [expanded, setExpanded] = useState(false)
-  const [pendingId, setPendingId] = useState('')
-  const [progressMessage, setProgressMessage] = useState('')
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
@@ -213,26 +196,6 @@ export default function ResourcesShowcase() {
       } catch {}
     }
   }, [filter, hydrated])
-
-  const loadBingo = useCallback(async () => {
-    setBingoState('loading')
-    try {
-      const result = await getResourceBingo(weekStart)
-      setBingoBoard(result.board)
-      setBingoEtag(result.etag)
-      setBingoState('ready')
-    } catch (error) {
-      setBingoBoard(null)
-      setBingoEtag('')
-      setBingoState(
-        error instanceof ApiError && error.status === 404 ? 'missing' : 'error',
-      )
-    }
-  }, [weekStart])
-
-  useEffect(() => {
-    void Promise.resolve().then(loadBingo)
-  }, [loadBingo])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -312,7 +275,6 @@ export default function ResourcesShowcase() {
         )
         if (todayResult?.journey) {
           setJourneyState('ready')
-          void loadBingo()
         } else {
           setJourneyState(
             todayResult?.error instanceof ResourceJourneyBrowserError &&
@@ -379,6 +341,13 @@ export default function ResourcesShowcase() {
   )
   const visible = expanded ? curated : curated.slice(0, 5)
   const journey = journeys[today]
+  const todayPlanActions =
+    planProjection?.actions.filter(
+      (action) => action.today && action.today.displayState !== 'SKIPPED',
+    ) ?? []
+  const completedPlanActions = todayPlanActions.filter(
+    (action) => action.today?.displayState === 'COMPLETED',
+  ).length
   const streak = journey?.progress.practiceStreakDays
   const completedRecent = progress
     .filter((entry) => entry.status === 'COMPLETED')
@@ -474,70 +443,6 @@ export default function ResourcesShowcase() {
     })
   }, [achievements])
 
-  async function toggleBingo(position: number, selfConfirmed: boolean) {
-    if (!bingoEtag || pendingPosition !== null) return
-    setPendingPosition(position)
-    try {
-      const result = await setResourceBingoSelfConfirmation(
-        weekStart,
-        position,
-        selfConfirmed,
-        bingoEtag,
-      )
-      setBingoBoard(result.board)
-      setBingoEtag(result.etag)
-      setBingoState('ready')
-    } catch {
-      setBingoBoard(null)
-      setBingoEtag('')
-      setBingoState('stale')
-    } finally {
-      setPendingPosition(null)
-    }
-  }
-
-  async function toggleDaily(resource: PublicResourceSummary) {
-    if (pendingId) return
-    setPendingId(resource.id)
-    setProgressMessage('')
-    let saved: ResourceProgressItem
-    try {
-      saved = await saveResourceProgress(resource.id, today, {
-        status: 'COMPLETED',
-        completedActionIds: ['overview-complete'],
-      })
-    } catch {
-      setProgressMessage('Chưa thể lưu tiến độ. Hãy thử lại sau một chút.')
-      setPendingId('')
-      return
-    }
-    setProgress((current) => [
-      ...current.filter(
-        (entry) =>
-          !(entry.resourceId === resource.id && entry.localDate === today),
-      ),
-      saved,
-    ])
-    setProgressMessage(`Đã lưu hoàn thành “${resource.title}”.`)
-    window.dispatchEvent(new CustomEvent('mb:resource-progress-updated'))
-    try {
-      const refreshed = await getResourceJourney(
-        today,
-        Intl.DateTimeFormat().resolvedOptions().timeZone,
-      )
-      setJourneys((current) => ({ ...current, [today]: refreshed }))
-    } catch {
-      setJourneys((current) => {
-        const next = { ...current }
-        delete next[today]
-        return next
-      })
-      setJourneyState('error')
-    }
-    await loadBingo()
-    setPendingId('')
-  }
-
   if (catalogueState !== 'ready') {
     return (
       <section
@@ -630,6 +535,10 @@ export default function ResourcesShowcase() {
           </div>
         </section>
 
+        <div className={styles.planSlot}>
+          <PlanResourcesSection onPlanChange={setPlanProjection} />
+        </div>
+
         <aside className={styles.energy} aria-labelledby="energy-title">
           <div className={styles.energyHead}>
             <h2 id="energy-title">Hoạt động đã ghi nhận</h2>
@@ -646,80 +555,48 @@ export default function ResourcesShowcase() {
               lưu.
             </p>
           )}
-          <div className={styles.energyProgress}>
-            <small>Kế hoạch hôm nay</small>
-            <strong>
-              {journeyState === 'ready' && journey
-                ? `${journey.progress.dailyCompleted}/${journey.progress.dailyTotal} hoạt động đã hoàn thành`
-                : journeyState === 'plan-required'
-                  ? 'Chưa có kế hoạch đang hoạt động'
-                  : journeyState === 'missing'
-                    ? 'Chưa có dữ liệu hành trình cho ngày hôm nay'
-                    : 'Chưa tải được tiến độ hôm nay'}
-            </strong>
-            {journeyState === 'ready' &&
-              journey &&
-              journey.progress.dailyTotal > 0 && (
-                <div className={styles.track}>
-                  <i
-                    style={{
-                      width: `${Math.min(100, (journey.progress.dailyCompleted / journey.progress.dailyTotal) * 100)}%`,
-                    }}
-                  />
-                </div>
-              )}
-            <p>
-              <Link href="/support-plan">Xem kế hoạch hỗ trợ</Link> để chọn bước
-              tiếp theo.
-            </p>
-          </div>
-          {progressMessage && <p role="status">{progressMessage}</p>}
-          <div className={styles.weekDots} aria-label="Bảy ngày gần đây">
-            {dates.map((date) => (
-              <span
-                key={date}
-                className={`${date === today ? styles.todayDot : ''} ${journeys[date]?.progress.dailyCompleted ? styles.dayDone : ''}`}
+          {planProjection && (
+            <>
+              <div
+                className={styles.energyProgress}
+                data-testid="today-plan-progress"
               >
-                <small>
-                  {date === today
-                    ? 'Hôm nay'
-                    : new Intl.DateTimeFormat('vi-VN', {
-                        weekday: 'short',
-                      }).format(new Date(`${date}T12:00:00`))}
-                </small>
-                <i />
-              </span>
-            ))}
-          </div>
-          {journeyState === 'ready' && journey && progressState === 'ready' && (
-            <details className={styles.dailyDetails}>
-              <summary>Hoạt động trong kế hoạch hôm nay</summary>
-              <ul>
-                {journey.items.map(({ resource }) => {
-                  const complete = progress.some(
-                    (entry) =>
-                      entry.resourceId === resource.id &&
-                      entry.localDate === today &&
-                      entry.status === 'COMPLETED',
-                  )
-                  return (
-                    <li key={resource.id}>
-                      <button
-                        type="button"
-                        disabled={complete || pendingId !== ''}
-                        aria-label={`${complete ? 'Đã hoàn thành' : 'Ghi nhận đã làm'}: ${resource.title}`}
-                        onClick={() => void toggleDaily(resource)}
-                      >
-                        {complete ? '✓' : '○'}
-                      </button>
-                      <Link href={resourceHref(resource, today)}>
-                        {resource.title}
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            </details>
+                <small>Kế hoạch hôm nay</small>
+                <strong>
+                  {completedPlanActions}/{todayPlanActions.length} hoạt động hôm
+                  nay đã ghi nhận
+                </strong>
+                {todayPlanActions.length > 0 && (
+                  <div className={styles.track}>
+                    <i
+                      style={{
+                        width: `${(completedPlanActions / todayPlanActions.length) * 100}%`,
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className={styles.weekDots} aria-label="Bảy ngày gần đây">
+                {dates.map((date) => (
+                  <span
+                    key={date}
+                    className={`${date === today ? styles.todayDot : ''} ${journeys[date]?.progress.dailyCompleted ? styles.dayDone : ''}`}
+                  >
+                    <small>
+                      {date === today
+                        ? 'Hôm nay'
+                        : new Intl.DateTimeFormat('vi-VN', {
+                            weekday: 'short',
+                          }).format(new Date(`${date}T12:00:00`))}
+                    </small>
+                    <i />
+                  </span>
+                ))}
+              </div>
+              <Link className={styles.planJump} href="#plan-resources">
+                Hoạt động trong kế hoạch hôm nay
+              </Link>
+            </>
           )}
         </aside>
       </div>
@@ -879,15 +756,6 @@ export default function ResourcesShowcase() {
       </section>
 
       <div className={styles.lowerRow}>
-        <ResourceBingoPanel
-          board={bingoBoard}
-          state={bingoState}
-          pendingPosition={pendingPosition}
-          onToggle={(position, selfConfirmed) =>
-            void toggleBingo(position, selfConfirmed)
-          }
-          onRetry={() => void loadBingo()}
-        />
         <div className={styles.sideStack}>
           <section className={styles.badges} aria-labelledby="badges-title">
             <div className={styles.panelHead}>

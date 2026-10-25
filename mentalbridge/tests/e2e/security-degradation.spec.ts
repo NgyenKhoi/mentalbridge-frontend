@@ -1,6 +1,7 @@
 import { expect, type BrowserContext } from '@playwright/test'
 
 import { test } from './test-fixtures'
+import { homeWorld, installHomeMocks } from './home-next-step-mocks'
 
 // All tests share the single fixture server and must run serially.
 test.describe.configure({ mode: 'serial' })
@@ -130,7 +131,7 @@ test.describe('AC1: Cross-user authorization boundaries', () => {
     await expect(page).toHaveURL(/\/specialist\/dashboard/)
     // Must not render USER dashboard content
     await expect(
-      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
+      page.getByRole('heading', { name: 'Kết quả sàng lọc', exact: true }),
     ).toHaveCount(0)
     await page.goto('/ai-companion')
     await expect(page).toHaveURL(/\/specialist\/dashboard/)
@@ -510,10 +511,11 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     page,
   }) => {
     await injectUserSession(context)
+    await installHomeMocks(page, homeWorld('first-use'))
     await page.goto('/dashboard')
 
     await expect(
-      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
+      page.getByRole('link', { name: 'Bắt đầu kiểm tra ban đầu', exact: true }),
     ).toBeVisible({ timeout: 10_000 })
 
     const html = await page.evaluate(() => document.body.innerHTML)
@@ -524,41 +526,35 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     expect(html).not.toMatch(/cấp cứu/i)
     expect(html).not.toMatch(/hotline/i)
 
-    // PHQ result card must show placeholder, not a fake result
+    // Home delegates tracking to its owning pages and shows no invented result.
     await expect(
-      page.getByText('Chưa có kết quả PHQ-9 nào được hiển thị.'),
-    ).toBeVisible()
+      page.getByRole('heading', { name: 'Kết quả sàng lọc', exact: true }),
+    ).toHaveCount(0)
   })
 
-  test('free-tier dashboard gates paid features with an explicit upgrade prompt', async ({
+  test('dashboard keeps appointments in navigation without a client-side upgrade gate', async ({
     context,
     page,
   }) => {
     await injectUserSession(context)
-    // Ensure no plan is set in localStorage (free tier)
+    await installHomeMocks(page, homeWorld('first-use'))
     await page.goto('/dashboard')
-    await page.evaluate(() => localStorage.removeItem('mentalbridge_plan'))
-    await page.reload()
 
     await expect(
-      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
+      page.getByRole('link', { name: 'Bắt đầu kiểm tra ban đầu', exact: true }),
     ).toBeVisible({ timeout: 10_000 })
 
-    // PlanGate must show upgrade link for locked features, not pretend they work
+    // Entitlements are enforced by the backend when booking; the dashboard must
+    // not lock the appointment entry behind a premium prompt it cannot verify.
+    await expect(page.locator('.ref-appointment')).toHaveCount(0)
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Điều hướng chính', exact: true })
+        .getByRole('link', { name: /Lịch hẹn/ }),
+    ).toHaveAttribute('href', '/appointments')
     await expect(
       page.getByRole('link', { name: /nâng cấp premium/i }),
-    ).toBeVisible()
-
-    await expect(page.locator('.plan-gate-preview')).toHaveAttribute(
-      'aria-hidden',
-      'true',
-    )
-    // The current dashboard gates priority appointments; upgrades go to the catalogue.
-    const upgradeLinks = page.getByRole('link', { name: /nâng cấp/i })
-    for (const link of await upgradeLinks.all()) {
-      const href = await link.getAttribute('href')
-      expect(href).toBe('/subscription')
-    }
+    ).toHaveCount(0)
   })
 
   test('notifications page does not claim real-time delivery or emergency dispatch', async ({
@@ -783,14 +779,20 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.goto('/specialists')
 
     await expect(
-      page.getByRole('heading', { name: 'Chuyên gia tư vấn' }),
+      page.getByRole('heading', { name: 'Kết nối chuyên gia tâm lý' }),
     ).toBeVisible({ timeout: 10_000 })
 
     await expect(page.getByText('Chuyên gia An')).toBeVisible()
     await expect(page.getByText(/Bạn đang dùng gói Free/)).toBeVisible()
-    await page.getByRole('button', { name: 'Xem hồ sơ và khung giờ' }).click()
-    await expect(page.getByText('Vì sao hồ sơ này xuất hiện?')).toBeVisible()
-    await expect(page.getByRole('radio')).toBeVisible()
+    await page.getByRole('button', { name: 'Hồ sơ', exact: true }).click()
+    const detail = page.getByRole('dialog')
+    await expect(detail.getByText(item.bio)).toBeVisible()
+    // MB-716: neutral ranking is explained, not presented as personal matching.
+    await expect(
+      detail.getByRole('region', { name: 'Vì sao hồ sơ này xuất hiện?' }),
+    ).toContainText('Thứ tự chung không sử dụng nội dung bài sàng lọc.')
+    await detail.getByRole('tab', { name: 'Lịch trống' }).click()
+    await expect(detail.getByRole('radio')).toBeVisible()
 
     const bodyText = await page.evaluate(() => document.body.innerText)
 
@@ -805,6 +807,9 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     expect(bodyText).not.toMatch(/google meet|zoom|meeting link/i)
     await expect(
       page.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }),
+    ).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: 'Xác nhận đặt lịch' }),
     ).toHaveCount(0)
     await expect(
       page.getByRole('link', { name: 'Xem quyền lợi các gói' }),

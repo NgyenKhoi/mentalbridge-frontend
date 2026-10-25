@@ -1,5 +1,6 @@
 import { expect, type BrowserContext, type Route } from '@playwright/test'
 import { test } from './test-fixtures'
+import { homeWorld, installHomeMocks } from './home-next-step-mocks'
 
 type StoredCheckIn = {
   id: string
@@ -45,8 +46,9 @@ function problem(status: number, code: string, title: string) {
 test('dashboard and Resources share, update, reload, and delete the persisted daily emotion', async ({
   context,
   page,
-}) => {
+}, testInfo) => {
   await authenticated(context)
+  await installHomeMocks(page, homeWorld('first-use'))
 
   let stored: StoredCheckIn | null = null
   const readStored = (): StoredCheckIn | null => stored
@@ -244,46 +246,51 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
     })
   })
   await page.goto('/dashboard')
+  const dailyEmotionCard = page.locator('#emotion-check-in')
   await expect(
-    page.getByText('Hôm nay bạn chưa ghi nhận cảm xúc.'),
+    dailyEmotionCard.getByRole('group', { name: 'Cảm xúc hôm nay' }),
   ).toBeVisible()
+  await expect(dailyEmotionCard.getByRole('radio')).toHaveCount(5)
   await expect(
-    page.getByRole('radio', { name: 'Tốt', exact: true }),
-  ).not.toBeChecked()
+    dailyEmotionCard.getByRole('radio', { checked: true }),
+  ).toHaveCount(0)
+  await expect(
+    dailyEmotionCard.getByRole('group', { name: 'Mức độ cảm nhận' }),
+  ).toHaveCount(0)
+  await expect(
+    dailyEmotionCard.getByRole('button', { name: 'Lưu ghi nhận' }),
+  ).toBeDisabled()
 
   await page
-    .locator('.ref-panel-mood')
+    .locator('#emotion-check-in')
     .getByText('Tốt', { exact: true })
     .click()
-  await page.locator('.ref-panel-mood').getByText('4', { exact: true }).click()
+  await page
+    .locator('#emotion-check-in')
+    .getByText('4', { exact: true })
+    .click()
   await page
     .getByText('Thêm bối cảnh riêng tư (không bắt buộc)', { exact: true })
     .click()
-  await page.getByRole('checkbox', { name: 'Giấc ngủ' }).check()
-  await page.getByRole('checkbox', { name: 'Công việc' }).check()
+  await page.getByRole('checkbox', { name: 'Giấc ngủ' }).locator('..').click()
+  await page.getByRole('checkbox', { name: 'Công việc' }).locator('..').click()
   await page.getByLabel('Ghi chú riêng (không bắt buộc)').fill('Một ngày dài')
   await page.getByRole('button', { name: 'Lưu ghi nhận' }).click()
   await expect(
-    page.locator('.ref-panel-mood').getByRole('alert'),
+    page.locator('#emotion-check-in').getByRole('alert'),
   ).toContainText('Chưa thể lưu')
   await expect(
     page.getByRole('radio', { name: 'Tốt', exact: true }),
   ).toBeChecked()
   await page.getByRole('button', { name: 'Thử lại' }).click()
   await expect(page.getByText('Đã lưu ghi nhận hôm nay.')).toBeVisible()
-  await expect(
-    page.locator('.ref-panel-progress').getByText('Chuỗi hiện tại'),
-  ).toBeVisible()
-  await expect(
-    page.locator('.ref-panel-progress').getByText('1/7'),
-  ).toBeVisible()
+  await expect(page.locator('.ref-panel-progress')).toHaveCount(0)
   expect(createKeys).toHaveLength(2)
   expect(createKeys[0]).toBe(createKeys[1])
 
-  const dailyEmotionCard = page.locator('.ref-panel-mood')
   await page.setViewportSize({ width: 1440, height: 1100 })
   await dailyEmotionCard.screenshot({
-    path: 'docs/evidence/mb-658-emotion-context-desktop.png',
+    path: testInfo.outputPath('emotion-context-desktop.png'),
   })
   await page.setViewportSize({ width: 390, height: 844 })
   const dashboardWidth = await page.locator('main').evaluate((element) => ({
@@ -294,7 +301,7 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
     dashboardWidth.clientWidth + 1,
   )
   await dailyEmotionCard.screenshot({
-    path: 'docs/evidence/mb-658-emotion-context-mobile.png',
+    path: testInfo.outputPath('emotion-context-mobile.png'),
   })
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -310,21 +317,21 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
   await expect(page.getByLabel('Ghi chú riêng (không bắt buộc)')).toHaveValue(
     'Một ngày dài',
   )
-  await page.getByRole('checkbox', { name: 'Giấc ngủ' }).uncheck()
-  await page.getByRole('checkbox', { name: 'Công việc' }).uncheck()
+  await page.getByRole('checkbox', { name: 'Giấc ngủ' }).locator('..').click()
+  await page.getByRole('checkbox', { name: 'Công việc' }).locator('..').click()
   await page.getByLabel('Ghi chú riêng (không bắt buộc)').fill('')
   await page
-    .locator('.ref-panel-mood')
+    .locator('#emotion-check-in')
     .getByText('Rất tốt', { exact: true })
     .click()
   await page.getByRole('button', { name: 'Cập nhật ghi nhận' }).click()
   await expect(page.getByText('Đã cập nhật ghi nhận hôm nay.')).toBeVisible()
+  await page
+    .getByRole('button', { name: 'Chỉnh sửa ghi nhận', exact: true })
+    .click()
   await expect(
-    page
-      .locator('.ref-panel-progress')
-      .getByRole('region', { name: 'Chi tiết ngày được chọn' })
-      .getByText('Rất tốt', { exact: true }),
-  ).toBeVisible()
+    page.getByRole('radio', { name: 'Rất tốt', exact: true }),
+  ).toBeChecked()
 
   await context.clearCookies()
   await authenticated(context)
@@ -348,7 +355,7 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
   await expect(emotionCard.getByText(/Múi giờ/)).toBeVisible()
   await page.setViewportSize({ width: 1440, height: 1400 })
   await emotionCard.screenshot({
-    path: 'docs/evidence/mb-657-resources-emotion.png',
+    path: testInfo.outputPath('resources-emotion-desktop.png'),
   })
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(emotionCard).toBeVisible()
@@ -360,12 +367,12 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
     resourcesWidth.clientWidth + 1,
   )
   await emotionCard.screenshot({
-    path: 'docs/evidence/mb-657-resources-emotion-mobile.png',
+    path: testInfo.outputPath('resources-emotion-mobile.png'),
   })
 
   await page.goto('/dashboard')
   await page
-    .locator('.ref-panel-mood')
+    .locator('#emotion-check-in')
     .getByRole('button', { name: 'Xóa ghi nhận' })
     .click()
   await page
@@ -373,9 +380,7 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
     .getByRole('button', { name: 'Xóa ghi nhận' })
     .click()
   await expect(page.getByText('Đã xóa ghi nhận cảm xúc hôm nay.')).toBeVisible()
-  await expect(
-    page.locator('.ref-panel-progress').getByText('0/7'),
-  ).toBeVisible()
+  await expect(page.locator('.ref-panel-progress')).toHaveCount(0)
   await page.goto('/resources')
   await expect(
     page.getByText('Hôm nay chưa có ghi nhận cảm xúc.'),

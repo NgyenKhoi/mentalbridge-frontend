@@ -16,7 +16,7 @@
   --color-danger: #b3402f;
   --color-text: #1a1c1e;
   --color-text-muted: #5b6470;
-  --color-text-faint: #6b7280;
+  --color-text-faint: #596573;
   --color-border: rgba(26, 28, 30, 0.07);
   --shadow-card: 0 4px 24px rgba(20, 40, 60, 0.05);
   --radius-card: 28px;
@@ -27,9 +27,9 @@
   --surface-glass: rgba(255, 255, 255, 0.7);
   --ink: #1b2a22;
   --ink-soft: #52604f;
-  --ink-faint: #8a9585;
+  --ink-faint: #5f6b5b;
   --teal-deep: #1e4a43;
-  --teal: #3d7a6e;
+  --teal: #32685d;
   --teal-pale: #cfe3d8;
   --amber: #e1a651;
   --amber-soft: #f5e6c6;
@@ -39,7 +39,7 @@
   --terracotta-soft: #f0dacc;
   --lavender: #9a8cae;
   --lavender-pale: #eae5f0;
-  --primary: #3d7a6e;
+  --primary: var(--teal);
   --primary-strong: #1e4a43;
   --primary-foreground: #ffffff;
   --line: rgba(27, 42, 34, 0.12);
@@ -76,8 +76,12 @@
   --focus-ring: 0 0 0 3px rgba(61, 122, 110, 0.24);
   /* next/font exposes these named families; aliases at :root cannot depend on
      variables that are introduced later by a class on body. */
-  --font-fraunces: var(--font-fraunces-variable, 'Fraunces'), 'Fraunces Fallback', Georgia, serif;
-  --font-be-vietnam: var(--font-be-vietnam-variable, 'Be Vietnam Pro'), 'Be Vietnam Pro Fallback', system-ui, -apple-system, sans-serif;
+  --font-fraunces:
+    var(--font-fraunces-variable, 'Fraunces'), 'Fraunces Fallback', Georgia,
+    serif;
+  --font-be-vietnam:
+    var(--font-be-vietnam-variable, 'Be Vietnam Pro'),
+    'Be Vietnam Pro Fallback', system-ui, -apple-system, sans-serif;
   /* Alias cho các dashboard pages */
   --font-display: var(--font-fraunces);
   --font-body: var(--font-be-vietnam);
@@ -217,6 +221,209 @@ h4 {
     opacity: 0;
     transform: translateY(var(--motion-distance-sm))
       scale(var(--motion-scale-enter));
+  }
+}
+
+/* MB-744: USER pages (AuthenticatedShell `main.ref-content`) enter in reading
+   order, each kind of content its own way: blocks unfold, the page title rises
+   through its own baseline, the line under it pulls into focus, icons pop, list
+   rows slide in. CSS so it plays before hydration; base styles stay visible and
+   `backwards` fill only covers the delay. Community, Specialist and Admin use
+   other shells and are untouched.
+   - It plays only while the route is fresh: the shell sets `data-entered` on
+     `main` 1.2 s after each navigation, so dialogs, async rows and re-renders
+     never replay it.
+   - A "block" is a child of the page root, or of the root's only child (up to
+     two levels) when a page wraps everything in one container. Dialogs and
+     busy/status regions are never blocks.
+   - A root or block marked `data-page-motion="off"` (safety help, clinical
+     results, chat, video, SupportPlan's own entrance) and every block
+     containing one stay still. */
+
+/* Layout-neutral wrapper that carries the opt-out for a route (chat, video). */
+.ref-still {
+  display: contents;
+}
+
+/* Only on screens without a reduced-motion preference; reduced motion and
+   print get the final state, and other features keep their own motion. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  /* One owner per element: the blocks move, so older whole-page fades on page
+   roots (assessments, journal, notifications, profile, specialists,
+   subscription) stop. Doubled class beats those single-class rules. */
+  .ref-content.ref-content > :not([data-page-motion='off']) {
+    animation: none;
+  }
+  /* Chat/video wrappers add one level above legacy page entrances. Keep the
+     workspace root still without suppressing its loading/action feedback. */
+  .ref-content.ref-content > .ref-still[data-page-motion='off'] > * {
+    animation: none;
+  }
+
+  .ref-content:not([data-entered])
+    :is(
+      .ref-content > :not([data-page-motion='off']) > :not(:only-child),
+      .ref-content
+        > :not([data-page-motion='off'])
+        > :only-child:not([data-page-motion='off'])
+        > :not(:only-child),
+      .ref-content
+        > :not([data-page-motion='off'])
+        > :only-child:not([data-page-motion='off'])
+        > :only-child:not([data-page-motion='off'])
+        > *
+    ):not(
+      [data-page-motion='off'],
+      dialog,
+      [role='dialog'],
+      [aria-modal='true'],
+      [aria-busy='true'],
+      [role='status']
+    ):not(:has([data-page-motion='off'])) {
+    --mb-enter: calc(var(--mb-step) * 60ms);
+    animation: mb-unfold var(--motion-medium) var(--ease-standard) backwards;
+    animation-delay: var(--mb-enter);
+  }
+  .ref-content :first-child {
+    --mb-step: 0;
+  }
+  .ref-content :nth-child(2) {
+    --mb-step: 1;
+  }
+  .ref-content :nth-child(3) {
+    --mb-step: 2;
+  }
+  .ref-content :nth-child(4) {
+    --mb-step: 3;
+  }
+  .ref-content :nth-child(5) {
+    --mb-step: 4;
+  }
+  .ref-content :nth-child(n + 6) {
+    --mb-step: 5;
+  }
+
+  /* The title block itself stays put; its heading and lead do the moving, at the
+   block's own place in reading order. */
+  .ref-content:not([data-entered])
+    :is(
+      .ref-content > :not([data-page-motion='off']) > :not(:only-child),
+      .ref-content
+        > :not([data-page-motion='off'])
+        > :only-child:not([data-page-motion='off'])
+        > :not(:only-child),
+      .ref-content
+        > :not([data-page-motion='off'])
+        > :only-child:not([data-page-motion='off'])
+        > :only-child:not([data-page-motion='off'])
+        > *
+    ):not(
+      [data-page-motion='off'],
+      dialog,
+      [role='dialog'],
+      [aria-modal='true'],
+      [aria-busy='true'],
+      [role='status']
+    ):not(:has([data-page-motion='off'])):has(h1) {
+    animation: none;
+  }
+  .ref-content:not([data-entered])
+    > :not([data-page-motion='off'])
+    h1:not([data-page-motion='off'], [data-page-motion='off'] *):not(
+      :has([data-page-motion='off'])
+    ) {
+    animation: mb-title-rise var(--motion-slow) var(--ease-standard) backwards;
+    animation-delay: var(--mb-enter, 0ms);
+  }
+  .ref-content:not([data-entered])
+    > :not([data-page-motion='off'])
+    h1:not([data-page-motion='off'], [data-page-motion='off'] *):not(
+      :has([data-page-motion='off'])
+    )
+    ~ :is(p, span):not(
+      [data-page-motion='off'],
+      [data-page-motion='off'] *
+    ):not(:has([data-page-motion='off'])) {
+    animation: mb-focus-in var(--motion-slow) var(--ease-standard) backwards;
+    animation-delay: calc(var(--mb-enter, 0ms) + 120ms);
+  }
+
+  /* Inside a moving block: icons pop once it has opened; rows of a list that is
+   itself a block child follow one by one (deeper lists, often measured grids,
+   stay put). */
+  .ref-content:not([data-entered])
+    > :not([data-page-motion='off'])
+    :is(i, [class*='icon']):has(> svg):not(
+      [data-page-motion='off'],
+      [data-page-motion='off'] *
+    ):not(:has([data-page-motion='off'])) {
+    animation: mb-pop var(--motion-base) var(--ease-emphasis) backwards;
+    animation-delay: calc(var(--mb-enter, 0ms) + 100ms);
+  }
+  .ref-content:not([data-entered])
+    :is(
+      .ref-content > :not([data-page-motion='off']) > :not(:only-child),
+      .ref-content
+        > :not([data-page-motion='off'])
+        > :only-child:not([data-page-motion='off'])
+        > :not(:only-child),
+      .ref-content
+        > :not([data-page-motion='off'])
+        > :only-child:not([data-page-motion='off'])
+        > :only-child:not([data-page-motion='off'])
+        > *
+    ):not(
+      [data-page-motion='off'],
+      dialog,
+      [role='dialog'],
+      [aria-modal='true'],
+      [aria-busy='true'],
+      [role='status']
+    ):not(:has([data-page-motion='off']))
+    > :is(ul, ol)
+    > li:nth-child(-n + 6) {
+    animation: mb-slide-in var(--motion-medium) var(--ease-standard) backwards;
+    animation-delay: calc(var(--mb-enter, 0ms) + 80ms + var(--mb-step) * 40ms);
+  }
+}
+
+@keyframes mb-unfold {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(calc(var(--motion-distance-sm) * -1));
+  }
+  /* Ends wider than the box so shadows never snap in at the end. */
+  to {
+    clip-path: inset(-32px);
+  }
+}
+@keyframes mb-title-rise {
+  from {
+    transform: translateY(0.9em);
+    clip-path: inset(0 0 0.9em 0);
+  }
+  to {
+    clip-path: inset(-0.2em);
+  }
+}
+@keyframes mb-focus-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(var(--motion-distance-sm));
+  }
+}
+@keyframes mb-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+@keyframes mb-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
   }
 }
 
@@ -4684,25 +4891,6 @@ nav {
   .motion-progress {
     display: none;
   }
-}
-
-/* CRITICAL FIX: Force all workspace buttons to have light backgrounds */
-[class*='role-']
-  button:not(.btn-primary):not(.btn-outline):not(.btn-ghost):not(
-    .light-select-trigger
-  ):not(.light-select-option):not([class*='close']):not(
-    [class*='collapse']
-  ):not([class*='menu']):not([class*='bell']):not([class*='logout']):not([data-appointment-ui]):not([data-availability-ui]):not([data-clients-ui]):not([data-messages-ui]):not([data-earnings-ui]):not([data-profile-ui]) {
-  background: transparent !important;
-  background-color: transparent !important;
-}
-
-[class*='specialist-']
-  button:not(.btn-primary):not(.btn-outline):not(.btn-ghost):not(
-    .light-select-trigger
-  ):not(.light-select-option):not([class*='close']):not([data-appointment-ui]):not([data-availability-ui]):not([data-clients-ui]):not([data-messages-ui]):not([data-earnings-ui]):not([data-profile-ui]) {
-  background: transparent !important;
-  background-color: transparent !important;
 }
 
 /* Stable light dropdown used instead of browser-native dark select popups. */

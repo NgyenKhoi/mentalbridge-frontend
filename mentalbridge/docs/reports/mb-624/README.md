@@ -69,6 +69,13 @@ must carry a distinct assertion signature for its own operation. The regression
 reads those sources and fails when an adjacent feature, generic file path,
 unrelated Maestro script or repeated generic observation is used as evidence.
 
+MB-672 maintenance (2026-10-22): WBS-098 and WBS-099 web references now point
+to the Home emotion-week component tests after the former `EmotionProgress`
+widget was retired. These scenarios verify the factual seven-day view, gaps,
+private-context exclusion and refresh from a persisted check-in. This source
+maintenance keeps the frozen audit inputs, closure counts and channel states;
+it does not add staging-verification evidence.
+
 ## Per-channel verification state
 
 Web and Mobile are classified independently for every atomic row. These states

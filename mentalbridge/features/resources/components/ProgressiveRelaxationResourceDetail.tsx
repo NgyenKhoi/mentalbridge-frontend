@@ -17,7 +17,15 @@ import {
   Wind,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 
 import { Dialog } from '@/components/ui/Dialog'
 
@@ -39,6 +47,7 @@ type Props = Readonly<{
   progressLoadState: 'loading' | 'ready' | 'error'
   saving: boolean
   message: string
+  planNotice?: ReactNode
   onRetryProgress: () => void
   onMarkViewed: () => Promise<boolean>
   onConfirmCompletion: () => Promise<boolean>
@@ -64,11 +73,11 @@ export function ProgressiveRelaxationResourceDetail({
   resource,
   date,
   backHref,
-  embedUrl,
   status,
   progressLoadState,
   saving,
   message,
+  planNotice,
   onRetryProgress,
   onMarkViewed,
   onConfirmCompletion,
@@ -153,9 +162,6 @@ export function ProgressiveRelaxationResourceDetail({
               currentTime >= segment.start && currentTime < segment.end,
           ),
         )
-  const activeSegment =
-    progressiveRelaxationSegments[activeSegmentIndex] ??
-    progressiveRelaxationSegments[0]
   const breathPosition = Math.floor(currentTime) % 10
   const inhaling = breathPosition < 4
   const breathSecond = inhaling ? breathPosition + 1 : breathPosition - 3
@@ -165,7 +171,7 @@ export function ProgressiveRelaxationResourceDetail({
   const ringLength = 2 * Math.PI * 68
   const playedPercent = (currentTime / progressiveRelaxationDuration) * 100
 
-  function seekTo(seconds: number) {
+  const seekTo = useCallback((seconds: number) => {
     const target = Math.min(progressiveRelaxationDuration, Math.max(0, seconds))
     if (videoRef.current) {
       videoRef.current.currentTime = target
@@ -173,9 +179,9 @@ export function ProgressiveRelaxationResourceDetail({
     }
     setCurrentTime(target)
     setEnded(false)
-  }
+  }, [])
 
-  function togglePlay() {
+  const togglePlay = useCallback(() => {
     if (!videoRef.current) return
     if (ended) {
       seekTo(0)
@@ -184,7 +190,7 @@ export function ProgressiveRelaxationResourceDetail({
     } else {
       videoRef.current.pause()
     }
-  }
+  }, [ended, seekTo])
 
   function toggleMute() {
     if (!videoRef.current) return
@@ -238,7 +244,7 @@ export function ProgressiveRelaxationResourceDetail({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentTime, ended, isPlaying])
+  }, [currentTime, ended, isPlaying, seekTo, togglePlay])
 
   async function startCompletion() {
     if (!ended || progressLoadState !== 'ready' || saving) return
@@ -649,7 +655,7 @@ export function ProgressiveRelaxationResourceDetail({
                 ? 'Đã hoàn thành'
                 : saving
                   ? 'Đang ghi nhận...'
-                  : 'Hoàn thành (+15 XP)'}
+                  : 'Ghi nhận hoàn thành'}
             </button>
             {progressLoadState === 'error' && (
               <button
@@ -660,6 +666,7 @@ export function ProgressiveRelaxationResourceDetail({
                 Tải lại tiến độ
               </button>
             )}
+            {planNotice}
             {message && (
               <p className={styles.progressError} role="alert">
                 {message}

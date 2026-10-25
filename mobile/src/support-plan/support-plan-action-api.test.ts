@@ -9,6 +9,7 @@ import {
   canonicalSupportPlanSchema,
   emotionReconciliationSchema,
   journalReconciliationSchema,
+  supportPlanCompanionMessageSchema,
   type CanonicalSupportPlan,
 } from './support-plan-action-contract'
 import { makePlan, makeReassessmentSummary } from './support-plan-test-fixtures'
@@ -145,6 +146,23 @@ function journalReconciliationFixture() {
       kind: 'JOURNAL_ENTRY',
       factId: journalId,
     },
+  } as const
+}
+function companionFixture() {
+  return {
+    schemaVersion: 'support-plan-companion-message-v1',
+    supportPlanId: planId,
+    actionId,
+    intent: 'EXPLAIN_ACTION',
+    surface: 'TODAY',
+    text: 'Hoạt động này đến từ kế hoạch đã được bạn duyệt.',
+    delivery: 'GENERATED',
+    policyVersion: 'support-plan-companion-policy-v1',
+    promptVersion: 'support-plan-companion-prompt-v1',
+    templateVersion: 'support-plan-companion-template-v1',
+    provider: 'OPENAI',
+    model: 'bounded-test-model',
+    fallbackReason: null,
   } as const
 }
 function apiFixture(responses: unknown[]) {
@@ -436,5 +454,36 @@ describe('Native SupportPlan mobile transport', () => {
       ),
     ).rejects.toThrow('Journal evidence unavailable')
     expect(calls).toBe(1)
+  })
+  it('requests only the bounded companion surface and verifies response identity', async () => {
+    const response = companionFixture()
+    const { api, requests } = apiFixture([response])
+    expect(
+      await api.requestCompanionExplanation(planId, actionId, 'TODAY'),
+    ).toEqual(response)
+    expect(requests[0]?.url).toBe(
+      `/api/v2/support-plans/${planId}/actions/${actionId}/companion-explanation`,
+    )
+    expect(JSON.parse(requests[0]?.data)).toEqual({ surface: 'TODAY' })
+    expect(requests[0]?.headers.get('If-Match')).toBeUndefined()
+    expect(requests[0]?.headers.get('Idempotency-Key')).toBeUndefined()
+  })
+  it('fails closed for companion contract drift or a different owner identity', async () => {
+    const invalid = [
+      { ...companionFixture(), supportPlanId: actionId },
+      { ...companionFixture(), surface: 'PLAN' as const },
+      { ...companionFixture(), navigation: { destination: 'JOURNAL' } },
+      { ...companionFixture(), delivery: 'GENERATED' as const, provider: null },
+      { ...companionFixture(), text: 'x'.repeat(481) },
+    ]
+    for (const value of invalid) {
+      const { api } = apiFixture([value])
+      await expect(
+        api.requestCompanionExplanation(planId, actionId, 'TODAY'),
+      ).rejects.toThrow()
+    }
+    expect(
+      supportPlanCompanionMessageSchema.safeParse(companionFixture()).success,
+    ).toBe(true)
   })
 })

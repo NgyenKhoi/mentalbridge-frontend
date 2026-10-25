@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { PublicResourceDetail } from '../api/browser-resources'
 import { ProblemSolvingResourceDetail } from './ProblemSolvingResourceDetail'
+import { ResourcePlanNotice } from './ResourcePlanNotice'
 
 const mockResource = {
   id: '00000000-0000-4000-8000-000000000209',
@@ -23,6 +24,56 @@ const mockResource = {
 } as unknown as PublicResourceDetail
 
 describe('ProblemSolvingResourceDetail', () => {
+  it.each([false, true])(
+    'keeps the saved exercise confirmation unless plan completion is recorded (%s)',
+    async (planCompletionRecorded) => {
+      const onRecord = vi.fn().mockResolvedValue(true)
+      const { container } = render(
+        <ProblemSolvingResourceDetail
+          resource={mockResource}
+          backHref="/support-plan"
+          backLabel="Quay lại kế hoạch"
+          status="IN_PROGRESS"
+          progressLoadState="ready"
+          saving={false}
+          message=""
+          planNotice={
+            <ResourcePlanNotice
+              state={planCompletionRecorded ? 'recorded' : 'idle'}
+              returnHref="/support-plan"
+              onRetry={vi.fn()}
+            />
+          }
+          planCompletionRecorded={planCompletionRecorded}
+          onRetryProgress={vi.fn()}
+          onRecord={onRecord}
+        />,
+      )
+      const video = container.querySelector('video')!
+      Object.defineProperty(video, 'duration', {
+        configurable: true,
+        value: 360,
+      })
+      fireEvent.loadedMetadata(video)
+      fireEvent.ended(video)
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /Ghi nhận bài tập/i }),
+        )
+      })
+      expect(onRecord).toHaveBeenCalledOnce()
+      if (planCompletionRecorded) {
+        expect(
+          screen.queryByText('Đã lưu kết quả hoàn thành bài tập.'),
+        ).toBeNull()
+      } else {
+        expect(
+          screen.getByText('Đã lưu kết quả hoàn thành bài tập.'),
+        ).toBeInTheDocument()
+      }
+    },
+  )
+
   it('renders breadcrumb, chips, roadmap steps, practice card and CBT tips', () => {
     const onRecord = vi.fn().mockResolvedValue(true)
     const onRetryProgress = vi.fn()
@@ -42,10 +93,9 @@ describe('ProblemSolvingResourceDetail', () => {
     )
 
     // 1. Breadcrumb (single navigation, no duplicate "Quay lại Tài nguyên" button)
-    expect(screen.getByRole('link', { name: 'Tài nguyên' })).toHaveAttribute(
-      'href',
-      '/resources',
-    )
+    expect(
+      screen.getByRole('link', { name: 'Quay lại Tài nguyên' }),
+    ).toHaveAttribute('href', '/resources')
     expect(
       screen.getAllByText('Giải quyết một vấn đề theo từng bước').length,
     ).toBeGreaterThanOrEqual(2)
@@ -105,7 +155,7 @@ describe('ProblemSolvingResourceDetail', () => {
 
     // 7. Gate on recording button (disabled initially)
     const recordBtn = screen.getByRole('button', {
-      name: /Ghi nhận vào Kế hoạch hỗ trợ/i,
+      name: /Ghi nhận bài tập/i,
     })
     expect(recordBtn).toBeDisabled()
     expect(
@@ -132,7 +182,7 @@ describe('ProblemSolvingResourceDetail', () => {
     )
 
     const recordBtn = screen.getByRole('button', {
-      name: /Đã ghi nhận vào Kế hoạch hỗ trợ/i,
+      name: /Đã ghi nhận bài tập/i,
     })
     expect(recordBtn).toBeDisabled()
   })

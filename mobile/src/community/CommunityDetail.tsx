@@ -212,6 +212,7 @@ export function CommunityDetail({
   onHelp,
   onResource,
   onGone,
+  onPeerChat,
 }: Readonly<{
   api: CommunityApi
   subject: string
@@ -221,6 +222,7 @@ export function CommunityDetail({
   onHelp: () => void
   onResource: (id: string) => void
   onGone: (message: string) => void
+  onPeerChat?: (profileId: string) => void
 }>) {
   const client = useQueryClient()
   const [revealed, setRevealed] = useState(false)
@@ -295,6 +297,21 @@ export function CommunityDetail({
       )}
       <View style={[styles.column, query.isFetching && { display: 'none' }]}>
         <Text style={styles.heading}>{post.author.displayName}</Text>
+        {onPeerChat &&
+          etag === null &&
+          post.author.state === 'ACTIVE' &&
+          post.author.communityProfileId && (
+            <CommunityButton
+              label="Trò chuyện với tác giả"
+              onPress={() => {
+                if (
+                  post.author.state === 'ACTIVE' &&
+                  post.author.communityProfileId
+                )
+                  onPeerChat(post.author.communityProfileId)
+              }}
+            />
+          )}
         {post.author.state === 'ANONYMOUS' && (
           <Text style={styles.muted}>
             Bài viết ẩn danh · Không có liên kết hồ sơ tác giả

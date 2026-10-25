@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CalendarDays,
   Check,
@@ -47,36 +48,14 @@ const TOPICS = [
     label: 'Khí sắc & Trầm buồn',
     supportArea: 'DEPRESSIVE_SYMPTOMS',
   },
-  { id: 'insomnia', label: 'Mất ngủ', supportArea: '' },
-  { id: 'work_study', label: 'Học tập & Công việc', supportArea: '' },
-  { id: 'relationships', label: 'Quan hệ & Gia đình', supportArea: '' },
 ] as const
 
+// Tags come only from Consultation-owned support areas (no invented specialties).
 function getSpecialistTags(item: SpecialistDiscoveryItem): string[] {
-  if (item.displayName.includes('Quốc Bảo')) {
-    return ['Mất ngủ', 'Burnout công việc', 'Lo âu & Căng thẳng', 'Tư vấn sâu']
-  }
-  if (item.displayName.includes('Minh Anh')) {
-    return ['Khí sắc & Trầm buồn', 'Lo âu', 'Rối loạn cảm xúc']
-  }
-  if (item.displayName.includes('Thu Hà')) {
-    return ['Quan hệ & Gia đình', 'Khí sắc & Trầm buồn', 'Căng thẳng giao tiếp']
-  }
-  if (item.displayName.includes('Đức Long')) {
-    return ['Học tập & Thi cử', 'Mất ngủ', 'Áp lực hiệu suất']
-  }
-  const areaTags = item.supportAreas.map(
-    (area) => supportAreaLabels[area] ?? area,
-  )
-  if (areaTags.length > 0) return areaTags
-  return ['Tư vấn tâm lý']
+  return item.supportAreas.map((area) => supportAreaLabels[area] ?? area)
 }
 
 function initials(name: string) {
-  if (name.includes('Quốc Bảo')) return 'QB'
-  if (name.includes('Minh Anh')) return 'MA'
-  if (name.includes('Thu Hà')) return 'TH'
-  if (name.includes('Đức Long')) return 'ĐL'
   return name
     .trim()
     .split(/\s+/)
@@ -85,25 +64,9 @@ function initials(name: string) {
     .join('')
 }
 
-function getTone(name: string, index: number) {
-  if (name.includes('Quốc Bảo')) return 0
-  if (name.includes('Minh Anh')) return 1
-  if (name.includes('Thu Hà')) return 2
-  if (name.includes('Đức Long')) return 3
-  return index % 4
-}
-
-function formatEarliestSlot(item: SpecialistDiscoveryItem, index: number) {
+function formatEarliestSlot(item: SpecialistDiscoveryItem) {
   const earliest = item.explanation.earliestSelectableStartAt
-  if (!earliest) {
-    const mockHours = [
-      'Hôm nay, 19:00',
-      'Hôm nay, 20:00',
-      'Hôm nay, 21:00',
-      'Ngày mai, 08:00',
-    ]
-    return `Gần nhất: ${mockHours[index % mockHours.length]}`
-  }
+  if (!earliest) return 'Chưa có lịch trống'
   const date = new Date(earliest)
   const now = new Date()
   const isToday = date.toDateString() === now.toDateString()
@@ -159,7 +122,9 @@ function discoveryError(error: unknown) {
   return 'Danh sách chuyên gia đang tạm thời không khả dụng. Vui lòng thử lại.'
 }
 
-export default function SpecialistDiscovery() {
+export default function SpecialistDiscovery({
+  returnSupportGuideId,
+}: Readonly<{ returnSupportGuideId?: string }> = {}) {
   const [originatingPlanActionId, setOriginatingPlanActionId] = useState<
     string | null
   >(null)
@@ -205,9 +170,9 @@ export default function SpecialistDiscovery() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
   const [initialTab, setInitialTab] = useState<'profile' | 'slots'>('profile')
-  const [sortBy, setSortBy] = useState<'nearest' | 'rating' | 'experience'>(
-    'nearest',
-  )
+  // Default keeps the server's specialist-discovery-v2 order; rating and years
+  // of experience are not user-facing rank keys under the consultation policy.
+  const [sortBy, setSortBy] = useState<'recommended' | 'nearest'>('recommended')
   const [searchQuery, setSearchQuery] = useState('')
   const [availableCredits, setAvailableCredits] = useState<number | null>(null)
   const [bookedSlot, setBookedSlot] = useState<{
@@ -215,17 +180,29 @@ export default function SpecialistDiscovery() {
     name: string
   } | null>(null)
 
-  useEffect(() => {
+  // Booking is gated on this balance, so re-read it whenever it may have changed
+  // elsewhere (another tab, a released credit, an upgrade).
+  const creditRequest = useRef(0)
+  const refreshCredits = useCallback(() => {
+    // Only the latest read may set the balance; an older zero must not win.
+    const request = ++creditRequest.current
     void browserServiceCredits
       .get()
-      .then((account) => setAvailableCredits(account.balance.available))
-      .catch(() => setAvailableCredits(null))
+      .then((account) => account.balance.available)
+      .catch(() => null)
+      .then((available) => {
+        if (request === creditRequest.current) setAvailableCredits(available)
+      })
+  }, [])
+
+  useEffect(() => {
+    refreshCredits()
     const onSearch = (event: Event) =>
       setSearchQuery((event as CustomEvent<string>).detail ?? '')
     window.addEventListener('mentalbridge:specialist-search', onSearch)
     return () =>
       window.removeEventListener('mentalbridge:specialist-search', onSearch)
-  }, [])
+  }, [refreshCredits])
 
   const filters = useMemo<DiscoveryFilters>(
     () => ({
@@ -267,8 +244,16 @@ export default function SpecialistDiscovery() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0)
-    return () => window.clearTimeout(timer)
-  }, [load])
+    const refresh = () => {
+      void load()
+      refreshCredits()
+    }
+    window.addEventListener('focus', refresh)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [load, refreshCredits])
 
   const loadDetail = useCallback(
     async (id: string) => {
@@ -304,74 +289,17 @@ export default function SpecialistDiscovery() {
     setInitialTab(tab)
     setDetailId(id)
     void loadDetail(id)
+    refreshCredits()
   }
 
   async function booked() {
     await load()
-    void browserServiceCredits
-      .get()
-      .then((account) => setAvailableCredits(account.balance.available))
-      .catch(() => setAvailableCredits(null))
+    refreshCredits()
   }
 
   const visibleItems = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase('vi-VN')
     let result = items
-
-    if (selectedTopicId === 'anxiety') {
-      result = result.filter(
-        (item) =>
-          item.supportAreas.includes('ANXIETY_SYMPTOMS') ||
-          getSpecialistTags(item).some(
-            (t) =>
-              t.toLowerCase().includes('lo âu') ||
-              t.toLowerCase().includes('căng thẳng'),
-          ),
-      )
-    } else if (selectedTopicId === 'depression') {
-      result = result.filter(
-        (item) =>
-          item.supportAreas.includes('DEPRESSIVE_SYMPTOMS') ||
-          getSpecialistTags(item).some(
-            (t) =>
-              t.toLowerCase().includes('khí sắc') ||
-              t.toLowerCase().includes('trầm buồn'),
-          ),
-      )
-    } else if (selectedTopicId === 'insomnia') {
-      result = result.filter(
-        (item) =>
-          getSpecialistTags(item).some((t) =>
-            t.toLowerCase().includes('mất ngủ'),
-          ) ||
-          item.bio.toLowerCase().includes('mất ngủ') ||
-          item.displayName.includes('Quốc Bảo') ||
-          item.displayName.includes('Đức Long'),
-      )
-    } else if (selectedTopicId === 'work_study') {
-      result = result.filter(
-        (item) =>
-          getSpecialistTags(item).some(
-            (t) =>
-              t.toLowerCase().includes('công việc') ||
-              t.toLowerCase().includes('học tập') ||
-              t.toLowerCase().includes('burnout') ||
-              t.toLowerCase().includes('thi cử'),
-          ) ||
-          item.bio.toLowerCase().includes('công việc') ||
-          item.displayName.includes('Quốc Bảo') ||
-          item.displayName.includes('Đức Long'),
-      )
-    } else if (selectedTopicId === 'relationships') {
-      result = result.filter(
-        (item) =>
-          getSpecialistTags(item).some(
-            (t) =>
-              t.toLowerCase().includes('quan hệ') ||
-              t.toLowerCase().includes('gia đình'),
-          ) || item.displayName.includes('Thu Hà'),
-      )
-    }
 
     if (query) {
       result = result.filter((item) =>
@@ -384,19 +312,13 @@ export default function SpecialistDiscovery() {
       )
     }
 
-    return [...result].sort((a, b) => {
-      if (sortBy === 'rating')
-        return (
-          (b.ratingAggregate?.averageRating ?? -1) -
-          (a.ratingAggregate?.averageRating ?? -1)
-        )
-      if (sortBy === 'experience')
-        return b.yearsOfExperience - a.yearsOfExperience
-      return (a.explanation.earliestSelectableStartAt ?? 'Z').localeCompare(
+    if (sortBy === 'recommended') return result
+    return [...result].sort((a, b) =>
+      (a.explanation.earliestSelectableStartAt ?? 'Z').localeCompare(
         b.explanation.earliestSelectableStartAt ?? 'Z',
-      )
-    })
-  }, [items, searchQuery, selectedTopicId, sortBy])
+      ),
+    )
+  }, [items, searchQuery, sortBy])
 
   function resetFilters() {
     setSelectedTopicId('all')
@@ -404,13 +326,22 @@ export default function SpecialistDiscovery() {
     setLanguage('')
     setModality('')
     setSearchQuery('')
-    setSortBy('nearest')
+    setSortBy('recommended')
     window.dispatchEvent(new Event('mentalbridge:specialist-search-reset'))
     void load()
+    refreshCredits()
   }
 
   return (
     <main className={styles.page} data-discovery-ui="">
+      {returnSupportGuideId && (
+        <Link
+          className="btn btn-ghost"
+          href={`/support-guides/${returnSupportGuideId}`}
+        >
+          Quay lại gợi ý hỗ trợ
+        </Link>
+      )}
       {/* Hero Section */}
       <header className={styles.hero}>
         <div className={styles.heroDecor} aria-hidden="true">
@@ -421,12 +352,12 @@ export default function SpecialistDiscovery() {
         <div className={styles.heroContent}>
           <div className={styles.heroBadge}>
             <span className={styles.greenDot} />
-            <span>Không gian tư vấn an toàn &amp; Bảo mật chuẩn y tế</span>
+            <span>Kết nối trực tuyến</span>
           </div>
           <h1 className={styles.heroTitle}>Kết nối chuyên gia tâm lý</h1>
           <p className={styles.heroSubtitle}>
-            Xem hồ sơ chuyên gia đã qua hội đồng thẩm định chuyên môn. Dễ dàng
-            đặt lịch trao đổi qua kênh chat bảo mật hoặc video phiên 60 phút.
+            Xem hồ sơ chuyên gia đã được phê duyệt và chọn khung giờ chat hoặc
+            video 60 phút đang khả dụng.
           </p>
 
           <div className={styles.heroCards}>
@@ -441,13 +372,9 @@ export default function SpecialistDiscovery() {
               </div>
               <div className={styles.statText}>
                 <strong className={styles.statNumber}>
-                  {loading
-                    ? '—'
-                    : `${items.length > 0 ? items.length : 3} chuyên gia`}
+                  {loading ? '—' : `${items.length} chuyên gia`}
                 </strong>
-                <span className={styles.statLabel}>
-                  Sẵn sàng nhận lịch hôm nay
-                </span>
+                <span className={styles.statLabel}>Đang có lịch trống</span>
               </div>
             </div>
 
@@ -480,20 +407,24 @@ export default function SpecialistDiscovery() {
               <div className={styles.statText}>
                 <div className={styles.statDarkTitle}>
                   <strong>
-                    Gói{' '}
-                    {page?.packageCode === 'FREE'
-                      ? 'Free'
-                      : page?.packageCode === 'PREMIUM'
-                        ? 'Premium'
-                        : 'Plus'}{' '}
-                    của bạn
+                    {page
+                      ? `Gói ${
+                          page.packageCode === 'FREE'
+                            ? 'Free'
+                            : page.packageCode === 'PREMIUM'
+                              ? 'Premium'
+                              : 'Plus'
+                        } của bạn`
+                      : 'Gói của bạn'}
                   </strong>
                   <span className={styles.onlineDot} />
                 </div>
                 <span className={styles.statDarkLabel}>
-                  {availableCredits !== null
-                    ? `Còn ${availableCredits} phiên miễn phí`
-                    : 'Còn 1 phiên miễn phí'}
+                  {page?.packageCode === 'FREE'
+                    ? 'Xem hồ sơ; đặt lịch cần gói Plus hoặc Premium'
+                    : availableCredits !== null
+                      ? `Còn ${availableCredits} lượt tư vấn theo gói`
+                      : 'Lượt tư vấn được kiểm tra khi đặt lịch'}
                 </span>
               </div>
             </div>
@@ -509,10 +440,6 @@ export default function SpecialistDiscovery() {
           <div className={styles.topicChips}>
             {TOPICS.map((topic) => {
               const isActive = selectedTopicId === topic.id
-              const labelWithCount =
-                topic.id === 'all'
-                  ? `Tất cả (${items.length || 4})`
-                  : topic.label
               return (
                 <button
                   key={topic.id}
@@ -522,16 +449,10 @@ export default function SpecialistDiscovery() {
                   disabled={loading}
                   onClick={() => {
                     setSelectedTopicId(topic.id)
-                    if (topic.supportArea) {
-                      setSupportArea(
-                        topic.supportArea as DiscoveryFilters['supportArea'],
-                      )
-                    } else if (supportArea) {
-                      setSupportArea('')
-                    }
+                    setSupportArea(topic.supportArea)
                   }}
                 >
-                  {labelWithCount}
+                  {topic.label}
                 </button>
               )
             })}
@@ -578,15 +499,27 @@ export default function SpecialistDiscovery() {
               >
                 Chat
               </button>
-              <button
-                type="button"
-                disabled
-                aria-label="Video · sắp có"
-                className={styles.modalityBtnDisabled}
-                title="Video trong ứng dụng hiện chưa khả dụng"
-              >
-                Video <span className={styles.badgeSoon}>sắp có</span>
-              </button>
+              {page?.videoEnabled ? (
+                <button
+                  type="button"
+                  className={`${styles.modalityBtn} ${modality === 'IN_APP_VIDEO' ? styles.modalityBtnActive : ''}`}
+                  data-active={modality === 'IN_APP_VIDEO'}
+                  disabled={loading}
+                  onClick={() => setModality('IN_APP_VIDEO')}
+                >
+                  Video
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  aria-label="Video · sắp có"
+                  className={styles.modalityBtnDisabled}
+                  title="Video trong ứng dụng hiện chưa khả dụng"
+                >
+                  Video <span className={styles.badgeSoon}>sắp có</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -606,18 +539,34 @@ export default function SpecialistDiscovery() {
         </div>
 
         {/* Row 3: Notice Strip */}
-        <div className={styles.benefitNotice}>
-          <div className={styles.benefitLeft}>
-            <strong>Quyền lợi hội viên:</strong>{' '}
-            <span>
-              Gói Plus tự động miễn phí 100% chi phí phiên chat đầu tiên khi bạn
-              ấn <strong>Đặt lịch.</strong>
-            </span>
+        {page && (
+          <div className={styles.benefitNotice}>
+            <div className={styles.benefitLeft}>
+              {page.packageCode === 'FREE' ? (
+                <span>
+                  <strong>Bạn đang dùng gói Free.</strong> Bạn có thể xem hồ sơ
+                  và khung giờ; đặt lịch cần gói Plus hoặc Premium.
+                </span>
+              ) : (
+                <span>
+                  <strong>
+                    Gói {page.packageCode === 'PLUS' ? 'Plus' : 'Premium'}.
+                  </strong>{' '}
+                  Khi gửi yêu cầu, quyền lợi và lượt tư vấn sẽ được kiểm tra
+                  lại.
+                </span>
+              )}
+            </div>
+            {!page.videoEnabled && (
+              <div className={styles.benefitRight}>
+                <span>
+                  Video trong ứng dụng hiện chưa khả dụng; chỉ hiển thị lịch
+                  chat.
+                </span>
+              </div>
+            )}
           </div>
-          <div className={styles.benefitRight}>
-            <span>Hệ thống đang mở phiên tư vấn văn bản (Chat E2EE).</span>
-          </div>
-        </div>
+        )}
       </section>
 
       {/* Booked Upcoming Slot (if any) */}
@@ -649,9 +598,8 @@ export default function SpecialistDiscovery() {
                 setSortBy(event.target.value as typeof sortBy)
               }
             >
+              <option value="recommended">Phù hợp nhất</option>
               <option value="nearest">Lịch trống gần nhất</option>
-              <option value="rating">Đánh giá cao nhất</option>
-              <option value="experience">Kinh nghiệm nhiều nhất</option>
             </select>
           </label>
         </div>
@@ -701,7 +649,7 @@ export default function SpecialistDiscovery() {
               >
                 <div
                   className={cardStyles.avatar}
-                  data-tone={getTone(item.displayName, index)}
+                  data-tone={index % 4}
                   data-available={Boolean(
                     item.explanation.earliestSelectableStartAt,
                   )}
@@ -713,12 +661,12 @@ export default function SpecialistDiscovery() {
                 <h2>{item.displayName}</h2>
 
                 <span className={cardStyles.verified}>
-                  <Check size={12} strokeWidth={2.5} aria-hidden="true" /> Đã
-                  kiểm định khoa
+                  <Check size={12} strokeWidth={2.5} aria-hidden="true" /> Hồ sơ
+                  đã duyệt
                 </span>
 
                 <p className={cardStyles.experience}>
-                  {item.yearsOfExperience} năm kinh nghiệm tâm lý lâm sàng
+                  {item.yearsOfExperience} năm kinh nghiệm
                 </p>
 
                 {item.ratingAggregate ? (
@@ -748,7 +696,7 @@ export default function SpecialistDiscovery() {
 
                 <div className={cardStyles.nearest}>
                   <Clock3 size={15} aria-hidden="true" />
-                  <span>{formatEarliestSlot(item, index)}</span>
+                  <span>{formatEarliestSlot(item)}</span>
                 </div>
 
                 <div className={cardStyles.actions}>
@@ -794,19 +742,17 @@ export default function SpecialistDiscovery() {
         className={styles.trustBanner}
         aria-label="Cam kết bảo mật và chuẩn mực"
       >
-        <h3 className={styles.trustTitle}>
-          CAM KẾT BẢO MẬT &amp; CHUẨN MỰC CHĂM SÓC TẠI MENTALBRIDGE
-        </h3>
+        <h3 className={styles.trustTitle}>BẢO MẬT VÀ PHẠM VI HỖ TRỢ</h3>
         <div className={styles.trustGrid}>
           <div className={styles.trustItem}>
             <div className={styles.trustIconBox}>
               <Lock size={20} className={styles.trustIcon} aria-hidden="true" />
             </div>
             <div className={styles.trustContent}>
-              <h4>Mã hóa đầu cuối E2EE</h4>
+              <h4>Kết nối được mã hóa</h4>
               <p>
-                Nội dung hội thoại chat và dữ liệu sức khỏe được mã hóa tuyệt
-                đối, chỉ bạn và chuyên gia được phép tiếp cận.
+                Phiên chat và video trong ứng dụng dùng kết nối được mã hóa khi
+                truyền.
               </p>
             </div>
           </div>
@@ -820,10 +766,10 @@ export default function SpecialistDiscovery() {
               />
             </div>
             <div className={styles.trustContent}>
-              <h4>Tiêu chuẩn Y tế &amp; Bác sĩ tuyển chọn</h4>
+              <h4>Hồ sơ đã được phê duyệt</h4>
               <p>
-                100% chuyên gia sở hữu bằng Thạc sĩ / Bác sĩ chuyên khoa tâm
-                thần, tâm lý lâm sàng có chứng chỉ hành nghề hợp lệ.
+                Chỉ chuyên gia có hồ sơ đã duyệt và còn khung giờ trống mới xuất
+                hiện tại đây.
               </p>
             </div>
           </div>
@@ -837,10 +783,10 @@ export default function SpecialistDiscovery() {
               />
             </div>
             <div className={styles.trustContent}>
-              <h4>Hỗ trợ khẩn cấp 24/7</h4>
+              <h4>Hỗ trợ phi lâm sàng</h4>
               <p>
-                Trong tình huống cấp bách, đội ngũ hỗ trợ khẩn cấp và đường dây
-                nóng luôn túc trực trợ giúp điều phối kịp thời.
+                Buổi tư vấn không thay thế chẩn đoán hay điều trị y tế. Khi cần
+                giúp ngay, hãy dùng mục hỗ trợ khẩn cấp.
               </p>
             </div>
           </div>

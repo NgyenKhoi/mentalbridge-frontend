@@ -2,18 +2,23 @@ import 'server-only'
 
 import type {
   ChangeSupportPlanStatusRequest,
+  ConfirmAdaptiveReviewOptionRequest,
   ProposeNativeSupportPlanRequest,
   ReplaceCurrentSupportPlanRequest,
+  ReplaceSupportPlanOccurrenceEngagementRequest,
 } from '@/features/support-plan/api/support-plan-contract'
 import { ApiError } from '@/lib/api/api-error'
 import { careRequest } from './care-client'
 import {
+  parseAdaptiveReviewConfirmation,
+  parseAdaptiveSupportPlanReview,
   parseActionOccurrence,
   parseActionOccurrenceList,
   parseCanonicalSupportPlan,
   parseEmotionCheckInReconciliation,
   parseJournalReconciliation,
   parseNativeSupportPlanReplacementReview,
+  parsePlanResourceActions,
   parseSupportPlanActionHistory,
   parseSupportPlanContextualCompanionMessage,
 } from './support-plan-action-validation'
@@ -34,6 +39,22 @@ function identity<T extends { supportPlanId: string }>(
 }
 
 export const supportPlanActionClient = {
+  resourceActions(
+    authorization: string,
+    localDate: string,
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v2/support-plans/current/resource-actions?${new URLSearchParams({ localDate })}`,
+      authorization,
+      correlationId,
+      parseSuccess(value) {
+        const parsed = parsePlanResourceActions(value)
+        return parsed?.localDate === localDate ? parsed : null
+      },
+    })
+  },
   current(authorization: string, correlationId: string) {
     return careRequest({
       method: 'GET',
@@ -115,12 +136,10 @@ export const supportPlanActionClient = {
       idempotencyKey,
       authorization,
       correlationId,
+      // An idempotent replay returns the plan's current view, which may no longer be a draft.
       parseSuccess(value) {
         const parsed = parseCanonicalSupportPlan(value)
-        return parsed?.representationMode === 'NATIVE_V3' &&
-          parsed.status === 'DRAFT'
-          ? parsed
-          : null
+        return parsed?.representationMode === 'NATIVE_V3' ? parsed : null
       },
     })
   },
@@ -275,6 +294,113 @@ export const supportPlanActionClient = {
       parseSuccess(value) {
         const parsed = parseJournalReconciliation(value)
         return parsed?.occurrenceId === id && parsed.journalId === journalId
+          ? parsed
+          : null
+      },
+    })
+  },
+  reconcileResource(
+    authorization: string,
+    id: string,
+    ifMatch: number,
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'POST',
+      path: `${occurrencePath(id)}/resource/reconcile`,
+      ifMatch,
+      authorization,
+      correlationId,
+      parseSuccess(value) {
+        const parsed = parseActionOccurrence(value)
+        return parsed?.occurrenceId === id &&
+          parsed.actionType === 'RESOURCE' &&
+          parsed.state === 'COMPLETED' &&
+          parsed.completionEvidence?.ownerDomain === 'CONTENT'
+          ? parsed
+          : null
+      },
+    })
+  },
+  adaptiveReview(
+    authorization: string,
+    id: string,
+    ifMatch: number | undefined,
+    reassessmentSummaryId: string | undefined,
+    correlationId: string,
+  ) {
+    const query = reassessmentSummaryId
+      ? `?${new URLSearchParams({ reassessmentSummaryId })}`
+      : ''
+    return careRequest({
+      method: 'GET',
+      path: `${planPath(id)}/adaptive-review${query}`,
+      ifMatch,
+      authorization,
+      correlationId,
+      parseSuccess: identity(parseAdaptiveSupportPlanReview, id),
+    })
+  },
+  adaptiveConfirm(
+    authorization: string,
+    id: string,
+    ifMatch: number,
+    body: ConfirmAdaptiveReviewOptionRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'POST',
+      path: `${planPath(id)}/adaptive-review/confirm`,
+      body,
+      ifMatch,
+      idempotencyKey,
+      authorization,
+      correlationId,
+      parseSuccess(value) {
+        const parsed = parseAdaptiveReviewConfirmation(value)
+        return parsed?.optionId === body.optionId &&
+          (parsed.result === 'REPLACED' || parsed.plan.supportPlanId === id)
+          ? parsed
+          : null
+      },
+    })
+  },
+  continueCycle(
+    authorization: string,
+    id: string,
+    ifMatch: number,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'POST',
+      path: `${planPath(id)}/cycle-continuation`,
+      ifMatch,
+      idempotencyKey,
+      authorization,
+      correlationId,
+      parseSuccess: identity(parseCanonicalSupportPlan, id),
+    })
+  },
+  occurrenceEngagement(
+    authorization: string,
+    id: string,
+    ifMatch: number,
+    body: ReplaceSupportPlanOccurrenceEngagementRequest,
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'PUT',
+      path: `${occurrencePath(id)}/engagement`,
+      body,
+      ifMatch,
+      authorization,
+      correlationId,
+      parseSuccess(value) {
+        const parsed = parseActionOccurrence(value)
+        return parsed?.occurrenceId === id &&
+          parsed.representationMode === 'NATIVE_V3'
           ? parsed
           : null
       },
