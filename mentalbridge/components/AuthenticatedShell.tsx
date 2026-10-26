@@ -171,6 +171,14 @@ const labels: Record<string, string> = {
   '/profile': 'Hồ sơ và quyền riêng tư',
 }
 
+function resolveContextLabel(pathname: string) {
+  if (pathname.startsWith('/assessments/results/')) {
+    return 'Kết quả sàng lọc'
+  }
+
+  return labels[pathname] ?? 'MentalBridge'
+}
+
 export default function AuthenticatedShell({
   children,
   workspaces,
@@ -265,6 +273,11 @@ export default function AuthenticatedShell({
   }, [])
 
   const displayName = profile?.displayName || 'Người dùng'
+  const isScreeningJourney = [
+    '/initial-check',
+    '/assessments',
+    '/support-guides',
+  ].some((route) => pathname === route || pathname.startsWith(`${route}/`))
   const isProgressiveRelaxation =
     pathname === '/resources/00000000-0000-4000-8000-000000000215' ||
     pathname === '/resources/00000000-0000-4000-8000-000000000216'

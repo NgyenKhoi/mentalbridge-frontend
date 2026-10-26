@@ -92,9 +92,10 @@ function viewStatus(profile: SpecialistProfile | null): ViewStatus {
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (!parts.length) return '?'
-  return `${parts.at(-1)?.[0] ?? ''}${parts[0]?.[0] ?? ''}`.toLocaleUpperCase(
-    'vi-VN',
-  )
+  return parts
+    .slice(-2)
+    .map((part) => Array.from(part)[0]?.toLocaleUpperCase('vi') ?? '')
+    .join('')
 }
 
 export default function SpecialistProfileWorkspace() {
@@ -118,6 +119,7 @@ export default function SpecialistProfileWorkspace() {
   const [documentsError, setDocumentsError] = useState('')
   const [documentsLoading, setDocumentsLoading] = useState(false)
   const [badgeBusyId, setBadgeBusyId] = useState<string | null>(null)
+  const [readAttempt, setReadAttempt] = useState(0)
 
   useEffect(() => {
     let active = true
@@ -126,12 +128,13 @@ export default function SpecialistProfileWorkspace() {
       .then(async (result) => {
         if (!active) return
         setProfile(result.data)
+        setDocumentsLoading(true)
         setEtag(result.etag)
         setForm(result.data)
         setSavedForm(result.data)
         let editable: SpecialistProfileInput = result.data
         if (result.data.approvalStatus === 'APPROVED') {
-          const current = await browserConsultation.ownProfileAmendment()
+          const current = await browserConsultation.ownAmendment()
           if (!active) return
           const pending = current.data.amendment
           if (pending && !['APPROVED', 'CANCELLED'].includes(pending.status)) {
@@ -149,7 +152,9 @@ export default function SpecialistProfileWorkspace() {
           (!(cause instanceof BrowserConsultationError) || cause.status !== 404)
         )
           setError(
-            cause instanceof Error ? cause.message : 'Không thể tải hồ sơ.',
+            cause instanceof BrowserConsultationError
+              ? cause.message
+              : 'Chưa thể tải hồ sơ. Hãy kiểm tra kết nối và thử lại.',
           )
       })
       .finally(() => {
@@ -158,12 +163,13 @@ export default function SpecialistProfileWorkspace() {
     return () => {
       active = false
     }
-  }, [])
+  }, [readAttempt])
+
+  const profileAccountId = profile?.accountId
 
   useEffect(() => {
-    if (!profile) return
+    if (!profileAccountId) return
     let active = true
-    setDocumentsLoading(true)
     browserConsultation
       .credentialDocuments()
       .then((result) => {
@@ -184,7 +190,7 @@ export default function SpecialistProfileWorkspace() {
     return () => {
       active = false
     }
-  }, [profile?.accountId])
+  }, [profileAccountId])
 
   const status = viewStatus(profile)
   const locked = status === 'SUSPENDED'
@@ -279,14 +285,14 @@ export default function SpecialistProfileWorkspace() {
         if (!current) {
           if (!etag)
             throw new Error('Không có phiên bản hồ sơ để bắt đầu chỉnh sửa.')
-          const started = await browserConsultation.startProfileAmendment(etag)
+          const started = await browserConsultation.startAmendment(etag)
           current = started.data
           currentEtag = started.etag
           setAmendment(current)
           setAmendmentEtag(currentEtag)
         }
         if (!currentEtag) throw new Error('Không có phiên bản bản chỉnh sửa.')
-        const result = await browserConsultation.editProfileAmendment(
+        const result = await browserConsultation.saveAmendment(
           current.id,
           form,
           currentEtag,
@@ -329,10 +335,10 @@ export default function SpecialistProfileWorkspace() {
     setNotice('')
     try {
       if (status === 'APPROVED' && amendment && amendmentEtag) {
-        const result = await browserConsultation.submitProfileAmendment(
+        const result = await browserConsultation.submitAmendment(
           amendment.id,
+          amendment.status === 'REJECTED' ? 'resubmit' : 'submit',
           amendmentEtag,
-          amendment.status === 'REJECTED',
         )
         setAmendment(result.data)
         setAmendmentEtag(result.etag)
@@ -364,10 +370,54 @@ export default function SpecialistProfileWorkspace() {
     }
   }
 
+  async function cancelAmendment() {
+    if (!amendment || !amendmentEtag) return
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      await browserConsultation.cancelAmendment(amendment.id, amendmentEtag)
+      setAmendment(null)
+      setAmendmentEtag(null)
+      if (profile) {
+        setForm(profile)
+        setSavedForm(profile)
+      }
+      const message =
+        'Đã hủy bản chỉnh sửa. Đã khôi phục thông tin hồ sơ đã phê duyệt.'
+      setNotice(message)
+      showActionToast({ title: message, tone: 'success' })
+      window.dispatchEvent(new Event('mb:specialist-profile-updated'))
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Không thể hủy bản chỉnh sửa.',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (loading)
     return (
       <section className={styles.loading} aria-busy="true">
         Đang tải hồ sơ…
+      </section>
+    )
+
+  if (error && !profile)
+    return (
+      <section className={styles.loading}>
+        <p role="alert">{error}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setError('')
+            setLoading(true)
+            setReadAttempt((value) => value + 1)
+          }}
+        >
+          Thử lại
+        </button>
       </section>
     )
 
@@ -387,6 +437,7 @@ export default function SpecialistProfileWorkspace() {
         <div className={styles.headingActions}>
           <button
             className={styles.documentsButton}
+            data-profile-ui
             type="button"
             onClick={() => {
               setSelectedDocumentId(null)
@@ -398,6 +449,7 @@ export default function SpecialistProfileWorkspace() {
           {!locked && dirty && (
             <button
               className={styles.topSave}
+              data-profile-ui
               type="submit"
               form="specialist-profile-form"
               disabled={!canSave}
@@ -426,7 +478,26 @@ export default function SpecialistProfileWorkspace() {
                 <p>
                   Chuyên gia tâm lý{' '}
                   <span data-state={status}>{statusTitle[status]}</span>
+                  {amendment &&
+                    !['APPROVED', 'CANCELLED'].includes(amendment.status) && (
+                      <span className={styles.amendmentPill}>
+                        Bản chỉnh sửa (
+                        {amendment.status === 'DRAFT'
+                          ? 'Chưa gửi duyệt'
+                          : 'Chờ xét duyệt'}
+                        )
+                      </span>
+                    )}
                 </p>
+                {amendment &&
+                  !['APPROVED', 'CANCELLED'].includes(amendment.status) &&
+                  profile?.displayName &&
+                  profile.displayName !== form.displayName && (
+                    <p className={styles.publicNameHint}>
+                      Tên hiển thị công khai hiện tại:{' '}
+                      <strong>{profile.displayName}</strong>
+                    </p>
+                  )}
               </div>
             </div>
             <p className={styles.heroHint}>
@@ -494,7 +565,7 @@ export default function SpecialistProfileWorkspace() {
                 maxLength={120}
                 disabled={locked}
                 value={form.displayName}
-                placeholder="Ví dụ: ThS. Nguyễn Thu Hà"
+                placeholder="Ví dụ: ThS. BS. Minh Anh"
                 onChange={(event) =>
                   setForm({ ...form, displayName: event.target.value })
                 }
@@ -664,6 +735,7 @@ export default function SpecialistProfileWorkspace() {
               </div>
               <button
                 className={styles.addCredential}
+                data-profile-ui
                 type="button"
                 disabled={!profile}
                 onClick={() => setUploadOpen(true)}
@@ -679,7 +751,7 @@ export default function SpecialistProfileWorkspace() {
                 {documentsError}
               </p>
             )}
-            {!documentsLoading && documents.length === 0 && (
+            {!documentsLoading && !documentsError && documents.length === 0 && (
               <p className={styles.credentialState}>
                 Bạn chưa có giấy tờ. Tải lên giấy tờ đầu tiên để được xác minh.
               </p>
@@ -761,12 +833,25 @@ export default function SpecialistProfileWorkspace() {
                       ? 'Các thay đổi chưa lưu'
                       : 'Hồ sơ đã được lưu'}
               </span>
-              <button type="submit" disabled={!canSave}>
+              {amendment &&
+                !['APPROVED', 'CANCELLED'].includes(amendment.status) && (
+                  <button
+                    type="button"
+                    data-profile-ui
+                    className={styles.discardButton}
+                    disabled={busy}
+                    onClick={() => void cancelAmendment()}
+                  >
+                    Hủy bản chỉnh sửa
+                  </button>
+                )}
+              <button data-profile-ui type="submit" disabled={!canSave}>
                 {busy ? 'Đang xử lý…' : 'Lưu thay đổi'}
               </button>
               <button
                 type="button"
                 className={styles.primary}
+                data-profile-ui
                 disabled={
                   busy ||
                   dirty ||
