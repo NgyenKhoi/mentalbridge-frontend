@@ -271,6 +271,11 @@ anything and never moves focus. It stays as a static dock or is hidden:
 `/ai-companion` already has its own conversation surface, so a second character
 there would duplicate it.
 
+Until MB-772 merges the SupportPlan Companion with Mầm, the global dock stays
+hidden on `/support-plan`, so the page never shows two companions (owner
+decision, 2026-10-27, MB-768). The host shows the dock only on the routes in
+`features/mam/mam-routes.ts`; any other route hides it.
+
 SupportPlan stays under policy v1. Policy v1 requires a v2 for any additive
 automatic trigger (`support-plan-companion-policy-v1.md:253`), and an award
 celebration on SupportPlan would be one. This ADR therefore adds none there.
@@ -381,6 +386,11 @@ does not use the budget but obeys hidden, muted, motion and suppression.
 | Mute           | No automatic appearances and no live-region announcements. Requested text still shows | Session (policy v1). Cross-session needs the preference contract MB-653 names                                      |
 | Animations off | `reducedMotion=true`. The OS `prefers-reduced-motion` setting forces it on            | Per device                                                                                                         |
 
+MB-768 stores them as `mentalbridge_mam_hidden` (localStorage),
+`mentalbridge_mam_session_muted` (sessionStorage) and `mentalbridge_mam_motion`
+(localStorage). A hidden Mầm leaves a 44 px "Hiện Mầm" handle in the dock
+corner.
+
 Controls are reachable from the dock by keyboard. Hiding Mầm never hides
 authoritative plan, safety, save, validation or error feedback.
 
@@ -402,7 +412,9 @@ authoritative plan, safety, save, validation or error feedback.
     focused element.
   - Native modal dialogs render in the top layer above it.
   - The desktop dock sits bottom-left, because the crisis widget sits
-    bottom-right. MB-768 owns mobile placement.
+    bottom-right. Below 900 px the 72 px dock also sits bottom-left, 16 px
+    from the edges like the crisis button, and the shell adds bottom space so
+    the last row of a page scrolls clear of it (MB-768).
 - Host motion (dock travel and bubble) uses the product tokens `--motion-base`
   and `--motion-medium` with `--ease-standard`. The hero's off-dock flight
   (about 1.4 s in the art spec) is a host transform. It is skipped in reduced
