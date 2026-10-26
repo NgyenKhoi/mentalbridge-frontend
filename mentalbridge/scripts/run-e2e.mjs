@@ -149,6 +149,7 @@ async function run() {
       IDENTITY_API_BASE_URL: `http://${host}:${identityPort}`,
       CARE_API_BASE_URL: `http://${host}:${carePort}`,
       CARE_API_TIMEOUT_MS: '3000',
+      MAM_WEB_ENABLED: process.env.MAM_WEB_ENABLED ?? 'true',
       CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
       CONTENT_SERVICE_URL: `http://${host}:${identityPort}`,
       CONSULTATION_SERVICE_URL: `http://${host}:${identityPort}`,

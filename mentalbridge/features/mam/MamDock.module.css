@@ -1,0 +1,269 @@
+/*
+ * Bottom-left of the content column, mirroring the crisis button bottom-right.
+ * Below the mobile nav scrim (90), the sidebar (100), toasts (100200) and the
+ * crisis widget (120000).
+ */
+.root {
+  --mam-dock-offset: 0px;
+  position: fixed;
+  z-index: 80;
+  left: 24px;
+  bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px));
+  transform: translateX(var(--mam-dock-offset));
+  transition:
+    transform 280ms var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard);
+}
+
+/* Steps aside while keyboard focus sits on something under the dock. */
+.root[data-yield='true'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Follows the shell sidebar (232 / 76 px, `dashboard-shell.css`). */
+:global(body:has(.ref-shell)) .root {
+  --mam-dock-offset: 232px;
+}
+
+:global(body:has(.ref-shell.collapsed)) .root {
+  --mam-dock-offset: 76px;
+}
+
+/* Lets the last row of a page scroll clear of the dock. */
+:global(body:has([data-mam-dock])) :global(.ref-main) {
+  padding-bottom: 104px;
+}
+
+.dockWrap {
+  position: relative;
+}
+
+.dock {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.dock:hover,
+.dock[data-open='true'] {
+  transform: translateY(-2px);
+}
+
+.dock:active {
+  transform: scale(var(--motion-scale-enter));
+}
+
+.dock:focus-visible,
+.handle:focus-visible,
+.hide:focus-visible,
+.row:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 3px;
+}
+
+.handle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line); /* taste-skill-ignore: a white handle needs an edge on the pale canvas */
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--teal);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.handle:hover {
+  color: var(--teal-deep);
+  transform: translateY(-2px);
+}
+
+.handle:active {
+  transform: scale(var(--motion-scale-enter));
+}
+
+.menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  display: grid;
+  gap: 4px;
+  width: min(300px, calc(100vw - 32px));
+  max-height: calc(100dvh - 140px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 12px 8px;
+  border: 1px solid var(--line); /* taste-skill-ignore: overlay edge, as other menus in the app */
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: 0 14px 36px rgba(27, 42, 34, 0.14); /* taste-skill-ignore: a real overlay */
+  transform-origin: bottom left;
+}
+
+.title {
+  padding-inline: 4px;
+  color: var(--ink);
+  font: 600 1.125rem/1.3 var(--font-fraunces);
+}
+
+.lead {
+  margin-bottom: 8px;
+  padding-inline: 4px;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 4px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.row:hover:not([aria-disabled='true']) {
+  background: var(--surface-soft);
+}
+
+.row:active:not([aria-disabled='true']) .switch {
+  transform: scale(var(--motion-scale-enter));
+}
+
+.row[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+.rowText,
+.rowLabel,
+.rowHint {
+  display: block;
+}
+
+.rowText {
+  display: grid;
+  gap: 2px;
+}
+
+.rowLabel {
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.rowHint {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+/* Same switch as the notification settings. */
+.switch {
+  position: relative;
+  flex: none;
+  width: 45px;
+  height: 25px;
+  display: block;
+  border-radius: var(--radius-pill);
+  background: rgba(27, 42, 34, 0.15);
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.switch > span {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+
+.row[aria-checked='true'] .switch {
+  background: var(--teal);
+}
+
+.row[aria-checked='true'] .switch > span {
+  transform: translateX(20px);
+}
+
+.row[aria-disabled='true'] .switch {
+  opacity: 0.48;
+}
+
+.hide {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+
+.hide:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 900px) {
+  .root {
+    left: 16px;
+    bottom: max(16px, calc(env(safe-area-inset-bottom) + 12px));
+    --mam-dock-offset: 0px;
+  }
+
+  :global(body:has(.ref-shell)) .root,
+  :global(body:has(.ref-shell.collapsed)) .root {
+    --mam-dock-offset: 0px;
+  }
+
+  :global(body:has([data-mam-dock])) :global(.ref-main) {
+    padding-bottom: 96px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .dock,
+  .handle,
+  .row,
+  .switch,
+  .switch > span {
+    transition: none;
+  }
+
+  .dock:hover,
+  .dock[data-open='true'],
+  .handle:hover {
+    transform: none;
+  }
+}

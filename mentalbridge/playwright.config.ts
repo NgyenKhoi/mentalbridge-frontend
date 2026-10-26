@@ -91,6 +91,8 @@ export default defineConfig({
             PORT: String(port),
             JOURNAL_AI_SERVICE_URL: identityFixtureURL,
             JOURNAL_AI_SERVICE_TIMEOUT_MS: '3000',
+            // E2E covers the Mầm dock (MB-768); production stays off until MB-775.
+            MAM_WEB_ENABLED: process.env.MAM_WEB_ENABLED ?? 'true',
           },
           reuseExistingServer: false,
           timeout: 120_000,

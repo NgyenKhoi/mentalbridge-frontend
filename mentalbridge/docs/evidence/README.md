@@ -1,5 +1,9 @@
 # Synthetic browser evidence
 
+MB-768 mounts one Mầm dock per tab on eligible USER routes, with hide, mute
+and motion controls. Results are in
+[`mb-768-mam-global-dock.md`](mb-768-mam-global-dock.md).
+
 MB-767 adds the lazy-loaded Mầm renderer with a static fallback. Real-runtime,
 no-splash, origin and fallback results are in
 [`mb-767-mam-rive-renderer.md`](mb-767-mam-rive-renderer.md).
