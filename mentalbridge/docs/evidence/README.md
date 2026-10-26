@@ -1,5 +1,9 @@
 # Synthetic browser evidence
 
+MB-766 verifies and freezes the Mầm v0.3 Rive asset (hash, controls, sizes,
+gaze, hero bounds, reduced-motion and visibility guards, contrast). Results
+and captures are in [`mb-766-mam-rive-contract.md`](mb-766-mam-rive-contract.md).
+
 MB-652 explains Care's adaptive SupportPlan replacement review inside the
 bounded Companion while keeping every evidence dimension separate and all plan
 mutation in the normal Adjust UI. Its contradictory, sparse, unchanged,
