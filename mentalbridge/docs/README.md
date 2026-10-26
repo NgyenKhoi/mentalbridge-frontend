@@ -53,6 +53,7 @@ Story-specific delivery evidence:
 - [MB-384 Web video-call continuity and focused controls](mb-384-video-call-continuity.md)
 - [MB-623 authoritative consultation journey closure](mb-623-consultation-journey.md)
 - [MB-642 private Journal action in SupportPlan](mb-642-journal-plan-action.md)
+- [MB-767 Mầm Rive renderer evidence](evidence/mb-767-mam-rive-renderer.md)
 - [MB-766 Mầm Rive V1 character contract and interaction policy](ADR_MAM_RIVE_V1_CONTRACT.md)
 - [MB-637 SupportGuide and SupportPlan v3 product boundary](ADR_SUPPORTPLAN_V3_PRODUCT_BOUNDARY.md)
 - [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)

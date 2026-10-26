@@ -1,5 +1,9 @@
 # Synthetic browser evidence
 
+MB-767 adds the lazy-loaded Mầm renderer with a static fallback. Real-runtime,
+no-splash, origin and fallback results are in
+[`mb-767-mam-rive-renderer.md`](mb-767-mam-rive-renderer.md).
+
 MB-766 verifies and freezes the Mầm v0.3 Rive asset (hash, controls, sizes,
 gaze, hero bounds, reduced-motion and visibility guards, contrast). Results
 and captures are in [`mb-766-mam-rive-contract.md`](mb-766-mam-rive-contract.md).

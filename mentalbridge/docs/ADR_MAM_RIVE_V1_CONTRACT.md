@@ -426,7 +426,9 @@ authoritative plan, safety, save, validation or error feedback.
 Findings, checked 2026-10-27:
 
 - Web runtimes `@rive-app/react-canvas` 4.37.1 and `@rive-app/canvas` 2.47.1
-  are MIT-licensed. No runtime fee applies.
+  are MIT-licensed. No runtime fee applies. MB-767 ships
+  `@rive-app/canvas-lite` 2.47.1 (MIT). It renders this asset the same way as
+  the full runtime, and its WASM is 331 KB gzip instead of 898 KB.
 - Rive Terms of Service (last updated 2026-05-20), D-4: "you own your User
   Content". The Terms set no explicit commercial-use limit for free individual
   accounts. Section C.6 requires the Enterprise plan for organisations above
@@ -457,6 +459,15 @@ Decision:
   3. Confirmation that the Enterprise revenue clause does not apply.
 - If (1) shows a splash, or (2) is refused, keep the flag off. The owner then
   chooses between a Cadet seat and shipping the static fallback only.
+- **Status (2026-10-27): all three are met.**
+  1. MB-767 showed no splash or watermark in Chromium
+     (`evidence/mb-767-mam-rive-renderer.md`).
+  2. The owner approved the Free-plan CLI path.
+  3. The owner confirmed that MentalBridge is a study project, far below the
+     Enterprise revenue threshold.
+
+  Recheck items 2 and 3 if the project stops being a study project, or if the
+  asset ever needs Rive scripts or a `--publish` build.
 
 ## Out of scope
 
