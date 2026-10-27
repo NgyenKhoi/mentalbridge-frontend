@@ -2,6 +2,7 @@
 import type { HomeNextStep } from '@/features/assessment/api/care-contract'
 import Link from 'next/link'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getMamPageTarget } from '@/features/mam/use-mam-target'
 import { HomeHub } from './HomeHub'
 import { getHomeNextStep } from './browser-home-next-step'
 import { homeDestination } from './home-destination'
@@ -31,15 +32,27 @@ vi.mock('./HomeQuickActions', () => ({
   ),
 }))
 vi.mock('./HomeResources', () => ({
-  HomeResources: ({ loading }: { loading: boolean }) => (
-    <section aria-label="Tài nguyên gợi ý" data-loading={loading}>
+  HomeResources: ({
+    loading,
+    summonable,
+  }: {
+    loading: boolean
+    summonable: boolean
+  }) => (
+    <section
+      aria-label="Tài nguyên gợi ý"
+      data-loading={loading}
+      data-summonable={summonable}
+    >
       Tài nguyên gợi ý
     </section>
   ),
 }))
 vi.mock('./HomeUpcomingAppointment', () => ({
-  HomeUpcomingAppointment: () => (
-    <section aria-label="Buổi hẹn sắp tới">Buổi hẹn sắp tới</section>
+  HomeUpcomingAppointment: ({ summonable }: { summonable: boolean }) => (
+    <section aria-label="Buổi hẹn sắp tới" data-summonable={summonable}>
+      Buổi hẹn sắp tới
+    </section>
   ),
 }))
 vi.mock('./HomeEmotionSection', async () => {
@@ -147,6 +160,22 @@ describe('HomeHub', () => {
     ).toHaveAttribute('href', '/dashboard')
     expect(screen.queryByRole('region', { name: 'Bước tiếp theo' })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Cảm xúc' })).toBeNull()
+    // The check-in is a Mầm no-interrupt zone: no page or card targets.
+    expect(getMamPageTarget()).toBeNull()
+    expect(
+      screen.getByRole('region', { name: 'Tài nguyên gợi ý' }),
+    ).toHaveAttribute('data-summonable', 'false')
+    expect(
+      screen.getByRole('region', { name: 'Buổi hẹn sắp tới' }),
+    ).toHaveAttribute('data-summonable', 'false')
+  })
+
+  it('registers the dashboard page target outside the check-in', async () => {
+    render(<HomeHub />)
+    await waitFor(() => expect(getMamPageTarget()?.kind).toBe('dashboard.page'))
+    expect(
+      screen.getByRole('region', { name: 'Tài nguyên gợi ý' }),
+    ).toHaveAttribute('data-summonable', 'true')
   })
 
   it('keeps other sections usable during an error and retries the owner read', async () => {

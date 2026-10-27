@@ -64,6 +64,7 @@
 }
 
 .dock:focus-visible,
+.ask:focus-visible,
 .handle:focus-visible,
 .hide:focus-visible,
 .row:focus-visible {
@@ -238,6 +239,37 @@
   color: var(--ink);
 }
 
+/* The one action in the menu; the switches below are settings. */
+.ask {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 4px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.ask:hover {
+  background: var(--teal-deep);
+}
+
+.ask:active {
+  transform: scale(var(--motion-scale-enter));
+}
+
 @media (max-width: 900px) {
   .root {
     left: 16px;
@@ -258,6 +290,7 @@
 @media (prefers-reduced-motion: reduce) {
   .root,
   .dock,
+  .ask,
   .handle,
   .row,
   .switch,

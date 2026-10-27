@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
 import { TodayEmotionSummary } from '@/features/emotion-check-in/TodayEmotionSummary'
+import { useMamPageTarget } from '@/features/mam/use-mam-target'
 
 import {
   getResourceCatalogue,
@@ -128,6 +129,7 @@ function ResourceArt({ resource }: { resource: PublicResourceSummary }) {
 }
 
 export default function ResourcesShowcase() {
+  useMamPageTarget({ kind: 'resources.page' })
   const today = useMemo(() => localDate(), [])
   const dates = useMemo(() => recentDates(today), [today])
   const bookmarks = useResourceBookmarks()
