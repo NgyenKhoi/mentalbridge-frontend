@@ -289,6 +289,7 @@ async function installChatFixture(page: Page) {
               conversationId,
               clientMessageId: '50000000-0000-4000-8000-000000000001',
               sender: peer,
+              state: 'ACTIVE',
               content: 'Mình ở đây và sẵn sàng lắng nghe.',
               createdAt: '2026-10-20T08:00:00Z',
             },
@@ -322,6 +323,7 @@ async function installChatFixture(page: Page) {
               communityProfileId: selfId,
               displayName: 'Lá Nhỏ',
             },
+            state: 'ACTIVE',
             content: body.content,
             createdAt: '2026-10-20T08:05:00Z',
           },
@@ -341,6 +343,7 @@ async function installChatFixture(page: Page) {
             conversationId: groupConversationId,
             clientMessageId: '50000000-0000-4000-8000-000000000099',
             sender: peer,
+            state: 'ACTIVE',
             content: 'Mình vừa hoàn thành bài tập thở 5 phút.',
             createdAt: '2026-10-20T08:00:00Z',
           },
@@ -493,7 +496,7 @@ test.describe('Community chat journey', () => {
     await dialog.getByRole('button', { name: 'Giữ lại' }).click()
     expect(fixture.clearKeys).toHaveLength(0)
 
-    await page.getByLabel('Mở thao tác an toàn').click()
+    await expect(dialog).not.toBeVisible()
     await page.getByRole('button', { name: 'Xóa phía tôi' }).click()
     await page
       .getByRole('dialog')
