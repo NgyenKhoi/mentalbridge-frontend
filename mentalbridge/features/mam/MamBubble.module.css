@@ -130,6 +130,7 @@
 
 .primary {
   display: inline-flex;
+  text-decoration: none;
   align-items: center;
   justify-content: center;
   justify-self: start;

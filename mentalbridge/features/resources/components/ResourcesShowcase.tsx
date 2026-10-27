@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { TodayEmotionSummary } from '@/features/emotion-check-in/TodayEmotionSummary'
-import { useMamPageTarget } from '@/features/mam/use-mam-target'
+import { publishMamResources } from '@/features/mam/mam-resources'
+import { useMamPageTarget, useMamTarget } from '@/features/mam/use-mam-target'
 
 import {
   getResourceCatalogue,
@@ -128,6 +129,19 @@ function ResourceArt({ resource }: { resource: PublicResourceSummary }) {
   )
 }
 
+/** Registers one catalogue card as a Mầm target by its ID only. */
+function MamResourceTarget({
+  resourceId,
+  children,
+}: Readonly<{
+  resourceId: string
+  children: (ref: (element: Element | null) => void) => ReactNode
+}>) {
+  return children(
+    useMamTarget({ kind: 'resources.card', context: { resourceId } }),
+  )
+}
+
 export default function ResourcesShowcase() {
   useMamPageTarget({ kind: 'resources.page' })
   const today = useMemo(() => localDate(), [])
@@ -156,6 +170,14 @@ export default function ResourcesShowcase() {
   const [filter, setFilter] = useState<Filter>('all')
   const [expanded, setExpanded] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+
+  useEffect(
+    () =>
+      publishMamResources(resources, (resource) =>
+        resourceHref(resource, today),
+      ),
+    [resources, today],
+  )
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -662,82 +684,89 @@ export default function ResourcesShowcase() {
                     )?.status
                   : undefined
               return (
-                <article
-                  role="listitem"
-                  key={resource.id}
-                  className={`${styles.resourceCard} ${index === 0 && filter === 'all' ? styles.featureCard : ''} ${index === 4 && filter === 'all' ? styles.audioCard : ''}`}
-                  data-resource-surface={
-                    index === 4 && filter === 'all' ? 'dark' : undefined
-                  }
-                >
-                  <ResourceArt resource={resource} />
-                  <div className={styles.cardBody}>
-                    <div className={styles.cardMeta}>
-                      <span>
-                        {index === 0 && filter === 'all' ? '◷ ' : ''}
-                        {meta.minutes} phút ·{' '}
-                        {index === 0 && filter === 'all'
-                          ? 'Khám phá'
-                          : resource.resourceKind === 'PRACTICE'
-                            ? 'Thực hành'
-                            : 'Khám phá'}
-                      </span>
-                      <strong>
-                        {resource.sourceOrganization ?? 'Nguồn chưa cập nhật'}
-                      </strong>
-                    </div>
-                    <h3>{resource.title}</h3>
-                    <p>{resource.summary}</p>
-                    {index === 4 && filter === 'all' && (
-                      <div className={styles.wave} aria-hidden="true">
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                        <i />
+                <MamResourceTarget key={resource.id} resourceId={resource.id}>
+                  {(mamRef) => (
+                    <article
+                      ref={mamRef}
+                      role="listitem"
+                      className={`${styles.resourceCard} ${index === 0 && filter === 'all' ? styles.featureCard : ''} ${index === 4 && filter === 'all' ? styles.audioCard : ''}`}
+                      data-resource-surface={
+                        index === 4 && filter === 'all' ? 'dark' : undefined
+                      }
+                    >
+                      <ResourceArt resource={resource} />
+                      <div className={styles.cardBody}>
+                        <div className={styles.cardMeta}>
+                          <span>
+                            {index === 0 && filter === 'all' ? '◷ ' : ''}
+                            {meta.minutes} phút ·{' '}
+                            {index === 0 && filter === 'all'
+                              ? 'Khám phá'
+                              : resource.resourceKind === 'PRACTICE'
+                                ? 'Thực hành'
+                                : 'Khám phá'}
+                          </span>
+                          <strong>
+                            {resource.sourceOrganization ??
+                              'Nguồn chưa cập nhật'}
+                          </strong>
+                        </div>
+                        <h3>{resource.title}</h3>
+                        <p>{resource.summary}</p>
+                        {index === 4 && filter === 'all' && (
+                          <div className={styles.wave} aria-hidden="true">
+                            <i />
+                            <i />
+                            <i />
+                            <i />
+                            <i />
+                            <i />
+                            <i />
+                            <i />
+                            <i />
+                          </div>
+                        )}
+                        <div className={styles.cardFooter}>
+                          <span
+                            data-resource-ink={
+                              index === 4 && filter === 'all'
+                                ? 'dark'
+                                : undefined
+                            }
+                            className={
+                              meta.difficulty === 'GENTLE'
+                                ? styles.gentle
+                                : meta.difficulty === 'BALANCED'
+                                  ? styles.balanced
+                                  : styles.challenge
+                            }
+                          >
+                            {status === 'COMPLETED'
+                              ? 'Đã hoàn thành'
+                              : status === 'IN_PROGRESS'
+                                ? 'Đang làm'
+                                : meta.difficulty === 'GENTLE'
+                                  ? 'Dễ chịu'
+                                  : meta.difficulty === 'BALANCED'
+                                    ? 'Vừa sức'
+                                    : 'Thử thách nhẹ'}
+                          </span>
+                          <Link
+                            href={resourceHref(resource, today)}
+                            aria-label={`Khám phá ${resource.title}`}
+                          >
+                            {index === 0 && filter === 'all'
+                              ? 'Thực hành ngay'
+                              : index === 4 && filter === 'all'
+                                ? 'Bật xem'
+                                : 'Khám phá'}{' '}
+                            →
+                          </Link>
+                        </div>
                       </div>
-                    )}
-                    <div className={styles.cardFooter}>
-                      <span
-                        data-resource-ink={
-                          index === 4 && filter === 'all' ? 'dark' : undefined
-                        }
-                        className={
-                          meta.difficulty === 'GENTLE'
-                            ? styles.gentle
-                            : meta.difficulty === 'BALANCED'
-                              ? styles.balanced
-                              : styles.challenge
-                        }
-                      >
-                        {status === 'COMPLETED'
-                          ? 'Đã hoàn thành'
-                          : status === 'IN_PROGRESS'
-                            ? 'Đang làm'
-                            : meta.difficulty === 'GENTLE'
-                              ? 'Dễ chịu'
-                              : meta.difficulty === 'BALANCED'
-                                ? 'Vừa sức'
-                                : 'Thử thách nhẹ'}
-                      </span>
-                      <Link
-                        href={resourceHref(resource, today)}
-                        aria-label={`Khám phá ${resource.title}`}
-                      >
-                        {index === 0 && filter === 'all'
-                          ? 'Thực hành ngay'
-                          : index === 4 && filter === 'all'
-                            ? 'Bật xem'
-                            : 'Khám phá'}{' '}
-                        →
-                      </Link>
-                    </div>
-                  </div>
-                </article>
+                    </article>
+                  )}
+                </MamResourceTarget>
               )
             })}
           </div>

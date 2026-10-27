@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import type { MamLoopingBehavior } from './mam-contract'
 import { runMamRequest } from './mam-requests'
 import {
+  mamFallbackText,
   mamReviewedAnswer,
   type MamAnswer,
   type MamIntent,
@@ -28,7 +29,28 @@ const EDITABLE =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"])'
 
 export type MamAnchor =
-  Readonly<{ kind: 'dock' }> | Readonly<{ kind: 'point'; x: number; y: number }>
+  | Readonly<{ kind: 'dock' }>
+  | Readonly<{
+      kind: 'point'
+      x: number
+      y: number
+      /** Page y of the target's top edge; the bubble flips above it. */
+      clear?: number
+    }>
+
+// A target fully on screen keeps its own actions clear: the bubble opens below
+// it, or above it when there is no room. Taller targets open at the point.
+function pointAt(element: Element, x: number, y: number): MamAnchor {
+  const rect = element.getBoundingClientRect()
+  if (rect.top < 0 || rect.bottom > window.innerHeight)
+    return { kind: 'point', x, y }
+  return {
+    kind: 'point',
+    x,
+    y: rect.bottom + window.scrollY,
+    clear: rect.top + window.scrollY,
+  }
+}
 
 export type MamSummon = Readonly<{
   pathname: string
@@ -158,7 +180,10 @@ export function useMamSummon({
             ? {
                 ...current,
                 phase: 'answer',
-                answer: result.answer,
+                answer:
+                  result.status === 'failed'
+                    ? { text: mamFallbackText(target, intent) }
+                    : result.answer,
                 failed: result.status === 'failed',
               }
             : current,
@@ -225,7 +250,7 @@ export function useMamSummon({
       open(
         found.target,
         found.element,
-        { kind: 'point', x: event.pageX, y: event.pageY },
+        pointAt(found.element, event.pageX, event.pageY),
         focusInside(found.element),
       )
     }
@@ -244,11 +269,11 @@ export function useMamSummon({
       open(
         found.target,
         found.element,
-        {
-          kind: 'point',
-          x: source.left + window.scrollX,
-          y: source.bottom + window.scrollY,
-        },
+        pointAt(
+          found.element,
+          source.left + window.scrollX,
+          source.bottom + window.scrollY,
+        ),
         focusInside(found.element),
       )
     }
@@ -275,7 +300,7 @@ export function useMamSummon({
           open(
             found.target,
             found.element,
-            { kind: 'point', x: pageX, y: pageY },
+            pointAt(found.element, pageX, pageY),
             null,
           )
         }, LONG_PRESS_MS),

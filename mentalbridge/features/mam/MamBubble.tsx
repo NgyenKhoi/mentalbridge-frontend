@@ -9,6 +9,7 @@ import {
   type RefObject,
 } from 'react'
 import { createPortal } from 'react-dom'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Leaf, X } from 'lucide-react'
 
@@ -19,6 +20,7 @@ import type { MamSummon } from './use-mam-summon'
 const GUTTER = 16
 const WIDTH = 320
 const OFFSET = 8
+const ANSWER_ROOM = 280
 const ease = [0.16, 1, 0.3, 1] as const
 
 /**
@@ -43,6 +45,7 @@ export function MamBubble({
 }>) {
   const titleId = useId()
   const firstAction = useRef<HTMLButtonElement | null>(null)
+  const firstLink = useRef<HTMLAnchorElement | null>(null)
   const { anchor, phase, answer, intent, target } = summon
 
   // Opens below the point unless that would leave the viewport.
@@ -68,10 +71,15 @@ export function MamBubble({
     const height = bubbleRef.current?.offsetHeight ?? 0
     const viewTop = window.scrollY + GUTTER
     const viewBottom = window.scrollY + window.innerHeight - GUTTER
+    const flip = anchor.clear ?? anchor.y
+    // Beside a target, pick the side for the taller answer up front so the
+    // bubble does not jump across the card when the answer arrives.
+    const room =
+      anchor.clear === undefined ? height : Math.max(height, ANSWER_ROOM)
     const above =
-      anchor.y + OFFSET + height > viewBottom &&
-      anchor.y - viewTop > viewBottom - anchor.y
-    const top = above ? anchor.y - OFFSET - height : anchor.y + OFFSET
+      anchor.y + OFFSET + room > viewBottom &&
+      flip - viewTop > viewBottom - anchor.y
+    const top = above ? flip - OFFSET - height : anchor.y + OFFSET
     // An answer is taller than the menu; keep the whole bubble on screen.
     setPlacement({
       left: Math.max(minLeft, Math.min(anchor.x, maxLeft)),
@@ -85,11 +93,12 @@ export function MamBubble({
   const placed = anchor.kind === 'dock' || placement !== null
   useEffect(() => {
     if (placed && phase !== 'pending')
-      firstAction.current?.focus({ preventScroll: true })
+      (firstLink.current ?? firstAction.current)?.focus({ preventScroll: true })
   }, [phase, placed])
 
   const travel = reduced ? 0 : 6
   const others = target.intents.filter((value) => value !== intent)
+  const lead = Boolean(answer?.focusKind || answer?.href)
 
   const bubble = (
     <motion.div
@@ -170,7 +179,12 @@ export function MamBubble({
         </div>
       ) : phase === 'answer' ? (
         <div className={styles.actions}>
-          {answer?.focusKind ? (
+          {answer?.href ? (
+            <Link ref={firstLink} href={answer.href} className={styles.primary}>
+              Mở bài này
+              <ArrowRight size={16} strokeWidth={1.8} aria-hidden="true" />
+            </Link>
+          ) : answer?.focusKind ? (
             <button
               ref={firstAction}
               type="button"
@@ -184,7 +198,7 @@ export function MamBubble({
           {others.map((value, index) => (
             <button
               key={value}
-              ref={!answer?.focusKind && index === 0 ? firstAction : undefined}
+              ref={!lead && index === 0 ? firstAction : undefined}
               type="button"
               className={styles.starter}
               onClick={() => onChoose(value)}
@@ -192,7 +206,7 @@ export function MamBubble({
               {MAM_INTENT_LABELS[value]}
             </button>
           ))}
-          {!answer?.focusKind && others.length === 0 ? (
+          {!lead && others.length === 0 ? (
             <button
               ref={firstAction}
               type="button"

@@ -2,6 +2,8 @@
 // "Explanation sources in V1"). A target declares its kind and context IDs
 // from props; Mầm never reads page text. Outside SupportPlan every answer is
 // reviewed copy declared here, so no target sends anything to a model.
+import { MAM_RESOURCE_FALLBACK, mamResourceAnswer } from './mam-resources'
+
 export const MAM_TARGETS_VERSION = 'mam-targets-v1'
 
 export const MAM_INTENTS = ['EXPLAIN', 'WHERE_TO_START'] as const
@@ -19,6 +21,8 @@ type MamTargetDefinition = Readonly<{
   /** Context keys a target may pass. Anything else is dropped. */
   contextKeys: readonly string[]
   explain: string
+  /** Shown instead of the intent's template when no answer resolves. */
+  fallback?: string
 }>
 
 const MAM_TARGET_DEFINITIONS = {
@@ -56,6 +60,14 @@ const MAM_TARGET_DEFINITIONS = {
     contextKeys: [],
     explain:
       'Trang này giữ những dấu mốc được lưu từ hoạt động của bạn. Không có xếp hạng hay chuỗi phải giữ, chỉ để bạn nhìn lại.',
+  },
+  'resources.card': {
+    page: false,
+    intents: ['EXPLAIN'],
+    contextKeys: ['resourceId'],
+    // Answered from the published catalogue item (mam-resources.ts).
+    explain: '',
+    fallback: MAM_RESOURCE_FALLBACK,
   },
   'resources.page': {
     page: true,
@@ -116,6 +128,8 @@ export type MamAnswer = Readonly<{
   text: string
   /** A registered target the answer can take the user to. */
   focusKind?: MamTargetKind
+  /** A reviewed Resource detail the answer can open. */
+  href?: string
 }>
 
 export const MAM_FALLBACK_TEXT: Record<MamIntent, string> = {
@@ -135,6 +149,8 @@ export function mamReviewedAnswer(
   isRegistered: (kind: MamTargetKind) => boolean,
 ): MamAnswer | null {
   if (!target.intents.includes(intent)) return null
+  if (target.kind === 'resources.card')
+    return mamResourceAnswer(target.context.resourceId)
   if (intent === 'EXPLAIN')
     return { text: MAM_TARGET_DEFINITIONS[target.kind].explain }
   if (target.kind === 'dashboard.page' && isRegistered('home.next-step'))
@@ -144,6 +160,11 @@ export function mamReviewedAnswer(
     }
   return null
 }
+
+/** The text for a failed or unresolved starter on this target. */
+export const mamFallbackText = (target: MamTarget, intent: MamIntent) =>
+  (MAM_TARGET_DEFINITIONS[target.kind] as MamTargetDefinition).fallback ??
+  MAM_FALLBACK_TEXT[intent]
 
 export const isMamTargetKind = (value: unknown): value is MamTargetKind =>
   definitionOf(value) !== null
