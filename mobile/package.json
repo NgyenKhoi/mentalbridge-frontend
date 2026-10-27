@@ -54,6 +54,7 @@
     "ios": "expo run:ios",
     "native:android:smoke": "bash scripts/verify-native-android.sh",
     "milestone:android": "bash scripts/run-staging-android-milestone.sh",
+    "test:milestone:shell": "bash scripts/test-milestone-timing.sh",
     "e2e:android:assessment": "bash scripts/verify-android-assessment-e2e.sh",
     "e2e:android:support-plan": "bash scripts/verify-android-support-plan-e2e.sh",
     "e2e:android:emotion": "bash scripts/verify-android-emotion-e2e.sh",
@@ -78,7 +79,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:ci": "jest --ci --runInBand",
-    "quality": "npm run format:check && npm run lint && npm run typecheck && npm run test:ci && npm run build:bundle"
+    "quality": "npm run format:check && npm run lint && npm run typecheck && npm run test:ci && npm run test:milestone:shell && npm run build:bundle"
   },
   "private": true,
   "engines": {

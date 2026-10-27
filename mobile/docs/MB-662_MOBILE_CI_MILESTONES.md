@@ -1,17 +1,21 @@
 # MB-662 mobile CI milestone policy and timing evidence
 
-**Status:** implemented; staging execution remains `NOT_RUN (staging milestone pending)` until an intentional workflow run completes.
+**Status:** implementation under review; the `dev` gate has passed, but the
+required staging execution remains `NOT_RUN (staging milestone pending)`.
+MB-662 must not be marked complete until either an intentional run on the
+merged workflow supplies the evidence below or the Jira owner explicitly
+approves a DoD deferral.
 
 ## Decision table
 
-| Event                             | Mobile cloud work                                                                                             | Required result                                                           |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Mobile pull request into `dev`    | None: no install, TypeScript, bundle, native build, or Maestro job                                            | `quality-gate` succeeds and reports `NOT_RUN (staging milestone pending)` |
-| Web pull request into `dev`       | Existing web checks only                                                                                      | `quality-gate` requires web success                                       |
-| Promotion from `dev` to `staging` | Full `npm run quality`, Android build/install/boot and every approved Maestro journey, iOS build/install/boot | Every staging job must succeed                                            |
-| Manual staging milestone          | Same complete staging workflow on the exact selected revision                                                 | Every staging job must succeed                                            |
-| Physical-device/local development | Developer-triggered; reuse the development build for JS/TS changes                                            | Optional review evidence, never represented as cloud CI                   |
-| Reusable Android APK              | Produced by the Android native milestone and uploaded with revision provenance                                | On demand; no dedicated 8 GB EC2 builder                                  |
+| Event                             | Mobile cloud work                                                                                               | Required result                                                           |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Mobile pull request into `dev`    | None: no install, TypeScript, bundle, native build, or Maestro job                                              | `quality-gate` succeeds and reports `NOT_RUN (staging milestone pending)` |
+| Web pull request into `dev`       | Existing web checks only                                                                                        | `quality-gate` requires web success                                       |
+| Promotion from `dev` to `staging` | Full `npm run quality`, Android build/install/boot and every approved Maestro journey, iOS build/install/boot   | Every staging job must succeed                                            |
+| Manual staging milestone          | Same complete staging workflow; only `dev` or `staging`, with an operator-entered SHA equal to the selected ref | Every staging job must succeed                                            |
+| Physical-device/local development | Developer-triggered; reuse the development build for JS/TS changes                                              | Optional review evidence, never represented as cloud CI                   |
+| Reusable Android APK              | Produced by the Android native milestone and uploaded with revision provenance                                  | On demand; no dedicated 8 GB EC2 builder                                  |
 
 Tests, Maestro flows, and verification scripts remain source controlled even
 though ordinary development PRs defer their execution.
@@ -31,9 +35,34 @@ requires:
 - `MB_SUPPORT_PLAN_USER_EMAIL` and `MB_SUPPORT_PLAN_USER_PASSWORD`
 - `MB_SPECIALIST_EMAIL` and `MB_SPECIALIST_PASSWORD`
 
+Before any job can request that Environment, `promotion-policy` must authorize
+one of these sources:
+
+- a pull request whose exact source/target pair is `dev` -> `staging`;
+- a push whose ref is exactly `refs/heads/staging`; or
+- a manual dispatch on `dev` or `staging` where `approved_frontend_sha` is a
+  40-character SHA equal to the selected ref's resolved `github.sha`.
+
+Manual dispatch also requires an exact `backend_commit_sha`, immutable
+`staging_deployment_id`, and immutable `fixture_dataset_version`. Automatic
+promotion/push runs read the same values from repository variables
+`MOBILE_STAGING_BACKEND_SHA`, `MOBILE_STAGING_DEPLOYMENT_ID`, and
+`MOBILE_STAGING_FIXTURE_DATASET_VERSION`; missing or mutable values fail before
+the protected Environment is entered.
+
 Values are read only at runtime, are not printed, and must identify resettable
 non-production fixtures. The iOS smoke uses a synthetic public API URL because
 it proves native compile/install/boot rather than a live data journey.
+
+The provenance job checks out the exact backend SHA, verifies it resolved
+without drift, computes the immutable `contracts` Git tree SHA, and pins the web
+provider comparison to that commit. Android and iOS artifacts include only the
+frontend SHA, backend SHA, contract-tree SHA, deployment ID, fixture version,
+and GitHub run identifiers. Credentials and URLs are excluded. The current
+staging edge does not expose a signed runtime-revision endpoint, so the
+deployment ID/backend association is an operator attestation; fixture sign-in
+and contract/parser gates verify compatibility, but cannot independently attest
+the deployed binary. This is a documented provider constraint, not a PASS.
 
 ## Exact milestone commands
 
@@ -81,7 +110,8 @@ These observations do **not** prove that a single build executed for more than
 one hour. The verified over-one-hour delay above was runner queue time. The
 historical Android job also grouped build and journeys into one command, so it
 did not provide reliable phase-level attribution. The new milestone runner
-writes `android-milestone-timings.txt` with the build and each journey duration.
+writes `android-milestone-timings.txt` with the build and each journey duration,
+including `END`, `duration_seconds`, and `exit_code` when a phase fails.
 
 ## Before/after claim boundary
 
@@ -94,17 +124,24 @@ until then it is intentionally recorded as:
 NOT_RUN (staging milestone pending)
 ```
 
-Do not claim that MB-662 "fixed a >1 hour build." After the first intentional
-staging run, record its URL, exact SHA, queue time, job duration, per-phase
-Android timings, and final gate result here before making performance claims.
+Do not claim that MB-662 "fixed a >1 hour build." GitHub only enables a newly
+added `workflow_dispatch` trigger after that workflow exists on the default
+branch, and the policy intentionally rejects feature-ref staging runs. PR #240
+therefore cannot produce the required new milestone evidence without bypassing
+the security rule it introduces. No owner-approved Jira deferral is currently
+recorded. After merge, an owner must dispatch the exact `dev` SHA (or promote
+`dev` to `staging`) and record its URL, exact frontend/backend/contract SHAs,
+deployment and fixture versions, queue time, job outcomes, per-phase Android
+timings, artifacts, and final gate result here before completion or performance
+claims.
 
 ## Constraints and failure semantics
 
 - Hosted-runner queue availability is external capacity; queue time and job
   execution time must be reported separately.
 - Android staging is required. Missing credentials, provider unavailability,
-  native build failure, journey failure, or a skipped Android job fails the
-  staging gate.
+  provenance variables, native build failure, journey failure, or a skipped
+  Android job fails the staging gate.
 - iOS remains a compile/install/boot smoke on the pinned macOS image; live iOS
   journey expansion needs an explicit owner decision.
 - The APK artifact is tied to `EVIDENCE_COMMIT_SHA`/`GITHUB_SHA`; never reuse an

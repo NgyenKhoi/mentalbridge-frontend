@@ -10,7 +10,10 @@ must never be presented as native or device-test success.
 The complete mobile gate runs at an intentional staging milestone, either on a
 promotion to `staging` or through the `Frontend staging release gate` manual
 dispatch. Android is required; a skipped Android job fails the final staging
-gate. Manual dispatch checks and tests the exact selected revision.
+gate. Manual dispatch is accepted only from `dev` or `staging`, requires the
+operator to enter the exact selected frontend SHA, exact deployed backend SHA,
+staging deployment ID and fixture dataset version, and fails closed before the
+protected Environment if any identifier is absent or invalid.
 
 MB-606 distinguishes JavaScript bundle export from a native app boot. An
 `expo export` result proves that Metro can produce platform bundles; it does not
@@ -34,7 +37,8 @@ screenshot and sanitized diagnostics produced for that exact commit. The reposit
 `staging-quality-gate` depends on both jobs, so bundle-only verification cannot
 satisfy the release gate. The Android milestone builds and installs once, then
 reuses that exact APK for all Maestro journeys. It records per-phase durations
-and uploads the reusable APK with its revision provenance.
+and exit status even for a failed phase, and uploads the reusable APK with the
+sanitized frontend/backend/contract/deployment/fixture provenance.
 
 Release configuration is intentional in CI: the JavaScript bundle is embedded,
 so the app can boot without leaving a long-running Metro process. Local feature

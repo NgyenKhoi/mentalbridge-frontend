@@ -89,6 +89,8 @@ describe('Mobile Delivery Contract v1', () => {
       'utf8',
     )
     const gate = workflowJob(developmentWorkflow, 'quality-gate')
+    const promotionPolicy = workflowJob(stagingWorkflow, 'promotion-policy')
+    const provenance = workflowJob(stagingWorkflow, 'milestone-provenance')
     const mobileQuality = workflowJob(stagingWorkflow, 'mobile-release-quality')
     const android = workflowJob(stagingWorkflow, 'mobile-android-smoke')
     const ios = workflowJob(stagingWorkflow, 'mobile-ios-smoke')
@@ -105,11 +107,29 @@ describe('Mobile Delivery Contract v1', () => {
     expect(gate).not.toMatch(/native:android|native:ios|e2e:android|typecheck/)
 
     expect(stagingWorkflow).toContain('workflow_dispatch:')
+    expect(stagingWorkflow).toContain('approved_frontend_sha:')
+    expect(stagingWorkflow).toContain('backend_commit_sha:')
+    expect(stagingWorkflow).toContain('staging_deployment_id:')
+    expect(stagingWorkflow).toContain('fixture_dataset_version:')
+    expect(promotionPolicy).toContain(
+      'node mobile/scripts/validate-staging-milestone.mjs',
+    )
+    expect(provenance).toContain('MOBILE_STAGING_BACKEND_SHA')
+    expect(provenance).toContain('MOBILE_STAGING_DEPLOYMENT_ID')
+    expect(provenance).toContain('MOBILE_STAGING_FIXTURE_DATASET_VERSION')
+    expect(provenance).toContain('ref: ${{ env.REQUESTED_BACKEND_SHA }}')
+    expect(provenance).toContain(
+      'git -C staging-backend rev-parse HEAD:contracts',
+    )
     expect(mobileQuality).toContain('runs-on: ubuntu-24.04')
     expect(mobileQuality).toContain("node-version: '22.13.0'")
     expect(android).not.toContain('if: ${{ false }}')
     expect(android).toContain('environment: staging-mobile-e2e')
     expect(android).toContain('EVIDENCE_COMMIT_SHA: ${{ github.sha }}')
+    expect(android).toContain(
+      'BACKEND_COMMIT_SHA: ${{ needs.milestone-provenance.outputs.backend_sha }}',
+    )
+    expect(android).toContain('node scripts/write-staging-provenance.mjs')
     expect(android).toContain(
       'test "$(git rev-parse HEAD)" = "$EVIDENCE_COMMIT_SHA"',
     )
@@ -140,9 +160,16 @@ describe('Mobile Delivery Contract v1', () => {
       'journal',
       'specialist',
     ]) {
-      expect(milestoneScript).toContain(`run_phase ${journey}`)
+      expect(milestoneScript).toContain(`run_milestone_phase ${journey}`)
     }
-    expect(milestoneScript).toContain('duration_seconds=')
+    const timingScript = readFileSync(
+      resolve(mobileRoot, 'scripts/milestone-timing.sh'),
+      'utf8',
+    )
+    expect(timingScript).toContain('duration_seconds=%s exit_code=%s')
+    expect(timingScript.indexOf('exit_code="$?"')).toBeLessThan(
+      timingScript.indexOf('return "$exit_code"'),
+    )
 
     expect(ios).toContain('runs-on: macos-26')
     expect(ios).toContain("node-version: '22.13.0'")

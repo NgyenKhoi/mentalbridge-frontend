@@ -176,6 +176,12 @@ boot plus real-contract journeys, and iOS compile/install/boot. This changes
 delivery timing only; every business, security, and runtime rule in V1 remains
 unchanged.
 
+An explicit milestone MUST fail closed unless its source is an exact
+`dev`-to-`staging` promotion, a `staging` push, or an operator-approved exact
+SHA on `dev`/`staging`. Evidence records immutable frontend and backend commits,
+the backend contract-tree SHA, and non-sensitive deployment/fixture versions;
+protected credentials and API URLs never enter artifacts.
+
 ## Executable evidence
 
 - `runtime-config.test.ts` verifies the required single edge URL, bounded
