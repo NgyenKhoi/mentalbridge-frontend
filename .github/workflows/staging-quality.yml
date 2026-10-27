@@ -1,6 +1,7 @@
 name: Frontend staging release gate
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [staging]
   push:
@@ -117,8 +118,6 @@ jobs:
 
   mobile-android-smoke:
     name: Staging Android native boot and real-contract journeys
-    # Owner-approved temporary web-demo exception; restore this and the gate condition together.
-    if: ${{ false }}
     needs: [promotion-policy]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -129,6 +128,7 @@ jobs:
     env:
       ANDROID_DEVICE: emulator-5554
       CI: 'true'
+      EVIDENCE_COMMIT_SHA: ${{ github.sha }}
       EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_STAGING_API_BASE_URL }}
       EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
@@ -146,6 +146,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Verify exact milestone revision
+        run: test "$(git rev-parse HEAD)" = "$EVIDENCE_COMMIT_SHA"
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -158,6 +161,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17.0.20+8'
+          cache: gradle
 
       - name: Install dependencies
         run: npm ci
@@ -220,7 +224,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Compile, install, boot, and run Android real-contract journeys
+      - name: Compile once, install, boot, and run Android real-contract journeys
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 36
@@ -230,7 +234,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           working-directory: mobile
-          script: npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:emotion && npm run e2e:android:support-plan && npm run e2e:android:resources && npm run e2e:android:journal && npm run e2e:android:specialist
+          script: npm run milestone:android
 
       - name: Upload Android native evidence
         if: always()
@@ -324,10 +328,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Require staging release checks
-        if: needs.promotion-policy.result != 'success' || needs.release-quality.result != 'success' || needs.mobile-release-quality.result != 'success' || (needs.mobile-android-smoke.result != 'success' && needs.mobile-android-smoke.result != 'skipped') || needs.mobile-ios-smoke.result != 'success'
+        if: needs.promotion-policy.result != 'success' || needs.release-quality.result != 'success' || needs.mobile-release-quality.result != 'success' || needs.mobile-android-smoke.result != 'success' || needs.mobile-ios-smoke.result != 'success'
         run: exit 1
-      - name: Report temporary Android demo exception
-        if: needs.mobile-android-smoke.result == 'skipped'
-        run: echo "::warning::Android native checks are temporarily skipped for the owner-approved web demo. Restore the Android job and its required-result condition after the demo."
       - name: Confirm staging quality gate
         run: echo "All required staging release checks passed."

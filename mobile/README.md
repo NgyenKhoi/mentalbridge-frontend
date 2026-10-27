@@ -199,9 +199,10 @@ real-contract journeys plus the MB-625 SupportPlan, MB-626 Resources, MB-627
 Journal safe-outcome and MB-633 SPECIALIST profile/availability journeys against
 the protected staging edge. Assessment, emotion, Resources and Journal share
 one dedicated USER fixture; SupportPlan and SPECIALIST use separate resettable
-fixtures. Pull requests into `dev` run only `npm run typecheck` for mobile;
-formatting, lint, Jest, bundle export, native boot, and real-contract checks
-wait for staging unless an explicit evidence label enables an exact-head run.
+fixtures. Pull requests into `dev` do not run mobile cloud checks and report
+`NOT_RUN (staging milestone pending)`. Developers may run the commands above
+locally. The complete quality, bundle, native boot and real-contract suite runs
+once for an intentional exact-revision staging milestone.
 
 The synthetic welcome-screen review capture is documented in
 [`docs/evidence/README.md`](docs/evidence/README.md).

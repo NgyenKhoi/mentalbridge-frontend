@@ -124,9 +124,12 @@ Material changes to an existing browser journey must update its Playwright test,
 but ordinary feature delivery does not run Browser E2E unless the task requires
 it.
 
-Mobile changes in pull requests into `dev` run only a clean install and
-`npm run typecheck`. Mobile formatting, lint, Jest, JavaScript bundle export,
-and native Android/iOS boot checks are deferred to the staging release gate.
+Mobile changes in pull requests into `dev` do not run mandatory mobile cloud
+checks. The required gate reports `NOT_RUN (staging milestone pending)` and
+review remains source-based; developers should run relevant commands locally.
+Mobile formatting, lint, TypeScript, Jest, JavaScript bundle export, Android
+native plus Maestro journeys, and iOS native boot are required together at an
+intentional staging milestone.
 
 Promotion pull requests from `dev` to `staging` run `npm run ci:staging` after
 installing Chromium. That release gate repeats the non-browser checks and then

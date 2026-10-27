@@ -1,6 +1,6 @@
 # Mobile Delivery Contract v1
 
-**Version:** 1.0
+**Version:** 1.1 (MB-662 delivery-policy amendment)
 
 **Status:** Frozen by MB-611
 
@@ -168,16 +168,20 @@ fails before compilation when the selected Xcode or iOS runtime is unavailable.
 Changing either runner family or any selected tool version requires a reviewed
 contract update.
 
-Pull requests into `dev` run a clean mobile install and strict TypeScript
-compile only. Staging promotion runs format, lint, Jest, Android/iOS JavaScript
-exports, and native Android/iOS compile/install/boot smoke evidence.
+Pull requests into `dev` do not run mobile cloud compilation, bundle, native,
+or Maestro jobs. Developers keep source-controlled tests and run the relevant
+local checks before review. An intentional staging milestone runs format,
+lint, TypeScript, Jest, Android/iOS JavaScript exports, Android compile/install/
+boot plus real-contract journeys, and iOS compile/install/boot. This changes
+delivery timing only; every business, security, and runtime rule in V1 remains
+unchanged.
 
 ## Executable evidence
 
 - `runtime-config.test.ts` verifies the required single edge URL, bounded
   timeout, supported protocols, and rejection of embedded credentials.
 - `mobile-delivery-contract.test.ts` prevents drift in app identity, URL scheme,
-  public environment keys, core SDK versions, dev/staging runner families,
+  public environment keys, core SDK versions, the dev deferral policy, staging runner families,
   Android API/JDK/emulator values, and iOS Xcode/runtime/device values.
 - `api-client.test.ts` covers bearer injection, correlation IDs, RFC 9457
   normalization, and safe timeout behavior.

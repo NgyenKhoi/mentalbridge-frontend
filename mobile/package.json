@@ -53,6 +53,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "native:android:smoke": "bash scripts/verify-native-android.sh",
+    "milestone:android": "bash scripts/run-staging-android-milestone.sh",
     "e2e:android:assessment": "bash scripts/verify-android-assessment-e2e.sh",
     "e2e:android:support-plan": "bash scripts/verify-android-support-plan-e2e.sh",
     "e2e:android:emotion": "bash scripts/verify-android-emotion-e2e.sh",
