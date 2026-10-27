@@ -2,11 +2,12 @@
 
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { EyeOff, Leaf } from 'lucide-react'
+import { EyeOff, Leaf, MessageCircleQuestion } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 
 import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
 
+import { MamBubble } from './MamBubble'
 import { MamCharacter } from './MamCharacter'
 import styles from './MamDock.module.css'
 import { useMamDockSlotted } from './MamDockSlot'
@@ -17,7 +18,9 @@ import {
   useMamPreferences,
 } from './mam-preferences'
 import { isMamDockRoute, isMamStaticDockRoute } from './mam-routes'
+import { useMamSummon } from './use-mam-summon'
 import { useMamSuppressed } from './use-mam-suppressed'
+import { useMamPageTargetValue } from './use-mam-target'
 
 // Matches the shell's off-canvas sidebar breakpoint.
 const COMPACT_QUERY = '(max-width: 900px)'
@@ -45,6 +48,7 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const titleId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
   const dockRef = useRef<HTMLButtonElement | null>(null)
+  const bubbleRef = useRef<HTMLDivElement | null>(null)
   const focusAfterToggle = useRef(false)
   const { hidden, muted, motionOff } = useMamPreferences()
   const suppressed = useMamSuppressed()
@@ -65,6 +69,18 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
 
   const menuOpen = open && !hidden
 
+  // Reduced motion keeps the fades and drops the travel; exits are quicker.
+  const reduced = motionOff || osReduced
+  const pageTarget = useMamPageTargetValue()
+  const { summon, summonPage, choose, go, close, behavior } = useMamSummon({
+    pathname,
+    enabled: !hidden && !suppressed,
+    reducedMotion: reduced,
+    dockRef,
+    bubbleRef,
+  })
+  const dockBubble = summon?.anchor.kind === 'dock'
+
   // ADR layering: page actions stay clickable; focused elements stay clear.
   const [yielding, setYielding] = useState<'none' | 'overlap' | 'focus'>('none')
   useEffect(() => {
@@ -74,7 +90,12 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       frame = null
       const root = rootRef.current
       const active = document.activeElement
-      if (!root || menuOpen || (active && root.contains(active))) {
+      if (
+        !root ||
+        menuOpen ||
+        dockBubble ||
+        (active && root.contains(active))
+      ) {
         setYielding('none')
         return
       }
@@ -149,7 +170,7 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       window.removeEventListener('scroll', scheduleCheck, true)
       window.removeEventListener('resize', scheduleCheck)
     }
-  }, [pathname, hidden, menuOpen])
+  }, [pathname, hidden, menuOpen, dockBubble])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -183,8 +204,6 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     setMamHidden(next)
   }
 
-  // Reduced motion keeps the fades and drops the travel; exits are quicker.
-  const reduced = motionOff || osReduced
   const travel = reduced ? 0 : 8
   const shrink = reduced ? 1 : 0.98
   const transition = { duration: 0.22, ease }
@@ -236,14 +255,17 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
               type="button"
               className={styles.dock}
               aria-label="Mầm"
-              aria-expanded={menuOpen}
+              aria-expanded={menuOpen || dockBubble}
               aria-controls={menuOpen ? menuId : undefined}
-              data-open={menuOpen}
-              onClick={() => setOpen((value) => !value)}
+              data-open={menuOpen || dockBubble}
+              onClick={() => {
+                if (dockBubble) close(false)
+                else setOpen((value) => !value)
+              }}
             >
               <MamCharacter
                 size={compact ? 72 : 96}
-                behavior={menuOpen ? 'curious' : 'idle'}
+                behavior={behavior ?? (menuOpen ? 'curious' : 'idle')}
                 reducedMotion={
                   motionOff || suppressed || isMamStaticDockRoute(pathname)
                 }
@@ -274,6 +296,24 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                   <div className={styles.lead}>
                     Mầm ngồi ở góc này và chỉ lên tiếng khi bạn cần.
                   </div>
+
+                  {pageTarget ? (
+                    <button
+                      type="button"
+                      className={styles.ask}
+                      onClick={() => {
+                        setOpen(false)
+                        summonPage()
+                      }}
+                    >
+                      <MessageCircleQuestion
+                        size={18}
+                        strokeWidth={1.8}
+                        aria-hidden="true"
+                      />
+                      Hỏi Mầm về trang này
+                    </button>
+                  ) : null}
 
                   <MamSwitch
                     label="Mầm tự lên tiếng"
@@ -306,6 +346,20 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
             </AnimatePresence>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {summon ? (
+          <MamBubble
+            key={summon.anchor.kind === 'dock' ? 'dock' : 'point'}
+            summon={summon}
+            reduced={reduced}
+            bubbleRef={bubbleRef}
+            onChoose={choose}
+            onGo={go}
+            onClose={() => close(true)}
+          />
+        ) : null}
       </AnimatePresence>
     </div>
   )

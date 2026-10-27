@@ -7,6 +7,7 @@ import type { HomeNextStep } from '@/features/assessment/api/care-contract'
 import type { PublicResourceSummary } from '@/features/resources/api/browser-resources'
 import { PlanEmotionCheckIn } from '@/features/emotion-check-in/PlanEmotionCheckIn'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useMamPageTarget } from '@/features/mam/use-mam-target'
 import HomeNextStepCard from './HomeNextStepCard'
 import { HomeGreeting } from './HomeGreeting'
 import { HomeQuickActions } from './HomeQuickActions'
@@ -99,6 +100,8 @@ export function HomeHub() {
   const home = state.phase === 'ready' ? state.home : null
   const safety = home?.journey.nextAction === 'REVIEW_SAFETY_SUPPORT'
   const loading = state.phase === 'loading'
+  // Safety support and the emotion check-in are no-interrupt zones (ADR).
+  useMamPageTarget(safety || planEmotion ? null : { kind: 'dashboard.page' })
 
   return (
     <div
@@ -158,8 +161,12 @@ export function HomeHub() {
       {!safety && !planEmotion && <HomeEmotionSection onPersisted={reload} />}
       {!safety && (
         <div className="home-secondary-row" data-page-motion="off">
-          <HomeResources home={home} loading={loading} />
-          <HomeUpcomingAppointment />
+          <HomeResources
+            home={home}
+            loading={loading}
+            summonable={!planEmotion}
+          />
+          <HomeUpcomingAppointment summonable={!planEmotion} />
         </div>
       )}
       {!safety && <HomeQuickActions home={home} />}
