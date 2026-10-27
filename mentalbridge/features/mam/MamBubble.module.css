@@ -205,3 +205,31 @@
     margin: -10px -10px -10px 0;
   }
 }
+
+/* The celebration bubble keeps a full 44 px close target on every pointer. */
+.closeLarge {
+  width: 44px;
+  height: 44px;
+  margin: -10px -10px -10px 0;
+}
+
+.closeLarge:focus-visible {
+  outline-offset: -2px;
+}
+
+/* The celebration's live region stays in the accessibility tree while empty,
+   so the text set after mount is announced. */
+.liveHeld:empty {
+  display: block;
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* A secondary text link, as the "Cảm ơn Mầm" text button. */
+a.done {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}

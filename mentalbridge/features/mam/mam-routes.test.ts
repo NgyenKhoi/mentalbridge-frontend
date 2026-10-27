@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { isMamDockRoute, isMamStaticDockRoute } from './mam-routes'
+import {
+  isMamCelebrationRoute,
+  isMamDockRoute,
+  isMamStaticDockRoute,
+} from './mam-routes'
 
 describe('isMamDockRoute', () => {
   it.each([
@@ -45,4 +49,22 @@ describe('isMamDockRoute', () => {
     expect(isMamStaticDockRoute('/dashboard')).toBe(false)
     expect(isMamStaticDockRoute('/resources/resource-1')).toBe(false)
   })
+})
+
+describe('isMamCelebrationRoute', () => {
+  it.each(['/dashboard', '/achievements', '/resources', '/resources/r-1'])(
+    'plays celebrations on %s',
+    (path) => expect(isMamCelebrationRoute(path)).toBe(true),
+  )
+
+  it.each([
+    null,
+    '/journal',
+    '/support-guides',
+    '/support-guides/g-1',
+    '/support-plan',
+    '/resources/a/b',
+  ])('keeps celebrations waiting on %s', (path) =>
+    expect(isMamCelebrationRoute(path)).toBe(false),
+  )
 })
