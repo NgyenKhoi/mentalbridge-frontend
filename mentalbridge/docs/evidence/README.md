@@ -1,5 +1,9 @@
 # Synthetic browser evidence
 
+MB-774 feeds the Mầm celebration director with the real Achievements and
+Bingo reads, plus a cadence reader on dock routes. Results are in
+[`mb-774-mam-reward-reads.md`](mb-774-mam-reward-reads.md).
+
 MB-768 mounts one Mầm dock per tab on eligible USER routes, with hide, mute
 and motion controls. Results are in
 [`mb-768-mam-global-dock.md`](mb-768-mam-global-dock.md).

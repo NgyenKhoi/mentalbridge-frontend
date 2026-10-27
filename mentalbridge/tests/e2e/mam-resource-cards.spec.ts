@@ -78,6 +78,10 @@ async function openCatalogue(page: Page) {
   )
   await page.goto('/resources')
   await expect(card(page, 'Thở hộp bốn nhịp')).toBeVisible()
+  // The plan section above the catalogue settles late and moves the cards.
+  await expect(
+    page.getByRole('region', { name: 'Trong kế hoạch của tôi' }),
+  ).toHaveAttribute('aria-busy', 'false')
   return calls
 }
 
@@ -91,7 +95,8 @@ test.describe('MB-770 Mầm on Resource cards', () => {
   test('right-click explains a published card and opens its detail', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 1440, height: 900 })
+    // Tall enough that the settled page brings the whole card on screen.
+    await page.setViewportSize({ width: 1440, height: 1100 })
     const calls = await openCatalogue(page)
     const breathing = card(page, 'Thở hộp bốn nhịp')
 

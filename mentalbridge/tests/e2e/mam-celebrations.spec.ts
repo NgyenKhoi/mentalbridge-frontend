@@ -8,9 +8,12 @@ import {
 } from './plan-resources-mocks'
 
 // MB-773: the celebration director plays one appearance from owner read
-// snapshots. MB-774 will dispatch the real reads; here the snapshots are fake
-// `mam:award-read` events. The clock is fixed so the 10 s coalescing window, the
-// 1.7 s one-shot, the 8 s bubble and the 30 min budget are deterministic.
+// snapshots. Here the snapshots are fake `mam:award-read` events; the real reads
+// are in mam-reward-reads.spec.ts. Since MB-774 the host also reads on its own,
+// so the gallery mock lists the earned achievements the scenario queues: an
+// empty read would reconcile them away. The clock is fixed so the 10 s
+// coalescing window, the 1.7 s one-shot, the 8 s bubble and the 30 min budget
+// are deterministic.
 
 const START = new Date('2026-10-27T03:00:00Z')
 const MIN = 60_000
@@ -29,6 +32,21 @@ const achievement = (id: string, title: string, agoMs = MIN) => {
     title,
   }
 }
+// The gallery item the host's own read returns for a fake award.
+const earnedItem = (award: ReturnType<typeof achievement>) => ({
+  definitionId: award.key.split(':')[1],
+  domain: 'JOURNAL',
+  kind: 'MILESTONE',
+  tier: 'FIRST_STEP',
+  title: award.title,
+  description: 'Mốc riêng tư dựa trên hoạt động đã lưu.',
+  status: 'EARNED',
+  evidenceClass: 'OWNER_SOURCE_FACT',
+  unlockedAt: new Date(award.at).toISOString(),
+  ruleVersion: 'achievement-rules-v1',
+  privacy: 'PRIVATE',
+  progress: { current: 1, target: 1, unit: 'EVENT' },
+})
 const bingo = (position: number) => ({
   key: `bingo:2026-10-26:Asia/Ho_Chi_Minh:${position}:r:v1`,
   kind: 'bingo',
@@ -62,6 +80,17 @@ async function dispatchRead(
 const JOURNAL = 'achievements:JOURNAL'
 const BOARD = 'bingo:2026-10-26:Asia/Ho_Chi_Minh'
 
+/** Scopes the director has reconciled at least once. */
+const readScopes = (page: Page) =>
+  page.evaluate(() => {
+    const key = Object.keys(localStorage).find((name) =>
+      name.startsWith('mentalbridge_mam_celebrations:'),
+    )
+    return key
+      ? Object.keys(JSON.parse(localStorage.getItem(key)!).lastReads)
+      : []
+  })
+
 /** Reservations kept in the per-account record; one per delivered appearance. */
 const reservations = (page: Page) =>
   page.evaluate(() => {
@@ -90,7 +119,11 @@ async function expectClosed(page: Page) {
 // Where a page action sits under the dock the dock steps aside and nothing
 // plays (ADR layering), so the scenarios run where nothing does: the empty
 // gallery and the empty catalogue.
-async function open(page: Page, path = '/achievements') {
+async function open(
+  page: Page,
+  path = '/achievements',
+  earned: ReturnType<typeof achievement>[] = [],
+) {
   await page.clock.install({ time: START })
   if (path === '/resources') {
     await installPlanResourcesMocks(page, resourceWorld(1))
@@ -120,13 +153,18 @@ async function open(page: Page, path = '/achievements') {
               asOfLocalDate: '2026-10-27',
             },
           ],
-          items: [],
+          items: [achievement('old', 'Cũ', 5 * 60 * MIN), ...earned].map(
+            earnedItem,
+          ),
         }),
       }),
     )
   }
   await page.goto(path)
   await expect(dock(page)).toBeVisible()
+  // The host's own gallery read seeds the domain before the fake reads.
+  if (path === '/achievements')
+    await expect.poll(() => readScopes(page)).toContain(JOURNAL)
   // First read of a domain seeds silently.
   await dispatchRead(page, JOURNAL, [achievement('old', 'Cũ', 5 * 60 * MIN)])
   await page.clock.runFor(2000)
@@ -270,7 +308,7 @@ test.describe('MB-773 Mầm celebration director', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
-    await open(page, '/journal')
+    await open(page, '/journal', [achievement('a', 'Một')])
     await dispatchRead(page, JOURNAL, [achievement('a', 'Một')])
     await page.clock.runFor(SETTLE)
     await expect(bubble(page)).toHaveCount(0)
