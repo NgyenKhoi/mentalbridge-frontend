@@ -27,3 +27,14 @@ export const isMamDockRoute = (pathname: string | null) =>
 
 export const isMamStaticDockRoute = (pathname: string | null) =>
   matches(MAM_STATIC_DOCK_ROUTES, pathname)
+
+// Surface matrix "Automatic" column: where celebrations may play. Queued
+// awards wait elsewhere (journal, support guides, SupportPlan) for these.
+const MAM_CELEBRATION_ROUTES = [
+  /^\/dashboard$/,
+  /^\/achievements$/,
+  /^\/resources(\/[^/]+)?$/,
+]
+
+export const isMamCelebrationRoute = (pathname: string | null) =>
+  matches(MAM_CELEBRATION_ROUTES, pathname)

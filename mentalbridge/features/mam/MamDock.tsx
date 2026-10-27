@@ -7,17 +7,25 @@ import { usePathname } from 'next/navigation'
 
 import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
 
-import { MamBubble } from './MamBubble'
-import { MamCharacter } from './MamCharacter'
+import { MamBubble, MamCelebrationBubble } from './MamBubble'
+import { MamCharacter, type MamRenderStatus } from './MamCharacter'
 import styles from './MamDock.module.css'
-import { useMamDockSlotted } from './MamDockSlot'
+import { useMamAccountId, useMamDockSlotted } from './MamDockSlot'
 import {
   setMamHidden,
   setMamMotionOff,
   setMamMuted,
   useMamPreferences,
 } from './mam-preferences'
-import { isMamDockRoute, isMamStaticDockRoute } from './mam-routes'
+import {
+  isMamCelebrationRoute,
+  isMamDockRoute,
+  isMamStaticDockRoute,
+} from './mam-routes'
+import {
+  useMamCelebrationNote,
+  useMamCelebrations,
+} from './use-mam-celebrations'
 import { useMamSummon } from './use-mam-summon'
 import { useMamSuppressed } from './use-mam-suppressed'
 import { useMamPageTargetValue } from './use-mam-target'
@@ -49,6 +57,7 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const rootRef = useRef<HTMLDivElement>(null)
   const dockRef = useRef<HTMLButtonElement | null>(null)
   const bubbleRef = useRef<HTMLDivElement | null>(null)
+  const celebrationRef = useRef<HTMLDivElement | null>(null)
   const focusAfterToggle = useRef(false)
   const { hidden, muted, motionOff } = useMamPreferences()
   const suppressed = useMamSuppressed()
@@ -80,9 +89,36 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     bubbleRef,
   })
   const dockBubble = summon?.anchor.kind === 'dock'
+  const accountId = useMamAccountId()
+  const [status, setStatus] = useState<MamRenderStatus>('loading')
 
   // ADR layering: page actions stay clickable; focused elements stay clear.
   const [yielding, setYielding] = useState<'none' | 'overlap' | 'focus'>('none')
+
+  // MB-773: nothing plays unless every no-interrupt condition holds.
+  const celebration = useMamCelebrations({
+    accountId,
+    pathname,
+    allowed:
+      isMamCelebrationRoute(pathname) &&
+      status === 'ready' &&
+      !hidden &&
+      !muted &&
+      !reduced &&
+      !suppressed &&
+      !summon &&
+      !menuOpen,
+    blocked: yielding !== 'none',
+  })
+  const dismissCelebration = useRef(celebration.dismiss)
+  useEffect(() => {
+    dismissCelebration.current = celebration.dismiss
+  })
+  const celebrating = celebration.bubbleText !== null
+  const note = useMamCelebrationNote({
+    accountId,
+    open: menuOpen && (muted || reduced),
+  })
   useEffect(() => {
     let frame: number | null = null
     const content = document.querySelector('.ref-content')
@@ -100,6 +136,17 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         return
       }
       const dock = root.getBoundingClientRect()
+      const bubble = celebrationRef.current?.getBoundingClientRect()
+      const covered = bubble
+        ? new DOMRect(
+            Math.min(dock.left, bubble.left),
+            Math.min(dock.top, bubble.top),
+            Math.max(dock.right, bubble.right) -
+              Math.min(dock.left, bubble.left),
+            Math.max(dock.bottom, bubble.bottom) -
+              Math.min(dock.top, bubble.top),
+          )
+        : dock
       const overlaps = (element: Element, visibleOnly = false) => {
         if (root.contains(element)) return false
         const rect = element.getBoundingClientRect()
@@ -110,10 +157,10 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
           rect.bottom > 0 &&
           rect.left < window.innerWidth &&
           rect.top < window.innerHeight &&
-          dock.left < rect.right &&
-          rect.left < dock.right &&
-          dock.top < rect.bottom &&
-          rect.top < dock.bottom
+          covered.left < rect.right &&
+          rect.left < covered.right &&
+          covered.top < rect.bottom &&
+          rect.top < covered.bottom
         if (!intersects || !visibleOnly) return intersects
         const style = getComputedStyle(element)
         return (
@@ -124,16 +171,20 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         )
       }
       if (active && active !== document.body && overlaps(active)) {
+        // The yielded dock is transparent; an unseen bubble must not stay.
+        if (bubble) dismissCelebration.current()
         setYielding('focus')
         return
       }
-      setYielding(
-        Array.from(content?.querySelectorAll(PAGE_ACTIONS) ?? []).some(
-          (element) => overlaps(element, true),
-        )
-          ? 'overlap'
-          : 'none',
-      )
+      const overlapping = Array.from(
+        content?.querySelectorAll(PAGE_ACTIONS) ?? [],
+      ).some((element) => overlaps(element, true))
+      // An automatic bubble never covers a page action: it steps aside.
+      if (overlapping && bubble) {
+        dismissCelebration.current()
+        return
+      }
+      setYielding(overlapping ? 'overlap' : 'none')
     }
     const scheduleCheck = () => {
       if (frame === null) frame = requestAnimationFrame(check)
@@ -170,7 +221,7 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       window.removeEventListener('scroll', scheduleCheck, true)
       window.removeEventListener('resize', scheduleCheck)
     }
-  }, [pathname, hidden, menuOpen, dockBubble])
+  }, [pathname, hidden, menuOpen, dockBubble, celebrating])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -263,13 +314,20 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                 else setOpen((value) => !value)
               }}
             >
-              <MamCharacter
-                size={compact ? 72 : 96}
-                behavior={behavior ?? (menuOpen ? 'curious' : 'idle')}
-                reducedMotion={
-                  motionOff || suppressed || isMamStaticDockRoute(pathname)
-                }
-              />
+              <span className={styles.flight} data-flight={celebration.flight}>
+                <MamCharacter
+                  size={compact ? 72 : 96}
+                  behavior={
+                    behavior ??
+                    (celebrating ? 'happy' : menuOpen ? 'curious' : 'idle')
+                  }
+                  reducedMotion={
+                    motionOff || suppressed || isMamStaticDockRoute(pathname)
+                  }
+                  oneShot={celebration.oneShot}
+                  onStatusChange={setStatus}
+                />
+              </span>
             </button>
 
             <AnimatePresence>
@@ -296,6 +354,7 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                   <div className={styles.lead}>
                     Mầm ngồi ở góc này và chỉ lên tiếng khi bạn cần.
                   </div>
+                  {note ? <p className={styles.note}>{note}</p> : null}
 
                   {pageTarget ? (
                     <button
@@ -346,6 +405,20 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
             </AnimatePresence>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {celebration.bubbleText ? (
+          <MamCelebrationBubble
+            key="celebration"
+            text={celebration.bubbleText}
+            showLink={pathname !== '/achievements'}
+            reduced={reduced}
+            bubbleRef={celebrationRef}
+            returnFocusRef={dockRef}
+            onClose={celebration.dismiss}
+          />
+        ) : null}
       </AnimatePresence>
 
       <AnimatePresence>
