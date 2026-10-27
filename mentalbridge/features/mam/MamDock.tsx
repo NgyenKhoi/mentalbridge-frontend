@@ -21,6 +21,8 @@ import { useMamSuppressed } from './use-mam-suppressed'
 
 // Matches the shell's off-canvas sidebar breakpoint.
 const COMPACT_QUERY = '(max-width: 900px)'
+const PAGE_ACTIONS =
+  'a[href], button, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])'
 
 function subscribeCompact(onChange: () => void) {
   const query = window.matchMedia(COMPACT_QUERY)
@@ -63,38 +65,91 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
 
   const menuOpen = open && !hidden
 
-  // ADR layering: Mầm never covers a focused element, so it steps aside
-  // while focus sits on something under the dock.
-  const [yielding, setYielding] = useState(false)
+  // ADR layering: page actions stay clickable; focused elements stay clear.
+  const [yielding, setYielding] = useState<'none' | 'overlap' | 'focus'>('none')
   useEffect(() => {
+    let frame: number | null = null
+    const content = document.querySelector('.ref-content')
+    const check = () => {
+      frame = null
+      const root = rootRef.current
+      const active = document.activeElement
+      if (!root || menuOpen || (active && root.contains(active))) {
+        setYielding('none')
+        return
+      }
+      const dock = root.getBoundingClientRect()
+      const overlaps = (element: Element, visibleOnly = false) => {
+        if (root.contains(element)) return false
+        const rect = element.getBoundingClientRect()
+        const intersects =
+          rect.width > 0 &&
+          rect.height > 0 &&
+          rect.right > 0 &&
+          rect.bottom > 0 &&
+          rect.left < window.innerWidth &&
+          rect.top < window.innerHeight &&
+          dock.left < rect.right &&
+          rect.left < dock.right &&
+          dock.top < rect.bottom &&
+          rect.top < dock.bottom
+        if (!intersects || !visibleOnly) return intersects
+        const style = getComputedStyle(element)
+        return (
+          style.visibility !== 'hidden' &&
+          style.visibility !== 'collapse' &&
+          style.opacity !== '0' &&
+          style.clipPath !== 'inset(50%)'
+        )
+      }
+      if (active && active !== document.body && overlaps(active)) {
+        setYielding('focus')
+        return
+      }
+      setYielding(
+        Array.from(content?.querySelectorAll(PAGE_ACTIONS) ?? []).some(
+          (element) => overlaps(element, true),
+        )
+          ? 'overlap'
+          : 'none',
+      )
+    }
+    const scheduleCheck = () => {
+      if (frame === null) frame = requestAnimationFrame(check)
+    }
     const onFocusIn = (event: FocusEvent) => {
       const root = rootRef.current
       const target = event.target
-      if (!root || !(target instanceof Element) || root.contains(target)) {
-        setYielding(false)
-        return
-      }
       // Focus leaving the dock closes the menu, which could cover the target.
-      setOpen(false)
-      const a = root.getBoundingClientRect()
-      const b = target.getBoundingClientRect()
-      setYielding(
-        a.left < b.right &&
-          b.left < a.right &&
-          a.top < b.bottom &&
-          b.top < a.bottom,
-      )
+      if (root && target instanceof Element && !root.contains(target))
+        setOpen(false)
+      scheduleCheck()
     }
-    const onFocusOut = (event: FocusEvent) => {
-      if (event.relatedTarget === null) setYielding(false)
+    const observer = new ResizeObserver(scheduleCheck)
+    // Loading placeholders can become actions without changing content size.
+    const mutations = new MutationObserver(scheduleCheck)
+    if (content) {
+      observer.observe(content)
+      mutations.observe(content, { childList: true, subtree: true })
     }
+    scheduleCheck()
     document.addEventListener('focusin', onFocusIn)
-    document.addEventListener('focusout', onFocusOut)
+    document.addEventListener('focusout', scheduleCheck)
+    window.addEventListener('scroll', scheduleCheck, {
+      passive: true,
+      capture: true,
+    })
+    window.addEventListener('resize', scheduleCheck, { passive: true })
     return () => {
+      if (frame !== null) cancelAnimationFrame(frame)
+      observer.disconnect()
+      mutations.disconnect()
       document.removeEventListener('focusin', onFocusIn)
-      document.removeEventListener('focusout', onFocusOut)
+      document.removeEventListener('focusout', scheduleCheck)
+      window.removeEventListener('scroll', scheduleCheck, true)
+      window.removeEventListener('resize', scheduleCheck)
     }
-  }, [])
+  }, [pathname, hidden, menuOpen])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -140,7 +195,8 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       ref={rootRef}
       className={styles.root}
       data-mam-dock={hidden ? 'hidden' : 'shown'}
-      data-yield={yielding}
+      data-yield={yielding !== 'none'}
+      data-focus-yield={yielding === 'focus'}
     >
       <AnimatePresence initial={false} mode="wait">
         {hidden ? (

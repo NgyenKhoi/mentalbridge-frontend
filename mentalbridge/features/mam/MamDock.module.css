@@ -15,10 +15,14 @@
     opacity var(--motion-fast) var(--ease-standard);
 }
 
-/* Steps aside while keyboard focus sits on something under the dock. */
+/* Page actions remain visible and receive clicks through the dock. */
 .root[data-yield='true'] {
-  opacity: 0;
+  opacity: 0.35;
   pointer-events: none;
+}
+
+.root[data-focus-yield='true'] {
+  opacity: 0;
 }
 
 /* Follows the shell sidebar (232 / 76 px, `dashboard-shell.css`). */
@@ -258,7 +262,7 @@
   .row,
   .switch,
   .switch > span {
-    transition: none;
+    transition: none !important; /* Overrides the global reduced-motion duration. */
   }
 
   .dock:hover,

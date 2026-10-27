@@ -49,6 +49,22 @@ function stubMatchMedia(matches: (query: string) => boolean) {
 }
 
 const dockButton = () => screen.getByRole('button', { name: 'Mầm' })
+let resizeContent: () => void
+
+function stubOverlap() {
+  let overlapping = true
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+    function (this: HTMLElement) {
+      if (this.matches('[data-mam-dock]')) return new DOMRect(20, 700, 96, 96)
+      if (this.closest('.ref-content'))
+        return new DOMRect(20, overlapping ? 720 : 100, 200, 44)
+      return new DOMRect()
+    },
+  )
+  return (value: boolean) => {
+    overlapping = value
+  }
+}
 
 describe('MamDock', () => {
   beforeEach(() => {
@@ -57,9 +73,21 @@ describe('MamDock', () => {
     window.localStorage.clear()
     window.sessionStorage.clear()
     stubMatchMedia(() => false)
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(onResize: () => void) {
+          resizeContent = onResize
+        }
+        observe = vi.fn()
+        disconnect = vi.fn()
+      },
+    )
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
     document.body.innerHTML = ''
   })
 
@@ -260,6 +288,95 @@ describe('MamDock', () => {
     await waitFor(() =>
       expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull(),
     )
+  })
+
+  it('yields to overlapping page actions and recovers on scroll, resize and content resize', async () => {
+    const setOverlap = stubOverlap()
+    render(
+      <>
+        <main className="ref-content">
+          <button type="button">Lưu ghi nhận</button>
+        </main>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    const root = dockButton().closest('[data-mam-dock]')
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
+    expect(root).toHaveAttribute('data-focus-yield', 'false')
+
+    const action = screen.getByRole('button', { name: 'Lưu ghi nhận' })
+    action.style.opacity = '0'
+    act(() => resizeContent())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+    action.style.opacity = '1'
+    action.style.clipPath = 'inset(50%)'
+    act(() => resizeContent())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+    action.style.clipPath = ''
+    act(() => resizeContent())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
+
+    setOverlap(false)
+    fireEvent.scroll(window)
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+    setOverlap(true)
+    fireEvent.resize(window)
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
+    setOverlap(false)
+    act(() => resizeContent())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+  })
+
+  it('rechecks actions replacing same-sized loading placeholders', async () => {
+    stubOverlap()
+    const { container } = render(
+      <>
+        <main className="ref-content" />
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    const root = dockButton().closest('[data-mam-dock]')
+    const action = document.createElement('button')
+    action.textContent = 'Lưu ghi nhận'
+    act(() => container.querySelector('.ref-content')?.appendChild(action))
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
+    act(() => action.remove())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+  })
+
+  it('keeps focus yield and lets the focused dock or its open menu take precedence', async () => {
+    stubOverlap()
+    render(
+      <>
+        <main className="ref-content">
+          <button type="button">Lưu ghi nhận</button>
+        </main>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    const root = dockButton().closest('[data-mam-dock]')
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
+    // Custom controls may focus a transparent native input under their label.
+    const action = screen.getByRole('button', { name: 'Lưu ghi nhận' })
+    action.style.opacity = '0'
+    act(() => action.focus())
+    await waitFor(() =>
+      expect(root).toHaveAttribute('data-focus-yield', 'true'),
+    )
+    act(() => dockButton().focus())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+
+    action.style.opacity = '1'
+    fireEvent.click(dockButton())
+    act(() => dockButton().blur())
+    fireEvent.scroll(window)
+    expect(dockButton()).toHaveAttribute('aria-expanded', 'true')
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
   })
 
   it('keeps Mầm still on the journal list without touching the motion preference', () => {

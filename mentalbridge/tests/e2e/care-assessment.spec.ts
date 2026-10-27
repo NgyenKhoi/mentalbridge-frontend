@@ -215,7 +215,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
           (element) => getComputedStyle(element, '::placeholder').color,
         ),
       )
-      .toBe('rgb(138, 149, 133)')
+      .toBe('rgb(95, 107, 91)')
     await page.screenshot({
       path: 'docs/evidence/story-1101-profile-desktop.png',
       fullPage: true,
@@ -530,13 +530,14 @@ test.describe('Care-backed PHQ-9 screening', () => {
 
     await page.setViewportSize({ width: 1440, height: 1000 })
     await page.goto('/dashboard')
-    const start = page.getByRole('link', {
-      name: /Bắt đầu kiểm tra ban đầu/,
-    })
+    const start = page
+      .getByRole('navigation', { name: 'Hành động nhanh' })
+      .getByRole('link', {
+        name: 'Kiểm tra ban đầu Hiểu rõ 14 ngày gần đây',
+        exact: true,
+      })
     await expect(start).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Hiểu rõ hơn về 14 ngày gần đây' }),
-    ).toBeVisible()
+    await expect(start).toHaveAttribute('href', '/initial-check')
     await start.click()
 
     const privacyHeading = page.getByRole('heading', {
@@ -591,7 +592,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
       }),
     ).toBeVisible()
     await page.goto('/dashboard')
-    await page.getByRole('link', { name: /Bắt đầu kiểm tra ban đầu/ }).click()
+    await start.click()
     await expect(
       page.getByRole('heading', {
         name: 'GAD-7 — Sàng lọc triệu chứng lo âu',
