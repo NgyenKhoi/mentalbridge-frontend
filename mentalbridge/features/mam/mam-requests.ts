@@ -9,6 +9,8 @@ import {
 // intent's template; Mầm never shows text it could not validate.
 export const MAM_REQUEST_TIMEOUT_MS = 8000
 const MAX_ANSWER_LENGTH = 600
+// An answer may only open a reviewed Resource detail inside the app.
+const RESOURCE_HREF = /^\/resources\/[A-Za-z0-9-]{1,64}(\?[A-Za-z0-9=&_-]*)?$/
 
 export type MamRequestResult =
   | Readonly<{ status: 'succeeded'; answer: MamAnswer }>
@@ -21,14 +23,21 @@ export type MamRequestResult =
 
 function validAnswer(value: unknown): MamAnswer | null {
   if (!value || typeof value !== 'object') return null
-  const { text, focusKind } = value as Record<string, unknown>
+  const { text, focusKind, href } = value as Record<string, unknown>
   if (typeof text !== 'string') return null
   const trimmed = text.trim()
   if (!trimmed || trimmed.length > MAX_ANSWER_LENGTH) return null
   if (focusKind !== undefined && !isMamTargetKind(focusKind)) return null
-  return focusKind === undefined
-    ? { text: trimmed }
-    : { text: trimmed, focusKind }
+  if (
+    href !== undefined &&
+    (typeof href !== 'string' || !RESOURCE_HREF.test(href))
+  )
+    return null
+  return {
+    text: trimmed,
+    ...(focusKind === undefined ? {} : { focusKind }),
+    ...(href === undefined ? {} : { href }),
+  }
 }
 
 /**

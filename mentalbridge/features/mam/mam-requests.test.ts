@@ -28,6 +28,10 @@ describe('runMamRequest', () => {
     { text: 42 },
     { text: 'x'.repeat(601) },
     { text: 'ok', focusKind: 'https://evil.example' },
+    { text: 'ok', href: 'https://evil.example/resources/abc' },
+    { text: 'ok', href: '//evil.example' },
+    { text: 'ok', href: '/support-plan/abc' },
+    { text: 'ok', href: 42 },
   ])('falls back to the template for invalid answer %j', async (value) => {
     const result = await runMamRequest(
       'EXPLAIN',
@@ -38,6 +42,19 @@ describe('runMamRequest', () => {
       status: 'failed',
       reason: 'invalid',
       answer: fallback,
+    })
+  })
+
+  it('keeps an in-app Resource detail link', async () => {
+    const href = '/resources/9b2c-41aa?from=resources&date=2026-10-27'
+    const result = await runMamRequest(
+      'EXPLAIN',
+      async () => ({ text: 'Bài đọc.', href }),
+      new AbortController().signal,
+    )
+    expect(result).toEqual({
+      status: 'succeeded',
+      answer: { text: 'Bài đọc.', href },
     })
   })
 
