@@ -490,14 +490,9 @@ export function parseAccountPage(value: unknown): AccountPage | null {
     if (!detail) return null
     items.push(detail)
   }
-  const nextCursor = value.nextCursor
-  if (
-    nextCursor !== undefined &&
-    nextCursor !== null &&
-    typeof nextCursor !== 'string'
-  )
+  if (value.nextCursor !== null && typeof value.nextCursor !== 'string')
     return null
-  return { items, nextCursor: nextCursor ?? null }
+  return { items, nextCursor: value.nextCursor as string | null }
 }
 
 function parseAdministrationAuditEvent(
@@ -531,8 +526,7 @@ function parseAdministrationAuditEvent(
     typeof value.action !== 'string' ||
     !SAFE_CODE_PATTERN.test(value.action) ||
     !['SUCCEEDED', 'DENIED', 'FAILED'].includes(String(value.result)) ||
-    (value.reasonCode !== undefined &&
-      value.reasonCode !== null &&
+    (value.reasonCode !== null &&
       (typeof value.reasonCode !== 'string' ||
         !SAFE_CODE_PATTERN.test(value.reasonCode))) ||
     typeof value.correlationId !== 'string' ||
@@ -541,8 +535,8 @@ function parseAdministrationAuditEvent(
     !VALID_AUDIT_DOMAINS.has(String(value.domain)) ||
     (value.actorType === 'SYSTEM' && value.actorIdentifier !== 'system') ||
     (value.actorType === 'ADMIN' && value.actorIdentifier === 'system') ||
-    (value.targetIdentifier !== undefined &&
-      value.targetIdentifier !== null &&
+    (value.targetIdentifier !== null &&
+      value.targetIdentifier !== undefined &&
       (typeof value.targetIdentifier !== 'string' ||
         !SAFE_TARGET_PATTERN.test(value.targetIdentifier)))
   ) {
@@ -606,14 +600,6 @@ export function validateAccountStateChangeRequest(
     !ACCOUNT_STATE_REASON_CODES.has(value.reasonCode)
   ) {
     violations.push({ field: 'reasonCode', code: 'INVALID_FORMAT' })
-  }
-  if (
-    typeof value.status === 'string' &&
-    typeof value.reasonCode === 'string' &&
-    ((value.status === 'ACTIVE' && value.reasonCode !== 'REVIEW_COMPLETED') ||
-      (value.status === 'DISABLED' && value.reasonCode === 'REVIEW_COMPLETED'))
-  ) {
-    violations.push({ field: 'reasonCode', code: 'INVALID_COMBINATION' })
   }
   if (violations.length > 0) return { success: false, violations }
   return {
@@ -784,14 +770,9 @@ export function parsePlatformReport(value: unknown): PlatformReport | null {
     typeof value.downloadable !== 'boolean'
   )
     return null
-  if (value.periodStart > value.periodEnd) return null
   for (const field of ['retryOf']) {
     const item = value[field]
-    if (
-      item !== undefined &&
-      item !== null &&
-      (typeof item !== 'string' || !UUID_PATTERN.test(item))
-    )
+    if (item !== null && (typeof item !== 'string' || !UUID_PATTERN.test(item)))
       return null
   }
   for (const field of [
@@ -801,24 +782,16 @@ export function parsePlatformReport(value: unknown): PlatformReport | null {
     'retainedUntil',
   ]) {
     const item = value[field]
-    if (item !== undefined && item !== null && !isDateTime(item)) return null
+    if (item !== null && !isDateTime(item)) return null
   }
   if (
-    (value.failureCode !== undefined &&
-      value.failureCode !== null &&
-      typeof value.failureCode !== 'string') ||
-    (value.fileName !== undefined &&
-      value.fileName !== null &&
-      typeof value.fileName !== 'string') ||
-    (value.mediaType !== undefined &&
-      value.mediaType !== null &&
-      typeof value.mediaType !== 'string') ||
-    (value.contentLength !== undefined &&
-      value.contentLength !== null &&
+    (value.failureCode !== null && typeof value.failureCode !== 'string') ||
+    (value.fileName !== null && typeof value.fileName !== 'string') ||
+    (value.mediaType !== null && typeof value.mediaType !== 'string') ||
+    (value.contentLength !== null &&
       (!Number.isInteger(value.contentLength) ||
         (value.contentLength as number) < 1)) ||
-    (value.contentSha256 !== undefined &&
-      value.contentSha256 !== null &&
+    (value.contentSha256 !== null &&
       (typeof value.contentSha256 !== 'string' ||
         !/^[0-9a-f]{64}$/.test(value.contentSha256)))
   )
@@ -837,14 +810,9 @@ export function parsePlatformReportPage(
     return null
   const items = value.items.map(parsePlatformReport)
   if (!items.every((item): item is PlatformReport => item !== null)) return null
-  const nextCursor = value.nextCursor
-  if (
-    nextCursor !== undefined &&
-    nextCursor !== null &&
-    typeof nextCursor !== 'string'
-  )
+  if (value.nextCursor !== null && typeof value.nextCursor !== 'string')
     return null
-  return { items, nextCursor: nextCursor ?? null }
+  return { items, nextCursor: value.nextCursor as string | null }
 }
 
 const PRODUCT_JOURNEY_SOURCES = new Set(['IDENTITY', 'CARE', 'CONSULTATION'])

@@ -147,6 +147,7 @@ export default function AdminCommercialReconciliationManager({
       },
       () => {
         if (discrepanciesReqIdRef.current === reqId) {
+          setDiscrepancies(null)
           setErrorDiscrepancies(true)
           setLoadingDiscrepancies(false)
         }

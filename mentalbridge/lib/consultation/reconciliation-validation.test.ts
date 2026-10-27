@@ -44,6 +44,22 @@ describe('reconciliation-validation', () => {
     expect(report?.totalDiscrepancies).toBe(2)
     expect(report?.webhooks).toHaveLength(1)
     expect(report?.payouts).toHaveLength(1)
+    if (!report) throw new Error('Expected valid report')
+    expect(
+      parseAdminCommercialDiscrepancies({
+        ...report,
+        payouts: [{ ...report.payouts[0], amountVnd: Number.NaN }],
+      }),
+    ).toBeNull()
+    expect(
+      parseAdminCommercialDiscrepancies({ ...report, webhooks: [null] }),
+    ).toBeNull()
+    expect(
+      parseAdminCommercialDiscrepancies({
+        ...report,
+        generatedAt: '1',
+      }),
+    ).toBeNull()
   })
 
   it('rejects malformed discrepancies report', () => {
@@ -76,6 +92,7 @@ describe('reconciliation-validation', () => {
         createdAt: '2026-10-21T00:00:00Z',
       },
       payments: [],
+      subscriptions: [],
       credits: [],
       appointments: [],
       disputes: [],
@@ -86,6 +103,25 @@ describe('reconciliation-validation', () => {
     expect(trace).not.toBeNull()
     expect(trace?.found).toBe(true)
     expect(trace?.subscription?.planCode).toBe('PLUS')
+    if (!trace) throw new Error('Expected valid trace')
+    expect(
+      parseAdminCommercialProvenance({
+        ...trace,
+        subscription: { ...trace.subscription, createdAt: 'invalid-date' },
+      }),
+    ).toBeNull()
+    expect(
+      parseAdminCommercialProvenance({
+        ...trace,
+        payments: [{ amountVnd: '500000' }],
+      }),
+    ).toBeNull()
+    expect(
+      parseAdminCommercialProvenance({ ...trace, subscriptions: [null] }),
+    ).toBeNull()
+    expect(
+      parseAdminCommercialProvenance({ ...trace, truncated: 'false' }),
+    ).toBeNull()
   })
 
   it('parses payout detail and subscription detail', () => {
@@ -110,6 +146,22 @@ describe('reconciliation-validation', () => {
     })
     expect(payoutDetail).not.toBeNull()
     expect(payoutDetail?.payout.amountVnd).toBe(210000)
+    if (!payoutDetail) throw new Error('Expected valid payout detail')
+    expect(
+      parseAdminPayoutDetail({
+        ...payoutDetail,
+        payout: { ...payoutDetail.payout, earningCount: 'one' },
+      }),
+    ).toBeNull()
+    expect(
+      parseAdminPayoutDetail({ ...payoutDetail, attempts: [null] }),
+    ).toBeNull()
+    expect(
+      parseAdminPayoutDetail({
+        ...payoutDetail,
+        payout: { ...payoutDetail.payout, status: 'PAID' },
+      }),
+    ).toBeNull()
 
     const subDetail = parseAdminSubscriptionDetail({
       subscriptionId: '62200000-0000-4000-8000-000000000001',
@@ -127,5 +179,15 @@ describe('reconciliation-validation', () => {
     })
     expect(subDetail).not.toBeNull()
     expect(subDetail?.planCode).toBe('PLUS')
+    if (!subDetail) throw new Error('Expected valid subscription detail')
+    expect(
+      parseAdminSubscriptionDetail({
+        ...subDetail,
+        credits: [{ creditId: 'invalid-id', creditAllocationVnd: Infinity }],
+      }),
+    ).toBeNull()
+    expect(
+      parseAdminSubscriptionDetail({ ...subDetail, upgrades: [null] }),
+    ).toBeNull()
   })
 })

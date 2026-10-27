@@ -219,6 +219,23 @@ describe('AdminCommercialReconciliationManager', () => {
     })
   })
 
+  it('hides the previous reconciliation result when refresh fails', async () => {
+    vi.mocked(browserCommercialReconciliation.getDiscrepancies)
+      .mockResolvedValueOnce(sampleDiscrepancies)
+      .mockRejectedValueOnce(new Error('Connection failure'))
+
+    render(<AdminCommercialReconciliationManager />)
+    expect(await screen.findByText(/ORDER-101/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Làm mới' }))
+
+    expect(
+      await screen.findByText('Chưa thể tải dữ liệu sai lệch từ máy chủ.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/ORDER-101/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/ACCOUNT_INVALID/)).not.toBeInTheDocument()
+  })
+
   it('traces commercial provenance end-to-end without leaking clinical data', async () => {
     vi.mocked(
       browserCommercialReconciliation.getDiscrepancies,
