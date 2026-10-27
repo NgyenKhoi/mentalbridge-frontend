@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -222,4 +223,122 @@ export function MamBubble({
   )
 
   return anchor.kind === 'point' ? createPortal(bubble, document.body) : bubble
+}
+
+const CELEBRATION_MS = 8000
+
+/**
+ * The `happy` bubble of an award celebration. It is automatic, so it is not a
+ * dialog and never takes focus. Esc, an outside press or the close button end
+ * it, and so do 8 s without hover or focus (leaving restarts the full 8 s).
+ */
+export function MamCelebrationBubble({
+  text,
+  showLink,
+  reduced,
+  bubbleRef,
+  returnFocusRef,
+  onClose,
+}: Readonly<{
+  text: string
+  showLink: boolean
+  reduced: boolean
+  bubbleRef: RefObject<HTMLDivElement | null>
+  returnFocusRef: RefObject<HTMLButtonElement | null>
+  onClose: () => void
+}>) {
+  const titleId = useId()
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  // A live region announces only text that changes after it is mounted.
+  const [spoken, setSpoken] = useState('')
+  const paused = hovered || focused
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSpoken(text), 60)
+    return () => clearTimeout(timer)
+  }, [text])
+
+  useEffect(() => {
+    if (paused) return
+    const timer = setTimeout(onClose, CELEBRATION_MS)
+    return () => clearTimeout(timer)
+  }, [paused, onClose])
+
+  // Closing from inside the bubble hands focus back to the dock, as the menu does.
+  const close = useCallback(() => {
+    const inside = bubbleRef.current?.contains(document.activeElement)
+    onClose()
+    if (inside) returnFocusRef.current?.focus()
+  }, [bubbleRef, returnFocusRef, onClose])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) close()
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      if (!bubbleRef.current?.contains(event.target as Node)) onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('pointerdown', onPointerDown)
+    }
+  }, [bubbleRef, onClose, close])
+
+  const travel = reduced ? 0 : 6
+  return (
+    <motion.div
+      ref={bubbleRef}
+      className={styles.bubble}
+      role="group"
+      aria-labelledby={titleId}
+      data-mam-bubble="celebration"
+      data-anchor="dock"
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setFocused(false)
+      }}
+      initial={{ opacity: 0, y: travel, scale: reduced ? 1 : 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: travel / 2, transition: { duration: 0.14, ease } }}
+      transition={{ duration: 0.22, ease }}
+    >
+      <div className={styles.head}>
+        <Leaf
+          className={styles.mark}
+          size={18}
+          strokeWidth={1.8}
+          aria-hidden="true"
+        />
+        <div id={titleId} className={styles.title}>
+          Mầm
+        </div>
+        <button
+          type="button"
+          className={`${styles.close} ${styles.closeLarge}`}
+          aria-label="Đóng"
+          onClick={close}
+        >
+          <X size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+      </div>
+      <div
+        className={`${styles.live} ${styles.liveHeld}`}
+        role="status"
+        aria-live="polite"
+      >
+        {spoken ? <div className={styles.answer}>{spoken}</div> : null}
+      </div>
+      {showLink ? (
+        <Link href="/achievements" className={styles.done}>
+          Xem bộ sưu tập
+        </Link>
+      ) : null}
+    </motion.div>
+  )
 }

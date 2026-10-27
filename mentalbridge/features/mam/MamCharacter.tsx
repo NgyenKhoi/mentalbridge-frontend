@@ -216,7 +216,12 @@ export function MamCharacter({
 
   useEffect(() => {
     const controls = controlsRef.current
-    if (status !== 'ready' || !controls || !oneShot) return
+    if (status !== 'ready' || !controls) return
+    // The host withdrew the command (mute, route change): cut a running one-shot short.
+    if (!oneShot) {
+      if (isMamOneShot(controls.read().behavior)) controls.returnToDock()
+      return
+    }
     if (firedKeyRef.current === oneShot.key) return
     firedKeyRef.current = oneShot.key
     controls.playOnce(oneShot.kind)

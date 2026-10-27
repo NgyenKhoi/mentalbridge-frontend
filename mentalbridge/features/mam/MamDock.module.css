@@ -304,3 +304,34 @@
     transform: none;
   }
 }
+
+/* MB-773: the hero's short rise and settle (ADR "Visual and layout rules"). */
+.flight {
+  line-height: 0;
+  display: block;
+}
+
+.flight[data-flight='true'] {
+  animation: mam-hero-rise 1400ms var(--ease-standard);
+}
+
+@keyframes mam-hero-rise {
+  35% {
+    transform: translateY(-14px);
+  }
+}
+
+/* Plain text above the switches, same voice as the lead. */
+.note {
+  margin: 0 0 8px;
+  padding-inline: 4px;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flight[data-flight='true'] {
+    animation: none;
+  }
+}
