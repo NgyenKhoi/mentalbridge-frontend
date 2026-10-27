@@ -1,8 +1,15 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { getAchievements } from '@/features/achievements/api/browser-achievements'
 import * as celebrations from './mam-celebrations'
 import { useMamCelebrations } from './use-mam-celebrations'
+
+const client = vi.hoisted(() => ({ get: vi.fn() }))
+vi.mock('@/lib/api/browser-client', () => ({ browserApiClient: client }))
+
+// The reader has its own tests; here the host is fed by hand.
+vi.mock('./use-mam-award-reads', () => ({ useMamAwardReads: vi.fn() }))
 
 vi.mock('./mam-celebrations', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./mam-celebrations')>()
@@ -151,5 +158,77 @@ describe('useMamCelebrations', () => {
     rerender({ accountId: 'u1', pathname: '/achievements' })
     await flush()
     expect(reserveMamNext).toHaveBeenCalledTimes(2)
+  })
+
+  describe('a page read that resolves after the host changed account', () => {
+    const response = (title: string) => ({
+      data: {
+        visibilityState: 'VISIBLE',
+        sources: [{ domain: 'JOURNAL', availability: 'AVAILABLE' }],
+        items: [
+          {
+            definitionId: 'journal.a',
+            domain: 'JOURNAL',
+            status: 'EARNED',
+            unlockedAt: new Date(NOW - MIN).toISOString(),
+            title,
+          },
+        ],
+      },
+      headers: { etag: '"1"' },
+    })
+    const record = (accountId: string) =>
+      window.localStorage.getItem(`mentalbridge_mam_celebrations:${accountId}`)
+    const seen: unknown[] = []
+    const listen = (event: Event) => seen.push((event as CustomEvent).detail)
+    beforeEach(() => {
+      seen.length = 0
+      client.get.mockReset()
+      window.addEventListener(celebrations.MAM_AWARD_READ_EVENT, listen)
+    })
+    afterEach(() =>
+      window.removeEventListener(celebrations.MAM_AWARD_READ_EVENT, listen),
+    )
+
+    it.each(['switches to B', 'unmounts and B mounts'])(
+      'never reaches account B when A %s',
+      async (how) => {
+        let resolve!: (value: unknown) => void
+        client.get.mockReturnValue(new Promise((done) => (resolve = done)))
+        const a = renderHost('uA')
+        await observeMamAwardRead('uA', read([]))
+        const pending = getAchievements('Asia/Ho_Chi_Minh')
+        let b = a
+        if (how === 'switches to B')
+          a.rerender({ accountId: 'uB', pathname: '/dashboard' })
+        else {
+          a.unmount()
+          b = renderHost('uB')
+        }
+        await flush()
+        await observeMamAwardRead('uB', read([]))
+        const before = record('uB')
+        const recordA = record('uA')
+
+        resolve(response('Tiêu đề riêng của A'))
+        await pending
+        await flush()
+        expect(seen).toEqual([])
+        expect(record('uB')).toBe(before)
+        expect(record('uA')).toBe(recordA)
+        expect(record('uB')).not.toContain('Tiêu đề riêng của A')
+        b.unmount()
+      },
+    )
+
+    it('still publishes a read that starts and resolves in one session', async () => {
+      client.get.mockResolvedValue(response('Của A'))
+      renderHost('uA')
+      await observeMamAwardRead('uA', read([]))
+      await getAchievements('Asia/Ho_Chi_Minh')
+      await flush()
+      expect(seen).toHaveLength(1)
+      expect(record('uA')).toContain('Của A')
+    })
   })
 })

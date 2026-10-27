@@ -14,6 +14,8 @@ import {
   takeMamNoteFor,
   type MamAppearance,
 } from './mam-celebrations'
+import { endMamAwardSession } from './mam-award-session'
+import { useMamAwardReads } from './use-mam-award-reads'
 
 // Margin after a computed deadline, so the retry lands on the open side of it.
 const RETRY_MARGIN_MS = 50
@@ -77,8 +79,15 @@ export function useMamCelebrations({
         )
     }
     window.addEventListener(MAM_AWARD_READ_EVENT, onRead)
-    return () => window.removeEventListener(MAM_AWARD_READ_EVENT, onRead)
+    return () => {
+      window.removeEventListener(MAM_AWARD_READ_EVENT, onRead)
+      // Reads still in flight belong to this account, not the next one.
+      endMamAwardSession()
+    }
   }, [accountId])
+
+  // After the listener, so the first read already has one.
+  useMamAwardReads({ accountId, pathname })
 
   // Release: the lock-guarded reservation decides (budget, freshness, the 10 s
   // coalescing window); this only asks when the host is free. One timer waits for
