@@ -202,6 +202,39 @@ describe('MB-723 ConsultationBriefPanel', () => {
   })
 
   it.each([
+    ['approve', draftBrief, 'consultation-brief-open-approve'],
+    ['revoke', activeBrief, 'consultation-brief-open-revoke'],
+  ] as const)(
+    'does not claim unshared state after an ambiguous %s response',
+    async (_action, initial, trigger) => {
+      const feature = api({
+        get: jest.fn().mockResolvedValue(initial),
+        approve: jest
+          .fn()
+          .mockRejectedValue(new Error('response lost after server commit')),
+        revoke: jest
+          .fn()
+          .mockRejectedValue(new Error('response lost after server commit')),
+      })
+      await render(
+        <ConsultationBriefPanel api={feature} appointmentId={appointmentId} />,
+      )
+      await screen.findByText(
+        initial.status === 'DRAFT' ? 'Bản nháp riêng tư' : 'Đang chia sẻ',
+      )
+      await fireEvent.press(screen.getByTestId(trigger))
+      await fireEvent.press(screen.getByTestId('consultation-brief-confirm'))
+
+      expect(
+        await screen.findByText(/Chưa xác minh được trạng thái chia sẻ/),
+      ).toBeOnTheScreen()
+      expect(screen.queryByText(initial.currentSituation)).not.toBeOnTheScreen()
+      expect(screen.getByText('Tải lại')).toBeOnTheScreen()
+      expect(screen.queryByText(/Nội dung không được chia sẻ/)).toBeNull()
+    },
+  )
+
+  it.each([
     [403, 'CONSULTATION_BRIEF_ACCESS_DENIED', /không có quyền/],
     [404, 'SUPPORT_EVALUATION_NOT_FOUND', /Không còn đủ dữ liệu hợp lệ/],
     [503, 'APPOINTMENT_CONTEXT_UNAVAILABLE', /Chưa thể xác nhận lịch hẹn/],
