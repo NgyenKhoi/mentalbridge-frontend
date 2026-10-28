@@ -62,7 +62,7 @@ function contextLabel(
 
 function errorCopy(error: unknown) {
   if (!(error instanceof ApiError))
-    return 'Chưa thể tải bản tóm tắt. Hãy thử lại.'
+    return 'Chưa xác minh được trạng thái chia sẻ. Hãy tải lại bản tóm tắt trước khi tiếp tục.'
   if (error.status === 401)
     return 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại trước khi tiếp tục.'
   if (error.status === 403 || error.code.endsWith('ACCESS_DENIED'))
@@ -80,8 +80,8 @@ function errorCopy(error: unknown) {
   if (error.status === 404 || error.code === 'SUPPORT_EVALUATION_NOT_FOUND')
     return 'Không còn đủ dữ liệu hợp lệ cho bản tóm tắt này. Hãy tải lại lịch hẹn.'
   if (error.status === 503 || error.code === 'APPOINTMENT_CONTEXT_UNAVAILABLE')
-    return 'Chưa thể xác nhận lịch hẹn lúc này. Nội dung không được chia sẻ; hãy thử lại sau.'
-  return 'Chưa thể hoàn tất yêu cầu. Nội dung không được chia sẻ; hãy tải lại rồi thử lại.'
+    return 'Chưa thể xác nhận lịch hẹn lúc này. Trạng thái chia sẻ chưa được xác minh; hãy tải lại sau.'
+  return 'Chưa xác minh được kết quả yêu cầu. Hãy tải lại trạng thái chia sẻ trước khi tiếp tục.'
 }
 
 function goalsFrom(value: string) {
