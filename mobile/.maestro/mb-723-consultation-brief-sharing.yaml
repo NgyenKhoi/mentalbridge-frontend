@@ -1,0 +1,43 @@
+appId: com.mentalbridge.mobile
+name: MB-723 approve and revoke an appointment consultation brief
+---
+# Author-only evidence. NOT_RUN until the MB-666 staging/device gate provides
+# one confirmed USER appointment plus a complete PHQ-9/GAD-7 evaluation.
+- launchApp:
+    clearState: false
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Lịch hẹn của tôi'
+- scrollUntilVisible:
+    element:
+      id: appointment-open-detail
+    direction: DOWN
+- tapOn:
+    id: appointment-open-detail
+- scrollUntilVisible:
+    element:
+      id: consultation-brief-panel
+    direction: DOWN
+- assertVisible: 'Tóm tắt trước buổi tư vấn'
+- tapOn:
+    id: consultation-brief-situation
+- inputText: 'Tôi muốn trao đổi về nhịp sinh hoạt và cách sắp xếp thời gian nghỉ.'
+- tapOn:
+    id: consultation-brief-goals
+- inputText: 'Chọn một bước nhỏ có thể thực hiện trong tuần.'
+- hideKeyboard
+- tapOn:
+    id: consultation-brief-save
+- assertVisible: 'Bản nháp đã được lưu. Hãy xem lại trước khi chia sẻ.'
+- tapOn:
+    id: consultation-brief-open-approve
+- assertVisible: 'Bạn muốn chia sẻ bản tóm tắt này?'
+- assertVisible: 'Nhật ký, câu trả lời sàng lọc, chat và ghi chú riêng không được chia sẻ.'
+- tapOn:
+    id: consultation-brief-confirm
+- assertVisible: 'Đang chia sẻ'
+- tapOn:
+    id: consultation-brief-open-revoke
+- assertVisible: 'Thu hồi quyền truy cập?'
+- tapOn:
+    id: consultation-brief-confirm
+- assertVisible: 'Đã thu hồi'
