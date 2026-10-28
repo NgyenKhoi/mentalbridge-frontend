@@ -7,6 +7,11 @@ import {
 import { test } from './test-fixtures'
 
 test.describe('MB-651 guided SupportPlan Companion', () => {
+  // MB-772: with the flag on, the global Mầm replaces this Companion (mam-support-plan.spec.ts).
+  test.skip(
+    process.env.MAM_WEB_ENABLED !== 'false',
+    'Legacy SupportPlan Companion renders only with MAM_WEB_ENABLED=false.',
+  )
   test.skip(
     process.env.E2E_RUNTIME === 'live-cross-stack',
     'The deterministic guided response belongs to the fixture browser gate.',

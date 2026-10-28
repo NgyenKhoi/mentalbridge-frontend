@@ -883,3 +883,100 @@
 .mbw-review:focus {
   outline: none;
 }
+
+/*
+ * MB-772: global Mầm presentation. A card that hosts Mầm's button keeps it in
+ * its top-right corner; while Mầm's bubble is about that card, a ring fades in.
+ */
+.mbw-next[data-mam],
+.mbw-action-list li[data-mam],
+.mbw-mam-review {
+  position: relative;
+}
+
+.mbw-next[data-mam] h2,
+.mbw-action-list li[data-mam] .mbw-row-title {
+  padding-right: 44px;
+}
+
+.mbw-next[data-mam]::after,
+.mbw-action-list li[data-mam]::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid color-mix(in srgb, var(--teal) 55%, transparent);
+  border-radius: calc(var(--radius-panel) + 4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-instant) var(--ease-standard);
+}
+
+.mbw-action-list li[data-mam]::after {
+  border-radius: calc(var(--radius-control) + 4px);
+}
+
+.mbw-next[data-mam-active]::after,
+.mbw-action-list li[data-mam-active]::after {
+  opacity: 1;
+}
+
+/* The replacement review: outcome line, Mầm's button, then the inline reading. */
+.mbw-mam-review {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.mbw-mam-review-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-right: 48px;
+}
+
+.mbw-mam-review-head:has(button) {
+  min-height: 44px;
+}
+
+.mbw-mam-review-head > p {
+  margin: 0;
+}
+
+.mbw-mam-review-body {
+  overflow: hidden;
+}
+
+.mbw-mam-review-inner {
+  display: grid;
+  gap: var(--space-4);
+  /* Room for the focus ring of Thu gọn inside the clipping body. */
+  padding: var(--space-2) 2px 2px;
+}
+
+.mbw-mam-review-inner .mbw-text-button {
+  justify-self: start;
+}
+
+/* Full width, not the narrow aside the review text was sized for. */
+.mbw-mam-review .support-plan-review-outcome,
+.mbw-mam-review .support-plan-review-dimensions p,
+.mbw-mam-review .support-plan-review-dimensions small,
+.mbw-mam-review .support-plan-review-dimensions strong,
+.mbw-mam-review .support-plan-review-options strong,
+.mbw-mam-review .support-plan-review-option-copy,
+.mbw-mam-review .support-plan-review-contradiction,
+.mbw-mam-review .support-plan-review-confirmation {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.mbw-mam-review .support-plan-review-confirmation {
+  border-left: 0;
+  border-radius: var(--radius-control);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mbw-next[data-mam]::after,
+  .mbw-action-list li[data-mam]::after {
+    transition: none;
+  }
+}

@@ -16,6 +16,8 @@ describe('isMamDockRoute', () => {
     '/journal',
     '/resources',
     '/resources/resource-1',
+    '/support-plan',
+    '/support-plan/',
   ])('shows the dock on %s', (path) => {
     expect(isMamDockRoute(path)).toBe(true)
   })
@@ -24,8 +26,8 @@ describe('isMamDockRoute', () => {
     null,
     '/',
     '/login',
-    '/support-plan',
     '/support-plan/today',
+    '/support-plan/anything',
     '/assessment/phq-9',
     '/assessments',
     '/initial-check',
@@ -47,6 +49,7 @@ describe('isMamDockRoute', () => {
     expect(isMamStaticDockRoute('/journal')).toBe(true)
     expect(isMamStaticDockRoute('/journal/')).toBe(true)
     expect(isMamStaticDockRoute('/dashboard')).toBe(false)
+    expect(isMamStaticDockRoute('/support-plan')).toBe(false)
     expect(isMamStaticDockRoute('/resources/resource-1')).toBe(false)
   })
 })

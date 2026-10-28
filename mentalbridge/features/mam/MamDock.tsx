@@ -26,6 +26,7 @@ import {
   useMamCelebrationNote,
   useMamCelebrations,
 } from './use-mam-celebrations'
+import { useMamSaved } from './mam-saved'
 import { useMamSummon } from './use-mam-summon'
 import { useMamSuppressed } from './use-mam-suppressed'
 import { useMamPageTargetValue } from './use-mam-target'
@@ -110,6 +111,17 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       !menuOpen,
     blocked: yielding !== 'none',
   })
+  // A save Care confirmed (MB-772): one light_success under the same conditions.
+  const saved = useMamSaved(
+    status === 'ready' &&
+      !hidden &&
+      !muted &&
+      !reduced &&
+      !suppressed &&
+      !summon &&
+      !menuOpen,
+    pathname,
+  )
   const dismissCelebration = useRef(celebration.dismiss)
   useEffect(() => {
     dismissCelebration.current = celebration.dismiss
@@ -324,7 +336,7 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                   reducedMotion={
                     motionOff || suppressed || isMamStaticDockRoute(pathname)
                   }
-                  oneShot={celebration.oneShot}
+                  oneShot={celebration.oneShot ?? saved}
                   onStatusChange={setStatus}
                 />
               </span>

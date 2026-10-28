@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   MAM_TARGETS_VERSION,
+  mamFallbackText,
   mamReviewedAnswer,
   resolveMamTarget,
 } from './mam-targets'
@@ -23,7 +24,7 @@ describe('resolveMamTarget', () => {
     null,
     'dashboard.page',
     {},
-    { kind: 'support-plan.action' },
+    { kind: 'support-plan.unknown' },
     { kind: 'toString' },
     { kind: '__proto__' },
   ])('fails closed for %j', (descriptor) => {
@@ -41,6 +42,55 @@ describe('resolveMamTarget', () => {
     })
     expect(target?.context).toEqual({})
     expect(JSON.stringify(target)).not.toContain(INJECTION)
+  })
+})
+
+describe('SupportPlan targets', () => {
+  const ids = {
+    supportPlanId: '10000000-0000-4000-8000-000000000772',
+    actionId: '20000000-0000-4000-8000-000000000772',
+  }
+
+  it.each(['support-plan.focus', 'support-plan.action'] as const)(
+    'registers %s with only the two allowlisted ids and the explain intent',
+    (kind) => {
+      const target = resolveMamTarget({
+        kind,
+        context: { ...ids, title: INJECTION, note: 'Hôm nay mình thấy rất tệ' },
+      })
+      expect(target).toMatchObject({
+        kind,
+        page: false,
+        intents: ['EXPLAIN'],
+        context: ids,
+      })
+      expect(JSON.stringify(target)).not.toContain(INJECTION)
+    },
+  )
+
+  it('registers the page target with both starters and no context', () => {
+    expect(
+      resolveMamTarget({ kind: 'support-plan.page', context: ids }),
+    ).toMatchObject({
+      page: true,
+      intents: ['EXPLAIN', 'WHERE_TO_START'],
+      context: {},
+    })
+  })
+
+  it('has no reviewed text of its own: the page resolver answers, else the fallback shows', () => {
+    for (const kind of [
+      'support-plan.focus',
+      'support-plan.action',
+      'support-plan.page',
+    ] as const) {
+      const target = resolveMamTarget({ kind, context: ids })!
+      expect(mamReviewedAnswer(target, 'EXPLAIN', () => true)?.text).toBe('')
+    }
+    const card = resolveMamTarget({ kind: 'support-plan.focus', context: ids })!
+    expect(mamFallbackText(card, 'EXPLAIN')).toBe(
+      'Chưa tải được lời giải thích lúc này. Thử lại sau.',
+    )
   })
 })
 

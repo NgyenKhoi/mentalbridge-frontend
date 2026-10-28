@@ -271,10 +271,14 @@ anything and never moves focus. It stays as a static dock or is hidden:
 `/ai-companion` already has its own conversation surface, so a second character
 there would duplicate it.
 
-Until MB-772 merges the SupportPlan Companion with Mầm, the global dock stays
-hidden on `/support-plan`, so the page never shows two companions (owner
-decision, 2026-10-27, MB-768). The host shows the dock only on the routes in
-`features/mam/mam-routes.ts`; any other route hides it.
+Since MB-772 the global dock shows on exact `/support-plan` when
+`MAM_WEB_ENABLED` is on, and the page then drops the legacy SupportPlan
+Companion (aside, contextual entries and guided panel). With the flag off the
+legacy Companion stays and no dock renders, so the page never shows two
+companions (owner decision, 2026-10-27, MB-768). The page passes the
+server-read flag to the workspace so both sides switch together. The host shows
+the dock only on the routes in `features/mam/mam-routes.ts`; any other route
+hides it.
 
 SupportPlan stays under policy v1. Policy v1 requires a v2 for any additive
 automatic trigger (`support-plan-companion-policy-v1.md:253`), and an award

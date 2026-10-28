@@ -7,7 +7,10 @@ import type {
   ActionOccurrence,
   SupportPlanV3,
 } from '../api/support-plan-contract'
+import { MamCardButton } from '@/features/mam/MamCardButton'
+import { useMamTarget } from '@/features/mam/use-mam-target'
 import SupportPlanContextualCompanion from '../components/SupportPlanContextualCompanion'
+import type { MamActionExplain } from './mam-support-plan'
 import type { CompanionController } from './use-companion'
 import {
   actionDestination,
@@ -41,6 +44,8 @@ type Props = Readonly<{
   /** Occurrences whose engagement can be read and changed safely (native, or v1-backed adapter). */
   engageable: ReadonlySet<string>
   companion: CompanionController
+  /** Global Mầm presentation: replaces the legacy Companion entry. */
+  mam?: MamActionExplain
   onRetry: () => void
   onSkip: (item: PlannedOccurrence) => void
   onReopen: (item: PlannedOccurrence) => void
@@ -183,6 +188,7 @@ export default function TodayPanel({
   busy,
   engageable,
   companion,
+  mam,
   onRetry,
   onSkip,
   onReopen,
@@ -274,6 +280,7 @@ export default function TodayPanel({
           returned={returnedOccurrenceId === focus.occurrence.occurrenceId}
           rows={rows}
           companion={companion}
+          mam={mam}
           onSkip={onSkip}
           onAcknowledge={onAcknowledge}
         />
@@ -445,6 +452,7 @@ function NextCard({
   returned,
   rows,
   companion,
+  mam,
   onSkip,
   onAcknowledge,
 }: Readonly<{
@@ -454,6 +462,7 @@ function NextCard({
   returned: boolean
   rows: RowState
   companion: CompanionController
+  mam?: MamActionExplain
   onSkip: (item: PlannedOccurrence) => void
   onAcknowledge: (item: PlannedOccurrence) => void
 }>) {
@@ -463,13 +472,39 @@ function NextCard({
   const message = rows.messages[item.occurrence.occurrenceId]
   // After a Resource round trip, or with nowhere to open, confirming is the one thing left.
   const confirmFirst = acknowledge && (returned || !destination)
+  const explainable = ['RESOURCE', 'JOURNAL', 'EMOTION_CHECK_IN'].includes(
+    item.action.actionType,
+  )
+  const mamRef = useMamTarget(
+    mam && explainable
+      ? {
+          kind: 'support-plan.focus',
+          context: {
+            supportPlanId: plan.supportPlanId,
+            actionId: item.action.actionId,
+          },
+        }
+      : null,
+    mam &&
+      (async (intent, { signal }) =>
+        intent === 'EXPLAIN'
+          ? mam.explain(
+              plan.supportPlanId,
+              item.action.actionId,
+              'TODAY',
+              signal,
+            )
+          : null),
+  )
   const reason = why(item)
   return (
     <section
+      ref={mamRef}
       className={`mbw-tile mbw-next${returned ? ' is-returned' : ''}`}
       aria-labelledby="mbw-next-title"
       id={`activity-${item.occurrence.occurrenceId}`}
       data-support-plan-action-id={item.action.actionId}
+      data-mam={mam && explainable ? '' : undefined}
       tabIndex={-1}
     >
       {(timing(item) || item.occurrence.displayState === 'OVERDUE') && (
@@ -530,9 +565,7 @@ function NextCard({
           </button>
         )}
       </div>
-      {['RESOURCE', 'JOURNAL', 'EMOTION_CHECK_IN'].includes(
-        item.action.actionType,
-      ) && (
+      {!mam && explainable && (
         <SupportPlanContextualCompanion
           supportPlanId={plan.supportPlanId}
           actionId={item.action.actionId}
@@ -550,6 +583,15 @@ function NextCard({
         <p className="mbw-row-note" role="alert">
           {message}
         </p>
+      )}
+      {mam && explainable && (
+        <MamCardButton
+          label={`Mầm giải thích: ${item.action.presentation.title}`}
+          disabled={
+            mam.pendingActionId !== undefined &&
+            mam.pendingActionId !== item.action.actionId
+          }
+        />
       )}
     </section>
   )
