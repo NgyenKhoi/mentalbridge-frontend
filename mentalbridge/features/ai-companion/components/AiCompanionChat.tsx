@@ -26,6 +26,7 @@ import {
 import styles from './AiCompanionChat.module.css'
 import CompanionContextDialog from './CompanionContextDialog'
 import StreamingText from './StreamingText'
+import VoiceEntry from '../voice/VoiceEntry'
 
 const starters = [
   'Mình đang thấy lo âu',
@@ -456,6 +457,7 @@ export default function AiCompanionChat() {
           </button>
         </div>
 
+        <VoiceEntry placement="mobile" />
         {conversations.length > 4 ? (
           <label className={styles.search}>
             <span className="sr-only">Tìm kiếm hội thoại</span>
@@ -556,6 +558,7 @@ export default function AiCompanionChat() {
             </div>
           </div>
           <div className={styles.headerActions}>
+            <VoiceEntry placement="desktop" />
             {active ? (
               <button
                 type="button"
