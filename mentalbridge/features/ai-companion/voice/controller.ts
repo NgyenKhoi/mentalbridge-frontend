@@ -74,7 +74,8 @@ export class VoiceController {
     return !this.disposed && epoch === this.epoch
   }
   async refresh() {
-    if (this.view.session && !terminal(this.view.session)) return
+    if (this.disposed || (this.view.session && !terminal(this.view.session)))
+      return
     const epoch = ++this.epoch
     this.preview?.abort()
     this.preview = new AbortController()
@@ -180,7 +181,8 @@ export class VoiceController {
           error: code,
           uncertain:
             this.view.uncertain ||
-            (code === 'OUTCOME_UNKNOWN' && !!this.createKey),
+            ((code === 'OUTCOME_UNKNOWN' || code === 'INVALID_RESPONSE') &&
+              !!this.createKey),
           hint: 'unavailable',
         })
     }

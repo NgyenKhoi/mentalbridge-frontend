@@ -169,20 +169,23 @@ describe('Voice call lifecycle', () => {
     )
     expect(f.media.connect).not.toHaveBeenCalled()
   })
-  it('reuses uncertain admission intent and never allocates a second call on retry', async () => {
-    const f = fixture()
-    f.api.create.mockRejectedValueOnce(new VoiceError('OUTCOME_UNKNOWN'))
-    await f.controller.start()
-    expect(f.controller.snapshot().uncertain).toBe(true)
-    await f.controller.start()
-    expect(f.api.create.mock.calls[0]?.[0]).toBe(
-      f.api.create.mock.calls[1]?.[0],
-    )
-    expect(f.api.eligibility).toHaveBeenCalledTimes(1)
-    await f.controller.end()
-    expect(f.controller.snapshot().phase).toBe('ended')
-    f.controller.dispose()
-  })
+  it.each(['OUTCOME_UNKNOWN', 'INVALID_RESPONSE'])(
+    'reuses uncertain admission intent after %s without allocating a second call',
+    async (code) => {
+      const f = fixture()
+      f.api.create.mockRejectedValueOnce(new VoiceError(code))
+      await f.controller.start()
+      expect(f.controller.snapshot().uncertain).toBe(true)
+      await f.controller.start()
+      expect(f.api.create.mock.calls[0]?.[0]).toBe(
+        f.api.create.mock.calls[1]?.[0],
+      )
+      expect(f.api.eligibility).toHaveBeenCalledTimes(1)
+      await f.controller.end()
+      expect(f.controller.snapshot().phase).toBe('ended')
+      f.controller.dispose()
+    },
+  )
   it('stops immediately on user end, with one command intent and best-effort unload cleanup', async () => {
     const f = fixture()
     await f.controller.start()

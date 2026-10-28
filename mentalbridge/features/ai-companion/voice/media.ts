@@ -64,6 +64,7 @@ export class LiveKitVoiceMedia implements Media {
   private room: Room | undefined
   private microphone: LocalAudioTrack | undefined
   private binding: Connection | undefined
+  private events: MediaEvents | undefined
   private muted = false
   private suspended = false
   private closed = false
@@ -87,6 +88,7 @@ export class LiveKitVoiceMedia implements Media {
     const room = new Room({ disconnectOnPageLeave: true })
     this.room = room
     this.binding = connection
+    this.events = events
     const hint = (participant: Participant) => {
       if (
         !admittedAgent(connection, room.name, participant) ||
@@ -235,8 +237,10 @@ export class LiveKitVoiceMedia implements Media {
     }
     this.outputs.clear()
     this.room?.removeAllListeners()
-    void this.room?.disconnect(true)
+    const events = this.events
+    void this.room?.disconnect(true).catch(() => events?.disconnected())
     this.room = undefined
     this.binding = undefined
+    this.events = undefined
   }
 }
