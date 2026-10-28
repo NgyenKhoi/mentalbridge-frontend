@@ -26,6 +26,8 @@ const port = 3199
 const baseURL = `http://${host}:${port}`
 const evidenceDirectory = resolve('test-results', 'mb622')
 await mkdir(evidenceDirectory, { recursive: true })
+const reconciliationEvidenceDirectory = resolve('test-results', 'mb674')
+await mkdir(reconciliationEvidenceDirectory, { recursive: true })
 
 async function fixture(action, body = {}) {
   const response = await fetch(`${config.fixture}/fixture/${action}`, {
@@ -119,6 +121,17 @@ try {
   const user = await actor('USER')
   const specialist = await actor('SPECIALIST')
   const admin = await actor('ADMIN')
+  for (const path of [
+    '/api/consultation/service-plans',
+    '/api/consultation/service-credits',
+    '/api/consultation/payments',
+  ]) {
+    const response = await user.context.request.get(path)
+    assert(
+      response.ok(),
+      `Subscription prerequisite ${path}: HTTP ${response.status()}, code ${(await response.json()).code ?? 'unknown'}`,
+    )
+  }
   await user.page.goto('/subscription')
   await expect(user.page.getByText(/Gói thử nghiệm:/)).toBeVisible()
   await expect(user.page.getByText(/5\.000\s*₫/)).toBeVisible()
@@ -132,6 +145,28 @@ try {
   assert.equal(purchase.amountVnd, 5000)
   assert.equal(purchase.status, 'PENDING')
   assert.equal(purchase.provider, 'FAKE')
+  const purchaseKey = {
+    paymentId: purchase.paymentId,
+    subscriptionId: purchase.subscriptionId,
+  }
+  const pendingState = await fixture('financial-state', purchaseKey)
+  assert.equal(pendingState.paymentStatus, 'PENDING')
+  assert.equal(pendingState.creditCount, 0)
+  assert.equal(pendingState.earningCount, 0)
+  assert.equal(pendingState.payoutCount, 0)
+  const pendingAdmin = await api(
+    admin.context,
+    'GET',
+    `/api/consultation/admin/payments?paymentId=${purchase.paymentId}`,
+  )
+  assert.equal(pendingAdmin.count, 1)
+  assert.equal(pendingAdmin.items[0].status, 'PENDING')
+  for (const actor of [user, specialist]) {
+    const denied = await actor.context.request.get(
+      '/api/consultation/admin/payments',
+    )
+    assert.equal(denied.status(), 403)
+  }
   await expect(
     user.page.getByText(/không thu tiền thật và không mở ví MoMo/),
   ).toBeVisible()
@@ -149,6 +184,14 @@ try {
   )
 
   await fixture('confirm', { paymentId: purchase.paymentId })
+  const confirmedState = await fixture('financial-state', purchaseKey)
+  assert.equal(confirmedState.paymentStatus, 'SUCCEEDED')
+  assert.equal(confirmedState.creditCount, 4)
+  await fixture('confirm', { paymentId: purchase.paymentId })
+  assert.deepEqual(
+    await fixture('financial-state', purchaseKey),
+    confirmedState,
+  )
   await user.page.getByRole('button', { name: 'Kiểm tra trạng thái' }).click()
   await expect(
     user.page
@@ -190,6 +233,7 @@ try {
     { 'Idempotency-Key': 'mb622-real-booking-01' },
   )
   assert.equal(appointment.creditState, 'HELD')
+  assert.equal((await fixture('financial-state', purchaseKey)).earningCount, 0)
   await api(
     specialist.context,
     'POST',
@@ -223,6 +267,13 @@ try {
   )
   assert.equal(premiumCredits.packageCode, 'PREMIUM')
   assert.equal(premiumCredits.balance.available, 10)
+  const upgradeState = await fixture('financial-state', {
+    paymentId: upgrade.paymentId,
+    subscriptionId: upgrade.subscriptionId,
+  })
+  assert.equal(upgradeState.paymentStatus, 'SUCCEEDED')
+  assert.equal(upgradeState.creditCount, 14)
+  assert.equal(upgradeState.earningCount, 0)
   checks.push(
     'Sandbox upgrade confirmed twice: 10,000 VND, ten Premium credits; old appointment retains Plus snapshot',
   )
@@ -258,6 +309,10 @@ try {
   assert.equal(completion.status, 'COMPLETED')
   assert.equal(completion.creditState, 'CONSUMED')
   assert(completion.completionFactId)
+  const settledState = await fixture('financial-state', purchaseKey)
+  assert.equal(settledState.consumedCreditCount, 1)
+  assert.equal(settledState.earningCount, 1)
+  assert.equal(settledState.payoutCount, 0)
   checks.push(
     'Real HTTP participant/service-auth evidence; timer alone earns nothing; settlement creates one 70% exact-Plus-snapshot earning',
   )
@@ -298,6 +353,15 @@ try {
   assert.equal(replay.payouts.length, 1)
   assert.equal(paid.payouts[0].status, 'SUCCEEDED')
   assert.equal(paid.payouts[0].provider, 'FAKE')
+  const paidState = await fixture('financial-state', purchaseKey)
+  assert.equal(paidState.earningCount, 1)
+  assert.equal(paidState.payoutCount, 1)
+  assert.equal(paidState.payoutItemCount, 1)
+  const prohibited = await admin.context.request.post(
+    '/api/consultation/admin/payments',
+  )
+  assert.equal(prohibited.status(), 405)
+  assert.deepEqual(await fixture('financial-state', purchaseKey), paidState)
   await specialist.page.reload()
   await expect(specialist.page.getByText('Chế độ thử nghiệm')).toBeVisible()
   checks.push(
@@ -326,8 +390,49 @@ try {
   assert.equal(reconciliation.items[0].payoutId, paid.payouts[0].id)
   assert.equal(reconciliation.items[0].amountVnd, 210000)
   assert.equal(reconciliation.items[0].earningCount, 1)
+  const trace = await api(
+    admin.context,
+    'GET',
+    `/api/consultation/admin/commercial/provenance?paymentId=${purchase.paymentId}`,
+  )
+  assert.equal(trace.found, true)
+  assert(
+    trace.credits.some(
+      (credit) => credit.creditId === appointment.heldCreditId,
+    ),
+  )
+  assert(
+    trace.earnings.some(
+      (earning) => earning.earningId === beforeHold.earnings[0].id,
+    ),
+  )
+  assert(trace.payouts.some((payout) => payout.payoutId === paid.payouts[0].id))
+  await admin.page.goto('/admin/reconciliation')
+  await expect(
+    admin.page.getByRole('heading', {
+      name: 'Đối soát thương mại & Vòng đời giao dịch',
+    }),
+  ).toBeVisible()
+  await admin.page.getByRole('tab', { name: 'Giao dịch thanh toán' }).click()
+  await expect(
+    admin.page.getByText(purchase.paymentId, { exact: true }),
+  ).toBeVisible()
+  await admin.page.getByRole('tab', { name: 'Chi trả chuyên gia' }).click()
+  await admin.page
+    .getByRole('textbox', { name: 'Mã idempotency:' })
+    .fill('mb622-real-payout-01')
+  await expect(
+    admin.page.getByText(paid.payouts[0].id, { exact: true }),
+  ).toBeVisible()
+  await admin.page.screenshot({
+    path: resolve(
+      reconciliationEvidenceDirectory,
+      'admin-payout-reconciliation.png',
+    ),
+    fullPage: true,
+  })
   checks.push(
-    'ADMIN payment and payout reads agree with USER/SPECIALIST canonical identities, amounts and terminal facts',
+    'MB-674 ADMIN reconciliation UI and provenance agree with exact owner payment, credit, earning and payout facts; replay and forbidden mutation preserve database counts',
   )
 
   for (const viewport of [
@@ -417,6 +522,13 @@ try {
   await writeFile(
     resolve(evidenceDirectory, 'commercial-real-contract.json'),
     `${JSON.stringify(manifest, null, 2)}\n`,
+  )
+  await writeFile(
+    resolve(
+      reconciliationEvidenceDirectory,
+      'admin-commercial-reconciliation.json',
+    ),
+    `${JSON.stringify({ ...manifest, story: 'MB-674' }, null, 2)}\n`,
   )
   console.log(JSON.stringify(manifest))
 } finally {

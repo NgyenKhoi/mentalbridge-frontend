@@ -67,6 +67,7 @@ test.describe('consolidated admin console', () => {
       '/admin/reports',
       '/admin/payments',
       '/admin/payouts',
+      '/admin/reconciliation',
     ]
 
     await expect(navigation.getByRole('link')).toHaveCount(
