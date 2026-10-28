@@ -1,5 +1,12 @@
 # Synthetic browser evidence
 
+MB-775 is the web release gate for Mầm behind `MAM_WEB_ENABLED`: measured
+flag-off versus flag-on cost, budgets, not-blocked, asset-failure, slow and
+offline, navigation-leak and privacy specs, the flag-off spec, a verified
+rollback, rollout plan and findings. Results are in
+[`mb-775-mam-web-gate.md`](mb-775-mam-web-gate.md); regenerate the numbers with
+`npm run mam:gate:measure` after a production build.
+
 MB-774 feeds the Mầm celebration director with the real Achievements and
 Bingo reads, plus a cadence reader on dock routes. Results are in
 [`mb-774-mam-reward-reads.md`](mb-774-mam-reward-reads.md).
