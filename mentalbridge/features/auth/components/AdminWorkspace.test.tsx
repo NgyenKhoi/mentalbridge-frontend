@@ -72,6 +72,10 @@ vi.mock(
   }),
 )
 
+vi.mock('@/features/retention/components/AdminRetentionGovernance', () => ({
+  default: () => <section aria-label="retention-authority" />,
+}))
+
 import AdminWorkspace, { type AdminSection } from './AdminWorkspace'
 
 const workspaces = [
@@ -89,13 +93,14 @@ describe('AdminWorkspace', () => {
       name: 'Điều hướng quản trị',
     })
 
-    expect(within(navigation).getAllByRole('link')).toHaveLength(12)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(13)
     expect(
       within(navigation)
         .getAllByRole('link')
         .map((link) => link.getAttribute('href')),
     ).toEqual([
       '/admin/dashboard',
+      '/admin/retention',
       '/admin/accounts',
       '/admin/specialists',
       '/admin/content',
@@ -111,6 +116,9 @@ describe('AdminWorkspace', () => {
     expect(container).not.toHaveTextContent('@example.com')
     expect(container).not.toHaveTextContent('Nguyễn Minh Anh')
     expect(container).not.toHaveTextContent('12.480')
+    expect(
+      screen.getByRole('link', { name: 'Bảo lưu & xóa dữ liệu' }),
+    ).toHaveAttribute('href', '/admin/retention')
     expect(
       screen.getByRole('link', { name: 'Thanh toán gói' }),
     ).toHaveAttribute('href', '/admin/payments')
@@ -138,6 +146,7 @@ describe('AdminWorkspace', () => {
 
   it.each([
     ['accounts', 'accounts-authority'],
+    ['retention', 'retention-authority'],
     ['specialists', 'specialists-authority'],
     ['content', 'content-authority'],
     ['moderation', 'moderation-authority'],
