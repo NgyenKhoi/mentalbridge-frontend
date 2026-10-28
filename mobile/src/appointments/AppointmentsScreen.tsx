@@ -19,6 +19,8 @@ import {
   type SlotSelection,
 } from '@/discovery/discovery-model'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import type { UserSummaryApi } from '@/user-summary/user-summary-api'
+import { UserSessionSummaryPanel } from '@/user-summary/UserSessionSummaryPanel'
 import { VideoConsultationPanel } from '@/video/VideoConsultationPanel'
 import type { VideoApi } from '@/video/video-api'
 
@@ -45,6 +47,7 @@ type Props = Readonly<{
   consultationBriefApi?: ConsultationBriefApi
   discovery: DiscoveryApi
   onBack: () => void
+  sessionSummaryApi?: UserSummaryApi
   videoApi?: VideoApi
   initialSelection?: SlotSelection | undefined
   originatingPlanActionId?: string | undefined
@@ -133,6 +136,7 @@ function AccountAppointmentsScreen({
   onBack,
   initialSelection,
   originatingPlanActionId,
+  sessionSummaryApi,
   videoApi,
   subject,
 }: Props & { subject: string }) {
@@ -625,6 +629,13 @@ function AccountAppointmentsScreen({
                     <ConsultationBriefPanel
                       key={item.id}
                       api={consultationBriefApi}
+                      appointmentId={item.id}
+                    />
+                  )}
+                  {item.sessionOutcome === 'COMPLETED' && sessionSummaryApi && (
+                    <UserSessionSummaryPanel
+                      key={item.id}
+                      api={sessionSummaryApi}
                       appointmentId={item.id}
                     />
                   )}

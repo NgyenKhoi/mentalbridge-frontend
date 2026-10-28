@@ -8,6 +8,7 @@ import { useRuntimeConfig } from '@/config/runtime-config-context'
 import { createConsultationBriefApi } from '@/consultation-brief/consultation-brief-api'
 import { createDiscoveryApi } from '@/discovery/discovery-api'
 import { secureCredentialStore } from '@/security/credential-store'
+import { createUserSummaryApi } from '@/user-summary/user-summary-api'
 import { createVideoApi } from '@/video/video-api'
 
 import { createAppointmentApi } from './appointment-api'
@@ -27,6 +28,7 @@ function AccountAppointmentsRoute({
       api: createAppointmentApi(client, subject),
       consultationBrief: createConsultationBriefApi(client),
       discovery: createDiscoveryApi(client),
+      sessionSummary: createUserSummaryApi(client, subject),
       video: createVideoApi(client),
     }
   })
@@ -46,6 +48,7 @@ function AccountAppointmentsRoute({
       api={binding.api}
       consultationBriefApi={binding.consultationBrief}
       discovery={binding.discovery}
+      sessionSummaryApi={binding.sessionSummary}
       videoApi={binding.video}
       onBack={() => router.back()}
     />

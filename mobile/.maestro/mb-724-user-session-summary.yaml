@@ -1,0 +1,34 @@
+appId: com.mentalbridge.mobile
+name: MB-724 USER session summary next steps and reuse consent
+---
+# Author-only evidence. NOT_RUN until the MB-666 staging/device gate provides
+# a resettable USER whose first history appointment is COMPLETED and has one
+# published SessionSummary with at least one agreed next step. Never run this
+# mutation journey against shared dev or production data.
+- launchApp:
+    clearState: false
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Lịch hẹn của tôi'
+- tapOn: 'Lịch sử'
+- scrollUntilVisible:
+    element:
+      id: appointment-open-detail
+    direction: DOWN
+- tapOn:
+    id: appointment-open-detail
+- scrollUntilVisible:
+    element:
+      id: user-session-summary-panel
+    direction: DOWN
+- assertVisible: 'Tóm tắt sau buổi tư vấn'
+- assertVisible: 'Các bước đã thống nhất'
+- tapOn: 'Đã hoàn thành'
+- assertVisible: 'Đã cập nhật bước tiếp theo.'
+- scrollUntilVisible:
+    element:
+      text: 'Quyền tái sử dụng tóm tắt này'
+    direction: DOWN
+- tapOn: 'Cho phép tái sử dụng tóm tắt này'
+- assertVisible: 'Đã cập nhật quyền tái sử dụng.'
+- tapOn: 'Cho phép tái sử dụng tóm tắt này'
+- assertVisible: 'Chưa cho phép'
