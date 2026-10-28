@@ -8,6 +8,8 @@ import { ApiError } from '@/api/api-error'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
+import type { ConsultationBriefApi } from '@/consultation-brief/consultation-brief-api'
+import { ConsultationBriefPanel } from '@/consultation-brief/ConsultationBriefPanel'
 import type { DiscoveryApi } from '@/discovery/discovery-api'
 import { DiscoveryScreen } from '@/discovery/DiscoveryScreen'
 import {
@@ -40,6 +42,7 @@ import {
 
 type Props = Readonly<{
   api: AppointmentApi
+  consultationBriefApi?: ConsultationBriefApi
   discovery: DiscoveryApi
   onBack: () => void
   videoApi?: VideoApi
@@ -125,6 +128,7 @@ function AppointmentFacts({ item }: Readonly<{ item: Appointment }>) {
 }
 function AccountAppointmentsScreen({
   api,
+  consultationBriefApi,
   discovery,
   onBack,
   initialSelection,
@@ -616,6 +620,13 @@ function AccountAppointmentsScreen({
                         onPress={() => void prepareCancel(item)}
                       />
                     </>
+                  )}
+                  {item.status === 'CONFIRMED' && consultationBriefApi && (
+                    <ConsultationBriefPanel
+                      key={item.id}
+                      api={consultationBriefApi}
+                      appointmentId={item.id}
+                    />
                   )}
                   {item.replacedByAppointmentId && (
                     <>
