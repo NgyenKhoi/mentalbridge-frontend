@@ -322,7 +322,8 @@
   .entry,
   .primary,
   .secondary,
-  .mark {
+  .mark,
+  .mark[data-state] {
     animation: none;
     transition: none;
   }
