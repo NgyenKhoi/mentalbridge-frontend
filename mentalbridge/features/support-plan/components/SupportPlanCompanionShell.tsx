@@ -39,80 +39,21 @@ import SupportPlanCompanionPanel, {
   type SupportPlanGuidedNavigationTarget,
 } from './SupportPlanCompanionPanel'
 import { useSupportPlanCompanionInterruption } from './support-plan-companion-interruption'
+import {
+  readPreference,
+  storedPreference,
+  subscribePreferences,
+  writePreference,
+} from '@/lib/preferences/companion-preferences'
 
 import './support-plan-companion.css'
 
 const MOTION_STORAGE_KEY = 'mentalbridge_support_plan_companion_motion'
-const MUTED_STORAGE_KEY = 'mentalbridge_support_plan_companion_session_muted'
-const HIDDEN_STORAGE_KEY = 'mentalbridge_support_plan_companion_session_hidden'
-const PREFERENCE_EVENT = 'mentalbridge:companion-preference'
-const MOBILE_SHEET_QUERY = '(max-width: 1099px)'
 // Mute is session-only by policy. The same legacy key in localStorage is
 // deliberately ignored; reduced motion remains an explicit durable preference.
-const memoryPreferences = new Map<string, string>()
-const volatilePreferences = new Set<string>()
-
-type PreferenceScope = 'local' | 'session'
-
-function subscribePreferences(onChange: () => void) {
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === null) {
-      volatilePreferences.clear()
-    } else {
-      volatilePreferences.delete(event.key)
-    }
-    onChange()
-  }
-
-  window.addEventListener('storage', onStorage)
-  window.addEventListener(PREFERENCE_EVENT, onChange)
-
-  return () => {
-    window.removeEventListener('storage', onStorage)
-    window.removeEventListener(PREFERENCE_EVENT, onChange)
-  }
-}
-
-function preferenceStorage(scope: PreferenceScope) {
-  return scope === 'session' ? window.sessionStorage : window.localStorage
-}
-
-function readPreference(key: string, scope: PreferenceScope) {
-  if (volatilePreferences.has(key)) {
-    return memoryPreferences.get(key) ?? null
-  }
-  try {
-    const value = preferenceStorage(scope).getItem(key)
-    if (value === null) {
-      memoryPreferences.delete(key)
-    } else {
-      memoryPreferences.set(key, value)
-    }
-    return value
-  } catch {
-    return memoryPreferences.get(key) ?? null
-  }
-}
-
-function storedPreference(
-  key: string,
-  expected: string,
-  scope: PreferenceScope,
-) {
-  return readPreference(key, scope) === expected
-}
-
-function writePreference(key: string, value: string, scope: PreferenceScope) {
-  memoryPreferences.set(key, value)
-  try {
-    preferenceStorage(scope).setItem(key, value)
-    volatilePreferences.delete(key)
-  } catch {
-    volatilePreferences.add(key)
-    // Restricted storage keeps the preference for the current page lifetime.
-  }
-  window.dispatchEvent(new Event(PREFERENCE_EVENT))
-}
+const MUTED_STORAGE_KEY = 'mentalbridge_support_plan_companion_session_muted'
+const HIDDEN_STORAGE_KEY = 'mentalbridge_support_plan_companion_session_hidden'
+const MOBILE_SHEET_QUERY = '(max-width: 1099px)'
 
 export type SupportPlanCompanionCharacterProps = Readonly<{
   state: SupportPlanCompanionState
