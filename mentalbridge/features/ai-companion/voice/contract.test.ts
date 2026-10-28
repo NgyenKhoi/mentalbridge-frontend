@@ -51,6 +51,9 @@ describe('published Voice contracts', () => {
     ).toBe(false)
   })
   it('rejects private content, malformed media bindings and missing fields', () => {
+    expect(() =>
+      decode('eligibility', { ...eligibility(), availableSessionSeconds: 120 }),
+    ).toThrow()
     expect(decode('connection', connection()).audioOnly).toBe(true)
     expect(
       validators.connection({ ...connection(), agentIdentity: 'vu-owner' }),

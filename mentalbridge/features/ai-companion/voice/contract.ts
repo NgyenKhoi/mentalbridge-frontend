@@ -56,7 +56,19 @@ export function decode<K extends keyof Responses>(
   kind: K,
   value: unknown,
 ): Responses[K] {
-  const validate = validators[kind]
-  if (!validate(value)) throw new VoiceError('INVALID_RESPONSE')
+  if (!validResponse(kind, value)) throw new VoiceError('INVALID_RESPONSE')
   return value
+}
+export function validResponse<K extends keyof Responses>(
+  kind: K,
+  value: unknown,
+): value is Responses[K] {
+  const validate = validators[kind]
+  if (!validate(value)) return false
+  if (kind === 'eligibility' && validators.eligibility(value) && value.eligible)
+    return (
+      value.availableSessionSeconds ===
+      Math.min(value.maxSessionSeconds, value.quota.remainingSeconds)
+    )
+  return true
 }

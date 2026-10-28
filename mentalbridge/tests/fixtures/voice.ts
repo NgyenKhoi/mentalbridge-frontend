@@ -25,7 +25,12 @@ export function eligibility(
       timeZone: 'Asia/Ho_Chi_Minh',
       resetAt: '2026-10-28T17:00:00Z',
       remainingSessions: plan === 'FREE' ? 0 : 2,
-      remainingSeconds: plan === 'FREE' ? 0 : 600,
+      remainingSeconds:
+        plan === 'FREE'
+          ? 0
+          : patch.availableSessionSeconds && patch.availableSessionSeconds > 0
+            ? patch.availableSessionSeconds
+            : 600,
       reservedSessions: 0,
       reservedSeconds: 0,
     },

@@ -13,7 +13,7 @@ import {
   readJournalServerConfig,
 } from '@/lib/config/server'
 import {
-  validators,
+  validResponse,
   validConsentCommand,
   validEmptyCommand,
   voiceId,
@@ -168,7 +168,7 @@ export async function voiceBff(request: NextRequest, parts: string[]) {
         ),
       )
     }
-    if (!validators[selected.schema](value))
+    if (!validResponse(selected.schema, value))
       return respond(problem(502, 'INVALID_RESPONSE'))
     const result = NextResponse.json(value, {
       status: selected.status,
