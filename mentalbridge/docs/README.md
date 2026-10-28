@@ -4,12 +4,15 @@ This directory is the source of truth for MentalBridge frontend engineering
 decisions. Product/design documents describe intent; these documents describe
 how the executable Next.js application is organized and delivered.
 
-UI design and material journey changes follow the repository-local
-`../../.codex/skills/mentalbridge-stitch-ui/SKILL.md`: written UX brief,
-generation in the established Stitch project, font/component render QA, a
-local interaction prototype, then repository-native implementation. The tables
-below identify the smallest relevant contract set for translating that
-direction into product code.
+For UI design and material journey changes, the **default approved path**
+is repository-native implementation from the current MentalBridge route,
+components, full-frame baseline, design system and owner contracts, with
+state/UX notes and real-app visual/interaction QA. No Stitch project, generated
+artifact or standalone prototype is required; do not ask for fallback permission
+again (including the explicitly approved Jira no-Stitch tasks). The optional
+`../../.codex/skills/mentalbridge-stitch-ui/SKILL.md` covers stories that
+**expressly require** approved Stitch fidelity, such as MB-667. The tables
+below identify the smallest relevant contract set for either path.
 
 ## Reading order
 
