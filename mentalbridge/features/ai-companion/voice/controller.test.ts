@@ -211,4 +211,59 @@ describe('Voice call lifecycle', () => {
     expect(f.api.end).toHaveBeenCalled()
     f.controller.dispose()
   })
+  it.each([
+    'CONSENT_REVOKED',
+    'VOICE_CONSENT_REVOKED',
+    'ENTITLEMENT_LOST',
+    'IDLE_TIMEOUT',
+    'HARD_DEADLINE',
+    'RECONNECT_TIMEOUT',
+    'PROVIDER_FAILURE',
+  ] as const)(
+    'MB-762 stops media and does not reuse a terminal session after %s',
+    async (terminalReason) => {
+      vi.useFakeTimers()
+      const f = fixture()
+      await f.controller.start()
+      f.api.session.mockResolvedValue(
+        session({ ...f.current, state: 'ENDED', terminalReason }),
+      )
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(f.controller.snapshot()).toMatchObject({
+        phase: 'ended',
+        hint: 'unavailable',
+      })
+      expect(f.media.close).toHaveBeenCalled()
+      const grants = f.api.connection.mock.calls.length
+      f.events().reconnected()
+      await flush()
+      await flush()
+      expect(f.api.connection).toHaveBeenCalledTimes(grants)
+      expect(f.media.resume).not.toHaveBeenCalled()
+      f.controller.dispose()
+    },
+  )
+  it.each([
+    'GLOBAL_CAPACITY_FULL',
+    'SESSION_LIMIT',
+    'QUOTA_EXHAUSTED',
+    'RATE_LIMITED',
+    'PROVIDER_UNAVAILABLE',
+  ])(
+    'MB-762 stops the microphone after admission denial %s without retrying',
+    async (code) => {
+      const f = fixture()
+      f.api.create.mockRejectedValueOnce(new VoiceError(code))
+      await f.controller.start()
+      expect(f.media.close).toHaveBeenCalled()
+      expect(f.media.connect).not.toHaveBeenCalled()
+      expect(f.api.create).toHaveBeenCalledTimes(1)
+      expect(f.controller.snapshot()).toMatchObject({
+        phase: 'error',
+        error: code,
+        uncertain: false,
+      })
+      f.controller.dispose()
+    },
+  )
 })

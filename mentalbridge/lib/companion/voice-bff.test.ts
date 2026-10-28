@@ -177,4 +177,63 @@ describe('closed Voice BFF', () => {
       await (await voiceBff(request('POST'), ['sessions'])).json(),
     ).toMatchObject({ code: 'OUTCOME_UNKNOWN' })
   })
+  it.each([
+    [403, 'FREE_LOCKED'],
+    [403, 'CONSENT_REQUIRED'],
+    [403, 'VOICE_CONSENT_REQUIRED'],
+    [409, 'GLOBAL_CAPACITY_FULL'],
+    [409, 'SESSION_LIMIT'],
+    [429, 'QUOTA_EXHAUSTED'],
+    [429, 'RATE_LIMITED'],
+    [503, 'PROVIDER_UNAVAILABLE'],
+  ])(
+    'MB-762 preserves owner denial %s/%s without forwarding private error detail',
+    async (status, code) => {
+      const fetch = vi.fn().mockResolvedValue(
+        Response.json(
+          {
+            code,
+            detail: 'private-provider-marker',
+            token: 'private-token-marker',
+          },
+          { status: Number(status) },
+        ),
+      )
+      vi.stubGlobal('fetch', fetch)
+      const response = await voiceBff(request('POST'), ['sessions'])
+      expect(response.status).toBe(status)
+      const body = await response.json()
+      expect(body).toMatchObject({ code })
+      expect(JSON.stringify(body)).not.toMatch(
+        /private-provider-marker|private-token-marker/,
+      )
+      expect(response.headers.get('Cache-Control')).toContain('no-store')
+      expect(fetch).toHaveBeenCalledTimes(1)
+    },
+  )
+  it('MB-762 preserves each caller credential when the owner rejects a foreign session token', async () => {
+    const fetch = vi
+      .fn()
+      .mockImplementation(() =>
+        Response.json(
+          { code: 'SESSION_NOT_FOUND', detail: 'private-owner-marker' },
+          { status: 404 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetch)
+    for (const actor of ['synthetic-user-a', 'synthetic-user-b']) {
+      const response = await voiceBff(
+        request('POST', {}, { cookie: `mentalbridge_access=${actor}` }),
+        ['sessions', voiceSessionId, 'connection'],
+      )
+      expect(response.status).toBe(404)
+      const text = await response.text()
+      expect(text).not.toMatch(
+        /private-owner-marker|participantToken|synthetic-user/,
+      )
+    }
+    expect(
+      fetch.mock.calls.map((call) => call[1].headers.Authorization),
+    ).toEqual(['Bearer synthetic-user-a', 'Bearer synthetic-user-b'])
+  })
 })
