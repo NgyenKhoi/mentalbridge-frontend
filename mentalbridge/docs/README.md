@@ -53,6 +53,8 @@ Story-specific delivery evidence:
 - [MB-384 Web video-call continuity and focused controls](mb-384-video-call-continuity.md)
 - [MB-623 authoritative consultation journey closure](mb-623-consultation-journey.md)
 - [MB-642 private Journal action in SupportPlan](mb-642-journal-plan-action.md)
+- [MB-767 Mầm Rive renderer evidence](evidence/mb-767-mam-rive-renderer.md)
+- [MB-766 Mầm Rive V1 character contract and interaction policy](ADR_MAM_RIVE_V1_CONTRACT.md)
 - [MB-637 SupportGuide and SupportPlan v3 product boundary](ADR_SUPPORTPLAN_V3_PRODUCT_BOUNDARY.md)
 - [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)
 - [MB-177/MB-178/MB-205 Care-backed screening, profile, consent, history, and progress integration](care-assessment-integration.md)
@@ -88,38 +90,39 @@ to select any additional task-specific material.
 
 ## Decision status
 
-| Decision                                             | Status      | Delivery story |
-| ---------------------------------------------------- | ----------- | -------------- |
-| Next.js App Router, server-first components          | Approved    | MB-210         |
-| Feature-first package boundaries                     | Approved    | MB-210         |
-| Identity-owned authentication and roles              | Approved    | MB-210         |
-| Same-origin BFF with HttpOnly session cookies        | Implemented | MB-212         |
-| Identity login and authoritative role workspaces     | Implemented | MB-213         |
-| Identity registration and email verification UI      | Implemented | MB-214         |
-| Axios and TanStack Query client baseline             | Implemented | MB-211         |
-| Unit/component/API mocking baseline                  | Implemented | MB-211         |
-| Playwright browser baseline                          | Implemented | MB-211         |
-| Complete Identity integration scenarios              | Implemented | MB-216/MB-139  |
-| Care-backed anonymous and USER PHQ-9 screening       | Implemented | MB-177         |
-| Care profile, privacy consent, history, reassessment | Implemented | MB-178         |
-| Authenticated descriptive assessment progress        | Implemented | MB-205         |
-| Reviewed resource retrieval and safe fallback        | Implemented | Sprint 2       |
-| GAD-7 runtime and immutable questionnaire history    | Implemented | Story 1102     |
-| Guided initial check and unified support result      | Implemented | MB-272         |
-| Mood-aware Journal authoring and draft protection    | Implemented | Story 6201     |
-| Explicit-consent, exact-revision Journal reflection  | Implemented | MB-368         |
-| Exact 60-minute online specialist availability       | Implemented | MB-362         |
-| Specialist appointment decisions and expiry          | Implemented | MB-379         |
-| Approved online specialist discovery consumer        | Implemented | MB-363         |
-| Appointment cancellation and linked reschedule       | Implemented | MB-380         |
-| Appointment dispute and bounded resolution UI        | Implemented | MB-619         |
-| Owner-scoped factual personal analytics overview     | Implemented | MB-570         |
-| Owner-scoped cross-feature activity dashboard        | Implemented | MB-571, MB-610 |
-| Standalone pseudonymous peer-support Community       | Implemented | MB-609         |
-| Community reports, blocks, and auditable moderation  | Implemented | MB-578         |
-| Supportive Community reactions and private bookmarks | Implemented | MB-579         |
-| Governed active Community topic discovery            | Implemented | MB-582         |
-| SupportGuide / SupportPlan v3 boundary and taxonomy  | Proposed    | MB-637         |
+| Decision                                              | Status      | Delivery story |
+| ----------------------------------------------------- | ----------- | -------------- |
+| Next.js App Router, server-first components           | Approved    | MB-210         |
+| Feature-first package boundaries                      | Approved    | MB-210         |
+| Identity-owned authentication and roles               | Approved    | MB-210         |
+| Same-origin BFF with HttpOnly session cookies         | Implemented | MB-212         |
+| Identity login and authoritative role workspaces      | Implemented | MB-213         |
+| Identity registration and email verification UI       | Implemented | MB-214         |
+| Axios and TanStack Query client baseline              | Implemented | MB-211         |
+| Unit/component/API mocking baseline                   | Implemented | MB-211         |
+| Playwright browser baseline                           | Implemented | MB-211         |
+| Complete Identity integration scenarios               | Implemented | MB-216/MB-139  |
+| Care-backed anonymous and USER PHQ-9 screening        | Implemented | MB-177         |
+| Care profile, privacy consent, history, reassessment  | Implemented | MB-178         |
+| Authenticated descriptive assessment progress         | Implemented | MB-205         |
+| Reviewed resource retrieval and safe fallback         | Implemented | Sprint 2       |
+| GAD-7 runtime and immutable questionnaire history     | Implemented | Story 1102     |
+| Guided initial check and unified support result       | Implemented | MB-272         |
+| Mood-aware Journal authoring and draft protection     | Implemented | Story 6201     |
+| Explicit-consent, exact-revision Journal reflection   | Implemented | MB-368         |
+| Exact 60-minute online specialist availability        | Implemented | MB-362         |
+| Specialist appointment decisions and expiry           | Implemented | MB-379         |
+| Approved online specialist discovery consumer         | Implemented | MB-363         |
+| Appointment cancellation and linked reschedule        | Implemented | MB-380         |
+| Appointment dispute and bounded resolution UI         | Implemented | MB-619         |
+| Owner-scoped factual personal analytics overview      | Implemented | MB-570         |
+| Owner-scoped cross-feature activity dashboard         | Implemented | MB-571, MB-610 |
+| Standalone pseudonymous peer-support Community        | Implemented | MB-609         |
+| Community reports, blocks, and auditable moderation   | Implemented | MB-578         |
+| Supportive Community reactions and private bookmarks  | Implemented | MB-579         |
+| Governed active Community topic discovery             | Implemented | MB-582         |
+| SupportGuide / SupportPlan v3 boundary and taxonomy   | Proposed    | MB-637         |
+| Mầm Rive V1 character contract and interaction policy | Proposed    | MB-766         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then

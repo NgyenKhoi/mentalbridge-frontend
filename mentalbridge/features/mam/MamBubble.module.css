@@ -1,0 +1,235 @@
+/*
+ * Above page content and the sticky topbar (60), below the mobile nav scrim
+ * (90), the sidebar (100) and the crisis widget (120000), like the dock (80).
+ */
+.bubble {
+  position: absolute;
+  z-index: 85;
+  display: grid;
+  gap: 12px;
+  width: min(320px, calc(100vw - 32px));
+  padding: 14px 14px 12px 16px;
+  border: 1px solid var(--line); /* taste-skill-ignore: overlay edge, as the dock menu */
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: 0 14px 36px rgba(27, 42, 34, 0.14); /* taste-skill-ignore: a real overlay */
+  transform-origin: top left;
+}
+
+.bubble[data-above] {
+  transform-origin: bottom left;
+}
+
+/* From the dock: same place as the dock menu. */
+.bubble[data-anchor='dock'] {
+  left: 0;
+  bottom: calc(100% + 8px);
+  max-height: calc(100dvh - 140px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  transform-origin: bottom left;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mark {
+  flex: none;
+  color: var(--teal);
+}
+
+.title {
+  flex: 1;
+  color: var(--ink);
+  font: 600 1.0625rem/1.3 var(--font-fraunces);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  margin: -6px -6px -6px 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.close:hover {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.live:empty {
+  display: none;
+}
+
+.thinking {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.answer {
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.starters,
+.actions {
+  display: grid;
+  gap: 4px;
+}
+
+.actions {
+  gap: 6px;
+}
+
+.starter {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.starter:hover {
+  background: var(--teal-pale);
+  transform: translateX(2px);
+}
+
+.starter:active,
+.primary:active,
+.done:active,
+.close:active {
+  transform: scale(var(--motion-scale-enter));
+}
+
+.primary {
+  display: inline-flex;
+  text-decoration: none;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.primary:hover {
+  background: var(--teal-deep);
+}
+
+.done {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--teal-deep);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+
+.done:hover {
+  color: var(--ink);
+}
+
+.close:focus-visible,
+.starter:focus-visible,
+.primary:focus-visible,
+.done:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .close,
+  .starter,
+  .primary,
+  .done {
+    transition: none;
+  }
+
+  .starter:hover,
+  .starter:active,
+  .primary:active,
+  .done:active,
+  .close:active {
+    transform: none;
+  }
+}
+
+/* Touch: the close control gets the full 44 px target without growing the head. */
+@media (pointer: coarse) {
+  .close {
+    width: 44px;
+    height: 44px;
+    margin: -10px -10px -10px 0;
+  }
+}
+
+/* The celebration bubble keeps a full 44 px close target on every pointer. */
+.closeLarge {
+  width: 44px;
+  height: 44px;
+  margin: -10px -10px -10px 0;
+}
+
+.closeLarge:focus-visible {
+  outline-offset: -2px;
+}
+
+/* The celebration's live region stays in the accessibility tree while empty,
+   so the text set after mount is announced. */
+.liveHeld:empty {
+  display: block;
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* A secondary text link, as the "Cảm ơn Mầm" text button. */
+a.done {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}

@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/internal/v1/ai-companion/voice-entitlement-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Dedicated Journal/AI service-authenticated read of the exact owner and opaque voice-session binding. Delegates current entitlement authority without financial writes or a shadow entitlement. Missing, expired and future grants resolve to FREE/DEFAULT_FREE; active PAID/DEMO grants require validUntil strictly after checkedAt. The session identifier is echoed for caller binding and grants no access by itself. User JWTs, worker credentials and client package claims cannot authorize this route. Does not enable voice sessions. */
+        post: operations["checkCurrentVoiceEntitlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist/appointments/{appointmentId}/video-completion": {
         parameters: {
             query?: never;
@@ -1387,6 +1404,41 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        VoiceOwnerCheck: {
+            /** Format: uuid */
+            ownerId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** @constant */
+            purpose: "AI_COMPANION_VOICE";
+        };
+        VoiceEntitlementDecision: {
+            /** Format: uuid */
+            ownerId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** @constant */
+            purpose: "AI_COMPANION_VOICE";
+            /** @enum {string} */
+            packageCode: "FREE" | "PLUS" | "PREMIUM";
+            /** @enum {string} */
+            source: "DEFAULT_FREE" | "PAID" | "DEMO";
+            entitlementVersion: string;
+            /** Format: date-time */
+            checkedAt: string;
+            /** Format: date-time */
+            validUntil?: string;
+        } & unknown;
+        VoiceProblem: {
+            /** Format: uri */
+            type: string;
+            title: string;
+            status: number;
+            /** @enum {string} */
+            code: "UNAUTHENTICATED" | "FORBIDDEN" | "INVALID_REQUEST" | "ENTITLEMENT_UNAVAILABLE";
+            /** Format: uuid */
+            correlationId: string;
+        } & (unknown & unknown & unknown & unknown);
         VideoCompletion: {
             /** Format: uuid */
             appointmentId: string;
@@ -3094,6 +3146,46 @@ export interface components {
         };
     };
     responses: {
+        /** @description Missing, disabled or invalid dedicated Journal service authentication */
+        VoiceUnauthorizedProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Unsupported caller authentication context */
+        VoiceForbiddenProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Invalid, incomplete, overposted or unsupported request */
+        VoiceInvalidRequestProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Current owner entitlement could not be resolved consistently */
+        VoiceEntitlementUnavailableProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
         /** @description USER role or a current PLUS/PREMIUM entitlement is required (PAID_PLAN_REQUIRED). */
         AppointmentForbiddenProblem: {
             headers: {
@@ -3359,6 +3451,35 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    checkCurrentVoiceEntitlement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceOwnerCheck"];
+            };
+        };
+        responses: {
+            /** @description Current owner entitlement decision */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceEntitlementDecision"];
+                };
+            };
+            401: components["responses"]["VoiceUnauthorizedProblem"];
+            403: components["responses"]["VoiceForbiddenProblem"];
+            422: components["responses"]["VoiceInvalidRequestProblem"];
+            503: components["responses"]["VoiceEntitlementUnavailableProblem"];
+        };
+    };
     confirmVideoConsultationFinished: {
         parameters: {
             query?: never;

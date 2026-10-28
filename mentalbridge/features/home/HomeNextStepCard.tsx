@@ -15,6 +15,7 @@ import {
 import type { CSSProperties } from 'react'
 import { CRISIS_SUPPORT_CONTENT } from '@/components/crisis-support/crisis-support-content'
 import type { HomeNextStep } from '@/features/assessment/api/care-contract'
+import { useMamTarget } from '@/features/mam/use-mam-target'
 import type { PublicResourceSummary } from '@/features/resources/api/browser-resources'
 import { homeNextStepView } from './home-next-step-state'
 import {
@@ -175,9 +176,13 @@ export default function HomeNextStepCard({
     : undefined
   const hotline = CRISIS_SUPPORT_CONTENT.contacts[0]
   const trail = homeJourneyTrail(home)
+  const mamTarget = useMamTarget(
+    view.safety ? null : { kind: 'home.next-step' },
+  )
 
   return (
     <section
+      ref={mamTarget}
       aria-label="Bước tiếp theo"
       className={`home-next-step${view.safety ? ' home-next-step--safety' : ''}`}
       data-home-state={view.state}

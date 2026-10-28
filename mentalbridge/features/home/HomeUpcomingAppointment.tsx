@@ -3,13 +3,22 @@
 import Link from 'next/link'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useMamTarget } from '@/features/mam/use-mam-target'
 import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
 import { nextAppointment } from '@/features/appointments/model/appointment-view'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { homeAppointmentView } from './home-appointment'
 import styles from './HomeSecondarySections.module.css'
 
-export function HomeUpcomingAppointment() {
+export function HomeUpcomingAppointment({
+  summonable = true,
+}: Readonly<{
+  /** False inside a no-interrupt zone such as the plan emotion check-in. */
+  summonable?: boolean
+}> = {}) {
+  const mamTarget = useMamTarget(
+    summonable ? { kind: 'home.appointment' } : null,
+  )
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState<
     | { status: 'loading' }
@@ -45,6 +54,7 @@ export function HomeUpcomingAppointment() {
 
   return (
     <section
+      ref={mamTarget}
       className={styles.section}
       aria-labelledby="home-appointment-heading"
       data-testid="home-upcoming-appointment"
