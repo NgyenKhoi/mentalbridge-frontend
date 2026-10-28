@@ -56,6 +56,9 @@ import type {
   SupportPlanV3,
   UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
+import { dispatchMamSaved } from '@/features/mam/mam-saved'
+import { useMamSuppress } from '@/features/mam/mam-suppression'
+import { useMamPageTarget } from '@/features/mam/use-mam-target'
 import SupportPlanCompanionShell from '../components/SupportPlanCompanionShell'
 import type { SupportPlanGuidedNavigationTarget } from '../components/SupportPlanCompanionPanel'
 import SupportPlanPersonalization from '../components/SupportPlanPersonalization'
@@ -66,6 +69,11 @@ import { autoProposalKey, shouldAutoPropose } from './auto-proposal'
 import PlanHistory from './PlanHistory'
 import PlanPanel from './PlanPanel'
 import ProgressPanel from './ProgressPanel'
+import {
+  supportPlanStartAnswer,
+  supportPlanTabAnswer,
+  useMamActionExplain,
+} from './mam-support-plan'
 import ProposalPreview from './ProposalPreview'
 import TodayPanel, { type Barrier, type Helpfulness } from './TodayPanel'
 import { useCompanion } from './use-companion'
@@ -262,11 +270,14 @@ export default function SupportPlanWorkspace({
   returnOrigin,
   invalidOrigin = false,
   openReview: openReviewOnLoad = false,
+  mamEnabled = false,
 }: Readonly<{
   returnOrigin?: ReturnOrigin
   invalidOrigin?: boolean
   /** Returning from a reassessment the plan review asked for. */
   openReview?: boolean
+  /** Server-resolved MAM_WEB_ENABLED: the global Mầm replaces the legacy Companion. */
+  mamEnabled?: boolean
 }>) {
   const { confirm } = useFeedback()
   const { access, retry: retryAccess } = usePlanAccess()
@@ -324,6 +335,16 @@ export default function SupportPlanWorkspace({
   const [choicesDirty, setChoicesDirty] = useState(false)
   const dirty = scheduleDirty || personalizationDirty || choicesDirty
   const companion = useCompanion(dirty)
+  const mamExplain = useMamActionExplain()
+  useMamSuppress(mamEnabled && dirty)
+  // A late save reply must not play feedback once this screen is gone.
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   useUnsavedChangesGuard(
     dirty,
     'Các thay đổi lịch hoặc tùy chọn chưa lưu sẽ không được giữ khi rời trang.',
@@ -649,6 +670,9 @@ export default function SupportPlanWorkspace({
           )
         await loadOccurrences()
       }
+      // Care has confirmed the change; a failed or pending save never gets here.
+      if (mamEnabled && mounted.current && state === 'COMPLETED')
+        dispatchMamSaved()
       const title = item.action.presentation.title
       return state === 'COMPLETED'
         ? `Đã ghi nhận: ${title}.`
@@ -1151,6 +1175,33 @@ export default function SupportPlanWorkspace({
   const focus = current
     ? selectTodayFocus(current, occurrences, today)
     : undefined
+  // The page answer is about this tab and this focus; either change retires it.
+  const pageIdentity = `${tab}:${
+    focus?.kind === 'OCCURRENCE'
+      ? focus.occurrence.occurrenceId
+      : (focus?.kind ?? '')
+  }`
+  useMamPageTarget(
+    mamEnabled && current ? { kind: 'support-plan.page' } : null,
+    mamEnabled
+      ? async (intent, { isRegistered }) =>
+          intent === 'EXPLAIN'
+            ? supportPlanTabAnswer(tab)
+            : focus
+              ? supportPlanStartAnswer(
+                  focus,
+                  tab,
+                  isRegistered,
+                  occurrencesFailed
+                    ? 'failed'
+                    : occurrencesReady
+                      ? 'ready'
+                      : 'loading',
+                )
+              : null
+      : undefined,
+    pageIdentity,
+  )
   const engageable = new Set(
     occurrences
       .filter(
@@ -1177,6 +1228,13 @@ export default function SupportPlanWorkspace({
         : undefined
   const planForCopy = current ?? draft
   const safetyFirst = planForCopy?.safety.status === 'POSITIVE_SAFETY_SCREEN'
+  // Inline safety support is a no-interrupt zone, with or without a plan.
+  useMamSuppress(
+    mamEnabled &&
+      (safetyFirst ||
+        proposal === 'safety' ||
+        loaded?.journey?.nextAction === 'REVIEW_SAFETY_SUPPORT'),
+  )
 
   function header(subtitle?: string) {
     return (
@@ -1532,6 +1590,7 @@ export default function SupportPlanWorkspace({
               rows={{ busy: rowBusy, messages: rowMessages }}
               busy={busy}
               companion={companion}
+              mam={mamEnabled ? mamExplain : undefined}
               onRetry={() => void loadOccurrences()}
               onSkip={(item) => void changeState(item, 'SKIPPED')}
               onReopen={(item) => void changeState(item, 'SCHEDULED')}
@@ -1545,7 +1604,13 @@ export default function SupportPlanWorkspace({
               onOpenPlan={() => void changeTab('plan')}
             />
           )}
-          {tab === 'plan' && <PlanPanel plan={current} companion={companion} />}
+          {tab === 'plan' && (
+            <PlanPanel
+              plan={current}
+              companion={companion}
+              mam={mamEnabled ? mamExplain : undefined}
+            />
+          )}
           {tab === 'progress' && (
             <ProgressPanel
               summary={progress}
@@ -1562,6 +1627,7 @@ export default function SupportPlanWorkspace({
               busy={busy}
               dirty={dirty}
               reviewOpen={reviewOpen}
+              mamReview={mamEnabled}
               schedule={scheduleEditor(current)}
               preferences={
                 <SupportPlanPersonalization
@@ -1591,54 +1657,56 @@ export default function SupportPlanWorkspace({
             />
           )}
         </section>
-        <aside className="mbw-aside">
-          <SupportPlanCompanionShell
-            state={
-              companion.snapshot?.status === 'loading' ? 'thinking' : 'idle'
-            }
-            surface={tab}
-            contextual={companion.snapshot}
-            onContextualDismiss={companion.dismiss}
-            guidedContext={{
-              supportPlanId: current.supportPlanId,
-              action: companionAction
-                ? {
-                    actionId: companionAction.actionId,
-                    title: companionAction.presentation.title,
-                    requestSurface:
-                      tab === 'today'
-                        ? ('TODAY' as const)
-                        : tab === 'plan'
-                          ? ('PLAN' as const)
-                          : undefined,
-                  }
-                : undefined,
-              review,
-            }}
-            companionRequestPending={companion.pending}
-            interruptionActive={companion.interrupted}
-            onGuidedRequest={(request) => void companion.request(request)}
-            onGuidedDismiss={companion.dismissGuided}
-            onGuidedNavigate={({
-              surface,
-              actionId,
-            }: SupportPlanGuidedNavigationTarget) =>
-              void changeTab(surface).then((changed) => {
-                if (!changed) return
-                window.requestAnimationFrame(() => {
-                  const target =
-                    (actionId &&
-                      document.querySelector<HTMLElement>(
-                        `[data-support-plan-action-id="${CSS.escape(actionId)}"]`,
-                      )) ||
-                    document.getElementById(`tab-${surface}`)
-                  target?.scrollIntoView?.({ block: 'center' })
-                  target?.focus()
+        {!mamEnabled && (
+          <aside className="mbw-aside">
+            <SupportPlanCompanionShell
+              state={
+                companion.snapshot?.status === 'loading' ? 'thinking' : 'idle'
+              }
+              surface={tab}
+              contextual={companion.snapshot}
+              onContextualDismiss={companion.dismiss}
+              guidedContext={{
+                supportPlanId: current.supportPlanId,
+                action: companionAction
+                  ? {
+                      actionId: companionAction.actionId,
+                      title: companionAction.presentation.title,
+                      requestSurface:
+                        tab === 'today'
+                          ? ('TODAY' as const)
+                          : tab === 'plan'
+                            ? ('PLAN' as const)
+                            : undefined,
+                    }
+                  : undefined,
+                review,
+              }}
+              companionRequestPending={companion.pending}
+              interruptionActive={companion.interrupted}
+              onGuidedRequest={(request) => void companion.request(request)}
+              onGuidedDismiss={companion.dismissGuided}
+              onGuidedNavigate={({
+                surface,
+                actionId,
+              }: SupportPlanGuidedNavigationTarget) =>
+                void changeTab(surface).then((changed) => {
+                  if (!changed) return
+                  window.requestAnimationFrame(() => {
+                    const target =
+                      (actionId &&
+                        document.querySelector<HTMLElement>(
+                          `[data-support-plan-action-id="${CSS.escape(actionId)}"]`,
+                        )) ||
+                      document.getElementById(`tab-${surface}`)
+                    target?.scrollIntoView?.({ block: 'center' })
+                    target?.focus()
+                  })
                 })
-              })
-            }
-          />
-        </aside>
+              }
+            />
+          </aside>
+        )}
       </div>
       <p className="mbw-disclaimer">{current.disclaimer}</p>
     </div>

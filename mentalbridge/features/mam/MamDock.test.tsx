@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MamDock } from './MamDock'
 import { MamDockSlot } from './MamDockSlot'
+import { dispatchMamSaved } from './mam-saved'
+import { useMamSuppress } from './mam-suppression'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
 
@@ -10,7 +12,7 @@ vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
 }))
 
-const character = vi.hoisted(() => ({ mounts: 0 }))
+const character = vi.hoisted(() => ({ mounts: 0, ready: false }))
 
 vi.mock('./MamCharacter', async () => {
   const { useEffect } = await import('react')
@@ -19,9 +21,14 @@ vi.mock('./MamCharacter', async () => {
       size: number
       behavior: string
       reducedMotion: boolean
+      oneShot?: { kind: string } | null
+      onStatusChange?: (status: 'ready') => void
     }) => {
       useEffect(() => {
         character.mounts += 1
+        if (character.ready) props.onStatusChange?.('ready')
+        // Mount only: the status is reported once, as the real character does.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [])
       return (
         <span
@@ -29,6 +36,7 @@ vi.mock('./MamCharacter', async () => {
           data-size={props.size}
           data-behavior={props.behavior}
           data-reduced={props.reducedMotion}
+          data-one-shot={props.oneShot?.kind ?? ''}
         />
       )
     },
@@ -70,6 +78,7 @@ describe('MamDock', () => {
   beforeEach(() => {
     navigation.pathname = '/dashboard'
     character.mounts = 0
+    character.ready = false
     window.localStorage.clear()
     window.sessionStorage.clear()
     stubMatchMedia(() => false)
@@ -97,7 +106,7 @@ describe('MamDock', () => {
   })
 
   it('renders nothing on a route outside the surface matrix', () => {
-    navigation.pathname = '/support-plan'
+    navigation.pathname = '/support-plan/today'
     render(
       <>
         <MamDockSlot />
@@ -419,5 +428,119 @@ describe('MamDock', () => {
     await waitFor(() =>
       expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull(),
     )
+  })
+
+  it('shows on /support-plan and on no deeper SupportPlan path', () => {
+    navigation.pathname = '/support-plan'
+    const { unmount } = render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(screen.getByTestId('mam-character')).toBeInTheDocument()
+    unmount()
+  })
+
+  describe('a confirmed save', () => {
+    const shown = () => (
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>
+    )
+    const oneShot = () =>
+      screen.getByTestId('mam-character').getAttribute('data-one-shot')
+
+    beforeEach(() => {
+      navigation.pathname = '/support-plan'
+      character.ready = true
+    })
+
+    it('plays light_success once, then settles', async () => {
+      vi.useFakeTimers()
+      render(shown())
+      expect(oneShot()).toBe('')
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('light_success')
+      act(() => {
+        vi.advanceTimersByTime(1500)
+      })
+      expect(oneShot()).toBe('')
+      vi.useRealTimers()
+    })
+
+    it('clears playing save feedback on navigation without replaying on return', () => {
+      const { rerender } = render(shown())
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('light_success')
+
+      navigation.pathname = '/achievements'
+      rerender(shown())
+      expect(oneShot()).toBe('')
+      navigation.pathname = '/support-plan'
+      rerender(shown())
+      expect(oneShot()).toBe('')
+      expect(character.mounts).toBe(1)
+
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('light_success')
+    })
+
+    it.each([
+      [
+        'hidden',
+        () => window.localStorage.setItem('mentalbridge_mam_hidden', 'true'),
+      ],
+      [
+        'muted',
+        () =>
+          window.sessionStorage.setItem(
+            'mentalbridge_mam_session_muted',
+            'true',
+          ),
+      ],
+      [
+        'motion off',
+        () => window.localStorage.setItem('mentalbridge_mam_motion', 'reduced'),
+      ],
+    ])('stays still while Mầm is %s', (name, setup) => {
+      setup()
+      render(shown())
+      act(() => dispatchMamSaved())
+      // Hidden Mầm has no character at all, so nothing can play.
+      if (name === 'hidden')
+        expect(screen.queryByTestId('mam-character')).toBeNull()
+      else expect(oneShot()).toBe('')
+    })
+
+    it('stays still while the feature reports a no-interrupt zone', () => {
+      function Dirty() {
+        useMamSuppress(true)
+        return null
+      }
+      render(
+        <>
+          <Dirty />
+          {shown()}
+        </>,
+      )
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('')
+    })
+
+    it('stays still while the menu is open', () => {
+      render(shown())
+      fireEvent.click(dockButton())
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('')
+    })
+
+    it('stays still before the character is ready', () => {
+      character.ready = false
+      render(shown())
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('')
+    })
   })
 })

@@ -5,7 +5,7 @@
 // evidence for the budgets in docs/evidence/mb-775-mam-web-gate.md, not a
 // device claim: headless Chromium on a dev machine says nothing about phones.
 import { spawn } from 'node:child_process'
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { arch, cpus, platform, release, totalmem } from 'node:os'
 import { resolve } from 'node:path'
 import { chromium } from '@playwright/test'
@@ -21,7 +21,8 @@ const IDLE_MS = 10_000
 const OLD_AT = Date.now() - 5 * 3600_000
 const CELEBRATION_LEAD_MS = 7_000 // the director coalesces for 10 s before the flight
 const CELEBRATION_MS = 7_000
-const ROUTES = ['/achievements', '/journal']
+// MB-772 added /support-plan: the first route whose page needs a plan, mocked below.
+const ROUTES = ['/achievements', '/journal', '/support-plan']
 const MAM_PREFS = [
   'mentalbridge_mam_hidden',
   'mentalbridge_mam_motion',
@@ -275,6 +276,80 @@ async function sampleWindow(page, cdp, ms, pollMs = 0) {
   return result
 }
 
+// The plan fixture is TypeScript with type-only imports; the installed
+// TypeScript compiler strips the types (works on Node 20, unlike Node's own
+// type stripping), so the script keeps one source of truth with the tests.
+let supportPlanFixture
+async function planFixture() {
+  if (!supportPlanFixture) {
+    const { default: ts } = await import('typescript')
+    const { outputText } = ts.transpileModule(
+      await readFile(
+        'features/support-plan/testing/native-support-plan-fixture.ts',
+        'utf8',
+      ),
+      { compilerOptions: { module: ts.ModuleKind.ESNext } },
+    )
+    const f = await import(
+      `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`
+    )
+    supportPlanFixture = {
+      plan: f.nativeSupportPlanFixture(),
+      occurrence: f.emotionOccurrenceFixture(),
+    }
+  }
+  return supportPlanFixture
+}
+
+// An active plan with today's one open Emotion check-in: Today shows its card,
+// which carries Mầm's button with the flag on.
+async function mockSupportPlan(page) {
+  const { plan, occurrence: base } = await planFixture()
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+  }).format(new Date())
+  const occurrence = {
+    ...base,
+    localDate: today,
+    scheduledAt: `${today}T12:00:00Z`,
+    displayState: 'SCHEDULED',
+  }
+  await page.route('**/api/care/**', (handler) => {
+    const { pathname } = new URL(handler.request().url())
+    const json = (body, status = 200) =>
+      handler.fulfill({
+        status,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      })
+    if (pathname === '/api/care/v2/support-plans/current') return json(plan)
+    if (pathname === '/api/care/v2/support-plans/current-draft')
+      return json(
+        {
+          type: 'about:blank',
+          title: 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+          status: 404,
+          code: 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+        },
+        404,
+      )
+    if (pathname === '/api/care/v2/support-plans/history')
+      return json({ items: [], hasMore: false, nextCursor: null })
+    if (pathname === '/api/care/v2/support-plan-occurrences')
+      return json({
+        supportPlanId: plan.supportPlanId,
+        supportPlanStatus: plan.status,
+        representationMode: plan.representationMode,
+        from: today,
+        through: today,
+        occurrences: [occurrence],
+        interpretationCode:
+          'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
+      })
+    return handler.fallback()
+  })
+}
+
 async function measure(browser, flag, route) {
   const context = await newContext(browser)
   const page = await context.newPage()
@@ -297,6 +372,7 @@ async function measure(browser, flag, route) {
       body: JSON.stringify(gallery([earned('old', 'Cũ', OLD_AT)])),
     }),
   )
+  if (route === '/support-plan') await mockSupportPlan(page)
   const pageErrors = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
   await page.goto(`${base}${route}`, { waitUntil: 'load' })

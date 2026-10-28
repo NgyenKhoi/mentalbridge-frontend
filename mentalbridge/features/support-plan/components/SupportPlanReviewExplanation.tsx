@@ -25,7 +25,8 @@ export default function SupportPlanReviewExplanation({
   onOpenAdjust,
 }: Readonly<{
   review: NativeSupportPlanReplacementReview
-  onOpenAdjust: () => void
+  /** Omitted where the review is already shown on Adjust. */
+  onOpenAdjust?: () => void
 }>) {
   const explanation = explainSupportPlanReview(review)
   return (
@@ -85,17 +86,22 @@ export default function SupportPlanReviewExplanation({
         </ul>
       </section>
 
-      <p className="support-plan-review-confirmation">
-        Kế hoạch chỉ thay đổi khi bạn xác nhận trong mục Điều chỉnh.
-      </p>
-      <button
-        type="button"
-        className="support-plan-review-open-adjust"
-        onClick={onOpenAdjust}
-      >
-        <ListChecks size={18} aria-hidden="true" />
-        Xem chi tiết tại mục Điều chỉnh
-      </button>
+      {/* On Adjust the panel already says the plan waits for confirmation. */}
+      {onOpenAdjust && (
+        <p className="support-plan-review-confirmation">
+          Kế hoạch chỉ thay đổi khi bạn xác nhận trong mục Điều chỉnh.
+        </p>
+      )}
+      {onOpenAdjust && (
+        <button
+          type="button"
+          className="support-plan-review-open-adjust"
+          onClick={onOpenAdjust}
+        >
+          <ListChecks size={18} aria-hidden="true" />
+          Xem chi tiết tại mục Điều chỉnh
+        </button>
+      )}
     </div>
   )
 }

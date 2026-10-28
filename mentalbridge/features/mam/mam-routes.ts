@@ -1,8 +1,8 @@
 // Dock surfaces from the ADR surface matrix (docs/ADR_MAM_RIVE_V1_CONTRACT.md,
 // "Surface matrix"). Everything else is hidden, so a new route never shows Mầm
-// by accident. `/support-plan` stays hidden until MB-772 merges the
-// SupportPlan companion with Mầm (owner decision, 2026-10-27).
+// by accident. `/support-plan` is exact: its subpaths stay hidden (MB-772).
 const MAM_DOCK_ROUTES = [
+  /^\/support-plan$/,
   /^\/dashboard$/,
   /^\/achievements$/,
   /^\/support-guides(\/[^/]+)?$/,

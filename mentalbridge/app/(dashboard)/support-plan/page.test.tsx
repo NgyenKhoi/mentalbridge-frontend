@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ComponentProps } from 'react'
 import type SupportPlanWorkspace from '@/features/support-plan/workspace/SupportPlanWorkspace'
 vi.mock('@/features/support-plan/workspace/SupportPlanWorkspace', () => ({
@@ -13,7 +13,7 @@ const fields = {
   actionId: '20000000-0000-4000-8000-000000000642',
   localDate: '2026-10-14',
 }
-async function propsFor(query: Record<string, string | string[]>) {
+async function rawPropsFor(query: Record<string, string | string[]>) {
   render(
     await SupportPlanPage({
       params: Promise.resolve({}),
@@ -22,6 +22,13 @@ async function propsFor(query: Record<string, string | string[]>) {
   )
   return JSON.parse(screen.getByTestId('workspace').textContent ?? '{}')
 }
+// The flag parity has its own test below; the route cases look at the rest.
+async function propsFor(query: Record<string, string | string[]>) {
+  const { mamEnabled, ...rest } = await rawPropsFor(query)
+  expect(mamEnabled).toBe(false)
+  return rest
+}
+afterEach(() => vi.unstubAllEnvs())
 describe('SupportPlan return route discrimination', () => {
   it('passes Journal origin separately and never as an Emotion origin', async () => {
     expect(
@@ -87,5 +94,22 @@ describe('SupportPlan return route discrimination', () => {
   })
   it('ignores any other review value', async () => {
     expect(await propsFor({ review: 'yes' })).toEqual({})
+  })
+  it.each<Record<string, string>>([
+    {},
+    { review: 'open' },
+    fields,
+    { source: 'resource', ...fields },
+    { source: 'journal', ...fields },
+    { source: 'unknown', ...fields },
+  ])('hands the server flag to every workspace path %j', async (query) => {
+    vi.stubEnv('MAM_WEB_ENABLED', 'true')
+    expect((await rawPropsFor(query)).mamEnabled).toBe(true)
+    cleanup()
+    vi.stubEnv('MAM_WEB_ENABLED', 'false')
+    expect((await rawPropsFor(query)).mamEnabled).toBe(false)
+    cleanup()
+    vi.stubEnv('MAM_WEB_ENABLED', undefined)
+    expect((await rawPropsFor(query)).mamEnabled).toBe(false)
   })
 })

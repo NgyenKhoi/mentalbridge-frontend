@@ -6,6 +6,10 @@ import { MAM_RESOURCE_FALLBACK, mamResourceAnswer } from './mam-resources'
 
 export const MAM_TARGETS_VERSION = 'mam-targets-v1'
 
+// Shown when the Care explanation of a SupportPlan action cannot load.
+const SUPPORT_PLAN_EXPLAIN_FALLBACK =
+  'Chưa tải được lời giải thích lúc này. Thử lại sau.'
+
 export const MAM_INTENTS = ['EXPLAIN', 'WHERE_TO_START'] as const
 export type MamIntent = (typeof MAM_INTENTS)[number]
 
@@ -76,6 +80,28 @@ const MAM_TARGET_DEFINITIONS = {
     explain:
       'Đây là thư viện bài đọc, bài tập và video. Bạn chọn theo chủ đề mình quan tâm và làm theo nhịp của mình.',
   },
+  // SupportPlan (MB-772): answers come from the page's own resolver; only the
+  // Care action explanation reaches a model.
+  'support-plan.page': {
+    page: true,
+    intents: ['EXPLAIN', 'WHERE_TO_START'],
+    contextKeys: [],
+    explain: '',
+  },
+  'support-plan.focus': {
+    page: false,
+    intents: ['EXPLAIN'],
+    contextKeys: ['supportPlanId', 'actionId'],
+    explain: '',
+    fallback: SUPPORT_PLAN_EXPLAIN_FALLBACK,
+  },
+  'support-plan.action': {
+    page: false,
+    intents: ['EXPLAIN'],
+    contextKeys: ['supportPlanId', 'actionId'],
+    explain: '',
+    fallback: SUPPORT_PLAN_EXPLAIN_FALLBACK,
+  },
 } as const satisfies Record<string, MamTargetDefinition>
 
 export type MamTargetKind = keyof typeof MAM_TARGET_DEFINITIONS
@@ -128,8 +154,12 @@ export type MamAnswer = Readonly<{
   text: string
   /** A registered target the answer can take the user to. */
   focusKind?: MamTargetKind
+  /** Names the button that takes the user to `focusKind`. */
+  focusLabel?: string
   /** A reviewed Resource detail the answer can open. */
   href?: string
+  /** Phrased by the model; the bubble says so once. */
+  generated?: boolean
 }>
 
 export const MAM_FALLBACK_TEXT: Record<MamIntent, string> = {

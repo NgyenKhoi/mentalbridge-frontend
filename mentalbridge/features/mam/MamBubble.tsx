@@ -156,6 +156,11 @@ export function MamBubble({
             transition={{ duration: 0.24, ease }}
           >
             {answer.text}
+            {answer.generated ? (
+              <div className={styles.note}>
+                AI diễn đạt từ kế hoạch của bạn.
+              </div>
+            ) : null}
           </motion.div>
         ) : null}
       </div>
@@ -192,7 +197,7 @@ export function MamBubble({
               className={styles.primary}
               onClick={onGo}
             >
-              Đưa mình tới đó
+              {answer.focusLabel ?? 'Đưa mình tới đó'}
               <ArrowRight size={16} strokeWidth={1.8} aria-hidden="true" />
             </button>
           ) : null}
