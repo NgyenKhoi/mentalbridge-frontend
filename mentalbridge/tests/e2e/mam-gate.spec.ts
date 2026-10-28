@@ -20,6 +20,7 @@ import {
   expectPageActionsClickable,
   menu,
 } from './mam-dock-helpers'
+import { installSupportPlanMocks } from './support-plan-mam-mocks'
 
 // MB-775: web release gate for Mầm behind MAM_WEB_ENABLED. Needs the flag on
 // (the E2E default). Proves the dock never blocks core journeys, survives asset
@@ -57,6 +58,7 @@ async function mockResources(page: Page) {
 
 async function openHome(page: Page, width = 1440, route = '/dashboard') {
   if (route === '/resources') await mockResources(page)
+  else if (route === '/support-plan') await installSupportPlanMocks(page)
   else await installHomeMocks(page, homeWorld('do-today'))
   await page.route('**/api/achievements?*', (route) =>
     route.fulfill({
@@ -125,6 +127,7 @@ test.describe('MB-775 Mầm web gate', () => {
       '/resources',
       '/achievements',
       `/support-guides/${homeGuideId}`,
+      '/support-plan',
     ]) {
       test(`${route} keeps Help Now and every page action clickable at ${width}`, async ({
         page,
@@ -136,6 +139,18 @@ test.describe('MB-775 Mầm web gate', () => {
         await crisis(page).click({ trial: true })
         if (route === '/dashboard')
           await startToday(page).click({ trial: true })
+        if (route === '/support-plan') {
+          // One global Mầm, never the legacy Companion beside it (MB-772).
+          await expect(page.locator('[data-mam-dock]')).toHaveCount(1)
+          await expect(
+            page.getByRole('complementary', {
+              name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+            }),
+          ).toHaveCount(0)
+          await page
+            .getByRole('link', { name: 'Ghi lại cảm xúc' })
+            .click({ trial: true })
+        }
         await expectPageActionsClickable(page)
         await expectNothingCoveredAtBottom(page)
       })
@@ -337,9 +352,7 @@ test.describe('MB-775 Mầm web gate', () => {
     const visit = async (path: string) => {
       await nav.locator(`a[href="${path}"]`).first().click()
       await expect(page).toHaveURL(new RegExp(`${path}$`))
-      await expect(page.locator('[data-mam-dock]')).toHaveCount(
-        path === '/support-plan' ? 0 : 1,
-      )
+      await expect(page.locator('[data-mam-dock]')).toHaveCount(1)
     }
     // Every sample is the same settled state: /dashboard, character ready, GC done.
     const sample = async () => {

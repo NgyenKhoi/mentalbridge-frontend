@@ -12,6 +12,7 @@ import {
   installPlanResourcesMocks,
   resourceWorld,
 } from './plan-resources-mocks'
+import { installSupportPlanMocks } from './support-plan-mam-mocks'
 
 // MB-775: with MAM_WEB_ENABLED=false (the production default) no layout renders
 // the dock slot, so the dock never mounts and Rive is never requested. Run with
@@ -27,6 +28,7 @@ const routes = [
   '/journal',
   '/resources',
   `/resources/${homeResourceDetails()[0].id}`,
+  '/support-plan',
 ]
 
 function watchMamRequests(page: Page) {
@@ -52,6 +54,7 @@ test.describe('MB-775 Mầm flag off', () => {
       const mamRequests = watchMamRequests(page)
       if (route === '/resources')
         await installPlanResourcesMocks(page, resourceWorld(1))
+      else if (route === '/support-plan') await installSupportPlanMocks(page)
       else await installHomeMocks(page, homeWorld('do-today'))
       await page.setViewportSize({ width: 1440, height: 900 })
       await page.goto(route)
@@ -66,6 +69,35 @@ test.describe('MB-775 Mầm flag off', () => {
       expect(mamRequests).toEqual([])
     })
   }
+
+  test('keeps the legacy SupportPlan Companion and the original CTA', async ({
+    page,
+  }) => {
+    const requests = await installSupportPlanMocks(page)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/support-plan')
+    await expect(
+      page.getByRole('link', { name: 'Ghi lại cảm xúc' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('complementary', {
+        name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+      }),
+    ).toBeVisible()
+    await page
+      .getByRole('button', {
+        name: 'Nhờ bạn đồng hành giải thích: Check-in cảm xúc',
+      })
+      .click()
+    await expect(
+      page
+        .getByRole('tabpanel', { name: 'Hôm nay' })
+        .getByText('Hoạt động này thuộc kế hoạch hiện tại.'),
+    ).toBeVisible()
+    expect(requests.companionSurfaces()).toEqual(['TODAY'])
+    await expect(page.locator('[data-mam-dock]')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^Mầm/ })).toHaveCount(0)
+  })
 
   test('keeps page actions and leaves stored Mầm preferences untouched', async ({
     page,

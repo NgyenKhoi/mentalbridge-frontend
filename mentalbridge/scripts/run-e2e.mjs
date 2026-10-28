@@ -7,6 +7,13 @@ const carePort = 3202
 const frontendPort = 3100
 const standaloneDirectory = resolve('.next', 'standalone')
 
+// `--flag-off` runs the same managed servers with MAM_WEB_ENABLED=false (the
+// production default), for the legacy Companion specs the flag-on run skips.
+const playwrightArguments = process.argv
+  .slice(2)
+  .filter((argument) => argument !== '--flag-off')
+if (process.argv.includes('--flag-off')) process.env.MAM_WEB_ENABLED = 'false'
+
 const inheritedEnvironment = Object.entries(process.env).reduce(
   (environment, [key, value]) => {
     if (value !== undefined) environment[key] = value
@@ -108,7 +115,7 @@ async function run() {
     const command = process.platform === 'win32' ? 'npx.cmd' : 'npx'
     const playwright = start(
       command,
-      ['playwright', 'test', ...process.argv.slice(2)],
+      ['playwright', 'test', ...playwrightArguments],
       {
         ...inheritedEnvironment,
       },
@@ -171,7 +178,7 @@ async function run() {
   const command = process.platform === 'win32' ? 'npx.cmd' : 'npx'
   const playwright = start(
     command,
-    ['playwright', 'test', ...process.argv.slice(2)],
+    ['playwright', 'test', ...playwrightArguments],
     {
       ...inheritedEnvironment,
       PLAYWRIGHT_BASE_URL: `http://${host}:${frontendPort}`,

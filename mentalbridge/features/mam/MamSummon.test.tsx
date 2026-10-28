@@ -1,10 +1,24 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
+import type { ComponentProps } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MamDock } from './MamDock'
 import { MamDockSlot } from './MamDockSlot'
 import * as mamRequests from './mam-requests'
-import { useMamPageTarget, useMamTarget } from './use-mam-target'
+import { MamCardButton } from './MamCardButton'
+import { useMamSuppress } from './mam-suppression'
+import {
+  useMamPageTarget,
+  useMamTarget,
+  type MamResolver,
+} from './use-mam-target'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
 
@@ -68,6 +82,61 @@ function App(
     <>
       <MamDockSlot />
       <Page {...props} />
+      <MamDock />
+    </>
+  )
+}
+
+const planIds = {
+  supportPlanId: '10000000-0000-4000-8000-000000000772',
+  actionId: '20000000-0000-4000-8000-000000000772',
+}
+
+// A SupportPlan page: the focus card with its own Mầm button and CTA, and a
+// page target whose answers come from the page, as in the workspace.
+function PlanPage({
+  resolver,
+  card = true,
+  dirty = false,
+}: Readonly<{ resolver: MamResolver; card?: boolean; dirty?: boolean }>) {
+  useMamSuppress(dirty)
+  useMamPageTarget(
+    { kind: 'support-plan.page' },
+    async (intent, { isRegistered }) =>
+      intent === 'EXPLAIN'
+        ? { text: 'Tab Hôm nay cho thấy việc nên làm tiếp.' }
+        : {
+            text: 'Việc nên làm tiếp: “Viết vài dòng”.',
+            ...(isRegistered('support-plan.focus')
+              ? {
+                  focusKind: 'support-plan.focus' as const,
+                  focusLabel: 'Đến việc này',
+                }
+              : {}),
+          },
+  )
+  const focus = useMamTarget(
+    card ? { kind: 'support-plan.focus', context: planIds } : null,
+    resolver,
+  )
+  return (
+    <div className="ref-content">
+      {card ? (
+        <section ref={focus} aria-label="Việc tiếp theo">
+          <h2>Viết vài dòng</h2>
+          <a href="/journal">Viết vài dòng</a>
+          <MamCardButton label="Mầm giải thích: Viết vài dòng" />
+        </section>
+      ) : null}
+    </div>
+  )
+}
+
+function PlanApp(props: ComponentProps<typeof PlanPage>) {
+  return (
+    <>
+      <MamDockSlot />
+      <PlanPage {...props} />
       <MamDock />
     </>
   )
@@ -196,7 +265,9 @@ describe('Mầm summon', () => {
   })
 
   it('opens on a 500 ms touch press, cancels on movement and swallows the click', () => {
-    vi.useFakeTimers()
+    // Leave animation frames real: replacing JSDOM's RAF interval can stall
+    // Motion's shared frame loop after switching back to real timers.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     render(<App />)
     const button = screen.getByRole('button', { name: 'Bài đọc' })
     const onClick = vi.fn()
@@ -270,7 +341,7 @@ describe('Mầm summon', () => {
   })
 
   it('swallows the click after a long hold but lets the next tap through', async () => {
-    vi.useFakeTimers()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     render(<App />)
     const button = screen.getByRole('button', { name: 'Bài đọc' })
     const onClick = vi.fn()
@@ -361,5 +432,208 @@ describe('Mầm summon', () => {
     expect(
       contextMenu(screen.getByRole('region', { name: 'Tài nguyên' })),
     ).toBe(true)
+  })
+
+  describe('Mầm button on a SupportPlan card', () => {
+    const cardButton = () =>
+      screen.getByRole('button', { name: 'Mầm giải thích: Viết vài dòng' })
+    const press = () => {
+      fireEvent.pointerDown(cardButton(), { button: 0, pointerType: 'mouse' })
+      fireEvent.click(cardButton())
+    }
+    const answer = {
+      text: 'Bài viết ngắn giúp bạn gọi tên điều đang nghĩ.',
+      generated: true,
+    }
+
+    beforeEach(() => {
+      navigation.pathname = '/support-plan'
+    })
+
+    it('asks nothing on route entry, then one request however often it is pressed', async () => {
+      let finish!: () => void
+      const resolver = vi.fn<MamResolver>(
+        () =>
+          new Promise((resolve) => {
+            finish = () => resolve(answer)
+          }),
+      )
+      render(<PlanApp resolver={resolver} />)
+      expect(resolver).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull()
+
+      press()
+      press()
+      press()
+      expect(resolver).toHaveBeenCalledTimes(1)
+      expect(resolver.mock.calls[0][0]).toBe('EXPLAIN')
+      expect(screen.getByRole('dialog', { name: 'Mầm' })).toBeInTheDocument()
+      expect(screen.getByText('Mầm đang nghĩ…')).toBeInTheDocument()
+      expect(behavior()).toBe('thinking')
+      // The card is the one Mầm is talking about.
+      expect(
+        screen.getByRole('region', { name: 'Việc tiếp theo' }),
+      ).toHaveAttribute('data-mam-active')
+
+      await act(async () => finish())
+      expect(screen.getByText(/gọi tên điều đang nghĩ/)).toBeInTheDocument()
+      expect(
+        screen.getByText('AI diễn đạt từ kế hoạch của bạn.'),
+      ).toBeInTheDocument()
+      expect(behavior()).toBe('explaining')
+      // The card keeps its own call to action; the bubble repeats none.
+      expect(
+        within(screen.getByRole('dialog', { name: 'Mầm' })).queryByRole('link'),
+      ).toBeNull()
+      expect(resolver).toHaveBeenCalledTimes(1)
+      expect(fetchSpy).not.toHaveBeenCalled()
+
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull(),
+      )
+      expect(cardButton()).toHaveFocus()
+      expect(
+        screen.getByRole('region', { name: 'Việc tiếp theo' }),
+      ).not.toHaveAttribute('data-mam-active')
+    })
+
+    it('shows a template answer as is, with no AI note', async () => {
+      render(
+        <PlanApp
+          resolver={async () => ({ text: 'Mẫu có sẵn từ kế hoạch.' })}
+        />,
+      )
+      press()
+      expect(
+        await screen.findByText('Mẫu có sẵn từ kế hoạch.'),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/AI diễn đạt/)).toBeNull()
+      expect(
+        screen.getByRole('button', { name: 'Cảm ơn Mầm' }),
+      ).toBeInTheDocument()
+    })
+
+    it('shows the fallback when the explanation cannot load, and the card stays usable', async () => {
+      render(
+        <PlanApp
+          resolver={async () => {
+            throw new Error('Care unavailable')
+          }}
+        />,
+      )
+      press()
+      expect(
+        await screen.findByText(
+          'Chưa tải được lời giải thích lúc này. Thử lại sau.',
+        ),
+      ).toBeInTheDocument()
+      expect(behavior()).toBe('gentle')
+      expect(screen.queryByText(/AI diễn đạt/)).toBeNull()
+      expect(
+        within(
+          screen.getByRole('region', { name: 'Việc tiếp theo' }),
+        ).getByRole('link', { name: 'Viết vài dòng' }),
+      ).toBeInTheDocument()
+    })
+
+    it('discards the answer when the card leaves the page', async () => {
+      let finish!: () => void
+      const resolver = vi.fn<MamResolver>(
+        () =>
+          new Promise((resolve) => {
+            finish = () => resolve({ text: 'Câu trả lời muộn.' })
+          }),
+      )
+      const { rerender } = render(<PlanApp resolver={resolver} />)
+      press()
+      const signal = resolver.mock.calls[0][1].signal
+      rerender(<PlanApp resolver={resolver} card={false} />)
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull(),
+      )
+      expect(signal.aborted).toBe(true)
+      await act(async () => finish())
+      expect(screen.queryByText('Câu trả lời muộn.')).toBeNull()
+      expect(behavior()).toBe('idle')
+    })
+
+    it('is inert, and closes an open bubble, while the workspace is dirty', async () => {
+      const resolver = vi.fn<MamResolver>(() => new Promise(() => {}))
+      const { rerender } = render(<PlanApp resolver={resolver} />)
+      press()
+      const signal = resolver.mock.calls[0][1].signal
+      rerender(<PlanApp resolver={resolver} dirty />)
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull(),
+      )
+      expect(signal.aborted).toBe(true)
+      expect(cardButton()).toHaveAttribute('aria-disabled', 'true')
+      press()
+      expect(resolver).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull()
+    })
+
+    it('has no button while Mầm is hidden', () => {
+      window.localStorage.setItem('mentalbridge_mam_hidden', 'true')
+      render(<PlanApp resolver={async () => null} />)
+      expect(
+        screen.queryByRole('button', { name: 'Mầm giải thích: Viết vài dòng' }),
+      ).toBeNull()
+    })
+
+    it('opens the same flow from right-click on the card', async () => {
+      const resolver = vi.fn<MamResolver>(async () => ({ text: 'Giải thích.' }))
+      render(<PlanApp resolver={resolver} />)
+      contextMenu(screen.getByRole('region', { name: 'Việc tiếp theo' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Mầm giải thích' }))
+      expect(await screen.findByText('Giải thích.')).toBeInTheDocument()
+      expect(resolver).toHaveBeenCalledTimes(1)
+    })
+
+    it('answers the dock starters from the page with no card request, and leads to the focus card', async () => {
+      const resolver = vi.fn<MamResolver>(async () => ({ text: 'Không dùng.' }))
+      render(<PlanApp resolver={resolver} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Mầm' }))
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Hỏi Mầm về trang này' }),
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Mầm giải thích' }))
+      expect(
+        await screen.findByText(/Tab Hôm nay cho thấy/),
+      ).toBeInTheDocument()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Nên bắt đầu từ đâu?' }),
+      )
+      const go = await screen.findByRole('button', { name: 'Đến việc này' })
+      // The bubble moves focus to its first control in an effect; click only
+      // once it has, or that late focus lands on a button that is leaving.
+      await waitFor(() => expect(go).toHaveFocus())
+      fireEvent.click(go)
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull(),
+      )
+      await waitFor(() =>
+        expect(
+          screen.getByRole('link', { name: 'Viết vài dòng' }),
+        ).toHaveFocus(),
+      )
+      expect(resolver).not.toHaveBeenCalled()
+      expect(fetchSpy).not.toHaveBeenCalled()
+    })
+
+    it('offers no focus link when the focus card is not on the page', async () => {
+      render(<PlanApp resolver={async () => null} card={false} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Mầm' }))
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Hỏi Mầm về trang này' }),
+      )
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Nên bắt đầu từ đâu?' }),
+      )
+      expect(await screen.findByText(/Việc nên làm tiếp/)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Đến việc này' })).toBeNull()
+    })
   })
 })

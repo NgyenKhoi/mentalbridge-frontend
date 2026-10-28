@@ -12,6 +12,8 @@ export default async function SupportPlanPage({
   searchParams,
 }: PageProps<'/support-plan'>) {
   const values = await searchParams
+  // The same server flag as the dashboard layout; never a client environment read.
+  const mamEnabled = process.env.MAM_WEB_ENABLED === 'true'
   const query = new URLSearchParams()
   for (const key of [
     'source',
@@ -35,29 +37,38 @@ export default async function SupportPlanPage({
       ? null
       : parseEmotionPlanOrigin(query)
     return resource ? (
-      <SupportPlanWorkspace returnOrigin={{ kind: 'resource', ...resource }} />
+      <SupportPlanWorkspace
+        mamEnabled={mamEnabled}
+        returnOrigin={{ kind: 'resource', ...resource }}
+      />
     ) : (
-      <SupportPlanWorkspace invalidOrigin />
+      <SupportPlanWorkspace mamEnabled={mamEnabled} invalidOrigin />
     )
   }
   if (query.has('source') || query.has('journalId')) {
     const journal = parseJournalPlanOrigin(query)
     return journal ? (
-      <SupportPlanWorkspace returnOrigin={{ ...journal, kind: 'journal' }} />
+      <SupportPlanWorkspace
+        mamEnabled={mamEnabled}
+        returnOrigin={{ ...journal, kind: 'journal' }}
+      />
     ) : (
-      <SupportPlanWorkspace invalidOrigin />
+      <SupportPlanWorkspace mamEnabled={mamEnabled} invalidOrigin />
     )
   }
   if (!query.has('occurrenceId'))
     return values.review === 'open' ? (
-      <SupportPlanWorkspace openReview />
+      <SupportPlanWorkspace mamEnabled={mamEnabled} openReview />
     ) : (
-      <SupportPlanWorkspace />
+      <SupportPlanWorkspace mamEnabled={mamEnabled} />
     )
   const emotion = parseEmotionPlanOrigin(query)
   return emotion ? (
-    <SupportPlanWorkspace returnOrigin={{ kind: 'emotion', ...emotion }} />
+    <SupportPlanWorkspace
+      mamEnabled={mamEnabled}
+      returnOrigin={{ kind: 'emotion', ...emotion }}
+    />
   ) : (
-    <SupportPlanWorkspace invalidOrigin />
+    <SupportPlanWorkspace mamEnabled={mamEnabled} invalidOrigin />
   )
 }

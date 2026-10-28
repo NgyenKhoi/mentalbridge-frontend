@@ -8,6 +8,7 @@ import type {
   NativeSupportPlanReplacementReview,
   SupportPlanV3,
 } from '../api/support-plan-contract'
+import SupportPlanMamReview from '../components/SupportPlanMamReview'
 import AdaptiveReview from './AdaptiveReview'
 import { dayLabel } from './TodayPanel'
 import { REASSESSMENT_HREF } from './workspace-links'
@@ -20,6 +21,8 @@ type Props = Readonly<{
   busy: boolean
   dirty: boolean
   reviewOpen: boolean
+  /** Global Mầm presentation: the review explanation opens inline. */
+  mamReview?: boolean
   schedule: ReactNode
   preferences: ReactNode
   history: ReactNode
@@ -50,6 +53,7 @@ export default function AdjustPanel({
   busy,
   dirty,
   reviewOpen,
+  mamReview,
   schedule,
   preferences,
   history,
@@ -157,7 +161,15 @@ export default function AdjustPanel({
               </section>
             </div>
             {/* Always mounted so the outcome is announced when it arrives. */}
-            <p role="status">{review ? reviewOutcome[review.outcome] : ''}</p>
+            {mamReview ? (
+              <SupportPlanMamReview review={review}>
+                <p role="status">
+                  {review ? reviewOutcome[review.outcome] : ''}
+                </p>
+              </SupportPlanMamReview>
+            ) : (
+              <p role="status">{review ? reviewOutcome[review.outcome] : ''}</p>
+            )}
             <div className="mbw-actions">
               {review ? (
                 <button

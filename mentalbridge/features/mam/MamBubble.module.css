@@ -233,3 +233,11 @@ a.done {
   align-items: center;
   text-decoration: none;
 }
+
+/* One line under a generated answer; a div, as the shell greys p/span/small. */
+.note {
+  margin-top: 6px;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}

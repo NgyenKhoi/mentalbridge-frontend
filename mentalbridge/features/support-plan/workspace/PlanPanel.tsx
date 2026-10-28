@@ -1,9 +1,12 @@
 'use client'
 
 import { Disclosure } from '@/components/ui/Disclosure'
+import { MamCardButton } from '@/features/mam/MamCardButton'
+import { useMamTarget } from '@/features/mam/use-mam-target'
 import type { PlanAction, SupportPlanV3 } from '../api/support-plan-contract'
 import ProfessionalSupportPath from '../components/ProfessionalSupportPath'
 import SupportPlanContextualCompanion from '../components/SupportPlanContextualCompanion'
+import type { MamActionExplain } from './mam-support-plan'
 import type { CompanionController } from './use-companion'
 
 const EXPLAINABLE = [
@@ -60,10 +63,90 @@ function ordered(plan: SupportPlanV3) {
   )
 }
 
+function PlanActionRow({
+  plan,
+  action,
+  companion,
+  mam,
+}: Readonly<{
+  plan: SupportPlanV3
+  action: PlanAction
+  companion: CompanionController
+  mam?: MamActionExplain
+}>) {
+  const explainable = (EXPLAINABLE as readonly string[]).includes(
+    action.actionType,
+  )
+  const mamRef = useMamTarget(
+    mam && explainable
+      ? {
+          kind: 'support-plan.action',
+          context: {
+            supportPlanId: plan.supportPlanId,
+            actionId: action.actionId,
+          },
+        }
+      : null,
+    mam &&
+      (async (intent, { signal }) =>
+        intent === 'EXPLAIN'
+          ? mam.explain(plan.supportPlanId, action.actionId, 'PLAN', signal)
+          : null),
+  )
+  return (
+    <li
+      ref={mamRef}
+      id={`support-plan-action-${action.actionId}`}
+      data-support-plan-action-id={action.actionId}
+      data-mam={mam && explainable ? '' : undefined}
+      tabIndex={-1}
+    >
+      <p className="mbw-row-title">{action.presentation.title}</p>
+      <p className="mbw-quiet">{cadenceLine(action)}</p>
+      {(action.rationale || action.presentation.summary) && (
+        <Disclosure
+          summary="Vì sao có hoạt động này"
+          summaryLabel={`Vì sao có hoạt động này: “${action.presentation.title}”`}
+        >
+          <p>{action.rationale ?? action.presentation.summary}</p>
+          {!mam && explainable && (
+            <SupportPlanContextualCompanion
+              supportPlanId={plan.supportPlanId}
+              actionId={action.actionId}
+              actionTitle={action.presentation.title}
+              surface="PLAN"
+              disabled={companion.interrupted}
+              interruptionActive={companion.interrupted}
+              requestPending={companion.pending}
+              snapshot={companion.snapshot}
+              onRequest={(request) => void companion.request(request)}
+              onDismiss={companion.dismiss}
+            />
+          )}
+        </Disclosure>
+      )}
+      {mam && explainable && (
+        <MamCardButton
+          label={`Mầm giải thích: ${action.presentation.title}`}
+          disabled={
+            mam.pendingActionId !== undefined &&
+            mam.pendingActionId !== action.actionId
+          }
+        />
+      )}
+    </li>
+  )
+}
+
 export default function PlanPanel({
   plan,
   companion,
-}: Readonly<{ plan: SupportPlanV3; companion: CompanionController }>) {
+  mam,
+}: Readonly<{
+  plan: SupportPlanV3
+  companion: CompanionController
+  mam?: MamActionExplain
+}>) {
   const professionalRequired = plan.focuses.some((focus) =>
     focus.actions.some(
       (action) =>
@@ -101,41 +184,13 @@ export default function PlanPanel({
               )
               .sort((left, right) => left.ordinal - right.ordinal)
               .map((action) => (
-                <li
+                <PlanActionRow
                   key={action.actionId}
-                  id={`support-plan-action-${action.actionId}`}
-                  data-support-plan-action-id={action.actionId}
-                  tabIndex={-1}
-                >
-                  <p className="mbw-row-title">{action.presentation.title}</p>
-                  <p className="mbw-quiet">{cadenceLine(action)}</p>
-                  {(action.rationale || action.presentation.summary) && (
-                    <Disclosure
-                      summary="Vì sao có hoạt động này"
-                      summaryLabel={`Vì sao có hoạt động này: “${action.presentation.title}”`}
-                    >
-                      <p>{action.rationale ?? action.presentation.summary}</p>
-                      {(EXPLAINABLE as readonly string[]).includes(
-                        action.actionType,
-                      ) && (
-                        <SupportPlanContextualCompanion
-                          supportPlanId={plan.supportPlanId}
-                          actionId={action.actionId}
-                          actionTitle={action.presentation.title}
-                          surface="PLAN"
-                          disabled={companion.interrupted}
-                          interruptionActive={companion.interrupted}
-                          requestPending={companion.pending}
-                          snapshot={companion.snapshot}
-                          onRequest={(request) =>
-                            void companion.request(request)
-                          }
-                          onDismiss={companion.dismiss}
-                        />
-                      )}
-                    </Disclosure>
-                  )}
-                </li>
+                  plan={plan}
+                  action={action}
+                  companion={companion}
+                  mam={mam}
+                />
               ))}
           </ul>
         </section>
