@@ -9,7 +9,7 @@ async function read<K extends keyof Responses>(
   path: string,
   kind: K,
   signal?: AbortSignal,
-  command?: { key: string; body: object },
+  command?: { key: string; body: object; keepalive?: boolean },
 ): Promise<Responses[K]> {
   let response: Response
   try {
@@ -17,6 +17,7 @@ async function read<K extends keyof Responses>(
       method: command ? 'POST' : 'GET',
       cache: 'no-store',
       credentials: 'same-origin',
+      keepalive: command?.keepalive ?? false,
       signal: AbortSignal.any([
         ...(signal ? [signal] : []),
         AbortSignal.timeout(12_000),
@@ -64,6 +65,6 @@ export const voiceClient = {
     read(`sessions/${id}`, 'session', signal),
   connection: (id: string, key: string, signal?: AbortSignal) =>
     read(`sessions/${id}/connection`, 'connection', signal, { key, body: {} }),
-  end: (id: string, key: string, signal?: AbortSignal) =>
-    read(`sessions/${id}/end`, 'session', signal, { key, body: {} }),
+  end: (id: string, key: string, signal?: AbortSignal, keepalive = false) =>
+    read(`sessions/${id}/end`, 'session', signal, { key, body: {}, keepalive }),
 }
