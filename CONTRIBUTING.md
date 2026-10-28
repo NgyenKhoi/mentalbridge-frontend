@@ -66,7 +66,8 @@ changes, `FE-WEB` or `FE-MOBILE`, and `UX-POLISH` only after `ui-ready`.
 **One writer per file.**
 
 - While a feature PR is open, only its owner commits that feature's files.
-  Others review or prototype in Stitch without committing them.
+  Others review or prototype outside the owned feature files (Stitch optional)
+  without committing to the feature branch.
 - Files in `.github/CODEOWNERS` (shell, navigation, design system, generated
   contracts, dependencies, mobile routes/theme/providers) change only in a
   narrow prerequisite PR approved by the integrator. No repo-wide formatting in
