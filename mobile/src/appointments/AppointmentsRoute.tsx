@@ -5,6 +5,7 @@ import { createApiClient } from '@/api/api-client'
 import { useSession } from '@/auth/session-context'
 import type { RuntimeConfig } from '@/config/runtime-config'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
+import { createConsultationBriefApi } from '@/consultation-brief/consultation-brief-api'
 import { createDiscoveryApi } from '@/discovery/discovery-api'
 import { secureCredentialStore } from '@/security/credential-store'
 import { createVideoApi } from '@/video/video-api'
@@ -24,6 +25,7 @@ function AccountAppointmentsRoute({
     return {
       client,
       api: createAppointmentApi(client, subject),
+      consultationBrief: createConsultationBriefApi(client),
       discovery: createDiscoveryApi(client),
       video: createVideoApi(client),
     }
@@ -42,6 +44,7 @@ function AccountAppointmentsRoute({
   return (
     <AppointmentsScreen
       api={binding.api}
+      consultationBriefApi={binding.consultationBrief}
       discovery={binding.discovery}
       videoApi={binding.video}
       onBack={() => router.back()}

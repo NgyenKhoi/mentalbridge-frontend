@@ -9,6 +9,11 @@ import {
 import { AppState, type AppStateStatus } from 'react-native'
 import { ApiError } from '@/api/api-error'
 import type { AppSession } from '@/auth/session'
+import type { ConsultationBriefApi } from '@/consultation-brief/consultation-brief-api'
+import {
+  draftBrief,
+  screeningChoices,
+} from '@/consultation-brief/consultation-brief-fixtures'
 import type { DiscoveryApi } from '@/discovery/discovery-api'
 import { fixtureSpecialist } from '@/discovery/discovery-fixtures'
 import { slotLabel } from '@/discovery/discovery-model'
@@ -73,6 +78,7 @@ async function mount(
   service = services(),
   handoff = true,
   originatingPlanActionId?: string,
+  consultationBriefApi?: ConsultationBriefApi,
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -81,6 +87,7 @@ async function mount(
     <QueryClientProvider client={client}>
       <AppointmentsScreen
         api={service.api}
+        {...(consultationBriefApi ? { consultationBriefApi } : {})}
         discovery={service.discovery}
         initialSelection={handoff ? selection : undefined}
         {...(originatingPlanActionId ? { originatingPlanActionId } : {})}
@@ -139,6 +146,35 @@ beforeEach(() => {
 })
 
 describe('MB-630 authoritative USER appointments', () => {
+  it('mounts the MB-723 private brief only inside a confirmed appointment detail', async () => {
+    const confirmed: Appointment = {
+      ...appointment,
+      status: 'CONFIRMED',
+      decidedAt: '2026-10-10T09:30:00Z',
+    }
+    const consultationBriefApi: ConsultationBriefApi = {
+      screeningContexts: jest.fn().mockResolvedValue(screeningChoices),
+      get: jest.fn().mockResolvedValue({
+        ...draftBrief,
+        appointmentId: confirmed.id,
+      }),
+      save: jest.fn(),
+      approve: jest.fn(),
+      revoke: jest.fn(),
+    }
+    await mount(services([confirmed]), false, undefined, consultationBriefApi)
+
+    expect(screen.queryByTestId('consultation-brief-panel')).toBeNull()
+    await openDetail()
+    expect(
+      await screen.findByTestId('consultation-brief-panel'),
+    ).toBeOnTheScreen()
+    expect(screen.getByLabelText('Tình hình hiện tại').props.value).toBe(
+      draftBrief.currentSituation,
+    )
+    expect(consultationBriefApi.get).toHaveBeenCalledWith(confirmed.id)
+  })
+
   it('freshly reviews exact handoff and server balance/cap, then opens persisted owner detail', async () => {
     const { api, discovery } = await mount()
     await reviewRequest()
