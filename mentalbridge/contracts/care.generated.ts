@@ -4,6 +4,70 @@
  */
 
 export interface paths {
+    "/api/v1/ai-voice-processing-disclosure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * getVoiceDisclosure
+         * @description Care publishes the exact immutable Vietnamese ai-voice-processing-capstone-v1 title and content. Requires authenticated USER; no microphone or provider call.
+         */
+        get: operations["getVoiceDisclosure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consents/ai-voice-processing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * getCurrentVoiceConsent
+         * @description Read only the authenticated owner current voice decision. Missing/outdated decision returns current=false and granted=false. current indicates policy-version freshness; an old POST replay never restores authority.
+         */
+        get: operations["getCurrentVoiceConsent"];
+        put?: never;
+        /**
+         * recordVoiceConsentDecision
+         * @description Append a separate AI_VOICE_PROCESSING decision for the authenticated owner with an existing Care profile; no paid plan or text grant is required. Exact UUID idempotency replay returns the immutable original decision without restoring a revoked grant. Store only purpose/owner-scoped HMAC of the key and safe intent digest. Withdrawal preserves historical decisions. Unknown/invalid fields return INVALID_REQUEST (422).
+         */
+        post: operations["recordVoiceConsentDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/ai-companion/voice-consent-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * checkCurrentVoiceConsents
+         * @description Dedicated Journal-only service credential and exact session-owned owner assertion with constant purpose. Care resolves both latest current grants in one repeatable-read transaction; no user JWT, cache, shadow grant or remote call. Journal validates echoed binding and applies a two-second request deadline. Worker and user credentials cannot authorize this read.
+         */
+        post: operations["checkCurrentVoiceConsents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/product-journey-metrics": {
         parameters: {
             query?: never;
@@ -1978,6 +2042,67 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        VoiceDisclosure: {
+            /** @constant */
+            consentType: "AI_VOICE_PROCESSING";
+            /** @constant */
+            consentVersion: "ai-voice-processing-capstone-v1";
+            /** @constant */
+            language: "vi-VN";
+            disclosureText: string;
+            /** Format: date-time */
+            publishedAt: string;
+        };
+        VoiceProblem: {
+            /** Format: uri */
+            type: string;
+            title: string;
+            status: number;
+            /** @enum {string} */
+            code: "UNAUTHENTICATED" | "FORBIDDEN" | "FREE_LOCKED" | "CONSENT_REQUIRED" | "VOICE_CONSENT_REQUIRED" | "SESSION_NOT_FOUND" | "SESSION_LIMIT" | "IDEMPOTENCY_CONFLICT" | "STALE_ATTEMPT" | "INVALID_SESSION_STATE" | "SESSION_EXPIRED" | "INVALID_REQUEST" | "INVALID_FINAL_TRANSCRIPT" | "GLOBAL_CAPACITY_FULL" | "QUOTA_EXHAUSTED" | "RATE_LIMITED" | "ENTITLEMENT_UNAVAILABLE" | "CONSENT_UNAVAILABLE" | "PROVIDER_UNAVAILABLE" | "PROVIDER_TIMEOUT";
+            /** Format: uuid */
+            correlationId: string;
+        } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
+        VoiceConsent: {
+            /** @constant */
+            consentType: "AI_VOICE_PROCESSING";
+            /** @constant */
+            consentVersion: "ai-voice-processing-capstone-v1";
+            current: boolean;
+            granted: boolean;
+            /** Format: date-time */
+            acceptedAt?: string;
+            /** Format: date-time */
+            revokedAt?: string;
+        } & (unknown & unknown);
+        VoiceConsentCommand: {
+            /** @constant */
+            consentVersion: "ai-voice-processing-capstone-v1";
+            granted: boolean;
+        };
+        VoiceOwnerCheck: {
+            /** Format: uuid */
+            ownerId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** @constant */
+            purpose: "AI_COMPANION_VOICE";
+        };
+        VoiceDualConsentDecision: {
+            /** Format: uuid */
+            ownerId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** @constant */
+            purpose: "AI_COMPANION_VOICE";
+            aiProcessingGranted: boolean;
+            voiceProcessingGranted: boolean;
+            /** @constant */
+            voiceConsentVersion: "ai-voice-processing-capstone-v1";
+            authorized: boolean;
+            /** Format: date-time */
+            checkedAt: string;
+        } & unknown;
         CareProductJourneyMetrics: {
             /** @constant */
             source: "CARE";
@@ -4074,6 +4199,61 @@ export interface components {
         };
     };
     responses: {
+        /** @description Stable sanitized errors: UNAUTHENTICATED. No downstream payload or private identifiers. */
+        VoiceProblem401: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: FORBIDDEN, FREE_LOCKED, CONSENT_REQUIRED, VOICE_CONSENT_REQUIRED. No downstream payload or private identifiers. */
+        VoiceProblem403: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: ENTITLEMENT_UNAVAILABLE, CONSENT_UNAVAILABLE, PROVIDER_UNAVAILABLE. No downstream payload or private identifiers. */
+        VoiceProblem503: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: SESSION_LIMIT, IDEMPOTENCY_CONFLICT, STALE_ATTEMPT, INVALID_SESSION_STATE. No downstream payload or private identifiers. */
+        VoiceProblem409: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: INVALID_REQUEST, INVALID_FINAL_TRANSCRIPT. No downstream payload or private identifiers. */
+        VoiceProblem422: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
         /** @description Request validation failed with VALIDATION_FAILED or a field violation such as INCOMPLETE_QUESTIONNAIRE or INVALID_ANSWER; no result was persisted */
         ValidationProblem: {
             headers: {
@@ -4474,6 +4654,120 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getVoiceDisclosure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceDisclosure"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    getCurrentVoiceConsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceConsent"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    recordVoiceConsentDecision: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Scoped to authenticated owner+operation. Exact replay never reserves again; changed intent returns409. Replays of live access still reauthorize; expired tokens are never replayed as authority. Store HMAC key+safe intent hash/metadata only, never transcript. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceConsentCommand"];
+            };
+        };
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceConsent"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            409: components["responses"]["VoiceProblem409"];
+            422: components["responses"]["VoiceProblem422"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    checkCurrentVoiceConsents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceOwnerCheck"];
+            };
+        };
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceDualConsentDecision"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            422: components["responses"]["VoiceProblem422"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
     getCareProductJourneyMetrics: {
         parameters: {
             query: {

@@ -12,7 +12,13 @@ const snapshotPath = path.join(
   'journal-ai-service-v1.yaml',
 )
 const generatedPath = path.join(appRoot, 'contracts', 'journal.generated.ts')
+const voiceGeneratedPath = path.join(
+  appRoot,
+  'contracts',
+  'voice-public.generated.json',
+)
 const referencedSchemas = [
+  '../proposals/companion-voice-v1.openapi.json',
   '../proposals/support-plan-companion-intent-v1.schema.json',
   '../proposals/support-plan-companion-context-v1.schema.json',
 ]
@@ -87,6 +93,50 @@ async function check(expected) {
 const argumentsSet = new Set(process.argv.slice(2))
 if (argumentsSet.has('--sync')) await syncSnapshot()
 const generated = await generate()
+const voiceTarget = JSON.parse(
+  await readFile(
+    path.resolve(
+      path.dirname(snapshotPath),
+      '../proposals/companion-voice-v1.openapi.json',
+    ),
+    'utf8',
+  ),
+)
+const publicVoiceNames = [
+  'Eligibility',
+  'VoiceQuota',
+  'Session',
+  'Connection',
+  'EmptyCommand',
+  'VoiceConsent',
+  'VoiceConsentCommand',
+  'VoiceDisclosure',
+  'Problem',
+]
+const voiceSchema =
+  JSON.stringify(
+    {
+      $id: 'mentalbridge-voice-public',
+      $defs: Object.fromEntries(
+        publicVoiceNames.map((name) => [
+          name,
+          voiceTarget.components.schemas[name],
+        ]),
+      ),
+    },
+    null,
+    2,
+  ).replaceAll('#/components/schemas/', '#/$defs/') + '\n'
+if (argumentsSet.has('--check')) {
+  if (
+    !(await exists(voiceGeneratedPath)) ||
+    normalize(await readFile(voiceGeneratedPath, 'utf8')) !==
+      normalize(voiceSchema)
+  )
+    throw new Error(
+      'Generated public Voice schemas are stale. Run npm run contracts:generate.',
+    )
+} else await writeFile(voiceGeneratedPath, voiceSchema, 'utf8')
 if (argumentsSet.has('--check')) await check(generated)
 else {
   await writeFile(generatedPath, generated, 'utf8')
