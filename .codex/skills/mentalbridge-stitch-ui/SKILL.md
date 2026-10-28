@@ -1,9 +1,9 @@
 ---
 name: mentalbridge-stitch-ui
-description: Design and implement new or materially changed MentalBridge web or mobile UI with a mandatory Stitch reference, render/font QA, a local interaction prototype, and repository-native production code. Use when a task creates or changes a user journey, screen composition, controls, responsive behavior, or motion; skip code-only refactors and tiny copy-only fixes.
+description: Optional Stitch-fidelity workflow for MentalBridge web/mobile UI when an owner-approved Stitch prototype is explicitly required. Otherwise implement large or small UI changes using the Product Owner-approved existing-UI fallback, current screens/contracts, and repository-native QA; no Stitch generation or prototype gate is required.
 ---
 
-# MentalBridge Stitch-first UI delivery
+# MentalBridge UI design evidence: optional Stitch track
 
 ## Owner-supplied approved prototype
 
@@ -16,11 +16,36 @@ brand tone only; all main content follows the approved prototype. Retain real
 contract data and authorization, and adapt fixture-only controls or unsupported
 medical claims/actions to the existing authoritative behavior.
 
-Use this workflow before production implementation whenever the task starts UI
-design or materially changes a user-facing journey. Stitch is design evidence,
-not production runtime or product authority.
+## Choose the design-evidence track
 
-## 1. Establish a full-frame baseline
+**Default: existing-UI fallback, including substantial web/mobile UI changes.**
+The Product Owner has preapproved it; a Jira story can also explicitly record
+the same no-Stitch decision (including MB-664 and currently assigned tickets).
+Do **not** pause or ask for fallback permission a second time.
+
+1. Inspect the current real Next.js or Expo route and feature-owned components,
+   the approved design tokens, relevant product/UX documents and backend
+   contracts. Reuse a verified full-frame app artifact or capture the current
+   real route with controlled fixtures, including shell/navigation, for any
+   material layout or journey change. No new capture for a tiny code/copy fix.
+2. Write a concise brief and acceptance-state matrix (default/loading/empty/
+   partial/denied/error/stale/success as relevant) covering feature-owned files,
+   responsive targets, keyboard/touch access, reduced motion, privacy and
+   authoritative data. Preserve shared chrome unless the story specifically
+   authorizes shell/navigation edits.
+3. Implement directly in repository-owned components; validate with focused
+   component/contract tests, relevant browser/device captures and applicable
+   quality gates. Record only evidence actually run. **No Stitch project, Stitch
+   screenshot/HTML, Stitch render/font QA or separate Stitch interaction
+   prototype is required on this path.** Do not label local evidence as Stitch.
+
+**Only if the owner-approved story explicitly requires Stitch fidelity**, use
+the Stitch workflow below (including the owner-supplied MB-667 reference). It
+is an optional design tool, not an extra authorization gate for existing-UI
+work. Even on this track, Stitch is design evidence, never production runtime
+or data/permission authority.
+
+## Stitch-fidelity track: 1. Establish a full-frame baseline
 
 Before prompting Stitch, select an approved full-frame reference for every
 materially different viewport. Reuse an existing repository artifact when it
@@ -153,7 +178,10 @@ prototype path, checks run and any evidence that could not be executed.
 
 ## External-tool failure
 
-If Stitch is unavailable or generation cannot be retrieved, report the exact
-failure and pause new visual-direction implementation. Continue only from an
-existing approved Stitch reference or after the user explicitly chooses a
-fallback; never claim a local mockup was Stitch-generated.
+If Stitch is unavailable, first determine whether the story **explicitly**
+requires approved Stitch fidelity. For ordinary material UI work, use the
+preapproved existing-UI fallback above immediately; do **not** ask the Product
+Owner to approve it again. When exact owner-approved Stitch fidelity is
+explicitly required and its source/reference cannot be accessed, report the
+specific missing reference and do not invent fidelity or claim a local mockup
+came from Stitch. Preserve the required review, contract and quality gates.
