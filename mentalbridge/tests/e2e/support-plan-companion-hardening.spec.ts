@@ -74,6 +74,11 @@ async function installSupportPlanRoutes(
 }
 
 test.describe('MB-653 Companion release hardening', () => {
+  // MB-772: with the flag on, the global Mầm replaces this Companion (mam-support-plan.spec.ts).
+  test.skip(
+    process.env.MAM_WEB_ENABLED !== 'false',
+    'Legacy SupportPlan Companion renders only with MAM_WEB_ENABLED=false.',
+  )
   test.skip(
     process.env.E2E_RUNTIME === 'live-cross-stack',
     'Session, failure and performance controls belong to the fixture browser gate.',

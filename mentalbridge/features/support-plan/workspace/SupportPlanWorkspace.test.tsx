@@ -1,6 +1,16 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
+import { nativeSupportPlanReviewFixture } from '../testing/native-support-plan-review-fixture'
+import { isMamFeatureSuppressed } from '@/features/mam/mam-suppression'
+import {
+  findMamTarget,
+  findMamTargetElement,
+  getMamPageTarget,
+  getMamResolver,
+  subscribeMamTargets,
+} from '@/features/mam/use-mam-target'
+import type { MamIntent } from '@/features/mam/mam-targets'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api/api-error'
 import type { GuidedJourney } from '@/features/assessment/api/care-contract'
@@ -2291,8 +2301,11 @@ describe('SupportPlan workspace replacement', () => {
     })
   })
 
-  async function reachConfirmation(user: ReturnType<typeof userEvent.setup>) {
-    render(<SupportPlanWorkspace />)
+  async function reachConfirmation(
+    user: ReturnType<typeof userEvent.setup>,
+    mamEnabled = false,
+  ) {
+    render(<SupportPlanWorkspace mamEnabled={mamEnabled} />)
     await user.click(await screen.findByRole('tab', { name: 'Điều chỉnh' }))
     await user.click(screen.getByText('Phương án khác'))
     await user.click(screen.getByRole('button', { name: 'Xem phương án mới' }))
@@ -2333,6 +2346,61 @@ describe('SupportPlan workspace replacement', () => {
         }),
       }),
     )
+  })
+
+  it('opens the review reading inline with the global Mầm, with no model call and no mutation', async () => {
+    const user = userEvent.setup()
+    api.reviewNativeSupportPlanReplacement.mockResolvedValue({
+      ...nativeSupportPlanReviewFixture(),
+      currentPlan: current,
+      proposedPlan: replacement,
+    })
+    await reachConfirmation(user, true)
+    const toggle = screen.getByRole('button', {
+      name: 'Mầm xem lại tuần của bạn',
+    })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(
+      screen.queryByRole('region', { name: 'Mầm xem lại tuần của bạn' }),
+    ).toBeNull()
+
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const reading = await screen.findByRole('region', {
+      name: 'Mầm xem lại tuần của bạn',
+    })
+    expect(toggle).toHaveAttribute('aria-controls', reading.id)
+    expect(
+      within(reading).getByText('Điều MentalBridge đã ghi nhận'),
+    ).toBeVisible()
+    expect(
+      within(reading).queryByRole('button', {
+        name: /Xem chi tiết tại mục Điều chỉnh/,
+      }),
+    ).toBeNull()
+    expect(companionShell.render).not.toHaveBeenCalled()
+    expect(
+      legacy.requestSupportPlanActionCompanionExplanation,
+    ).not.toHaveBeenCalled()
+    expect(api.replaceWithNativeSupportPlan).not.toHaveBeenCalled()
+    expect(api.changeNativeSupportPlanStatus).not.toHaveBeenCalled()
+
+    await user.click(within(reading).getByRole('button', { name: 'Thu gọn' }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('region', { name: 'Mầm xem lại tuần của bạn' }),
+      ).toBeNull(),
+    )
+    expect(toggle).toHaveFocus()
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('has no Mầm review button with the legacy presentation', async () => {
+    const user = userEvent.setup()
+    await reachConfirmation(user)
+    expect(
+      screen.queryByRole('button', { name: 'Mầm xem lại tuần của bạn' }),
+    ).toBeNull()
   })
 
   it('replaces only after confirmation and retries a lost reply with the same payload and key', async () => {
@@ -2405,5 +2473,393 @@ describe('SupportPlan workspace replacement', () => {
     expect(
       screen.getByRole('group', { name: 'So sánh hai phương án' }),
     ).toBeVisible()
+  })
+})
+
+describe('SupportPlan workspace with the global Mầm', () => {
+  const signal = new AbortController().signal
+  const isRegistered = (kind: Parameters<typeof findMamTargetElement>[0]) =>
+    findMamTargetElement(kind) !== null
+  const ask = (element: Element, intent: MamIntent = 'EXPLAIN') => {
+    const found = findMamTarget(element)
+    return getMamResolver(found!.target)!(intent, { signal, isRegistered })
+  }
+  const askPage = (intent: MamIntent) =>
+    getMamResolver(getMamPageTarget()!)!(intent, { signal, isRegistered })
+  const cardOf = async (title: string) =>
+    (await screen.findByRole('heading', { name: title })).closest('section')!
+  const resourcePlan = () => {
+    const plan = nativeSupportPlanFixture()
+    plan.focuses[0].actions[0].actionType = 'RESOURCE'
+    return plan
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+    feedback.confirm.mockResolvedValue(true)
+    journey.getGuidedJourney.mockResolvedValue(readyJourney())
+    api.getNativeSupportPlanEvaluationSource.mockResolvedValue(evaluationId)
+    legacy.getSupportPlanPersonalization.mockResolvedValue({
+      value: { revision: 0 },
+      etag: '"0"',
+    })
+  })
+
+  it('swaps the aside and the legacy entry for Mầm and asks nothing on entry', async () => {
+    withCurrent(nativeSupportPlanFixture(), [occurrence()])
+    render(<SupportPlanWorkspace mamEnabled />)
+    const card = await cardOf('Check-in cảm xúc')
+    expect(
+      within(card).getByRole('button', {
+        name: 'Mầm giải thích: Check-in cảm xúc',
+      }),
+    ).toBeVisible()
+    expect(screen.queryByText('Giải thích')).toBeNull()
+    expect(companionShell.render).not.toHaveBeenCalled()
+    expect(document.querySelector('.mbw-aside')).toBeNull()
+    expect(
+      legacy.requestSupportPlanActionCompanionExplanation,
+    ).not.toHaveBeenCalled()
+  })
+
+  it('keeps the legacy Companion, and no Mầm button, with the flag off', async () => {
+    withCurrent(nativeSupportPlanFixture(), [occurrence()])
+    render(<SupportPlanWorkspace />)
+    const card = await cardOf('Check-in cảm xúc')
+    expect(within(card).getByText('Giải thích')).toBeVisible()
+    expect(companionShell.render).toHaveBeenCalled()
+    expect(document.querySelector('.mbw-aside')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: /^Mầm giải thích/ })).toBeNull()
+    expect(getMamPageTarget()).toBeNull()
+  })
+
+  it('shares one Care request per action and answers with text only', async () => {
+    withCurrent(nativeSupportPlanFixture(), [occurrence()])
+    legacy.requestSupportPlanActionCompanionExplanation.mockResolvedValueOnce({
+      text: 'Check-in giúp bạn gọi tên cảm xúc.',
+      delivery: 'GENERATED',
+    })
+    render(<SupportPlanWorkspace mamEnabled />)
+    const card = await cardOf('Check-in cảm xúc')
+
+    const [first, second] = await Promise.all([ask(card), ask(card)])
+    expect(
+      legacy.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledTimes(1)
+    expect(
+      legacy.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledWith(
+      nativeSupportPlanFixture().supportPlanId,
+      emotionActionId,
+      'TODAY',
+      expect.any(AbortSignal),
+    )
+    expect(first).toBe(second)
+    expect(first).toEqual({
+      text: 'Check-in giúp bạn gọi tên cảm xúc.',
+      generated: true,
+    })
+
+    // A template answer is not marked as generated; a failure rejects.
+    legacy.requestSupportPlanActionCompanionExplanation.mockResolvedValueOnce({
+      text: 'Mẫu có sẵn.',
+      delivery: 'TEMPLATE',
+    })
+    const template = await ask(card)
+    expect(template).toEqual({ text: 'Mẫu có sẵn.' })
+    legacy.requestSupportPlanActionCompanionExplanation.mockRejectedValueOnce(
+      new Error('offline'),
+    )
+    await expect(ask(card)).rejects.toThrow('offline')
+  })
+
+  it('puts the Mầm button on Plan rows and asks for the PLAN surface', async () => {
+    const user = userEvent.setup()
+    withCurrent(nativeSupportPlanFixture(), [occurrence()])
+    legacy.requestSupportPlanActionCompanionExplanation.mockResolvedValue({
+      text: 'Hoạt động này nằm trong kế hoạch.',
+      delivery: 'TEMPLATE',
+    })
+    render(<SupportPlanWorkspace mamEnabled />)
+    await user.click(await screen.findByRole('tab', { name: 'Kế hoạch' }))
+    const button = await screen.findByRole('button', {
+      name: 'Mầm giải thích: Check-in cảm xúc',
+    })
+    expect(screen.queryByText('Giải thích')).toBeNull()
+    await ask(button.closest('li')!)
+    expect(
+      legacy.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledWith(
+      nativeSupportPlanFixture().supportPlanId,
+      emotionActionId,
+      'PLAN',
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('answers the dock starters from the tab and the real Today focus, with no request', async () => {
+    const user = userEvent.setup()
+    withCurrent(nativeSupportPlanFixture(), [occurrence()])
+    render(<SupportPlanWorkspace mamEnabled />)
+    await cardOf('Check-in cảm xúc')
+    expect(await askPage('EXPLAIN')).toEqual({
+      text: expect.stringContaining('Tab Hôm nay'),
+    })
+    expect(await askPage('WHERE_TO_START')).toEqual({
+      text: 'Việc nên làm tiếp: “Check-in cảm xúc”.',
+      focusKind: 'support-plan.focus',
+      focusLabel: 'Đến việc này',
+    })
+
+    await user.click(screen.getByRole('tab', { name: 'Kế hoạch' }))
+    expect(await askPage('EXPLAIN')).toEqual({
+      text: expect.stringContaining('Tab Kế hoạch'),
+    })
+    // The focus card is no longer on the page, so there is nothing to lead to.
+    expect(await askPage('WHERE_TO_START')).toEqual({
+      text: 'Việc nên làm tiếp: “Check-in cảm xúc”. Mở tab Hôm nay để làm.',
+    })
+    expect(
+      legacy.requestSupportPlanActionCompanionExplanation,
+    ).not.toHaveBeenCalled()
+  })
+
+  it('has no page target while there is no plan', async () => {
+    withoutPlan()
+    render(<SupportPlanWorkspace mamEnabled />)
+    await screen.findByText('Chưa có kế hoạch')
+    expect(getMamPageTarget()).toBeNull()
+  })
+
+  describe('save acknowledgement', () => {
+    const saved = vi.fn()
+    beforeEach(() => {
+      saved.mockClear()
+      window.addEventListener('mam:saved', saved)
+      withCurrent(resourcePlan(), [occurrence({ actionType: 'RESOURCE' })])
+    })
+    afterEach(() => window.removeEventListener('mam:saved', saved))
+
+    it('fires once, only after Care confirms the acknowledgement', async () => {
+      const user = userEvent.setup()
+      let confirm!: (value: unknown) => void
+      api.changeNativeActionOccurrenceState.mockReturnValue(
+        new Promise((resolve) => {
+          confirm = resolve
+        }),
+      )
+      render(<SupportPlanWorkspace mamEnabled />)
+      await user.click(
+        await screen.findByRole('button', { name: 'Đã làm xong' }),
+      )
+      expect(api.changeNativeActionOccurrenceState).toHaveBeenCalledTimes(1)
+      expect(saved).not.toHaveBeenCalled()
+
+      await act(async () => {
+        confirm({
+          ...occurrence({ actionType: 'RESOURCE' }),
+          state: 'COMPLETED',
+          version: 2,
+        })
+      })
+      await waitFor(() => expect(saved).toHaveBeenCalledTimes(1))
+    })
+
+    it('stays silent when the delayed reply arrives after leaving the screen', async () => {
+      const user = userEvent.setup()
+      let confirm!: (value: unknown) => void
+      api.changeNativeActionOccurrenceState.mockReturnValue(
+        new Promise((resolve) => {
+          confirm = resolve
+        }),
+      )
+      const { unmount } = render(<SupportPlanWorkspace mamEnabled />)
+      await user.click(
+        await screen.findByRole('button', { name: 'Đã làm xong' }),
+      )
+      expect(api.changeNativeActionOccurrenceState).toHaveBeenCalledTimes(1)
+      unmount()
+      await act(async () => {
+        confirm({
+          ...occurrence({ actionType: 'RESOURCE' }),
+          state: 'COMPLETED',
+          version: 2,
+        })
+      })
+      expect(saved).not.toHaveBeenCalled()
+    })
+
+    it('stays silent when Care rejects it', async () => {
+      const user = userEvent.setup()
+      api.changeNativeActionOccurrenceState.mockRejectedValue(
+        new Error('offline'),
+      )
+      render(<SupportPlanWorkspace mamEnabled />)
+      await user.click(
+        await screen.findByRole('button', { name: 'Đã làm xong' }),
+      )
+      expect(await screen.findByRole('alert')).toBeVisible()
+      expect(saved).not.toHaveBeenCalled()
+    })
+
+    it('does not fire for skipping, or with the flag off', async () => {
+      const user = userEvent.setup()
+      api.changeNativeActionOccurrenceState.mockImplementation(
+        async (id: string, version: number, state: string) => ({
+          ...occurrence({ actionType: 'RESOURCE' }),
+          occurrenceId: id,
+          state,
+          version: version + 1,
+        }),
+      )
+      const { unmount } = render(<SupportPlanWorkspace mamEnabled />)
+      await user.click(
+        await screen.findByRole('button', { name: 'Để hôm khác' }),
+      )
+      await waitFor(() =>
+        expect(api.changeNativeActionOccurrenceState).toHaveBeenCalled(),
+      )
+      expect(saved).not.toHaveBeenCalled()
+      unmount()
+
+      render(<SupportPlanWorkspace />)
+      await user.click(
+        await screen.findByRole('button', { name: 'Đã làm xong' }),
+      )
+      await waitFor(() =>
+        expect(api.changeNativeActionOccurrenceState).toHaveBeenCalledTimes(2),
+      )
+      expect(saved).not.toHaveBeenCalled()
+    })
+  })
+
+  it('reports unsaved edits to Mầm as a no-interrupt zone until they are undone', async () => {
+    const user = userEvent.setup()
+    withCurrent(nativeSupportPlanFixture(), [occurrence()])
+    render(<SupportPlanWorkspace mamEnabled />)
+    await user.click(await screen.findByRole('tab', { name: 'Điều chỉnh' }))
+    await user.click(screen.getByText('Lịch và thời lượng'))
+    expect(isMamFeatureSuppressed()).toBe(false)
+    await user.click(screen.getByRole('button', { name: 'Sửa giờ' }))
+    expect(isMamFeatureSuppressed()).toBe(true)
+    await user.click(screen.getByRole('button', { name: 'Hoàn tác giờ' }))
+    expect(isMamFeatureSuppressed()).toBe(false)
+  })
+
+  describe('safety-first states', () => {
+    it('suppresses Mầm on an active plan in a positive safety screen', async () => {
+      const user = userEvent.setup()
+      const plan = resourcePlan()
+      plan.safety.status = 'POSITIVE_SAFETY_SCREEN'
+      withCurrent(plan, [occurrence({ actionType: 'RESOURCE' })])
+      const { unmount } = render(<SupportPlanWorkspace mamEnabled />)
+      const button = await screen.findByRole('button', {
+        name: 'Mầm giải thích: Check-in cảm xúc',
+      })
+      await waitFor(() => expect(isMamFeatureSuppressed()).toBe(true))
+      // The card button is inert, so no summon and no Care request.
+      expect(button).toHaveAttribute('aria-disabled', 'true')
+      await user.click(button)
+      expect(
+        legacy.requestSupportPlanActionCompanionExplanation,
+      ).not.toHaveBeenCalled()
+      unmount()
+      expect(isMamFeatureSuppressed()).toBe(false)
+    })
+
+    it('suppresses Mầm in the no-plan safety view', async () => {
+      withoutPlan()
+      journey.getGuidedJourney.mockResolvedValue(
+        readyJourney({ nextAction: 'REVIEW_SAFETY_SUPPORT' }),
+      )
+      const { unmount } = render(<SupportPlanWorkspace mamEnabled />)
+      await screen.findByRole('link', { name: 'Xem số hỗ trợ gần bạn' })
+      expect(isMamFeatureSuppressed()).toBe(true)
+      expect(getMamPageTarget()).toBeNull()
+      unmount()
+      expect(isMamFeatureSuppressed()).toBe(false)
+    })
+
+    it('does not suppress a normal plan, or any plan with the flag off', async () => {
+      withCurrent(nativeSupportPlanFixture(), [occurrence()])
+      const { unmount } = render(<SupportPlanWorkspace mamEnabled />)
+      await cardOf('Check-in cảm xúc')
+      expect(isMamFeatureSuppressed()).toBe(false)
+      unmount()
+
+      const plan = nativeSupportPlanFixture()
+      plan.safety.status = 'POSITIVE_SAFETY_SCREEN'
+      withCurrent(plan, [occurrence()])
+      render(<SupportPlanWorkspace />)
+      await screen.findByRole('heading', { name: 'Check-in cảm xúc' })
+      expect(isMamFeatureSuppressed()).toBe(false)
+    })
+  })
+
+  describe('page answer lifetime', () => {
+    const pageTarget = () => getMamPageTarget()
+
+    it('retires the page target when the tab changes by keyboard, without a request', async () => {
+      const user = userEvent.setup()
+      withCurrent(nativeSupportPlanFixture(), [occurrence()])
+      render(<SupportPlanWorkspace mamEnabled />)
+      await cardOf('Check-in cảm xúc')
+      const first = pageTarget()
+      expect(first).not.toBeNull()
+      const subscriber = vi.fn(() => {
+        if (pageTarget() === first) return
+        seen.push(pageTarget())
+      })
+      const seen: unknown[] = []
+      const unsubscribe = subscribeMamTargets(subscriber)
+
+      screen.getByRole('tab', { name: 'Hôm nay' }).focus()
+      await user.keyboard('{ArrowRight}')
+      await waitFor(() =>
+        expect(screen.getByRole('tab', { name: 'Kế hoạch' })).toHaveAttribute(
+          'aria-selected',
+          'true',
+        ),
+      )
+      unsubscribe()
+      // A host holding the old target sees it go (null), then a new one.
+      expect(seen[0]).toBeNull()
+      expect(pageTarget()).not.toBeNull()
+      expect(pageTarget()).not.toBe(first)
+      expect(
+        legacy.requestSupportPlanActionCompanionExplanation,
+      ).not.toHaveBeenCalled()
+    })
+
+    it('retires the page target when the focus action changes', async () => {
+      const user = userEvent.setup()
+      withCurrent(resourcePlan(), [occurrence({ actionType: 'RESOURCE' })])
+      render(<SupportPlanWorkspace mamEnabled />)
+      await cardOf('Check-in cảm xúc')
+      const first = pageTarget()
+      // Completing the focus action moves the focus to the "done" state.
+      const done = occurrence({
+        actionType: 'RESOURCE',
+        state: 'COMPLETED',
+        displayState: 'COMPLETED',
+        version: 2,
+      })
+      api.changeNativeActionOccurrenceState.mockResolvedValue(done)
+      withCurrent(resourcePlan(), [done])
+      await user.click(screen.getByRole('button', { name: 'Đã làm xong' }))
+      await waitFor(() => expect(pageTarget()).not.toBe(first))
+      expect(pageTarget()).not.toBeNull()
+    })
+  })
+
+  it('never reports a no-interrupt zone with the flag off', async () => {
+    const user = userEvent.setup()
+    withCurrent(nativeSupportPlanFixture(), [occurrence()])
+    render(<SupportPlanWorkspace />)
+    await user.click(await screen.findByRole('tab', { name: 'Điều chỉnh' }))
+    await user.click(screen.getByText('Lịch và thời lượng'))
+    await user.click(screen.getByRole('button', { name: 'Sửa giờ' }))
+    expect(isMamFeatureSuppressed()).toBe(false)
   })
 })

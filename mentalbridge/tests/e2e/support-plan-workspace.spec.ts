@@ -969,6 +969,12 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
   test('MB-652 explains a contradictory adaptive review without mutating the plan', async ({
     page,
   }, testInfo) => {
+    // MB-772: the guided panel exists only with the flag off; the flag-on
+    // inline review is covered by the next test.
+    test.skip(
+      process.env.MAM_WEB_ENABLED !== 'false',
+      'Legacy guided panel renders only with MAM_WEB_ENABLED=false.',
+    )
     test.setTimeout(90_000)
     await authenticate(page)
     const review = nativeSupportPlanReviewFixture()
@@ -1063,6 +1069,63 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
       fullPage: true,
       animations: 'disabled',
     })
+  })
+
+  test('MB-772 explains the adaptive review inline through Mầm without mutating the plan', async ({
+    page,
+  }) => {
+    test.skip(
+      process.env.MAM_WEB_ENABLED === 'false',
+      'The Mầm inline review renders only with MAM_WEB_ENABLED=true.',
+    )
+    test.setTimeout(90_000)
+    await authenticate(page)
+    const review = nativeSupportPlanReviewFixture()
+    const world: World = {
+      current: review.currentPlan,
+      replacementDraft: review.proposedPlan,
+      replacementReview: review,
+      reassessmentSummaryId: review.reassessmentSummary.summaryId,
+      history: [],
+      occurrences: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    const calls = await mockPlanApi(page, world)
+
+    await page.goto('/support-plan')
+    await page.getByRole('tab', { name: 'Điều chỉnh' }).click()
+    await page.getByText('Phương án khác', { exact: true }).click()
+    await page.getByRole('button', { name: 'Xem phương án mới' }).click()
+    await page
+      .getByRole('button', { name: 'So sánh với kế hoạch hiện tại' })
+      .click()
+    await expect(
+      page.getByRole('complementary', {
+        name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+      }),
+    ).toHaveCount(0)
+
+    const toggle = page.getByRole('button', {
+      name: 'Mầm xem lại tuần của bạn',
+    })
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const section = page.getByRole('region', {
+      name: 'Mầm xem lại tuần của bạn',
+    })
+    await expect(
+      section.getByRole('heading', { name: 'Điều MentalBridge đã ghi nhận' }),
+    ).toBeVisible()
+    await expect(section.getByText(/PHQ-9:/)).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Mầm' })).toHaveCount(0)
+
+    await section.getByRole('button', { name: 'Thu gọn' }).click()
+    await expect(section).toHaveCount(0)
+    await expect(toggle).toBeFocused()
+    expect(calls.some((call) => call.path.endsWith('/replacement'))).toBe(false)
+    expect(
+      calls.some((call) => call.path.endsWith('/companion-explanation')),
+    ).toBe(false)
   })
 
   test('MB-644 a v2 resource plan opens in the same workspace', async ({

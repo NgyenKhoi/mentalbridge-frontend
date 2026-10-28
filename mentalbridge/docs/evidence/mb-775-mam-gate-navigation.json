@@ -1,0 +1,44 @@
+{
+  "story": "MB-775",
+  "date": "2026-10-28T03:31:02.652Z",
+  "routeChangesWarmUp": 10,
+  "routeChangesMeasured": 30,
+  "allowance": {
+    "listeners": 5,
+    "heapBytes": 4000000
+  },
+  "warm": {
+    "listeners": 551,
+    "heap": 9991044
+  },
+  "samplesAfterEachCycle": [
+    {
+      "listeners": 551,
+      "heap": 10414584
+    },
+    {
+      "listeners": 551,
+      "heap": 10647492
+    },
+    {
+      "listeners": 551,
+      "heap": 10804288
+    },
+    {
+      "listeners": 551,
+      "heap": 10845040
+    },
+    {
+      "listeners": 551,
+      "heap": 10909976
+    },
+    {
+      "listeners": 551,
+      "heap": 11048036
+    }
+  ],
+  "growth": {
+    "listeners": 0,
+    "heapBytes": 1056992
+  }
+}

@@ -8,6 +8,13 @@ const frontendPort = 3100
 const standaloneDirectory = resolve('.next', 'standalone')
 const playwrightCli = resolve('node_modules', '@playwright', 'test', 'cli.js')
 
+// `--flag-off` runs the same managed servers with MAM_WEB_ENABLED=false (the
+// production default), for the legacy Companion specs the flag-on run skips.
+const playwrightArguments = process.argv
+  .slice(2)
+  .filter((argument) => argument !== '--flag-off')
+if (process.argv.includes('--flag-off')) process.env.MAM_WEB_ENABLED = 'false'
+
 const inheritedEnvironment = Object.entries(process.env).reduce(
   (environment, [key, value]) => {
     if (value !== undefined) environment[key] = value
@@ -142,7 +149,7 @@ async function run() {
   if (process.env.PLAYWRIGHT_BASE_URL) {
     const playwright = start(
       process.execPath,
-      [playwrightCli, 'test', ...process.argv.slice(2)],
+      [playwrightCli, 'test', ...playwrightArguments],
       {
         ...inheritedEnvironment,
       },
@@ -183,6 +190,7 @@ async function run() {
       IDENTITY_API_BASE_URL: `http://${host}:${identityPort}`,
       CARE_API_BASE_URL: `http://${host}:${carePort}`,
       CARE_API_TIMEOUT_MS: '3000',
+      MAM_WEB_ENABLED: process.env.MAM_WEB_ENABLED ?? 'true',
       CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
       CONTENT_SERVICE_URL: `http://${host}:${identityPort}`,
       CONSULTATION_SERVICE_URL: `http://${host}:${identityPort}`,
@@ -203,7 +211,7 @@ async function run() {
 
   const playwright = start(
     process.execPath,
-    [playwrightCli, 'test', ...process.argv.slice(2)],
+    [playwrightCli, 'test', ...playwrightArguments],
     {
       ...inheritedEnvironment,
       PLAYWRIGHT_BASE_URL: `http://${host}:${frontendPort}`,

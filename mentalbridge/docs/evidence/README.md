@@ -1,5 +1,37 @@
 # Synthetic browser evidence
 
+MB-761 adds the Web AI Voice entry, quota-aware preview, separate consent and
+accessible call controls. [Acceptance and verification](mb-761-web-ai-voice.md)
+include synthetic desktop/mobile captures and the backend #237 dependency.
+
+MB-775 is the web release gate for Mầm behind `MAM_WEB_ENABLED`: measured
+flag-off versus flag-on cost, budgets, not-blocked, asset-failure, slow and
+offline, navigation-leak and privacy specs, the flag-off spec, a verified
+rollback, rollout plan and findings. Results are in
+[`mb-775-mam-web-gate.md`](mb-775-mam-web-gate.md); regenerate the numbers with
+`npm run mam:gate:measure` after a production build.
+
+MB-772 moves the SupportPlan Companion onto the global Mầm behind
+`MAM_WEB_ENABLED` (legacy Companion kept with the flag off) and re-checks the
+MB-775 gate for `/support-plan`. Results are in
+[`mb-772-support-plan-mam.md`](mb-772-support-plan-mam.md).
+
+MB-774 feeds the Mầm celebration director with the real Achievements and
+Bingo reads, plus a cadence reader on dock routes. Results are in
+[`mb-774-mam-reward-reads.md`](mb-774-mam-reward-reads.md).
+
+MB-768 mounts one Mầm dock per tab on eligible USER routes, with hide, mute
+and motion controls. Results are in
+[`mb-768-mam-global-dock.md`](mb-768-mam-global-dock.md).
+
+MB-767 adds the lazy-loaded Mầm renderer with a static fallback. Real-runtime,
+no-splash, origin and fallback results are in
+[`mb-767-mam-rive-renderer.md`](mb-767-mam-rive-renderer.md).
+
+MB-766 verifies and freezes the Mầm v0.3 Rive asset (hash, controls, sizes,
+gaze, hero bounds, reduced-motion and visibility guards, contrast). Results
+and captures are in [`mb-766-mam-rive-contract.md`](mb-766-mam-rive-contract.md).
+
 MB-652 explains Care's adaptive SupportPlan replacement review inside the
 bounded Companion while keeping every evidence dimension separate and all plan
 mutation in the normal Adjust UI. Its contradictory, sparse, unchanged,

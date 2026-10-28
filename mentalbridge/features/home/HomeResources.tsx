@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Skeleton } from '@/components/ui/Skeleton'
 import type { HomeNextStep } from '@/features/assessment/api/care-contract'
+import { useMamTarget } from '@/features/mam/use-mam-target'
 import {
   loadHomeResources,
   type HomeResource,
@@ -45,11 +46,15 @@ export function HomeResources({
   home,
   loading = false,
   hidden = false,
+  summonable = true,
 }: Readonly<{
   home: HomeNextStep | null
   loading?: boolean
   hidden?: boolean
+  /** False inside a no-interrupt zone such as the plan emotion check-in. */
+  summonable?: boolean
 }>) {
+  const mamTarget = useMamTarget(summonable ? { kind: 'home.resources' } : null)
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState<
     | { status: 'loading' }
@@ -81,6 +86,7 @@ export function HomeResources({
     !pending && state.status === 'ready' && state.data.source === 'library'
   return (
     <section
+      ref={mamTarget}
       className={styles.section}
       aria-labelledby="home-resources-heading"
       data-testid="home-resources"

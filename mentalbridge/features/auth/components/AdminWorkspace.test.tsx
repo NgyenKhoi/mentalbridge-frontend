@@ -65,6 +65,13 @@ vi.mock('@/components/AdminPayoutsManager', () => ({
   default: () => <section aria-label="payouts-authority" />,
 }))
 
+vi.mock(
+  '@/features/reconciliation/components/AdminCommercialReconciliationManager',
+  () => ({
+    default: () => <section aria-label="reconciliation-authority" />,
+  }),
+)
+
 vi.mock('@/features/retention/components/AdminRetentionGovernance', () => ({
   default: () => <section aria-label="retention-authority" />,
 }))
@@ -86,7 +93,7 @@ describe('AdminWorkspace', () => {
       name: 'Điều hướng quản trị',
     })
 
-    expect(within(navigation).getAllByRole('link')).toHaveLength(12)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(13)
     expect(
       within(navigation)
         .getAllByRole('link')
@@ -104,6 +111,7 @@ describe('AdminWorkspace', () => {
       '/admin/reports',
       '/admin/payments',
       '/admin/payouts',
+      '/admin/reconciliation',
     ])
     expect(container).not.toHaveTextContent('@example.com')
     expect(container).not.toHaveTextContent('Nguyễn Minh Anh')
@@ -111,6 +119,15 @@ describe('AdminWorkspace', () => {
     expect(
       screen.getByRole('link', { name: 'Bảo lưu & xóa dữ liệu' }),
     ).toHaveAttribute('href', '/admin/retention')
+    expect(
+      screen.getByRole('link', { name: 'Thanh toán gói' }),
+    ).toHaveAttribute('href', '/admin/payments')
+    expect(
+      screen.getByRole('link', { name: 'Chi trả chuyên gia' }),
+    ).toHaveAttribute('href', '/admin/payouts')
+    expect(
+      screen.getByRole('link', { name: 'Đối soát thương mại' }),
+    ).toHaveAttribute('href', '/admin/reconciliation')
     expect(
       within(navigation).queryByRole('link', { name: /assessment|AI/i }),
     ).not.toBeInTheDocument()
@@ -139,6 +156,7 @@ describe('AdminWorkspace', () => {
     ['reports', 'reports-authority'],
     ['payments', 'payments-authority'],
     ['payouts', 'payouts-authority'],
+    ['reconciliation', 'reconciliation-authority'],
   ] satisfies ReadonlyArray<readonly [AdminSection, string]>)(
     'maps /admin/%s to its delivered owner-backed section',
     (section, accessibleName) => {
