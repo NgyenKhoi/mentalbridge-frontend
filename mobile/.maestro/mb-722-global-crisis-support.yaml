@@ -1,0 +1,20 @@
+appId: com.mentalbridge.mobile
+name: MB-722 global crisis support
+---
+# Author-only evidence. NOT_RUN until the MB-666 staging/device gate is available.
+- launchApp:
+    clearState: true
+- assertVisible: 'Cần hỗ trợ ngay'
+- tapOn: 'Cần hỗ trợ ngay'
+- assertVisible: 'Hỗ trợ khẩn cấp'
+- assertVisible: 'Tổng đài khẩn cấp quốc gia'
+- assertVisible: '112'
+- assertVisible: '24/7'
+- assertVisible: 'Cấp cứu y tế'
+- assertVisible: '115'
+- assertVisible: 'MentalBridge không phải là dịch vụ cấp cứu.'
+- assertVisible: 'Gọi Tổng đài khẩn cấp quốc gia số 112'
+- assertVisible: 'Gọi Cấp cứu y tế số 115'
+- tapOn: 'Đóng bảng hỗ trợ khẩn cấp'
+- assertVisible: 'Cần hỗ trợ ngay'
+- assertNotVisible: 'Tổng đài khẩn cấp quốc gia'
