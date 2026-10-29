@@ -51,6 +51,14 @@ const MAM_TARGET_DEFINITIONS = {
     explain:
       'Đây là vài bài đọc và bài tập ngắn từ thư viện MentalBridge. Chọn bài nào cũng được, không cần làm hết.',
   },
+  // Same reviewed text for every emotion: nothing from the check-in reaches Mầm.
+  'home.emotion': {
+    page: false,
+    intents: ['EXPLAIN'],
+    contextKeys: [],
+    explain:
+      'Bạn đã lưu cảm xúc hôm nay. Nếu muốn kể rõ hơn điều đã xảy ra, hãy viết vài dòng vào Nhật ký.',
+  },
   'home.appointment': {
     page: false,
     intents: ['EXPLAIN'],

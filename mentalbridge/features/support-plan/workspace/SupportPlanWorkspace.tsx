@@ -59,8 +59,6 @@ import type {
 import { dispatchMamSaved } from '@/features/mam/mam-saved'
 import { useMamSuppress } from '@/features/mam/mam-suppression'
 import { useMamPageTarget } from '@/features/mam/use-mam-target'
-import SupportPlanCompanionShell from '../components/SupportPlanCompanionShell'
-import type { SupportPlanGuidedNavigationTarget } from '../components/SupportPlanCompanionPanel'
 import SupportPlanPersonalization from '../components/SupportPlanPersonalization'
 import SupportPlanScheduleEditor from '../components/SupportPlanScheduleEditor'
 import AdapterChoices from './AdapterChoices'
@@ -84,7 +82,6 @@ import {
   mergeOccurrences,
   msUntilNextLocalDay,
   occurrenceWindow,
-  planActions,
   planTimezone,
   selectTodayFocus,
   summarizeProgress,
@@ -276,7 +273,7 @@ export default function SupportPlanWorkspace({
   invalidOrigin?: boolean
   /** Returning from a reassessment the plan review asked for. */
   openReview?: boolean
-  /** Server-resolved MAM_WEB_ENABLED: the global Mầm replaces the legacy Companion. */
+  /** Server-resolved MAM_WEB_ENABLED: the global Mầm owns the explanations. */
   mamEnabled?: boolean
 }>) {
   const { confirm } = useFeedback()
@@ -1220,20 +1217,16 @@ export default function SupportPlanWorkspace({
           today,
         )
       : undefined
-  const companionAction =
-    tab === 'today' && focus?.kind === 'OCCURRENCE'
-      ? focus.action
-      : current
-        ? planActions(current).find((action) => action.status !== 'ENDED')
-        : undefined
   const planForCopy = current ?? draft
   const safetyFirst = planForCopy?.safety.status === 'POSITIVE_SAFETY_SCREEN'
-  // Inline safety support is a no-interrupt zone, with or without a plan.
+  // Inline safety support is a no-interrupt zone, with or without a plan: no
+  // visible character on a safety path.
   useMamSuppress(
     mamEnabled &&
       (safetyFirst ||
         proposal === 'safety' ||
         loaded?.journey?.nextAction === 'REVIEW_SAFETY_SUPPORT'),
+    'hide',
   )
 
   function header(subtitle?: string) {
@@ -1657,56 +1650,6 @@ export default function SupportPlanWorkspace({
             />
           )}
         </section>
-        {!mamEnabled && (
-          <aside className="mbw-aside">
-            <SupportPlanCompanionShell
-              state={
-                companion.snapshot?.status === 'loading' ? 'thinking' : 'idle'
-              }
-              surface={tab}
-              contextual={companion.snapshot}
-              onContextualDismiss={companion.dismiss}
-              guidedContext={{
-                supportPlanId: current.supportPlanId,
-                action: companionAction
-                  ? {
-                      actionId: companionAction.actionId,
-                      title: companionAction.presentation.title,
-                      requestSurface:
-                        tab === 'today'
-                          ? ('TODAY' as const)
-                          : tab === 'plan'
-                            ? ('PLAN' as const)
-                            : undefined,
-                    }
-                  : undefined,
-                review,
-              }}
-              companionRequestPending={companion.pending}
-              interruptionActive={companion.interrupted}
-              onGuidedRequest={(request) => void companion.request(request)}
-              onGuidedDismiss={companion.dismissGuided}
-              onGuidedNavigate={({
-                surface,
-                actionId,
-              }: SupportPlanGuidedNavigationTarget) =>
-                void changeTab(surface).then((changed) => {
-                  if (!changed) return
-                  window.requestAnimationFrame(() => {
-                    const target =
-                      (actionId &&
-                        document.querySelector<HTMLElement>(
-                          `[data-support-plan-action-id="${CSS.escape(actionId)}"]`,
-                        )) ||
-                      document.getElementById(`tab-${surface}`)
-                    target?.scrollIntoView?.({ block: 'center' })
-                    target?.focus()
-                  })
-                })
-              }
-            />
-          </aside>
-        )}
       </div>
       <p className="mbw-disclaimer">{current.disclaimer}</p>
     </div>

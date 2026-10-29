@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "node scripts/run-e2e.mjs --workers=1",
-    "test:e2e:flag-off": "node scripts/run-e2e.mjs --workers=1 --flag-off mam-flag-off support-plan-guided-companion support-plan-contextual-companion support-plan-companion-hardening support-plan-workspace",
+    "test:e2e:flag-off": "node scripts/run-e2e.mjs --workers=1 --flag-off mam-flag-off support-plan-contextual-companion support-plan-workspace",
     "test:e2e:live": "node scripts/run-live-e2e.mjs",
     "voice:qa": "node scripts/voice-qa.mjs",
     "test:e2e:initial-check:fixture": "node scripts/run-initial-check-release.mjs fixture",

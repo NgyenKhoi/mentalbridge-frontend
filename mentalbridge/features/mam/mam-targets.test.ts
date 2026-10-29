@@ -45,6 +45,37 @@ describe('resolveMamTarget', () => {
   })
 })
 
+describe('home.emotion target', () => {
+  it('is an element target with the explain intent and no context at all', () => {
+    expect(
+      resolveMamTarget({
+        kind: 'home.emotion',
+        context: {
+          emotion: 'SAD',
+          intensity: '5',
+          note: INJECTION,
+          localDate: '2026-10-29',
+          id: '40000000-0000-4000-8000-000000000001',
+        },
+      }),
+    ).toEqual({
+      version: MAM_TARGETS_VERSION,
+      kind: 'home.emotion',
+      page: false,
+      intents: ['EXPLAIN'],
+      context: {},
+    })
+  })
+
+  it('answers one reviewed text, never a fallback, and nothing for other intents', () => {
+    const target = resolveMamTarget({ kind: 'home.emotion' })!
+    const answer = mamReviewedAnswer(target, 'EXPLAIN', () => true)
+    expect(answer).toEqual({ text: expect.stringContaining('Nhật ký') })
+    expect(answer?.text.length).toBeLessThanOrEqual(600)
+    expect(mamReviewedAnswer(target, 'WHERE_TO_START', () => true)).toBeNull()
+  })
+})
+
 describe('SupportPlan targets', () => {
   const ids = {
     supportPlanId: '10000000-0000-4000-8000-000000000772',

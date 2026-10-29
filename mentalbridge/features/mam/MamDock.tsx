@@ -28,7 +28,7 @@ import {
 } from './use-mam-celebrations'
 import { useMamSaved } from './mam-saved'
 import { useMamSummon } from './use-mam-summon'
-import { useMamSuppressed } from './use-mam-suppressed'
+import { useMamAway, useMamSuppressed } from './use-mam-suppressed'
 import { useMamPageTargetValue } from './use-mam-target'
 
 // Matches the shell's off-canvas sidebar breakpoint.
@@ -62,6 +62,7 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const focusAfterToggle = useRef(false)
   const { hidden, muted, motionOff } = useMamPreferences()
   const suppressed = useMamSuppressed()
+  const away = useMamAway()
   const osReduced = useReactiveReducedMotion()
   const compact = useSyncExternalStore(
     subscribeCompact,
@@ -235,6 +236,17 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     }
   }, [pathname, hidden, menuOpen, dockBubble, celebrating])
 
+  // Leaving (a safety zone, a modal) while the dock owns focus would drop it on
+  // the body; hand it to the page content. Focus a dialog already took is not in the
+  // dock, so it stays.
+  useEffect(() => {
+    const active = document.activeElement
+    if (!away || !active || !rootRef.current?.contains(active)) return
+    document
+      .querySelector<HTMLElement>('.ref-content')
+      ?.focus({ preventScroll: true })
+  }, [away])
+
   useEffect(() => {
     if (!menuOpen) return
     const onKeyDown = (event: KeyboardEvent) => {
@@ -270,18 +282,19 @@ function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const travel = reduced ? 0 : 8
   const shrink = reduced ? 1 : 0.98
   const transition = { duration: 0.22, ease }
-  const exitTransition = { duration: 0.14, ease }
+  // Leaving for a modal or a safety zone is instant under reduced motion.
+  const exitTransition = { duration: reduced ? 0 : 0.14, ease }
 
   return (
     <div
       ref={rootRef}
       className={styles.root}
-      data-mam-dock={hidden ? 'hidden' : 'shown'}
+      data-mam-dock={away ? 'away' : hidden ? 'hidden' : 'shown'}
       data-yield={yielding !== 'none'}
       data-focus-yield={yielding === 'focus'}
     >
       <AnimatePresence initial={false} mode="wait">
-        {hidden ? (
+        {away ? null : hidden ? (
           <motion.button
             key="handle"
             ref={focusOnMount}

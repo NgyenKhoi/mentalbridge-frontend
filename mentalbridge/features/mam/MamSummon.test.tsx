@@ -582,6 +582,32 @@ describe('Mầm summon', () => {
       ).toBeNull()
     })
 
+    it('has no button, summon or inline, while Mầm is away, and returns after', async () => {
+      function Zone({ on }: Readonly<{ on: boolean }>) {
+        useMamSuppress(on, 'hide')
+        return null
+      }
+      const view = (on: boolean) => (
+        <>
+          <Zone on={on} />
+          <MamCardButton label="Mầm giải thích: Viết vài dòng" />
+          <MamCardButton label="Mầm xem lại" onToggle={() => {}} />
+        </>
+      )
+      const { rerender } = render(view(false))
+      expect(screen.getAllByRole('button', { name: /^Mầm / })).toHaveLength(2)
+      rerender(view(true))
+      await waitFor(() =>
+        expect(screen.queryAllByRole('button', { name: /^Mầm / })).toHaveLength(
+          0,
+        ),
+      )
+      rerender(view(false))
+      expect(
+        await screen.findAllByRole('button', { name: /^Mầm / }),
+      ).toHaveLength(2)
+    })
+
     it('opens the same flow from right-click on the card', async () => {
       const resolver = vi.fn<MamResolver>(async () => ({ text: 'Giải thích.' }))
       render(<PlanApp resolver={resolver} />)

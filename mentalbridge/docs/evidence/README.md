@@ -8,6 +8,12 @@ MB-761 adds the Web AI Voice entry, quota-aware preview, separate consent and
 accessible call controls. [Acceptance and verification](mb-761-web-ai-voice.md)
 include synthetic desktop/mobile captures and the backend #237 dependency.
 
+MB-771 adds one explicit Mầm entry to the saved emotion check-in, hides the
+dock while a dialog or safety zone is open, keeps `/journal` static, and removes
+the legacy SupportPlan Companion aside. Results, privacy checks and the
+`/journal` and `/support-plan` re-measurement are in
+[`mb-771-mam-emotion-journal.md`](mb-771-mam-emotion-journal.md).
+
 MB-775 is the web release gate for Mầm behind `MAM_WEB_ENABLED`: measured
 flag-off versus flag-on cost, budgets, not-blocked, asset-failure, slow and
 offline, navigation-leak and privacy specs, the flag-off spec, a verified
