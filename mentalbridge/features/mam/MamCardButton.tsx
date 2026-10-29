@@ -4,14 +4,15 @@ import { MAM_ASSET } from './mam-contract'
 import { useMamPreferences } from './mam-preferences'
 import { requestMamSummon } from './mam-summon-request'
 import styles from './MamCardButton.module.css'
-import { useMamSuppressed } from './use-mam-suppressed'
+import { useMamAway, useMamSuppressed } from './use-mam-suppressed'
 
 /**
  * Mầm's button on a card (ADR "Summon"; the 44 px target is the button, the
  * circle is its look). Alone it asks the global Mầm to explain the registered
  * target it sits in: not rendered while Mầm is hidden, inert while suppressed
  * or `disabled`. With `onToggle` it is an inline control (a disclosure) that
- * never summons, so it stays while Mầm is hidden.
+ * never summons, so it stays while Mầm is hidden. Neither renders while Mầm is
+ * away (an open modal or a feature's hide zone, e.g. a safety state).
  */
 export function MamCardButton({
   id,
@@ -30,7 +31,8 @@ export function MamCardButton({
 }>) {
   const { hidden } = useMamPreferences()
   const suppressed = useMamSuppressed()
-  if (hidden && !onToggle) return null
+  const away = useMamAway()
+  if (away || (hidden && !onToggle)) return null
   const inert = !onToggle && (disabled || suppressed)
   return (
     <button

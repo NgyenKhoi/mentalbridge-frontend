@@ -177,7 +177,7 @@ test.describe('MB-768 Mầm dock', () => {
     await expect(root).toHaveCSS('transition-duration', '0s')
   })
 
-  test('closes the menu and stays still while the crisis panel is open', async ({
+  test('closes the menu and leaves while the crisis panel is open, then returns', async ({
     page,
   }) => {
     await installHomeMocks(page, homeWorld('do-today'))
@@ -190,6 +190,13 @@ test.describe('MB-768 Mầm dock', () => {
     await crisis(page).click()
     await expect(page.locator('[aria-modal="true"]')).toBeVisible()
     await expect(menu(page)).toHaveCount(0)
-    await expect(page.locator('[data-mam-reduced="true"]')).toHaveCount(1)
+    await expect(dock(page)).toHaveCount(0)
+    await expect(page.locator('[data-mam-dock]')).toHaveAttribute(
+      'data-mam-dock',
+      'away',
+    )
+    await page.keyboard.press('Escape')
+    await expect(page.locator('[aria-modal="true"]')).toHaveCount(0)
+    await expect(dock(page)).toBeVisible()
   })
 })

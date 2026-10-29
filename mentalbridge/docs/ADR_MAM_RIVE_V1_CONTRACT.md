@@ -256,17 +256,24 @@ anything and never moves focus. It stays as a static dock or is hidden:
 - an assistive-technology focus sequence inside a primary action;
 - a hidden document (`document.visibilityState !== 'visible'`).
 
+Since MB-771 the dock is hidden, not static, while a modal or `dialog` is open
+(including `CrisisSupportWidget` and every Journal authoring, view and delete
+dialog) and while a feature reports a safety zone (`useMamSuppress(true,
+'hide')`, used by the SupportPlan safety state). It returns with its normal
+entrance when the zone ends. Unsaved forms, emotion check-in entry and a hidden
+document keep the static, inert dock.
+
 ### Surface matrix
 
-| Surface                                                                                                                                                                                                                        | Dock                       | Summon                                               | Automatic                                                                  |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
-| `/dashboard` (outside the emotion check-in entry)                                                                                                                                                                              | yes                        | registered cards, deterministic copy                 | celebrations within budget                                                 |
-| `/support-plan` (Today, Plan, Progress, Adjust)                                                                                                                                                                                | yes                        | registered targets, per "Explanation sources in V1"  | confirmed-save `light_success` only. No award celebrations under policy v1 |
-| `/resources`, `/resources/[resourceId]`                                                                                                                                                                                        | yes                        | reviewed Resource cards (MB-770), deterministic copy | Bingo `light_success`; celebrations within budget                          |
-| `/achievements`                                                                                                                                                                                                                | yes                        | none in V1                                           | celebrations within budget                                                 |
-| `/support-guides`, `/support-guides/[supportGuideId]`                                                                                                                                                                          | yes                        | none in V1                                           | none                                                                       |
-| `/journal` list view                                                                                                                                                                                                           | static dock                | none in V1 (MB-771 decides)                          | none                                                                       |
-| Journal authoring, `/assessment/*`, `/assessments`, `/initial-check`, `/safety-directory`, `/subscription`, checkout, appointment booking, `/messages`, community routes, `/ai-companion`, admin, specialist, anonymous routes | hidden (`isVisible=false`) | none                                                 | none                                                                       |
+| Surface                                                                                                                                                                                                                        | Dock                       | Summon                                                                                                         | Automatic                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `/dashboard` (outside the emotion check-in entry)                                                                                                                                                                              | yes                        | registered cards, deterministic copy; saved emotion check-in card button (MB-771, same copy for every emotion) | celebrations within budget; none on emotion check-in save                  |
+| `/support-plan` (Today, Plan, Progress, Adjust)                                                                                                                                                                                | yes                        | registered targets, per "Explanation sources in V1"                                                            | confirmed-save `light_success` only. No award celebrations under policy v1 |
+| `/resources`, `/resources/[resourceId]`                                                                                                                                                                                        | yes                        | reviewed Resource cards (MB-770), deterministic copy                                                           | Bingo `light_success`; celebrations within budget                          |
+| `/achievements`                                                                                                                                                                                                                | yes                        | none in V1                                                                                                     | celebrations within budget                                                 |
+| `/support-guides`, `/support-guides/[supportGuideId]`                                                                                                                                                                          | yes                        | none in V1                                                                                                     | none                                                                       |
+| `/journal` list view                                                                                                                                                                                                           | static dock                | none (MB-771)                                                                                                  | none; no save reaction (MB-771)                                            |
+| Journal authoring, `/assessment/*`, `/assessments`, `/initial-check`, `/safety-directory`, `/subscription`, checkout, appointment booking, `/messages`, community routes, `/ai-companion`, admin, specialist, anonymous routes | hidden (`isVisible=false`) | none                                                                                                           | none                                                                       |
 
 `/ai-companion` already has its own conversation surface, so a second character
 there would duplicate it.
@@ -274,8 +281,10 @@ there would duplicate it.
 Since MB-772 the global dock shows on exact `/support-plan` when
 `MAM_WEB_ENABLED` is on, and the page then drops the legacy SupportPlan
 Companion (aside, contextual entries and guided panel). With the flag off the
-legacy Companion stays and no dock renders, so the page never shows two
-companions (owner decision, 2026-10-27, MB-768). The page passes the
+legacy contextual "Giải thích" entries stay and no dock renders, so the page
+never shows two companions (owner decision, 2026-10-27, MB-768). MB-771
+removed the legacy aside and guided panel for both flag values (owner
+decision, 2026-10-29). The page passes the
 server-read flag to the workspace so both sides switch together. The host shows
 the dock only on the routes in `features/mam/mam-routes.ts`; any other route
 hides it.

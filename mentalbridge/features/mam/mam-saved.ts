@@ -24,6 +24,9 @@ export function useMamSaved(
     setRoute(pathname)
     if (playing) setPlaying(null)
   }
+  // Withdrawn eligibility (a modal, a hide zone) discards the pending save, so
+  // a remounted character never replays it.
+  if (!allowed && playing) setPlaying(null)
   const count = useRef(0)
   const allowedRef = useRef(allowed)
   useEffect(() => {

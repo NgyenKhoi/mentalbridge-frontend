@@ -65,7 +65,6 @@ const legacy = vi.hoisted(() => ({
 const journey = vi.hoisted(() => ({ getGuidedJourney: vi.fn() }))
 const feedback = vi.hoisted(() => ({ confirm: vi.fn() }))
 const care = vi.hoisted(() => ({ getCurrentReassessmentSummary: vi.fn() }))
-const companionShell = vi.hoisted(() => ({ render: vi.fn() }))
 
 const planAccess = vi.hoisted(() => ({
   access: { status: 'paid', pendingPayment: false } as {
@@ -154,13 +153,6 @@ vi.mock('../components/SupportPlanScheduleEditor', () => ({
       </button>
     </>
   ),
-}))
-vi.mock('../components/SupportPlanCompanionShell', () => ({
-  default: (props: unknown) => {
-    companionShell.render(props)
-    return null
-  },
-  useSupportPlanCompanionMuted: () => false,
 }))
 vi.mock('../components/ProfessionalSupportPath', () => ({
   default: () => null,
@@ -2335,17 +2327,6 @@ describe('SupportPlan workspace replacement', () => {
     )
     expect(api.replaceWithNativeSupportPlan).not.toHaveBeenCalled()
     expect(api.changeNativeSupportPlanStatus).not.toHaveBeenCalled()
-    expect(companionShell.render).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        guidedContext: expect.objectContaining({
-          review: expect.objectContaining({
-            outcome: 'CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE',
-            currentPlan: current,
-            proposedPlan: replacement,
-          }),
-        }),
-      }),
-    )
   })
 
   it('opens the review reading inline with the global Mầm, with no model call and no mutation', async () => {
@@ -2378,7 +2359,6 @@ describe('SupportPlan workspace replacement', () => {
         name: /Xem chi tiết tại mục Điều chỉnh/,
       }),
     ).toBeNull()
-    expect(companionShell.render).not.toHaveBeenCalled()
     expect(
       legacy.requestSupportPlanActionCompanionExplanation,
     ).not.toHaveBeenCalled()
@@ -2506,7 +2486,7 @@ describe('SupportPlan workspace with the global Mầm', () => {
     })
   })
 
-  it('swaps the aside and the legacy entry for Mầm and asks nothing on entry', async () => {
+  it('swaps the legacy entry for Mầm and asks nothing on entry', async () => {
     withCurrent(nativeSupportPlanFixture(), [occurrence()])
     render(<SupportPlanWorkspace mamEnabled />)
     const card = await cardOf('Check-in cảm xúc')
@@ -2516,20 +2496,18 @@ describe('SupportPlan workspace with the global Mầm', () => {
       }),
     ).toBeVisible()
     expect(screen.queryByText('Giải thích')).toBeNull()
-    expect(companionShell.render).not.toHaveBeenCalled()
     expect(document.querySelector('.mbw-aside')).toBeNull()
     expect(
       legacy.requestSupportPlanActionCompanionExplanation,
     ).not.toHaveBeenCalled()
   })
 
-  it('keeps the legacy Companion, and no Mầm button, with the flag off', async () => {
+  it('keeps only the per-card Giải thích pill, no aside and no Mầm button, with the flag off', async () => {
     withCurrent(nativeSupportPlanFixture(), [occurrence()])
     render(<SupportPlanWorkspace />)
     const card = await cardOf('Check-in cảm xúc')
     expect(within(card).getByText('Giải thích')).toBeVisible()
-    expect(companionShell.render).toHaveBeenCalled()
-    expect(document.querySelector('.mbw-aside')).not.toBeNull()
+    expect(document.querySelector('.mbw-aside')).toBeNull()
     expect(screen.queryByRole('button', { name: /^Mầm giải thích/ })).toBeNull()
     expect(getMamPageTarget()).toBeNull()
   })
@@ -2748,24 +2726,35 @@ describe('SupportPlan workspace with the global Mầm', () => {
   })
 
   describe('safety-first states', () => {
-    it('suppresses Mầm on an active plan in a positive safety screen', async () => {
-      const user = userEvent.setup()
+    it('removes every Mầm control on an active plan in a positive safety screen, and restores them after', async () => {
       const plan = resourcePlan()
       plan.safety.status = 'POSITIVE_SAFETY_SCREEN'
       withCurrent(plan, [occurrence({ actionType: 'RESOURCE' })])
       const { unmount } = render(<SupportPlanWorkspace mamEnabled />)
-      const button = await screen.findByRole('button', {
-        name: 'Mầm giải thích: Check-in cảm xúc',
-      })
       await waitFor(() => expect(isMamFeatureSuppressed()).toBe(true))
-      // The card button is inert, so no summon and no Care request.
-      expect(button).toHaveAttribute('aria-disabled', 'true')
-      await user.click(button)
+      // The safety actions stay; no Mầm character remains, so no summon.
+      expect(
+        screen.getByRole('link', { name: 'Xem số hỗ trợ gần bạn' }),
+      ).toHaveAttribute('href', '/safety-directory')
+      expect(
+        screen.queryByRole('button', {
+          name: 'Mầm giải thích: Check-in cảm xúc',
+        }),
+      ).toBeNull()
       expect(
         legacy.requestSupportPlanActionCompanionExplanation,
       ).not.toHaveBeenCalled()
       unmount()
       expect(isMamFeatureSuppressed()).toBe(false)
+
+      // Once the safety state is gone the same control is back.
+      withCurrent(resourcePlan(), [occurrence({ actionType: 'RESOURCE' })])
+      render(<SupportPlanWorkspace mamEnabled />)
+      expect(
+        await screen.findByRole('button', {
+          name: 'Mầm giải thích: Check-in cảm xúc',
+        }),
+      ).toBeInTheDocument()
     })
 
     it('suppresses Mầm in the no-plan safety view', async () => {

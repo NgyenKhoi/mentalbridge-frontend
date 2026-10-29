@@ -70,7 +70,7 @@ test.describe('MB-775 Mầm flag off', () => {
     })
   }
 
-  test('keeps the legacy SupportPlan Companion and the original CTA', async ({
+  test('keeps the per-card SupportPlan explanation, drops the aside and keeps the original CTA', async ({
     page,
   }) => {
     const requests = await installSupportPlanMocks(page)
@@ -79,11 +79,13 @@ test.describe('MB-775 Mầm flag off', () => {
     await expect(
       page.getByRole('link', { name: 'Ghi lại cảm xúc' }),
     ).toBeVisible()
+    // The legacy companion aside is gone: the main column takes the full width.
     await expect(
       page.getByRole('complementary', {
         name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
       }),
-    ).toBeVisible()
+    ).toHaveCount(0)
+    await expect(page.locator('.mbw-aside')).toHaveCount(0)
     await page
       .getByRole('button', {
         name: 'Nhờ bạn đồng hành giải thích: Check-in cảm xúc',
@@ -108,6 +110,9 @@ test.describe('MB-775 Mầm flag off', () => {
     await expect(
       page.getByRole('button', { name: 'Lưu ghi nhận', exact: true }),
     ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: /^Mầm giải thích: Cảm xúc hôm nay/ }),
+    ).toHaveCount(0)
     await expect(
       page
         .getByRole('region', { name: 'Bước tiếp theo', exact: true })
