@@ -13,6 +13,8 @@ import AdminAppointmentDisputes from '@/features/appointments/components/AdminAp
 import AdminReportsSection from '@/features/reports/components/AdminReportsSection'
 import AdminPaymentsManager from '@/components/AdminPaymentsManager'
 import AdminPayoutsManager from '@/components/AdminPayoutsManager'
+import AdminCommercialReconciliationManager from '@/features/reconciliation/components/AdminCommercialReconciliationManager'
+import AdminRetentionGovernance from '@/features/retention/components/AdminRetentionGovernance'
 import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
@@ -20,6 +22,11 @@ import type { Workspace } from '../model/workspace'
 const SECTIONS = {
   dashboard: {
     label: 'Tổng quan',
+  },
+  retention: {
+    label: 'Bảo lưu & xóa dữ liệu',
+    description:
+      'Quản trị chính sách bảo lưu và theo dõi thực thi xóa dữ liệu với bằng chứng kiểm toán.',
   },
   accounts: {
     label: 'Tài khoản',
@@ -51,6 +58,11 @@ const SECTIONS = {
   payouts: {
     label: 'Chi trả chuyên gia',
   },
+  reconciliation: {
+    label: 'Đối soát thương mại',
+    description:
+      'Đối soát vòng đời thương mại, phát hiện sai lệch và truy vết dòng tiền.',
+  },
 } as const
 
 export type AdminSection = keyof typeof SECTIONS
@@ -68,6 +80,8 @@ function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
           <ProductJourneyMetricsPanel />
         </>
       )
+    case 'retention':
+      return <AdminRetentionGovernance />
     case 'accounts':
       return <AdminAccountManager />
     case 'specialists':
@@ -88,6 +102,8 @@ function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
       return <AdminPaymentsManager />
     case 'payouts':
       return <AdminPayoutsManager />
+    case 'reconciliation':
+      return <AdminCommercialReconciliationManager />
   }
 }
 
@@ -125,7 +141,7 @@ export default function AdminWorkspace({
       </aside>
 
       <main
-        className={`${styles.main} ${section === 'specialists' || section === 'reports' || section === 'payments' || section === 'payouts' ? styles.reviewMain : ''}`}
+        className={`${styles.main} ${section === 'specialists' || section === 'reports' || section === 'payments' || section === 'payouts' || section === 'reconciliation' || section === 'retention' ? styles.reviewMain : ''}`}
       >
         <AdminSectionContent section={section} />
       </main>
