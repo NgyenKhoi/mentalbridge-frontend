@@ -134,6 +134,9 @@ jobs:
       EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
       MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
       MAESTRO_CLI_NO_ANALYTICS: 'true'
+      MAESTRO_MB_HOME_USER_EMAIL: ${{ secrets.MB_HOME_USER_EMAIL }}
+      MAESTRO_MB_HOME_USER_PASSWORD: ${{ secrets.MB_HOME_USER_PASSWORD }}
+      MAESTRO_MB_HOME_NEXT_STEP_TITLE: ${{ secrets.MB_HOME_NEXT_STEP_TITLE }}
       MAESTRO_MB_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}
       MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}
       MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL: ${{ secrets.MB_SUPPORT_PLAN_USER_EMAIL }}
@@ -230,7 +233,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           working-directory: mobile
-          script: npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:emotion && npm run e2e:android:support-plan && npm run e2e:android:resources && npm run e2e:android:journal && npm run e2e:android:specialist
+          script: npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:home && npm run e2e:android:emotion && npm run e2e:android:support-plan && npm run e2e:android:resources && npm run e2e:android:journal && npm run e2e:android:specialist
 
       - name: Upload Android native evidence
         if: always()

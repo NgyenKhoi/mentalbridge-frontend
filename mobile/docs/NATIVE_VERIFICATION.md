@@ -23,10 +23,10 @@ prove that Gradle or Xcode can compile, install, and launch the native app.
 
 Promotions from `dev` to `staging` run two required smoke jobs:
 
-| Job                                | Agreed path exercised                                                                                                               | Passing evidence                                                                                                                                                                                                                                                                                                                                   |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Android native boot and journeys` | Release native boot, then MB-612, MB-613, MB-625, MB-626, MB-627, and MB-633 Maestro journeys against the approved staging API edge | CNG prebuild, Gradle compile, APK install, live foreground app, persisted SupportGuide, emotion history/progress, SupportPlan occurrence complete/reload/reopen/reload, reviewed Resource progress/restart/reload, private Journal safe-outcome, SPECIALIST profile plus availability publish/withdraw/reload, screenshots and sanitized manifests |
-| `iOS native boot`                  | `expo run:ios --configuration Release --no-bundler`                                                                                 | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                                                                                                                                                                                                                                     |
+| Job                                | Agreed path exercised                                                                                                                       | Passing evidence                                                                                                                                                                                                                                                                                                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Android native boot and journeys` | Release native boot, then MB-612, MB-613, MB-625, MB-626, MB-627, MB-633, and MB-663 Maestro journeys against the approved staging API edge | CNG prebuild, Gradle compile, APK install, live foreground app, persisted SupportGuide, authoritative Home re-entry, emotion history/progress, SupportPlan occurrence complete/reload/reopen/reload, reviewed Resource progress/restart/reload, private Journal safe-outcome, SPECIALIST profile plus availability publish/withdraw/reload, screenshots and sanitized manifests |
+| `iOS native boot`                  | `expo run:ios --configuration Release --no-bundler`                                                                                         | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                                                                                                                                                                                                                                                                  |
 
 Both jobs embed only the public environment configuration from the workflow.
 The Android job is attached to the protected `staging-mobile-e2e` Environment;
@@ -97,6 +97,21 @@ npm run e2e:android:support-plan
 It fails unless the occurrence can be completed, reloaded from Care as
 completed, reopened, and reloaded again as scheduled. The fixture must be
 resettable and contain no production personal data.
+
+The MB-663 journey uses a protected USER fixture whose authoritative Home
+decision points to a Resource occurrence in an active SupportPlan:
+
+```powershell
+$env:MAESTRO_MB_HOME_USER_EMAIL = 'dedicated-home-user@example.invalid'
+$env:MAESTRO_MB_HOME_USER_PASSWORD = 'from-protected-secret-store'
+$env:MAESTRO_MB_HOME_NEXT_STEP_TITLE = 'fixture-owned next-step title'
+npm run e2e:android:home
+```
+
+It verifies the server-owned title, enters the exact plan occurrence, returns
+to Home, and confirms that Home reloads the authoritative decision. Until the
+staging milestone provides and executes this fixture, MB-663 remains
+`NOT_RUN — staging milestone`; authored source is not native-run evidence.
 
 The MB-613 journey uses the same protected fixture and already installed APK:
 
