@@ -439,6 +439,38 @@ test.describe('MB-775 Mầm web gate', () => {
     await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
     await expect(page.getByText('MB775-PRIVATE-JOURNAL-TEXT')).toBeVisible()
 
+    // MB-771: a reloaded saved entry and an unsaved edit draft stay out of every
+    // Mầm channel; the draft is never sent at all, and nothing asks for analysis.
+    await page.reload()
+    await expect(status(page)).toHaveAttribute('data-mam-status', 'ready')
+    await page.getByRole('button', { name: 'Xem chi tiết' }).click()
+    await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
+    await page.getByLabel('Nội dung').fill('MB771-DRAFT-JOURNAL-TEXT')
+    await expect(page.locator('[data-mam-dock]')).toHaveAttribute(
+      'data-mam-dock',
+      'away',
+    )
+    const stored = await page.evaluate(() =>
+      [localStorage, sessionStorage].flatMap((storage) =>
+        Object.keys(storage).map((key) => [key, storage.getItem(key)]),
+      ),
+    )
+    for (const [key, value] of stored)
+      if (/mam/i.test(String(key)))
+        expect(String(value)).not.toMatch(/MB77[15]-/)
+    expect(
+      requests.filter(({ url, body }) =>
+        `${url}${body ?? ''}`.includes('MB771-DRAFT'),
+      ),
+    ).toHaveLength(0)
+    expect(
+      requests.filter(({ url }) =>
+        /analysis|\/ai\//.test(new URL(url).pathname),
+      ),
+    ).toHaveLength(0)
+
+    // The full network checks run after the reload and edit too, so a request
+    // made then is covered. The saved text may travel only in the Journal save.
     const mam = requests.filter(({ url }) =>
       new URL(url).pathname.startsWith('/mam/'),
     )
@@ -454,7 +486,117 @@ test.describe('MB-775 Mầm web gate', () => {
       `${request.url}${request.body ?? ''}`.includes('MB775-PRIVATE'),
     )
     expect(carriers.length).toBeGreaterThan(0)
-    for (const request of carriers)
-      expect(new URL(request.url).pathname).toMatch(/^\/api\/journals/)
+    for (const request of carriers) {
+      expect(request.method).toBe('POST')
+      expect(new URL(request.url).pathname).toBe('/api/journals')
+    }
+  })
+
+  test('dashboard emotion card: the Mầm button needs a saved, clean check-in and asks nothing', async ({
+    page,
+  }) => {
+    const aiCalls: string[] = []
+    page.on('request', (request) => {
+      // API calls only: the sidebar prefetches the /ai-companion page (RSC).
+      const { pathname } = new URL(request.url())
+      if (
+        pathname.startsWith('/api/') &&
+        /ai-companion|companion-explanation|analysis/.test(pathname)
+      )
+        aiCalls.push(request.url())
+    })
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/dashboard')
+    const card = page.locator('#emotion-check-in')
+    const button = card.getByRole('button', {
+      name: 'Mầm giải thích: Cảm xúc hôm nay',
+    })
+    const bubble = page.getByRole('dialog', { name: 'Mầm' })
+    await expect(
+      card.getByRole('button', { name: 'Lưu ghi nhận' }),
+    ).toBeVisible()
+    await expect(button).toHaveCount(0)
+
+    // A draft is never offered; the saved record is.
+    await card.getByText('Tốt', { exact: true }).click()
+    await card.getByText('4', { exact: true }).click()
+    await expect(button).toHaveCount(0)
+    await card.getByRole('button', { name: 'Lưu ghi nhận' }).click()
+    await expect(card.getByTestId('emotion-saved')).toBeVisible()
+    await expect(button).toBeVisible()
+    // Auto-scroll would leave the corner button under the sticky top bar.
+    await card.evaluate((element) =>
+      element.scrollIntoView({ block: 'center' }),
+    )
+    await button.click()
+    await expect(bubble).toContainText('hãy viết vài dòng vào Nhật ký')
+    await expect(bubble).not.toContainText('Tốt')
+    await page.keyboard.press('Escape')
+    await expect(bubble).toHaveCount(0)
+
+    await card.getByRole('button', { name: 'Chỉnh sửa ghi nhận' }).click()
+    await card.getByText('Rất tốt', { exact: true }).click()
+    await expect(button).toHaveCount(0)
+
+    // A reloaded record qualifies too; starting an edit closes the open bubble.
+    await page.reload()
+    await expect(button).toBeVisible()
+    await card.evaluate((element) =>
+      element.scrollIntoView({ block: 'center' }),
+    )
+    await button.click()
+    await expect(bubble).toBeVisible()
+    await card.getByText('Rất tốt', { exact: true }).click()
+    await expect(bubble).toHaveCount(0)
+    await expect(button).toHaveCount(0)
+    expect(aiCalls).toEqual([])
+  })
+
+  test('/journal: the dock leaves while any journal dialog is open and returns after it closes', async ({
+    page,
+  }) => {
+    await openJournal(page, 1440)
+    await page.goto('/journal')
+    await expect(status(page)).toHaveAttribute('data-mam-status', 'ready')
+    const root = page.locator('[data-mam-dock]')
+    await expect(root).toHaveAttribute('data-mam-dock', 'shown')
+
+    // Composer, with the low-mood support banner showing inside it.
+    await page
+      .getByRole('button', { name: 'Viết nhật ký mới', exact: true })
+      .click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expect(root).toHaveAttribute('data-mam-dock', 'away')
+    await expect(root.locator('canvas, img')).toHaveCount(0)
+    const low = page.getByRole('radio', { name: 'Không tốt', exact: true })
+    await page.locator('label').filter({ has: low }).click()
+    await expect(page.locator('.journal-support-banner')).toBeVisible()
+    await page.getByLabel('Nội dung').fill('MB771-GATE-ENTRY')
+    await expect(root).toHaveAttribute('data-mam-dock', 'away')
+    await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(root).toHaveAttribute('data-mam-dock', 'shown')
+    await expect(dock(page)).toBeVisible()
+
+    // View, edit and delete all render inside the dialog.
+    await page.getByRole('button', { name: 'Xem chi tiết' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expect(root).toHaveAttribute('data-mam-dock', 'away')
+    await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
+    await expect(root).toHaveAttribute('data-mam-dock', 'away')
+    await page.getByRole('button', { name: 'Đóng', exact: true }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(root).toHaveAttribute('data-mam-dock', 'shown')
+
+    await page.getByRole('button', { name: 'Xem chi tiết' }).click()
+    await page.getByRole('button', { name: 'Xóa', exact: true }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Xác nhận xóa' }),
+    ).toBeVisible()
+    await expect(root).toHaveAttribute('data-mam-dock', 'away')
+    await page.getByRole('button', { name: 'Xóa nhật ký' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(root).toHaveAttribute('data-mam-dock', 'shown')
   })
 })

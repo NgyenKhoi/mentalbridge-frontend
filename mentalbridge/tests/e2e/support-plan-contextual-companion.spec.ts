@@ -184,10 +184,15 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
     await expect(trigger).toBeFocused()
     await page.setViewportSize({ width: 375, height: 812 })
     await trigger.click()
-    const mobileTray = page.locator('.support-plan-companion-contextual-tray')
-    await expect(mobileTray).toContainText(responseText)
-    await expect(mobileTray).toBeVisible()
-    await expect(desktopBubble).toBeHidden()
+    // The bubble flows under its button on a phone, inside the viewport.
+    await expect(desktopBubble).toContainText(responseText)
+    await expect(desktopBubble).toBeVisible()
+    expect(
+      await desktopBubble.evaluate((bubble) => {
+        const rect = bubble.getBoundingClientRect()
+        return rect.left >= 0 && rect.right <= window.innerWidth
+      }),
+    ).toBe(true)
     await expect(originalAction).toBeVisible()
     expect(
       await page.evaluate(

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MamDock } from './MamDock'
@@ -12,7 +13,7 @@ vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
 }))
 
-const character = vi.hoisted(() => ({ mounts: 0, ready: false }))
+const character = vi.hoisted(() => ({ mounts: 0, plays: 0, ready: false }))
 
 vi.mock('./MamCharacter', async () => {
   const { useEffect } = await import('react')
@@ -30,6 +31,11 @@ vi.mock('./MamCharacter', async () => {
         // Mount only: the status is reported once, as the real character does.
         // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [])
+      const shotKey = (props.oneShot as { key?: string } | null | undefined)
+        ?.key
+      useEffect(() => {
+        if (shotKey) character.plays += 1
+      }, [shotKey])
       return (
         <span
           data-testid="mam-character"
@@ -78,6 +84,7 @@ describe('MamDock', () => {
   beforeEach(() => {
     navigation.pathname = '/dashboard'
     character.mounts = 0
+    character.plays = 0
     character.ready = false
     window.localStorage.clear()
     window.sessionStorage.clear()
@@ -269,17 +276,127 @@ describe('MamDock', () => {
     })
 
     await waitFor(() =>
-      expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull(),
+      expect(screen.queryByTestId('mam-character')).toBeNull(),
     )
-    expect(screen.getByTestId('mam-character').dataset.reduced).toBe('true')
+    expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+    expect(document.querySelector('[data-mam-dock]')).toHaveAttribute(
+      'data-mam-dock',
+      'away',
+    )
 
     await act(async () => {
       modal.remove()
     })
-    await waitFor(() =>
-      expect(screen.getByTestId('mam-character').dataset.reduced).toBe('false'),
-    )
+    const returned = await screen.findByTestId('mam-character')
+    expect(returned.dataset.reduced).toBe('false')
     expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+  })
+
+  it('removes the hide handle too while a dialog is open, and brings it back', async () => {
+    window.localStorage.setItem('mentalbridge_mam_hidden', 'true')
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(screen.getByRole('button', { name: 'Hiện Mầm' })).toBeInTheDocument()
+    const dialog = document.createElement('dialog')
+    await act(async () => {
+      document.body.appendChild(dialog)
+      dialog.setAttribute('open', '')
+    })
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Hiện Mầm' })).toBeNull(),
+    )
+    await act(async () => {
+      dialog.removeAttribute('open')
+    })
+    expect(
+      await screen.findByRole('button', { name: 'Hiện Mầm' }),
+    ).toBeInTheDocument()
+  })
+
+  describe('feature zones', () => {
+    function Zone({
+      mode,
+      on = true,
+    }: Readonly<{ mode?: 'hide' | 'suppress'; on?: boolean }>) {
+      useMamSuppress(on, mode)
+      return null
+    }
+    const dock = (zone: ReactNode) => (
+      <>
+        {zone}
+        <MamDockSlot />
+        <MamDock />
+      </>
+    )
+
+    it('a hide zone removes the character and returns it after', async () => {
+      const { rerender } = render(dock(<Zone mode="hide" />))
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      rerender(dock(<Zone mode="hide" on={false} />))
+      expect(await screen.findByTestId('mam-character')).toBeInTheDocument()
+    })
+
+    it('a plain suppress zone keeps the character, still and inert', () => {
+      render(dock(<Zone />))
+      expect(screen.getByTestId('mam-character').dataset.reduced).toBe('true')
+      expect(document.querySelector('[data-mam-dock]')).toHaveAttribute(
+        'data-mam-dock',
+        'shown',
+      )
+    })
+
+    it('moves focus from the dock to the page content when a hide zone removes it', async () => {
+      const content = document.createElement('main')
+      content.className = 'ref-content'
+      content.tabIndex = -1
+      document.body.appendChild(content)
+      const { rerender } = render(dock(<Zone on={false} />))
+      dockButton().focus()
+      expect(dockButton()).toHaveFocus()
+      rerender(dock(<Zone mode="hide" />))
+      await waitFor(() => expect(content).toHaveFocus())
+    })
+
+    it('leaves focus alone when it is not in the dock', async () => {
+      const content = document.createElement('main')
+      content.className = 'ref-content'
+      content.tabIndex = -1
+      document.body.appendChild(content)
+      const { rerender } = render(
+        <>
+          {dock(<Zone on={false} />)}
+          <button type="button">Trang</button>
+        </>,
+      )
+      screen.getByRole('button', { name: 'Trang' }).focus()
+      rerender(
+        <>
+          {dock(<Zone mode="hide" />)}
+          <button type="button">Trang</button>
+        </>,
+      )
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      expect(screen.getByRole('button', { name: 'Trang' })).toHaveFocus()
+    })
+
+    it('a hide zone closes an open menu', async () => {
+      const { rerender } = render(dock(<Zone on={false} />))
+      fireEvent.click(dockButton())
+      expect(screen.getByRole('group', { name: 'Mầm' })).toBeInTheDocument()
+      rerender(dock(<Zone mode="hide" />))
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+    })
   })
 
   it('closes the menu when focus moves to the page', async () => {
@@ -485,6 +602,32 @@ describe('MamDock', () => {
 
       act(() => dispatchMamSaved())
       expect(oneShot()).toBe('light_success')
+    })
+
+    it('does not replay an interrupted save when Mầm returns before it ends', async () => {
+      function Zone({ on }: Readonly<{ on: boolean }>) {
+        useMamSuppress(on, 'hide')
+        return null
+      }
+      const withZone = (on: boolean) => (
+        <>
+          <Zone on={on} />
+          {shown()}
+        </>
+      )
+      const { rerender } = render(withZone(false))
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('light_success')
+      expect(character.plays).toBe(1)
+
+      rerender(withZone(true))
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      rerender(withZone(false))
+      expect(await screen.findByTestId('mam-character')).toBeInTheDocument()
+      expect(oneShot()).toBe('')
+      expect(character.plays).toBe(1)
     })
 
     it.each([
