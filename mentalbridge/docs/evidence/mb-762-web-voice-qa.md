@@ -22,20 +22,27 @@ authorization, quota, consent and provider-enablement rules.
    Deterministic tests use the existing unit CI lane; browser regression also
    joins the existing staging suite. No new workflow or dependency is required.
 
-No new visual direction or product UI is introduced, so no Stitch generation
-is needed for this QA task. No backend runtime, configuration, migration,
-Cloud deployment, account setup, permission change or feature activation is
-performed by this implementation.
+No new visual direction is introduced, so no Stitch generation is needed for
+this QA task. The local real-stack checkpoint below uses the separate backend
+prerequisite PR; this frontend PR does not deploy Cloud infrastructure or enable
+provider admission.
 
 ## Live status
 
-**BLOCKED_PROVIDER / NOT_RUN.** The last confirmed MB-760 snapshot has
-unverified remaining Inference allowance, independent recording/egress/export,
-Bedrock access/quota and no consenting readers. Project observability OFF
-alone does not prove agent/custom logging and external export are off.
-The earlier $0.50 STT/TTS-only campaign explicitly excluded Bedrock; it is not
-authorization for an end-to-end Claude campaign. A new MB-762 budget and
-account/privacy evidence were requested before live work.
+**REAL_PROVIDER_NOT_RUN; local preflight implemented.** Jira comments 10247–10255
+approve a conditional MB-762 budget of $1 total ($0.50 existing LiveKit credit,
+$0.50 eligible AWS credit), Xia voice and local-first execution. The earlier
+MB-760 benchmark budget remains separate. One volunteered reader is
+owner-reported; real microphones, device quality and dialect coverage remain
+unmeasured. No final `LIVE_APPROVED` has been given.
+
+Actual account evidence in comment 10254 does not expose numeric LiveKit
+remaining or explicit Bedrock Applicable Products. These facts remain unknown;
+they are not zero and must not be marked PASS. Official Build hard caps and AWS
+Free-account no-charge restrictions are documented separately in backend
+[PR #240](https://github.com/NgyenKhoi/mentalbridge-backend/pull/240), with scoped
+Sonnet routing, runtime ceilings and remaining live gates. No plan upgrade or
+uncredited payment is permitted.
 
 The [initial manifest](mb-762-initial-manifest.json) records public prerequisite
 source heads, zero tool provider calls, zero human/device/dialect measurements,
@@ -72,6 +79,32 @@ Those tests do not replace the live evidence in the table.
 
 ## Verification
 
+### Local real-stack checkpoint, 2026-10-29
+
+- Web, Identity, Care, Consultation and Journal/AI use real local Docker-backed
+  databases and private env files outside the repository. No service/API/media
+  response was intercepted for the consent flow.
+- One synthetic ADMIN, two USERs and PLUS/PREMIUM source-DEMO grants were
+  provisioned within PO comment 10255. Care profiles were created through each
+  USER's authenticated public API, with no DOB or health data.
+- Both USERs logged in through the real Web/Identity flow. Each UI displayed the
+  current AI and independent Voice disclosure before recording the grant via
+  Care (AI 201, Voice 200). The dialog then showed provider unavailable while
+  admission stayed OFF. Zero session-creation requests or microphone/provider
+  calls were made. These are controlled synthetic UI consent grants, not proof
+  of human speech or live audio.
+- The first browser attempt exposed a pre-hydration login fallback issue:
+  without the client handler, a form used GET and put fixture credentials in
+  its navigation query. Both temporary fixture passwords were rotated, refresh
+  sessions revoked and diagnostics redacted. `LoginForm` now explicitly uses
+  POST; the no-JavaScript browser regression proves credentials stay in the
+  body and the navigation URL has no query. Ordinary client login still passes.
+- After refreshing dev, the full frontend gate passed 323 files / 2,511 tests
+  and production build. The focused auth tests and browser privacy regression
+  cover the subsequently added one-attribute security fix; CI reruns on its head.
+
+### Initial deterministic checkpoint
+
 | Command                                                                                                                       | Result                                                           |
 | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `npm run format:check`, `npm run lint`, `npm run typecheck`                                                                   | PASS                                                             |
@@ -88,6 +121,7 @@ separates reader count from USER contexts and rejects dialect overclaims;
 focused tests and targeted lint/format cover those changes without repeating
 the complete suite. CI validates all tests on the published head.
 
-No real microphone, LiveKit, Inference, Bedrock, recording, Android hardware or
-paid call has run. Live scenarios remain NOT_RUN; no Jira Done/closure, merge,
-provider activation or production approval is implied by the deterministic gate.
+No live microphone, LiveKit media, STT/TTS/Claude inference, recording, Android
+hardware or paid call has run. Read-only Cloud metadata and real synthetic-user
+consent UI checks do not establish call proof. Live scenarios remain NOT_RUN;
+no Jira Done/closure, merge or provider activation is implied by CI.
