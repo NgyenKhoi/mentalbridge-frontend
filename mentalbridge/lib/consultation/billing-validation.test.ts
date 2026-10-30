@@ -51,8 +51,14 @@ describe('billing validation', () => {
         items: Array(201).fill(item),
       }),
     ).toBeNull()
+    expect(
+      parseAdminPaymentList({
+        ...response,
+        items: [{ ...item, provider: 'PAYOS' }],
+      }),
+    ).not.toBeNull()
     for (const invalid of [
-      { provider: 'PAYOS' },
+      { provider: 'STRIPE' },
       { amountVnd: -1 },
       { pricingPolicyVersion: 'unknown' },
       { rawProviderPayload: 'not-for-browser' },
@@ -117,6 +123,13 @@ describe('billing validation', () => {
       generatedAt: '2026-10-10T00:00:00Z',
     }
     expect(parseServicePlanCatalogue(catalogue)).toEqual(catalogue)
+    for (const paymentProvider of ['FAKE', 'PAYOS'])
+      expect(
+        parseServicePlanCatalogue({ ...catalogue, paymentProvider }),
+      ).toEqual({ ...catalogue, paymentProvider })
+    expect(
+      parseServicePlanCatalogue({ ...catalogue, paymentProvider: 'STRIPE' }),
+    ).toBeNull()
     const sandbox = {
       ...catalogue,
       plans: catalogue.plans.map((value) => ({
@@ -195,5 +208,94 @@ describe('billing validation', () => {
         checkoutUrl: 'http://payment.momo.vn/checkout',
       }),
     ).toBeNull()
+  })
+
+  describe('PayOS in-app QR payment', () => {
+    const payos = {
+      paymentId: 'aa100000-0000-4000-8000-000000000001',
+      subscriptionId: 'aa100000-0000-4000-8000-000000000002',
+      planVersionId: plan.planVersionId,
+      planCode: 'PLUS',
+      planVersion: plan.version,
+      pricingPolicyVersion: 'sandbox-full-price-v1',
+      purpose: 'PURCHASE',
+      provider: 'PAYOS',
+      status: 'PENDING',
+      terminalReason: null,
+      amountVnd: 5000,
+      currency: 'VND',
+      qrCode: '00020101021238540010A00000072701240006970422',
+      bin: '970422',
+      accountNumber: '0000000786',
+      accountName: 'MENTALBRIDGE TEST',
+      description: 'MB000786',
+      amount: 5000,
+      expiredAt: '2026-10-30T10:15:00Z',
+      expiresAt: '2026-10-30T10:15:00Z',
+      createdAt: '2026-10-30T10:00:00Z',
+      paidAt: null,
+      failedAt: null,
+    }
+
+    it('accepts a QR payment without any hosted URL and an unconfirmed one without QR fields', () => {
+      expect(parsePlanPayment(payos)).toEqual(payos)
+      const legacy = Object.fromEntries(
+        Object.entries(payos).filter(
+          ([key]) =>
+            ![
+              'qrCode',
+              'bin',
+              'accountNumber',
+              'accountName',
+              'description',
+              'amount',
+              'expiredAt',
+            ].includes(key),
+        ),
+      )
+      expect(parsePlanPayment(legacy)).toEqual(legacy)
+      expect(
+        parsePlanPayment({
+          ...payos,
+          qrCode: null,
+          bin: null,
+          accountNumber: null,
+          accountName: null,
+          description: null,
+          amount: null,
+          expiredAt: null,
+        }),
+      ).not.toBeNull()
+    })
+
+    it('rejects QR fields that disagree with the authoritative amount, expiry or limits', () => {
+      for (const invalid of [
+        { amount: 6000 },
+        { expiredAt: '2026-10-30T10:16:00Z' },
+        { qrCode: '' },
+        { description: 'TOOLONG-DESC' },
+        { bin: 970422 },
+        { checkoutUrl: 'https://payment.momo.vn/checkout' },
+        { checkoutUrl: 'https://payos.vn.evil.example/pay' },
+        { checkoutUrl: 'http://pay.payos.vn/web/1' },
+      ])
+        expect(parsePlanPayment({ ...payos, ...invalid })).toBeNull()
+      expect(
+        parsePlanPayment({
+          ...payos,
+          checkoutUrl: 'https://pay.payos.vn/web/abc',
+        }),
+      ).not.toBeNull()
+    })
+
+    it('allows a terminal reason only on a failed payment', () => {
+      const failed = { ...payos, status: 'FAILED', failedAt: payos.createdAt }
+      for (const terminalReason of ['EXPIRED', 'CANCELLED', 'PROVIDER_FAILED'])
+        expect(parsePlanPayment({ ...failed, terminalReason })).not.toBeNull()
+      expect(parsePlanPayment({ ...failed, terminalReason: 'PAID' })).toBeNull()
+      expect(
+        parsePlanPayment({ ...payos, terminalReason: 'EXPIRED' }),
+      ).toBeNull()
+    })
   })
 })

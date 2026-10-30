@@ -9,7 +9,7 @@ const viewports = [
 ] as const
 
 for (const viewport of viewports) {
-  test(`MB-515 exposes only valid MoMo upgrades at ${viewport.name}`, async ({
+  test(`MB-515 exposes only valid upgrades (dormant MoMo catalogue) at ${viewport.name}`, async ({
     context,
     page,
   }, testInfo) => {
@@ -50,7 +50,7 @@ for (const viewport of viewports) {
       plus.getByRole('button', { name: 'Gói hiện tại' }),
     ).toBeDisabled()
     await expect(
-      premium.getByRole('button', { name: 'Nâng cấp qua MoMo' }),
+      premium.getByRole('button', { name: 'Nâng cấp lên Premium' }),
     ).toBeEnabled()
     await expect(
       page.getByRole('button', {
