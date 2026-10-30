@@ -77,6 +77,31 @@ export default function AdjustPanel({
     setWasDue(due)
     if (due) setReviewShown(true)
   }
+  const reviewDisclosure = (
+    <Disclosure
+      id="mbw-review"
+      summary="Xem lại kế hoạch"
+      open={reviewShown || undefined}
+      onToggle={(event) => setReviewShown(event.currentTarget.open)}
+    >
+      {reviewShown && (
+        <AdaptiveReview
+          plan={plan}
+          locked={locked}
+          pendingDraft={replacement}
+          onApplied={onApplied}
+          onDiscardDraft={onDiscardDraft}
+          onRefreshPlan={onRefreshPlan}
+        />
+      )}
+    </Disclosure>
+  )
+  // What matters now: a review that is due, or its invite with the date.
+  const inviteDay =
+    cycle && ['IN_PROGRESS', 'PAUSED', 'REVIEW_DUE'].includes(cycle.state)
+      ? dayLabel(cycle.reviewDueOn)
+      : ''
+  const showNow = due || Boolean(inviteDay)
   return (
     <div className="mbw-adjust">
       {dirty && (
@@ -84,164 +109,161 @@ export default function AdjustPanel({
           Hãy lưu hoặc hoàn tác thay đổi đang dở trước khi chọn việc khác.
         </p>
       )}
-      <Disclosure
-        id="mbw-review"
-        summary="Xem lại kế hoạch"
-        meta={
-          due
-            ? 'Đã đến lúc xem lại'
-            : cycle?.reviewDueOn
-              ? `Lời mời xem lại: ${dayLabel(cycle.reviewDueOn)}`
-              : undefined
-        }
-        open={reviewShown || undefined}
-        onToggle={(event) => setReviewShown(event.currentTarget.open)}
-      >
-        {reviewShown && (
-          <AdaptiveReview
-            plan={plan}
-            locked={locked}
-            pendingDraft={replacement}
-            onApplied={onApplied}
-            onDiscardDraft={onDiscardDraft}
-            onRefreshPlan={onRefreshPlan}
-          />
-        )}
-      </Disclosure>
+      {showNow && (
+        <section
+          className="mbw-tile mbw-nowcard"
+          aria-labelledby="mbw-now-title"
+        >
+          <h2 id="mbw-now-title">
+            {due
+              ? 'Đã đến lúc xem lại kế hoạch'
+              : `Lời mời xem lại: ${inviteDay}`}
+          </h2>
+          <p>
+            Bạn chọn giữ, đổi hoặc thử phương án khác. Kế hoạch không đổi cho
+            đến khi bạn chọn.
+          </p>
+          {reviewDisclosure}
+        </section>
+      )}
+      <div className="mbw-quiet-list">
+        {!showNow && reviewDisclosure}
+        <Disclosure summary="Lịch và thời lượng">{schedule}</Disclosure>
+        <Disclosure summary="Điều bạn muốn ưu tiên">{preferences}</Disclosure>
 
-      <Disclosure summary="Lịch và thời lượng">{schedule}</Disclosure>
-      <Disclosure summary="Điều bạn muốn ưu tiên">{preferences}</Disclosure>
-
-      <Disclosure
-        summary="Phương án khác"
-        open={Boolean(replacement) || undefined}
-      >
-        {!replacement ? (
-          <>
-            <p>
-              Phương án mới dựa trên lần kiểm tra lại gần nhất. Kế hoạch hiện
-              tại không đổi cho đến khi bạn xác nhận.
-            </p>
-            <div className="mbw-actions">
-              <button
-                type="button"
-                className="mbw-secondary"
-                disabled={locked}
-                onClick={onProposeReplacement}
+        <Disclosure
+          summary="Phương án khác"
+          open={Boolean(replacement) || undefined}
+        >
+          {!replacement ? (
+            <>
+              <p>
+                Phương án mới dựa trên lần kiểm tra lại gần nhất. Kế hoạch hiện
+                tại không đổi cho đến khi bạn xác nhận.
+              </p>
+              <div className="mbw-actions">
+                <button
+                  type="button"
+                  className="mbw-secondary"
+                  disabled={locked}
+                  onClick={onProposeReplacement}
+                >
+                  Xem phương án mới
+                </button>
+                <Link className="mbw-text-link" href={REASSESSMENT_HREF}>
+                  Làm bài kiểm tra lại trước
+                </Link>
+              </div>
+            </>
+          ) : (
+            <div className="mbw-replacement">
+              <div
+                className="mbw-compare"
+                role="group"
+                aria-label="So sánh hai phương án"
               >
-                Xem phương án mới
-              </button>
-              <Link className="mbw-text-link" href={REASSESSMENT_HREF}>
-                Làm bài kiểm tra lại trước
-              </Link>
-            </div>
-          </>
-        ) : (
-          <div className="mbw-replacement">
-            <div
-              className="mbw-compare"
-              role="group"
-              aria-label="So sánh hai phương án"
-            >
-              <section>
-                <p className="mbw-row-title">Đang dùng</p>
-                <ul>
-                  {planActions(plan).map((action) => (
-                    <li key={action.actionId}>{action.presentation.title}</li>
-                  ))}
-                </ul>
-              </section>
-              <section>
-                <p className="mbw-row-title">Phương án mới</p>
-                <ul>
-                  {planActions(replacement).map((action) => (
-                    <li key={action.actionId}>{action.presentation.title}</li>
-                  ))}
-                </ul>
-              </section>
-            </div>
-            {/* Always mounted so the outcome is announced when it arrives. */}
-            {mamReview ? (
-              <SupportPlanMamReview review={review}>
+                <section>
+                  <p className="mbw-row-title">Đang dùng</p>
+                  <ul>
+                    {planActions(plan).map((action) => (
+                      <li key={action.actionId}>{action.presentation.title}</li>
+                    ))}
+                  </ul>
+                </section>
+                <section>
+                  <p className="mbw-row-title">Phương án mới</p>
+                  <ul>
+                    {planActions(replacement).map((action) => (
+                      <li key={action.actionId}>{action.presentation.title}</li>
+                    ))}
+                  </ul>
+                </section>
+              </div>
+              {/* Always mounted so the outcome is announced when it arrives. */}
+              {mamReview ? (
+                <SupportPlanMamReview review={review}>
+                  <p role="status">
+                    {review ? reviewOutcome[review.outcome] : ''}
+                  </p>
+                </SupportPlanMamReview>
+              ) : (
                 <p role="status">
                   {review ? reviewOutcome[review.outcome] : ''}
                 </p>
-              </SupportPlanMamReview>
-            ) : (
-              <p role="status">{review ? reviewOutcome[review.outcome] : ''}</p>
-            )}
-            <div className="mbw-actions">
-              {review ? (
-                <button
-                  type="button"
-                  className="mbw-primary"
-                  disabled={
-                    locked ||
-                    review.outcome ===
-                      'CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE'
-                  }
-                  onClick={onConfirmReplacement}
-                >
-                  Chuyển sang phương án mới
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="mbw-primary"
-                  disabled={locked}
-                  onClick={onReviewReplacement}
-                >
-                  So sánh với kế hoạch hiện tại
-                </button>
               )}
-              <button
-                type="button"
-                className="mbw-text-button"
-                disabled={busy}
-                onClick={onDiscardReplacement}
-              >
-                Không dùng phương án này
-              </button>
+              <div className="mbw-actions">
+                {review ? (
+                  <button
+                    type="button"
+                    className="mbw-primary"
+                    disabled={
+                      locked ||
+                      review.outcome ===
+                        'CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE'
+                    }
+                    onClick={onConfirmReplacement}
+                  >
+                    Chuyển sang phương án mới
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="mbw-primary"
+                    disabled={locked}
+                    onClick={onReviewReplacement}
+                  >
+                    So sánh với kế hoạch hiện tại
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="mbw-text-button"
+                  disabled={busy}
+                  onClick={onDiscardReplacement}
+                >
+                  Không dùng phương án này
+                </button>
+              </div>
             </div>
+          )}
+        </Disclosure>
+
+        <Disclosure summary="Hỗ trợ từ chuyên gia">
+          <p>
+            Bạn tự chọn chuyên gia và tự xác nhận lịch hẹn. Kế hoạch không tự
+            đặt lịch.
+          </p>
+          <Link className="mbw-secondary" href="/specialists">
+            Tìm chuyên gia
+          </Link>
+        </Disclosure>
+
+        <Disclosure summary="Tạm dừng hoặc kết thúc">
+          <p>Tạm dừng khi bạn cần nghỉ, tiếp tục lúc nào cũng được.</p>
+          <div className="mbw-actions">
+            <button
+              type="button"
+              className="mbw-secondary"
+              disabled={locked}
+              onClick={onTogglePause}
+            >
+              {plan.status === 'PAUSED'
+                ? 'Tiếp tục kế hoạch'
+                : 'Tạm dừng kế hoạch'}
+            </button>
+            <button
+              type="button"
+              className="mbw-text-button"
+              disabled={locked}
+              onClick={onEnd}
+            >
+              Kết thúc kế hoạch
+            </button>
           </div>
-        )}
-      </Disclosure>
+        </Disclosure>
 
-      <Disclosure summary="Hỗ trợ từ chuyên gia">
-        <p>
-          Bạn tự chọn chuyên gia và tự xác nhận lịch hẹn. Kế hoạch không tự đặt
-          lịch.
-        </p>
-        <Link className="mbw-secondary" href="/specialists">
-          Tìm chuyên gia
-        </Link>
-      </Disclosure>
-
-      <Disclosure summary="Tạm dừng hoặc kết thúc">
-        <p>Tạm dừng khi bạn cần nghỉ, tiếp tục lúc nào cũng được.</p>
-        <div className="mbw-actions">
-          <button
-            type="button"
-            className="mbw-secondary"
-            disabled={locked}
-            onClick={onTogglePause}
-          >
-            {plan.status === 'PAUSED'
-              ? 'Tiếp tục kế hoạch'
-              : 'Tạm dừng kế hoạch'}
-          </button>
-          <button
-            type="button"
-            className="mbw-text-button"
-            disabled={locked}
-            onClick={onEnd}
-          >
-            Kết thúc kế hoạch
-          </button>
-        </div>
-      </Disclosure>
-
-      <Disclosure summary="Lịch sử kế hoạch">{history}</Disclosure>
+        <Disclosure summary="Các kế hoạch trước">{history}</Disclosure>
+      </div>
     </div>
   )
 }

@@ -75,7 +75,7 @@ export default function ProposalPreview({
       </div>
 
       <div className="mbw-proposal-focuses">
-        {draft.focuses.map((focus) => (
+        {(draft.focuses ?? []).map((focus) => (
           <section
             key={focus.focusId}
             className="mbw-focus"

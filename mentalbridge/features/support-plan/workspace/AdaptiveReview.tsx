@@ -162,6 +162,9 @@ function confirmLabel(option: AdaptiveReviewOption) {
       return 'Xem phương án thay thế'
     case 'NAVIGATE_PROFESSIONAL_SUPPORT':
       return 'Tìm chuyên gia'
+    default:
+      // An option kind this client does not know still reads plainly.
+      return 'Xác nhận lựa chọn'
   }
 }
 
@@ -169,7 +172,7 @@ function confirmLabel(option: AdaptiveReviewOption) {
 function selfReport(review: Review): SelfReport | undefined {
   return (
     review.evidenceContext?.selfReportedExperience ??
-    review.reassessment.summary?.selfReportedExperience
+    review.reassessment?.summary?.selfReportedExperience
   )
 }
 
@@ -269,7 +272,7 @@ function EmotionContext() {
 }
 
 function Evidence({ review }: Readonly<{ review: Review }>) {
-  const summary = review.reassessment.summary
+  const summary = review.reassessment?.summary
   const period = review.programPeriod
   const journal = summary?.journalContext
   const barriers = review.patterns.filter(
@@ -440,8 +443,8 @@ export default function AdaptiveReview({
     const body = {
       reviewFingerprint: review.reviewFingerprint,
       optionId: selected.optionId,
-      ...(review.reassessment.summary
-        ? { reassessmentSummaryId: review.reassessment.summary.summaryId }
+      ...(review.reassessment?.summary
+        ? { reassessmentSummaryId: review.reassessment?.summary.summaryId }
         : {}),
       ...(replacing
         ? {
@@ -584,7 +587,7 @@ export default function AdaptiveReview({
       : review.reviewState === 'PAUSED'
         ? 'Kế hoạch đang tạm dừng. Bạn vẫn có thể xem lại; không có gì thay đổi cho đến khi bạn chọn.'
         : `Bạn đang ở ngày ${period.elapsedDays} của kế hoạch. Đây là những gì đã ghi nhận đến hôm nay.`
-  const reassessmentState = review.reassessment.state
+  const reassessmentState = review.reassessment?.state ?? 'UNAVAILABLE'
   const canKeep = review.options.some(
     (option) => option.kind === 'KEEP_CURRENT',
   )
@@ -666,7 +669,7 @@ export default function AdaptiveReview({
                 />
                 <span>
                   <strong>{optionTitle(option, review)}</strong>
-                  {option.changes.map((change) => (
+                  {(option.changes ?? []).map((change) => (
                     <span key={change.field}>{changeText(change)}</span>
                   ))}
                   {option.optionId === draftOptionId && draft && (

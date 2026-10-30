@@ -63,6 +63,7 @@ import SupportPlanPersonalization from '../components/SupportPlanPersonalization
 import SupportPlanScheduleEditor from '../components/SupportPlanScheduleEditor'
 import AdapterChoices from './AdapterChoices'
 import AdjustPanel from './AdjustPanel'
+import CycleStrip from './CycleStrip'
 import { autoProposalKey, shouldAutoPropose } from './auto-proposal'
 import PlanHistory from './PlanHistory'
 import PlanPanel from './PlanPanel'
@@ -77,10 +78,12 @@ import TodayPanel, { type Barrier, type Helpfulness } from './TodayPanel'
 import { useCompanion } from './use-companion'
 import {
   cycleLine,
+  dayLabel,
   joinOccurrences,
   localDateIn,
   mergeOccurrences,
   msUntilNextLocalDay,
+  occurrenceKey,
   occurrenceWindow,
   planTimezone,
   selectTodayFocus,
@@ -164,6 +167,8 @@ async function evaluationSource(preferReassessment: boolean) {
     id: await getNativeSupportPlanEvaluationSource('INITIAL_CHECK'),
   }
 }
+
+const NO_OCCURRENCES: ActionOccurrence[] = []
 
 async function optionalPlan(request: Promise<SupportPlanV3>) {
   try {
@@ -294,7 +299,8 @@ export default function SupportPlanWorkspace({
   const [occurrences, setOccurrences] = useState<ActionOccurrence[]>([])
   const [occurrencesLoading, setOccurrencesLoading] = useState(false)
   const [occurrencesFailed, setOccurrencesFailed] = useState(false)
-  const [occurrencesReady, setOccurrencesReady] = useState(false)
+  // Rows count as known only for the plan and window they were read for.
+  const [occurrencesReadyKey, setOccurrencesReadyKey] = useState('')
   const occurrenceRequest = useRef(0)
   const [rowBusy, setRowBusy] = useState<Record<string, boolean>>({})
   const rowLocks = useRef(new Set<string>())
@@ -355,6 +361,8 @@ export default function SupportPlanWorkspace({
     : 'Asia/Ho_Chi_Minh'
   const [clock, setClock] = useState(() => Date.now())
   const today = localDateIn(timezone, new Date(clock))
+  const windowKey = current ? occurrenceKey(current, today) : ''
+  const occurrencesReady = windowKey !== '' && occurrencesReadyKey === windowKey
 
   const reload = useCallback(async () => {
     const value = await readWorkspace()
@@ -447,7 +455,7 @@ export default function SupportPlanWorkspace({
         })
         setAdapterEngagement(engagement)
         setOccurrences((previous) => mergeOccurrences(previous, rows))
-        setOccurrencesReady(true)
+        setOccurrencesReadyKey(occurrenceKey(current, today))
       }
     } catch {
       if (requestId === occurrenceRequest.current) setOccurrencesFailed(true)
@@ -455,6 +463,12 @@ export default function SupportPlanWorkspace({
       if (requestId === occurrenceRequest.current) setOccurrencesLoading(false)
     }
   }, [current, today])
+
+  // A save that resolves after midnight or a plan swap must reload the new window, not its own.
+  const latestLoad = useRef(loadOccurrences)
+  useEffect(() => {
+    latestLoad.current = loadOccurrences
+  }, [loadOccurrences])
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadOccurrences(), 0)
@@ -609,14 +623,42 @@ export default function SupportPlanWorkspace({
     rowLocks.current.add(id)
     setRowBusy((values) => ({ ...values, [id]: true }))
     setRowMessages((values) => ({ ...values, [id]: '' }))
+    // Rows that follow this one, then precede it: where focus goes if the row is removed.
+    const rowNode = document.getElementById(`activity-${id}`)
+    const siblings = (
+      step: 'nextElementSibling' | 'previousElementSibling',
+    ) => {
+      const found: string[] = []
+      for (let node = rowNode?.[step]; node; node = node[step])
+        if (node.id.startsWith('activity-')) found.push(node.id)
+      return found
+    }
+    const fallbackIds = [
+      ...siblings('nextElementSibling'),
+      ...siblings('previousElementSibling'),
+    ]
     try {
       const note = await run()
       if (note) setAnnouncement(note)
-      // The pressed control often disappears with its row state; keep focus on the row.
+      // The pressed control leaves with its row state (after its exit motion); keep focus on the row.
       window.requestAnimationFrame(() => {
         const active = document.activeElement
-        if (!active || active === document.body || !active.isConnected)
-          document.getElementById(`activity-${id}`)?.focus()
+        const row = document.getElementById(`activity-${id}`)
+        if (
+          !active ||
+          active === document.body ||
+          !active.isConnected ||
+          row?.contains(active)
+        )
+          // An Earlier row can leave an empty review-due day: its Today tab is always available.
+          (
+            row ??
+            fallbackIds
+              .map((value) => document.getElementById(value))
+              .find(Boolean) ??
+            document.getElementById('mbw-day-title') ??
+            document.getElementById('tab-today')
+          )?.focus()
       })
     } catch (error) {
       setRowMessages((values) => ({ ...values, [id]: errorMessage(error) }))
@@ -665,7 +707,7 @@ export default function SupportPlanWorkspace({
             occurrence.version,
             state,
           )
-        await loadOccurrences()
+        await latestLoad.current()
       }
       // Care has confirmed the change; a failed or pending save never gets here.
       if (mamEnabled && mounted.current && state === 'COMPLETED')
@@ -745,7 +787,7 @@ export default function SupportPlanWorkspace({
             summaryReuseApproved: legacy.summaryReuseApproved,
           },
         )
-        await loadOccurrences()
+        await latestLoad.current()
       }
       return 'Cảm ơn bạn. Lựa chọn này giúp bạn nhìn lại sau.'
     })
@@ -1169,9 +1211,8 @@ export default function SupportPlanWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasCurrent])
 
-  const focus = current
-    ? selectTodayFocus(current, occurrences, today)
-    : undefined
+  const known = occurrencesReady ? occurrences : NO_OCCURRENCES
+  const focus = current ? selectTodayFocus(current, known, today) : undefined
   // The page answer is about this tab and this focus; either change retires it.
   const pageIdentity = `${tab}:${
     focus?.kind === 'OCCURRENCE'
@@ -1200,7 +1241,7 @@ export default function SupportPlanWorkspace({
     pageIdentity,
   )
   const engageable = new Set(
-    occurrences
+    known
       .filter(
         (item) =>
           item.representationMode === 'NATIVE_V3' ||
@@ -1212,13 +1253,13 @@ export default function SupportPlanWorkspace({
     current && occurrencesReady
       ? summarizeProgress(
           current,
-          occurrences,
+          known,
           occurrenceWindow(current, today),
           today,
         )
       : undefined
   const planForCopy = current ?? draft
-  const safetyFirst = planForCopy?.safety.status === 'POSITIVE_SAFETY_SCREEN'
+  const safetyFirst = planForCopy?.safety?.status === 'POSITIVE_SAFETY_SCREEN'
   // Inline safety support is a no-interrupt zone, with or without a plan: no
   // visible character on a safety path.
   useMamSuppress(
@@ -1244,7 +1285,7 @@ export default function SupportPlanWorkspace({
       title="Nếu bạn đang thấy không an toàn"
       primary={{ label: 'Xem số hỗ trợ gần bạn', href: '/safety-directory' }}
     >
-      <p>{planForCopy?.safety.guidance}</p>
+      {planForCopy?.safety?.guidance && <p>{planForCopy.safety.guidance}</p>}
     </WorkspaceMessage>
   )
 
@@ -1502,12 +1543,29 @@ export default function SupportPlanWorkspace({
 
   return (
     <div className="mbw-page" data-page-motion="off">
-      {header(
-        cycleLine(current.cycle) ??
-          (current.status === 'PAUSED'
-            ? 'Đang tạm dừng'
-            : 'Đang theo kế hoạch'),
-      )}
+      <header className="mbw-header mbw-header-cycle">
+        <div className="mbw-header-main">
+          <h1>Kế hoạch của bạn</h1>
+          <p className="mbw-lead">
+            {cycleLine(current.cycle) ??
+              (current.status === 'PAUSED'
+                ? 'Đang tạm dừng'
+                : 'Đang theo kế hoạch')}
+          </p>
+          <CycleStrip
+            plan={current}
+            occurrences={known}
+            today={today}
+            known={occurrencesReady}
+            still={safetyFirst}
+          />
+        </div>
+        {current.cycle?.reviewDueOn && dayLabel(current.cycle.reviewDueOn) && (
+          <div className="mbw-review-date">
+            Xem lại vào <strong>{dayLabel(current.cycle.reviewDueOn)}</strong>
+          </div>
+        )}
+      </header>
       {live}
       {(invalidOrigin || staleOrigin) && (
         <p className="mbw-inline-alert" role="status">
@@ -1530,7 +1588,7 @@ export default function SupportPlanWorkspace({
               onClick={() =>
                 void command(async () => {
                   await reload()
-                  await loadOccurrences()
+                  await latestLoad.current()
                 })
               }
             >
@@ -1569,14 +1627,17 @@ export default function SupportPlanWorkspace({
           role="tabpanel"
           aria-labelledby={`tab-${tab}`}
           className="mbw-tabpanel"
+          data-still={safetyFirst ? '' : undefined}
         >
           {tab === 'today' && focus && (
             <TodayPanel
               plan={current}
               focus={focus}
-              occurrences={occurrences}
+              occurrences={known}
               today={today}
-              loading={occurrencesLoading && !occurrencesReady}
+              timezone={timezone}
+              ready={occurrencesReady}
+              still={safetyFirst}
               loadError={occurrencesFailed}
               returnedOccurrenceId={returnOrigin?.occurrenceId}
               engageable={engageable}
@@ -1600,14 +1661,20 @@ export default function SupportPlanWorkspace({
           {tab === 'plan' && (
             <PlanPanel
               plan={current}
+              today={today}
+              onAdjust={() => void changeTab('adjust')}
               companion={companion}
               mam={mamEnabled ? mamExplain : undefined}
             />
           )}
           {tab === 'progress' && (
             <ProgressPanel
+              plan={current}
+              today={today}
+              timezone={timezone}
               summary={progress}
-              occurrences={occurrences}
+              still={safetyFirst}
+              occurrences={known}
               loadError={occurrencesFailed}
               onRetry={() => void loadOccurrences()}
             />

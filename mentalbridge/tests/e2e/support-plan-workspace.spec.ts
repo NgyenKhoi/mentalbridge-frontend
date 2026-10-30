@@ -30,6 +30,14 @@ const resourceId = 'b3000000-0000-4000-8000-000000000644'
 
 type Cycle = NonNullable<SupportPlanV3['cycle']>
 
+/** One row of the Today list, found by its title heading. */
+const todayRow = (page: Page, title: string) =>
+  page.getByRole('listitem').filter({
+    has: page.getByRole('heading', { name: title, exact: true }),
+  })
+const dayBar = (page: Page) =>
+  page.getByRole('progressbar', { name: 'Việc đã xong hôm nay' })
+
 function cycle(overrides: Partial<Cycle> = {}): Cycle {
   return {
     policyVersion: 'support-plan-cycle-v1',
@@ -510,9 +518,7 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     await page
       .getByRole('link', { name: 'Quay lại kế hoạch', exact: true })
       .click()
-    await expect(
-      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
-    ).toBeVisible()
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '1')
     await expect(
       page.getByText('Đã ghi nhận từ bài luyện tập', { exact: true }),
     ).toBeVisible()
@@ -523,8 +529,9 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     ).toHaveCount(0)
     expect(calls.filter((call) => call.path.endsWith('/state'))).toHaveLength(0)
     await page.getByRole('tab', { name: 'Tiến triển' }).click()
+    // The count row and the selected day both name it.
     await expect(
-      page.getByText('Đã ghi nhận từ bài luyện tập', { exact: true }),
+      page.getByText('Đã ghi nhận từ bài luyện tập', { exact: true }).first(),
     ).toBeVisible()
   })
 
@@ -563,9 +570,7 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     await page
       .getByRole('link', { name: 'Quay lại kế hoạch', exact: true })
       .click()
-    await expect(
-      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
-    ).toBeVisible()
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '1')
   })
 
   test('MB-670 missing Resource evidence keeps acknowledgement available on return', async ({
@@ -591,9 +596,7 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     await expect(
       page.getByRole('button', { name: 'Đã làm xong', exact: true }),
     ).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
-    ).toHaveCount(0)
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '0')
   })
 
   test('MB-670 a historical Resource occurrence never offers automatic reconciliation', async ({
@@ -659,7 +662,7 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
       'aria-selected',
       'true',
     )
-    await expect(page.getByText('Ngày 1/14')).toBeVisible()
+    await expect(page.getByText(/Ngày 1\/14/)).toBeVisible()
     const activation = calls.find((call) => call.path.endsWith('/activate'))
     expect(activation?.headers['if-match']).toBe('"0"')
   })
@@ -680,7 +683,7 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     }
     const calls = await mockPlanApi(page, world)
     await page.goto('/support-plan')
-    const next = page.getByRole('region', { name: 'Thở chậm 3 phút' })
+    const next = todayRow(page, 'Thở chậm 3 phút')
     await expect(next).toBeVisible()
     const open = next.getByRole('link', { name: /Mở nội dung/ })
     const href = new URL(
@@ -696,22 +699,18 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
       localDate: today,
     })
     expect((await open.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
-    await expect(
-      page.getByRole('heading', { name: 'Sau đó trong hôm nay' }),
-    ).toBeVisible()
+    await expect(todayRow(page, 'Check-in cảm xúc')).toBeVisible()
     await noHorizontalScroll(page, 'today', (name) => testInfo.outputPath(name))
     await page.goto(
       `/support-plan?source=resource&occurrenceId=${resourceOccurrenceId}&actionId=${resourceActionId}&localDate=${today}`,
     )
-    const confirm = page
-      .getByRole('region', { name: 'Thở chậm 3 phút' })
-      .getByRole('button', { name: 'Đã làm xong' })
+    const confirm = todayRow(page, 'Thở chậm 3 phút').getByRole('button', {
+      name: 'Đã làm xong',
+    })
     await expect(confirm).toBeVisible()
     expect(calls.filter((call) => call.path.endsWith('/state'))).toHaveLength(0)
     await confirm.click()
-    await expect(
-      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
-    ).toBeVisible()
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '1')
     const state = calls.find((call) => call.path.endsWith('/state'))
     expect(state?.body).toEqual({ state: 'COMPLETED' })
     await page
@@ -724,7 +723,11 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
       )
       .toBe(1)
     await page.getByRole('tab', { name: 'Tiến triển' }).click()
-    await expect(page.getByText('1 lần đã làm')).toBeVisible()
+    await expect(
+      page
+        .locator('.mbw-count')
+        .filter({ has: page.getByText('Đã làm', { exact: true }) }),
+    ).toContainText('1 việc')
     await expect(page.locator('.mbw-page')).not.toContainText('%')
   })
 
@@ -748,17 +751,15 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     await mockPlanApi(page, world)
     const back = `/support-plan?occurrenceId=${emotionOccurrenceId}&actionId=${emotionActionId}&localDate=${today}`
     await page.goto(back)
-    const next = page.getByRole('region', { name: 'Check-in cảm xúc' })
+    const next = todayRow(page, 'Check-in cảm xúc')
     await expect(next.getByText(/Chưa thực hiện được/)).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
-    ).toHaveCount(0)
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '0')
     expect(attempts).toBe(1)
     await page.reload()
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '1')
     await expect(
-      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
+      todayRow(page, 'Check-in cảm xúc').getByText(/Đã xong|Xong lúc/),
     ).toBeVisible()
-    await expect(page.getByText('Đã xong', { exact: true })).toBeVisible()
     expect(attempts).toBe(2)
   })
 
@@ -855,15 +856,13 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
       page.getByRole('heading', { name: 'Chưa tải được kế hoạch' }),
     ).toBeVisible()
     await page.getByRole('button', { name: 'Thử lại' }).click()
-    const next = page.getByRole('region', { name: 'Check-in cảm xúc' })
+    const next = todayRow(page, 'Check-in cảm xúc')
     await expect(next).toBeVisible()
     await next.getByRole('button', { name: 'Để hôm khác' }).click()
     await expect(
       next.getByText(/Kế hoạch vừa thay đổi ở nơi khác/),
     ).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
-    ).toHaveCount(0)
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '0')
 
     world.current = undefined
     world.proposeStatus = 403
@@ -1053,11 +1052,99 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     }
     await mockPlanApi(page, world)
     await page.goto('/support-plan')
-    await expect(
-      page.getByRole('region', { name: 'Thở chậm 3 phút' }),
-    ).toBeVisible()
+    await expect(todayRow(page, 'Thở chậm 3 phút')).toBeVisible()
     await expect(page.getByText('Đang theo kế hoạch')).toBeVisible()
     await page.getByRole('tab', { name: 'Kế hoạch' }).click()
-    await expect(page.getByText(/Mỗi ngày · khoảng 5 phút/)).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: '1 việc trong kế hoạch' }),
+    ).toBeVisible()
+    await expect(page.getByRole('table')).toContainText('08:00')
+  })
+
+  test('MB-783 all four tabs render with the fixture, marking a Resource done moves the bar, and Progress shows each day', async ({
+    page,
+  }, testInfo) => {
+    const runtimeErrors: string[] = []
+    page.on('pageerror', (error) => runtimeErrors.push(error.message))
+    page.on('console', (message) => {
+      if (
+        message.type() === 'error' &&
+        !message.text().startsWith('Failed to load resource')
+      )
+        runtimeErrors.push(message.text())
+    })
+    await authenticate(page)
+    const world: World = {
+      current: proposalPlan(),
+      history: [],
+      occurrences: [
+        resourceOccurrence(),
+        { ...emotionOccurrenceFixture(), displayState: 'SCHEDULED' },
+      ],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    const calls = await mockPlanApi(page, world)
+    await page.goto('/support-plan')
+
+    // Hôm nay: nothing done yet, then one Resource acknowledged.
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '0')
+    await expect(dayBar(page)).toHaveAttribute('aria-valuemax', '2')
+    await todayRow(page, 'Thở chậm 3 phút')
+      .getByRole('button', { name: 'Đã làm xong' })
+      .click()
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '1')
+    await expect(page.locator('.mbw-day-count')).toContainText(
+      '1 / 2 việc hôm nay',
+    )
+    expect(calls.find((call) => call.path.endsWith('/state'))?.body).toEqual({
+      state: 'COMPLETED',
+    })
+
+    // Kế hoạch: one row per việc across the week.
+    await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+    await expect(
+      page.getByRole('heading', { name: '2 việc trong kế hoạch' }),
+    ).toBeVisible()
+    const week = page.getByRole('table', { name: /Lịch trong tuần/ })
+    await expect(
+      week.getByRole('rowheader', { name: /Thở chậm 3 phút/ }),
+    ).toBeVisible()
+    await expect(week).toContainText('08:00')
+    await noHorizontalScroll(page, 'plan', (name) => testInfo.outputPath(name))
+
+    // Tiến triển: the count follows the save, and a day shows its history.
+    await page.getByRole('tab', { name: 'Tiến triển' }).click()
+    await expect(
+      page
+        .locator('.mbw-count')
+        .filter({ has: page.getByText('Đã làm', { exact: true }) }),
+    ).toContainText('1 việc')
+    const history = page.locator('.mbw-hist')
+    await expect(history).toContainText('Xong lúc 12:01')
+    await expect(history).toContainText('Chưa tới giờ')
+    await page.getByRole('button', { name: /^Thứ Tư, 14\/10/ }).click()
+    await expect(history).toContainText('Không có việc nào trong ngày này.')
+    await page.getByRole('button', { name: /, hôm nay:/ }).click()
+    await expect(history).toContainText('Xong lúc 12:01')
+    await expect(page.locator('.mbw-page')).not.toContainText('%')
+    await noHorizontalScroll(page, 'progress', (name) =>
+      testInfo.outputPath(name),
+    )
+
+    // Điều chỉnh: the review invite leads, the rest is a quiet list.
+    await page.getByRole('tab', { name: 'Điều chỉnh' }).click()
+    await expect(
+      page.getByRole('heading', { name: /^Lời mời xem lại: / }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Xem lại kế hoạch' }),
+    ).toHaveCount(1)
+    await expect(
+      page.getByRole('button', { name: 'Các kế hoạch trước' }),
+    ).toBeVisible()
+    await noHorizontalScroll(page, 'adjust', (name) =>
+      testInfo.outputPath(name),
+    )
+    expect(runtimeErrors).toEqual([])
   })
 })

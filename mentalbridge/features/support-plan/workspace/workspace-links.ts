@@ -91,13 +91,3 @@ export function actionDestination(
       return undefined
   }
 }
-
-/** Manual "done" exists only where Care records a user acknowledgement. */
-export function canAcknowledge(plan: SupportPlanV3, item: PlannedOccurrence) {
-  return (
-    plan.status === 'ACTIVE' &&
-    item.action.status === 'ACTIVE' &&
-    item.occurrence.state === 'SCHEDULED' &&
-    ['RESOURCE', 'ROUTINE_SELF_MANAGEMENT'].includes(item.action.actionType)
-  )
-}
