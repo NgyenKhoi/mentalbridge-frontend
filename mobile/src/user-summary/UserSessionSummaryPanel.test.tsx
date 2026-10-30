@@ -31,13 +31,27 @@ function makeApi(
   } as jest.Mocked<UserSummaryApi>
 }
 
-async function mount(api = makeApi()) {
-  const client = new QueryClient({
+function makeClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: Infinity },
       mutations: { retry: false, gcTime: Infinity },
     },
   })
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((complete, fail) => {
+    resolve = complete
+    reject = fail
+  })
+  return { promise, reject, resolve }
+}
+
+async function mount(api = makeApi()) {
+  const client = makeClient()
   const result = await render(
     <QueryClientProvider client={client}>
       <UserSessionSummaryPanel
@@ -392,6 +406,105 @@ describe('MB-724 USER SessionSummary controls', () => {
       expect(mounted.client.getQueryData(queryKey)).toBeUndefined(),
     )
   })
+
+  it.each(['success', 'authorization failure'] as const)(
+    'ignores a late mutation %s after switching identity',
+    async (settlement) => {
+      const otherUserId = '66666666-6666-4666-8666-666666666666'
+      const pending = deferred<ReturnType<typeof makeSessionSummary>>()
+      const original = makeSessionSummary()
+      const nextIdentitySummary = makeSessionSummary({
+        topicsDiscussed: ['Nội dung của tài khoản mới'],
+        userAccountId: otherUserId,
+      })
+      const oldApi = makeApi({
+        list: jest.fn().mockResolvedValue(makeSessionSummaryList([original])),
+        updateConsent: jest.fn().mockReturnValue(pending.promise),
+      })
+      const nextApi = makeApi({
+        list: jest
+          .fn()
+          .mockResolvedValue(makeSessionSummaryList([nextIdentitySummary])),
+      })
+      const client = makeClient()
+      const view = await render(
+        <QueryClientProvider client={client}>
+          <UserSessionSummaryPanel
+            key={USER_ID}
+            api={oldApi}
+            appointmentId={APPOINTMENT_ID}
+            userAccountId={USER_ID}
+          />
+        </QueryClientProvider>,
+      )
+      await screen.findByText(original.topicsDiscussed[0] ?? '')
+
+      await fireEvent.press(
+        screen.getByRole('switch', {
+          name: 'Cho phép tái sử dụng tóm tắt này',
+        }),
+      )
+      await waitFor(() => expect(oldApi.updateConsent).toHaveBeenCalledTimes(1))
+
+      await view.rerender(
+        <QueryClientProvider client={client}>
+          <UserSessionSummaryPanel
+            key={otherUserId}
+            api={nextApi}
+            appointmentId={APPOINTMENT_ID}
+            userAccountId={otherUserId}
+          />
+        </QueryClientProvider>,
+      )
+      expect(
+        await screen.findByText('Nội dung của tài khoản mới'),
+      ).toBeOnTheScreen()
+
+      await act(async () => {
+        if (settlement === 'success') {
+          pending.resolve(
+            makeSessionSummary({
+              reuseConsent: {
+                approved: true,
+                version: 1,
+                updatedAt: '2030-10-15T04:04:00.000Z',
+              },
+            }),
+          )
+          await pending.promise
+        } else {
+          pending.reject(
+            new ApiError({
+              code: 'FORBIDDEN',
+              message: 'revoked after account switch',
+              status: 403,
+            }),
+          )
+          await pending.promise.catch(() => undefined)
+        }
+      })
+
+      await waitFor(() =>
+        expect(
+          client.getQueryData([
+            'user-session-summaries',
+            USER_ID,
+            APPOINTMENT_ID,
+          ]),
+        ).toBeUndefined(),
+      )
+      await waitFor(() =>
+        expect(client.getMutationCache().getAll()).toHaveLength(0),
+      )
+      expect(screen.getByText('Nội dung của tài khoản mới')).toBeOnTheScreen()
+      expect(screen.queryByText('Đã cập nhật quyền tái sử dụng.')).toBeNull()
+      expect(
+        screen.queryByText(
+          'Không thể xem hoặc thay đổi tóm tắt cho lịch hẹn này.',
+        ),
+      ).toBeNull()
+    },
+  )
 
   it('lets the user revoke reuse for an older exact summary without exposing versions', async () => {
     const previous = makeSessionSummary({

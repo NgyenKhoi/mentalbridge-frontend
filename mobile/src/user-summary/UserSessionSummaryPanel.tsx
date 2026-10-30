@@ -27,6 +27,11 @@ type Command =
       hidden: boolean
     }
 
+type MutationRequest = Readonly<{
+  command: Command
+  scope: string
+}>
+
 const STEP_LABELS: Record<
   SessionSummary['agreedNextSteps'][number]['type'],
   string
@@ -367,6 +372,7 @@ export function UserSessionSummaryPanel({
     () => ['user-session-summaries', userAccountId, appointmentId] as const,
     [appointmentId, userAccountId],
   )
+  const mutationScope = `${userAccountId}:${appointmentId}`
   const [locked, setLocked] = useState(false)
   const [authorizationFailure, setAuthorizationFailure] =
     useState<ApiError | null>(null)
@@ -374,6 +380,7 @@ export function UserSessionSummaryPanel({
   const [noticeTone, setNoticeTone] = useState<'success' | 'error'>('success')
   const [showHistory, setShowHistory] = useState(false)
   const mounted = useRef(true)
+  const activeMutationScope = useRef<string | null>(mutationScope)
   const failClosed = useCallback(
     (error: ApiError) => {
       if (mounted.current) {
@@ -401,8 +408,12 @@ export function UserSessionSummaryPanel({
   })
   useEffect(() => {
     mounted.current = true
+    activeMutationScope.current = mutationScope
     return () => {
       mounted.current = false
+      if (activeMutationScope.current === mutationScope) {
+        activeMutationScope.current = null
+      }
       queryClient.setQueryData<SessionSummaryList>(queryKey, REDACTED_SUMMARIES)
       void Promise.resolve().then(() => {
         const query = queryClient
@@ -413,9 +424,10 @@ export function UserSessionSummaryPanel({
         }
       })
     }
-  }, [queryClient, queryKey])
+  }, [mutationScope, queryClient, queryKey])
   const mutation = useMutation({
-    mutationFn: (command: Command) => {
+    gcTime: 0,
+    mutationFn: ({ command }: MutationRequest) => {
       if (command.kind === 'consent') {
         return api.updateConsent(
           appointmentId,
@@ -431,7 +443,10 @@ export function UserSessionSummaryPanel({
         command.step.stateVersion ?? 0,
       )
     },
-    onSuccess: (updated, command) => {
+    onSuccess: (updated, request) => {
+      if (!mounted.current || activeMutationScope.current !== request.scope)
+        return
+      const { command } = request
       queryClient.setQueryData<SessionSummaryList>(queryKey, (current) =>
         replaceSummary(current, updated),
       )
@@ -442,7 +457,10 @@ export function UserSessionSummaryPanel({
       )
       setNoticeTone('success')
     },
-    onError: (error, command) => {
+    onError: (error, request) => {
+      if (!mounted.current || activeMutationScope.current !== request.scope)
+        return
+      const { command } = request
       if (isAuthorizationFailure(error)) {
         failClosed(error)
         return
@@ -487,7 +505,7 @@ export function UserSessionSummaryPanel({
     )
       return
     setNotice('')
-    mutation.mutate(command)
+    mutation.mutate({ command, scope: mutationScope })
   }
 
   return (
@@ -584,7 +602,7 @@ export function UserSessionSummaryPanel({
       {latest ? (
         <SummaryCard
           busy={mutation.isPending || summariesQuery.isFetching}
-          command={mutation.isPending ? mutation.variables : undefined}
+          command={mutation.isPending ? mutation.variables?.command : undefined}
           locked={locked || summariesQuery.isError}
           onCommand={run}
           summary={latest}
@@ -606,7 +624,9 @@ export function UserSessionSummaryPanel({
                 <SummaryCard
                   key={summary.id}
                   busy={mutation.isPending || summariesQuery.isFetching}
-                  command={mutation.isPending ? mutation.variables : undefined}
+                  command={
+                    mutation.isPending ? mutation.variables?.command : undefined
+                  }
                   locked={locked || summariesQuery.isError}
                   onCommand={run}
                   summary={summary}
