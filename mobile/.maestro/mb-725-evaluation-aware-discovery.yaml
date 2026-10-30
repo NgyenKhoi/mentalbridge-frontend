@@ -16,7 +16,11 @@ name: MB-725 owned evaluation context through specialist discovery
     direction: DOWN
 - tapOn: 'Tìm chuyên gia phù hợp'
 - assertVisible: 'Tìm chuyên gia'
-- assertVisible: 'Thứ tự và lý do hiển thị được cung cấp bởi hệ thống; không phân tích nhật ký hay trò chuyện của bạn.'
+- scrollUntilVisible:
+    element:
+      text: 'Có lĩnh vực hỗ trợ trùng với gợi ý sau bài sàng lọc được chọn.'
+    direction: DOWN
+- assertVisible: 'Có lĩnh vực hỗ trợ trùng với gợi ý sau bài sàng lọc được chọn.'
 - scrollUntilVisible:
     element:
       id: 'discovery-open-${MAESTRO_MB_DISCOVERY_SPECIALIST_ID}'

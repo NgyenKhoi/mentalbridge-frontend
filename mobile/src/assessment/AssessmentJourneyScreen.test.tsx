@@ -197,7 +197,7 @@ const guide: SupportGuide = {
   supportGuideId: '30000000-0000-4000-8000-000000000101',
   guideVersion: 1,
   guidePolicyVersion: 'mb-support-guide-capstone-v1',
-  supportEvaluationId: evaluation.supportEvaluationId,
+  supportEvaluationId: completedEpisode.supportEvaluationId!,
   generatedAt: '2026-10-06T08:05:00.000Z',
   guideType: 'ONE_TIME_SUPPORT_GUIDE',
   explanation: {

@@ -394,10 +394,16 @@ describe('MB-630 authoritative USER appointments', () => {
     )
 
     await reviewRequest()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }),
+    )
+    await screen.findByText('Chi tiết lịch hẹn')
 
+    expect(service.discovery.list).toHaveBeenCalledTimes(2)
     expect(service.discovery.list).toHaveBeenLastCalledWith({
       supportEvaluationId,
     })
+    expect(service.discovery.detail).toHaveBeenCalledTimes(2)
     expect(service.discovery.detail).toHaveBeenLastCalledWith(
       selection.slot.specialistAccountId,
       { supportEvaluationId },
