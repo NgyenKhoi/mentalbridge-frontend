@@ -1,5 +1,11 @@
-import { expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import { test } from './test-fixtures'
+
+/** One row of the Today list, found by its title heading. */
+const todayRow = (page: Page, title: string) =>
+  page.getByRole('listitem').filter({
+    has: page.getByRole('heading', { name: title, exact: true }),
+  })
 import type { EmotionCheckIn } from '../../lib/emotion-check-in/contract'
 import {
   emotionCompletionFixture,
@@ -190,8 +196,7 @@ test.describe('MB-641 canonical Emotion action', () => {
       return route.continue()
     })
     await page.goto('/support-plan')
-    const activity = () =>
-      page.getByRole('region', { name: 'Check-in cảm xúc', exact: true })
+    const activity = () => todayRow(page, 'Check-in cảm xúc')
     await expect(activity()).toBeVisible()
     expect(checks).toBe(0)
     for (const [width, height] of [
@@ -288,13 +293,12 @@ test.describe('MB-641 canonical Emotion action', () => {
     await page
       .getByRole('link', { name: 'Quay lại hoạt động trong kế hoạch' })
       .click()
-    const done = page.getByRole('region', { name: 'Đã ghi nhận hôm nay' })
-    await expect(done).toContainText('Check-in cảm xúc')
-    await expect(done).toContainText('Đã xong')
+    const done = todayRow(page, 'Check-in cảm xúc')
+    await expect(done).toContainText(/Đã xong|Xong lúc/)
     expect(checks).toBe(1)
     expect(occurrence.state).toBe('COMPLETED')
     await page.reload()
-    await expect(done).toContainText('Đã xong')
+    await expect(done).toContainText(/Đã xong|Xong lúc/)
     // Accepted completion is not re-checked on every reload.
     expect(checks).toBe(1)
     unavailable = true

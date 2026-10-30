@@ -885,11 +885,13 @@
 }
 
 .mbw-next[data-mam] h2,
-.mbw-action-list li[data-mam] .mbw-row-title {
+.mbw-action-list li[data-mam] .mbw-row-title,
+.mbw-row[data-mam] .mbw-row-title {
   padding-right: 44px;
 }
 
 .mbw-next[data-mam]::after,
+.mbw-row[data-mam]::after,
 .mbw-action-list li[data-mam]::after {
   content: '';
   position: absolute;
@@ -901,11 +903,13 @@
   transition: opacity var(--motion-instant) var(--ease-standard);
 }
 
+.mbw-row[data-mam]::after,
 .mbw-action-list li[data-mam]::after {
   border-radius: calc(var(--radius-control) + 4px);
 }
 
 .mbw-next[data-mam-active]::after,
+.mbw-row[data-mam-active]::after,
 .mbw-action-list li[data-mam-active]::after {
   opacity: 1;
 }
@@ -966,7 +970,914 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mbw-next[data-mam]::after,
+  .mbw-row[data-mam]::after,
   .mbw-action-list li[data-mam]::after {
     transition: none;
+  }
+}
+
+/* MB-783 header: title, cycle line and the cycle as a row of days. */
+.mbw-header-cycle {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-2) var(--space-6);
+}
+
+.mbw-header-main {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mbw-review-date {
+  font-size: var(--type-card-meta-size);
+  line-height: var(--type-card-meta-leading);
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+.mbw-review-date strong {
+  display: block;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+/* Fixed-size pips that wrap: a cycle stretched by paused days never scrolls the page. */
+.mbw-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 3px;
+}
+
+.mbw-week-times {
+  display: none;
+}
+
+.mbw-pip {
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  overflow: hidden;
+  border: 2px solid color-mix(in srgb, var(--ink-soft) 55%, transparent);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.mbw-pip i {
+  position: absolute;
+  inset: 0;
+  background: var(--teal);
+  transform-origin: left center;
+}
+
+.mbw-pip.is-done,
+.mbw-pip.is-partial {
+  border-color: var(--teal);
+}
+
+.mbw-pip.is-future {
+  border-color: var(--line);
+}
+
+.mbw-pip.is-unknown {
+  border-color: var(--line);
+  border-style: dotted;
+}
+
+.mbw-pip.is-review {
+  border-color: var(--teal);
+  border-style: dashed;
+}
+
+/* Today is ringed; its fill is today's done share. */
+.mbw-pip.is-today {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+}
+
+/* Hôm nay: day heading, count, bar, then rows in time order. */
+.mbw-day {
+  gap: var(--space-4);
+}
+
+.mbw-day-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+}
+
+.mbw-settle {
+  display: inline-block;
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  animation: mbw-arrive var(--motion-base) var(--ease-standard) both;
+}
+
+.mbw-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+}
+
+.mbw-bar i {
+  display: block;
+  height: 100%;
+  background: var(--teal);
+  transform-origin: left center;
+}
+
+.mbw-rows {
+  display: grid;
+  gap: var(--space-1);
+  /* globals.css resets ul only; the ol keeps list semantics without the "1." marker. */
+  list-style: none;
+}
+
+.mbw-row {
+  position: relative;
+  border-radius: var(--radius-control);
+  scroll-margin-top: 96px;
+}
+
+/* Rows are stacking contexts (layout motion); lift the one whose explanation bubble overflows it. */
+.mbw-row:has(.support-plan-contextual-bubble),
+.mbw-row:focus-within {
+  z-index: 2;
+}
+
+.mbw-row:focus-visible,
+.mbw-earlier li:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.mbw-row.is-next {
+  background: var(--surface-soft);
+}
+
+.mbw-row.is-returned {
+  outline: 2px solid var(--teal-pale);
+  outline-offset: 2px;
+}
+
+/* Reading-order entrance on the first render only: rows keep their element on refetch. */
+.mbw-row-grid {
+  display: grid;
+  grid-template-columns: 48px 24px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3);
+  animation: mbw-arrive var(--motion-medium) var(--ease-standard) both;
+  animation-delay: calc(min(var(--i, 0), 6) * 60ms);
+}
+
+.mbw-row-time {
+  padding-top: 2px;
+  font-size: var(--type-card-meta-size);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.mbw-row-dot {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid color-mix(in srgb, var(--ink-soft) 55%, transparent);
+  border-radius: 50%;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard);
+}
+
+.mbw-row-dot path {
+  stroke: var(--primary-foreground);
+  stroke-linecap: round;
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  transition: stroke-dashoffset var(--motion-medium) var(--ease-standard) 80ms;
+}
+
+.mbw-row.is-next .mbw-row-dot {
+  border-color: var(--teal);
+}
+
+.mbw-row.is-done .mbw-row-dot {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
+.mbw-row.is-done .mbw-row-dot path {
+  stroke-dashoffset: 0;
+}
+
+.mbw-row.is-skipped .mbw-row-dot::after {
+  content: '';
+  width: 8px;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--ink-soft);
+}
+
+.mbw-row.is-cancelled .mbw-row-dot,
+.mbw-row.is-unknown .mbw-row-dot {
+  border-style: dashed;
+}
+
+.mbw-row-main {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mbw-row-open {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.mbw-row .mbw-row-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mbw-row.is-next .mbw-row-title {
+  font-size: clamp(20px, 2.4vw, 24px);
+}
+
+.mbw-row.is-done .mbw-row-title,
+.mbw-row.is-skipped .mbw-row-title,
+.mbw-row.is-cancelled .mbw-row-title {
+  color: var(--ink-soft);
+}
+
+.mbw-now {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-inline: var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--amber-deep);
+}
+
+.mbw-now::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--amber);
+  opacity: 0.6;
+}
+
+.mbw-daydone {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+.mbw-daydone svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--teal);
+}
+
+.mbw-earlier {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.mbw-earlier h3 {
+  font-size: 18px;
+}
+
+.mbw-earlier ul {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mbw-earlier li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  scroll-margin-top: 96px;
+}
+
+/* Press feedback on every control of the day. */
+.mbw-today
+  :is(
+    .mbw-primary,
+    .mbw-secondary,
+    .mbw-chip,
+    .mbw-text-button,
+    .mbw-row-link
+  ) {
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    text-decoration-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+.mbw-today
+  :is(
+    .mbw-primary,
+    .mbw-secondary,
+    .mbw-chip,
+    .mbw-text-button,
+    .mbw-row-link
+  ):active:not(:disabled) {
+  transform: scale(var(--motion-scale-enter));
+}
+
+@media (max-width: 640px) {
+  .mbw-header-cycle {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mbw-review-date {
+    text-align: left;
+  }
+
+  .mbw-row-grid {
+    grid-template-columns: 40px 24px minmax(0, 1fr);
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .mbw-row-open .mbw-actions > .mbw-primary {
+    flex: 1 1 100%;
+  }
+
+  /* Room above the Help Now button so it never covers a row action. */
+  .mbw-today {
+    padding-bottom: 80px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mbw-row-grid,
+  .mbw-settle {
+    animation: none;
+  }
+
+  .mbw-row-dot,
+  .mbw-row-dot path {
+    transition: none;
+  }
+}
+
+/* Safety help is on screen: nothing here moves. */
+.mbw-today[data-still] .mbw-row-grid,
+.mbw-today[data-still] .mbw-settle {
+  animation: none;
+}
+
+.mbw-today[data-still] .mbw-row-dot,
+.mbw-today[data-still] .mbw-row-dot path {
+  transition: none;
+}
+
+/* Tab panels arrive in reading order once; kept elements do not replay on refetch. */
+.mbw-plan > *,
+.mbw-progress > *,
+.mbw-adjust > * {
+  animation: mbw-arrive var(--motion-medium) var(--ease-standard) both;
+}
+
+.mbw-plan > :nth-child(2),
+.mbw-progress > :nth-child(2),
+.mbw-adjust > :nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.mbw-plan > :nth-child(3),
+.mbw-progress > :nth-child(3),
+.mbw-adjust > :nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.mbw-plan > :nth-child(n + 4),
+.mbw-progress > :nth-child(n + 4),
+.mbw-adjust > :nth-child(n + 4) {
+  animation-delay: 180ms;
+}
+
+/* Kế hoạch: one row per việc, the week across. */
+.mbw-plan-head {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.mbw-plan-head h2 {
+  font-size: var(--type-card-title-size);
+  line-height: var(--type-card-title-leading);
+}
+
+.mbw-week {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.mbw-week thead th {
+  padding: var(--space-1) 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.mbw-week thead th:first-child {
+  width: clamp(150px, 28%, 240px);
+  text-align: left;
+}
+
+.mbw-week thead th.is-today,
+.mbw-week td.is-today {
+  background: color-mix(in srgb, var(--teal-pale) 35%, transparent);
+}
+
+.mbw-week thead th.is-today {
+  color: var(--ink);
+  border-bottom: 2px solid var(--teal);
+}
+
+.mbw-week-item {
+  scroll-margin-top: 96px;
+}
+
+.mbw-week-item:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.mbw-week-item + .mbw-week-item > tr:first-child > * {
+  border-top: 1px solid var(--line);
+}
+
+.mbw-week-title {
+  padding: var(--space-3) var(--space-3) var(--space-3) 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.mbw-week-cell {
+  padding: var(--space-2) 2px;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.mbw-week-chip {
+  display: inline-block;
+  min-width: 44px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--space-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+
+.mbw-week-cell.is-on .mbw-week-chip {
+  background: var(--teal-pale);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.mbw-week-day {
+  display: none;
+}
+
+.mbw-week-note {
+  padding: var(--space-3) 0;
+  font-size: var(--type-card-meta-size);
+  color: var(--ink-soft);
+}
+
+.mbw-week-why > td {
+  position: relative;
+  padding: 0 0 var(--space-2);
+}
+
+.mbw-week-item[data-mam] .mbw-week-why > td {
+  padding-right: 52px;
+}
+
+.mbw-week-item[data-mam] {
+  position: relative;
+}
+
+.mbw-week-item[data-mam]::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid color-mix(in srgb, var(--teal) 55%, transparent);
+  border-radius: calc(var(--radius-control) + 4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-instant) var(--ease-standard);
+}
+
+.mbw-week-item[data-mam-active]::after {
+  opacity: 1;
+}
+
+/* Tiến triển: the cycle as buttons, the chosen day with its history, honest counts. */
+.mbw-mapbox {
+  gap: var(--space-4);
+}
+
+.mbw-map-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+}
+
+.mbw-map-head h2 {
+  font-size: var(--type-card-title-size);
+  line-height: var(--type-card-title-leading);
+}
+
+.mbw-map {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 14), minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.mbw-map-week {
+  display: contents;
+}
+
+.mbw-map-weeklabel {
+  display: none;
+}
+
+.mbw-mapday {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--space-1);
+  min-height: 60px;
+  padding: var(--space-2) 0;
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+.mbw-mapday:hover {
+  background: var(--surface-soft);
+}
+
+.mbw-mapday:active {
+  transform: scale(var(--motion-scale-enter));
+}
+
+.mbw-mapday:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.mbw-day-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--teal);
+  border-radius: var(--radius-control);
+  pointer-events: none;
+}
+
+.mbw-day-wd {
+  font-size: 11px;
+}
+
+.mbw-day-n {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.mbw-mapday.is-today .mbw-day-wd {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.mbw-day-dot {
+  position: relative;
+  overflow: hidden;
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--ink-soft) 55%, transparent);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.mbw-mapday.is-done .mbw-day-dot {
+  border-color: var(--teal);
+  background: var(--teal);
+}
+
+.mbw-mapday.is-partial .mbw-day-dot {
+  border-color: var(--teal);
+}
+
+/* Partial day: half filled; the button name carries the counts in text. */
+.mbw-mapday.is-partial .mbw-day-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0 50% 0 0;
+  background: var(--teal);
+}
+
+.mbw-mapday.is-future .mbw-day-dot {
+  border-color: var(--line);
+}
+
+.mbw-mapday.is-unknown .mbw-day-dot {
+  border-color: var(--line);
+  border-style: dotted;
+}
+
+.mbw-mapday.is-review .mbw-day-dot {
+  border-style: dashed;
+  border-color: var(--teal);
+}
+
+.mbw-hist {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mbw-hist h3 {
+  font-size: 16px;
+}
+
+.mbw-hist ul {
+  display: grid;
+}
+
+.mbw-hist li {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line); /* taste-skill-ignore: separator between history rows of one day */
+}
+
+.mbw-hist li:first-child {
+  border-top: 0;
+}
+
+.mbw-hist-time {
+  font-size: var(--type-card-meta-size);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.mbw-hist-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mbw-hist li.is-cancelled .mbw-hist-title {
+  color: var(--ink-soft);
+}
+
+.mbw-hist-state {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.mbw-hist li.is-done .mbw-hist-state {
+  background: var(--teal-pale);
+}
+
+.mbw-hist li.is-missed .mbw-hist-state,
+.mbw-hist li.is-upcoming .mbw-hist-state {
+  background: transparent;
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
+}
+
+.mbw-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.mbw-count {
+  display: grid;
+  gap: 2px;
+  min-width: 112px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+}
+
+.mbw-count dt {
+  font-size: var(--type-card-meta-size);
+  color: var(--ink-soft);
+}
+
+.mbw-count dd {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Điều chỉnh: the one thing that matters now, then a quiet list. */
+.mbw-nowcard h2 {
+  font-size: var(--type-card-title-size);
+  line-height: var(--type-card-title-leading);
+  text-wrap: balance;
+}
+
+.mbw-quiet-list > details {
+  border-top: 1px solid var(--line); /* taste-skill-ignore: separator between the disclosure rows of one list */
+}
+
+.mbw-quiet-list > details:first-child {
+  border-top: 0;
+}
+
+@media (max-width: 639px) {
+  .mbw-plan,
+  .mbw-progress,
+  .mbw-adjust {
+    /* Room above the Help Now button so it never covers a control. */
+    padding-bottom: 80px;
+  }
+
+  .mbw-week,
+  .mbw-week tbody,
+  .mbw-week tr,
+  .mbw-week th,
+  .mbw-week td {
+    display: block;
+  }
+
+  .mbw-week thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .mbw-week-item {
+    margin-bottom: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-control);
+    background: var(--surface-soft);
+  }
+
+  .mbw-week-item + .mbw-week-item > tr:first-child > * {
+    border-top: 0;
+  }
+
+  .mbw-week-item > tr:first-child {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+
+  .mbw-week-title,
+  .mbw-week-note {
+    grid-column: 1 / -1;
+    padding: 0 0 var(--space-2);
+  }
+
+  .mbw-week-cell {
+    padding: 0;
+  }
+
+  .mbw-week td.is-today {
+    background: none;
+  }
+
+  .mbw-week-chip {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    min-width: 0;
+    min-height: 48px;
+    padding: var(--space-1) 0;
+    font-size: 12px;
+  }
+
+  .mbw-week-cell.is-today .mbw-week-chip {
+    outline: 2px solid var(--teal);
+  }
+
+  .mbw-week-day {
+    display: block;
+    font-size: 11px;
+  }
+
+  .mbw-week-times {
+    display: inline;
+    color: var(--ink);
+  }
+
+  /* The time moves to the title line; the chip keeps it for screen readers. */
+  .mbw-week-time {
+    position: absolute;
+    width: 1px; /* taste-skill-ignore: visually hidden text, not a divider */
+    height: 1px; /* taste-skill-ignore: visually hidden text */
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .mbw-week-cell.is-on .mbw-week-chip::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--teal);
+  }
+
+  .mbw-week-why > td {
+    padding-top: var(--space-2);
+  }
+
+  .mbw-map {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .mbw-map-week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+
+  .mbw-map-weeklabel {
+    display: block;
+    grid-column: 1 / -1;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  .mbw-hist li {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: var(--space-1) var(--space-2);
+  }
+
+  .mbw-hist-state {
+    grid-column: 2;
+    justify-self: start;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mbw-plan > *,
+  .mbw-progress > *,
+  .mbw-adjust > * {
+    animation: none;
+  }
+
+  .mbw-mapday,
+  .mbw-week-item[data-mam]::after {
+    transition: none;
+  }
+}
+
+/* Safety help is on screen: the other tabs hold still too. */
+.mbw-tabpanel[data-still] :is(.mbw-plan, .mbw-progress, .mbw-adjust) > * {
+  animation: none;
+}
+
+/* Fourteen pips stay on one line at 375 px; only paused-extended cycles wrap. */
+@media (max-width: 479px) {
+  .mbw-strip {
+    gap: 4px;
+  }
+
+  .mbw-pip {
+    width: 16px;
+    height: 16px;
   }
 }

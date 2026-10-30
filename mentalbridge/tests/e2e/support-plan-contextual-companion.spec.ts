@@ -1,10 +1,16 @@
-import { expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 
 import {
   emotionOccurrenceFixture,
   nativeSupportPlanFixture,
 } from '../../features/support-plan/testing/native-support-plan-fixture'
 import { test } from './test-fixtures'
+
+/** One row of the Today list, found by its title heading. */
+const todayRow = (page: Page, title: string) =>
+  page.getByRole('listitem').filter({
+    has: page.getByRole('heading', { name: title, exact: true }),
+  })
 
 test.describe('MB-650 contextual SupportPlan Companion', () => {
   // MB-772: with the flag on, the global Mầm replaces this Companion (mam-support-plan.spec.ts).
@@ -142,10 +148,7 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/support-plan')
     // Today shows one next action; the explanation sits on that card only.
-    const activity = page.getByRole('region', {
-      name: 'Check-in cảm xúc',
-      exact: true,
-    })
+    const activity = todayRow(page, 'Check-in cảm xúc')
     const trigger = activity.getByRole('button', {
       name: /Nhờ bạn đồng hành giải thích/,
     })
@@ -154,9 +157,7 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
       exact: true,
     })
     await expect(activity).toBeVisible()
-    await expect(
-      page.getByRole('region', { name: 'Sau đó trong hôm nay' }),
-    ).toContainText('Bài thực hành tiếp theo')
+    await expect(todayRow(page, 'Bài thực hành tiếp theo')).toBeVisible()
     await trigger.focus()
     expect(requests).toBe(0)
     await trigger.click()

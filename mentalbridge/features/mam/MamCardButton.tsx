@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { MAM_ASSET } from './mam-contract'
 import { useMamPreferences } from './mam-preferences'
 import { requestMamSummon } from './mam-summon-request'
@@ -12,7 +13,9 @@ import { useMamAway, useMamSuppressed } from './use-mam-suppressed'
  * target it sits in: not rendered while Mầm is hidden, inert while suppressed
  * or `disabled`. With `onToggle` it is an inline control (a disclosure) that
  * never summons, so it stays while Mầm is hidden. Neither renders while Mầm is
- * away (an open modal or a feature's hide zone, e.g. a safety state).
+ * away (an open modal or a feature's hide zone, e.g. a safety state). When that
+ * removes the button while it has focus, focus moves to the card's heading
+ * (never to the page body), unless a modal is open and owns focus.
  */
 export function MamCardButton({
   id,
@@ -32,7 +35,26 @@ export function MamCardButton({
   const { hidden } = useMamPreferences()
   const suppressed = useMamSuppressed()
   const away = useMamAway()
-  if (away || (hidden && !onToggle)) return null
+  const gone = away || (hidden && !onToggle)
+  // The card the button sits in, kept only while the button holds focus.
+  const focusedCard = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    const card = focusedCard.current
+    if (!gone || !card) return
+    focusedCard.current = null
+    const focusLost =
+      !document.activeElement || document.activeElement === document.body
+    if (
+      !focusLost ||
+      !card.isConnected ||
+      document.querySelector('dialog[open], [aria-modal="true"]')
+    )
+      return
+    const target = card.querySelector<HTMLElement>('h1, h2, h3, h4') ?? card
+    if (!target.hasAttribute('tabindex')) target.tabIndex = -1
+    target.focus()
+  }, [gone])
+  if (gone) return null
   const inert = !onToggle && (disabled || suppressed)
   return (
     <button
@@ -44,6 +66,17 @@ export function MamCardButton({
       aria-disabled={inert || undefined}
       aria-expanded={expanded}
       aria-controls={controls}
+      onFocus={(event) => {
+        focusedCard.current =
+          event.currentTarget.closest<HTMLElement>('[data-mam]')
+      }}
+      onBlur={(event) => {
+        const button = event.currentTarget
+        // A removed button reports blur while detaching; only a still-mounted one lost focus.
+        queueMicrotask(() => {
+          if (button.isConnected) focusedCard.current = null
+        })
+      }}
       onClick={(event) => {
         if (onToggle) onToggle()
         else if (!inert) requestMamSummon(event.currentTarget, 'EXPLAIN')
