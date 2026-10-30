@@ -17,6 +17,11 @@ import {
 import type { DiscoveryApi } from '@/discovery/discovery-api'
 import { fixtureSpecialist } from '@/discovery/discovery-fixtures'
 import { slotLabel } from '@/discovery/discovery-model'
+import {
+  makeSessionSummary,
+  makeSessionSummaryList,
+} from '@/specialist-summary/specialist-summary-test-fixtures'
+import type { UserSummaryApi } from '@/user-summary/user-summary-api'
 import type { AppointmentApi } from './appointment-api'
 import type { Appointment } from './appointment-contract'
 import {
@@ -79,6 +84,7 @@ async function mount(
   handoff = true,
   originatingPlanActionId?: string,
   consultationBriefApi?: ConsultationBriefApi,
+  sessionSummaryApi?: UserSummaryApi,
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -91,6 +97,7 @@ async function mount(
         discovery={service.discovery}
         initialSelection={handoff ? selection : undefined}
         {...(originatingPlanActionId ? { originatingPlanActionId } : {})}
+        {...(sessionSummaryApi ? { sessionSummaryApi } : {})}
         onBack={jest.fn()}
       />
     </QueryClientProvider>
@@ -146,6 +153,46 @@ beforeEach(() => {
 })
 
 describe('MB-630 authoritative USER appointments', () => {
+  it('mounts MB-724 only for an authoritatively completed owned appointment', async () => {
+    const completed: Appointment = {
+      ...appointment,
+      status: 'COMPLETED',
+      sessionOutcome: 'COMPLETED',
+      sessionOutcomeReason: 'EVIDENCE_REQUIREMENTS_MET',
+      sessionPolicyVersion: 'chat-session-completion-v1',
+      sessionEndedAt: '2026-10-10T10:00:00Z',
+      sessionSettledAt: '2026-10-10T10:01:00Z',
+      completionFactId: '12121212-1212-4212-8212-121212121212',
+      creditState: 'CONSUMED',
+    }
+    const sessionSummaryApi: UserSummaryApi = {
+      list: jest.fn().mockResolvedValue(
+        makeSessionSummaryList([
+          makeSessionSummary({
+            appointmentId: completed.id,
+            userAccountId: subject,
+          }),
+        ]),
+      ),
+      updateConsent: jest.fn(),
+      updateStep: jest.fn(),
+    }
+    await mount(
+      services([completed]),
+      false,
+      undefined,
+      undefined,
+      sessionSummaryApi,
+    )
+
+    expect(screen.queryByTestId('user-session-summary-panel')).toBeNull()
+    await openDetail()
+    expect(
+      await screen.findByTestId('user-session-summary-panel'),
+    ).toBeOnTheScreen()
+    expect(sessionSummaryApi.list).toHaveBeenCalledWith(completed.id)
+  })
+
   it('mounts the MB-723 private brief only inside a confirmed appointment detail', async () => {
     const confirmed: Appointment = {
       ...appointment,
