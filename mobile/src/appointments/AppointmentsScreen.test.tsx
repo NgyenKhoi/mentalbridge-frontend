@@ -8,6 +8,7 @@ import {
 } from '@testing-library/react-native'
 import { AppState, type AppStateStatus } from 'react-native'
 import { ApiError } from '@/api/api-error'
+import type { AppointmentDisputeApi } from '@/appointment-dispute/appointment-dispute-api'
 import type { AppSession } from '@/auth/session'
 import type { ConsultationBriefApi } from '@/consultation-brief/consultation-brief-api'
 import {
@@ -43,13 +44,16 @@ jest.mock('@/auth/session-context', () => ({
 const problem = (status: number, code = 'DEPENDENCY_UNAVAILABLE') =>
   new ApiError({ status, code, message: 'synthetic' })
 const network = new ApiError({ code: 'NETWORK_ERROR', message: 'synthetic' })
-function services(initial: Appointment[] = []) {
+function services(
+  initial: Appointment[] = [],
+  generatedAt = credits.generatedAt,
+) {
   let items = initial
   const api: AppointmentApi = {
     list: jest.fn().mockImplementation(async () => ({
       items,
       count: items.length,
-      generatedAt: credits.generatedAt,
+      generatedAt,
     })),
     credits: jest.fn().mockResolvedValue(credits),
     slots: jest.fn().mockResolvedValue({
@@ -85,6 +89,7 @@ async function mount(
   originatingPlanActionId?: string,
   consultationBriefApi?: ConsultationBriefApi,
   sessionSummaryApi?: UserSummaryApi,
+  disputeApi?: AppointmentDisputeApi,
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -93,6 +98,7 @@ async function mount(
     <QueryClientProvider client={client}>
       <AppointmentsScreen
         api={service.api}
+        {...(disputeApi ? { disputeApi } : {})}
         {...(consultationBriefApi ? { consultationBriefApi } : {})}
         discovery={service.discovery}
         initialSelection={handoff ? selection : undefined}
@@ -105,6 +111,38 @@ async function mount(
   const result = await render(view())
   await screen.findByText('Lịch hẹn của bạn')
   return { ...result, ...service, client, view }
+}
+
+function completedAppointment(
+  id = appointment.id,
+  specialistDisplayName = appointment.specialistDisplayName,
+): Appointment {
+  return {
+    ...appointment,
+    id,
+    specialistDisplayName,
+    status: 'COMPLETED',
+    sessionOutcome: 'COMPLETED',
+    sessionOutcomeReason: 'EVIDENCE_REQUIREMENTS_MET',
+    sessionPolicyVersion: 'chat-session-completion-v1',
+    sessionEndedAt: '2026-10-10T10:00:00Z',
+    sessionSettledAt: '2026-10-10T10:01:00Z',
+    completionFactId: '12121212-1212-4212-8212-121212121212',
+    creditState: 'CONSUMED',
+  }
+}
+
+function disputeService(): AppointmentDisputeApi {
+  return {
+    get: jest.fn().mockRejectedValue(
+      new ApiError({
+        code: 'APPOINTMENT_DISPUTE_NOT_FOUND',
+        status: 404,
+        message: 'synthetic',
+      }),
+    ),
+    open: jest.fn(),
+  }
 }
 async function reviewRequest() {
   await fireEvent.press(
@@ -153,6 +191,82 @@ beforeEach(() => {
 })
 
 describe('MB-630 authoritative USER appointments', () => {
+  it('mounts MB-726 only inside the exact settled owner detail', async () => {
+    const completed = completedAppointment()
+    const disputeApi = disputeService()
+    await mount(
+      services([completed], '2026-10-10T18:00:00Z'),
+      false,
+      undefined,
+      undefined,
+      undefined,
+      disputeApi,
+    )
+
+    expect(screen.queryByTestId('appointment-dispute-panel')).toBeNull()
+    expect(disputeApi.get).not.toHaveBeenCalled()
+    await openDetail()
+    expect(
+      await screen.findByTestId('appointment-dispute-panel'),
+    ).toBeOnTheScreen()
+    expect(disputeApi.get).toHaveBeenCalledWith(completed.id)
+    expect(disputeApi.open).not.toHaveBeenCalled()
+  })
+
+  it('clears an unsubmitted MB-726 choice across A → B → A without a POST', async () => {
+    const first = completedAppointment(
+      '10101010-1010-4010-8010-101010101010',
+      'Chuyên gia A',
+    )
+    const second = completedAppointment(
+      '20202020-2020-4020-8020-202020202020',
+      'Chuyên gia B',
+    )
+    const disputeApi = disputeService()
+    await mount(
+      services([first, second], '2026-10-10T18:00:00Z'),
+      false,
+      undefined,
+      undefined,
+      undefined,
+      disputeApi,
+    )
+
+    const listButtons = await screen.findAllByTestId('appointment-open-detail')
+    const firstButton = listButtons[0]
+    const secondButton = listButtons[1]
+    if (!firstButton || !secondButton)
+      throw new Error('Expected two owner appointment actions')
+    await fireEvent.press(firstButton)
+    await screen.findByText('Chọn lý do phù hợp nhất')
+    await fireEvent.press(
+      screen.getByRole('radio', { name: 'Phiên gặp sự cố kỹ thuật' }),
+    )
+    expect(
+      screen.getByRole('button', { name: 'Gửi yêu cầu xem xét' }),
+    ).toBeEnabled()
+
+    await fireEvent.press(secondButton)
+    await waitFor(() => expect(disputeApi.get).toHaveBeenCalledWith(second.id))
+    const currentButtons = await screen.findAllByTestId(
+      'appointment-open-detail',
+    )
+    const backToFirst = currentButtons[0]
+    if (!backToFirst) throw new Error('First appointment action missing')
+    await fireEvent.press(backToFirst)
+    await waitFor(() =>
+      expect(
+        jest
+          .mocked(disputeApi.get)
+          .mock.calls.filter(([appointmentId]) => appointmentId === first.id),
+      ).toHaveLength(2),
+    )
+    expect(
+      screen.getByRole('button', { name: 'Gửi yêu cầu xem xét' }),
+    ).toBeDisabled()
+    expect(disputeApi.open).not.toHaveBeenCalled()
+  })
+
   it('mounts MB-724 only for an authoritatively completed owned appointment', async () => {
     const completed: Appointment = {
       ...appointment,
