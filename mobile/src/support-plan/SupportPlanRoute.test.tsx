@@ -80,3 +80,31 @@ it('preserves the existing typed Emotion origin', async () => {
     }),
   )
 })
+
+it.each([
+  ['RESOURCE', 'breathing-core'],
+  ['ROUTINE_SELF_MANAGEMENT', origin.actionId],
+  ['SELF_REPORT_REVIEW', origin.actionId],
+] as const)(
+  'separates the typed Home %s entry from Emotion and Journal origins',
+  async (actionType, actionId) => {
+    mockParams = {
+      source: 'home',
+      occurrenceId: origin.occurrenceId,
+      actionId,
+      actionType,
+      localDate: origin.localDate,
+    }
+    await render(<SupportPlanRoute />)
+    expect(mockWorkspace).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        origin: { state: 'none' },
+        journalOrigin: { state: 'none' },
+        homeOrigin: {
+          state: 'valid',
+          value: mockParams,
+        },
+      }),
+    )
+  },
+)

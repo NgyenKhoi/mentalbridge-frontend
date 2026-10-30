@@ -1,0 +1,25 @@
+appId: com.mentalbridge.mobile
+name: MB-663 Home next-step navigation only
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_HOME_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_HOME_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Hôm nay của bạn'
+- assertVisible: '${MAESTRO_MB_HOME_NEXT_STEP_TITLE}'
+- tapOn:
+    id: 'home-primary-action'
+- assertVisible: 'Kế hoạch hỗ trợ'
+- assertVisible: 'Hoạt động bạn vừa mở từ Trang chủ'
+- tapOn: '← Quay lại'
+- assertVisible: 'Hôm nay của bạn'
+- assertVisible: '${MAESTRO_MB_HOME_NEXT_STEP_TITLE}'
