@@ -70,6 +70,31 @@ describe('closed Voice BFF', () => {
       'synthetic-access',
     )
   })
+  it.each(['PLUS', 'PREMIUM'] as const)(
+    'preserves the server pilot cap for %s without reserving a session',
+    async (plan) => {
+      const value = eligibility(plan)
+      value.availableSessionSeconds = 90
+      const fetch = vi.fn().mockResolvedValue(Response.json(value))
+      vi.stubGlobal('fetch', fetch)
+      const response = await voiceBff(request(), ['eligibility'])
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({
+        availableSessionSeconds: 90,
+      })
+      expect(fetch).toHaveBeenCalledTimes(1)
+      expect(fetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({ method: 'GET' }),
+      )
+    },
+  )
+  it('rejects availability exceeding the unreserved daily quota', async () => {
+    const value = eligibility('PLUS', { availableSessionSeconds: 120 })
+    value.availableSessionSeconds = 121
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(value)))
+    expect((await voiceBff(request(), ['eligibility'])).status).toBe(502)
+  })
   it('routes only published public operations, retaining command keys', async () => {
     for (const [parts, value, owner] of [
       [['sessions'], session(), 'journal.test'],

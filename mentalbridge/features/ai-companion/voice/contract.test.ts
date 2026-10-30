@@ -50,10 +50,41 @@ describe('published Voice contracts', () => {
       }),
     ).toBe(false)
   })
-  it('rejects private content, malformed media bindings and missing fields', () => {
+  it.each([
+    ['PLUS', 90],
+    ['PREMIUM', 90],
+    ['PLUS', 1],
+  ] as const)(
+    'accepts a server operational cap for %s at %i seconds',
+    (plan, seconds) => {
+      const value = eligibility(plan)
+      value.quota.remainingSeconds = plan === 'PREMIUM' ? 1800 : 600
+      value.availableSessionSeconds = seconds
+      expect(decode('eligibility', value).availableSessionSeconds).toBe(seconds)
+    },
+  )
+  it('still rejects availability outside positive package and daily bounds', () => {
+    for (const seconds of [-1, 0, 90.5, 301])
+      expect(() =>
+        decode('eligibility', {
+          ...eligibility(),
+          availableSessionSeconds: seconds,
+        }),
+      ).toThrow()
+    const value = eligibility('PLUS', { availableSessionSeconds: 120 })
     expect(() =>
-      decode('eligibility', { ...eligibility(), availableSessionSeconds: 120 }),
+      decode('eligibility', { ...value, availableSessionSeconds: 121 }),
     ).toThrow()
+    expect(() =>
+      decode('eligibility', {
+        ...eligibility(),
+        eligible: false,
+        state: 'PROVIDER_UNAVAILABLE',
+        availableSessionSeconds: 90,
+      }),
+    ).toThrow()
+  })
+  it('rejects private content, malformed media bindings and missing fields', () => {
     expect(decode('connection', connection()).audioOnly).toBe(true)
     expect(
       validators.connection({ ...connection(), agentIdentity: 'vu-owner' }),
