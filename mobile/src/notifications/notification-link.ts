@@ -1,10 +1,33 @@
+import type { MobileRole } from '@/auth/session'
 import type { NotificationAction } from './notification-contract'
 import { z } from 'zod'
 
+function specialistNotificationDestination(action: NotificationAction) {
+  if (action.targetId !== null) return null
+
+  switch (action.type) {
+    case 'OPEN_MESSAGES':
+      return action.href === '/messages'
+        ? { pathname: '/(specialist)/messages' as const }
+        : null
+    case 'OPEN_SPECIALIST_APPOINTMENTS':
+      return action.href === '/specialist/appointments'
+        ? { pathname: '/(specialist)/appointments' as const }
+        : null
+    default:
+      return null
+  }
+}
+
 // Never pass a server href directly to router or Linking. Pair the action and
 // target with the exact published web path, then select an installed mobile route.
-export function notificationDestination(action: NotificationAction | null) {
+export function notificationDestination(
+  action: NotificationAction | null,
+  role: MobileRole,
+) {
   if (!action) return null
+  if (role === 'SPECIALIST') return specialistNotificationDestination(action)
+
   if (
     action.type === 'OPEN_COMMUNITY_CONVERSATION' ||
     action.type === 'OPEN_COMMUNITY_REQUEST' ||

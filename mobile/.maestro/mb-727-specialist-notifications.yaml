@@ -1,0 +1,29 @@
+appId: com.mentalbridge.mobile
+name: MB-727 specialist notification inbox and preferences
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_SPECIALIST_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_SPECIALIST_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Không gian chuyên môn của bạn'
+- tapOn: 'Thông báo chuyên môn'
+- assertVisible: 'Thông báo của bạn'
+- assertVisible: 'thông báo chưa đọc'
+- tapOn: 'Tùy chọn nhận thông báo'
+- assertVisible: 'Tùy chọn thông báo chuyên môn'
+- assertVisible: 'Lịch hẹn và tin nhắn'
+- assertVisible: 'Tài khoản và hệ thống'
+- assertNotVisible: 'Nhắc viết nhật ký'
+- tapOn: 'Về thông báo'
+- assertVisible: 'Thông báo của bạn'
+- tapOn: 'Về không gian của bạn'
+- assertVisible: 'Không gian chuyên môn của bạn'
