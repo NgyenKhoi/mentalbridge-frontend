@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
@@ -58,7 +58,24 @@ function isStale(error: unknown) {
   )
 }
 
-function errorCopy(error: unknown) {
+function isAuthorizationFailure(error: unknown): error is ApiError {
+  return (
+    error instanceof ApiError &&
+    (error.status === 401 || error.status === 403 || error.status === 404)
+  )
+}
+
+function isAmbiguousMutationFailure(error: unknown) {
+  if (!(error instanceof ApiError)) return true
+  return (
+    error.status === undefined ||
+    error.status === 0 ||
+    error.status === 408 ||
+    error.status >= 500
+  )
+}
+
+function readErrorCopy(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 401)
       return 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại để tiếp tục.'
@@ -67,7 +84,24 @@ function errorCopy(error: unknown) {
     if (error.status === 412 || error.status === 428)
       return 'Nội dung vừa thay đổi. Hãy tải lại tóm tắt trước khi thử tiếp.'
   }
-  return 'Chưa thể hoàn tất thay đổi. Nội dung đã xác nhận vẫn được giữ nguyên; hãy thử lại.'
+  return 'Chưa thể tải tóm tắt mới nhất. Hãy kiểm tra kết nối và thử lại.'
+}
+
+function mutationErrorCopy(error: unknown, command: Command) {
+  if (isAuthorizationFailure(error)) return readErrorCopy(error)
+  if (isStale(error)) return readErrorCopy(error)
+  if (isAmbiguousMutationFailure(error)) {
+    return command.kind === 'consent'
+      ? 'Chưa xác minh được quyền tái sử dụng sau yêu cầu vừa rồi. Hãy tải lại tóm tắt trước khi thao tác tiếp.'
+      : 'Chưa xác minh được trạng thái bước sau yêu cầu vừa rồi. Hãy tải lại tóm tắt trước khi thao tác tiếp.'
+  }
+  return 'Máy chủ không chấp nhận thay đổi. Hãy kiểm tra lựa chọn và thử lại.'
+}
+
+const REDACTED_SUMMARIES: SessionSummaryList = {
+  items: [],
+  count: 0,
+  generatedAt: '1970-01-01T00:00:00.000Z',
 }
 
 function replaceSummary(
@@ -322,22 +356,64 @@ function SummaryCard({
 export function UserSessionSummaryPanel({
   api,
   appointmentId,
+  userAccountId,
 }: Readonly<{
   api: UserSummaryApi
   appointmentId: string
+  userAccountId: string
 }>) {
   const queryClient = useQueryClient()
-  const queryKey = ['user-session-summaries', appointmentId] as const
+  const queryKey = useMemo(
+    () => ['user-session-summaries', userAccountId, appointmentId] as const,
+    [appointmentId, userAccountId],
+  )
   const [locked, setLocked] = useState(false)
+  const [authorizationFailure, setAuthorizationFailure] =
+    useState<ApiError | null>(null)
   const [notice, setNotice] = useState('')
   const [noticeTone, setNoticeTone] = useState<'success' | 'error'>('success')
   const [showHistory, setShowHistory] = useState(false)
+  const mounted = useRef(true)
+  const failClosed = useCallback(
+    (error: ApiError) => {
+      if (mounted.current) {
+        setAuthorizationFailure(error)
+        setLocked(true)
+        setShowHistory(false)
+        setNotice('')
+      }
+      queryClient.setQueryData<SessionSummaryList>(queryKey, REDACTED_SUMMARIES)
+    },
+    [queryClient, queryKey],
+  )
   const summariesQuery = useQuery({
     queryKey,
-    queryFn: () => api.list(appointmentId),
+    queryFn: async () => {
+      try {
+        return await api.list(appointmentId)
+      } catch (error) {
+        if (isAuthorizationFailure(error)) failClosed(error)
+        throw error
+      }
+    },
     retry: false,
     staleTime: 0,
   })
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      queryClient.setQueryData<SessionSummaryList>(queryKey, REDACTED_SUMMARIES)
+      void Promise.resolve().then(() => {
+        const query = queryClient
+          .getQueryCache()
+          .find({ queryKey, exact: true })
+        if (!query || query.getObserversCount() === 0) {
+          queryClient.removeQueries({ queryKey, exact: true })
+        }
+      })
+    }
+  }, [queryClient, queryKey])
   const mutation = useMutation({
     mutationFn: (command: Command) => {
       if (command.kind === 'consent') {
@@ -366,9 +442,13 @@ export function UserSessionSummaryPanel({
       )
       setNoticeTone('success')
     },
-    onError: (error) => {
-      if (isStale(error)) setLocked(true)
-      setNotice(errorCopy(error))
+    onError: (error, command) => {
+      if (isAuthorizationFailure(error)) {
+        failClosed(error)
+        return
+      }
+      if (isStale(error) || isAmbiguousMutationFailure(error)) setLocked(true)
+      setNotice(mutationErrorCopy(error, command))
       setNoticeTone('error')
     },
   })
@@ -377,20 +457,35 @@ export function UserSessionSummaryPanel({
     setNotice('')
     const result = await summariesQuery.refetch()
     if (result.isSuccess) {
+      setAuthorizationFailure(null)
       setLocked(false)
+      mutation.reset()
       setNotice('Đã tải tóm tắt mới nhất.')
       setNoticeTone('success')
     } else {
-      setNotice(errorCopy(result.error))
-      setNoticeTone('error')
+      if (isAuthorizationFailure(result.error)) {
+        failClosed(result.error)
+      } else {
+        setNotice('')
+      }
     }
   }
 
-  const list = summariesQuery.data
+  const activeAuthorizationFailure =
+    authorizationFailure ??
+    (isAuthorizationFailure(summariesQuery.error) ? summariesQuery.error : null)
+  const list = activeAuthorizationFailure ? undefined : summariesQuery.data
   const latest = list?.items[0]
   const older = list?.items.slice(1) ?? []
   const run = (command: Command) => {
-    if (mutation.isPending || locked || summariesQuery.isFetching) return
+    if (
+      mutation.isPending ||
+      locked ||
+      summariesQuery.isFetching ||
+      summariesQuery.isError ||
+      activeAuthorizationFailure
+    )
+      return
     setNotice('')
     mutation.mutate(command)
   }
@@ -418,7 +513,7 @@ export function UserSessionSummaryPanel({
           Đang cập nhật tóm tắt. Các thay đổi tạm dừng.
         </Text>
       ) : null}
-      {notice ? (
+      {notice && !summariesQuery.isError && !activeAuthorizationFailure ? (
         <Text
           accessibilityLiveRegion={
             noticeTone === 'error' ? 'assertive' : 'polite'
@@ -428,10 +523,23 @@ export function UserSessionSummaryPanel({
           {notice}
         </Text>
       ) : null}
-      {summariesQuery.isError && list && !notice ? (
+      {activeAuthorizationFailure ? (
         <View style={styles.stateBox}>
           <Text accessibilityRole="alert" style={styles.body}>
-            {errorCopy(summariesQuery.error)}
+            {readErrorCopy(activeAuthorizationFailure)}
+          </Text>
+          <ActionButton
+            disabled={summariesQuery.isFetching}
+            label="Tải lại"
+            onPress={() => void refresh()}
+            testID="user-summary-reload-authorization"
+          />
+        </View>
+      ) : null}
+      {!activeAuthorizationFailure && summariesQuery.isError && list ? (
+        <View style={styles.stateBox}>
+          <Text accessibilityRole="alert" style={styles.body}>
+            {readErrorCopy(summariesQuery.error)}
           </Text>
           <ActionButton
             disabled={summariesQuery.isFetching}
@@ -440,10 +548,10 @@ export function UserSessionSummaryPanel({
           />
         </View>
       ) : null}
-      {summariesQuery.isError && !list ? (
+      {!activeAuthorizationFailure && summariesQuery.isError && !list ? (
         <View style={styles.stateBox}>
           <Text accessibilityRole="alert" style={styles.body}>
-            {errorCopy(summariesQuery.error)}
+            {readErrorCopy(summariesQuery.error)}
           </Text>
           <ActionButton
             disabled={summariesQuery.isFetching}
@@ -452,15 +560,15 @@ export function UserSessionSummaryPanel({
           />
         </View>
       ) : null}
-      {locked ? (
+      {locked && !activeAuthorizationFailure ? (
         <ActionButton
           disabled={summariesQuery.isFetching}
           label="Tải lại tóm tắt"
           onPress={() => void refresh()}
-          testID="user-summary-reload-stale"
+          testID="user-summary-reload-required"
         />
       ) : null}
-      {summariesQuery.isSuccess && !latest ? (
+      {!activeAuthorizationFailure && summariesQuery.isSuccess && !latest ? (
         <View style={styles.stateBox}>
           <Text style={styles.subtitle}>Chưa có tóm tắt được chia sẻ</Text>
           <Text style={styles.body}>
@@ -477,7 +585,7 @@ export function UserSessionSummaryPanel({
         <SummaryCard
           busy={mutation.isPending || summariesQuery.isFetching}
           command={mutation.isPending ? mutation.variables : undefined}
-          locked={locked}
+          locked={locked || summariesQuery.isError}
           onCommand={run}
           summary={latest}
         />
@@ -499,7 +607,7 @@ export function UserSessionSummaryPanel({
                   key={summary.id}
                   busy={mutation.isPending || summariesQuery.isFetching}
                   command={mutation.isPending ? mutation.variables : undefined}
-                  locked={locked}
+                  locked={locked || summariesQuery.isError}
                   onCommand={run}
                   summary={summary}
                 />

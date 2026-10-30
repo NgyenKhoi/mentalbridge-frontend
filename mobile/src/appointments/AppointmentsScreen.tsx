@@ -634,9 +634,10 @@ function AccountAppointmentsScreen({
                   )}
                   {item.sessionOutcome === 'COMPLETED' && sessionSummaryApi && (
                     <UserSessionSummaryPanel
-                      key={item.id}
+                      key={`${subject}:${item.id}`}
                       api={sessionSummaryApi}
                       appointmentId={item.id}
+                      userAccountId={subject}
                     />
                   )}
                   {item.replacedByAppointmentId && (

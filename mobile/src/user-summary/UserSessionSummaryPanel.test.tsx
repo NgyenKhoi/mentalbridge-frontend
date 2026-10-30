@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -11,7 +12,10 @@ import {
   makeSessionSummary,
   makeSessionSummaryList,
 } from '@/specialist-summary/specialist-summary-test-fixtures'
-import { APPOINTMENT_ID } from '@/specialist-appointments/specialist-appointment-test-fixtures'
+import {
+  APPOINTMENT_ID,
+  USER_ID,
+} from '@/specialist-appointments/specialist-appointment-test-fixtures'
 
 import type { UserSummaryApi } from './user-summary-api'
 import { UserSessionSummaryPanel } from './UserSessionSummaryPanel'
@@ -36,7 +40,11 @@ async function mount(api = makeApi()) {
   })
   const result = await render(
     <QueryClientProvider client={client}>
-      <UserSessionSummaryPanel api={api} appointmentId={APPOINTMENT_ID} />
+      <UserSessionSummaryPanel
+        api={api}
+        appointmentId={APPOINTMENT_ID}
+        userAccountId={USER_ID}
+      />
     </QueryClientProvider>,
   )
   await screen.findByText('Tóm tắt sau buổi tư vấn')
@@ -173,7 +181,7 @@ describe('MB-724 USER SessionSummary controls', () => {
     )
     expect(api.updateStep).toHaveBeenCalledTimes(1)
 
-    await fireEvent.press(screen.getByTestId('user-summary-reload-stale'))
+    await fireEvent.press(screen.getByTestId('user-summary-reload-required'))
     await screen.findByText('Đã tải tóm tắt mới nhất.')
     expect(
       screen.getByRole('radio', { name: `Đã hoàn thành: ${step.title}` }).props
@@ -193,15 +201,29 @@ describe('MB-724 USER SessionSummary controls', () => {
     )
   })
 
-  it('retains the confirmed state and never reports success for a failed mutation', async () => {
+  it('locks step commands after a lost response until a read confirms the committed state', async () => {
     const original = makeSessionSummary()
     const step = original.agreedNextSteps[0]
     if (!step) throw new Error('Missing step fixture')
+    const committed = {
+      ...step,
+      state: 'COMPLETED' as const,
+      stateVersion: 1,
+      stateUpdatedAt: '2030-10-15T04:03:00.000Z',
+    }
     const api = makeApi({
+      list: jest
+        .fn()
+        .mockResolvedValueOnce(makeSessionSummaryList([original]))
+        .mockResolvedValueOnce(
+          makeSessionSummaryList([
+            makeSessionSummary({ agreedNextSteps: [committed] }),
+          ]),
+        ),
       updateStep: jest.fn().mockRejectedValue(
         new ApiError({
           code: 'DEPENDENCY_UNAVAILABLE',
-          message: 'synthetic',
+          message: 'lost response after commit',
           status: 503,
         }),
       ),
@@ -215,13 +237,160 @@ describe('MB-724 USER SessionSummary controls', () => {
       }),
     )
     expect(
-      await screen.findByText(/Nội dung đã xác nhận vẫn được giữ nguyên/),
+      await screen.findByText(/Chưa xác minh được trạng thái bước/),
     ).toBeOnTheScreen()
     expect(screen.queryByText('Đã cập nhật bước tiếp theo.')).toBeNull()
     expect(
       screen.getByRole('radio', { name: `Đang thực hiện: ${step.title}` }).props
         .accessibilityState,
-    ).toMatchObject({ selected: true })
+    ).toMatchObject({ disabled: true, selected: true })
+
+    await fireEvent.press(
+      screen.getByRole('radio', { name: `Bỏ qua: ${step.title}` }),
+    )
+    expect(api.updateStep).toHaveBeenCalledTimes(1)
+
+    await fireEvent.press(screen.getByTestId('user-summary-reload-required'))
+    await screen.findByText('Đã tải tóm tắt mới nhất.')
+    expect(
+      screen.getByRole('radio', { name: `Đã hoàn thành: ${step.title}` }).props
+        .accessibilityState,
+    ).toMatchObject({ disabled: false, selected: true })
+  })
+
+  it.each([
+    ['approve', false, true, 0],
+    ['revoke', true, false, 3],
+  ] as const)(
+    'locks an exact-summary consent %s after a lost response until authoritative reload',
+    async (_label, initiallyApproved, committedApproved, version) => {
+      const consent = initiallyApproved
+        ? {
+            approved: true,
+            version,
+            updatedAt: '2030-10-15T04:02:00.000Z',
+          }
+        : null
+      const original = makeSessionSummary({ reuseConsent: consent })
+      const committed = makeSessionSummary({
+        reuseConsent: {
+          approved: committedApproved,
+          version: version + 1,
+          updatedAt: '2030-10-15T04:04:00.000Z',
+        },
+      })
+      const api = makeApi({
+        list: jest
+          .fn()
+          .mockResolvedValueOnce(makeSessionSummaryList([original]))
+          .mockResolvedValueOnce(makeSessionSummaryList([committed])),
+        updateConsent: jest.fn().mockRejectedValue(
+          new ApiError({
+            code: 'NETWORK_ERROR',
+            message: 'lost response after commit',
+          }),
+        ),
+      })
+      await mount(api)
+      const consentSwitch = await screen.findByRole('switch', {
+        name: 'Cho phép tái sử dụng tóm tắt này',
+      })
+
+      await fireEvent.press(consentSwitch)
+      expect(
+        await screen.findByText(/Chưa xác minh được quyền tái sử dụng/),
+      ).toBeOnTheScreen()
+      expect(api.updateConsent).toHaveBeenCalledWith(
+        APPOINTMENT_ID,
+        original.id,
+        committedApproved,
+        version,
+      )
+      expect(consentSwitch.props.accessibilityState).toMatchObject({
+        checked: initiallyApproved,
+        disabled: true,
+      })
+
+      await fireEvent.press(consentSwitch)
+      expect(api.updateConsent).toHaveBeenCalledTimes(1)
+
+      await fireEvent.press(screen.getByTestId('user-summary-reload-required'))
+      await screen.findByText('Đã tải tóm tắt mới nhất.')
+      expect(
+        screen.getByRole('switch', {
+          name: 'Cho phép tái sử dụng tóm tắt này',
+        }).props.accessibilityState,
+      ).toMatchObject({ checked: committedApproved, disabled: false })
+    },
+  )
+
+  it.each([403, 404])(
+    'evicts cached summary data and controls after a successful load refetches with %s',
+    async (status) => {
+      const original = makeSessionSummary()
+      const topic = original.topicsDiscussed[0]
+      const step = original.agreedNextSteps[0]
+      if (!topic || !step) throw new Error('Missing summary fixture data')
+      const api = makeApi({
+        list: jest
+          .fn()
+          .mockResolvedValueOnce(makeSessionSummaryList([original]))
+          .mockRejectedValueOnce(
+            new ApiError({
+              code: status === 403 ? 'FORBIDDEN' : 'NOT_FOUND',
+              message: 'sensitive foreign detail',
+              status,
+            }),
+          ),
+      })
+      const { client } = await mount(api)
+      expect(await screen.findByText(topic)).toBeOnTheScreen()
+
+      await act(async () => {
+        await client.refetchQueries({
+          queryKey: ['user-session-summaries', USER_ID, APPOINTMENT_ID],
+          exact: true,
+        })
+      })
+
+      expect(
+        await screen.findByText(
+          'Không thể xem hoặc thay đổi tóm tắt cho lịch hẹn này.',
+        ),
+      ).toBeOnTheScreen()
+      expect(screen.queryByText(topic)).toBeNull()
+      expect(screen.queryByTestId(`user-summary-step-${step.id}`)).toBeNull()
+      expect(
+        screen.queryByRole('switch', {
+          name: 'Cho phép tái sử dụng tóm tắt này',
+        }),
+      ).toBeNull()
+      expect(
+        client.getQueryData([
+          'user-session-summaries',
+          USER_ID,
+          APPOINTMENT_ID,
+        ]),
+      ).toMatchObject({ items: [], count: 0 })
+      expect(api.updateStep).not.toHaveBeenCalled()
+      expect(api.updateConsent).not.toHaveBeenCalled()
+    },
+  )
+
+  it('removes the identity-scoped sensitive cache when the panel unmounts', async () => {
+    const mounted = await mount()
+    const queryKey = [
+      'user-session-summaries',
+      USER_ID,
+      APPOINTMENT_ID,
+    ] as const
+    expect(mounted.client.getQueryData(queryKey)).toBeDefined()
+
+    mounted.unmount()
+
+    await waitFor(() =>
+      expect(mounted.client.getQueryData(queryKey)).toBeUndefined(),
+    )
   })
 
   it('lets the user revoke reuse for an older exact summary without exposing versions', async () => {
