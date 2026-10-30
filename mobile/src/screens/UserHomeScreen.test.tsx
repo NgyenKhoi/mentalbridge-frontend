@@ -1,106 +1,210 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import type { ReactElement } from 'react'
+
+import type { HomeApi } from '@/home/home-api'
+import {
+  activePlanHome,
+  firstUseHome,
+  freeGuideHome,
+  ids,
+  pausedPlanHome,
+  priorityPlanHome,
+} from '@/home/home-test-fixtures'
 
 import { UserHomeScreen } from './UserHomeScreen'
 
 const mockPush = jest.fn()
 const mockSignOut = jest.fn()
+let focusEffect: (() => void) | undefined
 
 jest.mock('expo-router', () => ({
-  router: { push: (path: string) => mockPush(path) },
+  router: { push: (href: unknown) => mockPush(href) },
+  useFocusEffect: (callback: () => void) => {
+    focusEffect = callback
+  },
 }))
 
 jest.mock('@/auth/session-context', () => ({
-  useSession: () => ({ signOut: mockSignOut }),
+  useSession: () => ({
+    session: { subject: 'user-1', role: 'USER' },
+    signOut: mockSignOut,
+  }),
 }))
 
-describe('USER home screen', () => {
+function view(api: HomeApi, ui: ReactElement = <UserHomeScreen api={api} />) {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Infinity, retry: false },
+      mutations: { gcTime: Infinity, retry: false },
+    },
+  })
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+}
+
+describe('USER Home next-step hub', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    focusEffect = undefined
   })
 
-  it('opens the persisted notification inbox', async () => {
-    await render(<UserHomeScreen />)
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Thông báo của tôi' }),
-    )
-    expect(mockPush).toHaveBeenCalledWith('./notifications')
-  })
+  it('shows one first-use action instead of the feature wall', async () => {
+    await view({ getNextStep: jest.fn().mockResolvedValue(firstUseHome) })
 
-  it('opens owner-scoped appointments', async () => {
-    await render(<UserHomeScreen />)
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Lịch hẹn của tôi' }),
-    )
-    expect(mockPush).toHaveBeenCalledWith('./appointments')
-  })
-
-  it('opens approved specialist discovery', async () => {
-    await render(<UserHomeScreen />)
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Tìm chuyên gia' }),
-    )
-    expect(mockPush).toHaveBeenCalledWith('./specialists')
-  })
-
-  it('opens the standalone peer-support Community journey', async () => {
-    await render(<UserHomeScreen />)
-    await fireEvent.press(screen.getByRole('button', { name: 'Mở cộng đồng' }))
-    expect(mockPush).toHaveBeenCalledWith('./community')
-  })
-
-  it('opens the private Journal journey', async () => {
-    await render(<UserHomeScreen />)
-    await fireEvent.press(screen.getByRole('button', { name: 'Viết nhật ký' }))
-    expect(mockPush).toHaveBeenCalledWith('./journal')
-  })
-
-  it('opens the personal profile action', async () => {
-    await render(<UserHomeScreen />)
-
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Mở hồ sơ cá nhân' }),
-    )
-
-    expect(mockPush).toHaveBeenCalledWith('./profile')
-  })
-
-  it('opens the Care-backed assessment journey', async () => {
-    await render(<UserHomeScreen />)
-
+    await screen.findByText('Bắt đầu bằng một bài sàng lọc ngắn')
+    expect(screen.queryByText('Phiên trò chuyện')).toBeNull()
     await fireEvent.press(
       screen.getByRole('button', { name: 'Bắt đầu sàng lọc' }),
     )
-
-    expect(mockPush).toHaveBeenCalledWith('./assessment')
+    expect(mockPush).toHaveBeenCalledWith('/(user)/assessment')
   })
 
-  it('opens the Care-backed support plan journey', async () => {
-    await render(<UserHomeScreen />)
+  it('keeps FREE resources useful when entitlement cannot be confirmed', async () => {
+    await view({ getNextStep: jest.fn().mockResolvedValue(freeGuideHome) })
 
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Mở kế hoạch hỗ trợ' }),
+    await screen.findByText(
+      'Chưa xác nhận được lựa chọn theo gói. Bạn vẫn có thể xem gợi ý và tài nguyên miễn phí.',
     )
-
-    expect(mockPush).toHaveBeenCalledWith('./support-plan')
-  })
-
-  it('opens the Journal-backed daily emotion journey', async () => {
-    await render(<UserHomeScreen />)
-
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Ghi nhận cảm xúc' }),
-    )
-
-    expect(mockPush).toHaveBeenCalledWith('./emotion')
-  })
-
-  it('opens the reviewed Content resources journey', async () => {
-    await render(<UserHomeScreen />)
-
     await fireEvent.press(
       screen.getByRole('button', { name: 'Khám phá tài nguyên' }),
     )
+    expect(mockPush).toHaveBeenCalledWith('/(user)/resources')
+  })
 
-    expect(mockPush).toHaveBeenCalledWith('./resources')
+  it('deep-links a supported Journal activity with only authoritative origin IDs', async () => {
+    await view({
+      getNextStep: jest.fn().mockResolvedValue(activePlanHome('JOURNAL')),
+    })
+
+    await screen.findByText('Dành năm phút để chăm sóc bản thân')
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Bắt đầu hoạt động' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(user)/journal',
+      params: {
+        source: 'journal',
+        occurrenceId: ids.occurrence,
+        actionId: ids.action,
+        localDate: '2026-10-29',
+      },
+    })
+  })
+
+  it('anchors a Resource activity in the plan without inventing a Content ID', async () => {
+    await view({
+      getNextStep: jest.fn().mockResolvedValue(activePlanHome('RESOURCE')),
+    })
+
+    await screen.findByText('Dành năm phút để chăm sóc bản thân')
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Bắt đầu hoạt động' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(user)/support-plan',
+      params: {
+        source: 'home',
+        occurrenceId: ids.occurrence,
+        actionId: ids.action,
+        actionType: 'RESOURCE',
+        localDate: '2026-10-29',
+      },
+    })
+  })
+
+  it.each([
+    ['REVIEW_SAFETY_SUPPORT', 'Xem hướng dẫn hỗ trợ'],
+    ['FIND_SPECIALIST', 'Tìm chuyên gia'],
+  ] as const)(
+    'keeps %s primary when an owner plan also exists',
+    async (nextAction, label) => {
+      await view({
+        getNextStep: jest.fn().mockResolvedValue(priorityPlanHome(nextAction)),
+      })
+
+      await screen.findByRole('button', { name: label })
+      expect(
+        screen.queryByRole('button', { name: 'Bắt đầu hoạt động' }),
+      ).toBeNull()
+    },
+  )
+
+  it('uses neutral paused-plan language and reconciles when Home is focused again', async () => {
+    const getNextStep = jest
+      .fn()
+      .mockResolvedValueOnce(pausedPlanHome)
+      .mockResolvedValueOnce(activePlanHome('EMOTION_CHECK_IN'))
+    await view({ getNextStep })
+
+    await screen.findByText('Tiếp tục khi bạn thấy phù hợp')
+    await act(async () => focusEffect?.())
+    await act(async () => focusEffect?.())
+    await screen.findByText('Dành năm phút để chăm sóc bản thân')
+    expect(getNextStep).toHaveBeenCalledTimes(2)
+  })
+
+  it('refreshes the owner decision after returning from a Resource occurrence', async () => {
+    const completed = {
+      ...activePlanHome('RESOURCE'),
+      plan: {
+        ...activePlanHome('RESOURCE').plan!,
+        focus: 'TODAY_DONE' as const,
+        today: { total: 2, completed: 2 },
+        nextOccurrence: null,
+      },
+    }
+    const getNextStep = jest
+      .fn()
+      .mockResolvedValueOnce(activePlanHome('RESOURCE'))
+      .mockResolvedValueOnce(completed)
+    await view({ getNextStep })
+
+    await screen.findByRole('button', { name: 'Bắt đầu hoạt động' })
+    await act(async () => focusEffect?.())
+    await act(async () => focusEffect?.())
+    await screen.findByText('Không còn hoạt động đang chờ hôm nay')
+    expect(
+      screen.queryByRole('button', { name: 'Bắt đầu hoạt động' }),
+    ).toBeNull()
+    expect(getNextStep).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the last grounded step when a re-entry refresh fails', async () => {
+    const getNextStep = jest
+      .fn()
+      .mockResolvedValueOnce(pausedPlanHome)
+      .mockRejectedValueOnce(new Error('offline'))
+    await view({ getNextStep })
+
+    await screen.findByText('Tiếp tục khi bạn thấy phù hợp')
+    await act(async () => focusEffect?.())
+    await act(async () => focusEffect?.())
+    await screen.findByText(
+      'Chưa cập nhật được thay đổi mới nhất. Bước đang hiển thị là lần tải gần nhất; bạn có thể thử lại.',
+    )
+    expect(screen.getByText('Tiếp tục khi bạn thấy phù hợp')).toBeOnTheScreen()
+  })
+
+  it('shows an honest recoverable error and keeps secondary tools collapsed', async () => {
+    const getNextStep = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(firstUseHome)
+    await view({ getNextStep })
+
+    await screen.findByText('Bước tiếp theo tạm thời chưa khả dụng')
+    expect(screen.queryByText('Lịch hẹn của tôi')).toBeNull()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tải lại bước tiếp theo' }),
+    )
+    await screen.findByText('Bắt đầu bằng một bài sàng lọc ngắn')
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Các khu vực khác' }),
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Lịch hẹn của tôi' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith('/(user)/appointments')
   })
 })

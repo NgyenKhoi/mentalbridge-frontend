@@ -1,1 +1,1 @@
-export { UserHomeScreen as default } from '@/screens/UserHomeScreen'
+export { UserHomeRoute as default } from '@/home/UserHomeRoute'

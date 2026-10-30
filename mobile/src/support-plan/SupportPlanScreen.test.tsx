@@ -32,6 +32,9 @@ jest.mock('expo-router', () => ({
     back: () => mockBack(),
     push: (path: string) => mockPush(path),
   },
+  useFocusEffect: (callback: () => void) => {
+    jest.requireActual('react').useEffect(callback, [callback])
+  },
 }))
 
 jest.mock('@/auth/session-context', () => ({
@@ -168,6 +171,46 @@ function makeScheduleProjection(
   }
 }
 
+function makeLegacyResourceActions(
+  plan: ReturnType<typeof makePlan>,
+): SupportPlanActions {
+  return {
+    supportPlanId: plan.supportPlanId,
+    modelVersion: 3,
+    planPolicyVersion: 'mb-support-plan-selection-v1',
+    representationMode: 'V2_RESOURCE_ADAPTER',
+    status: plan.status,
+    version: plan.version,
+    updatedAt: plan.updatedAt,
+    focuses: [
+      {
+        focusId: 'resources',
+        title: 'Tài nguyên',
+        rationale: null,
+        personalizationProvenance: null,
+        actions: [
+          {
+            actionId: 'breathing-core',
+            actionType: 'RESOURCE',
+            actionVersion: 1,
+            representationMode: 'V2_RESOURCE_ADAPTER',
+            status: 'ACTIVE',
+            pathRole: 'PRIMARY',
+            purposeCode: 'GROUNDING',
+            rationale: null,
+            ordinal: 1,
+            presentation: {
+              title: 'Thở chậm trong 3 phút',
+              summary: 'Một bài thở ngắn.',
+            },
+            schedules: [],
+          },
+        ],
+      },
+    ],
+  }
+}
+
 async function renderScreen(ui: ReactElement) {
   const client = new QueryClient({
     defaultOptions: {
@@ -192,6 +235,42 @@ describe('mobile SupportPlan journey', () => {
     expect(await screen.findByText('Chưa có kế hoạch hỗ trợ')).toBeTruthy()
     expect(api.activate).not.toHaveBeenCalled()
     expect(api.changeStatus).not.toHaveBeenCalled()
+  })
+
+  it('focuses a non-UUID v2 Resource slot opened from Home', async () => {
+    const plan = makePlan()
+    const occurrence = makeOccurrence()
+    const api = makeApi({
+      getCurrent: jest.fn().mockResolvedValue(plan),
+      getActions: jest.fn().mockResolvedValue(makeLegacyResourceActions(plan)),
+      getOccurrences: jest
+        .fn()
+        .mockResolvedValue(makeOccurrenceList([occurrence])),
+    })
+    await renderScreen(
+      <SupportPlanScreen
+        api={api}
+        homeOrigin={{
+          state: 'valid',
+          value: {
+            source: 'home',
+            occurrenceId: occurrence.occurrenceId,
+            actionId: 'breathing-core',
+            actionType: 'RESOURCE',
+            localDate: occurrence.localDate,
+          },
+        }}
+      />,
+    )
+
+    await screen.findByText('Hoạt động bạn vừa mở từ Trang chủ')
+    expect(
+      screen.getByTestId(`plan-activity-${occurrence.occurrenceId}`),
+    ).toBeTruthy()
+    expect(api.getOccurrences).toHaveBeenCalledWith(
+      occurrence.localDate,
+      occurrence.localDate,
+    )
   })
 
   it.each([
