@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 import { MamCardButton } from '@/features/mam/MamCardButton'
@@ -9,6 +9,9 @@ import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
 
 import type { NativeSupportPlanReplacementReview } from '../api/support-plan-contract'
 import SupportPlanReviewExplanation from './SupportPlanReviewExplanation'
+
+// The button can disappear (Mầm hidden on a safety path); the reading keeps its name.
+const REVIEW_LABEL = 'Mầm xem lại tuần của bạn'
 
 const ease = [0.16, 1, 0.3, 1] as const
 const exitEase = [0.4, 0, 0.2, 1] as const
@@ -27,6 +30,7 @@ export default function SupportPlanMamReview({
   children: React.ReactNode
 }>) {
   const [open, setOpen] = useState(false)
+  const hostRef = useRef<HTMLDivElement>(null)
   const generatedId = useId().replace(/:/g, '')
   const buttonId = `mam-review-button-${generatedId}`
   const sectionId = `mam-review-${generatedId}`
@@ -36,17 +40,19 @@ export default function SupportPlanMamReview({
 
   function collapse() {
     setOpen(false)
-    document.getElementById(buttonId)?.focus()
+    // No button while Mầm is away: keep focus on the card instead of the page body.
+    const target = document.getElementById(buttonId) ?? hostRef.current
+    target?.focus()
   }
 
   return (
-    <div className="mbw-mam-review" data-mam="">
+    <div ref={hostRef} className="mbw-mam-review" data-mam="" tabIndex={-1}>
       <div className="mbw-mam-review-head">
         {children}
         {review && (
           <MamCardButton
             id={buttonId}
-            label="Mầm xem lại tuần của bạn"
+            label={REVIEW_LABEL}
             expanded={open}
             controls={open ? sectionId : undefined}
             onToggle={() => setOpen((value) => !value)}
@@ -58,7 +64,7 @@ export default function SupportPlanMamReview({
           <motion.section
             key="review"
             id={sectionId}
-            aria-labelledby={buttonId}
+            aria-label={REVIEW_LABEL}
             className="mbw-mam-review-body"
             initial={{ height: 0, opacity: 0, y: reduced ? 0 : 6 }}
             animate={{ height: 'auto', opacity: 1, y: 0 }}
