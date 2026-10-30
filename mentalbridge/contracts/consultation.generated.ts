@@ -455,7 +455,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns the authoritative active VND catalogue. Price, credits, concurrent-reservation capacity, credit allocation, AI quota, SupportPlan entitlement, effective date, and allowed upgrades are immutable version facts; clients must not derive them from plan names. MoMo checkout remains gated independently. */
+        /** @description Returns the authoritative active VND catalogue and configured active collect provider. Price, credits, concurrent-reservation capacity, credit allocation, AI quota, SupportPlan entitlement, effective date, and allowed upgrades are immutable version facts; clients must not derive them from plan names. Checkout readiness is gated independently. PayOS real money is restricted to the approved staging deployment and test catalogue. */
         get: operations["listActiveServicePlanVersions"];
         put?: never;
         post?: never;
@@ -474,7 +474,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Creates one idempotent MoMo purchase for FREE to PLUS/PREMIUM or upgrade for PLUS to PREMIUM. The server resolves the exact active version and amount. There is no downgrade or user-refund operation. */
+        /** @description Creates one idempotent purchase for FREE to PLUS/PREMIUM or upgrade for PLUS to PREMIUM using the configured collect provider. The server resolves the exact active version and amount. Confirmed PAYOS and FAKE checkout returns in-app QR transfer details; an uncertain create remains PENDING with nullable QR details and replay never creates a second charge. checkoutUrl is an optional HTTPS fallback only. There is no downgrade or user-refund operation. */
         post: operations["createPlanCheckout"];
         delete?: never;
         options?: never;
@@ -506,7 +506,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns one authenticated-owner payment attempt and its stable current state. */
+        /** @description Returns one authenticated-owner payment attempt and its stable current state, with bounded authenticated PayOS status reconciliation for pending attempts. A return or cancel URL is never settlement evidence. A verified exact PAID query and webhook share the same atomic settlement path; terminal outcomes are never reopened. */
         get: operations["getOwnPlanPayment"];
         put?: never;
         post?: never;
@@ -527,6 +527,23 @@ export interface paths {
         put?: never;
         /** @description Signature-verifies the complete MoMo One-Time Payment v2 callback, deduplicates the verified tuple, and acknowledges quickly. Only a matching, unexpired resultCode 0 activates the exact plan version. Raw payload, signature, orderInfo, and extraData are never persisted. */
         post: operations["receiveMomoPlanPaymentIpn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/payments/payos/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Verifies the original complete payload through the official PayOS SDK before business parsing. Settlement additionally requires successful envelope and data codes, exact PAYOS provider, orderCode, paymentLinkId, amount and unique reference on a pending unexpired payment. An authenticated exact event or query may bind a previously unknown paymentLinkId after uncertain creation; a known link must match. Exact redeliveries are idempotent. Signed unmatched, underpaid, reused-reference, terminal or unknown confirmation samples are acknowledged as VERIFIED_UNMATCHED without activation. Raw payloads, signatures and bank account identifiers are not returned or retained as receipt evidence. */
+        post: operations["receivePayosPlanPaymentWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1532,8 +1549,11 @@ export interface components {
         ServicePlanCatalogue: {
             plans: components["schemas"]["ServicePlanVersion"][];
             checkoutEnabled: boolean;
-            /** @constant */
-            paymentProvider: "MOMO";
+            /**
+             * @description Configured collect adapter; checkoutEnabled independently reports readiness. FAKE is simulated and never requests a bank transfer.
+             * @enum {string}
+             */
+            paymentProvider: "FAKE" | "MOMO" | "PAYOS";
             /** Format: date-time */
             generatedAt: string;
         };
@@ -1564,7 +1584,7 @@ export interface components {
             effectiveFrom: string;
         };
         /**
-         * @description Additive owner policy provenance. sandbox-full-price-v1 is synthetic/test pricing only, charging the full target price without an offset; it does not enable production payment or payout. Historical responses may omit this field and retain upgrade-offset-v1 behavior.
+         * @description Additive owner policy provenance. sandbox-full-price-v1 uses test prices and charges the full target price without an offset; ADR 0047 permits the unchanged 5000/10000 VND catalogue through PayOS on staging only, with synthetic non-redeemable earnings. It does not enable production payment or payout. Historical responses may omit this field and retain upgrade-offset-v1 behavior.
          * @enum {string}
          */
         CommercialPricingPolicy: "upgrade-offset-v1" | "sandbox-full-price-v1";
@@ -1572,6 +1592,36 @@ export interface components {
             /** Format: uuid */
             planVersionId: string;
         };
+        /**
+         * @description Authoritative payment state. Fresh confirmed PAYOS and FAKE checkout carries all QR transfer fields; they may be absent or null for legacy, non-QR or unconfirmed attempts. amount equals amountVnd and expiredAt equals expiresAt as an RFC3339 instant. Hosted URLs are optional fallbacks and are not required for an in-app QR flow.
+         * @example {
+         *       "paymentId": "00000000-0000-4000-8000-000000000786",
+         *       "subscriptionId": "00000000-0000-4000-8000-000000000787",
+         *       "planVersionId": "00000000-0000-4000-8000-000000000788",
+         *       "planCode": "PLUS",
+         *       "planVersion": "sandbox-plus-v1",
+         *       "pricingPolicyVersion": "sandbox-full-price-v1",
+         *       "purpose": "PURCHASE",
+         *       "provider": "PAYOS",
+         *       "status": "PENDING",
+         *       "terminalReason": null,
+         *       "amountVnd": 5000,
+         *       "currency": "VND",
+         *       "checkoutUrl": null,
+         *       "qrCodeUrl": null,
+         *       "qrCode": "00020101021238540010A00000072701240006970422011000000007860208QRIBFTTA5303704540450005802VN62120808MB0007866304A1E7",
+         *       "bin": "970422",
+         *       "accountNumber": "0000000786",
+         *       "accountName": "MENTALBRIDGE TEST",
+         *       "description": "MB000786",
+         *       "amount": 5000,
+         *       "expiredAt": "2026-10-30T10:15:00Z",
+         *       "expiresAt": "2026-10-30T10:15:00Z",
+         *       "createdAt": "2026-10-30T10:00:00Z",
+         *       "paidAt": null,
+         *       "failedAt": null
+         *     }
+         */
         PlanPayment: {
             /** Format: uuid */
             paymentId: string;
@@ -1586,20 +1636,43 @@ export interface components {
             /** @enum {string} */
             purpose: "PURCHASE" | "UPGRADE";
             /** @enum {string} */
-            provider: "FAKE" | "MOMO";
+            provider: "FAKE" | "MOMO" | "PAYOS";
             /** @enum {string} */
             status: "PENDING" | "SUCCEEDED" | "FAILED" | "CHARGEBACK";
+            /**
+             * @description Additive reason for a FAILED ledger state, persisted from server expiry or a verified provider result. Legacy failed rows may be null or omit it. PENDING, SUCCEEDED and CHARGEBACK have no terminalReason. Never inferred from return or cancel URLs.
+             * @enum {string|null}
+             */
+            terminalReason?: "EXPIRED" | "CANCELLED" | "PROVIDER_FAILED" | null;
             /** Format: int64 */
             amountVnd: number;
             /** @constant */
             currency: "VND";
             /**
              * Format: uri
-             * @description Null while provider checkout creation is unconfirmed. The canonical pending payment remains auditable; do not redirect or automatically resend a charge. Verified IPN remains authoritative even when checkout creation times out.
+             * @description Optional provider-controlled HTTPS fallback. PAYOS URLs must use the approved PayOS checkout host and MoMo URLs the configured MoMo host. Null or absent when no hosted URL exists or provider creation is unconfirmed; never automatically resend a charge. Verified webhook or fully matched authenticated reconciliation remains authoritative when creation times out.
              */
-            checkoutUrl: string | null;
+            checkoutUrl?: string | null;
             /** Format: uri */
-            qrCodeUrl: string | null;
+            qrCodeUrl?: string | null;
+            /** @description VietQR payload for in-app rendering */
+            qrCode?: string | null;
+            /** @description Transfer bank BIN returned by the collect adapter. */
+            bin?: string | null;
+            accountNumber?: string | null;
+            accountName?: string | null;
+            /** @description Exact bank transfer description. */
+            description?: string | null;
+            /**
+             * Format: int64
+             * @description Integer VND transfer amount; when present equals amountVnd.
+             */
+            amount?: number | null;
+            /**
+             * Format: date-time
+             * @description Chosen server expiry as RFC3339; when present equals expiresAt.
+             */
+            expiredAt?: string | null;
             /** Format: date-time */
             expiresAt: string;
             /** Format: date-time */
@@ -1614,6 +1687,60 @@ export interface components {
             count: number;
             /** Format: date-time */
             generatedAt: string;
+        };
+        /**
+         * @description Complete PayOS webhook envelope. Preserve unknown envelope and signed data fields unchanged for official SDK verification; do not coerce or discard fields before verification. Invalid payloads or signatures cannot mutate financial state.
+         * @example {
+         *       "code": "00",
+         *       "desc": "success",
+         *       "success": true,
+         *       "data": {
+         *         "orderCode": 786,
+         *         "amount": 5000,
+         *         "paymentLinkId": "fixture-link-786",
+         *         "reference": "fixture-reference-786",
+         *         "code": "00",
+         *         "desc": "success",
+         *         "description": "MB000786",
+         *         "accountNumber": "0000000786",
+         *         "transactionDateTime": "2026-10-30 17:01:00",
+         *         "currency": "VND"
+         *       },
+         *       "signature": "0000000000000000000000000000000000000000000000000000000000000000"
+         *     }
+         */
+        PayosPaymentWebhook: {
+            /** @description Successful envelope code is 00. */
+            code: string;
+            desc: string;
+            success: boolean;
+            signature: string;
+            data: {
+                /** Format: int64 */
+                orderCode: number;
+                /** Format: int64 */
+                amount: number;
+                paymentLinkId: string;
+                reference: string;
+                /** @description Successful signed transaction code is 00. */
+                code: string;
+                desc: string;
+                description: string;
+                accountNumber: string;
+                /** @description Provider transaction timestamp preserved verbatim for signature verification. */
+                transactionDateTime: string;
+                currency: string;
+                counterAccountBankId?: string | null;
+                counterAccountBankName?: string | null;
+                counterAccountName?: string | null;
+                counterAccountNumber?: string | null;
+                virtualAccountName?: string | null;
+                virtualAccountNumber?: string | null;
+            } & {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
         };
         MomoPaymentIpn: {
             partnerCode: string;
@@ -2259,7 +2386,7 @@ export interface components {
             /** @enum {string} */
             purpose: "PURCHASE" | "UPGRADE";
             /** @enum {string} */
-            provider: "FAKE" | "MOMO";
+            provider: "FAKE" | "MOMO" | "PAYOS";
             /** @enum {string} */
             status: "PENDING" | "SUCCEEDED" | "FAILED" | "CHARGEBACK";
             /** Format: int64 */
@@ -2399,7 +2526,8 @@ export interface components {
                 /** Format: uuid */
                 id: string;
                 orderId: string;
-                provider: string;
+                /** @enum {string} */
+                provider: "FAKE" | "MOMO" | "PAYOS";
                 /** Format: int64 */
                 transId?: number | null;
                 discrepancyType: string;
@@ -4324,7 +4452,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Pending payment and provider-controlled HTTPS checkout destinations */
+            /** @description Pending payment with confirmed in-app QR details or nullable details while provider creation is unconfirmed */
             201: {
                 headers: {
                     Location?: string;
@@ -4412,6 +4540,55 @@ export interface operations {
             400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    receivePayosPlanPaymentWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayosPaymentWebhook"];
+            };
+        };
+        responses: {
+            /** @description Verified callback acknowledged, including duplicate, unmatched and confirm-webhook sample events */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed payload (PAYOS_WEBHOOK_INVALID), with safe problem details and no financial mutation. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid signature (PAYOS_SIGNATURE_INVALID), with no signature, raw payload or secret in the response. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Verification credentials unavailable (PAYOS_WEBHOOK_UNAVAILABLE); no unverified event is accepted. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getCurrentServiceEntitlement: {

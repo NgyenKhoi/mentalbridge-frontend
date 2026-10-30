@@ -23,7 +23,7 @@ describe('AdminCommercialReconciliationManager', () => {
       {
         id: '62200000-0000-4000-8000-000000000010',
         orderId: 'ORDER-101',
-        provider: 'MOMO',
+        provider: 'MOMO' as const,
         discrepancyType: 'UNPROCESSED_IPN',
         receivedAt: '2026-10-21T10:00:00Z',
         failureCode: 'PENDING_RETRY',

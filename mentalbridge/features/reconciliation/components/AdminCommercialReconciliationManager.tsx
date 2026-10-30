@@ -482,9 +482,7 @@ export default function AdminCommercialReconciliationManager({
                     {discrepancies.webhooks.length}
                     {discrepancies.webhooks.length >= 50 ? ' (giới hạn)' : ''}
                   </strong>
-                  <p>
-                    Giao dịch MoMo webhook chưa hoàn tất hoặc trùng lặp mã nhận.
-                  </p>
+                  <p>Giao dịch webhook chưa hoàn tất hoặc trùng lặp mã nhận.</p>
                 </article>
                 <article className="acr-stat-card">
                   <span>Yêu cầu chi trả thất bại / nghi vấn</span>
