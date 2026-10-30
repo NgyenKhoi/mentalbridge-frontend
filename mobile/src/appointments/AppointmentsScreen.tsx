@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
+import type { AppointmentDisputeApi } from '@/appointment-dispute/appointment-dispute-api'
+import { AppointmentDisputePanel } from '@/appointment-dispute/AppointmentDisputePanel'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
@@ -44,6 +46,7 @@ import {
 
 type Props = Readonly<{
   api: AppointmentApi
+  disputeApi?: AppointmentDisputeApi
   consultationBriefApi?: ConsultationBriefApi
   discovery: DiscoveryApi
   onBack: () => void
@@ -131,6 +134,7 @@ function AppointmentFacts({ item }: Readonly<{ item: Appointment }>) {
 }
 function AccountAppointmentsScreen({
   api,
+  disputeApi,
   consultationBriefApi,
   discovery,
   onBack,
@@ -640,6 +644,18 @@ function AccountAppointmentsScreen({
                       userAccountId={subject}
                     />
                   )}
+                  {disputeApi &&
+                    item.sessionOutcome &&
+                    item.sessionSettledAt &&
+                    ['SESSION_ENDED', 'COMPLETED'].includes(item.status) && (
+                      <AppointmentDisputePanel
+                        key={`${subject}:${item.id}`}
+                        api={disputeApi}
+                        appointment={item}
+                        serverNow={data.generatedAt}
+                        subject={subject}
+                      />
+                    )}
                   {item.replacedByAppointmentId && (
                     <>
                       <Text style={styles.body}>
