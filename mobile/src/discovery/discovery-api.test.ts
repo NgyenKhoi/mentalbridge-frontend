@@ -10,12 +10,14 @@ import {
 
 describe('public-edge discovery GETs', () => {
   it('sends supported criteria and opaque cursor with no identity/health payload', async () => {
+    const supportEvaluationId = '40000000-0000-4000-8000-000000000725'
     const client = create()
     const get = jest
       .spyOn(client, 'get')
       .mockResolvedValue({ data: fixturePage })
     await createDiscoveryApi(client).list(
       {
+        supportEvaluationId,
         supportArea: 'ANXIETY_SYMPTOMS',
         language: 'vi',
         modality: 'IN_APP_CHAT',
@@ -25,6 +27,7 @@ describe('public-edge discovery GETs', () => {
     )
     expect(get).toHaveBeenCalledWith('/api/v1/specialists', {
       params: {
+        supportEvaluationId,
         supportArea: 'ANXIETY_SYMPTOMS',
         language: 'vi',
         modality: 'IN_APP_CHAT',
@@ -35,18 +38,20 @@ describe('public-edge discovery GETs', () => {
     })
   })
   it('detail only sends criteria that its public contract supports', async () => {
+    const supportEvaluationId = '40000000-0000-4000-8000-000000000725'
     const client = create()
     const get = jest
       .spyOn(client, 'get')
       .mockResolvedValue({ data: fixtureSpecialist })
     expect(
       await createDiscoveryApi(client).detail(specialistId, {
+        supportEvaluationId,
         supportArea: 'ANXIETY_SYMPTOMS',
         language: 'vi',
       }),
     ).toEqual(fixtureSpecialist)
     expect(get).toHaveBeenCalledWith(`/api/v1/specialists/${specialistId}`, {
-      params: { language: 'vi' },
+      params: { supportEvaluationId, language: 'vi' },
     })
   })
   it('fails closed on wrong public identity, invalid IDs and private responses', async () => {

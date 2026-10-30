@@ -596,7 +596,10 @@ describe('mobile assessment and support-guide journey', () => {
     await fireEvent.press(
       await screen.findByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
     )
-    expect(mockPush).toHaveBeenCalledWith('./specialists')
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: './specialists',
+      params: { supportEvaluationId: guide.supportEvaluationId },
+    })
     expect(
       screen.queryByText(
         'Chưa tải được bước tiếp theo. Kết quả và gợi ý của bạn vẫn được lưu.',
@@ -682,7 +685,10 @@ describe('mobile assessment and support-guide journey', () => {
       await screen.findByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
     )
 
-    expect(mockPush).toHaveBeenCalledWith('./specialists')
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: './specialists',
+      params: { supportEvaluationId: guide.supportEvaluationId },
+    })
   })
 
   it('opens the Guide exact first resource for the free resource step', async () => {

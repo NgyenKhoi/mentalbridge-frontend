@@ -356,7 +356,10 @@ function PlanCard({
               onPress={() =>
                 router.push({
                   pathname: './specialists',
-                  params: { planActionId: professionalAction.actionId },
+                  params: {
+                    planActionId: professionalAction.actionId,
+                    supportEvaluationId: plan.source.supportEvaluationId,
+                  },
                 })
               }
             />

@@ -1,0 +1,37 @@
+appId: com.mentalbridge.mobile
+name: MB-725 owned evaluation context through specialist discovery
+---
+# Author-only evidence. NOT_RUN until the MB-666 staging/device gate provides
+# a resettable USER whose completed result returns FIND_SPECIALIST and whose
+# exact SupportEvaluation has at least one approved specialist match. Never run
+# this health-context journey against shared dev or production data.
+- launchApp:
+    clearState: false
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Bắt đầu sàng lọc'
+- tapOn: 'Bắt đầu hoặc tiếp tục'
+- scrollUntilVisible:
+    element:
+      text: 'Tiếp tục hành trình'
+    direction: DOWN
+- tapOn: 'Tìm chuyên gia phù hợp'
+- assertVisible: 'Tìm chuyên gia'
+- assertVisible: 'Thứ tự và lý do hiển thị được cung cấp bởi hệ thống; không phân tích nhật ký hay trò chuyện của bạn.'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-open-${MAESTRO_MB_DISCOVERY_SPECIALIST_ID}'
+    direction: DOWN
+- tapOn:
+    id: 'discovery-open-${MAESTRO_MB_DISCOVERY_SPECIALIST_ID}'
+- assertVisible: 'Hồ sơ chuyên gia'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-select-${MAESTRO_MB_DISCOVERY_SLOT_ID}'
+    direction: DOWN
+- tapOn:
+    id: 'discovery-select-${MAESTRO_MB_DISCOVERY_SLOT_ID}'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-selection-summary'
+    direction: UP
+- assertVisible: 'Khung giờ đã chọn'
