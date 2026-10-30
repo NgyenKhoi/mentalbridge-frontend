@@ -17,6 +17,11 @@ rollback, rollout plan and findings. Results are in
 [`mb-775-mam-web-gate.md`](mb-775-mam-web-gate.md); regenerate the numbers with
 `npm run mam:gate:measure` after a production build.
 
+MB-781 loads the Mầm dock host only where Mầm shows, so flag-off and
+undocked pages no longer download it. Bundle before and after, visual
+parity and failure handling are in
+[`mb-781-mam-dynamic-dock.md`](mb-781-mam-dynamic-dock.md).
+
 MB-772 moves the SupportPlan Companion onto the global Mầm behind
 `MAM_WEB_ENABLED` (legacy Companion kept with the flag off) and re-checks the
 MB-775 gate for `/support-plan`. Results are in

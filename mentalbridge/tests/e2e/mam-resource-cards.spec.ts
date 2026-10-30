@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 
 import { test } from './test-fixtures'
+import { dock } from './mam-dock-helpers'
 import {
   installPlanResourcesMocks,
   resourceWorld,
@@ -82,6 +83,8 @@ async function openCatalogue(page: Page) {
   await expect(
     page.getByRole('region', { name: 'Trong kế hoạch của tôi' }),
   ).toHaveAttribute('aria-busy', 'false')
+  // Summon gestures are the dock host's; it loads lazily (MB-781).
+  await expect(dock(page)).toBeVisible()
   return calls
 }
 
@@ -106,6 +109,11 @@ test.describe('MB-770 Mầm on Resource cards', () => {
       .click({ button: 'right' })
     await expect(bubble(page)).toHaveCount(0)
 
+    // The whole card on screen, so the bubble has room beside it. Playwright's
+    // own scroll only brings the clicked element in.
+    await breathing.evaluate((element) =>
+      element.scrollIntoView({ block: 'center' }),
+    )
     const heading = breathing.getByRole('heading', { level: 3 })
     await heading.click({ button: 'right' })
     await expect(bubble(page)).toBeVisible()

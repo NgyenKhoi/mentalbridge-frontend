@@ -1,7 +1,15 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ComponentProps } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
 import { MamDock } from '@/features/mam/MamDock'
 import { MamDockSlot } from '@/features/mam/MamDockSlot'
@@ -16,6 +24,7 @@ import {
   updateEmotionCheckIn,
 } from './api/browser-emotion-check-in'
 import { DailyEmotionCheckIn } from './DailyEmotionCheckIn'
+import { loadMamDockHost } from '@/features/mam/testing/load-mam-dock-host'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
 // Every prop the Mầm card button receives, to prove none carries check-in data.
@@ -110,6 +119,9 @@ function App({ slot = true }: Readonly<{ slot?: boolean }>) {
     </>
   )
 }
+
+// The dock host is lazy (MB-781): load it once, as the app does.
+beforeAll(loadMamDockHost, 20_000)
 
 describe('DailyEmotionCheckIn Mầm entry', () => {
   beforeEach(() => {

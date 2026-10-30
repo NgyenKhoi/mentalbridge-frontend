@@ -1,11 +1,20 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
 import { MamDock } from './MamDock'
 import { MamDockSlot } from './MamDockSlot'
 import { dispatchMamSaved } from './mam-saved'
 import { useMamSuppress } from './mam-suppression'
+import { loadMamDockHost } from './testing/load-mam-dock-host'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
 
@@ -79,6 +88,9 @@ function stubOverlap() {
     overlapping = value
   }
 }
+
+// The dock host is lazy (MB-781): load it once, as the app does.
+beforeAll(loadMamDockHost, 20_000)
 
 describe('MamDock', () => {
   beforeEach(() => {
