@@ -6,8 +6,16 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
-import type { ComponentProps } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { StrictMode, type ComponentProps } from 'react'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
 import { MamDock } from './MamDock'
 import { MamDockSlot } from './MamDockSlot'
@@ -19,6 +27,7 @@ import {
   useMamTarget,
   type MamResolver,
 } from './use-mam-target'
+import { loadMamDockHost } from './testing/load-mam-dock-host'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
 
@@ -158,6 +167,9 @@ const behavior = () =>
   screen.getByTestId('mam-character').getAttribute('data-behavior')
 const contextMenu = (element: Element) =>
   fireEvent.contextMenu(element, { clientX: 40, clientY: 40 })
+
+// The dock host is lazy (MB-781): load it once, as the app does.
+beforeAll(loadMamDockHost, 20_000)
 
 describe('Mầm summon', () => {
   const fetchSpy = vi.fn()
@@ -496,6 +508,77 @@ describe('Mầm summon', () => {
       expect(
         screen.getByRole('region', { name: 'Việc tiếp theo' }),
       ).not.toHaveAttribute('data-mam-active')
+    })
+
+    it('answers a press made while the host was still loading, once (MB-781)', async () => {
+      const resolver = vi.fn<MamResolver>(async () => answer)
+      const App = ({ host }: { host: boolean }) => (
+        <>
+          {host ? <MamDockSlot /> : null}
+          <PlanPage resolver={resolver} />
+          {host ? <MamDock /> : null}
+        </>
+      )
+      const view = render(<App host={false} />)
+      press()
+      expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull()
+
+      view.rerender(<App host />)
+      expect(
+        await screen.findByText(/gọi tên điều đang nghĩ/),
+      ).toBeInTheDocument()
+      expect(resolver).toHaveBeenCalledTimes(1)
+
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull(),
+      )
+      view.rerender(<App host={false} />)
+      view.rerender(<App host />)
+      expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull()
+      expect(resolver).toHaveBeenCalledTimes(1)
+    })
+
+    it('answers an early press under StrictMode effect replay, once (MB-781)', async () => {
+      const resolver = vi.fn<MamResolver>(async () => answer)
+      const App = ({ host }: { host: boolean }) => (
+        <StrictMode>
+          {host ? <MamDockSlot /> : null}
+          <PlanPage resolver={resolver} />
+          {host ? <MamDock /> : null}
+        </StrictMode>
+      )
+      const view = render(<App host={false} />)
+      press()
+      view.rerender(<App host />)
+      expect(
+        await screen.findByText(/gọi tên điều đang nghĩ/),
+      ).toBeInTheDocument()
+      expect(resolver).toHaveBeenCalledTimes(1)
+    })
+
+    it('drops an early press once the form turned dirty meanwhile (MB-781)', async () => {
+      const resolver = vi.fn<MamResolver>(async () => answer)
+      const App = ({ host, dirty }: { host: boolean; dirty: boolean }) => (
+        <>
+          {host ? <MamDockSlot /> : null}
+          <PlanPage resolver={resolver} dirty={dirty} />
+          {host ? <MamDock /> : null}
+        </>
+      )
+      const view = render(<App host={false} dirty={false} />)
+      const button = cardButton()
+      press()
+      // Dirty and clean again while the host is still loading: same button.
+      view.rerender(<App host={false} dirty />)
+      expect(cardButton()).toHaveAttribute('aria-disabled', 'true')
+      view.rerender(<App host={false} dirty={false} />)
+      expect(cardButton()).toBe(button)
+
+      view.rerender(<App host dirty={false} />)
+      await act(async () => {})
+      expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull()
+      expect(resolver).not.toHaveBeenCalled()
     })
 
     it('shows a template answer as is, with no AI note', async () => {

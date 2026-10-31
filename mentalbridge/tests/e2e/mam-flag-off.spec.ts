@@ -7,7 +7,7 @@ import {
   homeWorld,
   installHomeMocks,
 } from './home-next-step-mocks'
-import { crisis } from './mam-dock-helpers'
+import { crisis, mamExclusiveChunks } from './mam-dock-helpers'
 import {
   installPlanResourcesMocks,
   resourceWorld,
@@ -40,6 +40,18 @@ function watchMamRequests(page: Page) {
   return urls
 }
 
+// MB-781: flag off, no request for a host, character or Rive chunk may even be
+// attempted, whatever its outcome.
+function watchExclusiveChunks(page: Page) {
+  const exclusive = mamExclusiveChunks()
+  const urls: string[] = []
+  page.on('request', (request) => {
+    const { pathname } = new URL(request.url())
+    if (exclusive.has(pathname)) urls.push(pathname)
+  })
+  return urls
+}
+
 test.describe('MB-775 Mầm flag off', () => {
   test.use({ timezoneId: 'Asia/Ho_Chi_Minh' })
   test.skip(
@@ -48,10 +60,11 @@ test.describe('MB-775 Mầm flag off', () => {
   )
 
   for (const route of routes) {
-    test(`renders no Mầm and requests no /mam asset on ${route.replace(homeGuideId, ':guideId').replace(homeResourceDetails()[0].id, ':resourceId')}`, async ({
+    test(`renders no Mầm and requests no /mam asset or Mầm-only chunk on ${route.replace(homeGuideId, ':guideId').replace(homeResourceDetails()[0].id, ':resourceId')}`, async ({
       page,
     }) => {
       const mamRequests = watchMamRequests(page)
+      const exclusiveChunks = watchExclusiveChunks(page)
       if (route === '/resources')
         await installPlanResourcesMocks(page, resourceWorld(1))
       else if (route === '/support-plan') await installSupportPlanMocks(page)
@@ -67,6 +80,7 @@ test.describe('MB-775 Mầm flag off', () => {
       await expect(page.locator('canvas')).toHaveCount(0)
       await expect(page.getByRole('button', { name: /Mầm/ })).toHaveCount(0)
       expect(mamRequests).toEqual([])
+      expect(exclusiveChunks).toEqual([])
     })
   }
 

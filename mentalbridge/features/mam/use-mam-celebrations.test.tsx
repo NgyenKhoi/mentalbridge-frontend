@@ -1,7 +1,8 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, render, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getAchievements } from '@/features/achievements/api/browser-achievements'
+import { MamDockSlot } from './MamDockSlot'
 import * as celebrations from './mam-celebrations'
 import { useMamCelebrations } from './use-mam-celebrations'
 
@@ -229,6 +230,143 @@ describe('useMamCelebrations', () => {
       await flush()
       expect(seen).toHaveLength(1)
       expect(record('uA')).toContain('Của A')
+    })
+  })
+  // MB-781: the host loads lazily, after the page may already have read. Reads
+  // are kept for the signed-in account (the USER layout slot) until it listens.
+  describe('reads before the lazy host listens', () => {
+    const record = (accountId: string) =>
+      window.localStorage.getItem(`mentalbridge_mam_celebrations:${accountId}`)
+    const slot = (accountId: string) =>
+      render(<MamDockSlot accountId={accountId} />)
+    // Reads still kept for an account, read without leaving the module listening.
+    const leftover = (accountId: string) => {
+      const reads = celebrations.takeUnheardMamAwardReads(accountId)
+      celebrations.stopHearingMamAwardReads()
+      return reads
+    }
+
+    it('hears a read that landed before the host mounted, once', async () => {
+      const a = slot('u1')
+      celebrations.dispatchMamAwardRead(read([award('early', NOW - MIN)]))
+      const first = renderHost('u1')
+      await flush()
+      expect(record('u1')).toContain('achievement:early:')
+      first.unmount()
+
+      renderHost('u1').unmount()
+      await flush()
+      expect(leftover('u1')).toEqual([])
+      a.unmount()
+    })
+
+    it('keeps the first baseline apart from an award earned while loading', async () => {
+      const a = slot('u1')
+      celebrations.dispatchMamAwardRead(read([]))
+      celebrations.dispatchMamAwardRead(read([award('new', NOW - MIN)]))
+      const host = renderHost('u1')
+      await flush()
+      // As with the eager host: the first read is only the baseline, the award
+      // earned after it plays once its coalescing window has passed.
+      await advance(11_000)
+      expect(host.result.current.oneShot).not.toBeNull()
+      host.unmount()
+      a.unmount()
+    })
+
+    it('applies live reads after buffered reads while the owner lock is busy', async () => {
+      const pendingLocks: (() => void)[] = []
+      Object.defineProperty(navigator, 'locks', {
+        configurable: true,
+        value: {
+          request: (_name: string, callback: () => unknown) =>
+            new Promise((resolve) => {
+              pendingLocks.push(() => resolve(callback()))
+            }),
+        },
+      })
+      const a = slot('u1')
+      celebrations.dispatchMamAwardRead(read([]))
+      celebrations.dispatchMamAwardRead(read([award('new', NOW - MIN)]))
+      const host = renderHook(() =>
+        useMamCelebrations({
+          accountId: 'u1',
+          pathname: '/dashboard',
+          allowed: false,
+          blocked: false,
+        }),
+      )
+      await flush()
+      expect(pendingLocks).toHaveLength(1)
+
+      // The latest owner read no longer lists the award. It must reconcile
+      // after both old buffered reads, even while their lock is held elsewhere.
+      celebrations.dispatchMamAwardRead(read([]))
+      for (let index = 0; index < 3; index += 1) {
+        expect(pendingLocks.length).toBeGreaterThan(0)
+        await act(async () => pendingLocks.shift()!())
+        await flush()
+      }
+      const saved = JSON.parse(record('u1')!)
+      expect(saved.queue).toEqual([])
+      expect(saved.lastReads[JOURNAL].eligible).toEqual([])
+      host.unmount()
+      a.unmount()
+    })
+
+    it('never hands a read to another account, buffered or still in flight', async () => {
+      const a = slot('uA')
+      celebrations.dispatchMamAwardRead(read([award('private-A', NOW - MIN)]))
+      let resolve!: (value: unknown) => void
+      client.get.mockReturnValue(new Promise((done) => (resolve = done)))
+      const pending = getAchievements('Asia/Ho_Chi_Minh')
+      a.unmount()
+
+      // B signs in in the same tab before any host loaded.
+      const b = slot('uB')
+      resolve({
+        data: {
+          visibilityState: 'VISIBLE',
+          preferenceVersion: '0',
+          policyVersion: 'achievement-rules-v1',
+          calculatedAt: new Date(NOW).toISOString(),
+          sources: [{ domain: 'JOURNAL', availability: 'AVAILABLE' }],
+          items: [
+            {
+              definitionId: 'private-in-flight-A',
+              domain: 'JOURNAL',
+              status: 'EARNED',
+              unlockedAt: new Date(NOW - MIN).toISOString(),
+              title: 'Private in-flight A',
+            },
+          ],
+        },
+        headers: { etag: '"1"' },
+      })
+      await pending
+      const host = renderHost('uB')
+      await flush()
+      expect(record('uB') ?? '').not.toContain('private-A')
+      expect(record('uB') ?? '').not.toContain('private-in-flight-A')
+      expect(leftover('uB')).toEqual([])
+      host.unmount()
+      b.unmount()
+    })
+
+    it('does not hand a read the host already heard to the next host', async () => {
+      const a = slot('u1')
+      const first = renderHost('u1')
+      await flush()
+      celebrations.dispatchMamAwardRead(read([award('heard', NOW - MIN)]))
+      await flush()
+      expect(record('u1')).toContain('achievement:heard:')
+      first.unmount()
+
+      const next = renderHost('u1')
+      await flush()
+      expect(leftover('u1')).toEqual([])
+      next.unmount()
+      a.unmount()
     })
   })
 })
