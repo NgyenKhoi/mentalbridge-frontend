@@ -739,7 +739,7 @@
       "web": {
         "state": "CODE_READY",
         "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
-        "scenario": "renders server prices and exposes only MoMo purchase actions",
+        "scenario": "renders server prices and names no provider but the configured one",
         "assertions": ["screen.findByText(/1\\.390\\.000\\s*₫/)"]
       },
       "mobile": {
@@ -753,7 +753,7 @@
       "web": {
         "state": "CODE_READY",
         "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
-        "scenario": "renders server prices and exposes only MoMo purchase actions",
+        "scenario": "renders server prices and names no provider but the configured one",
         "assertions": [
           "screen.getByText('4 lượt tư vấn')",
           "screen.getByText('2 lịch')"
@@ -800,11 +800,11 @@
       "sourceTitle": "View Payment Status",
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
-        "scenario": "recovers pending history on remount and activates only after authoritative refresh",
+        "source": "mentalbridge/features/subscription/components/PayosPaymentPanel.test.tsx",
+        "scenario": "polls every 3 seconds and shows success only from the authoritative status",
         "assertions": [
-          "screen.findByRole('status')",
-          "/đã được xác nhận thành công/"
+          "screen.getByRole('heading', { name: 'Đã nhận thanh toán' })",
+          "expect.objectContaining({ status: 'SUCCEEDED' })"
         ]
       },
       "mobile": {
@@ -818,10 +818,10 @@
       "web": {
         "state": "CODE_READY",
         "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
-        "scenario": "recovers pending history on remount and activates only after authoritative refresh",
+        "scenario": "shows only the allowed Plus to Premium upgrade",
         "assertions": [
           "packageCode: 'PLUS'",
-          "screen.getByRole('button', { name: /Nâng cấp/ })"
+          "screen.getByRole('button', { name: 'Nâng cấp lên Premium' })"
         ]
       },
       "mobile": {
@@ -1544,7 +1544,10 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/support-plan/workspace/SupportPlanWorkspace.test.tsx",
         "scenario": "shows the plan grouped by focus with plain cadence",
-        "assertions": ["screen.getByText('Mỗi ngày · khoảng 5 phút')"]
+        "assertions": [
+          "screen.getByText('Mỗi tuần khoảng 35 phút.')",
+          "within(table).getAllByText(/19:00/, { selector: '.mbw-week-time' }),\n    ).toHaveLength(7)"
+        ]
       },
       "mobile": {
         "state": "E2E_AUTHORED_NOT_RUN",

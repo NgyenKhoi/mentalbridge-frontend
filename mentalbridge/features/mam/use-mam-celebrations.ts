@@ -11,9 +11,13 @@ import {
   parseMamAwardRead,
   reserveMamNext,
   returnMamAppearance,
+  stopHearingMamAwardReads,
   takeMamNoteFor,
+  takeUnheardMamAwardReads,
   type MamAppearance,
 } from './mam-celebrations'
+import { endMamAwardSession } from './mam-award-session'
+import { useMamAwardReads } from './use-mam-award-reads'
 
 // Margin after a computed deadline, so the retry lands on the open side of it.
 const RETRY_MARGIN_MS = 50
@@ -69,16 +73,31 @@ export function useMamCelebrations({
   // An owner read (MB-774 dispatches them); the detail is untrusted.
   useEffect(() => {
     if (!accountId) return
-    const onRead = (event: Event) => {
-      const read = parseMamAwardRead((event as CustomEvent).detail)
-      if (read)
-        void observeMamAwardRead(accountId, read).then(() =>
-          setWake((value) => value + 1),
-        )
+    const observe = async (detail: unknown) => {
+      const read = parseMamAwardRead(detail)
+      if (!read) return
+      await observeMamAwardRead(accountId, read)
+      setWake((value) => value + 1)
     }
+    let pending = Promise.resolve()
+    const enqueue = (detail: unknown) => {
+      pending = pending.then(() => observe(detail))
+    }
+    const onRead = (event: Event) => enqueue((event as CustomEvent).detail)
     window.addEventListener(MAM_AWARD_READ_EVENT, onRead)
-    return () => window.removeEventListener(MAM_AWARD_READ_EVENT, onRead)
+    // Replay before live reads (MB-781), so the first stays the baseline and
+    // the latest owner read reconciles last even while a lock is busy.
+    takeUnheardMamAwardReads(accountId).forEach(enqueue)
+    return () => {
+      stopHearingMamAwardReads()
+      window.removeEventListener(MAM_AWARD_READ_EVENT, onRead)
+      // Reads still in flight belong to this account, not the next one.
+      endMamAwardSession()
+    }
   }, [accountId])
+
+  // After the listener, so the first read already has one.
+  useMamAwardReads({ accountId, pathname })
 
   // Release: the lock-guarded reservation decides (budget, freshness, the 10 s
   // coalescing window); this only asks when the host is free. One timer waits for

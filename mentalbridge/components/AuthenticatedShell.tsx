@@ -521,6 +521,7 @@ export default function AuthenticatedShell({
           </div>
         </header>
         <main
+          tabIndex={-1}
           className={`ref-content ${pathname === '/dashboard' ? 'ref-content-dashboard' : isScreeningJourney ? 'ref-content-screening' : 'ref-content-page'}`}
           data-entered={enteredPath === pathname ? '' : undefined}
         >

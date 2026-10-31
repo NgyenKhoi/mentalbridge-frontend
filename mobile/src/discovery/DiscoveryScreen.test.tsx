@@ -38,18 +38,26 @@ function api(overrides: Partial<DiscoveryApi> = {}): DiscoveryApi {
     ...overrides,
   }
 }
-function view(service: DiscoveryApi, client: QueryClient) {
+function view(
+  service: DiscoveryApi,
+  client: QueryClient,
+  supportEvaluationId?: string,
+) {
   return (
     <QueryClientProvider client={client}>
-      <DiscoveryScreen api={service} onBack={jest.fn()} />
+      <DiscoveryScreen
+        api={service}
+        onBack={jest.fn()}
+        {...(supportEvaluationId ? { supportEvaluationId } : {})}
+      />
     </QueryClientProvider>
   )
 }
-async function mount(service = api()) {
+async function mount(service = api(), supportEvaluationId?: string) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
-  const result = await render(view(service, client))
+  const result = await render(view(service, client, supportEvaluationId))
   return { ...result, service, client }
 }
 async function openProfile() {
@@ -138,6 +146,45 @@ describe('MB-629 daily-current public discovery', () => {
     expect(
       screen.getByRole('radio', { name: 'Lo âu' }).props.accessibilityState,
     ).toEqual({ selected: true })
+  })
+  it('keeps the exact evaluation context through filters, detail and slot revalidation', async () => {
+    const supportEvaluationId = '40000000-0000-4000-8000-000000000725'
+    const { service } = await mount(api(), supportEvaluationId)
+    await screen.findByText(fixtureSpecialist.displayName)
+    expect(service.list).toHaveBeenLastCalledWith(
+      { supportEvaluationId },
+      undefined,
+    )
+
+    await fireEvent.press(screen.getByRole('radio', { name: 'Lo âu' }))
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tìm theo tiêu chí' }),
+    )
+    await waitFor(() =>
+      expect(service.list).toHaveBeenLastCalledWith(
+        {
+          supportEvaluationId,
+          supportArea: 'ANXIETY_SYMPTOMS',
+        },
+        undefined,
+      ),
+    )
+
+    await openProfile()
+    expect(service.detail).toHaveBeenLastCalledWith(specialistId, {
+      supportEvaluationId,
+      supportArea: 'ANXIETY_SYMPTOMS',
+    })
+    await selectSlot()
+    await screen.findByText('Khung giờ đã chọn')
+    expect(service.list).toHaveBeenLastCalledWith({
+      supportEvaluationId,
+      supportArea: 'ANXIETY_SYMPTOMS',
+    })
+    expect(service.detail).toHaveBeenLastCalledWith(specialistId, {
+      supportEvaluationId,
+      supportArea: 'ANXIETY_SYMPTOMS',
+    })
   })
   it.each([false, true])(
     'shows distinct source/filter empty states (filtered=%s)',

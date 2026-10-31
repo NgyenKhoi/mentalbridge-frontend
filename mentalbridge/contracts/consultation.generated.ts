@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/internal/v1/ai-companion/voice-entitlement-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Dedicated Journal/AI service-authenticated read of the exact owner and opaque voice-session binding. Delegates current entitlement authority without financial writes or a shadow entitlement. Missing, expired and future grants resolve to FREE/DEFAULT_FREE; active PAID/DEMO grants require validUntil strictly after checkedAt. The session identifier is echoed for caller binding and grants no access by itself. User JWTs, worker credentials and client package claims cannot authorize this route. Does not enable voice sessions. */
+        post: operations["checkCurrentVoiceEntitlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist/appointments/{appointmentId}/video-completion": {
         parameters: {
             query?: never;
@@ -438,7 +455,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns the authoritative active VND catalogue. Price, credits, concurrent-reservation capacity, credit allocation, AI quota, SupportPlan entitlement, effective date, and allowed upgrades are immutable version facts; clients must not derive them from plan names. MoMo checkout remains gated independently. */
+        /** @description Returns the authoritative active VND catalogue and configured active collect provider. Price, credits, concurrent-reservation capacity, credit allocation, AI quota, SupportPlan entitlement, effective date, and allowed upgrades are immutable version facts; clients must not derive them from plan names. Checkout readiness is gated independently. PayOS real money is restricted to the approved staging deployment and test catalogue. */
         get: operations["listActiveServicePlanVersions"];
         put?: never;
         post?: never;
@@ -457,7 +474,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Creates one idempotent MoMo purchase for FREE to PLUS/PREMIUM or upgrade for PLUS to PREMIUM. The server resolves the exact active version and amount. There is no downgrade or user-refund operation. */
+        /** @description Creates one idempotent purchase for FREE to PLUS/PREMIUM or upgrade for PLUS to PREMIUM using the configured collect provider. The server resolves the exact active version and amount. Confirmed PAYOS and FAKE checkout returns in-app QR transfer details; an uncertain create remains PENDING with nullable QR details and replay never creates a second charge. checkoutUrl is an optional HTTPS fallback only. There is no downgrade or user-refund operation. */
         post: operations["createPlanCheckout"];
         delete?: never;
         options?: never;
@@ -489,7 +506,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns one authenticated-owner payment attempt and its stable current state. */
+        /** @description Returns one authenticated-owner payment attempt and its stable current state, with bounded authenticated PayOS status reconciliation for pending attempts. A return or cancel URL is never settlement evidence. A verified exact PAID query and webhook share the same atomic settlement path; terminal outcomes are never reopened. */
         get: operations["getOwnPlanPayment"];
         put?: never;
         post?: never;
@@ -510,6 +527,23 @@ export interface paths {
         put?: never;
         /** @description Signature-verifies the complete MoMo One-Time Payment v2 callback, deduplicates the verified tuple, and acknowledges quickly. Only a matching, unexpired resultCode 0 activates the exact plan version. Raw payload, signature, orderInfo, and extraData are never persisted. */
         post: operations["receiveMomoPlanPaymentIpn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/payments/payos/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Verifies the original complete payload through the official PayOS SDK before business parsing. Settlement additionally requires successful envelope and data codes, exact PAYOS provider, orderCode, paymentLinkId, amount and unique reference on a pending unexpired payment. An authenticated exact event or query may bind a previously unknown paymentLinkId after uncertain creation; a known link must match. Exact redeliveries are idempotent. Signed unmatched, underpaid, reused-reference, terminal or unknown confirmation samples are acknowledged as VERIFIED_UNMATCHED without activation. Raw payloads, signatures and bank account identifiers are not returned or retained as receipt evidence. */
+        post: operations["receivePayosPlanPaymentWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1043,6 +1077,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/payouts/{payoutId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns payout details including masked destination, attempts, earnings, and provider events. */
+        get: operations["getAdminPayoutDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/subscriptions/{subscriptionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns subscription details including payments, credits, and upgrades. */
+        get: operations["getAdminSubscriptionDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/commercial/discrepancies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns authoritative commercial discrepancies including pending/failed/duplicate webhooks, failed payouts, held earnings, and disputed settlements. */
+        get: operations["getAdminCommercialDiscrepancies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/commercial/provenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Traces canonical commercial provenance across Payment, Subscription/Credit, Appointment/Settlement, Specialist Earning, and Payout. */
+        get: operations["getAdminCommercialProvenance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/payouts/momo/ipn": {
         parameters: {
             query?: never;
@@ -1319,6 +1421,41 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        VoiceOwnerCheck: {
+            /** Format: uuid */
+            ownerId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** @constant */
+            purpose: "AI_COMPANION_VOICE";
+        };
+        VoiceEntitlementDecision: {
+            /** Format: uuid */
+            ownerId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** @constant */
+            purpose: "AI_COMPANION_VOICE";
+            /** @enum {string} */
+            packageCode: "FREE" | "PLUS" | "PREMIUM";
+            /** @enum {string} */
+            source: "DEFAULT_FREE" | "PAID" | "DEMO";
+            entitlementVersion: string;
+            /** Format: date-time */
+            checkedAt: string;
+            /** Format: date-time */
+            validUntil?: string;
+        } & unknown;
+        VoiceProblem: {
+            /** Format: uri */
+            type: string;
+            title: string;
+            status: number;
+            /** @enum {string} */
+            code: "UNAUTHENTICATED" | "FORBIDDEN" | "INVALID_REQUEST" | "ENTITLEMENT_UNAVAILABLE";
+            /** Format: uuid */
+            correlationId: string;
+        } & (unknown & unknown & unknown & unknown);
         VideoCompletion: {
             /** Format: uuid */
             appointmentId: string;
@@ -1412,8 +1549,11 @@ export interface components {
         ServicePlanCatalogue: {
             plans: components["schemas"]["ServicePlanVersion"][];
             checkoutEnabled: boolean;
-            /** @constant */
-            paymentProvider: "MOMO";
+            /**
+             * @description Configured collect adapter; checkoutEnabled independently reports readiness. FAKE is simulated and never requests a bank transfer.
+             * @enum {string}
+             */
+            paymentProvider: "FAKE" | "MOMO" | "PAYOS";
             /** Format: date-time */
             generatedAt: string;
         };
@@ -1444,7 +1584,7 @@ export interface components {
             effectiveFrom: string;
         };
         /**
-         * @description Additive owner policy provenance. sandbox-full-price-v1 is synthetic/test pricing only, charging the full target price without an offset; it does not enable production payment or payout. Historical responses may omit this field and retain upgrade-offset-v1 behavior.
+         * @description Additive owner policy provenance. sandbox-full-price-v1 uses test prices and charges the full target price without an offset; ADR 0047 permits the unchanged 5000/10000 VND catalogue through PayOS on staging only, with synthetic non-redeemable earnings. It does not enable production payment or payout. Historical responses may omit this field and retain upgrade-offset-v1 behavior.
          * @enum {string}
          */
         CommercialPricingPolicy: "upgrade-offset-v1" | "sandbox-full-price-v1";
@@ -1452,6 +1592,36 @@ export interface components {
             /** Format: uuid */
             planVersionId: string;
         };
+        /**
+         * @description Authoritative payment state. Fresh confirmed PAYOS and FAKE checkout carries all QR transfer fields; they may be absent or null for legacy, non-QR or unconfirmed attempts. amount equals amountVnd and expiredAt equals expiresAt as an RFC3339 instant. Hosted URLs are optional fallbacks and are not required for an in-app QR flow.
+         * @example {
+         *       "paymentId": "00000000-0000-4000-8000-000000000786",
+         *       "subscriptionId": "00000000-0000-4000-8000-000000000787",
+         *       "planVersionId": "00000000-0000-4000-8000-000000000788",
+         *       "planCode": "PLUS",
+         *       "planVersion": "sandbox-plus-v1",
+         *       "pricingPolicyVersion": "sandbox-full-price-v1",
+         *       "purpose": "PURCHASE",
+         *       "provider": "PAYOS",
+         *       "status": "PENDING",
+         *       "terminalReason": null,
+         *       "amountVnd": 5000,
+         *       "currency": "VND",
+         *       "checkoutUrl": null,
+         *       "qrCodeUrl": null,
+         *       "qrCode": "00020101021238540010A00000072701240006970422011000000007860208QRIBFTTA5303704540450005802VN62120808MB0007866304A1E7",
+         *       "bin": "970422",
+         *       "accountNumber": "0000000786",
+         *       "accountName": "MENTALBRIDGE TEST",
+         *       "description": "MB000786",
+         *       "amount": 5000,
+         *       "expiredAt": "2026-10-30T10:15:00Z",
+         *       "expiresAt": "2026-10-30T10:15:00Z",
+         *       "createdAt": "2026-10-30T10:00:00Z",
+         *       "paidAt": null,
+         *       "failedAt": null
+         *     }
+         */
         PlanPayment: {
             /** Format: uuid */
             paymentId: string;
@@ -1466,20 +1636,43 @@ export interface components {
             /** @enum {string} */
             purpose: "PURCHASE" | "UPGRADE";
             /** @enum {string} */
-            provider: "FAKE" | "MOMO";
+            provider: "FAKE" | "MOMO" | "PAYOS";
             /** @enum {string} */
             status: "PENDING" | "SUCCEEDED" | "FAILED" | "CHARGEBACK";
+            /**
+             * @description Additive reason for a FAILED ledger state, persisted from server expiry or a verified provider result. Legacy failed rows may be null or omit it. PENDING, SUCCEEDED and CHARGEBACK have no terminalReason. Never inferred from return or cancel URLs.
+             * @enum {string|null}
+             */
+            terminalReason?: "EXPIRED" | "CANCELLED" | "PROVIDER_FAILED" | null;
             /** Format: int64 */
             amountVnd: number;
             /** @constant */
             currency: "VND";
             /**
              * Format: uri
-             * @description Null while provider checkout creation is unconfirmed. The canonical pending payment remains auditable; do not redirect or automatically resend a charge. Verified IPN remains authoritative even when checkout creation times out.
+             * @description Optional provider-controlled HTTPS fallback. PAYOS URLs must use the approved PayOS checkout host and MoMo URLs the configured MoMo host. Null or absent when no hosted URL exists or provider creation is unconfirmed; never automatically resend a charge. Verified webhook or fully matched authenticated reconciliation remains authoritative when creation times out.
              */
-            checkoutUrl: string | null;
+            checkoutUrl?: string | null;
             /** Format: uri */
-            qrCodeUrl: string | null;
+            qrCodeUrl?: string | null;
+            /** @description VietQR payload for in-app rendering */
+            qrCode?: string | null;
+            /** @description Transfer bank BIN returned by the collect adapter. */
+            bin?: string | null;
+            accountNumber?: string | null;
+            accountName?: string | null;
+            /** @description Exact bank transfer description. */
+            description?: string | null;
+            /**
+             * Format: int64
+             * @description Integer VND transfer amount; when present equals amountVnd.
+             */
+            amount?: number | null;
+            /**
+             * Format: date-time
+             * @description Chosen server expiry as RFC3339; when present equals expiresAt.
+             */
+            expiredAt?: string | null;
             /** Format: date-time */
             expiresAt: string;
             /** Format: date-time */
@@ -1494,6 +1687,60 @@ export interface components {
             count: number;
             /** Format: date-time */
             generatedAt: string;
+        };
+        /**
+         * @description Complete PayOS webhook envelope. Preserve unknown envelope and signed data fields unchanged for official SDK verification; do not coerce or discard fields before verification. Invalid payloads or signatures cannot mutate financial state.
+         * @example {
+         *       "code": "00",
+         *       "desc": "success",
+         *       "success": true,
+         *       "data": {
+         *         "orderCode": 786,
+         *         "amount": 5000,
+         *         "paymentLinkId": "fixture-link-786",
+         *         "reference": "fixture-reference-786",
+         *         "code": "00",
+         *         "desc": "success",
+         *         "description": "MB000786",
+         *         "accountNumber": "0000000786",
+         *         "transactionDateTime": "2026-10-30 17:01:00",
+         *         "currency": "VND"
+         *       },
+         *       "signature": "0000000000000000000000000000000000000000000000000000000000000000"
+         *     }
+         */
+        PayosPaymentWebhook: {
+            /** @description Successful envelope code is 00. */
+            code: string;
+            desc: string;
+            success: boolean;
+            signature: string;
+            data: {
+                /** Format: int64 */
+                orderCode: number;
+                /** Format: int64 */
+                amount: number;
+                paymentLinkId: string;
+                reference: string;
+                /** @description Successful signed transaction code is 00. */
+                code: string;
+                desc: string;
+                description: string;
+                accountNumber: string;
+                /** @description Provider transaction timestamp preserved verbatim for signature verification. */
+                transactionDateTime: string;
+                currency: string;
+                counterAccountBankId?: string | null;
+                counterAccountBankName?: string | null;
+                counterAccountName?: string | null;
+                counterAccountNumber?: string | null;
+                virtualAccountName?: string | null;
+                virtualAccountNumber?: string | null;
+            } & {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
         };
         MomoPaymentIpn: {
             partnerCode: string;
@@ -2122,6 +2369,7 @@ export interface components {
         AdminPaymentList: {
             /** Format: date-time */
             generatedAt: string;
+            /** @description Number of items in this response page; not a total across matching payments. */
             count: number;
             items: components["schemas"]["AdminPayment"][];
         };
@@ -2138,7 +2386,7 @@ export interface components {
             /** @enum {string} */
             purpose: "PURCHASE" | "UPGRADE";
             /** @enum {string} */
-            provider: "FAKE" | "MOMO";
+            provider: "FAKE" | "MOMO" | "PAYOS";
             /** @enum {string} */
             status: "PENDING" | "SUCCEEDED" | "FAILED" | "CHARGEBACK";
             /** Format: int64 */
@@ -2174,9 +2422,289 @@ export interface components {
             /** Format: date-time */
             completedAt?: string | null;
         };
+        AdminPayoutDetail: {
+            payout: components["schemas"]["AdminPayout"];
+            attempts: {
+                /** Format: uuid */
+                attemptId: string;
+                attemptNumber: number;
+                /** @enum {string} */
+                provider: "FAKE" | "MOMO";
+                /** @enum {string} */
+                status: "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
+                providerReference?: string | null;
+                failureCode?: string | null;
+                /** Format: date-time */
+                requestedAt: string;
+                /** Format: date-time */
+                confirmedAt?: string | null;
+                /** Format: date-time */
+                failedAt?: string | null;
+            }[];
+            earnings: {
+                /** Format: uuid */
+                earningId: string;
+                /** Format: uuid */
+                appointmentId: string;
+                /** Format: int64 */
+                amountVnd: number;
+                status: string;
+                /** Format: date-time */
+                earnedAt: string;
+                /** Format: date-time */
+                paidAt?: string | null;
+            }[];
+            events: {
+                /** Format: uuid */
+                eventId: string;
+                provider: string;
+                eventType: string;
+                processingStatus: string;
+                failureCode?: string | null;
+                /** Format: date-time */
+                receivedAt: string;
+                /** Format: date-time */
+                processedAt?: string | null;
+            }[];
+        };
+        AdminSubscriptionDetail: {
+            /** Format: uuid */
+            subscriptionId: string;
+            /** Format: uuid */
+            userAccountId: string;
+            /** Format: uuid */
+            planVersionId: string;
+            /** @enum {string} */
+            planCode: "FREE" | "PLUS" | "PREMIUM";
+            pricingPolicyVersion: string;
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "ACTIVE" | "ENDED";
+            /** Format: date-time */
+            currentPeriodStart?: string | null;
+            /** Format: date-time */
+            currentPeriodEnd?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            payments: components["schemas"]["AdminPayment"][];
+            credits: {
+                /** Format: uuid */
+                creditId: string;
+                /** Format: uuid */
+                periodId: string;
+                ordinal: number;
+                state: string;
+                /** Format: int64 */
+                creditAllocationVnd: number;
+                /** Format: uuid */
+                appointmentId?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            upgrades: {
+                /** Format: uuid */
+                upgradeId: string;
+                /** Format: uuid */
+                fromPlanVersionId: string;
+                /** Format: uuid */
+                toPlanVersionId: string;
+                /** Format: int64 */
+                offsetVnd: number;
+                /** Format: int64 */
+                amountDueVnd: number;
+                status: string;
+                /** Format: date-time */
+                quotedAt: string;
+                /** Format: date-time */
+                appliedAt?: string | null;
+            }[];
+        };
+        AdminCommercialDiscrepancyReport: {
+            /** Format: date-time */
+            generatedAt: string;
+            totalDiscrepancies: number;
+            webhooks: {
+                /** Format: uuid */
+                id: string;
+                orderId: string;
+                /** @enum {string} */
+                provider: "FAKE" | "MOMO" | "PAYOS";
+                /** Format: int64 */
+                transId?: number | null;
+                discrepancyType: string;
+                status: string;
+                failureCode?: string | null;
+                /** Format: date-time */
+                receivedAt: string;
+            }[];
+            payouts: {
+                /** Format: uuid */
+                payoutId: string;
+                /** Format: uuid */
+                specialistAccountId: string;
+                destinationHint: string;
+                /** Format: int64 */
+                amountVnd: number;
+                /** @constant */
+                currency: "VND";
+                provider: string;
+                status: string;
+                failureCode?: string | null;
+                /** Format: date-time */
+                requestedAt: string;
+            }[];
+            heldEarnings: {
+                /** Format: uuid */
+                earningId: string;
+                /** Format: uuid */
+                appointmentId: string;
+                /** Format: uuid */
+                specialistAccountId: string;
+                /** Format: int64 */
+                amountVnd: number;
+                status: string;
+                holdReason: string;
+                /** Format: date-time */
+                earnedAt: string;
+                /** Format: date-time */
+                settlementAvailableAt: string;
+            }[];
+            disputes: {
+                /** Format: uuid */
+                disputeId: string;
+                /** Format: uuid */
+                appointmentId: string;
+                openedByRole: string;
+                reasonCode: string;
+                status: string;
+                resolutionOutcome?: string | null;
+                /** Format: date-time */
+                openedAt: string;
+                /** Format: date-time */
+                eligibleUntil: string;
+            }[];
+        };
+        AdminCommercialProvenance: {
+            /** Format: date-time */
+            generatedAt: string;
+            queryIdentifierType: string;
+            queryIdentifierValue: string;
+            found: boolean;
+            /** @description True when at least one entity category exceeded the fetch limit */
+            truncated: boolean;
+            subscription?: {
+                /** Format: uuid */
+                subscriptionId: string;
+                /** Format: uuid */
+                userAccountId: string;
+                /** Format: uuid */
+                planVersionId: string;
+                planCode: string;
+                pricingPolicyVersion: string;
+                status: string;
+                /** Format: date-time */
+                currentPeriodStart?: string | null;
+                /** Format: date-time */
+                currentPeriodEnd?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            } | null;
+            subscriptions: {
+                /** Format: uuid */
+                subscriptionId: string;
+                /** Format: uuid */
+                userAccountId: string;
+                /** Format: uuid */
+                planVersionId: string;
+                planCode: string;
+                pricingPolicyVersion: string;
+                status: string;
+                /** Format: date-time */
+                currentPeriodStart?: string | null;
+                /** Format: date-time */
+                currentPeriodEnd?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            payments: components["schemas"]["AdminPayment"][];
+            credits: {
+                /** Format: uuid */
+                creditId: string;
+                /** Format: uuid */
+                periodId: string;
+                ordinal: number;
+                state: string;
+                /** Format: int64 */
+                creditAllocationVnd: number;
+                /** Format: uuid */
+                appointmentId?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            appointments: {
+                /** Format: uuid */
+                appointmentId: string;
+                /** Format: uuid */
+                specialistAccountId: string;
+                /** Format: uuid */
+                serviceCreditId: string;
+                status: string;
+                modality: string;
+                sessionOutcome?: string | null;
+                /** Format: uuid */
+                completionFactId?: string | null;
+                /** Format: date-time */
+                scheduledStartAt: string;
+                /** Format: date-time */
+                scheduledEndAt: string;
+                /** Format: date-time */
+                sessionSettledAt?: string | null;
+            }[];
+            disputes: {
+                /** Format: uuid */
+                disputeId: string;
+                /** Format: uuid */
+                appointmentId: string;
+                openedByRole: string;
+                reasonCode: string;
+                status: string;
+                resolutionOutcome?: string | null;
+                resolutionReason?: string | null;
+                /** Format: date-time */
+                openedAt: string;
+                /** Format: date-time */
+                resolvedAt?: string | null;
+            }[];
+            earnings: {
+                /** Format: uuid */
+                earningId: string;
+                /** Format: uuid */
+                appointmentId: string;
+                /** Format: uuid */
+                consumedCreditId: string;
+                /** Format: uuid */
+                specialistAccountId: string;
+                planVersion: string;
+                /** Format: int64 */
+                creditAllocationVnd: number;
+                specialistShareBps: number;
+                /** Format: int64 */
+                specialistAmountVnd: number;
+                /** Format: int64 */
+                platformAllocationVnd: number;
+                status: string;
+                /** Format: date-time */
+                earnedAt: string;
+                /** Format: date-time */
+                settlementAvailableAt: string;
+                /** Format: date-time */
+                paidAt?: string | null;
+            }[];
+            payouts: components["schemas"]["AdminPayout"][];
+        };
         AdminPayoutList: {
             /** Format: date-time */
             generatedAt: string;
+            /** @description Number of items in this response page; not a total across matching payouts. */
             count: number;
             items: components["schemas"]["AdminPayout"][];
         };
@@ -2746,6 +3274,46 @@ export interface components {
         };
     };
     responses: {
+        /** @description Missing, disabled or invalid dedicated Journal service authentication */
+        VoiceUnauthorizedProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Unsupported caller authentication context */
+        VoiceForbiddenProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Invalid, incomplete, overposted or unsupported request */
+        VoiceInvalidRequestProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Current owner entitlement could not be resolved consistently */
+        VoiceEntitlementUnavailableProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
         /** @description USER role or a current PLUS/PREMIUM entitlement is required (PAID_PLAN_REQUIRED). */
         AppointmentForbiddenProblem: {
             headers: {
@@ -3011,6 +3579,35 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    checkCurrentVoiceEntitlement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceOwnerCheck"];
+            };
+        };
+        responses: {
+            /** @description Current owner entitlement decision */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceEntitlementDecision"];
+                };
+            };
+            401: components["responses"]["VoiceUnauthorizedProblem"];
+            403: components["responses"]["VoiceForbiddenProblem"];
+            422: components["responses"]["VoiceInvalidRequestProblem"];
+            503: components["responses"]["VoiceEntitlementUnavailableProblem"];
+        };
+    };
     confirmVideoConsultationFinished: {
         parameters: {
             query?: never;
@@ -3855,7 +4452,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Pending payment and provider-controlled HTTPS checkout destinations */
+            /** @description Pending payment with confirmed in-app QR details or nullable details while provider creation is unconfirmed */
             201: {
                 headers: {
                     Location?: string;
@@ -3943,6 +4540,55 @@ export interface operations {
             400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    receivePayosPlanPaymentWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayosPaymentWebhook"];
+            };
+        };
+        responses: {
+            /** @description Verified callback acknowledged, including duplicate, unmatched and confirm-webhook sample events */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed payload (PAYOS_WEBHOOK_INVALID), with safe problem details and no financial mutation. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid signature (PAYOS_SIGNATURE_INVALID), with no signature, raw payload or secret in the response. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Verification credentials unavailable (PAYOS_WEBHOOK_UNAVAILABLE); no unverified event is accepted. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getCurrentServiceEntitlement: {
@@ -4919,7 +5565,22 @@ export interface operations {
     };
     listAdminPayments: {
         parameters: {
-            query?: never;
+            query?: {
+                status?: "ALL" | "PENDING" | "SUCCEEDED" | "FAILED" | "CHARGEBACK";
+                from?: string;
+                /** @description Inclusive upper bound on createdAt; retained for existing clients. Do not combine with toExclusive. */
+                to?: string;
+                /** @description Exclusive upper bound on createdAt. Must be after from; do not combine with to. */
+                toExclusive?: string;
+                subscriptionId?: string;
+                paymentId?: string;
+                limit?: number;
+                orderId?: string;
+                idempotencyKey?: string;
+                /** @description Search payments by MoMo orderId or requestId */
+                momoRef?: string;
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4941,7 +5602,21 @@ export interface operations {
     };
     listAdminPayouts: {
         parameters: {
-            query?: never;
+            query?: {
+                status?: "ALL" | "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
+                from?: string;
+                /** @description Inclusive upper bound on requestedAt; retained for existing clients. Do not combine with toExclusive. */
+                to?: string;
+                /** @description Exclusive upper bound on requestedAt. Must be after from; do not combine with to. */
+                toExclusive?: string;
+                specialistAccountId?: string;
+                payoutId?: string;
+                limit?: number;
+                idempotencyKey?: string;
+                /** @description Exact provider payout reference from any persisted attempt; the list item displays the latest attempt's reference. */
+                providerReference?: string;
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4957,6 +5632,108 @@ export interface operations {
                     "application/json": components["schemas"]["AdminPayoutList"];
                 };
             };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getAdminPayoutDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payoutId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detailed payout reconciliation record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPayoutDetail"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getAdminSubscriptionDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subscriptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detailed subscription commercial record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSubscriptionDetail"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getAdminCommercialDiscrepancies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative discrepancy report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommercialDiscrepancyReport"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getAdminCommercialProvenance: {
+        parameters: {
+            query?: {
+                paymentId?: string;
+                subscriptionId?: string;
+                creditId?: string;
+                appointmentId?: string;
+                earningId?: string;
+                payoutId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Complete provenance trace across the commercial bounded context */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommercialProvenance"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
         };

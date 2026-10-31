@@ -5,16 +5,26 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import type { MamLoopingBehavior } from './mam-contract'
 import { runMamRequest } from './mam-requests'
 import {
+  discardPendingMamSummon,
+  listenMamSummons,
+  MAM_SUMMON_EVENT,
+  stopHearingMamSummons,
+  takePendingMamSummon,
+  type MamSummonRequest,
+} from './mam-summon-request'
+import {
   mamFallbackText,
   mamReviewedAnswer,
   type MamAnswer,
   type MamIntent,
   type MamTarget,
+  type MamTargetKind,
 } from './mam-targets'
 import {
   findMamTarget,
   findMamTargetElement,
   getMamPageTarget,
+  getMamResolver,
   isMamTargetMounted,
   subscribeMamTargets,
 } from './use-mam-target'
@@ -129,11 +139,11 @@ export function useMamSummon({
       element: Element | null,
       anchor: MamAnchor,
       returnFocus: HTMLElement | null,
-    ) => {
+    ): boolean => {
       // One bubble at a time; summoning the same target again keeps its state.
       const current = latest.current
       if (current && current.target === target && current.element === element)
-        return
+        return false
       cancelRequest()
       const next: MamSummon = {
         pathname,
@@ -145,6 +155,7 @@ export function useMamSummon({
       }
       latest.current = next
       setSummon(next)
+      return true
     },
     [pathname],
   )
@@ -154,43 +165,48 @@ export function useMamSummon({
     if (target) open(target, null, { kind: 'dock' }, dockRef.current)
   }, [dockRef, open])
 
+  // Starts the one request of a summon; a newer one aborts the older.
+  const start = useCallback((from: MamSummon, intent: MamIntent) => {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
+    const { target } = from
+    const pending: MamSummon = { ...from, phase: 'pending', intent }
+    latest.current = pending
+    setSummon(pending)
+    const isRegistered = (kind: MamTargetKind) =>
+      findMamTargetElement(kind) !== null
+    const resolver = getMamResolver(target)
+    void runMamRequest(
+      intent,
+      async (signal) =>
+        (await resolver?.(intent, { signal, isRegistered })) ??
+        mamReviewedAnswer(target, intent, isRegistered),
+      controller.signal,
+    ).then((result) => {
+      if (result.status === 'aborted' || request.current !== controller) return
+      request.current = null
+      setSummon((current) =>
+        current && current.target === target
+          ? {
+              ...current,
+              phase: 'answer',
+              answer:
+                result.status === 'failed'
+                  ? { text: mamFallbackText(target, intent) }
+                  : result.answer,
+              failed: result.status === 'failed',
+            }
+          : current,
+      )
+    })
+  }, [])
+
   const choose = useCallback(
     (intent: MamIntent) => {
-      if (!summon) return
-      request.current?.abort()
-      const controller = new AbortController()
-      request.current = controller
-      const { target } = summon
-      setSummon({ ...summon, phase: 'pending', intent })
-      void runMamRequest(
-        intent,
-        async () =>
-          mamReviewedAnswer(
-            target,
-            intent,
-            (kind) => findMamTargetElement(kind) !== null,
-          ),
-        controller.signal,
-      ).then((result) => {
-        if (result.status === 'aborted' || request.current !== controller)
-          return
-        request.current = null
-        setSummon((current) =>
-          current && current.target === target
-            ? {
-                ...current,
-                phase: 'answer',
-                answer:
-                  result.status === 'failed'
-                    ? { text: mamFallbackText(target, intent) }
-                    : result.answer,
-                failed: result.status === 'failed',
-              }
-            : current,
-        )
-      })
+      if (summon) start(summon, intent)
     },
-    [summon],
+    [start, summon],
   )
 
   /** Takes the user to the card an answer points at. */
@@ -344,6 +360,55 @@ export function useMamSummon({
     }
   }, [enabled, open])
 
+  // A card's own Mầm button opens its bubble already asking (no menu step).
+  useEffect(() => {
+    // A host that starts disabled drops a press made while it loaded (MB-781).
+    if (!enabled) {
+      discardPendingMamSummon()
+      return
+    }
+    const summon = ({ source, intent }: MamSummonRequest) => {
+      const found = findMamTarget(source)
+      if (!found?.target.intents.includes(intent)) return
+      const rect = source.getBoundingClientRect()
+      const opened = open(
+        found.target,
+        found.element,
+        pointAt(
+          found.element,
+          rect.left + window.scrollX,
+          rect.bottom + window.scrollY,
+        ),
+        source,
+      )
+      if (opened && latest.current) start(latest.current, intent)
+    }
+    const onSummon = (event: Event) =>
+      summon((event as CustomEvent<MamSummonRequest>).detail)
+    window.addEventListener(MAM_SUMMON_EVENT, onSummon)
+    listenMamSummons()
+    // A press made while the lazy host was loading (MB-781), taken only once the
+    // subscription survived, so a StrictMode replay cannot consume and abort it.
+    let live = true
+    queueMicrotask(() => {
+      if (!live) return
+      const missed = takePendingMamSummon()
+      if (missed) summon(missed)
+    })
+    return () => {
+      live = false
+      stopHearingMamSummons()
+      window.removeEventListener(MAM_SUMMON_EVENT, onSummon)
+    }
+  }, [enabled, open, start])
+
+  // The card Mầm is talking about shows it (feature CSS reads the attribute).
+  const talkingAbout = summon?.element
+  useEffect(() => {
+    talkingAbout?.setAttribute('data-mam-active', '')
+    return () => talkingAbout?.removeAttribute('data-mam-active')
+  }, [talkingAbout])
+
   // Esc, an outside press or the target leaving the page closes the bubble.
   const isOpen = summon !== null
   useEffect(() => {
@@ -359,10 +424,13 @@ export function useMamSummon({
         return
       // A repeat summon (right button or touch) on the same target starts with
       // a pointerdown; it must share the open bubble, not cancel it.
+      // The same goes for the card's own Mầm button (`data-mam-trigger`).
       const element = latest.current?.element
       if (
         element?.contains(node) &&
-        (event.button === 2 || event.pointerType !== 'mouse')
+        (event.button === 2 ||
+          event.pointerType !== 'mouse' ||
+          (node instanceof Element && node.closest('[data-mam-trigger]')))
       )
         return
       close(false)

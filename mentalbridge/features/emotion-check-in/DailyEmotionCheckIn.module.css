@@ -1,4 +1,4 @@
-﻿.card {
+.card {
   scroll-margin-top: 120px;
   display: flex;
   flex-direction: column;
@@ -11,6 +11,38 @@
 }
 .header {
   margin: 0;
+}
+/* Anchors the Mầm slot; only the saved home card carries the button. */
+.mamCard {
+  position: relative;
+}
+/* Keeps the title clear of the Mầm button (44 px). */
+.mamCard .header {
+  padding-right: 44px;
+}
+/* Zero-size corner anchor for the absolutely placed button; the z-index keeps
+   it above the saved panel, which animates in its own stacking context. */
+.mamSlot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  transition:
+    opacity var(--motion-instant) var(--ease-standard),
+    visibility 0s linear 0s;
+}
+.mamSlot[data-off] {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--motion-instant) var(--ease-standard),
+    visibility 0s linear var(--motion-instant);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mamSlot,
+  .mamSlot[data-off] {
+    transition: none;
+  }
 }
 .title,
 .savedTitle {

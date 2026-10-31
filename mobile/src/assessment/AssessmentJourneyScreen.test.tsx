@@ -197,7 +197,7 @@ const guide: SupportGuide = {
   supportGuideId: '30000000-0000-4000-8000-000000000101',
   guideVersion: 1,
   guidePolicyVersion: 'mb-support-guide-capstone-v1',
-  supportEvaluationId: evaluation.supportEvaluationId,
+  supportEvaluationId: completedEpisode.supportEvaluationId!,
   generatedAt: '2026-10-06T08:05:00.000Z',
   guideType: 'ONE_TIME_SUPPORT_GUIDE',
   explanation: {
@@ -596,7 +596,10 @@ describe('mobile assessment and support-guide journey', () => {
     await fireEvent.press(
       await screen.findByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
     )
-    expect(mockPush).toHaveBeenCalledWith('./specialists')
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: './specialists',
+      params: { supportEvaluationId: guide.supportEvaluationId },
+    })
     expect(
       screen.queryByText(
         'Chưa tải được bước tiếp theo. Kết quả và gợi ý của bạn vẫn được lưu.',
@@ -682,7 +685,10 @@ describe('mobile assessment and support-guide journey', () => {
       await screen.findByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
     )
 
-    expect(mockPush).toHaveBeenCalledWith('./specialists')
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: './specialists',
+      params: { supportEvaluationId: guide.supportEvaluationId },
+    })
   })
 
   it('opens the Guide exact first resource for the free resource step', async () => {

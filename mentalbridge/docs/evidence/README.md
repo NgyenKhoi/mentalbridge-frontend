@@ -1,5 +1,36 @@
 # Synthetic browser evidence
 
+MB-761 adds the Web AI Voice entry, quota-aware preview, separate consent and
+accessible call controls. [Acceptance and verification](mb-761-web-ai-voice.md)
+include synthetic desktop/mobile captures and the backend #237 dependency.
+
+MB-771 adds one explicit Mầm entry to the saved emotion check-in, hides the
+dock while a dialog or safety zone is open, keeps `/journal` static, and removes
+the legacy SupportPlan Companion aside. Results, privacy checks and the
+`/journal` and `/support-plan` re-measurement are in
+[`mb-771-mam-emotion-journal.md`](mb-771-mam-emotion-journal.md).
+
+MB-775 is the web release gate for Mầm behind `MAM_WEB_ENABLED`: measured
+flag-off versus flag-on cost, budgets, not-blocked, asset-failure, slow and
+offline, navigation-leak and privacy specs, the flag-off spec, a verified
+rollback, rollout plan and findings. Results are in
+[`mb-775-mam-web-gate.md`](mb-775-mam-web-gate.md); regenerate the numbers with
+`npm run mam:gate:measure` after a production build.
+
+MB-781 loads the Mầm dock host only where Mầm shows, so flag-off and
+undocked pages no longer download it. Bundle before and after, visual
+parity and failure handling are in
+[`mb-781-mam-dynamic-dock.md`](mb-781-mam-dynamic-dock.md).
+
+MB-772 moves the SupportPlan Companion onto the global Mầm behind
+`MAM_WEB_ENABLED` (legacy Companion kept with the flag off) and re-checks the
+MB-775 gate for `/support-plan`. Results are in
+[`mb-772-support-plan-mam.md`](mb-772-support-plan-mam.md).
+
+MB-774 feeds the Mầm celebration director with the real Achievements and
+Bingo reads, plus a cadence reader on dock routes. Results are in
+[`mb-774-mam-reward-reads.md`](mb-774-mam-reward-reads.md).
+
 MB-768 mounts one Mầm dock per tab on eligible USER routes, with hide, mute
 and motion controls. Results are in
 [`mb-768-mam-global-dock.md`](mb-768-mam-global-dock.md).

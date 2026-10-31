@@ -5,6 +5,11 @@ export type AdminPaymentList = components['schemas']['AdminPaymentList']
 export type PlanPaymentHistory = components['schemas']['PlanPaymentHistory']
 
 export type PlanCode = 'FREE' | 'PLUS' | 'PREMIUM'
+export type PaymentProvider = 'FAKE' | 'MOMO' | 'PAYOS'
+export type PaymentTerminalReason = 'EXPIRED' | 'CANCELLED' | 'PROVIDER_FAILED'
+
+const PROVIDERS = ['FAKE', 'MOMO', 'PAYOS']
+const TERMINAL_REASONS = ['EXPIRED', 'CANCELLED', 'PROVIDER_FAILED']
 
 export type ServicePlanVersion = Readonly<{
   planVersionId: string
@@ -28,7 +33,7 @@ export type ServicePlanVersion = Readonly<{
 export type ServicePlanCatalogue = Readonly<{
   plans: readonly ServicePlanVersion[]
   checkoutEnabled: boolean
-  paymentProvider: 'MOMO'
+  paymentProvider: PaymentProvider
   generatedAt: string
 }>
 
@@ -40,12 +45,20 @@ export type PlanPayment = Readonly<{
   planVersion: string
   pricingPolicyVersion?: PricingPolicy
   purpose: 'PURCHASE' | 'UPGRADE'
-  provider: 'FAKE' | 'MOMO'
+  provider: PaymentProvider
   status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'CHARGEBACK'
+  terminalReason?: PaymentTerminalReason | null
   amountVnd: number
   currency: 'VND'
-  checkoutUrl: string | null
-  qrCodeUrl: string | null
+  checkoutUrl?: string | null
+  qrCodeUrl?: string | null
+  qrCode?: string | null
+  bin?: string | null
+  accountNumber?: string | null
+  accountName?: string | null
+  description?: string | null
+  amount?: number | null
+  expiredAt?: string | null
   expiresAt: string
   createdAt: string
   paidAt: string | null
@@ -91,7 +104,21 @@ function instant(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(Date.parse(value))
 }
 
-function safeMomoUrl(value: unknown): value is string {
+function text(value: unknown, max: number) {
+  return typeof value === 'string' && value.length >= 1 && value.length <= max
+}
+
+const absent = (value: unknown) => value === undefined || value === null
+
+const HOSTED_DOMAINS: Record<string, string[]> = {
+  MOMO: ['momo.vn'],
+  PAYOS: ['payos.vn'],
+  // legacy FAKE rows carried MoMo test links
+  FAKE: ['momo.vn'],
+}
+
+// Hosted links are an optional fallback; only the provider's own HTTPS domain is accepted.
+function safeHostedUrl(provider: unknown, value: unknown): value is string {
   if (typeof value !== 'string' || value.length > 2048) return false
   try {
     const url = new URL(value)
@@ -99,11 +126,38 @@ function safeMomoUrl(value: unknown): value is string {
       url.protocol === 'https:' &&
       !url.username &&
       !url.password &&
-      (url.hostname === 'momo.vn' || url.hostname.endsWith('.momo.vn'))
+      (HOSTED_DOMAINS[String(provider)] ?? []).some(
+        (domain) =>
+          url.hostname === domain || url.hostname.endsWith(`.${domain}`),
+      )
     )
   } catch {
     return false
   }
+}
+
+function qrFields(payment: Record<string, unknown>) {
+  return (
+    (absent(payment.qrCode) || text(payment.qrCode, 1024)) &&
+    (absent(payment.bin) || text(payment.bin, 32)) &&
+    (absent(payment.accountNumber) || text(payment.accountNumber, 64)) &&
+    (absent(payment.accountName) || text(payment.accountName, 128)) &&
+    (absent(payment.description) || text(payment.description, 9)) &&
+    (absent(payment.amount) || payment.amount === payment.amountVnd) &&
+    (absent(payment.expiredAt) ||
+      (instant(payment.expiredAt) &&
+        Date.parse(payment.expiredAt) ===
+          Date.parse(String(payment.expiresAt))))
+  )
+}
+
+// A reason exists only on FAILED rows; legacy rows carry none.
+function terminalReasonValid(payment: Record<string, unknown>) {
+  return (
+    absent(payment.terminalReason) ||
+    (payment.status === 'FAILED' &&
+      TERMINAL_REASONS.includes(String(payment.terminalReason)))
+  )
 }
 
 export function parseServicePlanCatalogue(
@@ -121,7 +175,7 @@ export function parseServicePlanCatalogue(
     !Array.isArray(catalogue.plans) ||
     catalogue.plans.length !== 3 ||
     typeof catalogue.checkoutEnabled !== 'boolean' ||
-    catalogue.paymentProvider !== 'MOMO' ||
+    !PROVIDERS.includes(String(catalogue.paymentProvider)) ||
     !instant(catalogue.generatedAt)
   )
     return null
@@ -199,7 +253,7 @@ export function parseServicePlanCatalogue(
   return {
     plans,
     checkoutEnabled: catalogue.checkoutEnabled,
-    paymentProvider: 'MOMO',
+    paymentProvider: catalogue.paymentProvider as PaymentProvider,
     generatedAt: catalogue.generatedAt,
   }
 }
@@ -221,14 +275,24 @@ export function parsePlanPayment(value: unknown): PlanPayment | null {
         'status',
         'amountVnd',
         'currency',
-        'checkoutUrl',
-        'qrCodeUrl',
         'expiresAt',
         'createdAt',
         'paidAt',
         'failedAt',
       ],
-      ['pricingPolicyVersion'],
+      [
+        'pricingPolicyVersion',
+        'terminalReason',
+        'checkoutUrl',
+        'qrCodeUrl',
+        'qrCode',
+        'bin',
+        'accountNumber',
+        'accountName',
+        'description',
+        'amount',
+        'expiredAt',
+      ],
     ) ||
     !pricingPolicy(payment.pricingPolicyVersion) ||
     !uuid(payment.paymentId) ||
@@ -239,16 +303,24 @@ export function parsePlanPayment(value: unknown): PlanPayment | null {
     payment.planVersion.length < 1 ||
     payment.planVersion.length > 64 ||
     !['PURCHASE', 'UPGRADE'].includes(String(payment.purpose)) ||
-    !['FAKE', 'MOMO'].includes(String(payment.provider)) ||
+    !PROVIDERS.includes(String(payment.provider)) ||
     !['PENDING', 'SUCCEEDED', 'FAILED', 'CHARGEBACK'].includes(
       String(payment.status),
     ) ||
     !Number.isSafeInteger(payment.amountVnd) ||
     Number(payment.amountVnd) < 1 ||
     payment.currency !== 'VND' ||
-    !(payment.checkoutUrl === null || safeMomoUrl(payment.checkoutUrl)) ||
-    !(payment.qrCodeUrl === null || safeMomoUrl(payment.qrCodeUrl)) ||
+    !(
+      absent(payment.checkoutUrl) ||
+      safeHostedUrl(payment.provider, payment.checkoutUrl)
+    ) ||
+    !(
+      absent(payment.qrCodeUrl) ||
+      safeHostedUrl(payment.provider, payment.qrCodeUrl)
+    ) ||
+    !terminalReasonValid(payment) ||
     !instant(payment.expiresAt) ||
+    !qrFields(payment) ||
     !instant(payment.createdAt) ||
     !(payment.paidAt === null || instant(payment.paidAt)) ||
     !(payment.failedAt === null || instant(payment.failedAt))
@@ -306,7 +378,7 @@ export function parseAdminPaymentList(value: unknown): AdminPaymentList | null {
       item.pricingPolicyVersion === undefined ||
       !pricingPolicy(item.pricingPolicyVersion) ||
       !['PURCHASE', 'UPGRADE'].includes(String(item.purpose)) ||
-      !['FAKE', 'MOMO'].includes(String(item.provider)) ||
+      !PROVIDERS.includes(String(item.provider)) ||
       !['PENDING', 'SUCCEEDED', 'FAILED', 'CHARGEBACK'].includes(
         String(item.status),
       ) ||

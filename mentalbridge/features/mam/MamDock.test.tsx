@@ -1,8 +1,20 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ReactNode } from 'react'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
 import { MamDock } from './MamDock'
 import { MamDockSlot } from './MamDockSlot'
+import { dispatchMamSaved } from './mam-saved'
+import { useMamSuppress } from './mam-suppression'
+import { loadMamDockHost } from './testing/load-mam-dock-host'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
 
@@ -10,7 +22,7 @@ vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
 }))
 
-const character = vi.hoisted(() => ({ mounts: 0 }))
+const character = vi.hoisted(() => ({ mounts: 0, plays: 0, ready: false }))
 
 vi.mock('./MamCharacter', async () => {
   const { useEffect } = await import('react')
@@ -19,16 +31,27 @@ vi.mock('./MamCharacter', async () => {
       size: number
       behavior: string
       reducedMotion: boolean
+      oneShot?: { kind: string } | null
+      onStatusChange?: (status: 'ready') => void
     }) => {
       useEffect(() => {
         character.mounts += 1
+        if (character.ready) props.onStatusChange?.('ready')
+        // Mount only: the status is reported once, as the real character does.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [])
+      const shotKey = (props.oneShot as { key?: string } | null | undefined)
+        ?.key
+      useEffect(() => {
+        if (shotKey) character.plays += 1
+      }, [shotKey])
       return (
         <span
           data-testid="mam-character"
           data-size={props.size}
           data-behavior={props.behavior}
           data-reduced={props.reducedMotion}
+          data-one-shot={props.oneShot?.kind ?? ''}
         />
       )
     },
@@ -66,10 +89,15 @@ function stubOverlap() {
   }
 }
 
+// The dock host is lazy (MB-781): load it once, as the app does.
+beforeAll(loadMamDockHost, 20_000)
+
 describe('MamDock', () => {
   beforeEach(() => {
     navigation.pathname = '/dashboard'
     character.mounts = 0
+    character.plays = 0
+    character.ready = false
     window.localStorage.clear()
     window.sessionStorage.clear()
     stubMatchMedia(() => false)
@@ -97,7 +125,7 @@ describe('MamDock', () => {
   })
 
   it('renders nothing on a route outside the surface matrix', () => {
-    navigation.pathname = '/support-plan'
+    navigation.pathname = '/support-plan/today'
     render(
       <>
         <MamDockSlot />
@@ -260,17 +288,127 @@ describe('MamDock', () => {
     })
 
     await waitFor(() =>
-      expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull(),
+      expect(screen.queryByTestId('mam-character')).toBeNull(),
     )
-    expect(screen.getByTestId('mam-character').dataset.reduced).toBe('true')
+    expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+    expect(document.querySelector('[data-mam-dock]')).toHaveAttribute(
+      'data-mam-dock',
+      'away',
+    )
 
     await act(async () => {
       modal.remove()
     })
-    await waitFor(() =>
-      expect(screen.getByTestId('mam-character').dataset.reduced).toBe('false'),
-    )
+    const returned = await screen.findByTestId('mam-character')
+    expect(returned.dataset.reduced).toBe('false')
     expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+  })
+
+  it('removes the hide handle too while a dialog is open, and brings it back', async () => {
+    window.localStorage.setItem('mentalbridge_mam_hidden', 'true')
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(screen.getByRole('button', { name: 'Hiện Mầm' })).toBeInTheDocument()
+    const dialog = document.createElement('dialog')
+    await act(async () => {
+      document.body.appendChild(dialog)
+      dialog.setAttribute('open', '')
+    })
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Hiện Mầm' })).toBeNull(),
+    )
+    await act(async () => {
+      dialog.removeAttribute('open')
+    })
+    expect(
+      await screen.findByRole('button', { name: 'Hiện Mầm' }),
+    ).toBeInTheDocument()
+  })
+
+  describe('feature zones', () => {
+    function Zone({
+      mode,
+      on = true,
+    }: Readonly<{ mode?: 'hide' | 'suppress'; on?: boolean }>) {
+      useMamSuppress(on, mode)
+      return null
+    }
+    const dock = (zone: ReactNode) => (
+      <>
+        {zone}
+        <MamDockSlot />
+        <MamDock />
+      </>
+    )
+
+    it('a hide zone removes the character and returns it after', async () => {
+      const { rerender } = render(dock(<Zone mode="hide" />))
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      rerender(dock(<Zone mode="hide" on={false} />))
+      expect(await screen.findByTestId('mam-character')).toBeInTheDocument()
+    })
+
+    it('a plain suppress zone keeps the character, still and inert', () => {
+      render(dock(<Zone />))
+      expect(screen.getByTestId('mam-character').dataset.reduced).toBe('true')
+      expect(document.querySelector('[data-mam-dock]')).toHaveAttribute(
+        'data-mam-dock',
+        'shown',
+      )
+    })
+
+    it('moves focus from the dock to the page content when a hide zone removes it', async () => {
+      const content = document.createElement('main')
+      content.className = 'ref-content'
+      content.tabIndex = -1
+      document.body.appendChild(content)
+      const { rerender } = render(dock(<Zone on={false} />))
+      dockButton().focus()
+      expect(dockButton()).toHaveFocus()
+      rerender(dock(<Zone mode="hide" />))
+      await waitFor(() => expect(content).toHaveFocus())
+    })
+
+    it('leaves focus alone when it is not in the dock', async () => {
+      const content = document.createElement('main')
+      content.className = 'ref-content'
+      content.tabIndex = -1
+      document.body.appendChild(content)
+      const { rerender } = render(
+        <>
+          {dock(<Zone on={false} />)}
+          <button type="button">Trang</button>
+        </>,
+      )
+      screen.getByRole('button', { name: 'Trang' }).focus()
+      rerender(
+        <>
+          {dock(<Zone mode="hide" />)}
+          <button type="button">Trang</button>
+        </>,
+      )
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      expect(screen.getByRole('button', { name: 'Trang' })).toHaveFocus()
+    })
+
+    it('a hide zone closes an open menu', async () => {
+      const { rerender } = render(dock(<Zone on={false} />))
+      fireEvent.click(dockButton())
+      expect(screen.getByRole('group', { name: 'Mầm' })).toBeInTheDocument()
+      rerender(dock(<Zone mode="hide" />))
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+    })
   })
 
   it('closes the menu when focus moves to the page', async () => {
@@ -419,5 +557,145 @@ describe('MamDock', () => {
     await waitFor(() =>
       expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull(),
     )
+  })
+
+  it('shows on /support-plan and on no deeper SupportPlan path', () => {
+    navigation.pathname = '/support-plan'
+    const { unmount } = render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(screen.getByTestId('mam-character')).toBeInTheDocument()
+    unmount()
+  })
+
+  describe('a confirmed save', () => {
+    const shown = () => (
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>
+    )
+    const oneShot = () =>
+      screen.getByTestId('mam-character').getAttribute('data-one-shot')
+
+    beforeEach(() => {
+      navigation.pathname = '/support-plan'
+      character.ready = true
+    })
+
+    it('plays light_success once, then settles', async () => {
+      vi.useFakeTimers()
+      render(shown())
+      expect(oneShot()).toBe('')
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('light_success')
+      act(() => {
+        vi.advanceTimersByTime(1500)
+      })
+      expect(oneShot()).toBe('')
+      vi.useRealTimers()
+    })
+
+    it('clears playing save feedback on navigation without replaying on return', () => {
+      const { rerender } = render(shown())
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('light_success')
+
+      navigation.pathname = '/achievements'
+      rerender(shown())
+      expect(oneShot()).toBe('')
+      navigation.pathname = '/support-plan'
+      rerender(shown())
+      expect(oneShot()).toBe('')
+      expect(character.mounts).toBe(1)
+
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('light_success')
+    })
+
+    it('does not replay an interrupted save when Mầm returns before it ends', async () => {
+      function Zone({ on }: Readonly<{ on: boolean }>) {
+        useMamSuppress(on, 'hide')
+        return null
+      }
+      const withZone = (on: boolean) => (
+        <>
+          <Zone on={on} />
+          {shown()}
+        </>
+      )
+      const { rerender } = render(withZone(false))
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('light_success')
+      expect(character.plays).toBe(1)
+
+      rerender(withZone(true))
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      rerender(withZone(false))
+      expect(await screen.findByTestId('mam-character')).toBeInTheDocument()
+      expect(oneShot()).toBe('')
+      expect(character.plays).toBe(1)
+    })
+
+    it.each([
+      [
+        'hidden',
+        () => window.localStorage.setItem('mentalbridge_mam_hidden', 'true'),
+      ],
+      [
+        'muted',
+        () =>
+          window.sessionStorage.setItem(
+            'mentalbridge_mam_session_muted',
+            'true',
+          ),
+      ],
+      [
+        'motion off',
+        () => window.localStorage.setItem('mentalbridge_mam_motion', 'reduced'),
+      ],
+    ])('stays still while Mầm is %s', (name, setup) => {
+      setup()
+      render(shown())
+      act(() => dispatchMamSaved())
+      // Hidden Mầm has no character at all, so nothing can play.
+      if (name === 'hidden')
+        expect(screen.queryByTestId('mam-character')).toBeNull()
+      else expect(oneShot()).toBe('')
+    })
+
+    it('stays still while the feature reports a no-interrupt zone', () => {
+      function Dirty() {
+        useMamSuppress(true)
+        return null
+      }
+      render(
+        <>
+          <Dirty />
+          {shown()}
+        </>,
+      )
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('')
+    })
+
+    it('stays still while the menu is open', () => {
+      render(shown())
+      fireEvent.click(dockButton())
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('')
+    })
+
+    it('stays still before the character is ready', () => {
+      character.ready = false
+      render(shown())
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('')
+    })
   })
 })

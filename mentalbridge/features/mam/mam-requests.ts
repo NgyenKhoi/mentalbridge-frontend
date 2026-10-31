@@ -23,7 +23,10 @@ export type MamRequestResult =
 
 function validAnswer(value: unknown): MamAnswer | null {
   if (!value || typeof value !== 'object') return null
-  const { text, focusKind, href } = value as Record<string, unknown>
+  const { text, focusKind, focusLabel, href, generated } = value as Record<
+    string,
+    unknown
+  >
   if (typeof text !== 'string') return null
   const trimmed = text.trim()
   if (!trimmed || trimmed.length > MAX_ANSWER_LENGTH) return null
@@ -33,10 +36,19 @@ function validAnswer(value: unknown): MamAnswer | null {
     (typeof href !== 'string' || !RESOURCE_HREF.test(href))
   )
     return null
+  if (
+    focusLabel !== undefined &&
+    (typeof focusLabel !== 'string' ||
+      !focusLabel.trim() ||
+      focusLabel.length > 40)
+  )
+    return null
   return {
     text: trimmed,
     ...(focusKind === undefined ? {} : { focusKind }),
+    ...(focusLabel === undefined ? {} : { focusLabel }),
     ...(href === undefined ? {} : { href }),
+    ...(generated === true ? { generated: true } : {}),
   }
 }
 

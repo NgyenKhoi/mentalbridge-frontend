@@ -2,10 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { gzipSync } from 'node:zlib'
 
 const files = [
-  'features/support-plan/components/SupportPlanCompanionShell.tsx',
-  'features/support-plan/components/SupportPlanCompanionPanel.tsx',
   'features/support-plan/components/SupportPlanContextualCompanion.tsx',
-  'features/support-plan/components/support-plan-companion-state.ts',
   'features/support-plan/components/support-plan-companion-interruption.ts',
   'features/support-plan/components/support-plan-contextual-companion.ts',
   'features/support-plan/components/support-plan-companion.css',

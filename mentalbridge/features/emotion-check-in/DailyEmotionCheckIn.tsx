@@ -6,6 +6,10 @@ import { MoodFace } from './MoodFace'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
+import { MamCardButton } from '@/features/mam/MamCardButton'
+import { useMamDockSlotted } from '@/features/mam/MamDockSlot'
+import { useMamSuppress } from '@/features/mam/mam-suppression'
+import { useMamTarget } from '@/features/mam/use-mam-target'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import type {
   Emotion,
@@ -101,6 +105,7 @@ export function DailyEmotionCheckIn({
   const [retryKind, setRetryKind] = useState<RetryKind>('load')
   const [message, setMessage] = useState('')
   const [reload, setReload] = useState(0)
+  const [focusInForm, setFocusInForm] = useState(false)
   const activeDate = useRef(localDate)
   const mounted = useRef(true)
   const mutation = useRef<{ fingerprint: string; key: string } | null>(null)
@@ -186,6 +191,23 @@ export function DailyEmotionCheckIn({
   )
   const loadBlocked =
     (phase === 'error' && retryKind === 'load') || originDayChanged
+  const showsForm = phase !== 'loading' && !(phase === 'saved' && persisted)
+  // An unmounted form fires no blur, so focus cannot outlive it.
+  if (focusInForm && !showsForm) setFocusInForm(false)
+  // Emotion entry is a no-interrupt zone (ADR): a draft or focus in the form
+  // stills Mầm; the record itself never leaves this component.
+  useMamSuppress(draftChanged || focusInForm)
+  // One explicit Mầm entry, only for a clean saved record and with the flag on
+  // (the dock slot mounts only then). Nothing from the check-in is passed on.
+  const mamSlotted = useMamDockSlotted()
+  const mamEligible =
+    mamSlotted &&
+    persisted !== null &&
+    (phase === 'ready' || phase === 'saved') &&
+    !draftChanged &&
+    !focusInForm &&
+    !planOrigin
+  const mamTarget = useMamTarget(mamEligible ? { kind: 'home.emotion' } : null)
 
   const save = async () => {
     if (checkDay()) return
@@ -319,12 +341,26 @@ export function DailyEmotionCheckIn({
   return (
     <motion.div
       id="emotion-check-in"
-      className={styles.card}
+      ref={mamTarget}
+      // The header keeps the button's room while editing, so the title never reflows.
+      className={`${styles.card} ${mamSlotted && persisted && !planOrigin ? styles.mamCard : ''}`}
       aria-busy={phase === 'loading' || isSubmitting}
       layout={!reducedMotion}
       initial={false}
       transition={{ layout: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } }}
     >
+      {mamSlotted && persisted && !planOrigin && (
+        // Stays mounted so the button fades instead of popping; `visibility`
+        // takes it out of focus and the a11y tree while not eligible.
+        <div
+          className={styles.mamSlot}
+          data-off={!mamEligible || undefined}
+          inert={!mamEligible}
+          aria-hidden={!mamEligible || undefined}
+        >
+          <MamCardButton label="Mầm giải thích: Cảm xúc hôm nay" />
+        </div>
+      )}
       {planOrigin && (
         <aside
           className={styles.planContext}
@@ -429,6 +465,11 @@ export function DailyEmotionCheckIn({
       ) : (
         <form
           className={styles.form}
+          onFocus={() => setFocusInForm(true)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget))
+              setFocusInForm(false)
+          }}
           onSubmit={(event) => {
             event.preventDefault()
             void save()

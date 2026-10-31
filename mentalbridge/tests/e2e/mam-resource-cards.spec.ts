@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 
 import { test } from './test-fixtures'
+import { dock } from './mam-dock-helpers'
 import {
   installPlanResourcesMocks,
   resourceWorld,
@@ -78,6 +79,12 @@ async function openCatalogue(page: Page) {
   )
   await page.goto('/resources')
   await expect(card(page, 'Thở hộp bốn nhịp')).toBeVisible()
+  // The plan section above the catalogue settles late and moves the cards.
+  await expect(
+    page.getByRole('region', { name: 'Trong kế hoạch của tôi' }),
+  ).toHaveAttribute('aria-busy', 'false')
+  // Summon gestures are the dock host's; it loads lazily (MB-781).
+  await expect(dock(page)).toBeVisible()
   return calls
 }
 
@@ -91,7 +98,8 @@ test.describe('MB-770 Mầm on Resource cards', () => {
   test('right-click explains a published card and opens its detail', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 1440, height: 900 })
+    // Tall enough that the settled page brings the whole card on screen.
+    await page.setViewportSize({ width: 1440, height: 1100 })
     const calls = await openCatalogue(page)
     const breathing = card(page, 'Thở hộp bốn nhịp')
 
@@ -101,6 +109,11 @@ test.describe('MB-770 Mầm on Resource cards', () => {
       .click({ button: 'right' })
     await expect(bubble(page)).toHaveCount(0)
 
+    // The whole card on screen, so the bubble has room beside it. Playwright's
+    // own scroll only brings the clicked element in.
+    await breathing.evaluate((element) =>
+      element.scrollIntoView({ block: 'center' }),
+    )
     const heading = breathing.getByRole('heading', { level: 3 })
     await heading.click({ button: 'right' })
     await expect(bubble(page)).toBeVisible()

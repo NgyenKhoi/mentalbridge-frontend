@@ -10,6 +10,7 @@ same-origin BFF.
 | Route | Production consumer | Same-origin boundary | Authority / evidence |
 | --- | --- | --- | --- |
 | `/admin/dashboard` | `AdminOperationsDashboard`, `ProductJourneyMetricsPanel` | `/api/admin/operations/dashboard`, `/api/admin/product-journey-metrics` | MB-584 aggregate operations and MB-596 privacy-bounded journey projections |
+| `/admin/retention` | `AdminRetentionGovernance` | `/api/admin/retention/**` | MB-673 Identity-coordinated retention and deletion governance |
 | `/admin/accounts` | `AdminAccountManager` | `/api/admin/accounts/**` | Identity account state and ADMIN authorization |
 | `/admin/specialists` | `AdminSpecialistReviewSection` | `/api/admin/specialist-profiles/**` | Consultation specialist review authority |
 | `/admin/content` | `AdminContentManager` | `/api/admin/resources/**` | MB-589 governed draft/review/publication/archive lifecycle |
@@ -59,7 +60,7 @@ security/privacy scores and unsupported health claims remain excluded.
 The controlled browser specs for accounts, resources, reports, specialist
 review, Community moderation and Identity role routing remain the end-to-end
 evidence for their owner paths. `AdminWorkspace.test.tsx` adds a consolidated
-route-map regression test for all 11 destinations and rejects the former
+route-map regression test for all 12 destinations and rejects the former
 assessment/AI prototype routes. `RoleWorkspace.test.tsx` proves the specialist
 shell cannot render an alternate admin console or its fabricated records.
 

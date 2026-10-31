@@ -32,6 +32,8 @@ describe('runMamRequest', () => {
     { text: 'ok', href: '//evil.example' },
     { text: 'ok', href: '/support-plan/abc' },
     { text: 'ok', href: 42 },
+    { text: 'ok', focusLabel: 'x'.repeat(41) },
+    { text: 'ok', focusLabel: 42 },
   ])('falls back to the template for invalid answer %j', async (value) => {
     const result = await runMamRequest(
       'EXPLAIN',
@@ -42,6 +44,43 @@ describe('runMamRequest', () => {
       status: 'failed',
       reason: 'invalid',
       answer: fallback,
+    })
+  })
+
+  describe('answer flags and focus label', () => {
+    const answerFor = async (value: unknown) =>
+      (
+        (await runMamRequest(
+          'EXPLAIN',
+          async () => value,
+          new AbortController().signal,
+        )) as { status: 'succeeded'; answer: Record<string, unknown> }
+      ).answer
+
+    it('keeps a true generated flag for the AI note', async () => {
+      expect(await answerFor({ text: 'Giải thích.', generated: true })).toEqual(
+        { text: 'Giải thích.', generated: true },
+      )
+    })
+
+    it('passes only a true generated flag', async () => {
+      expect(await answerFor({ text: 'Mẫu.', generated: 'yes' })).toEqual({
+        text: 'Mẫu.',
+      })
+    })
+
+    it('keeps the label of a focus target', async () => {
+      expect(
+        await answerFor({
+          text: 'Việc tiếp theo.',
+          focusKind: 'support-plan.focus',
+          focusLabel: 'Đến việc này',
+        }),
+      ).toEqual({
+        text: 'Việc tiếp theo.',
+        focusKind: 'support-plan.focus',
+        focusLabel: 'Đến việc này',
+      })
     })
   })
 
