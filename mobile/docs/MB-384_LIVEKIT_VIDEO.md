@@ -103,6 +103,10 @@ Bundle export/config introspection is not native compile or Android E2E evidence
 Record actual build/runtime results and exact head in the PR, including any JDK,
 Windows path or emulator limitations. Ordinary dev CI remains compile-only for
 mobile; no staging-mobile-e2e or LiveKit secret is added to untrusted PR jobs.
+The exact real-device, two-party, provider-callback and completion checklist is
+maintained in [`MB-715_LIVEKIT_ANDROID_QA.md`](MB-715_LIVEKIT_ANDROID_QA.md).
+Its `BLOCKED_PROVIDER` state must not be replaced by a green compile, browser or
+skipped native workflow result.
 
 ## Reproducible live Web journey
 
