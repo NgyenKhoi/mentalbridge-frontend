@@ -67,7 +67,7 @@ export function validResponse<K extends keyof Responses>(
   if (!validate(value)) return false
   if (kind === 'eligibility' && validators.eligibility(value) && value.eligible)
     return (
-      value.availableSessionSeconds ===
+      value.availableSessionSeconds <=
       Math.min(value.maxSessionSeconds, value.quota.remainingSeconds)
     )
   return true
