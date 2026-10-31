@@ -1,19 +1,19 @@
 # Native development-path verification
 
-## Temporary web-demo exception (PR #187)
+## Dev review and staging milestone policy
 
-The owner has temporarily deferred the Android native boot and real-contract
-journey gate so staging can be used for the web demo. The Android job remains
-defined but is explicitly skipped; the final staging gate accepts this skipped
-result and emits a warning. This is not passing Android evidence. Web quality,
-browser tests, promotion policy, mobile quality and iOS native boot remain
-required. The known Android sign-in failure is still open.
+Mobile changes in pull requests into `dev` have no mobile cloud job. The
+required `quality-gate` reports `NOT_RUN (staging milestone pending)` for this
+scope. Reviewers use source changes and optional local evidence; this status
+must never be presented as native or device-test success.
 
-After the demo, remove the Android job's temporary `if` condition, restore its
-strict success requirement in the final gate, and remove the exception warning
-in `.github/workflows/staging-quality.yml`. Rerun the Android journeys after
-fixing sign-in before claiming native readiness. The normal requirements below
-apply again after that restoration.
+The complete mobile gate runs at an intentional staging milestone, either on a
+promotion to `staging` or through the `Frontend staging release gate` manual
+dispatch. Android is required; a skipped Android job fails the final staging
+gate. Manual dispatch is accepted only from `dev` or `staging`, requires the
+operator to enter the exact selected frontend SHA, exact deployed backend SHA,
+staging deployment ID and fixture dataset version, and fails closed before the
+protected Environment if any identifier is absent or invalid.
 
 MB-606 distinguishes JavaScript bundle export from a native app boot. An
 `expo export` result proves that Metro can produce platform bundles; it does not
@@ -35,22 +35,10 @@ Environment secrets and are never included in artifacts. The
 `android-native-and-real-contract-*` and `ios-native-boot-*` artifacts contain the
 screenshot and sanitized diagnostics produced for that exact commit. The repository
 `staging-quality-gate` depends on both jobs, so bundle-only verification cannot
-satisfy the release gate. Pull requests into `dev` intentionally run only the
-mobile TypeScript compile check.
-
-For a review that explicitly requires Android evidence before `dev` merge, a
-maintainer can apply the `run-mobile-staging-e2e` pull-request label. That
-opt-in job uses the same protected Environment, checks out and verifies the
-exact PR head SHA, compiles/boots Android, runs the MB-626 Resource journey,
-and uploads `android-mb-626-real-contract-<head-sha>`. It prefers the configured
-protected staging edge. If that Environment has not yet been provisioned with
-staging inputs, the job instead starts the real Identity and Content services
-from backend `dev` with ephemeral PostgreSQL databases and a generated
-synthetic USER, then routes the APK to those providers through a routing-only
-edge. The manifest records the backend commit without retaining the generated
-credential. While the label is present, the PR `quality-gate` cannot pass
-unless this protected real-contract job succeeds. Unlabeled development PRs
-retain the fast compile-only mobile path.
+satisfy the release gate. The Android milestone builds and installs once, then
+reuses that exact APK for all Maestro journeys. It records per-phase durations
+and exit status even for a failed phase, and uploads the reusable APK with the
+sanitized frontend/backend/contract/deployment/fixture provenance.
 
 Release configuration is intentional in CI: the JavaScript bundle is embedded,
 so the app can boot without leaving a long-running Metro process. Local feature
@@ -71,6 +59,38 @@ npm run native:android:smoke
 Set `ANDROID_DEVICE` to an `adb devices` serial when more than one target is
 available. The script fails unless the package is installed, relaunched,
 remains alive, and owns Android's resumed foreground activity.
+
+### Physical Android device from Windows
+
+Enable USB debugging, connect the device, and confirm its serial:
+
+```powershell
+adb devices
+$env:ANDROID_DEVICE = '<device-serial>'
+adb reverse tcp:8080 tcp:8080
+$env:EXPO_PUBLIC_API_BASE_URL = 'http://127.0.0.1:8080'
+npm run android
+```
+
+USB reverse is the preferred local path. For Wi-Fi testing, use
+`http://<host-lan-ip>:8080`, keep the phone and workstation on the same trusted
+network, and allow only the development port through the firewall. The Android
+emulator-only address `10.0.2.2` does not work on a physical phone.
+
+Keep Metro running with `npm start` for Fast Refresh. Rebuild the development
+app only after changing a native dependency, Expo config/plugin, application
+identity, or native project input; JavaScript and TypeScript edits reuse the
+installed development build.
+
+For an on-demand release APK and full local Android milestone:
+
+```powershell
+npm run milestone:android
+```
+
+The native phase writes `native-evidence/mentalbridge-<revision>.apk`. Install
+that exact artifact again with `adb install -r <apk-path>`; no dedicated EC2
+builder is required.
 
 The MB-612 real-contract journey additionally requires the protected dedicated
 USER fixture and Maestro `2.11.0`:

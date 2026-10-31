@@ -1,0 +1,6 @@
+device=emulator-5554
+package=com.mentalbridge.mobile
+pid=7590
+ResumedActivity: ActivityRecord{84533773 u0 com.mentalbridge.mobile/.MainActivity t26}
+runtime_errors=0
+verified_at=2026-10-31T23:14:42.0456832+07:00

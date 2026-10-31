@@ -31,6 +31,19 @@ npx expo run:android \
   --variant release \
   --no-bundler
 
+apk_path="$(find android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*-release.apk' -print -quit)"
+if [[ -z "$apk_path" ]]; then
+  echo "The release APK was not produced at the expected path." >&2
+  exit 1
+fi
+artifact_sha="${EVIDENCE_COMMIT_SHA:-${GITHUB_SHA:-local}}"
+cp "$apk_path" "$evidence_dir/mentalbridge-$artifact_sha.apk"
+{
+  printf 'revision=%s\n' "$artifact_sha"
+  printf 'source=%s\n' "$apk_path"
+  printf 'application_id=%s\n' "$app_id"
+} >"$evidence_dir/android-apk-provenance.txt"
+
 adb -s "$device" shell am force-stop "$app_id"
 adb -s "$device" shell monkey \
   -p "$app_id" \
