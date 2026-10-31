@@ -1,0 +1,46 @@
+appId: com.mentalbridge.mobile
+name: MB-725 owned evaluation context through specialist discovery
+---
+# Author-only evidence. NOT_RUN until the MB-666 staging/device gate provides
+# a signed-in, resettable USER with exactly one saved, completed Guide whose
+# Care next action is FIND_SPECIALIST and whose exact SupportEvaluation has an
+# approved specialist match. The test reopens that Guide from the MB-663 Home. Never run
+# this health-context journey against shared dev or production data.
+- launchApp:
+    clearState: false
+- assertVisible: 'Hôm nay của bạn'
+- tapOn: 'Xem lại gợi ý sau sàng lọc'
+- scrollUntilVisible:
+    element:
+      text: 'Gợi ý sau sàng lọc'
+    direction: DOWN
+- tapOn: 'Gợi ý sau sàng lọc'
+- scrollUntilVisible:
+    element:
+      text: 'Tiếp tục hành trình'
+    direction: DOWN
+- tapOn: 'Tìm chuyên gia phù hợp'
+- assertVisible: 'Tìm chuyên gia'
+- scrollUntilVisible:
+    element:
+      text: 'Có lĩnh vực hỗ trợ trùng với gợi ý sau bài sàng lọc được chọn.'
+    direction: DOWN
+- assertVisible: 'Có lĩnh vực hỗ trợ trùng với gợi ý sau bài sàng lọc được chọn.'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-open-${MAESTRO_MB_DISCOVERY_SPECIALIST_ID}'
+    direction: DOWN
+- tapOn:
+    id: 'discovery-open-${MAESTRO_MB_DISCOVERY_SPECIALIST_ID}'
+- assertVisible: 'Hồ sơ chuyên gia'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-select-${MAESTRO_MB_DISCOVERY_SLOT_ID}'
+    direction: DOWN
+- tapOn:
+    id: 'discovery-select-${MAESTRO_MB_DISCOVERY_SLOT_ID}'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-selection-summary'
+    direction: UP
+- assertVisible: 'Khung giờ đã chọn'

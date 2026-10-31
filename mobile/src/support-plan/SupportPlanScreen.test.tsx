@@ -398,7 +398,10 @@ describe('mobile SupportPlan journey', () => {
     )
     expect(mockPush).toHaveBeenCalledWith({
       pathname: './specialists',
-      params: { planActionId: actionId },
+      params: {
+        planActionId: actionId,
+        supportEvaluationId: plan.source.supportEvaluationId,
+      },
     })
   })
 

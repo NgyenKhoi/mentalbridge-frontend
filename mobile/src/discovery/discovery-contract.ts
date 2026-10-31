@@ -21,6 +21,7 @@ const timezone = z
 const instant = z.iso.datetime({ offset: true })
 const unique = <T>(items: T[]) => new Set(items).size === items.length
 export const discoveryCriteriaSchema = z.strictObject({
+  supportEvaluationId: z.uuid().optional(),
   supportArea: supportAreaSchema.optional(),
   language: specialistLanguageSchema.optional(),
   modality: availabilityModalitySchema.optional(),

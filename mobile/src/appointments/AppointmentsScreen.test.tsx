@@ -90,6 +90,7 @@ async function mount(
   consultationBriefApi?: ConsultationBriefApi,
   sessionSummaryApi?: UserSummaryApi,
   disputeApi?: AppointmentDisputeApi,
+  supportEvaluationId?: string,
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -104,6 +105,7 @@ async function mount(
         initialSelection={handoff ? selection : undefined}
         {...(originatingPlanActionId ? { originatingPlanActionId } : {})}
         {...(sessionSummaryApi ? { sessionSummaryApi } : {})}
+        {...(supportEvaluationId ? { supportEvaluationId } : {})}
         onBack={jest.fn()}
       />
     </QueryClientProvider>
@@ -376,6 +378,35 @@ describe('MB-630 authoritative USER appointments', () => {
         expect.stringMatching(/^appointment-/),
         undefined,
       ),
+    )
+  })
+  it('keeps exact evaluation context during the booking authority recheck', async () => {
+    const supportEvaluationId = '40000000-0000-4000-8000-000000000725'
+    const service = services()
+    await mount(
+      service,
+      true,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      supportEvaluationId,
+    )
+
+    await reviewRequest()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }),
+    )
+    await screen.findByText('Chi tiết lịch hẹn')
+
+    expect(service.discovery.list).toHaveBeenCalledTimes(2)
+    expect(service.discovery.list).toHaveBeenLastCalledWith({
+      supportEvaluationId,
+    })
+    expect(service.discovery.detail).toHaveBeenCalledTimes(2)
+    expect(service.discovery.detail).toHaveBeenLastCalledWith(
+      selection.slot.specialistAccountId,
+      { supportEvaluationId },
     )
   })
   it.each([

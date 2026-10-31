@@ -54,6 +54,7 @@ type Props = Readonly<{
   videoApi?: VideoApi
   initialSelection?: SlotSelection | undefined
   originatingPlanActionId?: string | undefined
+  supportEvaluationId?: string | undefined
 }>
 type Review =
   | { kind: 'cancel'; appointment: Appointment }
@@ -141,6 +142,7 @@ function AccountAppointmentsScreen({
   initialSelection,
   originatingPlanActionId,
   sessionSummaryApi,
+  supportEvaluationId,
   videoApi,
   subject,
 }: Props & { subject: string }) {
@@ -213,9 +215,10 @@ function AccountAppointmentsScreen({
     selection: SlotSelection,
     replacing: Appointment | null,
   ) {
+    const discoveryCriteria = supportEvaluationId ? { supportEvaluationId } : {}
     const [page, profile, slots, account] = await Promise.all([
-      discovery.list({}),
-      discovery.detail(selection.slot.specialistAccountId, {}),
+      discovery.list(discoveryCriteria),
+      discovery.detail(selection.slot.specialistAccountId, discoveryCriteria),
       api.slots(),
       api.credits(),
     ])
@@ -396,6 +399,7 @@ function AccountAppointmentsScreen({
         api={discovery}
         onBack={() => setChoosing(false)}
         onBook={(selection) => void prepare(selection, replacement)}
+        {...(supportEvaluationId ? { supportEvaluationId } : {})}
       />
     )
   return (
