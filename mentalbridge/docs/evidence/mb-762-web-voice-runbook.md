@@ -50,6 +50,28 @@ in those existing accounts, not a new account or plan upgrade.
 
 ## Run the matrix
 
+### Local readiness presentation correction
+
+The existing AI Companion dialog and layout remain the reference. Local room
+connection and the admitted Agent's `lk.agent.state` are display signals, not
+backend session authority. The pinned SDK can publish `listening` before the
+worker's MEDIA_READY acknowledgement. Do not invite the reader to speak until
+the current server session is ACTIVE and the admitted Agent has a fresh
+`listening` hint. This is presentation only; consent, admission, lease, quota,
+recording and provider routing continue to be enforced by the backend.
+
+| State                                                  | Screen                                                 | Must not imply                           |
+| ------------------------------------------------------ | ------------------------------------------------------ | ---------------------------------------- |
+| Local connection complete, server CONNECTING           | Preparing; wait before speaking; end remains available | Agent can already process the microphone |
+| Server ACTIVE, no fresh listening hint                 | Waiting for AI; no invitation to speak                 | Local connection alone proves readiness  |
+| Server ACTIVE plus fresh admitted-Agent listening hint | AI listening; invite speech                            | Delivery proof or quota settlement       |
+| Stale hint, reconnect, mute or terminal state          | Existing waiting/reconnect/mute/end presentation       | Continued readiness from a prior hint    |
+
+The public VoiceSession `state` and existing media hint convention are reused;
+no API field, session transition, participant data or contract snapshot changes.
+Component tests cover either signal arriving first and a stale hint; controller
+tests keep transport/hint and authoritative session state independent.
+
 Use the scenario identifiers from `npm run voice:qa -- --plan <frontend-sha>
 <backend-sha> <agent-sha>`. Each grouped row requires every listed subcase before PASS.
 Do not save browser traces, HAR, screenshots of session/token responses, media

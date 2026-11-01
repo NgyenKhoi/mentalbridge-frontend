@@ -153,6 +153,36 @@ describe('Voice call lifecycle', () => {
     expect(f.controller.snapshot().phase).toBe('ended')
     f.controller.dispose()
   })
+  it('keeps local connection and agent hints separate from authoritative session readiness', async () => {
+    vi.useFakeTimers()
+    const f = fixture()
+    const connecting = session({ ...f.current, state: 'CONNECTING' })
+    f.api.create.mockResolvedValue(connecting)
+    f.api.session.mockResolvedValue(connecting)
+    await f.controller.start()
+    expect(f.controller.snapshot()).toMatchObject({
+      phase: 'connected',
+      hint: 'initializing',
+      session: {
+        state: 'CONNECTING',
+        deliveredSession: false,
+        chargedSeconds: 0,
+      },
+    })
+    f.events().hint('listening')
+    expect(f.controller.snapshot().session?.state).toBe('CONNECTING')
+    f.api.session.mockResolvedValue(f.current)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(f.controller.snapshot()).toMatchObject({
+      phase: 'connected',
+      hint: 'listening',
+      session: { state: 'ACTIVE', deliveredSession: false, chargedSeconds: 0 },
+    })
+    f.events().hint('unavailable')
+    expect(f.controller.snapshot().session?.state).toBe('ACTIVE')
+    expect(f.api.create).toHaveBeenCalledTimes(1)
+    f.controller.dispose()
+  })
   it('ends a late admitted session after unmount without ever opening media', async () => {
     const f = fixture()
     const admission = deferred<ReturnType<typeof session>>()
