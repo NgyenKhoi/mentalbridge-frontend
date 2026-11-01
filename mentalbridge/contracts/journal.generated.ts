@@ -988,7 +988,7 @@ export interface components {
              * @enum {integer}
              */
             maxSessionSeconds: 0 | 300 | 600;
-            /** @description Display-only min(maxSessionSeconds, unreserved daily remainingSeconds) when eligible; zero otherwise. Reauthorize and admit atomically on POST; never derive a deadline from this snapshot. */
+            /** @description Display-only server-derived duration when ELIGIBLE, positive and at most min(maxSessionSeconds, unreserved daily remainingSeconds); additional operational caps or a remaining operational window may reduce it further. Zero otherwise. Reauthorize and admit atomically on POST; never derive a deadline from this snapshot. */
             availableSessionSeconds: number;
         } & (unknown & unknown & unknown & unknown);
         VoiceQuota: {

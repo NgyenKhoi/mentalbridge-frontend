@@ -156,22 +156,28 @@ export default function VoiceDialog({
   const calling = ['starting', 'connected', 'reconnecting', 'ending'].includes(
     view.phase,
   )
-  const status =
-    view.phase === 'starting'
-      ? 'Đang chuẩn bị cuộc gọi'
-      : view.phase === 'reconnecting'
-        ? 'Đang kết nối lại'
-        : view.phase === 'ending'
-          ? 'Đang xác nhận kết thúc'
-          : view.muted
-            ? 'Micro đang tắt'
-            : view.hint === 'thinking'
-              ? 'AI đang nghĩ'
-              : view.hint === 'speaking'
-                ? 'AI đang nói'
-                : view.hint === 'listening'
-                  ? 'AI đang lắng nghe'
-                  : 'Đang chờ AI'
+  const preparing =
+    view.phase === 'starting' ||
+    (view.phase === 'connected' && view.session?.state !== 'ACTIVE')
+  const listening =
+    view.phase === 'connected' &&
+    view.session?.state === 'ACTIVE' &&
+    view.hint === 'listening'
+  const status = preparing
+    ? 'Đang chuẩn bị cuộc gọi'
+    : view.phase === 'reconnecting'
+      ? 'Đang kết nối lại'
+      : view.phase === 'ending'
+        ? 'Đang xác nhận kết thúc'
+        : view.muted
+          ? 'Micro đang tắt'
+          : view.hint === 'thinking'
+            ? 'AI đang nghĩ'
+            : view.hint === 'speaking'
+              ? 'AI đang nói'
+              : listening
+                ? 'AI đang lắng nghe'
+                : 'Đang chờ AI'
   const terminalReason = view.session?.terminalReason
   return (
     <Dialog
@@ -273,9 +279,13 @@ export default function VoiceDialog({
                   ? 'Micro đã ngắt. Hệ thống đang xác nhận trạng thái phiên.'
                   : view.muted
                     ? 'Bật micro khi bạn muốn nói tiếp.'
-                    : view.hint === 'unavailable'
-                      ? 'Chưa nhận được trạng thái mới từ AI. Bạn có thể kết thúc hoặc chờ trong giây lát.'
-                      : 'Chia sẻ khi bạn sẵn sàng.'}
+                    : preparing
+                      ? 'Vui lòng chờ AI sẵn sàng trước khi nói.'
+                      : view.hint === 'unavailable'
+                        ? 'Chưa nhận được trạng thái mới từ AI. Bạn có thể kết thúc hoặc chờ trong giây lát.'
+                        : listening
+                          ? 'Chia sẻ khi bạn sẵn sàng.'
+                          : 'Vui lòng chờ AI sẵn sàng trước khi nói.'}
             </p>
             {view.session?.hardStopAt ? (
               <>

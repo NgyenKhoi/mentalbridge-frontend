@@ -10,11 +10,12 @@ import {
 import { VoiceController } from './controller'
 import { voiceClient } from './client'
 import type { Media, MediaEvents } from './media'
+import type { VoiceSession } from './contract'
 import VoiceDialog from './VoiceDialog'
 
-function fixture(value = eligibility()) {
+function fixture(value = eligibility(), patch: Partial<VoiceSession> = {}) {
   const bound = connection()
-  const current = session({ hardStopAt: bound.hardStopAt })
+  const current = session({ hardStopAt: bound.hardStopAt, ...patch })
   const api = {
     eligibility: vi.fn().mockResolvedValue(value),
     disclosure: vi.fn(),
@@ -49,11 +50,12 @@ function fixture(value = eligibility()) {
       createController={() => controller}
     />,
   )
-  return { api, media, controller, close, events: () => events }
+  return { api, media, controller, current, close, events: () => events }
 }
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 describe('accessible AI Voice dialog', () => {
   it('presents FREE as a locked preview and leaves text continuation available', async () => {
@@ -227,6 +229,51 @@ describe('accessible AI Voice dialog', () => {
     expect(f.media.close).toHaveBeenCalled()
     expect(f.api.end).toHaveBeenCalled()
   })
+  it.each(['agent-first', 'session-first'])(
+    'invites speech only after both active session and fresh listening hint, %s',
+    async (order) => {
+      vi.useFakeTimers()
+      const f = fixture(eligibility(), { state: 'CONNECTING' })
+      await act(async () => {
+        await f.controller.start()
+      })
+      expect(f.controller.snapshot().phase).toBe('connected')
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Đang chuẩn bị cuộc gọi',
+      )
+      expect(
+        screen.queryByText('Chia sẻ khi bạn sẵn sàng.'),
+      ).not.toBeInTheDocument()
+      if (order === 'agent-first') act(() => f.events()?.hint('listening'))
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Đang chuẩn bị cuộc gọi',
+      )
+      f.api.session.mockResolvedValue(
+        session({ ...f.current, state: 'ACTIVE' }),
+      )
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      if (order === 'session-first') {
+        expect(screen.getByRole('status')).toHaveTextContent('Đang chờ AI')
+        expect(
+          screen.queryByText('Chia sẻ khi bạn sẵn sàng.'),
+        ).not.toBeInTheDocument()
+        act(() => f.events()?.hint('listening'))
+      }
+      expect(screen.getByRole('status')).toHaveTextContent('AI đang lắng nghe')
+      expect(screen.getByText('Chia sẻ khi bạn sẵn sàng.')).toBeVisible()
+      act(() => f.events()?.hint('unavailable'))
+      expect(
+        screen.queryByText('Chia sẻ khi bạn sẵn sàng.'),
+      ).not.toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent('Đang chờ AI')
+      expect(f.api.create).toHaveBeenCalledTimes(1)
+      await act(async () => {
+        await f.controller.end()
+      })
+    },
+  )
   it('works through React strict subscription setup and never opens a microphone automatically', async () => {
     const api = {
       ...voiceClient,

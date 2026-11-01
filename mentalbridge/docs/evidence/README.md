@@ -1,5 +1,9 @@
 # Synthetic browser evidence
 
+MB-762 extends Web Voice failure/isolation QA and prepares the opt-in live
+demo runbook with a closed operator manifest. [Coverage and current status](mb-762-web-voice-qa.md)
+separate deterministic checks from real-cloud evidence, which remains blocked.
+
 MB-761 adds the Web AI Voice entry, quota-aware preview, separate consent and
 accessible call controls. [Acceptance and verification](mb-761-web-ai-voice.md)
 include synthetic desktop/mobile captures and the backend #237 dependency.
