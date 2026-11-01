@@ -289,7 +289,7 @@ export function parseSupportPlanV3(value: unknown): SupportPlanV3 | null {
   const validAction = (candidate: unknown) => {
     if (!object(candidate)) return false
     return (
-      isUuid(String(candidate.actionId)) &&
+      text(candidate.actionId, 128) &&
       [
         'RESOURCE',
         'JOURNAL',

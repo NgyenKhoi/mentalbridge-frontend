@@ -90,9 +90,26 @@ export const publishSessionSummaryRequestSchema = z
   })
   .strict()
 
+export const sessionSummaryReuseConsentRequestSchema = z
+  .object({ approved: z.boolean() })
+  .strict()
+
+export const updateAgreedNextStepRequestSchema = z
+  .object({
+    state: z.enum(['PENDING', 'COMPLETED', 'SKIPPED']),
+    hidden: z.boolean(),
+  })
+  .strict()
+
 export type AgreedNextStepType = z.infer<typeof agreedNextStepTypeSchema>
 export type PublishSessionSummaryRequest = z.infer<
   typeof publishSessionSummaryRequestSchema
+>
+export type SessionSummaryReuseConsentRequest = z.infer<
+  typeof sessionSummaryReuseConsentRequestSchema
+>
+export type UpdateAgreedNextStepRequest = z.infer<
+  typeof updateAgreedNextStepRequestSchema
 >
 export type SessionSummary = z.infer<typeof sessionSummarySchema>
 export type SessionSummaryList = z.infer<typeof sessionSummaryListSchema>

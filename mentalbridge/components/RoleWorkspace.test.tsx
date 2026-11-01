@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from 'vitest'
 
 import RoleWorkspace from './RoleWorkspace'
 
+vi.mock('next/font/google', () => ({
+  Manrope: () => ({ variable: 'video-display' }),
+}))
+
 vi.mock('framer-motion', () => ({
   motion: new Proxy(
     {},
@@ -68,11 +72,19 @@ vi.mock(
 )
 
 const props = {
-  role: 'specialist' as const,
   workspaces: [],
 }
 
 describe('RoleWorkspace specialist production closure', () => {
+  it('contains no alternate admin console path or fabricated admin records', () => {
+    render(<RoleWorkspace {...props} sectionKey="dashboard" />)
+
+    expect(screen.queryByText('Admin Console')).not.toBeInTheDocument()
+    expect(screen.queryByText('12.480 người dùng')).not.toBeInTheDocument()
+    expect(screen.queryByText('Nguyễn Minh Anh')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
+  })
+
   it('keeps the new navigation and renders the authenticated profile identity', async () => {
     render(<RoleWorkspace {...props} sectionKey="dashboard" />)
 

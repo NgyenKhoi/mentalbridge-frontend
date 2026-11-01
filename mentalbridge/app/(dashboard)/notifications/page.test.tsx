@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api/api-error'
 
@@ -86,8 +86,19 @@ const notification = {
 }
 
 describe('Notification preferences page', () => {
+  const browserTimers: Pick<Window, 'setTimeout' | 'clearTimeout'> = window
+  const pendingTimeouts = new Set<ReturnType<Window['setTimeout']>>()
+
   beforeEach(() => {
     vi.clearAllMocks()
+    const scheduleTimeout = browserTimers.setTimeout.bind(window)
+    vi.spyOn(browserTimers, 'setTimeout').mockImplementation(
+      (handler, delay, ...args) => {
+        const timeout = scheduleTimeout(handler, delay, ...args)
+        pendingTimeouts.add(timeout)
+        return timeout
+      },
+    )
     api.get.mockResolvedValue({ preferences, etag: '"0"' })
     api.preview.mockResolvedValue({
       localDate: '2026-09-30',
@@ -105,6 +116,13 @@ describe('Notification preferences page', () => {
       hasMore: false,
       unreadCount: 0,
     })
+  })
+
+  afterEach(() => {
+    // Success toasts outlive these assertions; leave no callback for a torn-down DOM.
+    for (const timeout of pendingTimeouts) window.clearTimeout(timeout)
+    pendingTimeouts.clear()
+    vi.restoreAllMocks()
   })
 
   it('renders the persisted inbox and marks one item read before following its action', async () => {
@@ -178,6 +196,70 @@ describe('Notification preferences page', () => {
         (time) => time.getAttribute('datetime') === notification.createdAt,
       ),
     ).toBe(true)
+  })
+
+  it('renders the assessment, SupportGuide, and account facts and follows the bound guide action', async () => {
+    const user = userEvent.setup()
+    const supportGuideId = 'f13e4567-e89b-42d3-a456-426614174000'
+    const guideNotification = {
+      ...notification,
+      id: 'a13e4567-e89b-42d3-a456-426614174012',
+      kind: 'SUPPORT_GUIDE_AVAILABLE' as const,
+      title: 'Hướng dẫn hỗ trợ đã sẵn sàng',
+      body: 'Hướng dẫn đã được lưu để bạn xem lại khi thuận tiện.',
+      action: {
+        type: 'OPEN_SUPPORT_GUIDE' as const,
+        targetId: supportGuideId,
+        href: `/support-guides/${supportGuideId}`,
+      },
+    }
+    inboxApi.get.mockResolvedValueOnce({
+      items: [
+        {
+          ...notification,
+          id: 'a13e4567-e89b-42d3-a456-426614174011',
+          kind: 'ASSESSMENT_RESULT_AVAILABLE',
+          title: 'Kết quả sàng lọc đã sẵn sàng',
+          action: {
+            type: 'OPEN_ASSESSMENTS',
+            targetId: null,
+            href: '/assessments',
+          },
+        },
+        guideNotification,
+        {
+          ...notification,
+          id: 'a13e4567-e89b-42d3-a456-426614174013',
+          kind: 'ACCOUNT_STATUS',
+          title: 'Tài khoản đã sẵn sàng',
+          action: null,
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      unreadCount: 3,
+    })
+    inboxApi.read.mockResolvedValue({
+      ...guideNotification,
+      read: true,
+      readAt: '2026-09-26T02:00:00.000Z',
+    })
+
+    render(<NotificationsPage />)
+
+    expect(await screen.findByText('Sàng lọc')).toBeVisible()
+    expect(screen.getByText('Hướng dẫn hỗ trợ')).toBeVisible()
+    expect(screen.getByText('Hệ thống')).toBeVisible()
+    await user.click(
+      screen.getByText(guideNotification.title).closest('button')!,
+    )
+
+    await waitFor(() =>
+      expect(inboxApi.read).toHaveBeenCalledWith(guideNotification.id),
+    )
+    expect(inboxApi.push).toHaveBeenCalledWith(
+      `/support-guides/${supportGuideId}`,
+    )
   })
 
   it('renders a Community interaction and follows only the server-derived post deep link', async () => {

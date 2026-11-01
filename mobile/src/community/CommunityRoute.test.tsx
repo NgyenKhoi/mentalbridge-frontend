@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react-native'
 import { CommunityRoute } from './CommunityRoute'
 import { fixturePostId } from './community-fixtures'
+import { router } from 'expo-router'
 const mockCreate = jest.fn(() => ({
   interceptors: { request: { use: jest.fn(), eject: jest.fn() } },
 }))
@@ -40,6 +41,21 @@ it('passes a UUID notification post target to the existing authoritative detail 
   expect(mockProps).toHaveBeenCalledWith(
     expect.objectContaining({ initialPostId: fixturePostId }),
   )
+})
+it('binds Community inbox and available-peer handoffs to the narrow native route', async () => {
+  await render(<CommunityRoute />)
+  const props: { onChat: () => void; onPeerChat: (id: string) => void } =
+    mockProps.mock.calls[0]?.[0]
+  props.onChat()
+  expect(router.push).toHaveBeenCalledWith('/(user)/community-chat')
+  props.onPeerChat(fixturePostId)
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: '/(user)/community-chat',
+    params: { peerId: fixturePostId },
+  })
+  jest.mocked(router.push).mockClear()
+  props.onPeerChat('bad')
+  expect(router.push).not.toHaveBeenCalled()
 })
 it.each(['not-an-id', ['bad', fixturePostId]])(
   'rejects malformed/repeated post params before creating a protected client',

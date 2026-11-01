@@ -17,10 +17,12 @@ import type { SlotSelection } from './discovery-model'
 function AccountDiscoveryRoute({
   config,
   originatingPlanActionId,
+  supportEvaluationId,
   subject,
 }: Readonly<{
   config: RuntimeConfig
   originatingPlanActionId?: string
+  supportEvaluationId?: string
   subject: string
 }>) {
   const [selection, setSelection] = useState<SlotSelection | undefined>()
@@ -52,6 +54,7 @@ function AccountDiscoveryRoute({
       discovery={binding.api}
       initialSelection={selection}
       originatingPlanActionId={originatingPlanActionId}
+      supportEvaluationId={supportEvaluationId}
       onBack={() => setSelection(undefined)}
     />
   ) : (
@@ -59,6 +62,7 @@ function AccountDiscoveryRoute({
       api={binding.api}
       onBack={() => router.back()}
       onBook={setSelection}
+      {...(supportEvaluationId ? { supportEvaluationId } : {})}
     />
   )
 }
@@ -66,16 +70,23 @@ function AccountDiscoveryRoute({
 export function DiscoveryRoute() {
   const config = useRuntimeConfig()
   const { session } = useSession()
-  const { planActionId } = useLocalSearchParams<{ planActionId?: string }>()
+  const { planActionId, supportEvaluationId } = useLocalSearchParams<{
+    planActionId?: string
+    supportEvaluationId?: string
+  }>()
   const subject = session?.subject ?? ''
   const originatingPlanActionId = z.uuid().safeParse(planActionId)
+  const evaluationId = z.uuid().safeParse(supportEvaluationId)
   return (
     <AccountDiscoveryRoute
-      key={`${subject}:${originatingPlanActionId.success ? originatingPlanActionId.data : ''}`}
+      key={`${subject}:${originatingPlanActionId.success ? originatingPlanActionId.data : ''}:${evaluationId.success ? evaluationId.data : ''}`}
       config={config}
       subject={subject}
       {...(originatingPlanActionId.success
         ? { originatingPlanActionId: originatingPlanActionId.data }
+        : {})}
+      {...(evaluationId.success
+        ? { supportEvaluationId: evaluationId.data }
         : {})}
     />
   )

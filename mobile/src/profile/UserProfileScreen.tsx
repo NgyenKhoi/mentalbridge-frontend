@@ -474,6 +474,24 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
           </Pressable>
         )}
       </View>
+
+      <View style={styles.securitySection}>
+        <Text style={styles.securityTitle}>Bảo mật tài khoản</Text>
+        <Text style={styles.securityDescription}>
+          Đổi mật khẩu sẽ kết thúc mọi phiên đăng nhập để bảo vệ tài khoản của
+          bạn.
+        </Text>
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => router.push('/change-password')}
+          style={({ pressed }) => [
+            styles.securityLink,
+            pressed && styles.secondaryPressed,
+          ]}
+        >
+          <Text style={styles.secondaryLabel}>Đổi mật khẩu</Text>
+        </Pressable>
+      </View>
     </Screen>
   )
 }
@@ -592,6 +610,30 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.md,
     marginTop: spacing.xl,
+  },
+  securitySection: {
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radii.panel,
+    marginTop: spacing.xxl,
+    padding: spacing.xl,
+  },
+  securityTitle: {
+    color: colors.ink,
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  securityDescription: {
+    color: colors.inkSoft,
+    fontSize: typography.body,
+    lineHeight: typography.bodyLineHeight,
+    marginBottom: spacing.md,
+  },
+  securityLink: {
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingRight: spacing.lg,
   },
   secondaryButton: {
     justifyContent: 'center',

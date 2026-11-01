@@ -505,6 +505,9 @@ export type ServiceCreditAccount = Readonly<{
     }>
   >
   generatedAt: string
+  /** Optional during the additive MB-671 rollout; the Plan access gate requires both. */
+  entitlementState?: 'ACTIVE' | 'EXPIRED' | 'DEFAULT_FREE'
+  supportPlanEnabled?: boolean
 }>
 
 type Problem = Readonly<{
@@ -1944,6 +1947,19 @@ export function parseServiceCreditAccount(
         account.periodEnd === null))
   )
     return null
+  const state = account.entitlementState
+  const enabled = account.supportPlanEnabled
+  if (
+    (state !== undefined &&
+      !['ACTIVE', 'EXPIRED', 'DEFAULT_FREE'].includes(String(state))) ||
+    (enabled !== undefined && typeof enabled !== 'boolean') ||
+    (account.source === 'DEFAULT_FREE' && enabled === true) ||
+    (state === 'ACTIVE' && enabled === false) ||
+    (state === 'ACTIVE' && account.source === 'DEFAULT_FREE') ||
+    ((state === 'EXPIRED' || state === 'DEFAULT_FREE') &&
+      (account.source !== 'DEFAULT_FREE' || enabled === true))
+  )
+    return null
   return account as ServiceCreditAccount
 }
 
@@ -2084,7 +2100,8 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
   const completedSessionPolicyMatches =
     sessionPolicyMatches ||
     (item.modality === 'IN_APP_VIDEO' &&
-      item.sessionPolicyVersion === 'chat-session-completion-v1')
+      item.sessionPolicyVersion === 'chat-session-completion-v1' &&
+      item.sessionOutcomeReason === 'EVIDENCE_REQUIREMENTS_MET')
   const cancellationFields = [
     item.cancelledAt,
     item.cancellationReason,
@@ -2122,7 +2139,7 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
         : item.creditState !== 'HELD' && item.sessionSettledAt !== null) &&
       (item.modality !== 'IN_APP_VIDEO' || item.sessionOutcome === null)
     )
-  if (item.status === 'COMPLETED')
+  if (item.status === 'COMPLETED') {
     return (
       item.decidedAt !== null &&
       item.decisionReason === 'SPECIALIST_ACCEPTED' &&
@@ -2133,6 +2150,7 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
       item.completionFactId !== null &&
       ['CONSUMED', 'AVAILABLE'].includes(String(item.creditState))
     )
+  }
   if (item.status === 'REJECTED')
     return (
       item.decidedAt !== null &&

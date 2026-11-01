@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Switch, Text, TextInput, View } from 'react-native'
 import { ApiError } from '@/api/api-error'
+import type { MobileRole } from '@/auth/session'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
@@ -9,6 +10,8 @@ import type { NotificationApi } from './notification-api'
 import {
   clockTimeSchema,
   type NotificationPreferences,
+  type PreferencePatch,
+  specialistPreferencePatchSchema,
   type VersionedPreferences,
 } from './notification-contract'
 import {
@@ -28,6 +31,39 @@ const groupLabels: Record<
   appointmentMessage: 'Lịch hẹn và tin nhắn',
   resourceSystem: 'Tài nguyên và hệ thống',
   communityInteraction: 'Tương tác cộng đồng',
+}
+const specialistGroups = [
+  'appointmentMessage',
+  'resourceSystem',
+] as const satisfies ReadonlyArray<
+  keyof NotificationPreferences['contentGroups']
+>
+const specialistGroupLabels: Record<(typeof specialistGroups)[number], string> =
+  {
+    appointmentMessage: 'Lịch hẹn và tin nhắn',
+    resourceSystem: 'Tài khoản và hệ thống',
+  }
+
+function preferencePatch(
+  draft: NotificationPreferences,
+  role: MobileRole,
+): PreferencePatch {
+  if (role === 'SPECIALIST')
+    return specialistPreferencePatchSchema.parse({
+      notificationsEnabled: draft.notificationsEnabled,
+      channels: { inApp: draft.channels.inApp },
+      contentGroups: {
+        appointmentMessage: draft.contentGroups.appointmentMessage,
+        resourceSystem: draft.contentGroups.resourceSystem,
+      },
+    })
+  return {
+    notificationsEnabled: draft.notificationsEnabled,
+    channels: draft.channels,
+    contentGroups: draft.contentGroups,
+    quietHours: draft.quietHours,
+    email: draft.email,
+  }
 }
 function Toggle({
   label,
@@ -102,12 +138,14 @@ function validQuiet(draft: NotificationPreferences) {
 function PreferenceEditor({
   initial,
   api,
+  role,
   onSaved,
   onReconcile,
   authority,
 }: Readonly<{
   initial: VersionedPreferences
   api: NotificationApi
+  role: MobileRole
   onSaved: (value: VersionedPreferences) => void
   onReconcile: () => Promise<void>
   authority: boolean
@@ -125,9 +163,17 @@ function PreferenceEditor({
   const [notice, setNotice] = useState<string | null>(null)
   const disabled = busy || !authority
   const changed = JSON.stringify(draft) !== JSON.stringify(initial.preferences)
+  const channels =
+    role === 'SPECIALIST'
+      ? (['inApp'] as const)
+      : (['inApp', 'email', 'push'] as const)
+  const groups =
+    role === 'SPECIALIST'
+      ? specialistGroups
+      : (Object.keys(groupLabels) as (keyof typeof groupLabels)[])
   const save = async () => {
     if (disabled || pending.current || !changed) return
-    if (!validQuiet(draft)) {
+    if (role === 'USER' && !validQuiet(draft)) {
       setNotice(
         'Nhập giờ theo HH:mm, múi giờ hợp lệ và giờ bắt đầu khác giờ kết thúc khi bật giờ yên lặng.',
       )
@@ -138,13 +184,7 @@ function PreferenceEditor({
     setNotice(null)
     try {
       const result = await api.savePreferences(
-        {
-          notificationsEnabled: draft.notificationsEnabled,
-          channels: draft.channels,
-          contentGroups: draft.contentGroups,
-          quietHours: draft.quietHours,
-          email: draft.email,
-        },
+        preferencePatch(draft, role),
         initial.etag,
       )
       if (mounted.current) onSaved(result)
@@ -183,7 +223,7 @@ function PreferenceEditor({
       <Text accessibilityRole="header" style={styles.heading}>
         Kênh nhận
       </Text>
-      {(['inApp', 'email', 'push'] as const).map((channel) => (
+      {channels.map((channel) => (
         <Toggle
           key={channel}
           label={
@@ -203,126 +243,152 @@ function PreferenceEditor({
           }
         />
       ))}
-      <Text style={styles.muted}>
-        PUSH chỉ lưu lựa chọn của bạn. Ứng dụng chưa đăng ký thiết bị hoặc gửi
-        push; bật mục này không bật dịch vụ push.
-      </Text>
+      {role === 'USER' && (
+        <Text style={styles.muted}>
+          PUSH chỉ lưu lựa chọn của bạn. Ứng dụng chưa đăng ký thiết bị hoặc gửi
+          push; bật mục này không bật dịch vụ push.
+        </Text>
+      )}
       <Text accessibilityRole="header" style={styles.heading}>
         Nội dung muốn nhận
       </Text>
-      {(Object.keys(groupLabels) as (keyof typeof groupLabels)[]).map(
-        (group) => (
-          <Toggle
-            key={group}
-            label={groupLabels[group]}
-            value={draft.contentGroups[group]}
-            disabled={disabled || !draft.notificationsEnabled}
-            change={(value) =>
-              setDraft({
-                ...draft,
-                contentGroups: { ...draft.contentGroups, [group]: value },
-              })
-            }
-          />
-        ),
-      )}
-      <Text style={styles.muted}>
-        Tắt một nhóm áp dụng cho thông báo mới, không xóa lịch sử đã lưu.
-      </Text>
-      <Text accessibilityRole="header" style={styles.heading}>
-        Giờ yên lặng
-      </Text>
-      <Toggle
-        label="Bật giờ yên lặng"
-        value={draft.quietHours.enabled}
-        disabled={disabled}
-        change={(enabled) =>
-          setDraft({ ...draft, quietHours: { ...draft.quietHours, enabled } })
-        }
-      />
-      {(['start', 'end', 'timeZone'] as const).map((field) => (
-        <Field
-          key={field}
+      {groups.map((group) => (
+        <Toggle
+          key={group}
           label={
-            {
-              start: 'Bắt đầu (HH:mm)',
-              end: 'Kết thúc (HH:mm)',
-              timeZone: 'Múi giờ (IANA, ví dụ Asia/Ho_Chi_Minh)',
-            }[field]
+            role === 'SPECIALIST'
+              ? specialistGroupLabels[
+                  group as (typeof specialistGroups)[number]
+                ]
+              : groupLabels[group]
           }
-          value={draft.quietHours[field]}
-          disabled={disabled}
+          value={draft.contentGroups[group]}
+          disabled={disabled || !draft.notificationsEnabled}
           change={(value) =>
             setDraft({
               ...draft,
-              quietHours: { ...draft.quietHours, [field]: value },
+              contentGroups: { ...draft.contentGroups, [group]: value },
             })
           }
         />
       ))}
       <Text style={styles.muted}>
-        Khung giờ có thể đi qua nửa đêm. Hệ thống áp dụng theo múi giờ đã lưu.
+        Tắt một nhóm áp dụng cho thông báo mới, không xóa lịch sử đã lưu.
       </Text>
-      <Text accessibilityRole="header" style={styles.heading}>
-        Tùy chọn email
-      </Text>
-      {(['IMMEDIATE', 'DAILY_DIGEST', 'WEEKLY_DIGEST'] as const).map(
-        (cadence) => (
-          <NotificationButton
-            key={cadence}
-            label={`${draft.email.cadence === cadence ? 'Đang chọn: ' : ''}${{ IMMEDIATE: 'Nhận ngay', DAILY_DIGEST: 'Tổng hợp mỗi ngày', WEEKLY_DIGEST: 'Tổng hợp mỗi tuần' }[cadence]}`}
-            disabled={
-              disabled || !draft.notificationsEnabled || !draft.channels.email
-            }
-            onPress={() =>
-              setDraft({ ...draft, email: { ...draft.email, cadence } })
-            }
-          />
-        ),
-      )}
-      {(
-        [
-          'wellbeingDigestEnabled',
-          'resourceRemindersEnabled',
-          'appointmentRemindersEnabled',
-        ] as const
-      ).map((field) =>
-        draft.email[field] === undefined ? null : (
+      {role === 'USER' && (
+        <>
+          <Text accessibilityRole="header" style={styles.heading}>
+            Giờ yên lặng
+          </Text>
           <Toggle
-            key={field}
-            label={
-              {
-                wellbeingDigestEnabled: 'Email nhắc chăm sóc bản thân',
-                resourceRemindersEnabled: 'Email nhắc tài nguyên',
-                appointmentRemindersEnabled: 'Email nhắc lịch hẹn',
-              }[field]
-            }
-            value={draft.email[field]}
-            disabled={
-              disabled || !draft.notificationsEnabled || !draft.channels.email
-            }
-            change={(value) =>
-              setDraft({ ...draft, email: { ...draft.email, [field]: value } })
+            label="Bật giờ yên lặng"
+            value={draft.quietHours.enabled}
+            disabled={disabled}
+            change={(enabled) =>
+              setDraft({
+                ...draft,
+                quietHours: { ...draft.quietHours, enabled },
+              })
             }
           />
-        ),
+          {(['start', 'end', 'timeZone'] as const).map((field) => (
+            <Field
+              key={field}
+              label={
+                {
+                  start: 'Bắt đầu (HH:mm)',
+                  end: 'Kết thúc (HH:mm)',
+                  timeZone: 'Múi giờ (IANA, ví dụ Asia/Ho_Chi_Minh)',
+                }[field]
+              }
+              value={draft.quietHours[field]}
+              disabled={disabled}
+              change={(value) =>
+                setDraft({
+                  ...draft,
+                  quietHours: { ...draft.quietHours, [field]: value },
+                })
+              }
+            />
+          ))}
+          <Text style={styles.muted}>
+            Khung giờ có thể đi qua nửa đêm. Hệ thống áp dụng theo múi giờ đã
+            lưu.
+          </Text>
+          <Text accessibilityRole="header" style={styles.heading}>
+            Tùy chọn email
+          </Text>
+          {(['IMMEDIATE', 'DAILY_DIGEST', 'WEEKLY_DIGEST'] as const).map(
+            (cadence) => (
+              <NotificationButton
+                key={cadence}
+                label={`${draft.email.cadence === cadence ? 'Đang chọn: ' : ''}${{ IMMEDIATE: 'Nhận ngay', DAILY_DIGEST: 'Tổng hợp mỗi ngày', WEEKLY_DIGEST: 'Tổng hợp mỗi tuần' }[cadence]}`}
+                disabled={
+                  disabled ||
+                  !draft.notificationsEnabled ||
+                  !draft.channels.email
+                }
+                onPress={() =>
+                  setDraft({ ...draft, email: { ...draft.email, cadence } })
+                }
+              />
+            ),
+          )}
+          {(
+            [
+              'wellbeingDigestEnabled',
+              'resourceRemindersEnabled',
+              'appointmentRemindersEnabled',
+            ] as const
+          ).map((field) =>
+            draft.email[field] === undefined ? null : (
+              <Toggle
+                key={field}
+                label={
+                  {
+                    wellbeingDigestEnabled: 'Email nhắc chăm sóc bản thân',
+                    resourceRemindersEnabled: 'Email nhắc tài nguyên',
+                    appointmentRemindersEnabled: 'Email nhắc lịch hẹn',
+                  }[field]
+                }
+                value={draft.email[field]}
+                disabled={
+                  disabled ||
+                  !draft.notificationsEnabled ||
+                  !draft.channels.email
+                }
+                change={(value) =>
+                  setDraft({
+                    ...draft,
+                    email: { ...draft.email, [field]: value },
+                  })
+                }
+              />
+            ),
+          )}
+          {(['dailyDigestTime', 'resourceReminderTime'] as const).map(
+            (field) => (
+              <Field
+                key={field}
+                label={
+                  {
+                    dailyDigestTime: 'Giờ email tổng hợp (HH:mm)',
+                    resourceReminderTime: 'Giờ nhắc tài nguyên (HH:mm)',
+                  }[field]
+                }
+                value={draft.email[field]}
+                disabled={disabled}
+                change={(value) =>
+                  setDraft({
+                    ...draft,
+                    email: { ...draft.email, [field]: value },
+                  })
+                }
+              />
+            ),
+          )}
+        </>
       )}
-      {(['dailyDigestTime', 'resourceReminderTime'] as const).map((field) => (
-        <Field
-          key={field}
-          label={
-            {
-              dailyDigestTime: 'Giờ email tổng hợp (HH:mm)',
-              resourceReminderTime: 'Giờ nhắc tài nguyên (HH:mm)',
-            }[field]
-          }
-          value={draft.email[field]}
-          disabled={disabled}
-          change={(value) =>
-            setDraft({ ...draft, email: { ...draft.email, [field]: value } })
-          }
-        />
-      ))}
       <PrimaryButton
         label={busy ? 'Đang lưu tùy chọn…' : 'Lưu tùy chọn'}
         disabled={disabled || !changed}
@@ -334,10 +400,16 @@ function PreferenceEditor({
 function AccountPreferences({
   api,
   subject,
+  role,
   onBack,
-}: Readonly<{ api: NotificationApi; subject: string; onBack: () => void }>) {
+}: Readonly<{
+  api: NotificationApi
+  subject: string
+  role: MobileRole
+  onBack: () => void
+}>) {
   const client = useQueryClient()
-  const key = ['notifications', subject, 'preferences'] as const
+  const key = ['notifications', subject, role, 'preferences'] as const
   const query = useQuery({
     queryKey: key,
     queryFn: () => api.preferences(),
@@ -355,10 +427,14 @@ function AccountPreferences({
       <View style={styles.column}>
         <NotificationButton label="Về thông báo" onPress={onBack} />
         <Text accessibilityRole="header" style={styles.title}>
-          Nhận thông báo theo ý bạn
+          {role === 'SPECIALIST'
+            ? 'Tùy chọn thông báo chuyên môn'
+            : 'Nhận thông báo theo ý bạn'}
         </Text>
         <Text style={styles.muted}>
-          Chọn nội dung, kênh nhận và khoảng thời gian bạn muốn yên lặng.
+          {role === 'SPECIALIST'
+            ? 'Chọn các cập nhật về lịch hẹn, tin nhắn và tài khoản chuyên gia.'
+            : 'Chọn nội dung, kênh nhận và khoảng thời gian bạn muốn yên lặng.'}
         </Text>
         {notice && (
           <Text accessibilityLiveRegion="polite" style={styles.body}>
@@ -380,9 +456,10 @@ function AccountPreferences({
         />
         {query.isSuccess && !query.isFetching && (
           <PreferenceEditor
-            key={`${subject}:${query.data.etag}`}
+            key={`${subject}:${role}:${query.data.etag}`}
             initial={query.data}
             api={api}
+            role={role}
             authority={!query.isFetching}
             onReconcile={reconcile}
             onSaved={(value) => {
@@ -396,22 +473,24 @@ function AccountPreferences({
   )
 }
 export function NotificationPreferencesScreen(
-  props: Omit<React.ComponentProps<typeof AccountPreferences>, 'subject'>,
+  props: Omit<
+    React.ComponentProps<typeof AccountPreferences>,
+    'subject' | 'role'
+  >,
 ) {
   const { session } = useSession()
-  if (session?.role !== 'USER')
+  if (!session)
     return (
       <Screen>
-        <Text style={styles.body}>
-          Đăng nhập bằng tài khoản cá nhân để đổi tùy chọn.
-        </Text>
+        <Text style={styles.body}>Đăng nhập để đổi tùy chọn.</Text>
       </Screen>
     )
   return (
     <AccountPreferences
-      key={session.subject}
+      key={`${session.subject}:${session.role}`}
       {...props}
       subject={session.subject}
+      role={session.role}
     />
   )
 }

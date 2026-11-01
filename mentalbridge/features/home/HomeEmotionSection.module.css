@@ -1,0 +1,256 @@
+.section {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-shell);
+  background: var(--surface);
+  overflow: hidden;
+  min-width: 0;
+}
+.checkIn,
+.week {
+  min-width: 0;
+  padding: 26px 28px;
+}
+.week {
+  background: color-mix(in srgb, var(--surface-soft) 35%, var(--surface) 65%);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 252px;
+  box-sizing: border-box;
+}
+.heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.heading h2 {
+  margin: 0;
+  font: 560 22px/1.25 var(--font-fraunces);
+  color: var(--ink);
+}
+.heading a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--teal-deep);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.heading a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.heading a:focus-visible,
+.error button:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 3px;
+}
+.days {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+.days li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.circle {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+}
+.empty {
+  border: 1.5px dashed color-mix(in srgb, var(--ink) 22%, transparent);
+}
+.dayLabel {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.today .dayLabel {
+  color: var(--teal-deep);
+  font-weight: 700;
+}
+.note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 68px;
+  box-sizing: border-box;
+}
+.note svg {
+  color: var(--teal);
+  flex-shrink: 0;
+}
+.pop {
+  animation: pop var(--motion-base) var(--ease-standard) both;
+}
+.drop {
+  animation: drop var(--motion-medium) var(--ease-standard) both;
+}
+.weekLoading {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.skeletonDays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+.skeletonDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.skeletonCircle,
+.skeletonDayLabel,
+.skeletonNote {
+  background: var(--surface-soft);
+  animation: breathe 1400ms ease-in-out infinite;
+}
+.skeletonCircle {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  justify-self: center;
+}
+.skeletonDayLabel {
+  width: 18px;
+  height: 1.6em;
+  font-size: 12px;
+  border-radius: var(--radius-control);
+}
+.skeletonNote {
+  height: 68px;
+  border-radius: var(--radius-control);
+}
+.error {
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.error p {
+  margin: 0;
+}
+.error button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--teal-deep);
+  background: var(--surface);
+  font: inherit;
+  cursor: pointer;
+}
+.error button:hover {
+  background: var(--teal-pale);
+}
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (max-width: 760px) {
+  .section {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .checkIn,
+  .week {
+    padding: 24px 20px;
+  }
+  .week {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+@media (max-width: 420px) {
+  .checkIn,
+  .week {
+    padding: 22px 16px;
+  }
+  .days,
+  .skeletonDays {
+    gap: 2px;
+  }
+  .heading {
+    gap: 2px 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pop,
+  .drop {
+    animation-name: fade;
+    animation-timing-function: linear;
+    animation-delay: 0ms !important;
+  }
+  .skeletonCircle,
+  .skeletonDayLabel,
+  .skeletonNote {
+    animation: none;
+    opacity: 0.8;
+  }
+}
+.week[data-motion-off='true'] .pop,
+.week[data-motion-off='true'] .drop,
+:global([data-home-motion='off']) .pop,
+:global([data-home-motion='off']) .drop {
+  animation: none;
+}

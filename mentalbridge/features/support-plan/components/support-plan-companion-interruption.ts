@@ -2,6 +2,11 @@
 
 import { useSyncExternalStore } from 'react'
 
+import {
+  storedPreference,
+  subscribePreferences,
+} from '@/lib/preferences/companion-preferences'
+
 const EXTERNAL_DIALOG_SELECTOR =
   '[role="dialog"][aria-modal="true"], dialog[open]'
 const COMPANION_DIALOG_SELECTOR = '[data-support-plan-companion-dialog]'
@@ -31,4 +36,15 @@ export function useSupportPlanCompanionInterruption(active = false) {
   )
 
   return active || externalDialogActive
+}
+
+// Mute is session-only by policy; the legacy localStorage key is never read.
+const MUTED_STORAGE_KEY = 'mentalbridge_support_plan_companion_session_muted'
+
+export function useSupportPlanCompanionMuted() {
+  return useSyncExternalStore(
+    subscribePreferences,
+    () => storedPreference(MUTED_STORAGE_KEY, 'true', 'session'),
+    () => false,
+  )
 }

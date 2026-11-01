@@ -1,5 +1,5 @@
 import { router } from 'expo-router'
-import { StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
@@ -20,6 +20,15 @@ export function WelcomeScreen() {
         bảo vệ và đồng bộ từ MentalBridge.
       </Text>
       <PrimaryButton label="Tiếp tục" onPress={() => router.push('/sign-in')} />
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push('/assessment/anonymous')}
+        style={({ pressed }) => [styles.guestAction, pressed && styles.pressed]}
+      >
+        <Text style={styles.guestActionLabel}>
+          Sàng lọc không cần tài khoản
+        </Text>
+      </Pressable>
     </Screen>
   )
 }
@@ -54,5 +63,20 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     lineHeight: typography.bodyLineHeight,
     marginBottom: spacing.xxl,
+  },
+  guestAction: {
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    minHeight: 48,
+    paddingVertical: spacing.sm,
+  },
+  guestActionLabel: {
+    color: colors.tealDeep,
+    fontSize: typography.body,
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.72,
   },
 })

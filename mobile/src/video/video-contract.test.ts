@@ -38,6 +38,21 @@ const access = {
 }
 
 describe('MB-384 public video contracts', () => {
+  it('uses authoritative pre-start demo access without granting from the device clock', () => {
+    const demo = { ...session, serverTime: '2026-10-12T09:00:00Z' }
+    expect(videoSessionSchema.parse(demo)).toEqual(demo)
+    expect(
+      videoSessionSchema.safeParse({
+        ...demo,
+        phase: 'WAITING',
+        previewAllowed: true,
+        joinAllowed: false,
+      }).success,
+    ).toBe(true)
+    expect(
+      videoSessionSchema.safeParse({ ...demo, phase: 'WAITING' }).success,
+    ).toBe(false)
+  })
   it.each([
     'TOO_EARLY',
     'WAITING',

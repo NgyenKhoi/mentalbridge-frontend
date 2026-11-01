@@ -53,6 +53,9 @@ function createApi(): jest.Mocked<IdentityApi> {
     refresh: jest.fn(),
     registerUser: jest.fn(),
     requestEmailVerification: jest.fn(),
+    requestPasswordRecovery: jest.fn(),
+    resetPassword: jest.fn(),
+    changePassword: jest.fn(),
     verifyEmail: jest.fn(),
   }
 }
@@ -308,5 +311,47 @@ describe('Identity mobile session lifecycle', () => {
       },
       '33333333-3333-4333-8333-333333333333',
     )
+  })
+
+  it('forwards recovery and reset through the frozen Identity contracts', async () => {
+    const { api, service } = setup()
+
+    await service.requestPasswordRecovery('user@example.com')
+    await service.resetPassword(
+      'password-reset-challenge-that-is-long-enough',
+      'new-correct-password',
+    )
+
+    expect(api.requestPasswordRecovery).toHaveBeenCalledWith('user@example.com')
+    expect(api.resetPassword).toHaveBeenCalledWith({
+      challenge: 'password-reset-challenge-that-is-long-enough',
+      newPassword: 'new-correct-password',
+    })
+  })
+
+  it('clears local credentials only after a password change succeeds', async () => {
+    const { api, credentials, service } = setup()
+
+    await service.changePassword('correct-password', 'new-correct-password')
+
+    expect(api.changePassword).toHaveBeenCalledWith({
+      currentPassword: 'correct-password',
+      newPassword: 'new-correct-password',
+    })
+    expect(credentials.clear).toHaveBeenCalledTimes(1)
+
+    api.changePassword.mockRejectedValue(
+      new ApiError({
+        code: 'INVALID_CREDENTIALS',
+        message: 'Wrong current password',
+        status: 401,
+      }),
+    )
+    credentials.clear.mockClear()
+
+    await expect(
+      service.changePassword('wrong-password', 'another-correct-password'),
+    ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' })
+    expect(credentials.clear).not.toHaveBeenCalled()
   })
 })

@@ -73,6 +73,15 @@ describe('Identity mobile API contract', () => {
     )
     await api.verifyEmail('challenge-that-is-long-enough-for-the-contract')
     await api.requestEmailVerification('user@example.com')
+    await api.requestPasswordRecovery('user@example.com')
+    await api.resetPassword({
+      challenge: 'password-reset-challenge-that-is-long-enough',
+      newPassword: 'new-correct-password',
+    })
+    await api.changePassword({
+      currentPassword: 'correct-password',
+      newPassword: 'new-correct-password',
+    })
 
     expect(requests.map(({ method, url }) => ({ method, url }))).toEqual([
       { method: 'post', url: '/api/v1/auth/login' },
@@ -82,6 +91,9 @@ describe('Identity mobile API contract', () => {
       { method: 'post', url: '/api/v1/auth/registrations' },
       { method: 'post', url: '/api/v1/auth/email-verifications' },
       { method: 'post', url: '/api/v1/auth/email-verification-requests' },
+      { method: 'post', url: '/api/v1/auth/password-recovery-requests' },
+      { method: 'post', url: '/api/v1/auth/password-resets' },
+      { method: 'put', url: '/api/v1/account/password' },
     ])
     expect(JSON.parse(String(requests[1]?.data))).toEqual({
       refreshToken: tokenPair.refreshToken,
@@ -97,6 +109,17 @@ describe('Identity mobile API contract', () => {
     expect(requests[4]?.headers.get('Idempotency-Key')).toBe(
       'registration-idempotency-key',
     )
+    expect(JSON.parse(String(requests[7]?.data))).toEqual({
+      email: 'user@example.com',
+    })
+    expect(JSON.parse(String(requests[8]?.data))).toEqual({
+      challenge: 'password-reset-challenge-that-is-long-enough',
+      newPassword: 'new-correct-password',
+    })
+    expect(JSON.parse(String(requests[9]?.data))).toEqual({
+      currentPassword: 'correct-password',
+      newPassword: 'new-correct-password',
+    })
   })
 
   it('rejects an unrecognized current-account payload', async () => {

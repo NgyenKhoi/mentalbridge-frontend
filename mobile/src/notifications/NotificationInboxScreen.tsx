@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Text, View } from 'react-native'
+import type { MobileRole } from '@/auth/session'
 import { useSession } from '@/auth/session-context'
 import { Screen } from '@/components/Screen'
 import type { NotificationApi } from './notification-api'
@@ -14,12 +15,14 @@ import {
 function AccountInbox({
   api,
   subject,
+  role,
   onBack,
   onPreferences,
   onOpen,
 }: Readonly<{
   api: NotificationApi
   subject: string
+  role: MobileRole
   onBack: () => void
   onPreferences: () => void
   onOpen: (
@@ -37,7 +40,7 @@ function AccountInbox({
       mounted.current = false
     }
   }, [])
-  const key = ['notifications', subject, 'inbox'] as const
+  const key = ['notifications', subject, role, 'inbox'] as const
   const query = useInfiniteQuery({
     queryKey: key,
     initialPageParam: undefined as string | undefined,
@@ -70,7 +73,7 @@ function AccountInbox({
       await client.invalidateQueries({ queryKey: key })
       if (!mounted.current) return
       if (open) {
-        const destination = notificationDestination(item?.action ?? null)
+        const destination = notificationDestination(item?.action ?? null, role)
         if (destination) onOpen(destination)
         else
           setNotice(
@@ -151,7 +154,7 @@ function AccountInbox({
                   }).format(new Date(item.createdAt))}
                 </Text>
                 {item.action &&
-                  (notificationDestination(item.action) ? (
+                  (notificationDestination(item.action, role) ? (
                     <NotificationButton
                       label={`Mở: ${item.title}`}
                       disabled={!ready}
@@ -189,18 +192,21 @@ function AccountInbox({
   )
 }
 export function NotificationInboxScreen(
-  props: Omit<React.ComponentProps<typeof AccountInbox>, 'subject'>,
+  props: Omit<React.ComponentProps<typeof AccountInbox>, 'subject' | 'role'>,
 ) {
   const { session } = useSession()
-  if (session?.role !== 'USER')
+  if (!session)
     return (
       <Screen>
-        <Text style={styles.body}>
-          Đăng nhập bằng tài khoản cá nhân để xem thông báo.
-        </Text>
+        <Text style={styles.body}>Đăng nhập để xem thông báo.</Text>
       </Screen>
     )
   return (
-    <AccountInbox key={session.subject} {...props} subject={session.subject} />
+    <AccountInbox
+      key={`${session.subject}:${session.role}`}
+      {...props}
+      subject={session.subject}
+      role={session.role}
+    />
   )
 }

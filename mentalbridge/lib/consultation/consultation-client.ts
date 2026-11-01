@@ -7,6 +7,16 @@ import {
 } from './video-validation'
 
 import {
+  parseAdminPayoutDetail,
+  parseAdminSubscriptionDetail,
+  parseAdminCommercialDiscrepancies,
+  parseAdminCommercialProvenance,
+  type AdminPayoutDetail,
+  type AdminSubscriptionDetail,
+  type AdminCommercialDiscrepancyReport,
+  type AdminCommercialProvenance,
+} from './reconciliation-validation'
+import {
   parseCredentialDocument,
   parseCredentialDocuments,
   parseCredentialLink,
@@ -584,22 +594,62 @@ export const consultationClient = {
       parse: parseSpecialistEarnings,
     })
   },
-  adminPayouts(token: string, correlationId: string) {
+  adminPayouts(token: string, correlationId: string, query = '') {
     return request<AdminPayoutList>({
       method: 'GET',
-      path: '/api/v1/admin/payouts',
+      path: `/api/v1/admin/payouts${query ? (query.startsWith('?') ? query : `?${query}`) : ''}`,
       token,
       correlationId,
       parse: parseAdminPayoutList,
     })
   },
-  adminPayments(token: string, correlationId: string) {
+  adminPayoutDetail(token: string, correlationId: string, payoutId: string) {
+    return request<AdminPayoutDetail>({
+      method: 'GET',
+      path: `/api/v1/admin/payouts/${encodeURIComponent(payoutId)}`,
+      token,
+      correlationId,
+      parse: parseAdminPayoutDetail,
+    })
+  },
+  adminPayments(token: string, correlationId: string, query = '') {
     return request({
       method: 'GET',
-      path: '/api/v1/admin/payments',
+      path: `/api/v1/admin/payments${query ? (query.startsWith('?') ? query : `?${query}`) : ''}`,
       token,
       correlationId,
       parse: parseAdminPaymentList,
+    })
+  },
+  adminSubscriptionDetail(
+    token: string,
+    correlationId: string,
+    subscriptionId: string,
+  ) {
+    return request<AdminSubscriptionDetail>({
+      method: 'GET',
+      path: `/api/v1/admin/subscriptions/${encodeURIComponent(subscriptionId)}`,
+      token,
+      correlationId,
+      parse: parseAdminSubscriptionDetail,
+    })
+  },
+  adminCommercialDiscrepancies(token: string, correlationId: string) {
+    return request<AdminCommercialDiscrepancyReport>({
+      method: 'GET',
+      path: '/api/v1/admin/commercial/discrepancies',
+      token,
+      correlationId,
+      parse: parseAdminCommercialDiscrepancies,
+    })
+  },
+  adminCommercialProvenance(token: string, correlationId: string, query = '') {
+    return request<AdminCommercialProvenance>({
+      method: 'GET',
+      path: `/api/v1/admin/commercial/provenance${query ? (query.startsWith('?') ? query : `?${query}`) : ''}`,
+      token,
+      correlationId,
+      parse: parseAdminCommercialProvenance,
     })
   },
   planPayment(token: string, correlationId: string, paymentId: string) {

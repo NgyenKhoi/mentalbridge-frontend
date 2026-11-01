@@ -15,11 +15,12 @@ import type { CareProfile } from './profile-contract'
 import { UserProfileScreen } from './UserProfileScreen'
 
 const mockBack = jest.fn()
+const mockPush = jest.fn()
 const mockSignOut = jest.fn()
 let mockSessionSubject = '11111111-1111-4111-8111-111111111111'
 
 jest.mock('expo-router', () => ({
-  router: { back: () => mockBack(), push: jest.fn() },
+  router: { back: () => mockBack(), push: (path: string) => mockPush(path) },
 }))
 
 jest.mock('@/auth/session-context', () => ({
@@ -98,6 +99,15 @@ describe('USER Care profile screen', () => {
       ),
     )
     expect(await screen.findByText('Đã lưu thay đổi hồ sơ.')).toBeOnTheScreen()
+  })
+
+  it('opens password security from the profile shell', async () => {
+    await renderProfile(<UserProfileScreen api={profileApi()} />)
+
+    await screen.findByDisplayValue('Nguyễn An')
+    await fireEvent.press(screen.getByRole('link', { name: 'Đổi mật khẩu' }))
+
+    expect(mockPush).toHaveBeenCalledWith('/change-password')
   })
 
   it('treats PROFILE_NOT_FOUND as onboarding and creates without If-Match', async () => {

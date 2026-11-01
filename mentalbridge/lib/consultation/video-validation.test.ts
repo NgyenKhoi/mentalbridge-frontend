@@ -39,6 +39,19 @@ const access = {
 }
 
 describe('MB-384 video public boundaries', () => {
+  it('uses authoritative ACTIVE for an opted-in pre-start demo, never client clock inference', () => {
+    const demo = { ...session, serverTime: '2026-10-12T09:00:00Z' }
+    expect(parseVideoSession(demo)).toEqual(demo)
+    expect(
+      parseVideoSession({
+        ...demo,
+        phase: 'WAITING',
+        previewAllowed: true,
+        joinAllowed: false,
+      }),
+    ).not.toBeNull()
+    expect(parseVideoSession({ ...demo, phase: 'WAITING' })).toBeNull()
+  })
   it.each([
     'TOO_EARLY',
     'WAITING',

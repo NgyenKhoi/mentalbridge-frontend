@@ -159,11 +159,13 @@ export async function requestSupportPlanActionCompanionExplanation(
   supportPlanId: string,
   actionId: string,
   surface: 'TODAY' | 'PLAN',
+  signal?: AbortSignal,
 ) {
   return (
     await browserApiClient.post<SupportPlanContextualCompanionMessage>(
       `/care/v2/support-plans/${encodeURIComponent(supportPlanId)}/actions/${encodeURIComponent(actionId)}/companion-explanation`,
       { surface },
+      { signal },
     )
   ).data
 }

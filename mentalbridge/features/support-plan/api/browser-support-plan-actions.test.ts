@@ -4,10 +4,14 @@ vi.mock('@/lib/api/browser-client', () => ({ browserApiClient: client }))
 import {
   activateNativeSupportPlan,
   changeNativeActionOccurrenceState,
+  confirmAdaptiveReviewOption,
+  getAdaptiveSupportPlanReview,
   getSupportPlanActionOccurrences,
+  getCurrentPlanResourceActions,
   proposeNativeSupportPlanDraft,
   reconcileEmotionCheckInOccurrence,
   reconcileJournalOccurrence,
+  reconcileResourceOccurrence,
   reviewNativeSupportPlanReplacement,
   replaceWithNativeSupportPlan,
 } from './browser-support-plan-actions'
@@ -17,6 +21,20 @@ describe('Native SupportPlan same-origin browser transport', () => {
     vi.clearAllMocks()
     for (const method of Object.values(client))
       method.mockResolvedValue({ data: { version: 1 } })
+  })
+  it('reads the minimized resource projection and reconciles without client facts', async () => {
+    const controller = new AbortController()
+    await getCurrentPlanResourceActions('2026-10-21', controller.signal)
+    expect(client.get).toHaveBeenCalledWith(
+      '/care/v2/support-plans/current/resource-actions',
+      { params: { localDate: '2026-10-21' }, signal: controller.signal },
+    )
+    await reconcileResourceOccurrence('occurrence-id', 3)
+    expect(client.post).toHaveBeenCalledWith(
+      '/care/v2/support-plan-occurrences/occurrence-id/resource/reconcile',
+      undefined,
+      { headers: { 'If-Match': '"3"' } },
+    )
   })
   it('sends only a Journal candidate ID for owner verification, never private content or a fact assertion', async () => {
     await reconcileJournalOccurrence('occurrence-id', 'journal-id')
@@ -91,6 +109,32 @@ describe('Native SupportPlan same-origin browser transport', () => {
           'If-Match': '"1"',
           'Idempotency-Key': 'replacement-retry-key',
         },
+      },
+    )
+  })
+  it('reads the adaptive review without commands and confirms one option with retry identity', async () => {
+    await getAdaptiveSupportPlanReview('plan-id')
+    await getAdaptiveSupportPlanReview('plan-id', 'summary-id')
+    const body = {
+      reviewFingerprint: '3f2a9c4d7e1b6a5f8c0d2e4f6a8b0c1d',
+      optionId: 'keep-current-1',
+    }
+    await confirmAdaptiveReviewOption('plan-id', 3, body, 'review-retry-key')
+    expect(client.get).toHaveBeenNthCalledWith(
+      1,
+      '/care/v2/support-plans/plan-id/adaptive-review',
+      {},
+    )
+    expect(client.get).toHaveBeenNthCalledWith(
+      2,
+      '/care/v2/support-plans/plan-id/adaptive-review',
+      { params: { reassessmentSummaryId: 'summary-id' } },
+    )
+    expect(client.post).toHaveBeenCalledWith(
+      '/care/v2/support-plans/plan-id/adaptive-review/confirm',
+      body,
+      {
+        headers: { 'If-Match': '"3"', 'Idempotency-Key': 'review-retry-key' },
       },
     )
   })

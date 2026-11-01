@@ -194,6 +194,22 @@ describe('ReassessmentJourney', () => {
     )
   })
 
+  it('keeps the plan review return target when the review sent the user here', async () => {
+    api.getReassessmentContext.mockResolvedValue({
+      ...context,
+      state: 'INCOMPLETE',
+      missingInstruments: ['GAD7'],
+      gad7AssessmentId: null,
+    })
+    render(<ReassessmentJourney planReview />)
+    expect(
+      await screen.findByRole('link', { name: 'Bắt đầu lượt đánh giá lại' }),
+    ).toHaveAttribute(
+      'href',
+      '/initial-check?purpose=reassessment&returnTo=plan-review',
+    )
+  })
+
   it('does not start when Care reports missing screening evidence', async () => {
     api.getReassessmentContext.mockResolvedValue({
       ...context,

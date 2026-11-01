@@ -337,6 +337,9 @@ test('MB-512 retries an unchanged draft with a fresh key after provider failure'
   })
 
   await page.goto('/ai-companion')
+  await expect(
+    page.getByRole('button', { name: 'Gọi AI', exact: true }),
+  ).toBeVisible()
   await page
     .getByRole('button', { name: /Cuộc trò chuyện mới.*Tiếp tục/ })
     .click()

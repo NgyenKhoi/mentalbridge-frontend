@@ -1,9 +1,26 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import {
+  ArrowLeft,
+  Ban,
+  Clock3,
+  FileText,
+  RefreshCw,
+  VideoOff,
+  X,
+} from 'lucide-react'
+import { Dialog } from '@/components/ui/Dialog'
 
-import { Disclosure } from '@/components/ui/Disclosure'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import type {
@@ -11,9 +28,18 @@ import type {
   VideoSession,
 } from '@/lib/consultation/video-validation'
 import { videoBrowserClient } from '../api/video-browser-client'
+import { appointmentBrowserClient } from '../api/browser-client'
 import styles from './VideoConsultation.module.css'
 
-const VideoMedia = dynamic(() => import('./VideoMedia'), { ssr: false })
+const VideoMedia = dynamic(() => import('./VideoMedia'), {
+  ssr: false,
+  loading: () => (
+    <div className={styles.standby} aria-busy="true">
+      <VideoOff size={40} aria-hidden="true" />
+      <p>Đang tải khung cuộc gọi…</p>
+    </div>
+  ),
+})
 const phaseCopy: Record<VideoSession['phase'], string> = {
   TOO_EARLY: 'Bạn có thể kiểm tra camera và micro từ 5 phút trước giờ hẹn.',
   WAITING: 'Bạn có thể kiểm tra thiết bị. Đến giờ hẹn, nút tham gia sẽ mở.',
@@ -24,39 +50,16 @@ const phaseCopy: Record<VideoSession['phase'], string> = {
   UNAVAILABLE: 'Chưa thể mở phiên video. Bạn có thể thử lại sau.',
 }
 
-/** The keyed boundary prevents draft/token carry-over between appointments. */
-export function VideoConsultationPanel(props: {
-  appointmentId: string
-  role: 'USER' | 'SPECIALIST'
-  onVerified?: () => void
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <Disclosure
-      className={styles.disclosure}
-      summary="Phiên tư vấn video"
-      open={open}
-      expanded={open}
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      {open && (
-        <VideoSessionPanel
-          key={`${props.role}:${props.appointmentId}`}
-          {...props}
-        />
-      )}
-    </Disclosure>
-  )
-}
-
 export function VideoSessionPanel({
   appointmentId,
   role,
   onVerified,
+  preparation,
 }: {
   appointmentId: string
   role: 'USER' | 'SPECIALIST'
   onVerified?: () => void
+  preparation?: ReactNode
 }) {
   const { confirm } = useFeedback()
   const [session, setSession] = useState<VideoSession | null>(null)
@@ -65,7 +68,10 @@ export function VideoSessionPanel({
   const [error, setError] = useState('')
   const [loadError, setLoadError] = useState('')
   const [uncertain, setUncertain] = useState(false)
-  const [foreground, setForeground] = useState(true)
+  const [participantName, setParticipantName] = useState('')
+  const [callEnded, setCallEnded] = useState(false)
+  const [preparationOpen, setPreparationOpen] = useState(false)
+  const preparationId = useId()
   const alive = useRef(false)
   const working = useRef(false)
   const latest = useRef<{ session: VideoSession; received: number } | null>(
@@ -74,19 +80,60 @@ export function VideoSessionPanel({
   const command = useRef<{ key: string; version: number } | null>(null)
   const verified = useRef(false)
   const callback = useRef(onVerified)
+  const joinAttempt = useRef(0)
+  const stopMedia = useCallback(() => {
+    joinAttempt.current += 1
+    setAccess(null)
+  }, [])
+  const leaveCall = useCallback(() => {
+    stopMedia()
+    setCallEnded(true)
+  }, [stopMedia])
+  const mediaError = useCallback(() => {
+    setAccess(null)
+    setError(
+      'Cuộc gọi đã ngắt. Bạn có thể kiểm tra thiết bị và thử tham gia lại nếu phiên còn mở.',
+    )
+  }, [])
   useEffect(() => {
     callback.current = onVerified
   }, [onVerified])
+  useEffect(() => {
+    if (role !== 'USER') return
+    let current = true
+    void appointmentBrowserClient
+      .list()
+      .then(({ items }) => {
+        const name = items.find(
+          (item) => item.id === appointmentId,
+        )?.specialistDisplayName
+        if (current && name) setParticipantName(name)
+      })
+      .catch(() => {
+        if (current) setParticipantName('')
+      })
+    return () => {
+      current = false
+    }
+  }, [appointmentId, role])
 
   const refresh = useCallback(async () => {
     let next: VideoSession
     try {
       next = await videoBrowserClient.session(appointmentId)
     } catch (caught) {
-      if (alive.current) {
+      const temporary =
+        caught instanceof ApiError &&
+        [
+          'CONSULTATION_UNAVAILABLE',
+          'CONSULTATION_TIMEOUT',
+          'NETWORK_ERROR',
+          'REQUEST_TIMEOUT',
+        ].includes(caught.code)
+      if (alive.current && !temporary) {
         latest.current = null
         setSession(null)
-        setAccess(null)
+        stopMedia()
       }
       throw caught
     }
@@ -102,7 +149,7 @@ export function VideoSessionPanel({
     latest.current = { session: next, received: performance.now() }
     setSession(next)
     setLoadError('')
-    if (!next.joinAllowed) setAccess(null)
+    if (!next.joinAllowed) stopMedia()
     if (next.completion) {
       command.current = null
       setUncertain(false)
@@ -115,7 +162,7 @@ export function VideoSessionPanel({
       callback.current?.()
     }
     return next
-  }, [appointmentId])
+  }, [appointmentId, stopMedia])
 
   useEffect(() => {
     alive.current = true
@@ -125,33 +172,24 @@ export function VideoSessionPanel({
         await refresh()
       } catch (caught) {
         if (alive.current) {
-          latest.current = null
-          setSession(null)
-          setAccess(null)
           setLoadError(
             caught instanceof ApiError &&
               [401, 403, 404].includes(caught.status ?? 0)
               ? 'Bạn không có quyền vào phiên này. Hãy kiểm tra tài khoản và lịch hẹn.'
-              : 'Chưa kiểm tra được quyền vào phiên. Camera và micro đã dừng; hãy thử tải lại.',
+              : latest.current
+                ? 'Chưa cập nhật được phiên. Đang thử lại; cuộc gọi đã kết nối sẽ được giữ đến khi phiên kết thúc.'
+                : 'Chưa kiểm tra được quyền vào phiên. Camera và micro đã dừng; hãy thử tải lại.',
           )
         }
       }
       if (alive.current) timer = setTimeout(poll, 5000)
     }
     void poll()
-    const onVisibility = () => {
-      const visible = document.visibilityState === 'visible'
-      setForeground(visible)
-      if (!visible) setAccess(null)
-    }
     const onPageHide = () => {
-      setForeground(false)
-      setAccess(null)
+      stopMedia()
     }
-    document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('pagehide', onPageHide)
-    // Local monotonic time only stops media; it never grants access or proves attendance.
-    const deadline = setInterval(() => {
+    const checkDeadline = () => {
       const anchor = latest.current
       if (
         anchor &&
@@ -160,24 +198,33 @@ export function VideoSessionPanel({
           anchor.received >=
           Date.parse(anchor.session.endsAt)
       ) {
-        setAccess(null)
+        stopMedia()
         setSession((current) => (current?.joinAllowed ? null : current))
       }
-    }, 1000)
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') checkDeadline()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', checkDeadline)
+    const deadline = setInterval(checkDeadline, 1000)
     return () => {
       alive.current = false
+      joinAttempt.current += 1
       clearTimeout(timer)
       clearInterval(deadline)
-      document.removeEventListener('visibilitychange', onVisibility)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', checkDeadline)
       window.removeEventListener('pagehide', onPageHide)
     }
-  }, [refresh])
+  }, [refresh, stopMedia])
 
   async function join() {
     if (working.current || command.current) return
     working.current = true
     setBusy(true)
     setError('')
+    const attempt = ++joinAttempt.current
     try {
       const current = await refresh()
       if (!current?.joinAllowed) return
@@ -185,7 +232,7 @@ export function VideoSessionPanel({
       const anchor = latest.current
       if (
         !alive.current ||
-        document.visibilityState !== 'visible' ||
+        attempt !== joinAttempt.current ||
         !anchor?.session.joinAllowed ||
         issued.endsAt !== anchor.session.endsAt ||
         Date.parse(issued.expiresAt) <=
@@ -195,6 +242,7 @@ export function VideoSessionPanel({
       )
         return
       setAccess(issued)
+      setCallEnded(false)
     } catch {
       if (alive.current)
         setError(
@@ -274,19 +322,63 @@ export function VideoSessionPanel({
   }
 
   return (
-    <section className={styles.panel} aria-label="Cuộc gọi tư vấn">
+    <section
+      className={styles.panel}
+      aria-label="Cuộc gọi tư vấn"
+      data-specialist-journey={role === 'SPECIALIST' ? 'video' : undefined}
+    >
       <header className={styles.header}>
-        <h3>Trao đổi trực tiếp</h3>
-        <span>Không ghi âm hoặc ghi hình</span>
+        <div className={styles.headerIdentity}>
+          <Link
+            className={styles.backLink}
+            aria-label="Trở về lịch hẹn"
+            title="Trở về lịch hẹn"
+            href={
+              role === 'USER'
+                ? `/appointments/${encodeURIComponent(appointmentId)}`
+                : `/specialist/appointments?appointmentId=${encodeURIComponent(appointmentId)}`
+            }
+          >
+            <ArrowLeft size={18} aria-hidden="true" />
+          </Link>
+          <div>
+            <div className={styles.nameLine}>
+              <h2>
+                {participantName ||
+                  (role === 'USER'
+                    ? 'Chuyên gia của bạn'
+                    : 'Người tham gia cùng bạn')}
+              </h2>
+              <span className={styles.sessionBadge}>Tư vấn trực tuyến</span>
+            </div>
+            {session && (
+              <p className={styles.schedule}>
+                <Clock3 size={13} aria-hidden="true" />
+                <time dateTime={session.startsAt}>
+                  {new Intl.DateTimeFormat('vi-VN', {
+                    timeZone: 'Asia/Ho_Chi_Minh',
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  }).format(new Date(session.startsAt))}
+                </time>
+                {' – '}
+                <time dateTime={session.endsAt}>
+                  {new Intl.DateTimeFormat('vi-VN', {
+                    timeZone: 'Asia/Ho_Chi_Minh',
+                    timeStyle: 'short',
+                  }).format(new Date(session.endsAt))}
+                </time>
+                {' · Giờ Việt Nam'}
+              </p>
+            )}
+          </div>
+        </div>
+        <span className={styles.privacy}>
+          <Ban size={14} aria-hidden="true" />
+          Không ghi âm hoặc ghi hình
+        </span>
       </header>
       <div className={styles.body}>
-        <p role="status">
-          {session
-            ? phaseCopy[session.phase]
-            : loadError
-              ? 'Chưa xác nhận được quyền vào phiên.'
-              : 'Đang kiểm tra quyền vào phiên…'}
-        </p>
         {session?.completion && (
           <p role="status">
             {session.completion.verificationState === 'VERIFIED'
@@ -306,65 +398,128 @@ export function VideoSessionPanel({
             {loadError}
           </p>
         )}
-        {foreground && !uncertain && (access || session?.previewAllowed) && (
+        {!uncertain && (
           <VideoMedia
             access={access}
             previewAllowed={Boolean(session?.previewAllowed)}
-            onLeave={() => setAccess(null)}
-            onError={() => {
-              setAccess(null)
-              setError(
-                'Cuộc gọi đã ngắt. Bạn có thể kiểm tra thiết bị và thử tham gia lại nếu phiên còn mở.',
-              )
-            }}
+            onLeave={leaveCall}
+            onError={mediaError}
+            participantName={participantName || 'Người tham gia cùng bạn'}
+            hint={
+              callEnded && session?.joinAllowed
+                ? 'Bạn đã rời cuộc gọi. Có thể tham gia lại nếu phiên còn mở.'
+                : session
+                  ? phaseCopy[session.phase]
+                  : loadError
+                    ? 'Chưa xác nhận được quyền vào phiên.'
+                    : 'Đang kiểm tra quyền vào phiên…'
+            }
+            onJoin={() => void join()}
+            joinDisabled={busy || !session?.joinAllowed || uncertain}
+            joining={busy}
           />
         )}
-        <div className={styles.actions}>
-          {!access && (
+        {uncertain && (
+          <div className={styles.standby}>
+            <VideoOff size={40} aria-hidden="true" />
+            <p>Camera và micro đang tắt</p>
+          </div>
+        )}
+        <footer className={styles.footer}>
+          <div className={styles.footerNote}>
             <button
+              data-appointment-ui
               type="button"
-              className={styles.primary}
-              disabled={
-                busy || !foreground || !session?.joinAllowed || uncertain
-              }
-              onClick={() => void join()}
+              disabled={busy}
+              onClick={() => {
+                setError('')
+                void refresh().catch(() =>
+                  setError('Chưa thể tải lại phiên. Vui lòng thử lại.'),
+                )
+              }}
             >
-              {busy ? 'Đang xử lý…' : 'Tham gia phiên tư vấn'}
+              <RefreshCw size={14} aria-hidden="true" />
+              Tải lại phiên
             </button>
-          )}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              setError('')
-              void refresh().catch(() =>
-                setError('Chưa thể tải lại phiên. Vui lòng thử lại.'),
-              )
-            }}
-          >
-            Tải lại phiên
-          </button>
-          {role === 'SPECIALIST' &&
-            !session?.completion &&
-            (uncertain ||
-              (session && ['ACTIVE', 'ENDED'].includes(session.phase))) && (
+            <p className={styles.note}>
+              Kiểm tra thiết bị chỉ diễn ra trên máy của bạn. Rời cuộc gọi không
+              đồng nghĩa buổi tư vấn đã hoàn tất.
+            </p>
+          </div>
+          <div className={styles.actions}>
+            {preparation ? (
               <button
+                data-appointment-ui
                 type="button"
-                className={styles.danger}
-                disabled={busy}
-                onClick={() => void finish()}
+                className={styles.preparationButton}
+                onClick={() => setPreparationOpen(true)}
               >
-                {uncertain
-                  ? 'Kiểm tra lại xác nhận'
-                  : 'Xác nhận kết thúc buổi tư vấn'}
+                <FileText size={14} aria-hidden="true" />
+                Tóm tắt trước buổi tư vấn
               </button>
+            ) : (
+              <Link
+                className={styles.preparationButton}
+                href={`/appointments/${encodeURIComponent(appointmentId)}`}
+              >
+                <FileText size={14} aria-hidden="true" />
+                Xem nội dung chuẩn bị trong lịch hẹn
+              </Link>
             )}
-        </div>
-        <p className={styles.note}>
-          Kiểm tra thiết bị chỉ diễn ra trên máy của bạn. Rời cuộc gọi không
-          đồng nghĩa buổi tư vấn đã hoàn tất.
-        </p>
+            {role === 'SPECIALIST' &&
+              !session?.completion &&
+              (uncertain ||
+                (session && ['ACTIVE', 'ENDED'].includes(session.phase))) && (
+                <button
+                  data-appointment-ui
+                  type="button"
+                  className={styles.primary}
+                  disabled={busy}
+                  onClick={() => void finish()}
+                >
+                  {uncertain
+                    ? 'Kiểm tra lại xác nhận'
+                    : 'Xác nhận kết thúc buổi tư vấn'}
+                </button>
+              )}
+          </div>
+        </footer>
+        {session?.completion?.verificationState === 'VERIFIED' && (
+          <Link
+            className={styles.resultLink}
+            href={
+              role === 'USER'
+                ? `/appointments/${encodeURIComponent(appointmentId)}`
+                : `/specialist/follow-up?appointmentId=${encodeURIComponent(appointmentId)}`
+            }
+          >
+            Xem nội dung sau buổi tư vấn
+          </Link>
+        )}
       </div>
+      {preparation && (
+        <Dialog
+          open={preparationOpen}
+          onOpenChange={setPreparationOpen}
+          labelledBy={preparationId}
+          className={styles.callDialog}
+        >
+          <div className={styles.dialogContent}>
+            <div className={styles.dialogHeading}>
+              <h2 id={preparationId}>Thông tin trước buổi tư vấn</h2>
+              <button
+                data-appointment-ui
+                type="button"
+                aria-label="Đóng thông tin chuẩn bị"
+                onClick={() => setPreparationOpen(false)}
+              >
+                <X size={20} aria-hidden="true" />
+              </button>
+            </div>
+            {preparation}
+          </div>
+        </Dialog>
+      )}
     </section>
   )
 }

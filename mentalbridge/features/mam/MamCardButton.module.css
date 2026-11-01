@@ -1,0 +1,104 @@
+/* A 44 px target around a 32 px circle, in the card's top-right corner. */
+.button {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.disc {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--teal-pale); /* taste-skill-ignore: a circular control needs its edge */
+  border-radius: 50%;
+  background: var(--surface-soft);
+  transition:
+    transform var(--motion-instant) var(--ease-standard),
+    border-color var(--motion-instant) var(--ease-standard),
+    background-color var(--motion-instant) var(--ease-standard);
+}
+
+.disc img {
+  display: block;
+  transform-origin: 50% 100%;
+}
+
+/* The card hosting this button is the one Mầm is talking about: the disc takes
+   the teal state and the mini Mầm nods once (the keyframe restarts each time
+   the attribute is added). */
+:global([data-mam-active]) .disc {
+  border-color: var(--teal);
+  background: var(--teal-pale);
+}
+
+:global([data-mam-active]) .disc img {
+  animation: mam-nod 240ms var(--ease-emphasis);
+}
+
+@keyframes mam-nod {
+  from {
+    transform: rotate(-8deg) translateY(-2px);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+.button:hover .disc,
+.button[aria-expanded='true'] .disc {
+  border-color: var(--teal);
+}
+
+.button:hover .disc {
+  transform: translateY(-1px);
+}
+
+.button:active .disc {
+  transform: scale(var(--motion-scale-enter));
+}
+
+.button:focus-visible {
+  outline: none;
+}
+
+.button:focus-visible .disc {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 2px;
+}
+
+.button[aria-disabled='true'] {
+  cursor: default;
+}
+
+.button[aria-disabled='true'] .disc {
+  opacity: 0.5;
+  transform: none;
+  border-color: var(--teal-pale);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disc {
+    transition: none;
+  }
+
+  .button:hover .disc,
+  .button:active .disc {
+    transform: none;
+  }
+
+  /* The border and tint stay; only the nod goes. */
+  :global([data-mam-active]) .disc img {
+    animation: none;
+  }
+}

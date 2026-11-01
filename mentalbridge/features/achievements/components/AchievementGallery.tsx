@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 
+import { useMamPageTarget } from '@/features/mam/use-mam-target'
 import { ApiError } from '@/lib/api/api-error'
 import {
   getAchievements,
@@ -109,6 +110,7 @@ function AchievementCard({ item }: { item: AchievementItem }) {
 }
 
 export default function AchievementGallery() {
+  useMamPageTarget({ kind: 'achievements.page' })
   const [collection, setCollection] = useState<AchievementCollection | null>(
     null,
   )

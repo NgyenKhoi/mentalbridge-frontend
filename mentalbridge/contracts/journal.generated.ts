@@ -4,6 +4,166 @@
  */
 
 export interface paths {
+    "/internal/v1/ai-companion/voice-sessions/{voiceSessionId}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * generateAuthorizedVoiceTurn
+         * @description Ephemeral final vi-VN STT only; validate trimmed nonempty text, language, finality, order, attempt/lease and unique turn. Freshly verify BOTH consent streams, Consultation entitlement, remaining independent voice usage and current approved pinned Bedrock route BEFORE EVERY generation and before publication. Do not call persisted text send or consume text answers. Dedicated service identity; no client/worker user selection. RAM-only recent4turnpairs/2000tokens; transcript2000chars/reply1000chars; no transcript/prompt/provider output in idempotency snapshots/logs/traces. In-memory replay returns exact reply only during live lease; after context loss, fail stale rather than regenerate/charge again. Cancel/discard late responses after stop/withdrawal/lease expiry. No provider fallback, no Care/financial/safety mutation.
+         */
+        post: operations["generateAuthorizedVoiceTurn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-companion/voice-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * startVoiceSession
+         * @description USER only. Resolve current subject, both consents and entitlement before atomic Mongo admission. Reserve user1/global2 and finite session+seconds before any room/dispatch effect. Existing attempt conflict SESSION_LIMIT; duplicate same key reuses logical session. Snapshot day/route/deadline; no text quota or financial writes.
+         */
+        post: operations["startVoiceSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-companion/voice-sessions/{voiceSessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * getVoiceSession
+         * @description Owned status only; other-owner and missing IDs both404. Return no room credentials, transcript, user names, context or old conversation history. Status access is not token issuance.
+         */
+        get: operations["getVoiceSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-companion/voice-sessions/{voiceSessionId}/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * authorizeVoiceConnection
+         * @description Freshly check both consents/current entitlement/voice budget/active attempt before every initial token or reconnect. Mint room+participant-scoped audio-only token for at most60seconds and never beyond hardStopAt; grant no camera/data/admin/egress. New token cannot extend session. LiveKit token expiry alone cannot stop a connected participant; owner revokes/removes/tears down explicitly.
+         */
+        post: operations["authorizeVoiceConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-companion/voice-sessions/{voiceSessionId}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * endVoiceSession
+         * @description Owned stop remains available even after entitlement or either consent is revoked. Idempotent terminal stop. Enter ENDING, cancel inference/playback/STT, purge RAM and settle trusted used quota once. Release global permit only after confirmed teardown or verified fencing proving the old agent/media cannot continue. Token/lease TTL alone never proves room teardown or releases a permit.
+         */
+        post: operations["endVoiceSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/ai-companion/voice-sessions/{voiceSessionId}/agent-claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * claimVoiceAgentAttempt
+         * @description Dedicated worker credential+exact trusted explicit dispatch. Journal resolves user from admitted session; worker cannot select user/package/model. Exactly one fenced claimed attempt; duplicate dispatch cannot join or reserve twice. No user JWT, transcript/context or provider secret in dispatch metadata.
+         */
+        post: operations["claimVoiceAgentAttempt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/ai-companion/voice-sessions/{voiceSessionId}/agent-control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * recordVoiceAgentControl
+         * @description Accept worker-origin MEDIA_READY/PLAYBACK_STARTED/INTERRUPTED/HEARTBEAT/FINISHED only, bound to claimed attempt/lease and increasing worker sequence. Schema rejects backend-only DISPATCH/LEASE_RENEWED/STOP. Successful authorized heartbeat returns CONTINUE with a Journal-issued LEASE_RENEWED envelope; observed revocation, stop or terminal acknowledgement returns STOP with its exact reason and separately sequenced backend envelope, never a fresh live lease. Fresh owner checks before lease renewal; lease10s/renew5s; stop processing and purge context at expiry. Independent authenticated room removal/teardown provides the media cutoff; expiry alone cannot free a global permit. Server state intervals determine usage; worker cannot submit billed seconds.
+         */
+        post: operations["recordVoiceAgentControl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-companion/voice-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * getVoiceEligibility
+         * @description Current owner-sourced capability, not authority to connect. Resolve BOTH Care consents, Consultation current entitlement, independent voice quota and provider readiness. Uncertainty never maps to ELIGIBLE. No client package/policy/clock authority. MB-756 uses a fresh server-generated check UUID for this read; it creates no Voice Session or quota reservation. Live readiness remains unavailable until MB-757/760/762 supply the approved media/provider gates.
+         */
+        get: operations["getVoiceEligibility"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -552,6 +712,309 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        VoiceTurn: {
+            /** Format: uuid */
+            attemptId: string;
+            /** Format: uuid */
+            leaseId: string;
+            /** Format: uuid */
+            turnId: string;
+            sequence: number;
+            /** @constant */
+            language: "vi-VN";
+            /** @constant */
+            isFinal: true;
+            finalTranscript: string;
+        };
+        VoiceReply: {
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** Format: uuid */
+            turnId: string;
+            /** Format: uuid */
+            replyId: string;
+            /** @constant */
+            language: "vi-VN";
+            spokenText: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** @constant */
+            policyVersion: "companion-voice-policy-v1";
+        };
+        VoiceSession: {
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** @constant */
+            policyVersion: "companion-voice-policy-v1";
+            /** @enum {string} */
+            state: "REQUESTED" | "AUTHORIZED" | "CONNECTING" | "ACTIVE" | "RECONNECTING" | "ENDING" | "ENDED" | "FAILED" | "EXPIRED";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            authorizedAt?: string;
+            /** Format: date-time */
+            hardStopAt?: string;
+            /** Format: date */
+            quotaDay?: string;
+            admittedSeconds?: number;
+            chargedSeconds: number;
+            deliveredSession: boolean;
+            /** @enum {string} */
+            terminalReason?: "USER_ENDED" | "CONSENT_REVOKED" | "VOICE_CONSENT_REVOKED" | "ENTITLEMENT_LOST" | "OWNER_UNAVAILABLE" | "IDLE_TIMEOUT" | "HARD_DEADLINE" | "QUOTA_EXHAUSTED" | "RECONNECT_TIMEOUT" | "PROVIDER_FAILURE" | "AGENT_FAILURE" | "AUTHORIZATION_EXPIRED" | "ACCOUNT_DELETED";
+        };
+        VoiceConnection: {
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** @constant */
+            transport: "LIVEKIT_CLOUD";
+            /** Format: uri */
+            serverUrl: string;
+            /** @description Ephemeral owner-scoped media credential; never log, persist or place in metadata. */
+            readonly participantToken: string;
+            /** Format: date-time */
+            tokenExpiresAt: string;
+            /** Format: date-time */
+            hardStopAt: string;
+            /** @constant */
+            audioOnly: true;
+            /** @description Exact admitted room for this connection. Compare the connected SDK room name before reading Agent hints. */
+            roomName: string;
+            /** @description Exact admitted Agent attempt identity. Require ParticipantKind.AGENT in roomName; never select a participant from its attributes. */
+            agentIdentity: string;
+        };
+        VoiceEmptyCommand: Record<string, never>;
+        VoiceAgentClaim: {
+            /** Format: uuid */
+            attemptId: string;
+            /** Format: uuid */
+            dispatchId: string;
+        };
+        VoiceAgentLease: {
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** Format: uuid */
+            attemptId: string;
+            /** Format: uuid */
+            leaseId: string;
+            /** Format: date-time */
+            validUntil: string;
+            /** Format: date-time */
+            hardStopAt: string;
+            /** @constant */
+            policyVersion: "companion-voice-policy-v1";
+        };
+        VoiceWorkerSignal: {
+            /** @constant */
+            schemaVersion: 1;
+            /** @constant */
+            kind: "MEDIA_READY";
+            /** Format: uuid */
+            commandId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** Format: uuid */
+            attemptId: string;
+            sequence: number;
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            payload: {
+                /** Format: uuid */
+                leaseId: string;
+            };
+        } | {
+            /** @constant */
+            schemaVersion: 1;
+            /** @constant */
+            kind: "PLAYBACK_STARTED";
+            /** Format: uuid */
+            commandId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** Format: uuid */
+            attemptId: string;
+            sequence: number;
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            payload: {
+                /** Format: uuid */
+                leaseId: string;
+                /** Format: uuid */
+                turnId: string;
+                /** Format: uuid */
+                replyId: string;
+            };
+        } | {
+            /** @constant */
+            schemaVersion: 1;
+            /** @constant */
+            kind: "INTERRUPTED";
+            /** Format: uuid */
+            commandId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** Format: uuid */
+            attemptId: string;
+            sequence: number;
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            payload: {
+                /** Format: uuid */
+                leaseId: string;
+                /** Format: uuid */
+                turnId: string;
+                /** Format: uuid */
+                replyId: string;
+            };
+        } | {
+            /** @constant */
+            schemaVersion: 1;
+            /** @constant */
+            kind: "HEARTBEAT";
+            /** Format: uuid */
+            commandId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** Format: uuid */
+            attemptId: string;
+            sequence: number;
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            payload: {
+                /** Format: uuid */
+                leaseId: string;
+                /** @enum {string} */
+                observedState: "CONNECTING" | "ACTIVE" | "RECONNECTING" | "ENDING";
+            };
+        } | {
+            /** @constant */
+            schemaVersion: 1;
+            /** @constant */
+            kind: "FINISHED";
+            /** Format: uuid */
+            commandId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** Format: uuid */
+            attemptId: string;
+            sequence: number;
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            payload: {
+                /** Format: uuid */
+                leaseId: string;
+                /** @enum {string} */
+                reason: "USER_ENDED" | "CONSENT_REVOKED" | "VOICE_CONSENT_REVOKED" | "ENTITLEMENT_LOST" | "OWNER_UNAVAILABLE" | "IDLE_TIMEOUT" | "HARD_DEADLINE" | "QUOTA_EXHAUSTED" | "RECONNECT_TIMEOUT" | "PROVIDER_FAILURE" | "AGENT_FAILURE" | "AUTHORIZATION_EXPIRED" | "ACCOUNT_DELETED";
+            };
+        };
+        VoiceAgentControlResponse: {
+            /** @constant */
+            action: "CONTINUE";
+            control: {
+                /** @constant */
+                schemaVersion: 1;
+                /** @constant */
+                kind: "LEASE_RENEWED";
+                /** Format: uuid */
+                commandId: string;
+                /** Format: uuid */
+                voiceSessionId: string;
+                /** Format: uuid */
+                attemptId: string;
+                sequence: number;
+                /** Format: date-time */
+                issuedAt: string;
+                /** Format: date-time */
+                expiresAt: string;
+                payload: {
+                    /** Format: uuid */
+                    leaseId: string;
+                    /** Format: date-time */
+                    validUntil: string;
+                    /** Format: date-time */
+                    hardStopAt: string;
+                    admittedSeconds: number;
+                };
+            };
+        } | {
+            /** @constant */
+            action: "STOP";
+            control: {
+                /** @constant */
+                schemaVersion: 1;
+                /** @constant */
+                kind: "STOP";
+                /** Format: uuid */
+                commandId: string;
+                /** Format: uuid */
+                voiceSessionId: string;
+                /** Format: uuid */
+                attemptId: string;
+                sequence: number;
+                /** Format: date-time */
+                issuedAt: string;
+                /** Format: date-time */
+                expiresAt: string;
+                payload: {
+                    /** @enum {string} */
+                    reason: "USER_ENDED" | "CONSENT_REVOKED" | "VOICE_CONSENT_REVOKED" | "ENTITLEMENT_LOST" | "OWNER_UNAVAILABLE" | "IDLE_TIMEOUT" | "HARD_DEADLINE" | "QUOTA_EXHAUSTED" | "RECONNECT_TIMEOUT" | "PROVIDER_FAILURE" | "AGENT_FAILURE" | "AUTHORIZATION_EXPIRED" | "ACCOUNT_DELETED";
+                };
+            };
+        };
+        VoiceEligibility: {
+            /** @constant */
+            policyVersion: "companion-voice-policy-v1";
+            /** @enum {string} */
+            state: "ELIGIBLE" | "FREE_LOCKED" | "CONSENT_REQUIRED" | "VOICE_CONSENT_REQUIRED" | "ENTITLEMENT_UNAVAILABLE" | "CONSENT_UNAVAILABLE" | "SESSION_LIMIT" | "GLOBAL_CAPACITY_FULL" | "QUOTA_EXHAUSTED" | "RATE_LIMITED" | "PROVIDER_UNAVAILABLE";
+            eligible: boolean;
+            /** @enum {string} */
+            packageCode: "FREE" | "PLUS" | "PREMIUM";
+            quota: components["schemas"]["VoiceQuota"];
+            /** Format: date-time */
+            checkedAt: string;
+            /** @constant */
+            voiceConsentVersion: "ai-voice-processing-capstone-v1";
+            /**
+             * @description Current package policy ceiling in seconds. Not an admission or reservation.
+             * @enum {integer}
+             */
+            maxSessionSeconds: 0 | 300 | 600;
+            /** @description Display-only min(maxSessionSeconds, unreserved daily remainingSeconds) when eligible; zero otherwise. Reauthorize and admit atomically on POST; never derive a deadline from this snapshot. */
+            availableSessionSeconds: number;
+        } & (unknown & unknown & unknown & unknown);
+        VoiceQuota: {
+            /** @constant */
+            policyVersion: "companion-voice-policy-v1";
+            /** Format: date */
+            quotaDay: string;
+            /** @constant */
+            timeZone: "Asia/Ho_Chi_Minh";
+            /** Format: date-time */
+            resetAt: string;
+            remainingSessions: number;
+            remainingSeconds: number;
+            reservedSessions: number;
+            reservedSeconds: number;
+        };
+        VoiceProblem: {
+            /** Format: uri */
+            type: string;
+            title: string;
+            status: number;
+            /** @enum {string} */
+            code: "UNAUTHENTICATED" | "FORBIDDEN" | "FREE_LOCKED" | "CONSENT_REQUIRED" | "VOICE_CONSENT_REQUIRED" | "SESSION_NOT_FOUND" | "SESSION_LIMIT" | "IDEMPOTENCY_CONFLICT" | "STALE_ATTEMPT" | "INVALID_SESSION_STATE" | "SESSION_EXPIRED" | "INVALID_REQUEST" | "INVALID_FINAL_TRANSCRIPT" | "GLOBAL_CAPACITY_FULL" | "QUOTA_EXHAUSTED" | "RATE_LIMITED" | "ENTITLEMENT_UNAVAILABLE" | "CONSENT_UNAVAILABLE" | "PROVIDER_UNAVAILABLE" | "PROVIDER_TIMEOUT";
+            /** Format: uuid */
+            correlationId: string;
+        } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
         ConsultationBriefAiDraftScreeningContext: {
             /** @enum {string} */
             instrument: "PHQ9" | "GAD7";
@@ -1470,6 +1933,105 @@ export interface components {
         } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
     };
     responses: {
+        /** @description Stable sanitized errors: PROVIDER_TIMEOUT. No downstream payload or private identifiers. */
+        VoiceProblem504: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: SESSION_NOT_FOUND. No downstream payload or private identifiers. */
+        VoiceProblem404: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: SESSION_LIMIT, IDEMPOTENCY_CONFLICT, STALE_ATTEMPT, INVALID_SESSION_STATE. No downstream payload or private identifiers. */
+        VoiceProblem409: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: SESSION_EXPIRED. No downstream payload or private identifiers. */
+        VoiceProblem410: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: INVALID_REQUEST, INVALID_FINAL_TRANSCRIPT. No downstream payload or private identifiers. */
+        VoiceProblem422: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: GLOBAL_CAPACITY_FULL, QUOTA_EXHAUSTED, RATE_LIMITED. No downstream payload or private identifiers. */
+        VoiceProblem429: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: UNAUTHENTICATED. No downstream payload or private identifiers. */
+        VoiceProblem401: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: FORBIDDEN, FREE_LOCKED, CONSENT_REQUIRED, VOICE_CONSENT_REQUIRED. No downstream payload or private identifiers. */
+        VoiceProblem403: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: ENTITLEMENT_UNAVAILABLE, CONSENT_UNAVAILABLE, PROVIDER_UNAVAILABLE. No downstream payload or private identifiers. */
+        VoiceProblem503: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
         /** @description Request failed validation. */
         BadRequest: {
             headers: {
@@ -1564,6 +2126,280 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    generateAuthorizedVoiceTurn: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Scoped to authenticated owner+operation. Exact replay never reserves again; changed intent returns409. Replays of live access still reauthorize; expired tokens are never replayed as authority. Store HMAC key+safe intent hash/metadata only, never transcript. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                voiceSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceTurn"];
+            };
+        };
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceReply"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            404: components["responses"]["VoiceProblem404"];
+            409: components["responses"]["VoiceProblem409"];
+            410: components["responses"]["VoiceProblem410"];
+            422: components["responses"]["VoiceProblem422"];
+            429: components["responses"]["VoiceProblem429"];
+            503: components["responses"]["VoiceProblem503"];
+            504: components["responses"]["VoiceProblem504"];
+        };
+    };
+    startVoiceSession: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Scoped to authenticated owner+operation. Exact replay never reserves again; changed intent returns409. Replays of live access still reauthorize; expired tokens are never replayed as authority. Store HMAC key+safe intent hash/metadata only, never transcript. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceEmptyCommand"];
+            };
+        };
+        responses: {
+            /** @description Owner-authorized response */
+            202: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceSession"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            409: components["responses"]["VoiceProblem409"];
+            422: components["responses"]["VoiceProblem422"];
+            429: components["responses"]["VoiceProblem429"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    getVoiceSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                voiceSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceSession"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            404: components["responses"]["VoiceProblem404"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    authorizeVoiceConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Scoped to authenticated owner+operation. Exact replay never reserves again; changed intent returns409. Replays of live access still reauthorize; expired tokens are never replayed as authority. Store HMAC key+safe intent hash/metadata only, never transcript. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                voiceSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceEmptyCommand"];
+            };
+        };
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceConnection"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            404: components["responses"]["VoiceProblem404"];
+            409: components["responses"]["VoiceProblem409"];
+            410: components["responses"]["VoiceProblem410"];
+            422: components["responses"]["VoiceProblem422"];
+            429: components["responses"]["VoiceProblem429"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    endVoiceSession: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Scoped to authenticated owner+operation. Exact replay never reserves again; changed intent returns409. Replays of live access still reauthorize; expired tokens are never replayed as authority. Store HMAC key+safe intent hash/metadata only, never transcript. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                voiceSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceEmptyCommand"];
+            };
+        };
+        responses: {
+            /** @description Owner-authorized response */
+            202: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceSession"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            404: components["responses"]["VoiceProblem404"];
+            409: components["responses"]["VoiceProblem409"];
+            422: components["responses"]["VoiceProblem422"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    claimVoiceAgentAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                voiceSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceAgentClaim"];
+            };
+        };
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceAgentLease"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            404: components["responses"]["VoiceProblem404"];
+            409: components["responses"]["VoiceProblem409"];
+            410: components["responses"]["VoiceProblem410"];
+            422: components["responses"]["VoiceProblem422"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    recordVoiceAgentControl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                voiceSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceWorkerSignal"];
+            };
+        };
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceAgentControlResponse"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            404: components["responses"]["VoiceProblem404"];
+            409: components["responses"]["VoiceProblem409"];
+            410: components["responses"]["VoiceProblem410"];
+            422: components["responses"]["VoiceProblem422"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    getVoiceEligibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceEligibility"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
     listEmotionCheckIns: {
         parameters: {
             query?: {

@@ -7,7 +7,9 @@ import type {
   ContextualCompanionRequest,
   ContextualCompanionSnapshot,
 } from './support-plan-contextual-companion'
-import { useSupportPlanCompanionMuted } from './SupportPlanCompanionShell'
+import { useSupportPlanCompanionMuted } from './support-plan-companion-interruption'
+
+import './support-plan-companion.css'
 
 export default function SupportPlanContextualCompanion({
   supportPlanId,

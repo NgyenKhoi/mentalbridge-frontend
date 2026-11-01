@@ -74,13 +74,6 @@ export function useCompanion(dirty: boolean) {
       )
   }, [clear, snapshot?.targetId])
 
-  const dismissGuided = useCallback(
-    (targetId: string) => {
-      if (snapshot?.targetId === targetId) clear()
-    },
-    [clear, snapshot?.targetId],
-  )
-
   useEffect(() => {
     if (!interrupted || !snapshot) return
     const frame = window.requestAnimationFrame(clear)
@@ -94,7 +87,6 @@ export function useCompanion(dirty: boolean) {
     request,
     clear,
     dismiss,
-    dismissGuided,
   }
 }
 

@@ -1179,7 +1179,7 @@ const REASSESSMENT_STATES = new Set([
   'UNAVAILABLE',
 ])
 
-function isReassessmentPeriod(value: unknown) {
+export function isReassessmentPeriod(value: unknown) {
   return (
     isRecord(value) &&
     isDateTime(value.startAt) &&
@@ -1246,9 +1246,9 @@ export function parseReassessmentSummary(
     ) ||
     !isRecord(value.journalContext) ||
     !REASSESSMENT_STATES.has(String(value.journalContext.state)) ||
-    (value.journalContext.jobId !== null &&
+    (value.journalContext.jobId != null &&
       !isUuid(value.journalContext.jobId)) ||
-    (value.journalContext.analysisId !== null &&
+    (value.journalContext.analysisId != null &&
       !isUuid(value.journalContext.analysisId)) ||
     !Array.isArray(value.journalContext.changesComparedWithPreviousPeriod) ||
     !isRecord(value.supportPlanEngagement) ||

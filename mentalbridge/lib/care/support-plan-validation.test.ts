@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { nativeSupportPlanFixture } from '@/features/support-plan/testing/native-support-plan-fixture'
 import { supportPlanFixture } from '@/features/support-plan/testing/support-plan-fixture'
 import {
   supportPlanOccurrenceFixture,
@@ -155,6 +156,27 @@ describe('SupportPlan validation', () => {
         ],
       }),
     ).toBeNull()
+  })
+
+  it('accepts the bounded non-UUID action identity of a v2 adapter', () => {
+    const base = nativeSupportPlanFixture()
+    const withActionId = (actionId: string) => ({
+      ...base,
+      representationMode: 'V2_RESOURCE_ADAPTER',
+      focuses: [
+        {
+          ...base.focuses[0],
+          actions: [{ ...base.focuses[0].actions[0], actionId }],
+        },
+      ],
+    })
+    // Care's adapter emits stable virtual identities of 1 to 128 characters.
+    expect(
+      parseSupportPlanV3(withActionId('slot:resource-3:rev-2'))?.focuses[0]
+        .actions[0].actionId,
+    ).toBe('slot:resource-3:rev-2')
+    expect(parseSupportPlanV3(withActionId(''))).toBeNull()
+    expect(parseSupportPlanV3(withActionId('a'.repeat(129)))).toBeNull()
   })
 
   it('accepts the governed persisted draft shape', () => {

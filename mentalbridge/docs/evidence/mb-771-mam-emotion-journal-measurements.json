@@ -1,0 +1,1228 @@
+{
+  "meta": {
+    "story": "MB-775",
+    "date": "2026-10-28T19:23:18.420Z",
+    "machine": {
+      "cpu": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz",
+      "logicalCores": 16,
+      "memoryGiB": 15.7,
+      "os": "win32 10.0.26200 x64",
+      "node": "v22.16.0"
+    },
+    "browser": "Chromium 153.0.8010.12 headless (Playwright)",
+    "build": "production standalone (.next/standalone)",
+    "runsPerCell": 3,
+    "idleWindowMs": 10000,
+    "note": "Fixture backends; the Achievements gallery returns one earned item, 5 h old (a silent baseline); cold browser context per run; the idle window is unpolled, the celebration window polls CDP metrics at 10 Hz. Dev-machine numbers, not device numbers."
+  },
+  "runs": {
+    "false": {
+      "/achievements": [
+        {
+          "route": "/achievements",
+          "dockCount": 0,
+          "status": null,
+          "transfer": {
+            "jsBytes": 252159,
+            "totalBytes": 792164,
+            "mam": [],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2zgeycph4n1wn.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10009.7,
+            "cpuPercent": 2.33,
+            "scriptMs": 26.21,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.8,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 3759612,
+          "pageErrors": []
+        },
+        {
+          "route": "/achievements",
+          "dockCount": 0,
+          "status": null,
+          "transfer": {
+            "jsBytes": 252159,
+            "totalBytes": 793825,
+            "mam": [],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2zgeycph4n1wn.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10012,
+            "cpuPercent": 2.83,
+            "scriptMs": 34.53,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.8,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 3761864,
+          "pageErrors": []
+        },
+        {
+          "route": "/achievements",
+          "dockCount": 0,
+          "status": null,
+          "transfer": {
+            "jsBytes": 252159,
+            "totalBytes": 792474,
+            "mam": [],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/2zgeycph4n1wn.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10015.4,
+            "cpuPercent": 2.74,
+            "scriptMs": 32.4,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.8,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 3759316,
+          "pageErrors": []
+        }
+      ],
+      "/journal": [
+        {
+          "route": "/journal",
+          "dockCount": 0,
+          "status": null,
+          "transfer": {
+            "jsBytes": 274272,
+            "totalBytes": 821741,
+            "mam": [],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/2r5_p_au4u6mn.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/33ttvezghgbia.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10024.6,
+            "cpuPercent": 3.63,
+            "scriptMs": 44.16,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 4031408,
+          "pageErrors": []
+        },
+        {
+          "route": "/journal",
+          "dockCount": 0,
+          "status": null,
+          "transfer": {
+            "jsBytes": 274272,
+            "totalBytes": 820383,
+            "mam": [],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/2r5_p_au4u6mn.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/33ttvezghgbia.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10022.6,
+            "cpuPercent": 3.69,
+            "scriptMs": 43.66,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 4032000,
+          "pageErrors": []
+        },
+        {
+          "route": "/journal",
+          "dockCount": 0,
+          "status": null,
+          "transfer": {
+            "jsBytes": 274272,
+            "totalBytes": 820375,
+            "mam": [],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2r5_p_au4u6mn.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/33ttvezghgbia.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10019.4,
+            "cpuPercent": 3.67,
+            "scriptMs": 44.75,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 4032596,
+          "pageErrors": []
+        }
+      ],
+      "/support-plan": [
+        {
+          "route": "/support-plan",
+          "dockCount": 0,
+          "status": null,
+          "transfer": {
+            "jsBytes": 300994,
+            "totalBytes": 831823,
+            "mam": [],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/2j025g9_u01ps.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/1z0qpjtfofvh3.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10012.6,
+            "cpuPercent": 3.61,
+            "scriptMs": 37.31,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 4147804,
+          "pageErrors": []
+        },
+        {
+          "route": "/support-plan",
+          "dockCount": 0,
+          "status": null,
+          "transfer": {
+            "jsBytes": 300994,
+            "totalBytes": 832944,
+            "mam": [],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2j025g9_u01ps.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/1z0qpjtfofvh3.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10013.6,
+            "cpuPercent": 3.55,
+            "scriptMs": 37.52,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 4147940,
+          "pageErrors": []
+        },
+        {
+          "route": "/support-plan",
+          "dockCount": 0,
+          "status": null,
+          "transfer": {
+            "jsBytes": 300994,
+            "totalBytes": 833161,
+            "mam": [],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2j025g9_u01ps.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/1z0qpjtfofvh3.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10023.2,
+            "cpuPercent": 3.18,
+            "scriptMs": 36.99,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.8,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 4147140,
+          "pageErrors": []
+        }
+      ]
+    },
+    "true": {
+      "/achievements": [
+        {
+          "route": "/achievements",
+          "dockCount": 1,
+          "status": "ready",
+          "transfer": {
+            "jsBytes": 307719,
+            "totalBytes": 1270193,
+            "mam": [
+              {
+                "path": "/mam/mam-v03.riv",
+                "bytes": 81123
+              },
+              {
+                "path": "/mam/mam-v03-idle.svg",
+                "bytes": 2217
+              },
+              {
+                "path": "/mam/rive-lite-2.47.1.wasm",
+                "bytes": 336222
+              }
+            ],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2zgeycph4n1wn.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/2m3sc3km42cui.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10017.5,
+            "cpuPercent": 9.35,
+            "scriptMs": 414.75,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.8,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 7129808,
+          "pageErrors": [],
+          "celebration": {
+            "played": true,
+            "elapsedMs": 7075.6,
+            "cpuPercent": 9.72,
+            "scriptMs": 285.88,
+            "frames": 421,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0,
+            "flight": {
+              "alreadyPlayingAtStart": false,
+              "ended": true,
+              "durationMs": 1710.2,
+              "cpuPercent": 12.82,
+              "frames": 103,
+              "fps": 60,
+              "p95GapMs": 16.7,
+              "maxGapMs": 16.8,
+              "gapsOver33ms": 0
+            },
+            "beforeFlight": {
+              "durationMs": 3039.9,
+              "cpuPercent": 9.78,
+              "frames": 183,
+              "fps": 60,
+              "p95GapMs": 16.7,
+              "maxGapMs": 16.8,
+              "gapsOver33ms": 0
+            }
+          }
+        },
+        {
+          "route": "/achievements",
+          "dockCount": 1,
+          "status": "ready",
+          "transfer": {
+            "jsBytes": 307719,
+            "totalBytes": 1271111,
+            "mam": [
+              {
+                "path": "/mam/mam-v03-idle.svg",
+                "bytes": 2217
+              },
+              {
+                "path": "/mam/mam-v03.riv",
+                "bytes": 81123
+              },
+              {
+                "path": "/mam/rive-lite-2.47.1.wasm",
+                "bytes": 336222
+              }
+            ],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/2zgeycph4n1wn.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/2m3sc3km42cui.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10019.4,
+            "cpuPercent": 9.76,
+            "scriptMs": 431.82,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 7183640,
+          "pageErrors": [],
+          "celebration": {
+            "played": true,
+            "elapsedMs": 7080.9,
+            "cpuPercent": 10.06,
+            "scriptMs": 293.94,
+            "frames": 421,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0,
+            "flight": {
+              "alreadyPlayingAtStart": false,
+              "ended": true,
+              "durationMs": 1709.7,
+              "cpuPercent": 13.07,
+              "frames": 102,
+              "fps": 60,
+              "p95GapMs": 16.8,
+              "maxGapMs": 16.8,
+              "gapsOver33ms": 0
+            },
+            "beforeFlight": {
+              "durationMs": 3034.9,
+              "cpuPercent": 10.43,
+              "frames": 183,
+              "fps": 60,
+              "p95GapMs": 16.7,
+              "maxGapMs": 16.8,
+              "gapsOver33ms": 0
+            }
+          }
+        },
+        {
+          "route": "/achievements",
+          "dockCount": 1,
+          "status": "ready",
+          "transfer": {
+            "jsBytes": 307719,
+            "totalBytes": 1277913,
+            "mam": [
+              {
+                "path": "/mam/mam-v03-idle.svg",
+                "bytes": 2217
+              },
+              {
+                "path": "/mam/mam-v03.riv",
+                "bytes": 81123
+              },
+              {
+                "path": "/mam/rive-lite-2.47.1.wasm",
+                "bytes": 336222
+              }
+            ],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/2zgeycph4n1wn.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/2m3sc3km42cui.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10019.7,
+            "cpuPercent": 9.34,
+            "scriptMs": 406.39,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 7181548,
+          "pageErrors": [],
+          "celebration": {
+            "played": true,
+            "elapsedMs": 7067.8,
+            "cpuPercent": 9.57,
+            "scriptMs": 280.61,
+            "frames": 421,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0,
+            "flight": {
+              "alreadyPlayingAtStart": false,
+              "ended": true,
+              "durationMs": 1703.3,
+              "cpuPercent": 12.94,
+              "frames": 102,
+              "fps": 60,
+              "p95GapMs": 16.7,
+              "maxGapMs": 16.8,
+              "gapsOver33ms": 0
+            },
+            "beforeFlight": {
+              "durationMs": 3028.3,
+              "cpuPercent": 9.49,
+              "frames": 182,
+              "fps": 60,
+              "p95GapMs": 16.7,
+              "maxGapMs": 16.8,
+              "gapsOver33ms": 0
+            }
+          }
+        }
+      ],
+      "/journal": [
+        {
+          "route": "/journal",
+          "dockCount": 1,
+          "status": "ready",
+          "transfer": {
+            "jsBytes": 329832,
+            "totalBytes": 1303796,
+            "mam": [
+              {
+                "path": "/mam/mam-v03.riv",
+                "bytes": 81123
+              },
+              {
+                "path": "/mam/mam-v03-idle.svg",
+                "bytes": 2217
+              },
+              {
+                "path": "/mam/rive-lite-2.47.1.wasm",
+                "bytes": 336222
+              }
+            ],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/2r5_p_au4u6mn.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/33ttvezghgbia.js",
+              "/_next/static/chunks/2m3sc3km42cui.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10028.2,
+            "cpuPercent": 4.49,
+            "scriptMs": 129.11,
+            "frames": 602,
+            "fps": 60,
+            "p95GapMs": 16.8,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 7125956,
+          "pageErrors": []
+        },
+        {
+          "route": "/journal",
+          "dockCount": 1,
+          "status": "ready",
+          "transfer": {
+            "jsBytes": 329832,
+            "totalBytes": 1301843,
+            "mam": [
+              {
+                "path": "/mam/mam-v03.riv",
+                "bytes": 81123
+              },
+              {
+                "path": "/mam/mam-v03-idle.svg",
+                "bytes": 2217
+              },
+              {
+                "path": "/mam/rive-lite-2.47.1.wasm",
+                "bytes": 336222
+              }
+            ],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/2r5_p_au4u6mn.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/33ttvezghgbia.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/2m3sc3km42cui.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10021.1,
+            "cpuPercent": 4.57,
+            "scriptMs": 134.18,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.8,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 7126676,
+          "pageErrors": []
+        },
+        {
+          "route": "/journal",
+          "dockCount": 1,
+          "status": "ready",
+          "transfer": {
+            "jsBytes": 329832,
+            "totalBytes": 1302649,
+            "mam": [
+              {
+                "path": "/mam/mam-v03.riv",
+                "bytes": 81123
+              },
+              {
+                "path": "/mam/mam-v03-idle.svg",
+                "bytes": 2217
+              },
+              {
+                "path": "/mam/rive-lite-2.47.1.wasm",
+                "bytes": 336222
+              }
+            ],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/2r5_p_au4u6mn.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/33ttvezghgbia.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/2m3sc3km42cui.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10024.8,
+            "cpuPercent": 4.31,
+            "scriptMs": 129.39,
+            "frames": 602,
+            "fps": 60,
+            "p95GapMs": 16.8,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 7124196,
+          "pageErrors": []
+        }
+      ],
+      "/support-plan": [
+        {
+          "route": "/support-plan",
+          "dockCount": 1,
+          "status": "ready",
+          "transfer": {
+            "jsBytes": 356554,
+            "totalBytes": 1351395,
+            "mam": [
+              {
+                "path": "/mam/mam-v03.riv",
+                "bytes": 81123
+              },
+              {
+                "path": "/mam/mam-v03-idle.svg",
+                "bytes": 2217
+              },
+              {
+                "path": "/mam/rive-lite-2.47.1.wasm",
+                "bytes": 336222
+              }
+            ],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2j025g9_u01ps.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/1z0qpjtfofvh3.js",
+              "/_next/static/chunks/2m3sc3km42cui.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10019.6,
+            "cpuPercent": 9.52,
+            "scriptMs": 417.38,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 7401552,
+          "pageErrors": []
+        },
+        {
+          "route": "/support-plan",
+          "dockCount": 1,
+          "status": "ready",
+          "transfer": {
+            "jsBytes": 356554,
+            "totalBytes": 1352196,
+            "mam": [
+              {
+                "path": "/mam/mam-v03.riv",
+                "bytes": 81123
+              },
+              {
+                "path": "/mam/mam-v03-idle.svg",
+                "bytes": 2217
+              },
+              {
+                "path": "/mam/rive-lite-2.47.1.wasm",
+                "bytes": 336222
+              }
+            ],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/2j025g9_u01ps.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/1z0qpjtfofvh3.js",
+              "/_next/static/chunks/2m3sc3km42cui.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10012.7,
+            "cpuPercent": 9.5,
+            "scriptMs": 411.4,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.7,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 7401260,
+          "pageErrors": []
+        },
+        {
+          "route": "/support-plan",
+          "dockCount": 1,
+          "status": "ready",
+          "transfer": {
+            "jsBytes": 356554,
+            "totalBytes": 1347009,
+            "mam": [
+              {
+                "path": "/mam/mam-v03.riv",
+                "bytes": 81123
+              },
+              {
+                "path": "/mam/mam-v03-idle.svg",
+                "bytes": 2217
+              },
+              {
+                "path": "/mam/rive-lite-2.47.1.wasm",
+                "bytes": 336222
+              }
+            ],
+            "scriptUrls": [
+              "/_next/static/chunks/28flaeabfo316.js",
+              "/_next/static/chunks/turbopack-0gr_k205oqpz2.js",
+              "/_next/static/chunks/1ey0h8xsfa_wx.js",
+              "/_next/static/chunks/3q1k8bf02s2zv.js",
+              "/_next/static/chunks/1chmd_f077k8i.js",
+              "/_next/static/chunks/3x2ehb1u-zns4.js",
+              "/_next/static/chunks/0zof0_3cz4qjv.js",
+              "/_next/static/chunks/18fg8d_tqxfh6.js",
+              "/_next/static/chunks/16i7mdcslfyyk.js",
+              "/_next/static/chunks/0fp-cb_n5_xla.js",
+              "/_next/static/chunks/0norjgi8t8n8m.js",
+              "/_next/static/chunks/2lp-lrqnm7527.js",
+              "/_next/static/chunks/0d6142bz4_uv9.js",
+              "/_next/static/chunks/2j025g9_u01ps.js",
+              "/_next/static/chunks/1z0qpjtfofvh3.js",
+              "/_next/static/chunks/2m3sc3km42cui.js"
+            ]
+          },
+          "idle": {
+            "elapsedMs": 10019,
+            "cpuPercent": 9.38,
+            "scriptMs": 412.88,
+            "frames": 601,
+            "fps": 60,
+            "p95GapMs": 16.8,
+            "maxGapMs": 16.8,
+            "gapsOver33ms": 0
+          },
+          "heapBytes": 7401604,
+          "pageErrors": []
+        }
+      ]
+    }
+  },
+  "summary": {
+    "off /achievements": {
+      "jsBytes": {
+        "median": 252159,
+        "min": 252159,
+        "max": 252159
+      },
+      "totalBytes": {
+        "median": 792474,
+        "min": 792164,
+        "max": 793825
+      },
+      "mamBytes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "idleCpuPercent": {
+        "median": 2.74,
+        "min": 2.33,
+        "max": 2.83
+      },
+      "idleFps": {
+        "median": 60,
+        "min": 60,
+        "max": 60
+      },
+      "idleMaxGapMs": {
+        "median": 16.8,
+        "min": 16.8,
+        "max": 16.8
+      },
+      "heapBytes": {
+        "median": 3759612,
+        "min": 3759316,
+        "max": 3761864
+      }
+    },
+    "off /journal": {
+      "jsBytes": {
+        "median": 274272,
+        "min": 274272,
+        "max": 274272
+      },
+      "totalBytes": {
+        "median": 820383,
+        "min": 820375,
+        "max": 821741
+      },
+      "mamBytes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "idleCpuPercent": {
+        "median": 3.67,
+        "min": 3.63,
+        "max": 3.69
+      },
+      "idleFps": {
+        "median": 60,
+        "min": 60,
+        "max": 60
+      },
+      "idleMaxGapMs": {
+        "median": 16.8,
+        "min": 16.8,
+        "max": 16.8
+      },
+      "heapBytes": {
+        "median": 4032000,
+        "min": 4031408,
+        "max": 4032596
+      }
+    },
+    "off /support-plan": {
+      "jsBytes": {
+        "median": 300994,
+        "min": 300994,
+        "max": 300994
+      },
+      "totalBytes": {
+        "median": 832944,
+        "min": 831823,
+        "max": 833161
+      },
+      "mamBytes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "idleCpuPercent": {
+        "median": 3.55,
+        "min": 3.18,
+        "max": 3.61
+      },
+      "idleFps": {
+        "median": 60,
+        "min": 60,
+        "max": 60
+      },
+      "idleMaxGapMs": {
+        "median": 16.8,
+        "min": 16.8,
+        "max": 16.8
+      },
+      "heapBytes": {
+        "median": 4147804,
+        "min": 4147140,
+        "max": 4147940
+      }
+    },
+    "on /achievements": {
+      "jsBytes": {
+        "median": 307719,
+        "min": 307719,
+        "max": 307719
+      },
+      "totalBytes": {
+        "median": 1271111,
+        "min": 1270193,
+        "max": 1277913
+      },
+      "mamBytes": {
+        "median": 419562,
+        "min": 419562,
+        "max": 419562
+      },
+      "idleCpuPercent": {
+        "median": 9.35,
+        "min": 9.34,
+        "max": 9.76
+      },
+      "idleFps": {
+        "median": 60,
+        "min": 60,
+        "max": 60
+      },
+      "idleMaxGapMs": {
+        "median": 16.8,
+        "min": 16.8,
+        "max": 16.8
+      },
+      "heapBytes": {
+        "median": 7181548,
+        "min": 7129808,
+        "max": 7183640
+      },
+      "celebration": {
+        "flightWitnessed": "3/3",
+        "flightMs": 1709.7,
+        "flightCpuPercent": 12.94,
+        "beforeFlightCpuPercent": 9.78,
+        "windowCpuPercent": 9.72,
+        "flightFps": 60,
+        "flightMaxGapMs": 16.8,
+        "flightGapsOver33ms": 0
+      }
+    },
+    "on /journal": {
+      "jsBytes": {
+        "median": 329832,
+        "min": 329832,
+        "max": 329832
+      },
+      "totalBytes": {
+        "median": 1302649,
+        "min": 1301843,
+        "max": 1303796
+      },
+      "mamBytes": {
+        "median": 419562,
+        "min": 419562,
+        "max": 419562
+      },
+      "idleCpuPercent": {
+        "median": 4.49,
+        "min": 4.31,
+        "max": 4.57
+      },
+      "idleFps": {
+        "median": 60,
+        "min": 60,
+        "max": 60
+      },
+      "idleMaxGapMs": {
+        "median": 16.8,
+        "min": 16.8,
+        "max": 16.8
+      },
+      "heapBytes": {
+        "median": 7125956,
+        "min": 7124196,
+        "max": 7126676
+      }
+    },
+    "on /support-plan": {
+      "jsBytes": {
+        "median": 356554,
+        "min": 356554,
+        "max": 356554
+      },
+      "totalBytes": {
+        "median": 1351395,
+        "min": 1347009,
+        "max": 1352196
+      },
+      "mamBytes": {
+        "median": 419562,
+        "min": 419562,
+        "max": 419562
+      },
+      "idleCpuPercent": {
+        "median": 9.5,
+        "min": 9.38,
+        "max": 9.52
+      },
+      "idleFps": {
+        "median": 60,
+        "min": 60,
+        "max": 60
+      },
+      "idleMaxGapMs": {
+        "median": 16.8,
+        "min": 16.8,
+        "max": 16.8
+      },
+      "heapBytes": {
+        "median": 7401552,
+        "min": 7401260,
+        "max": 7401604
+      }
+    },
+    "mam-only scripts /achievements": ["/_next/static/chunks/2m3sc3km42cui.js"],
+    "mam-only scripts /journal": ["/_next/static/chunks/2m3sc3km42cui.js"],
+    "mam-only scripts /support-plan": ["/_next/static/chunks/2m3sc3km42cui.js"]
+  },
+  "rollbackDrill": [
+    {
+      "step": "flag on, fresh user",
+      "flag": "true",
+      "dockElements": 1,
+      "showHandle": 0,
+      "mamRequests": 3,
+      "preferences": {
+        "hidden": null,
+        "motion": null,
+        "muted": null
+      }
+    },
+    {
+      "step": "user hides Mầm and turns motion off",
+      "preferences": {
+        "hidden": "true",
+        "motion": "reduced",
+        "muted": null
+      }
+    },
+    {
+      "step": "rollback: flag off, server restarted",
+      "flag": "false",
+      "dockElements": 0,
+      "showHandle": 0,
+      "mamRequests": 0,
+      "preferences": {
+        "hidden": "true",
+        "motion": "reduced",
+        "muted": null
+      }
+    },
+    {
+      "step": "roll forward: flag on, server restarted",
+      "flag": "true",
+      "dockElements": 1,
+      "showHandle": 1,
+      "mamRequests": 0,
+      "preferences": {
+        "hidden": "true",
+        "motion": "reduced",
+        "muted": null
+      }
+    }
+  ]
+}

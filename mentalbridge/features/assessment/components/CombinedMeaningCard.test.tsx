@@ -14,10 +14,19 @@ describe('CombinedMeaningCard', () => {
       />,
     )
 
-    expect(screen.getByRole('heading', { name: 'PHQ-9' })).toBeVisible()
-    expect(screen.getByRole('heading', { name: 'GAD-7' })).toBeVisible()
-    expect(screen.getByText('5')).toBeVisible()
-    expect(screen.getByText('4')).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Dấu hiệu trầm cảm' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Dấu hiệu lo âu' }),
+    ).toBeVisible()
+    // The plain meaning leads; instrument names and raw scores sit in the details.
+    expect(screen.getAllByRole('heading')[0]).toHaveTextContent(
+      'Dấu hiệu trầm cảm ở mức nhẹ, lo âu rất ít.',
+    )
+    expect(screen.getByText('5/27 điểm · Nhẹ')).toBeInTheDocument()
+    expect(screen.getByText('4/21 điểm · Tối thiểu')).toBeInTheDocument()
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
     ).toHaveAttribute(
@@ -40,7 +49,7 @@ describe('CombinedMeaningCard', () => {
         screen.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
       ).toHaveAttribute('href', '/support-guides')
       expect(
-        screen.queryByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
+        screen.queryByText('Lần sàng lọc này chưa có gợi ý đã lưu.'),
       ).not.toBeInTheDocument()
     },
   )
@@ -58,7 +67,7 @@ describe('CombinedMeaningCard', () => {
       )
 
       expect(
-        screen.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
+        screen.getByText('Lần sàng lọc này chưa có gợi ý đã lưu.'),
       ).toBeVisible()
       expect(
         screen
@@ -165,7 +174,7 @@ describe('CombinedMeaningCard', () => {
     )
 
     expect(
-      screen.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
+      screen.getByText('Lần sàng lọc này chưa có gợi ý đã lưu.'),
     ).toBeVisible()
     expect(
       screen.getByRole('link', { name: /Xem tài nguyên hiện tại/ }),
@@ -197,11 +206,7 @@ describe('CombinedMeaningCard', () => {
 
     render(<CombinedMeaningCard meaning={meaning} />)
 
-    expect(
-      screen.getByRole('progressbar', {
-        name: 'PHQ-9: 24 trên 27 điểm, mức Nặng',
-      }),
-    ).toBeInTheDocument()
+    expect(screen.getByText('24/27 điểm · Nặng')).toBeInTheDocument()
     expect(
       screen.getByRole('heading', {
         name: 'Nên sớm trao đổi với chuyên gia',

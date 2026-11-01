@@ -20,6 +20,15 @@ export type ReconcileJournalOccurrenceRequest =
   careOperations['reconcileOwnJournalOccurrence']['requestBody']['content']['application/json']
 export type NativeSupportPlanReplacementReview =
   care['schemas']['NativeSupportPlanReplacementReview']
+export type AdaptiveSupportPlanReview =
+  care['schemas']['AdaptiveSupportPlanReview']
+export type AdaptiveReviewOption = care['schemas']['AdaptiveReviewOption']
+export type AdaptiveReviewEvidenceRef =
+  care['schemas']['AdaptiveReviewEvidenceRef']
+export type ConfirmAdaptiveReviewOptionRequest =
+  care['schemas']['ConfirmAdaptiveReviewOptionRequest']
+export type AdaptiveReviewConfirmation =
+  care['schemas']['AdaptiveReviewConfirmation']
 export type ProposeNativeSupportPlanRequest =
   careOperations['proposeNativeSupportPlan']['requestBody']['content']['application/json']
 export type SupportPlanActionHistory =
@@ -30,6 +39,8 @@ export type ReplaceSupportPlanPersonalizationRequest =
   care['schemas']['ReplaceSupportPlanPersonalizationRequest']
 export type PlanAction = care['schemas']['PlanAction']
 export type ActionSchedule = care['schemas']['ActionSchedule']
+export type PlanResourceAction = care['schemas']['PlanResourceAction']
+export type PlanResourceActionsV1 = care['schemas']['PlanResourceActionsV1']
 export type ActionScheduleInput = care['schemas']['ActionScheduleInput']
 export type UpdateActionScheduleRequest =
   care['schemas']['UpdateActionScheduleRequest']

@@ -1,0 +1,50 @@
+appId: com.mentalbridge.mobile
+name: MB-654 bounded SupportPlan Companion
+---
+# Author-only evidence. NOT_RUN until protected MB-666 native gate is available.
+# Requires a resettable staging USER with an ACTIVE native Emotion action due
+# today. The journey must never run against shared dev or production data.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- assertVisible:
+    id: 'support-plan-companion'
+- assertVisible: 'Sẵn sàng khi bạn cần'
+- tapOn:
+    id: 'companion-open'
+- assertVisible:
+    id: 'companion-sheet'
+- assertVisible: 'Bạn đồng hành chỉ giải thích và chỉ đường.*'
+- tapOn:
+    id: 'companion-explain'
+- extendedWaitUntil:
+    visible: '.*kế hoạch.*giữ nguyên|.*kế hoạch đã được duyệt.*'
+    timeout: 10000
+- assertVisible: 'Dành một phút nhìn lại cảm xúc'
+- tapOn: 'Mở Ghi nhận cảm xúc'
+- assertVisible: 'Đang ghi nhận cho hoạt động trong kế hoạch'
+- back
+- assertVisible:
+    id: 'support-plan-companion'
+- tapOn:
+    id: 'companion-mute'
+- tapOn:
+    id: 'companion-collapse'
+- assertNotVisible:
+    id: 'companion-open'
+- tapOn:
+    id: 'companion-collapse'
+- assertVisible:
+    id: 'companion-open'

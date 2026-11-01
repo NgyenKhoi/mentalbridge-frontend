@@ -128,6 +128,22 @@ export const assessmentSchema = z
   })
   .strict()
 
+export const anonymousSessionSchema = z
+  .object({
+    sessionId: z.uuid(),
+    sessionToken: z.string().min(43).max(512),
+    expiresAt: z.iso.datetime(),
+  })
+  .strict()
+
+export const anonymousAssessmentSchema = assessmentSchema
+  .omit({ voidedAt: true })
+  .extend({
+    voidedAt: z.iso.datetime().nullable().optional(),
+    expiresAt: z.iso.datetime(),
+  })
+  .strict()
+
 export const assessmentHistorySchema = z
   .object({
     items: z.array(assessmentSchema.omit({ voidedAt: true })).max(50),
@@ -382,6 +398,8 @@ export type PrivacyDisclosure = z.infer<typeof privacyDisclosureSchema>
 export type ConsentCollection = z.infer<typeof consentCollectionSchema>
 export type AssessmentSubmission = z.infer<typeof assessmentSubmissionSchema>
 export type Assessment = z.infer<typeof assessmentSchema>
+export type AnonymousSession = z.infer<typeof anonymousSessionSchema>
+export type AnonymousAssessment = z.infer<typeof anonymousAssessmentSchema>
 export type AssessmentHistory = z.infer<typeof assessmentHistorySchema>
 export type ScreeningEpisode = z.infer<typeof screeningEpisodeSchema>
 export type SupportEvaluation = z.infer<typeof supportEvaluationSchema>

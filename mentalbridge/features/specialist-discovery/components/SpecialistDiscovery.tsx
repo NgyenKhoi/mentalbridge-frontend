@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CalendarDays,
   Check,
@@ -180,17 +180,29 @@ export default function SpecialistDiscovery({
     name: string
   } | null>(null)
 
-  useEffect(() => {
+  // Booking is gated on this balance, so re-read it whenever it may have changed
+  // elsewhere (another tab, a released credit, an upgrade).
+  const creditRequest = useRef(0)
+  const refreshCredits = useCallback(() => {
+    // Only the latest read may set the balance; an older zero must not win.
+    const request = ++creditRequest.current
     void browserServiceCredits
       .get()
-      .then((account) => setAvailableCredits(account.balance.available))
-      .catch(() => setAvailableCredits(null))
+      .then((account) => account.balance.available)
+      .catch(() => null)
+      .then((available) => {
+        if (request === creditRequest.current) setAvailableCredits(available)
+      })
+  }, [])
+
+  useEffect(() => {
+    refreshCredits()
     const onSearch = (event: Event) =>
       setSearchQuery((event as CustomEvent<string>).detail ?? '')
     window.addEventListener('mentalbridge:specialist-search', onSearch)
     return () =>
       window.removeEventListener('mentalbridge:specialist-search', onSearch)
-  }, [])
+  }, [refreshCredits])
 
   const filters = useMemo<DiscoveryFilters>(
     () => ({
@@ -232,13 +244,16 @@ export default function SpecialistDiscovery({
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0)
-    const refresh = () => void load()
+    const refresh = () => {
+      void load()
+      refreshCredits()
+    }
     window.addEventListener('focus', refresh)
     return () => {
       window.clearTimeout(timer)
       window.removeEventListener('focus', refresh)
     }
-  }, [load])
+  }, [load, refreshCredits])
 
   const loadDetail = useCallback(
     async (id: string) => {
@@ -274,14 +289,12 @@ export default function SpecialistDiscovery({
     setInitialTab(tab)
     setDetailId(id)
     void loadDetail(id)
+    refreshCredits()
   }
 
   async function booked() {
     await load()
-    void browserServiceCredits
-      .get()
-      .then((account) => setAvailableCredits(account.balance.available))
-      .catch(() => setAvailableCredits(null))
+    refreshCredits()
   }
 
   const visibleItems = useMemo(() => {
@@ -316,6 +329,7 @@ export default function SpecialistDiscovery({
     setSortBy('recommended')
     window.dispatchEvent(new Event('mentalbridge:specialist-search-reset'))
     void load()
+    refreshCredits()
   }
 
   return (

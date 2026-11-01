@@ -13,9 +13,14 @@ export const notificationActionSchema = z.strictObject({
     'OPEN_ASSESSMENTS',
     'OPEN_RESOURCE',
     'OPEN_COMMUNITY_POST',
+    'OPEN_COMMUNITY_CONVERSATION',
+    'OPEN_COMMUNITY_REQUEST',
+    'OPEN_COMMUNITY_INVITATION',
+    'OPEN_SPECIALIST_APPOINTMENTS',
+    'OPEN_SUPPORT_GUIDE',
   ]),
   targetId: z.uuid().nullable(),
-  href: z.string().min(1).max(256),
+  href: z.string().regex(/^\//).max(256),
 })
 export const notificationSchema = z
   .strictObject({
@@ -34,6 +39,12 @@ export const notificationSchema = z
       'COMMUNITY_COMMENT',
       'COMMUNITY_REPLY',
       'COMMUNITY_REACTION',
+      'COMMUNITY_MESSAGE',
+      'COMMUNITY_REQUEST',
+      'COMMUNITY_INVITATION',
+      'ASSESSMENT_RESULT_AVAILABLE',
+      'SUPPORT_GUIDE_AVAILABLE',
+      'ACCOUNT_STATUS',
     ]),
     title: z.string().min(1).max(255),
     body: z.string().min(1).max(1000),
@@ -102,6 +113,14 @@ export const preferencePatchSchema = z
     email: emailSchema.partial().optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0)
+export const specialistPreferencePatchSchema = z.strictObject({
+  notificationsEnabled: z.boolean(),
+  channels: z.strictObject({ inApp: z.boolean() }),
+  contentGroups: z.strictObject({
+    appointmentMessage: z.boolean(),
+    resourceSystem: z.boolean(),
+  }),
+})
 export const etagSchema = z.string().regex(/^"(0|[1-9][0-9]*)"$/)
 export type InboxNotification = z.infer<typeof notificationSchema>
 export type NotificationAction = z.infer<typeof notificationActionSchema>

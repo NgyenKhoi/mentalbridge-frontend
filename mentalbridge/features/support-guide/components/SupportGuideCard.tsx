@@ -335,6 +335,7 @@ export default function SupportGuideCard({
       )}
       {safetyPositive && (
         <section
+          data-page-motion="off"
           className="support-guide-safety-priority"
           aria-labelledby={`guide-safety-${guide.supportGuideId}`}
         >

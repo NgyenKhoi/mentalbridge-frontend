@@ -661,6 +661,8 @@ export default function JournalPage() {
     }
     setText(initial.text)
     setTagText(initial.tagText)
+    // Edit has no time field; a value left from an earlier create made it dirty.
+    setOccurredAt(initial.occurredAt)
     updateMood(initial.mood)
     setFieldErrors({})
     setModalError('')

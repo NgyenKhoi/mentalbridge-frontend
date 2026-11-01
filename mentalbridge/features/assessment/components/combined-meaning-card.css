@@ -1,26 +1,22 @@
-.combined-meaning-card {
+.combined-meaning {
   display: grid;
   width: 100%;
   min-width: 0;
-  gap: var(--space-6);
+  gap: var(--space-5);
+  /* Room under the last line for the shell's floating help button. */
+  padding-bottom: 72px;
   color: var(--ink);
 }
-.combined-meaning-history-bar,
-.combined-meaning-score,
+/* The surface-to-canvas tone step is small, so the 1px edge keeps cards visible for low vision. */
 .combined-meaning-summary,
 .combined-meaning-safety {
-  border: 1px solid var(--line);
+  border: 1px solid var(--line); /* taste-skill-ignore: low tone step needs an edge */
   border-radius: var(--radius-shell);
   background: var(--surface);
-  box-shadow: var(--elevation-1);
 }
-.combined-meaning-history-bar,
 .combined-meaning-history-bar a,
 .combined-meaning-context,
-.combined-meaning-context > div,
 .combined-meaning-context > span,
-.combined-meaning-context time,
-.combined-meaning-kicker,
 .combined-meaning-actions,
 .combined-meaning-primary,
 .combined-meaning-secondary,
@@ -30,77 +26,83 @@
   align-items: center;
   gap: var(--space-2);
 }
-.combined-meaning-history-bar {
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-5);
-  font-size: 0.82rem;
-}
 .combined-meaning-history-bar a,
 .combined-meaning-reassurance a {
+  width: fit-content;
   min-height: 44px;
   color: var(--teal-deep);
   font-weight: 650;
   text-decoration: none;
 }
-.combined-meaning-history-bar > span {
-  color: var(--ink-faint);
+.combined-meaning-history-bar a {
+  font-size: 0.9rem;
 }
-.combined-meaning-card svg {
+.combined-meaning svg {
   width: 17px;
   height: 17px;
   flex: none;
 }
+.combined-meaning-summary {
+  display: grid;
+  gap: var(--space-6);
+  padding: clamp(var(--space-6), 3vw, var(--space-10));
+}
+.combined-meaning-context {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0 0 calc(-1 * var(--space-3));
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.combined-meaning-title {
+  max-width: 40ch;
+  margin: 0;
+  font:
+    650 clamp(1.5rem, 2.6vw, 2rem)/1.3 var(--font-fraunces),
+    Georgia,
+    serif;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.combined-meaning-result {
+  display: grid;
+  gap: var(--space-4);
+}
 .combined-meaning-scores {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-5);
+  gap: var(--space-6);
 }
 .combined-meaning-score {
-  display: flex;
+  display: grid;
   min-width: 0;
-  flex-direction: column;
-  padding: clamp(var(--space-5), 2.2vw, var(--space-8));
+  align-content: start;
+  gap: var(--space-3);
 }
 .combined-meaning-score header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--space-3);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--line);
+  gap: var(--space-2) var(--space-3);
 }
-.combined-meaning-instrument {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.combined-meaning-instrument h3 {
+.combined-meaning-score :is(h2, h3) {
   margin: 0;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-control);
-  background: var(--teal-pale);
-  color: var(--teal-deep);
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-size: 1rem;
+  font-weight: 650;
 }
-.combined-meaning-instrument > span {
-  color: var(--ink-faint);
-  font-size: 0.78rem;
-}
+/* A div, not a span: app/theme-sync.css forces `color: var(--ink-soft) !important` on every shell p, span and small. */
 .combined-meaning-level {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  border: 1px solid color-mix(in srgb, var(--teal) 18%, var(--line));
+  padding: 4px 10px;
   border-radius: var(--radius-pill);
   background: var(--teal-pale);
   color: var(--teal-deep);
-  font-size: 0.73rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 .combined-meaning-level-dot {
@@ -108,61 +110,27 @@
   height: 6px;
   flex: none;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--teal-deep);
 }
 .level-moderate .combined-meaning-level {
-  border-color: color-mix(in srgb, var(--amber-deep) 25%, var(--line));
   background: var(--amber-soft);
   color: var(--amber-deep);
 }
+.level-moderate .combined-meaning-level-dot {
+  background: var(--amber-deep);
+}
 .level-moderately-severe .combined-meaning-level,
 .level-severe .combined-meaning-level {
-  border-color: color-mix(in srgb, var(--terracotta) 25%, var(--line));
   background: var(--terracotta-soft);
-  color: var(--terracotta);
+  color: color-mix(in srgb, var(--terracotta) 50%, var(--ink));
 }
-.combined-meaning-score-body {
-  flex: 1;
-  padding: var(--space-5) 0;
-}
-.combined-meaning-score-value {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin: 0;
-}
-.combined-meaning-score-value strong {
-  font:
-    650 3rem/1 var(--font-fraunces),
-    Georgia,
-    serif;
-  letter-spacing: -0.04em;
-}
-.combined-meaning-score-value > span {
-  color: var(--ink-faint);
-  font-size: 1rem;
-  font-weight: 550;
-}
-.combined-meaning-score-description {
-  max-width: 56ch;
-  margin: var(--space-3) 0 0;
-  color: var(--ink-soft);
-  font-size: 0.82rem;
-  line-height: 1.65;
-}
-.combined-meaning-native-progress {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+.level-moderately-severe .combined-meaning-level-dot,
+.level-severe .combined-meaning-level-dot {
+  background: var(--terracotta);
 }
 .combined-meaning-scale {
   display: grid;
   gap: var(--space-2);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--line);
 }
 .combined-meaning-scale-bars,
 .combined-meaning-scale-labels {
@@ -171,9 +139,9 @@
   gap: 6px;
 }
 .combined-meaning-scale-bars > span {
-  height: 7px;
+  height: 10px;
   border-radius: var(--radius-pill);
-  background: var(--line);
+  background: var(--surface-soft);
 }
 .combined-meaning-scale-bars > .is-active {
   background: var(--teal-deep);
@@ -185,95 +153,55 @@
 .level-severe .combined-meaning-scale-bars > .is-active {
   background: var(--terracotta);
 }
-.combined-meaning-scale-labels > span {
-  color: var(--ink-faint);
-  font-size: 0.62rem;
+.combined-meaning-scale-labels {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.combined-meaning-scale-labels > li {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
   line-height: 1.4;
+}
+.combined-meaning-scale-labels > .is-active {
+  color: var(--ink);
+  font-weight: 650;
 }
 .combined-meaning-scale-labels small {
   font-size: inherit;
   white-space: nowrap;
 }
-.combined-meaning-scale-labels > span:last-child {
+.combined-meaning-scale-labels > li:last-child {
   text-align: right;
 }
-.combined-meaning-summary {
-  display: grid;
-  gap: var(--space-6);
-  padding: clamp(var(--space-6), 3vw, var(--space-10));
-}
-.combined-meaning-context {
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--surface-soft);
-  color: var(--ink-soft);
-  font-size: 0.75rem;
-}
-.combined-meaning-context > div {
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-.combined-meaning-archive-label {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-control);
-  background: var(--teal-pale);
-  color: var(--teal-deep);
-  font-size: 0.65rem;
-  font-weight: 750;
-  text-transform: uppercase;
-}
-.combined-meaning-header {
-  display: grid;
-  gap: var(--space-4);
-  max-width: 75ch;
-}
-.combined-meaning-kicker {
-  color: var(--ink-soft);
-  font-size: 0.75rem;
-  font-weight: 750;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.combined-meaning-kicker > svg {
-  padding: 3px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--teal-pale);
-  color: var(--teal-deep);
-}
-.combined-meaning-header :is(h1, h2) {
+.combined-meaning-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
   margin: 0;
-  font:
-    650 clamp(1.5rem, 2.4vw, 1.85rem)/1.4 var(--font-fraunces),
-    Georgia,
-    serif;
-  letter-spacing: -0.025em;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  line-height: 1.6;
 }
-.combined-meaning-header p {
+.combined-meaning-next {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 65ch;
+}
+.combined-meaning-next-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+.combined-meaning-next p {
   margin: 0;
   color: var(--ink-soft);
   line-height: 1.7;
 }
-.combined-meaning-header .combined-meaning-disclaimer {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  color: var(--ink-faint);
-  font-size: 0.77rem;
-  line-height: 1.6;
-}
-.combined-meaning-next-title {
-  margin: 0 0 calc(-1 * var(--space-3));
-  font-size: 1rem;
-}
 .combined-meaning-actions {
   flex-wrap: wrap;
   gap: var(--space-3);
+  margin-top: calc(-1 * var(--space-2));
 }
 .combined-meaning-primary,
 .combined-meaning-secondary {
@@ -281,19 +209,19 @@
   width: fit-content;
   min-height: 46px;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: var(--radius-control);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 650;
   text-decoration: none;
   cursor: pointer;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
     transform var(--motion-fast) var(--ease-standard);
 }
 .combined-meaning-primary {
-  border-color: var(--teal-deep);
   background: var(--teal-deep);
   color: var(--surface);
 }
@@ -304,70 +232,122 @@
 .combined-meaning-primary:hover {
   background: var(--teal);
 }
+@media (hover: hover) {
+  .combined-meaning-primary:hover {
+    /* taste-skill-ignore: transient hover lift, nothing at rest */
+    box-shadow: var(--elevation-2); /* taste-skill-ignore */
+    transform: translateY(-1px);
+  }
+  .combined-meaning a:hover .lucide-arrow-right {
+    transform: translateX(3px);
+  }
+}
 .combined-meaning-secondary:hover {
   background: var(--teal-pale);
 }
-.combined-meaning-card :is(a, button):active {
-  transform: translateY(1px);
+.combined-meaning :is(a, button):not(:disabled):active {
+  transform: scale(var(--motion-scale-enter));
+  transition-duration: var(--motion-instant);
 }
-.combined-meaning-card :is(a, button, summary):focus-visible {
+/* The arrow leans toward where the link goes. */
+.combined-meaning .lucide-arrow-right {
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+.combined-meaning button[aria-busy='true'] .lucide-rotate-ccw {
+  animation: combined-meaning-busy 900ms linear infinite;
+}
+.combined-meaning :is(a, button, summary):focus-visible {
   outline: 3px solid var(--teal);
   outline-offset: 3px;
 }
-.combined-meaning-card button:disabled {
+.combined-meaning button:disabled {
   opacity: 0.65;
   cursor: wait;
   transform: none;
 }
+.combined-meaning-done svg {
+  width: 20px;
+  height: 20px;
+  color: var(--teal-deep);
+}
+.combined-meaning-utility {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin-top: calc(-1 * var(--space-3));
+}
+.combined-meaning-quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--teal-deep);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 4px;
+  cursor: pointer;
+  transition: text-decoration-color var(--motion-fast) var(--ease-standard);
+}
+.combined-meaning-quiet:hover {
+  text-decoration-color: currentColor;
+}
 .combined-meaning-disclosures {
   display: grid;
-  gap: var(--space-3);
-  padding-top: var(--space-5);
-  border-top: 1px solid var(--line);
+  gap: var(--space-1);
 }
 .combined-meaning-disclosures summary > span > span {
   display: flex;
   align-items: center;
   gap: var(--space-3);
 }
+.combined-meaning-disclosures summary {
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+@media (hover: hover) {
+  .combined-meaning-disclosures summary:hover {
+    color: var(--teal-deep);
+  }
+  .combined-meaning-disclosures details:not([open]) > summary:hover > svg {
+    transform: translateY(2px);
+  }
+}
+.combined-meaning-disclosures details p {
+  max-width: 65ch;
+  margin: 0 0 var(--space-3);
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
 .combined-meaning-detail-scores {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  font-variant-numeric: tabular-nums;
 }
 .combined-meaning-detail-scores > div {
   display: grid;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid var(--line);
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-control);
-  background: var(--surface);
+  background: var(--surface-soft);
 }
 .combined-meaning-detail-scores p {
   margin: 0;
-}
-.combined-meaning-provenance {
-  display: grid;
-  gap: var(--space-2);
-}
-.combined-meaning-provenance > div {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: var(--space-3);
-}
-.combined-meaning-provenance dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 .combined-meaning-guide-status {
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-4);
-  border: 1px solid color-mix(in srgb, var(--amber) 35%, var(--line));
   border-radius: var(--radius-control);
   background: var(--amber-soft);
-  font-size: 0.82rem;
+  font-size: 0.9rem;
 }
 .combined-meaning-guide-status p {
   margin: 0;
@@ -376,11 +356,10 @@
 .combined-meaning-reassurance {
   flex-wrap: wrap;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--line);
   border-radius: var(--radius-panel);
   background: color-mix(in srgb, var(--teal-pale) 40%, var(--surface));
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: 0.9rem;
 }
 .combined-meaning-reassurance p {
   flex: 1;
@@ -397,15 +376,16 @@
   background: var(--amber-soft);
 }
 .combined-meaning-safety :is(h1, h2) {
-  margin: var(--space-2) 0;
+  margin: 0 0 var(--space-2);
   font:
-    650 1.6rem/1.4 var(--font-fraunces),
+    650 1.6rem/1.35 var(--font-fraunces),
     Georgia,
     serif;
+  text-wrap: balance;
 }
 .combined-meaning-safety p {
   max-width: 75ch;
-  color: var(--ink-soft);
+  margin: 0 0 var(--space-3);
   line-height: 1.65;
 }
 .combined-meaning-safety-icon {
@@ -419,24 +399,19 @@
   color: var(--surface);
 }
 @media (max-width: 700px) {
-  .combined-meaning-card {
+  .combined-meaning {
     gap: var(--space-4);
+  }
+  .combined-meaning-title {
+    font-size: 1.35rem;
+  }
+  /* Narrow columns: only the user's band keeps its score range. */
+  .combined-meaning-scale-labels > li:not(.is-active) small {
+    display: none;
   }
   .combined-meaning-scores {
     grid-template-columns: 1fr;
-    gap: var(--space-4);
-  }
-  .combined-meaning-score {
-    padding: var(--space-5);
-  }
-  .combined-meaning-instrument > span {
-    font-size: 0.75rem;
-  }
-  .combined-meaning-score-value strong {
-    font-size: 2.5rem;
-  }
-  .combined-meaning-score-body {
-    padding: var(--space-4) 0;
+    gap: var(--space-5);
   }
   .combined-meaning-summary {
     gap: var(--space-5);
@@ -444,25 +419,11 @@
   }
   .combined-meaning-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: var(--space-2);
   }
   .combined-meaning-actions > * {
     width: 100%;
-    font-size: 0.75rem;
-    padding-inline: var(--space-2);
-  }
-  .combined-meaning-actions > .combined-meaning-primary {
-    grid-column: 1 / -1;
-    font-size: 0.85rem;
-  }
-  .combined-meaning-history-bar {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0;
-  }
-  .combined-meaning-history-bar > span {
-    margin-bottom: var(--space-2);
   }
   .combined-meaning-detail-scores {
     grid-template-columns: 1fr;
@@ -478,16 +439,122 @@
     width: 32px;
     height: 32px;
   }
-  .combined-meaning-provenance > div {
-    grid-template-columns: 1fr;
+}
+/* Result reveal, once on load, in reading order: the meaning arrives, the two
+   bands follow, then each band's level settles in place (never a left-to-right
+   sweep, so it does not read as a progress bar). Everything is still while the
+   user reads. Safety results appear at once. */
+.combined-meaning:not(.priority-safety)
+  :is(
+    .combined-meaning-summary,
+    .combined-meaning-score,
+    .combined-meaning-reassurance
+  ) {
+  animation: combined-meaning-arrive var(--motion-medium) var(--ease-standard)
+    both;
+}
+.combined-meaning:not(.priority-safety) .combined-meaning-score {
+  animation-delay: 80ms;
+}
+.combined-meaning:not(.priority-safety)
+  .combined-meaning-score
+  + .combined-meaning-score {
+  animation-delay: 140ms;
+}
+.combined-meaning:not(.priority-safety) .combined-meaning-reassurance {
+  animation-delay: 200ms;
+}
+.combined-meaning:not(.priority-safety)
+  .combined-meaning-scale-bars
+  > .is-active {
+  animation: combined-meaning-band var(--motion-medium) var(--ease-standard)
+    220ms both;
+}
+.combined-meaning:not(.priority-safety)
+  .combined-meaning-score
+  + .combined-meaning-score
+  .combined-meaning-scale-bars
+  > .is-active {
+  animation-delay: 280ms;
+}
+@keyframes combined-meaning-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-md));
+  }
+}
+@keyframes combined-meaning-band {
+  from {
+    opacity: 0.2;
+    transform: scaleY(0.3);
+  }
+}
+@keyframes combined-meaning-busy {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+/* The finished moment: the ring settles in, then the tick draws, before the meaning arrives. */
+.combined-meaning:not(.priority-safety) .combined-meaning-done circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: combined-meaning-ring var(--motion-medium) var(--ease-emphasis)
+    both;
+}
+.combined-meaning:not(.priority-safety) .combined-meaning-done path {
+  stroke-dasharray: 12;
+  animation: combined-meaning-tick var(--motion-medium) var(--ease-standard)
+    120ms both;
+}
+@keyframes combined-meaning-ring {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes combined-meaning-tick {
+  from {
+    stroke-dashoffset: 12;
+  }
+  to {
+    stroke-dashoffset: 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .combined-meaning:not(.priority-safety)
+    .combined-meaning-done
+    :is(circle, path) {
+    animation: none;
+  }
   .combined-meaning-primary,
-  .combined-meaning-secondary {
+  .combined-meaning-secondary,
+  .combined-meaning .lucide-arrow-right {
     transition: none;
   }
-  .combined-meaning-card :is(a, button):active {
+  .combined-meaning :is(a, button):not(:disabled):active,
+  .combined-meaning-primary:hover,
+  .combined-meaning a:hover .lucide-arrow-right,
+  .combined-meaning-disclosures details:not([open]) > summary:hover > svg {
     transform: none;
+  }
+  /* Keep the reveal as a short fade; drop the movement. */
+  .combined-meaning:not(.priority-safety)
+    :is(
+      .combined-meaning-summary,
+      .combined-meaning-score,
+      .combined-meaning-reassurance
+    ) {
+    animation-name: combined-meaning-fade;
+  }
+  .combined-meaning:not(.priority-safety)
+    .combined-meaning-scale-bars
+    > .is-active,
+  .combined-meaning button[aria-busy='true'] .lucide-rotate-ccw {
+    animation: none;
+  }
+}
+@keyframes combined-meaning-fade {
+  from {
+    opacity: 0;
   }
 }

@@ -166,7 +166,9 @@ function SummaryCards({ summary }: { summary: ReassessmentSummary }) {
   )
 }
 
-export function ReassessmentJourney() {
+export function ReassessmentJourney({
+  planReview = false,
+}: Readonly<{ planReview?: boolean }> = {}) {
   const { confirm, showActionToast, showNotificationToast } = useFeedback()
   const [context, setContext] = useState<ReassessmentContext>()
   const [report, setReport] = useState<ReassessmentSelfReport>()
@@ -380,7 +382,11 @@ export function ReassessmentJourney() {
           </span>
           <Link
             className="reassessment-secondary-action"
-            href="/initial-check?purpose=reassessment"
+            href={
+              planReview
+                ? '/initial-check?purpose=reassessment&returnTo=plan-review'
+                : '/initial-check?purpose=reassessment'
+            }
           >
             Bắt đầu lượt đánh giá lại
           </Link>
@@ -479,9 +485,11 @@ export function ReassessmentJourney() {
           <div className="reassessment-actions">
             <Link
               className="reassessment-secondary-action"
-              href="/support-plan"
+              href={planReview ? '/support-plan?review=open' : '/support-plan'}
             >
-              Xem lại kế hoạch hỗ trợ
+              {planReview
+                ? 'Quay lại xem lại kế hoạch'
+                : 'Xem lại kế hoạch hỗ trợ'}
             </Link>
           </div>
         </>

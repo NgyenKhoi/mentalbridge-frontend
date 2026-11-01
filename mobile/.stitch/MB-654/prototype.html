@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SupportPlan Companion mobile prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+        color: #1b2a22;
+        background: #f1f4eb;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      button {
+        font: inherit;
+        min-height: 48px;
+        border-radius: 12px;
+        border: 1px solid #3d7a6e;
+        color: #1e4a43;
+        background: white;
+        padding: 10px 14px;
+        font-weight: 700;
+      }
+      button:focus-visible {
+        outline: 3px solid rgba(61, 122, 110, 0.35);
+        outline-offset: 2px;
+      }
+      main {
+        width: min(100%, 390px);
+        min-height: 100vh;
+        margin: 0 auto 0 0;
+        padding: 36px 24px 80px;
+      }
+      h1,
+      h2 {
+        font-family: Newsreader, Georgia, serif;
+        margin: 8px 0;
+      }
+      h1 {
+        font-size: 32px;
+      }
+      h2:focus {
+        outline: none;
+      }
+      .eyebrow {
+        color: #3d7a6e;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+      .companion,
+      .plan {
+        margin: 24px 0;
+        border: 1px solid #cfe3d8;
+        border-radius: 22px;
+        padding: 16px;
+        background: #e9efe3;
+      }
+      .plan {
+        background: white;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .grow {
+        flex: 1;
+      }
+      .leaf {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #cfe3d8;
+        font-size: 28px;
+        animation: breathe 3s ease-in-out infinite;
+      }
+      .primary {
+        width: 100%;
+        color: white;
+        background: #1e4a43;
+        margin-top: 12px;
+      }
+      .controls {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .scrim {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: end;
+        background: rgba(27, 42, 34, 0.38);
+      }
+      .scrim.open {
+        display: flex;
+      }
+      .sheet {
+        width: min(100%, 390px);
+        max-height: 88vh;
+        overflow: auto;
+        margin: 0 auto 0 0;
+        border-radius: 22px 22px 0 0;
+        padding: 14px 24px 36px;
+        background: white;
+      }
+      .handle {
+        width: 48px;
+        height: 4px;
+        margin: auto;
+        border-radius: 99px;
+        background: #cfe3d8;
+      }
+      .boundary,
+      .response {
+        margin: 14px 0;
+        padding: 14px;
+        border-radius: 12px;
+        background: #e9efe3;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      @keyframes breathe {
+        50% {
+          opacity: 0.75;
+          transform: translateY(-4px);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <button aria-label="Quay lại">← Quay lại</button>
+      <p class="eyebrow">CHĂM SÓC BẢN THÂN</p>
+      <h1>Kế hoạch hỗ trợ</h1>
+      <p>Xem hoạt động tiếp theo và chủ động chọn nhịp phù hợp với bạn.</p>
+      <section
+        class="companion"
+        aria-label="Bạn đồng hành trong kế hoạch hỗ trợ"
+      >
+        <div class="row">
+          <span class="leaf" aria-hidden="true">❧</span>
+          <div class="grow">
+            <strong>Bạn đồng hành</strong><br /><small
+              >Sẵn sàng khi bạn cần</small
+            >
+          </div>
+          <button id="collapse" aria-expanded="true">Thu gọn</button>
+        </div>
+        <div id="companion-body">
+          <p>
+            Mình có thể giải thích hoạt động và chỉ đường. Kế hoạch chỉ thay đổi
+            khi bạn xác nhận.
+          </p>
+          <small>Đang xem hoạt động</small>
+          <p><strong>Ghi lại điều bạn đang cảm nhận</strong></p>
+          <button id="mute" aria-pressed="false">Tắt lời nhắc</button>
+          <button class="primary" id="open" aria-haspopup="dialog">
+            Mở hướng dẫn có giới hạn
+          </button>
+        </div>
+      </section>
+      <section class="plan">
+        <h2>Kế hoạch hiện tại</h2>
+        <p>Đang thực hiện</p>
+        <button>Tìm chuyên gia</button>
+      </section>
+    </main>
+    <div class="scrim" id="scrim">
+      <section
+        class="sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sheet-title"
+      >
+        <div class="handle" aria-hidden="true"></div>
+        <div class="row">
+          <div class="grow">
+            <p class="eyebrow">AI KHI BẠN YÊU CẦU</p>
+            <h2 id="sheet-title" tabindex="-1">Bạn đồng hành</h2>
+          </div>
+          <button id="close">Đóng</button>
+        </div>
+        <div class="boundary">
+          Bạn đồng hành chỉ giải thích và chỉ đường. Kế hoạch chỉ thay đổi khi
+          bạn dùng thao tác xác nhận trong Kế hoạch hỗ trợ.
+        </div>
+        <small>Đang xem hoạt động</small>
+        <p><strong>Ghi lại điều bạn đang cảm nhận</strong></p>
+        <div class="controls">
+          <button id="explain">Vì sao hoạt động này có trong kế hoạch?</button
+          ><button>Tôi nên bắt đầu từ đâu?</button
+          ><button>Mở Ghi nhận cảm xúc</button>
+        </div>
+        <div class="response" id="response" hidden>
+          Hoạt động này đến từ kế hoạch đã được bạn duyệt. Việc xem hướng dẫn
+          không thay đổi kế hoạch.
+        </div>
+        <p>
+          <small
+            >Nội dung hướng dẫn chỉ được giữ trong bộ nhớ của màn hình
+            này.</small
+          >
+        </p>
+      </section>
+    </div>
+    <script>
+      const openButton = document.querySelector('#open')
+      const scrim = document.querySelector('#scrim')
+      const heading = document.querySelector('#sheet-title')
+      const closeButton = document.querySelector('#close')
+      openButton.addEventListener('click', () => {
+        scrim.classList.add('open')
+        heading.focus()
+      })
+      const close = () => {
+        scrim.classList.remove('open')
+        openButton.focus()
+      }
+      closeButton.addEventListener('click', close)
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && scrim.classList.contains('open')) close()
+      })
+      document.querySelector('#explain').addEventListener('click', () => {
+        document.querySelector('#response').hidden = false
+      })
+      document.querySelector('#mute').addEventListener('click', (event) => {
+        const next = event.currentTarget.getAttribute('aria-pressed') !== 'true'
+        event.currentTarget.setAttribute('aria-pressed', String(next))
+        event.currentTarget.textContent = next ? 'Bật lời nhắc' : 'Tắt lời nhắc'
+      })
+      document.querySelector('#collapse').addEventListener('click', (event) => {
+        const body = document.querySelector('#companion-body')
+        body.hidden = !body.hidden
+        event.currentTarget.setAttribute('aria-expanded', String(!body.hidden))
+        event.currentTarget.textContent = body.hidden ? 'Mở rộng' : 'Thu gọn'
+      })
+      if (new URLSearchParams(location.search).has('open')) {
+        scrim.classList.add('open')
+        heading.focus()
+      }
+    </script>
+  </body>
+</html>

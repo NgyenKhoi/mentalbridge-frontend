@@ -1,11 +1,15 @@
 import { resolve } from 'node:path'
+import { mkdir } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { createServer } from 'vite'
 import react from '@vitejs/plugin-react'
 import { chromium } from '@playwright/test'
 
 const root = resolve(import.meta.dirname, '..')
-const artifactsDir =
-  'C:\\Users\\Admin\\.gemini\\antigravity\\brain\\3f72caff-c408-4194-9194-f7cc5ef13063'
+const artifactsDir = resolve(
+  process.argv[2] ?? resolve(tmpdir(), 'mentalbridge-dashboard-preview'),
+)
+await mkdir(artifactsDir, { recursive: true })
 
 const server = await createServer({
   root,
@@ -41,13 +45,15 @@ try {
     waitUntil: 'load',
   })
 
-  await page.waitForSelector('.ref-panel')
+  await page.waitForSelector('.home-hub')
   await page.waitForTimeout(400)
   await page.screenshot({
-    path: resolve(artifactsDir, 'dashboard_3_columns_with_gad7.png'),
+    path: resolve(artifactsDir, 'dashboard-home-1440.png'),
     fullPage: false,
   })
-  console.log('[screenshot] Saved dashboard_3_columns_with_gad7.png')
+  console.log(
+    `[screenshot] Saved ${resolve(artifactsDir, 'dashboard-home-1440.png')}`,
+  )
 } finally {
   await browser.close()
   await server.close()

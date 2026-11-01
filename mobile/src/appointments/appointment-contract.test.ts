@@ -14,7 +14,7 @@ import {
 } from './appointment-model'
 
 describe('MB-630 public appointment/credit contracts', () => {
-  it('accepts additive video history and authoritative completion, never a substituted chat policy', () => {
+  it('accepts current and historical completed video without substituting pending LiveKit policy', () => {
     const ended = {
       ...appointment,
       status: 'SESSION_ENDED',
@@ -35,6 +35,47 @@ describe('MB-630 public appointment/credit contracts', () => {
     expect(appointmentSchema.parse(completed).completionFactId).toBe(
       appointment.id,
     )
+    const historicalCompleted = {
+      ...completed,
+      id: '11111111-2222-4333-8444-555555555555',
+      sessionPolicyVersion: 'chat-session-completion-v1',
+      sessionOutcomeReason: 'EVIDENCE_REQUIREMENTS_MET',
+    }
+    expect(appointmentSchema.parse(historicalCompleted)).toEqual(
+      historicalCompleted,
+    )
+    expect(
+      appointmentListSchema.parse({
+        items: [completed, historicalCompleted],
+        count: 2,
+        generatedAt: appointment.scheduledEndAt,
+      }).items,
+    ).toEqual([completed, historicalCompleted])
+    expect(
+      appointmentSchema.safeParse({
+        ...historicalCompleted,
+        creditState: 'AVAILABLE',
+      }).success,
+    ).toBe(true)
+    for (const incomplete of [
+      { completionFactId: null },
+      { sessionSettledAt: null },
+      { sessionEndedAt: null },
+      { creditState: 'HELD' },
+      { sessionOutcomeReason: null },
+    ]) {
+      expect(
+        appointmentSchema.safeParse({ ...historicalCompleted, ...incomplete })
+          .success,
+      ).toBe(false)
+    }
+    expect(
+      appointmentListSchema.safeParse({
+        items: [completed, { ...historicalCompleted, completionFactId: null }],
+        count: 2,
+        generatedAt: appointment.scheduledEndAt,
+      }).success,
+    ).toBe(false)
     expect(
       appointmentSchema.safeParse({ ...completed, creditState: 'AVAILABLE' })
         .success,

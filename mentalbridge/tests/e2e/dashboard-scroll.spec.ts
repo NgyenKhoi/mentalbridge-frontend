@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 
 import { test } from './test-fixtures'
+import { homeWorld, installHomeMocks } from './home-next-step-mocks'
 
 const identityFixtureUrl = 'http://127.0.0.1:3201'
 
@@ -20,6 +21,7 @@ test('dashboard shell keeps long pages vertically scrollable', async ({
   expect(reset.status()).toBe(204)
 
   await page.setViewportSize({ width: 1280, height: 560 })
+  await installHomeMocks(page, homeWorld('first-use'), { authenticate: false })
   await login(page)
 
   await expect
@@ -46,6 +48,7 @@ test('dashboard remains scrollable after closing crisis support', async ({
   expect(reset.status()).toBe(204)
 
   await page.setViewportSize({ width: 1280, height: 560 })
+  await installHomeMocks(page, homeWorld('first-use'), { authenticate: false })
   await login(page)
 
   const crisisTrigger = page.locator('[aria-controls="crisis-support-panel"]')
@@ -69,6 +72,7 @@ test('dashboard remains scrollable after visiting a smooth-scroll route', async 
   expect(reset.status()).toBe(204)
 
   await page.setViewportSize({ width: 1280, height: 560 })
+  await installHomeMocks(page, homeWorld('first-use'), { authenticate: false })
   await login(page)
   await page.goto('/')
   await expect(page.locator('html')).toHaveClass(/lenis/)

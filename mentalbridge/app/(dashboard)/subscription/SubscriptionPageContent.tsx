@@ -23,7 +23,7 @@ export default function SubscriptionPageContent() {
         <h1>GÓI DỊCH VỤ &amp; QUYỀN LỢI TƯ VẤN</h1>
         <p>
           Theo dõi lượt tư vấn hiện có, so sánh quyền lợi từ catalogue chính
-          thức và thanh toán an toàn qua MoMo khi bạn muốn đồng hành sâu hơn.
+          thức và thanh toán an toàn khi bạn muốn đồng hành sâu hơn.
         </p>
       </header>
 
@@ -40,7 +40,7 @@ export default function SubscriptionPageContent() {
           <p>
             Giá, số lượt tư vấn, giới hạn lịch và thời gian hiệu lực được chốt
             khi bạn tạo giao dịch. Hệ thống chỉ kích hoạt gói sau khi nhận xác
-            nhận hợp lệ từ MoMo.
+            nhận thanh toán hợp lệ.
           </p>
           <div className="svc-assurance-points">
             <div>
@@ -112,7 +112,7 @@ export default function SubscriptionPageContent() {
           <h2>Chủ động chọn mức hỗ trợ phù hợp</h2>
           <p>
             Bạn có thể mua Plus hoặc Premium từ gói Miễn phí và nâng Plus lên
-            Premium. Mọi giao dịch trong luồng này đều đi qua MoMo.
+            Premium.
           </p>
         </div>
         <a
@@ -131,7 +131,7 @@ export default function SubscriptionPageContent() {
         <p>
           Lượt tư vấn không cộng dồn sang kỳ tiếp theo. Plus có thể nâng lên
           Premium trong kỳ; hệ thống giữ phần giá trị đủ điều kiện và hiển thị
-          chính xác số tiền cần thanh toán trước khi chuyển sang MoMo.
+          chính xác số tiền cần thanh toán trước khi bạn trả tiền.
         </p>
       </details>
     </div>

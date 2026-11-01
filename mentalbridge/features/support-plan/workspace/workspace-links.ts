@@ -6,6 +6,22 @@ import type { PlannedOccurrence } from './workspace-model'
 export type ActionDestination = Readonly<{ href: string; label: string }>
 
 export const REASSESSMENT_HREF = '/initial-check?purpose=reassessment'
+/** Reassessment started from the plan review comes back to the review. */
+export const REVIEW_REASSESSMENT_HREF = `${REASSESSMENT_HREF}&returnTo=plan-review`
+
+/** Canonical pinned resource navigation, shared by Today and My Plan resources. */
+export function resourceDetailHref(origin: {
+  resourceId: string
+  contentVersion: string
+  actionId: string
+  occurrenceId?: string
+  localDate: string
+}) {
+  const { resourceId, occurrenceId, ...fields } = origin
+  const query = new URLSearchParams({ from: 'support-plan', ...fields })
+  if (occurrenceId) query.set('occurrenceId', occurrenceId)
+  return `/resources/${encodeURIComponent(resourceId)}?${query}`
+}
 
 /** Only the reviewed short-reflection intention may open writing from a plan. */
 export function isPlanJournalAction(action: PlanAction) {
@@ -55,13 +71,12 @@ export function actionDestination(
         : undefined
     case 'RESOURCE': {
       if (action.source?.ownerDomain !== 'CONTENT') return undefined
-      const query = new URLSearchParams({
-        from: 'support-plan',
-        contentVersion: action.source.sourceRevision ?? '',
-        ...origin,
-      })
       return {
-        href: `/resources/${encodeURIComponent(action.source.sourceId)}?${query}`,
+        href: resourceDetailHref({
+          resourceId: action.source.sourceId,
+          contentVersion: action.source.sourceRevision ?? '',
+          ...origin,
+        }),
         label: 'Mở nội dung',
       }
     }
@@ -75,14 +90,4 @@ export function actionDestination(
     default:
       return undefined
   }
-}
-
-/** Manual "done" exists only where Care records a user acknowledgement. */
-export function canAcknowledge(plan: SupportPlanV3, item: PlannedOccurrence) {
-  return (
-    plan.status === 'ACTIVE' &&
-    item.action.status === 'ACTIVE' &&
-    item.occurrence.state === 'SCHEDULED' &&
-    ['RESOURCE', 'ROUTINE_SELF_MANAGEMENT'].includes(item.action.actionType)
-  )
 }

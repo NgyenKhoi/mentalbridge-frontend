@@ -1,0 +1,18 @@
+appId: com.mentalbridge.mobile
+name: MB-692 synthetic USER session prerequisite
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: sign-in-email-input
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- hideKeyboard
+- tapOn:
+    id: sign-in-password-input
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: sign-in-submit
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'

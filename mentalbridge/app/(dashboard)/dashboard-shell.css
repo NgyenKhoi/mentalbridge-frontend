@@ -222,6 +222,10 @@
   width: 100%;
   min-width: 0;
 }
+/* Programmatic focus target when Mầm leaves while focused (MamDock). */
+.ref-content:focus {
+  outline: none;
+}
 .ref-content-page {
   padding: 28px clamp(24px, 3.2vw, 52px) 64px;
 }

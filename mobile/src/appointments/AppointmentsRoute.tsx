@@ -2,11 +2,14 @@ import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 
 import { createApiClient } from '@/api/api-client'
+import { createAppointmentDisputeApi } from '@/appointment-dispute/appointment-dispute-api'
 import { useSession } from '@/auth/session-context'
 import type { RuntimeConfig } from '@/config/runtime-config'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
+import { createConsultationBriefApi } from '@/consultation-brief/consultation-brief-api'
 import { createDiscoveryApi } from '@/discovery/discovery-api'
 import { secureCredentialStore } from '@/security/credential-store'
+import { createUserSummaryApi } from '@/user-summary/user-summary-api'
 import { createVideoApi } from '@/video/video-api'
 
 import { createAppointmentApi } from './appointment-api'
@@ -24,7 +27,10 @@ function AccountAppointmentsRoute({
     return {
       client,
       api: createAppointmentApi(client, subject),
+      dispute: createAppointmentDisputeApi(client),
+      consultationBrief: createConsultationBriefApi(client),
       discovery: createDiscoveryApi(client),
+      sessionSummary: createUserSummaryApi(client, subject),
       video: createVideoApi(client),
     }
   })
@@ -42,7 +48,10 @@ function AccountAppointmentsRoute({
   return (
     <AppointmentsScreen
       api={binding.api}
+      disputeApi={binding.dispute}
+      consultationBriefApi={binding.consultationBrief}
       discovery={binding.discovery}
+      sessionSummaryApi={binding.sessionSummary}
       videoApi={binding.video}
       onBack={() => router.back()}
     />

@@ -18,7 +18,9 @@ describe('AccountStatusCard', () => {
     expect(screen.getByText('Đã lưu')).toBeInTheDocument()
 
     expect(screen.getByText('Xử lý dữ liệu sàng lọc')).toBeInTheDocument()
-    expect(screen.getByText('Cho phép lưu lịch sử đánh giá')).toBeInTheDocument()
+    expect(
+      screen.getByText('Cho phép lưu lịch sử đánh giá'),
+    ).toBeInTheDocument()
     expect(screen.getByText('Đang bật')).toBeInTheDocument()
   })
 
@@ -27,7 +29,9 @@ describe('AccountStatusCard', () => {
     expect(screen.getByText('Chưa hoàn tất thông tin')).toBeInTheDocument()
     expect(screen.getByText('Chưa lưu')).toBeInTheDocument()
 
-    expect(screen.getByText('Không lưu kết quả vào tài khoản')).toBeInTheDocument()
+    expect(
+      screen.getByText('Không lưu kết quả vào tài khoản'),
+    ).toBeInTheDocument()
     expect(screen.getByText('Đã tắt')).toBeInTheDocument()
   })
 })

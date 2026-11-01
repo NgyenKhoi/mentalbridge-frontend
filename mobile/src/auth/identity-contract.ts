@@ -66,3 +66,13 @@ export type RegistrationRequest = Readonly<{
   actorType: 'USER'
   deviceLabel?: string
 }>
+
+export type PasswordResetRequest = Readonly<{
+  challenge: string
+  newPassword: string
+}>
+
+export type PasswordChangeRequest = Readonly<{
+  currentPassword: string
+  newPassword: string
+}>

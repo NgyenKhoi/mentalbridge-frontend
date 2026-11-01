@@ -1,0 +1,18 @@
+MB-693 isolated local execution — 2026-10-22
+Runtime source pair:
+frontend: ae0c86ad6bf6ffa793ae3b9cbfb87bb8a06e0b10
+backend: 5ab0d84b8760a181853813eac36b6b270772f590
+npm run quality: exit 0
+ Test Files  285 passed (285)
+      Tests  1887 passed (1887)
+node scripts/run-community-safety-e2e.mjs: exit 0
+[mb693] Identity ready
+[mb693] Community ready
+[mb693] Content ready
+[mb693] Realtime ready
+[mb693] Web ready
+  3 passed (26.4s)
+Service-output secret/JWT/raw chat canary assertions: passed
+Only disposable synthetic accounts and runner-owned infrastructure.
+Realtime: real-owner Node socket probes; browser uses explicit REST reload.
+Native Android/public edge: not run, MB-666.

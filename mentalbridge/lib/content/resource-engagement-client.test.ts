@@ -26,6 +26,8 @@ const board = {
       position: 1,
       resourceId,
       contentVersion: '7',
+      actionId: null,
+      retired: false,
       label: 'Thở chậm',
       evidence: 'NONE',
       selfConfirmedAt: null,
@@ -79,6 +81,7 @@ describe('content resource engagement identity binding', () => {
     ['another week', { ...board, weekStart: '2026-09-21' }, '"0"'],
     ['no strong ETag', board, undefined],
     ['a malformed ETag', board, 'W/"0"'],
+    ['a mismatched ETag', board, '"1"'],
   ])('fails closed when Bingo returns %s', async (_case, response, etag) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(upstream(response, etag)))
 
@@ -95,7 +98,8 @@ describe('content resource engagement identity binding', () => {
   })
 
   it('binds the mutation target and forwards the exact ETag', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(upstream(board, '"1"'))
+    const updatedBoard = { ...board, version: '1' }
+    const fetchMock = vi.fn().mockResolvedValue(upstream(updatedBoard, '"1"'))
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(
@@ -107,12 +111,37 @@ describe('content resource engagement identity binding', () => {
         '"0"',
         'correlation',
       ),
-    ).resolves.toEqual({ board, etag: '"1"' })
+    ).resolves.toEqual({ board: updatedBoard, etag: '"1"' })
 
     const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
     expect(url.pathname).toBe(
       '/api/v1/resource-bingo/2026-09-28/items/1/self-confirmation',
     )
     expect(init.headers).toMatchObject({ 'If-Match': '"0"' })
+  })
+
+  it('syncs the current plan through the bounded Content endpoint', async () => {
+    const synced = {
+      ...board,
+      unavailableActions: [],
+      items: [{ ...board.items[0], actionId: 'action-670', retired: false }],
+    }
+    const fetchMock = vi.fn().mockResolvedValue(upstream(synced, '"0"'))
+    vi.stubGlobal('fetch', fetchMock)
+    expect(
+      await contentResourceEngagementClient.syncBingoWithPlan(
+        'owner-token',
+        weekStart,
+        board.timeZone,
+        'correlation',
+      ),
+    ).toEqual({ board: synced, etag: '"0"' })
+    const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
+    expect(url.pathname).toBe(`/api/v1/resource-bingo/${weekStart}/plan-sync`)
+    expect(JSON.parse(String(init.body))).toEqual({ timeZone: board.timeZone })
+    expect(init.headers).toMatchObject({
+      Authorization: 'Bearer owner-token',
+      'X-Correlation-Id': 'correlation',
+    })
   })
 })

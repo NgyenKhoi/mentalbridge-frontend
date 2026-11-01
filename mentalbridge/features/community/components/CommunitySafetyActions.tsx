@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, useRef, useState } from 'react'
+import Link from 'next/link'
 import LightSelect from '@/components/LightSelect'
 import {
   blockCommunityProfile,
@@ -137,6 +138,13 @@ export default function CommunitySafetyActions({
         </button>
         {menuOpen && (
           <div className="community-safety-menu">
+            {communityProfileId && (
+              <Link
+                href={`/community/messages?to=${encodeURIComponent(communityProfileId)}`}
+              >
+                Nhắn tin riêng
+              </Link>
+            )}
             <button type="button" disabled={busy} onClick={() => void hide()}>
               Ẩn nội dung này
             </button>

@@ -27,7 +27,6 @@ import { ConsultationBriefEditor } from './ConsultationBriefEditor'
 import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 import { AppointmentRatingDialog } from './AppointmentRatingDialog'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
-import { VideoConsultationPanel } from './VideoConsultationPanel'
 import styles from './AppointmentRequestPanel.module.css'
 
 function format(value: string, timezone: string) {
@@ -180,19 +179,48 @@ function canOpenChat(appointment: Appointment) {
   )
 }
 
+// Saved old/new link of a reschedule (consultation-specialist-policy-v2 §221–234).
+function replacementText(item: Appointment, appointments: Appointment[]) {
+  if (item.replacesAppointmentId) {
+    const previous = appointments.find(
+      (candidate) => candidate.id === item.replacesAppointmentId,
+    )
+    return previous
+      ? `Lịch thay thế cho ${format(previous.scheduledStartAt, previous.timezone)}`
+      : 'Lịch thay thế'
+  }
+  if (item.replacedByAppointmentId) {
+    const replacement = appointments.find(
+      (candidate) => candidate.id === item.replacedByAppointmentId,
+    )
+    return replacement
+      ? `Đã đổi sang ${format(replacement.scheduledStartAt, replacement.timezone)}`
+      : 'Đã được đổi sang lịch mới'
+  }
+  return null
+}
+
 function AppointmentCancellationInfo({
   appointment,
+  appointments,
 }: {
   appointment: Appointment
+  appointments: Appointment[]
 }) {
-  if (appointment.status !== 'CANCELLED') return null
+  const relation = replacementText(appointment, appointments)
+  if (appointment.status !== 'CANCELLED')
+    return relation ? (
+      <p className={styles.cancellationInfo}>{relation}</p>
+    ) : null
 
   const creditLabel =
-    appointment.cancellationCreditOutcome === 'RELEASED'
-      ? 'Đã được hoàn lại'
-      : appointment.cancellationCreditOutcome === 'FORFEITED'
-        ? 'Không được hoàn lại'
-        : 'Lượt tư vấn đã được cập nhật'
+    appointment.cancellationCreditOutcome === 'TRANSFERRED_TO_REPLACEMENT'
+      ? 'Lượt tư vấn đã chuyển sang lịch mới'
+      : appointment.cancellationCreditOutcome === 'RELEASED'
+        ? 'Đã được hoàn lại'
+        : appointment.cancellationCreditOutcome === 'FORFEITED'
+          ? 'Không được hoàn lại'
+          : 'Lượt tư vấn đã được cập nhật'
   const reasonLabel =
     appointment.cancellationReason === 'USER_CANCELLED'
       ? 'Lý do: bạn yêu cầu hủy'
@@ -207,6 +235,7 @@ function AppointmentCancellationInfo({
     >
       <h3>Thông tin hủy lịch</h3>
       <p>{creditLabel}</p>
+      {relation && <p>{relation}</p>}
       <p>{reasonLabel}</p>
       {appointment.history.length > 0 && (
         <details>
@@ -866,9 +895,37 @@ export default function AppointmentRequestPanel({
                 </div>
               </dl>
 
-              <AppointmentCancellationInfo appointment={focusedAppointment} />
+              <AppointmentCancellationInfo
+                appointment={focusedAppointment}
+                appointments={appointments}
+              />
 
               <div className={styles.detailActions}>
+                {focusedAppointment.modality === 'IN_APP_VIDEO' &&
+                  [
+                    'CONFIRMED',
+                    'IN_PROGRESS',
+                    'SESSION_ENDED',
+                    'COMPLETED',
+                  ].includes(focusedAppointment.status) && (
+                    <Link
+                      className={
+                        ['CONFIRMED', 'IN_PROGRESS'].includes(
+                          focusedAppointment.status,
+                        )
+                          ? styles.primaryAction
+                          : styles.secondaryAction
+                      }
+                      href={`/appointments/${encodeURIComponent(focusedAppointment.id)}/video`}
+                      aria-label={`${['CONFIRMED', 'IN_PROGRESS'].includes(focusedAppointment.status) ? 'Mở phòng tư vấn' : 'Xem phiên tư vấn video'} với ${focusedAppointment.specialistDisplayName}, buổi ${format(focusedAppointment.scheduledStartAt, focusedAppointment.timezone)}`}
+                    >
+                      {['CONFIRMED', 'IN_PROGRESS'].includes(
+                        focusedAppointment.status,
+                      )
+                        ? 'Mở phòng tư vấn'
+                        : 'Xem phiên tư vấn video'}
+                    </Link>
+                  )}
                 {canOpenChat(focusedAppointment) && (
                   <Link
                     className={styles.mintBtn}
@@ -880,17 +937,26 @@ export default function AppointmentRequestPanel({
                 {(focusedAppointment.status === 'REQUESTED' ||
                   focusedAppointment.status === 'CONFIRMED') && (
                   <>
+                    {/* aria-disabled, not disabled, so keyboard focus stays on the button during a cancel. */}
                     <button
                       type="button"
                       className={styles.secondaryAction}
-                      onClick={() => openBooking(focusedAppointment)}
+                      onClick={() =>
+                        submitting === null && openBooking(focusedAppointment)
+                      }
+                      aria-disabled={submitting !== null}
                     >
                       Đổi lịch
                     </button>
                     <button
                       type="button"
                       className={styles.dangerAction}
-                      onClick={() => void cancelAppointment(focusedAppointment)}
+                      onClick={() =>
+                        submitting === null &&
+                        void cancelAppointment(focusedAppointment)
+                      }
+                      aria-disabled={submitting !== null}
+                      aria-busy={submitting === focusedAppointment.id}
                     >
                       Hủy lịch
                     </button>
@@ -907,14 +973,6 @@ export default function AppointmentRequestPanel({
                     appointmentId={focusedAppointment.id}
                   />
                 </div>
-              )}
-
-              {focusedAppointment.modality === 'IN_APP_VIDEO' && (
-                <VideoConsultationPanel
-                  appointmentId={focusedAppointment.id}
-                  role="USER"
-                  onVerified={() => void loadAppointments()}
-                />
               )}
 
               {focusedAppointment.status === 'COMPLETED' && (
@@ -1569,7 +1627,10 @@ export default function AppointmentRequestPanel({
               </div>
             </dl>
             {detailAppointment && (
-              <AppointmentCancellationInfo appointment={detailAppointment} />
+              <AppointmentCancellationInfo
+                appointment={detailAppointment}
+                appointments={appointments}
+              />
             )}
             {detailView === 'details' && <p>{detailItem.guidance}</p>}
             {detailView === 'notes' &&

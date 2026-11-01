@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     // Retrieved design/prototype evidence includes generated third-party bundles,
     // not application source. Its behavior is checked by the prototype QA gate.
     '.stitch/**',
+    // Vendored Mầm rig generator; kept byte-identical so it reproduces the frozen asset hash.
+    'design-source/**',
     'out/**',
     'build/**',
     'coverage/**',

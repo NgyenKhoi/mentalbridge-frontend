@@ -15,21 +15,25 @@ data, scores, dates, saved Guide links, and safety state from the real contracts
 do not copy fixture identities, invented phone numbers, or unsupported actions.
 The owner request overrides older evidence that says to lock the entire shell.
 
-For any task that starts UI design or materially changes a user journey,
-screen composition, controls, responsive behavior, or motion, follow
-`../.codex/skills/mentalbridge-stitch-ui/SKILL.md`. Start from a written UX
-brief and a verified full-frame artifact (reuse an existing one when current),
-lock the shell/sidebar/header/tabs, edit only the declared content slot in the
-established Stitch project, inspect font and component rendering, validate a
-shell-integrated local interaction prototype, then translate the accepted
-direction into repository-owned components and tokens.
-Implementation must not begin before those prototype gates pass. Keep the
-Stitch output as design evidence; do not paste its standalone runtime or CDN
-dependencies into the production application.
+Stitch is **optional**, not a prerequisite for substantial UI work. The
+Product Owner has approved an **existing-UI fallback** for both Next.js and
+Expo, including MB-664 and the currently assigned no-Stitch Jira stories.
+When a story does not explicitly require fidelity to an owner-approved Stitch
+reference, implement directly from the current MentalBridge screen, real
+contracts, components and design tokens. Do **not** ask for another approval,
+create a Stitch project, generate Stitch HTML/screenshots or require a separate
+Stitch prototype. Before editing, verify the existing full-frame application
+baseline (reusing a current artifact or capturing the actual route), document
+the UX/state matrix and editable feature boundary, and validate navigation,
+responsive layouts, accessibility, privacy and interactions in the real app.
 
-Small copy, accessibility, and state fixes may go directly through the local
-implementation workflow when a new visual direction is unnecessary. Delivery
-must not depend on an external reviewer.
+If the owner explicitly requests an approved Stitch prototype, follow
+`../.codex/skills/mentalbridge-stitch-ui/SKILL.md` for that story, including
+the MB-667 fidelity rule above. On either path, preserve the existing
+shell/sidebar/header/tabs unless the owner-approved story changes them; never
+invent data/permissions or bypass code-owner and test gates. Small copy,
+accessibility and state fixes can follow the local implementation workflow
+without an external design review.
 
 ## User-facing copy
 

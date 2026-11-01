@@ -89,7 +89,10 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [initialCheckReturnTo, setInitialCheckReturnTo] = useState<
-    '/initial-check' | '/initial-check?purpose=reassessment' | null
+    | '/initial-check'
+    | '/initial-check?purpose=reassessment'
+    | '/initial-check?purpose=reassessment&returnTo=plan-review'
+    | null
   >(null)
   const displayNameRef = useRef<HTMLInputElement>(null)
   const dateOfBirthRef = useRef<HTMLInputElement>(null)
@@ -116,7 +119,9 @@ export default function ProfilePage() {
       )
       setInitialCheckReturnTo(
         candidate === '/initial-check' ||
-          candidate === '/initial-check?purpose=reassessment'
+          candidate === '/initial-check?purpose=reassessment' ||
+          candidate ===
+            '/initial-check?purpose=reassessment&returnTo=plan-review'
           ? candidate
           : null,
       )

@@ -6,13 +6,14 @@ import {
   ArrowRight,
   BookOpen,
   CalendarDays,
-  Check,
+  CircleCheck,
   FileText,
   History,
   Info,
   RotateCcw,
   ShieldCheck,
 } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { Disclosure } from '@/components/ui/Disclosure'
 import type {
@@ -36,13 +37,24 @@ const levelRanges: Record<ScreeningLevel, string> = {
   MODERATELY_SEVERE: '15–19',
   SEVERE: '20–27',
 }
+const completedAtFormat = new Intl.DateTimeFormat('vi-VN', {
+  hour: '2-digit',
+  minute: '2-digit',
+  day: 'numeric',
+  month: 'numeric',
+  year: 'numeric',
+})
 
-function EvidenceCard({
+// Plain-language band first (design rule 7); the instrument name and raw score live in the score details.
+function SeverityBand({
   evidence,
-}: Readonly<{ evidence: CombinedScreeningMeaning['evidence'][number] }>) {
+  heading: BandHeading,
+}: Readonly<{
+  evidence: CombinedScreeningMeaning['evidence'][number]
+  heading: 'h2' | 'h3'
+}>) {
   const isPhq9 = evidence.instrument === 'PHQ9'
   const maximum = isPhq9 ? 27 : 21
-  const instrumentLabel = isPhq9 ? 'PHQ-9' : 'GAD-7'
   const activeBand =
     evidence.screeningLevel === 'MINIMAL'
       ? 0
@@ -65,36 +77,16 @@ function EvidenceCard({
       aria-labelledby={`combined-${evidence.instrument}-title`}
     >
       <header>
-        <div className="combined-meaning-instrument">
-          <h3 id={`combined-${evidence.instrument}-title`}>
-            {instrumentLabel}
-          </h3>
-          <span>{isPhq9 ? 'Dấu hiệu trầm cảm' : 'Dấu hiệu lo âu'}</span>
-        </div>
-        <span className="combined-meaning-level">
+        <BandHeading id={`combined-${evidence.instrument}-title`}>
+          {isPhq9 ? 'Dấu hiệu trầm cảm' : 'Dấu hiệu lo âu'}
+        </BandHeading>
+        <div className="combined-meaning-level">
           <span className="combined-meaning-level-dot" aria-hidden="true" />
           Mức {levelLabels[evidence.screeningLevel].toLowerCase()}
-        </span>
+        </div>
       </header>
-      <div className="combined-meaning-score-body">
-        <p className="combined-meaning-score-value">
-          <strong>{evidence.totalScore}</strong>
-          <span>/{maximum} điểm</span>
-        </p>
-        <p className="combined-meaning-score-description">
-          {instrumentLabel} ghi nhận mức{' '}
-          {levelLabels[evidence.screeningLevel].toLowerCase()} trong 14 ngày
-          trước lần sàng lọc này.
-        </p>
-      </div>
-      <progress
-        className="combined-meaning-native-progress"
-        value={evidence.totalScore}
-        max={maximum}
-        aria-label={`${instrumentLabel}: ${evidence.totalScore} trên ${maximum} điểm, mức ${levelLabels[evidence.screeningLevel]}`}
-      />
-      <div className="combined-meaning-scale" aria-hidden="true">
-        <div className="combined-meaning-scale-bars">
+      <div className="combined-meaning-scale">
+        <div className="combined-meaning-scale-bars" aria-hidden="true">
           {bands.map(([label], index) => (
             <span
               className={index === activeBand ? 'is-active' : undefined}
@@ -102,16 +94,17 @@ function EvidenceCard({
             />
           ))}
         </div>
-        <div className="combined-meaning-scale-labels">
+        <ol className="combined-meaning-scale-labels" aria-label="Các mức">
           {bands.map(([label, range], index) => (
-            <span
+            <li
               className={index === activeBand ? 'is-active' : undefined}
+              aria-current={index === activeBand ? 'true' : undefined}
               key={label}
             >
               {label} <small>({range})</small>
-            </span>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
     </section>
   )
@@ -124,6 +117,7 @@ export function CombinedMeaningCard({
   showHistoryNavigation = true,
   onRestart,
   restarting = false,
+  afterActions,
 }: Readonly<{
   meaning: CombinedScreeningMeaning
   historical?: boolean
@@ -131,10 +125,13 @@ export function CombinedMeaningCard({
   showHistoryNavigation?: boolean
   onRestart?: () => void
   restarting?: boolean
+  /** Rendered right under the actions, for example a restart confirmation. */
+  afterActions?: ReactNode
 }>) {
   const Heading = headingLevel
   const occurredAt = meaning.episodeCompletedAt ?? meaning.evaluatedAt
   const isSafety = meaning.presentationPriority === 'SAFETY'
+  const SubHeading = isSafety || headingLevel === 'h2' ? 'h3' : 'h2'
   const professional = meaning.presentationPriority === 'PROFESSIONAL_SUPPORT'
   const urgentProfessional = meaning.evidence.some(
     (item) =>
@@ -147,8 +144,10 @@ export function CombinedMeaningCard({
       : meaning.episodePurpose === 'INITIAL_CHECK'
         ? 'Kiểm tra ban đầu'
         : 'Kết quả sàng lọc'
+  // A current reassessment continues only to its own saved Guide, never the initial-check one.
   const continuesToGuide =
-    !historical && meaning.episodePurpose === 'INITIAL_CHECK'
+    !historical &&
+    (meaning.episodePurpose === 'INITIAL_CHECK' || !!meaning.supportGuideId)
   const currentGuideHref = meaning.supportGuideId
     ? `/support-guides/${meaning.supportGuideId}`
     : '/support-guides'
@@ -158,7 +157,8 @@ export function CombinedMeaningCard({
 
   return (
     <article
-      className={`combined-meaning-card priority-${meaning.presentationPriority.toLowerCase()}`}
+      data-page-motion="off"
+      className={`combined-meaning priority-${meaning.presentationPriority.toLowerCase()}`}
       aria-labelledby="combined-meaning-title"
     >
       {historical && showHistoryNavigation && (
@@ -167,7 +167,6 @@ export function CombinedMeaningCard({
             <ArrowLeft aria-hidden="true" />
             Quay lại lịch sử sàng lọc
           </Link>
-          <span>Bản ghi lưu trữ · Chỉ đọc</span>
         </div>
       )}
 
@@ -176,15 +175,10 @@ export function CombinedMeaningCard({
           className="combined-meaning-safety"
           aria-labelledby="combined-safety-title"
         >
-          <span className="combined-meaning-safety-icon">
+          <div className="combined-meaning-safety-icon">
             <ShieldCheck aria-hidden="true" />
-          </span>
+          </div>
           <div>
-            <span className="combined-meaning-kicker">
-              {historical
-                ? 'Lượt này có thông tin an toàn cần ưu tiên'
-                : 'Ưu tiên an toàn ngay lúc này'}
-            </span>
             <Heading id="combined-safety-title">
               {historical
                 ? 'Thông tin an toàn của lần sàng lọc này'
@@ -197,6 +191,10 @@ export function CombinedMeaningCard({
               </p>
             )}
             <p>{meaning.safetyGuidance}</p>
+            <p>
+              MentalBridge không cung cấp ứng cứu khẩn cấp, không giám sát 24/7
+              và không tự động liên hệ người khác.
+            </p>
             <Link
               className="combined-meaning-primary"
               href={
@@ -214,70 +212,82 @@ export function CombinedMeaningCard({
         </section>
       )}
 
-      <div className="combined-meaning-scores" aria-label="Hai kết quả riêng">
-        {meaning.evidence.map((item) => (
-          <EvidenceCard evidence={item} key={item.assessmentId} />
-        ))}
-      </div>
-
       <section className="combined-meaning-summary">
         {historical && (
-          <div className="combined-meaning-context">
-            <div>
-              <span className="combined-meaning-archive-label">
-                Bản ghi lưu trữ
-              </span>
-              <time dateTime={occurredAt}>
-                <CalendarDays aria-hidden="true" />
-                {new Date(occurredAt).toLocaleString('vi-VN')}
-              </time>
-              <span>{purposeLabel}</span>
-            </div>
+          <p className="combined-meaning-context">
             <span>
-              <Check aria-hidden="true" />
-              {guideHref ? 'Có gợi ý đã lưu' : 'Kết quả đã lưu'}
+              <CalendarDays aria-hidden="true" />
+              <span>{purposeLabel}</span>
+              <span aria-hidden="true">·</span>
+              <time dateTime={occurredAt}>
+                {completedAtFormat.format(new Date(occurredAt))}
+              </time>
             </span>
-          </div>
+          </p>
+        )}
+        {!historical && (
+          <p className="combined-meaning-context combined-meaning-done">
+            <span>
+              <CircleCheck aria-hidden="true" />
+              Đã lưu kết quả {purposeLabel.toLowerCase()}
+            </span>
+          </p>
         )}
         {!guideHref && !continuesToGuide && (
           <aside className="combined-meaning-guide-status" role="note">
             <Info aria-hidden="true" />
             <p>
-              <strong>Lần đánh giá này chưa có gợi ý đã lưu.</strong> Bạn có thể
+              <strong>Lần sàng lọc này chưa có gợi ý đã lưu.</strong> Bạn có thể
               xem các lựa chọn hỗ trợ hiện tại bên dưới.
             </p>
           </aside>
         )}
-        <header className="combined-meaning-header">
-          <span className="combined-meaning-kicker">
-            <Check aria-hidden="true" />
-            {isSafety
-              ? 'Kết quả của hai bài sàng lọc'
-              : 'Ý nghĩa kết quả tổng hợp'}
-          </span>
-          {isSafety ? (
-            <h2 id="combined-meaning-title">
-              Kết quả đã lưu của lần sàng lọc này
-            </h2>
-          ) : (
-            <Heading id="combined-meaning-title">
-              {meaning.baseMeaning.text}
-            </Heading>
-          )}
-          {!isSafety && <p>{meaning.nextStep.text}</p>}
+        {isSafety ? (
+          <h2 id="combined-meaning-title" className="combined-meaning-title">
+            {historical
+              ? 'Kết quả đã lưu của lần sàng lọc này'
+              : 'Kết quả hai bài sàng lọc của bạn'}
+          </h2>
+        ) : (
+          <Heading
+            id="combined-meaning-title"
+            className="combined-meaning-title"
+          >
+            {meaning.baseMeaning.text}
+          </Heading>
+        )}
+        <div className="combined-meaning-result">
+          <div
+            className="combined-meaning-scores"
+            role="group"
+            aria-label="Hai kết quả riêng"
+          >
+            {meaning.evidence.map((item) => (
+              <SeverityBand
+                evidence={item}
+                heading={SubHeading}
+                key={item.assessmentId}
+              />
+            ))}
+          </div>
           <p className="combined-meaning-disclaimer">
             <Info aria-hidden="true" />
             {historical
               ? 'Phản ánh câu trả lời trong 14 ngày trước thời điểm làm bài, không phải chẩn đoán y khoa.'
               : 'Dựa trên câu trả lời trong 14 ngày qua, không phải chẩn đoán y khoa.'}
           </p>
-        </header>
-        {!isSafety && professional && (
-          <h2 className="combined-meaning-next-title">
-            {urgentProfessional
-              ? 'Nên sớm trao đổi với chuyên gia'
-              : 'Trao đổi với chuyên gia khi bạn sẵn sàng'}
-          </h2>
+        </div>
+        {!isSafety && (
+          <div className="combined-meaning-next">
+            {professional && (
+              <SubHeading className="combined-meaning-next-title">
+                {urgentProfessional
+                  ? 'Nên sớm trao đổi với chuyên gia'
+                  : 'Trao đổi với chuyên gia khi bạn sẵn sàng'}
+              </SubHeading>
+            )}
+            <p>{meaning.nextStep.text}</p>
+          </div>
         )}
         <div className="combined-meaning-actions">
           {continuesToGuide && (
@@ -295,9 +305,9 @@ export function CombinedMeaningCard({
           {!isSafety && professional && (
             <Link
               className={
-                historical
-                  ? 'combined-meaning-primary'
-                  : 'combined-meaning-secondary'
+                continuesToGuide
+                  ? 'combined-meaning-secondary'
+                  : 'combined-meaning-primary'
               }
               href="/specialists"
             >
@@ -319,30 +329,41 @@ export function CombinedMeaningCard({
             </Link>
           )}
           {!guideHref && !isSafety && !continuesToGuide && (
-            <Link className="combined-meaning-secondary" href="/resources">
+            <Link
+              className={
+                professional
+                  ? 'combined-meaning-secondary'
+                  : 'combined-meaning-primary'
+              }
+              href="/resources"
+            >
               <BookOpen aria-hidden="true" />
               Xem tài nguyên hiện tại
             </Link>
           )}
-          {!historical && (
-            <Link className="combined-meaning-secondary" href="/assessments">
+        </div>
+        {!historical && (
+          <div className="combined-meaning-utility">
+            <Link className="combined-meaning-quiet" href="/assessments">
               <History aria-hidden="true" />
               Xem lịch sử sàng lọc
             </Link>
-          )}
-          {!historical && onRestart && (
-            <button
-              className="combined-meaning-secondary"
-              type="button"
-              onClick={onRestart}
-              disabled={restarting}
-              aria-busy={restarting}
-            >
-              <RotateCcw aria-hidden="true" />
-              {restarting ? 'Đang chuẩn bị…' : 'Làm lại bài sàng lọc'}
-            </button>
-          )}
-        </div>
+            {onRestart && (
+              <button
+                className="combined-meaning-quiet"
+                type="button"
+                onClick={onRestart}
+                disabled={restarting}
+                aria-busy={restarting}
+                aria-expanded={Boolean(afterActions)}
+              >
+                <RotateCcw aria-hidden="true" />
+                {restarting ? 'Đang chuẩn bị…' : 'Làm lại bài sàng lọc'}
+              </button>
+            )}
+          </div>
+        )}
+        {afterActions}
         <div className="combined-meaning-disclosures">
           <Disclosure
             summaryLabel={
@@ -390,25 +411,10 @@ export function CombinedMeaningCard({
               ))}
             </div>
             <p>{meaning.disclaimer}</p>
-            <Disclosure
-              summary="Thông tin kỹ thuật"
-              summaryLabel="Thông tin kỹ thuật và nguồn dữ liệu"
-            >
-              <dl className="combined-meaning-provenance">
-                <div>
-                  <dt>Chính sách nguồn</dt>
-                  <dd>{meaning.sourcePolicyVersion}</dd>
-                </div>
-                <div>
-                  <dt>Phiên bản diễn giải</dt>
-                  <dd>{meaning.contentVersion}</dd>
-                </div>
-              </dl>
-            </Disclosure>
           </Disclosure>
         </div>
       </section>
-      {!isSafety && (
+      {!isSafety && !professional && (
         <aside className="combined-meaning-reassurance">
           <ShieldCheck aria-hidden="true" />
           <p>

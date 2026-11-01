@@ -14,11 +14,13 @@ import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import type { GuidedJourney } from '@/features/assessment/api/care-contract'
 import { getCurrentReassessmentSummary } from '@/features/assessment/api/browser-care'
 import { getGuidedJourney } from '@/features/support-guide/api/browser-support-guide'
+import LockedPlanPreview from '@/features/support-plan-access/LockedPlanPreview'
+import { rememberUpgradeIntent } from '@/features/support-plan-access/plan-access'
+import { usePlanAccess } from '@/features/support-plan-access/use-plan-access'
 import {
   activateNativeSupportPlan,
   changeNativeActionOccurrenceState,
   changeNativeSupportPlanStatus,
-  continueSupportPlanCycle,
   getCurrentNativeSupportPlanDraft,
   getCurrentSupportPlanActions,
   getNativeSupportPlanEvaluationSource,
@@ -45,6 +47,7 @@ import {
 } from '../api/browser-support-plan'
 import type {
   ActionOccurrence,
+  AdaptiveReviewConfirmation,
   NativeSupportPlanReplacementReview,
   ReplaceSupportPlanChoicesRequest,
   SupportPlan,
@@ -53,27 +56,35 @@ import type {
   SupportPlanV3,
   UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
-import SupportPlanCompanionShell from '../components/SupportPlanCompanionShell'
-import type { SupportPlanGuidedNavigationTarget } from '../components/SupportPlanCompanionPanel'
+import { dispatchMamSaved } from '@/features/mam/mam-saved'
+import { useMamSuppress } from '@/features/mam/mam-suppression'
+import { useMamPageTarget } from '@/features/mam/use-mam-target'
 import SupportPlanPersonalization from '../components/SupportPlanPersonalization'
 import SupportPlanScheduleEditor from '../components/SupportPlanScheduleEditor'
 import AdapterChoices from './AdapterChoices'
 import AdjustPanel from './AdjustPanel'
+import CycleStrip from './CycleStrip'
 import { autoProposalKey, shouldAutoPropose } from './auto-proposal'
 import PlanHistory from './PlanHistory'
 import PlanPanel from './PlanPanel'
 import ProgressPanel from './ProgressPanel'
+import {
+  supportPlanStartAnswer,
+  supportPlanTabAnswer,
+  useMamActionExplain,
+} from './mam-support-plan'
 import ProposalPreview from './ProposalPreview'
-import TodayPanel, { type Helpfulness } from './TodayPanel'
+import TodayPanel, { type Barrier, type Helpfulness } from './TodayPanel'
 import { useCompanion } from './use-companion'
 import {
   cycleLine,
+  dayLabel,
   joinOccurrences,
   localDateIn,
   mergeOccurrences,
   msUntilNextLocalDay,
+  occurrenceKey,
   occurrenceWindow,
-  planActions,
   planTimezone,
   selectTodayFocus,
   summarizeProgress,
@@ -157,6 +168,8 @@ async function evaluationSource(preferReassessment: boolean) {
   }
 }
 
+const NO_OCCURRENCES: ActionOccurrence[] = []
+
 async function optionalPlan(request: Promise<SupportPlanV3>) {
   try {
     return await request
@@ -183,11 +196,8 @@ function code(error: unknown) {
 
 function proposalFailure(error: unknown): Proposal {
   if (!(error instanceof ApiError)) return 'failed'
-  if (
-    error.status === 403 ||
-    error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED'
-  )
-    return 'free'
+  // Only Care's paid-creation denial means FREE; any other 403 is a failure.
+  if (error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED') return 'free'
   if (code(error).includes('SAFETY')) return 'safety'
   if (
     error.status === 404 ||
@@ -261,8 +271,18 @@ const discardFirstDraftCopy = {
 export default function SupportPlanWorkspace({
   returnOrigin,
   invalidOrigin = false,
-}: Readonly<{ returnOrigin?: ReturnOrigin; invalidOrigin?: boolean }>) {
+  openReview: openReviewOnLoad = false,
+  mamEnabled = false,
+}: Readonly<{
+  returnOrigin?: ReturnOrigin
+  invalidOrigin?: boolean
+  /** Returning from a reassessment the plan review asked for. */
+  openReview?: boolean
+  /** Server-resolved MAM_WEB_ENABLED: the global Mầm owns the explanations. */
+  mamEnabled?: boolean
+}>) {
   const { confirm } = useFeedback()
+  const { access, retry: retryAccess } = usePlanAccess()
   const [loaded, setLoaded] = useState<Loaded>()
   const [loadFailed, setLoadFailed] = useState(false)
   const [proposal, setProposal] = useState<Proposal>('idle')
@@ -279,7 +299,8 @@ export default function SupportPlanWorkspace({
   const [occurrences, setOccurrences] = useState<ActionOccurrence[]>([])
   const [occurrencesLoading, setOccurrencesLoading] = useState(false)
   const [occurrencesFailed, setOccurrencesFailed] = useState(false)
-  const [occurrencesReady, setOccurrencesReady] = useState(false)
+  // Rows count as known only for the plan and window they were read for.
+  const [occurrencesReadyKey, setOccurrencesReadyKey] = useState('')
   const occurrenceRequest = useRef(0)
   const [rowBusy, setRowBusy] = useState<Record<string, boolean>>({})
   const rowLocks = useRef(new Set<string>())
@@ -311,13 +332,22 @@ export default function SupportPlanWorkspace({
   const keys = useRef<{
     activation?: string
     replacement?: string
-    continuation?: string
   }>({})
   // v1 slot choices of an older resource-based draft (Care accepts choices only on drafts).
   const [adapterDraft, setAdapterDraft] = useState<SupportPlan>()
   const [choicesDirty, setChoicesDirty] = useState(false)
   const dirty = scheduleDirty || personalizationDirty || choicesDirty
   const companion = useCompanion(dirty)
+  const mamExplain = useMamActionExplain()
+  useMamSuppress(mamEnabled && dirty)
+  // A late save reply must not play feedback once this screen is gone.
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   useUnsavedChangesGuard(
     dirty,
     'Các thay đổi lịch hoặc tùy chọn chưa lưu sẽ không được giữ khi rời trang.',
@@ -331,6 +361,8 @@ export default function SupportPlanWorkspace({
     : 'Asia/Ho_Chi_Minh'
   const [clock, setClock] = useState(() => Date.now())
   const today = localDateIn(timezone, new Date(clock))
+  const windowKey = current ? occurrenceKey(current, today) : ''
+  const occurrencesReady = windowKey !== '' && occurrencesReadyKey === windowKey
 
   const reload = useCallback(async () => {
     const value = await readWorkspace()
@@ -423,7 +455,7 @@ export default function SupportPlanWorkspace({
         })
         setAdapterEngagement(engagement)
         setOccurrences((previous) => mergeOccurrences(previous, rows))
-        setOccurrencesReady(true)
+        setOccurrencesReadyKey(occurrenceKey(current, today))
       }
     } catch {
       if (requestId === occurrenceRequest.current) setOccurrencesFailed(true)
@@ -431,6 +463,12 @@ export default function SupportPlanWorkspace({
       if (requestId === occurrenceRequest.current) setOccurrencesLoading(false)
     }
   }, [current, today])
+
+  // A save that resolves after midnight or a plan swap must reload the new window, not its own.
+  const latestLoad = useRef(loadOccurrences)
+  useEffect(() => {
+    latestLoad.current = loadOccurrences
+  }, [loadOccurrences])
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadOccurrences(), 0)
@@ -545,7 +583,8 @@ export default function SupportPlanWorkspace({
   )
 
   useEffect(() => {
-    if (!loaded || proposalStarted.current) return
+    // Propose only with confirmed paid access: FREE never sees "preparing your plan".
+    if (!loaded || proposalStarted.current || access.status !== 'paid') return
     if (
       !shouldAutoPropose({
         current: loaded.current,
@@ -561,7 +600,7 @@ export default function SupportPlanWorkspace({
       0,
     )
     return () => window.clearTimeout(timer)
-  }, [loaded, propose])
+  }, [loaded, propose, access.status])
 
   // A command reply never moves a row back past a newer version already shown.
   function updateOccurrence(next: ActionOccurrence) {
@@ -584,14 +623,42 @@ export default function SupportPlanWorkspace({
     rowLocks.current.add(id)
     setRowBusy((values) => ({ ...values, [id]: true }))
     setRowMessages((values) => ({ ...values, [id]: '' }))
+    // Rows that follow this one, then precede it: where focus goes if the row is removed.
+    const rowNode = document.getElementById(`activity-${id}`)
+    const siblings = (
+      step: 'nextElementSibling' | 'previousElementSibling',
+    ) => {
+      const found: string[] = []
+      for (let node = rowNode?.[step]; node; node = node[step])
+        if (node.id.startsWith('activity-')) found.push(node.id)
+      return found
+    }
+    const fallbackIds = [
+      ...siblings('nextElementSibling'),
+      ...siblings('previousElementSibling'),
+    ]
     try {
       const note = await run()
       if (note) setAnnouncement(note)
-      // The pressed control often disappears with its row state; keep focus on the row.
+      // The pressed control leaves with its row state (after its exit motion); keep focus on the row.
       window.requestAnimationFrame(() => {
         const active = document.activeElement
-        if (!active || active === document.body || !active.isConnected)
-          document.getElementById(`activity-${id}`)?.focus()
+        const row = document.getElementById(`activity-${id}`)
+        if (
+          !active ||
+          active === document.body ||
+          !active.isConnected ||
+          row?.contains(active)
+        )
+          // An Earlier row can leave an empty review-due day: its Today tab is always available.
+          (
+            row ??
+            fallbackIds
+              .map((value) => document.getElementById(value))
+              .find(Boolean) ??
+            document.getElementById('mbw-day-title') ??
+            document.getElementById('tab-today')
+          )?.focus()
       })
     } catch (error) {
       setRowMessages((values) => ({ ...values, [id]: errorMessage(error) }))
@@ -640,8 +707,11 @@ export default function SupportPlanWorkspace({
             occurrence.version,
             state,
           )
-        await loadOccurrences()
+        await latestLoad.current()
       }
+      // Care has confirmed the change; a failed or pending save never gets here.
+      if (mamEnabled && mounted.current && state === 'COMPLETED')
+        dispatchMamSaved()
       const title = item.action.presentation.title
       return state === 'COMPLETED'
         ? `Đã ghi nhận: ${title}.`
@@ -651,7 +721,39 @@ export default function SupportPlanWorkspace({
     })
   }
 
-  function rate(item: PlannedOccurrence, helpfulness: Helpfulness) {
+  /** Optional coded reason for a skipped native activity; reuse only when the user ticks it. */
+  function skipReason(
+    item: PlannedOccurrence,
+    barrierCode: Barrier,
+    reuse: boolean,
+  ) {
+    return rowCommand(item, async () => {
+      const { occurrence } = item
+      if (occurrence.representationMode !== 'NATIVE_V3')
+        throw new Error('Native activity required')
+      const result = await replaceNativeOccurrenceEngagement(
+        occurrence.occurrenceId,
+        occurrence.version,
+        {
+          state: 'SKIPPED',
+          hidden: occurrence.hidden ?? false,
+          helpfulness: null,
+          barrierCode,
+          reflection: occurrence.reflection ?? null,
+          summaryReuseApproved:
+            reuse || (occurrence.summaryReuseApproved ?? false),
+        },
+      )
+      updateOccurrence(result)
+      return 'Cảm ơn bạn. Câu trả lời này chỉ để bạn nhìn lại sau.'
+    })
+  }
+
+  function rate(
+    item: PlannedOccurrence,
+    helpfulness: Helpfulness,
+    reuse = false,
+  ) {
     return rowCommand(item, async () => {
       const { occurrence } = item
       if (occurrence.representationMode === 'NATIVE_V3') {
@@ -664,7 +766,8 @@ export default function SupportPlanWorkspace({
             helpfulness,
             barrierCode: null,
             reflection: occurrence.reflection ?? null,
-            summaryReuseApproved: occurrence.summaryReuseApproved ?? false,
+            summaryReuseApproved:
+              reuse || (occurrence.summaryReuseApproved ?? false),
           },
         )
         updateOccurrence(result)
@@ -684,7 +787,7 @@ export default function SupportPlanWorkspace({
             summaryReuseApproved: legacy.summaryReuseApproved,
           },
         )
-        await loadOccurrences()
+        await latestLoad.current()
       }
       return 'Cảm ơn bạn. Lựa chọn này giúp bạn nhìn lại sau.'
     })
@@ -909,20 +1012,19 @@ export default function SupportPlanWorkspace({
     })
   }
 
-  async function continueCycle() {
-    if (!current) return
-    await command(async () => {
-      keys.current.continuation ??= crypto.randomUUID()
-      const next = await continueSupportPlanCycle(
-        current.supportPlanId,
-        current.version,
-        keys.current.continuation,
-      )
-      keys.current.continuation = undefined
-      setLoaded((value) => value && { ...value, current: next })
-      setTab('today')
-      setAnnouncement('Đã bắt đầu thêm 14 ngày với nhịp hiện tại.')
-    })
+  /** Care applied one reviewed option; show the authoritative plan on Today. */
+  async function reviewApplied(result: AdaptiveReviewConfirmation) {
+    // The review itself shows the keep outcome; nothing changed to reload.
+    if (result.result === 'KEPT') return
+    await reload()
+    // A prepared draft is compared in the review itself; stay on Adjust.
+    if (result.result === 'DRAFT_PREPARED') return
+    setTab('today')
+    setAnnouncement(
+      result.result === 'CYCLE_CONTINUED'
+        ? 'Đã bắt đầu thêm 14 ngày với nhịp hiện tại.'
+        : 'Đã cập nhật kế hoạch theo lựa chọn của bạn.',
+    )
   }
 
   async function proposeReplacement() {
@@ -1096,11 +1198,50 @@ export default function SupportPlanWorkspace({
     )
   }
 
-  const focus = current
-    ? selectTodayFocus(current, occurrences, today)
-    : undefined
+  const reviewRequested = useRef(openReviewOnLoad)
+  const hasCurrent = Boolean(current)
+  useEffect(() => {
+    if (!reviewRequested.current || !hasCurrent) return
+    const timer = window.setTimeout(() => {
+      reviewRequested.current = false
+      openReview()
+    }, 0)
+    return () => window.clearTimeout(timer)
+    // openReview only reads state setters and the tab helper.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasCurrent])
+
+  const known = occurrencesReady ? occurrences : NO_OCCURRENCES
+  const focus = current ? selectTodayFocus(current, known, today) : undefined
+  // The page answer is about this tab and this focus; either change retires it.
+  const pageIdentity = `${tab}:${
+    focus?.kind === 'OCCURRENCE'
+      ? focus.occurrence.occurrenceId
+      : (focus?.kind ?? '')
+  }`
+  useMamPageTarget(
+    mamEnabled && current ? { kind: 'support-plan.page' } : null,
+    mamEnabled
+      ? async (intent, { isRegistered }) =>
+          intent === 'EXPLAIN'
+            ? supportPlanTabAnswer(tab)
+            : focus
+              ? supportPlanStartAnswer(
+                  focus,
+                  tab,
+                  isRegistered,
+                  occurrencesFailed
+                    ? 'failed'
+                    : occurrencesReady
+                      ? 'ready'
+                      : 'loading',
+                )
+              : null
+      : undefined,
+    pageIdentity,
+  )
   const engageable = new Set(
-    occurrences
+    known
       .filter(
         (item) =>
           item.representationMode === 'NATIVE_V3' ||
@@ -1112,19 +1253,22 @@ export default function SupportPlanWorkspace({
     current && occurrencesReady
       ? summarizeProgress(
           current,
-          occurrences,
+          known,
           occurrenceWindow(current, today),
           today,
         )
       : undefined
-  const companionAction =
-    tab === 'today' && focus?.kind === 'OCCURRENCE'
-      ? focus.action
-      : current
-        ? planActions(current).find((action) => action.status !== 'ENDED')
-        : undefined
   const planForCopy = current ?? draft
-  const safetyFirst = planForCopy?.safety.status === 'POSITIVE_SAFETY_SCREEN'
+  const safetyFirst = planForCopy?.safety?.status === 'POSITIVE_SAFETY_SCREEN'
+  // Inline safety support is a no-interrupt zone, with or without a plan: no
+  // visible character on a safety path.
+  useMamSuppress(
+    mamEnabled &&
+      (safetyFirst ||
+        proposal === 'safety' ||
+        loaded?.journey?.nextAction === 'REVIEW_SAFETY_SUPPORT'),
+    'hide',
+  )
 
   function header(subtitle?: string) {
     return (
@@ -1141,9 +1285,25 @@ export default function SupportPlanWorkspace({
       title="Nếu bạn đang thấy không an toàn"
       primary={{ label: 'Xem số hỗ trợ gần bạn', href: '/safety-directory' }}
     >
-      <p>{planForCopy?.safety.guidance}</p>
+      {planForCopy?.safety?.guidance && <p>{planForCopy.safety.guidance}</p>}
     </WorkspaceMessage>
   )
+
+  const expiredNotice = access.status === 'expired' &&
+    !safetyFirst &&
+    loaded?.journey?.nextAction !== 'REVIEW_SAFETY_SUPPORT' && (
+      <p className="mbw-quiet">
+        Gói của bạn đã hết hạn. Kế hoạch này vẫn mở được; lập kế hoạch mới cần{' '}
+        <Link
+          className="lpp-inline-link"
+          href="/subscription"
+          onClick={() => rememberUpgradeIntent()}
+        >
+          gia hạn Plus
+        </Link>
+        .
+      </p>
+    )
 
   const live = (
     <p className="mbw-visually-hidden" role="status" aria-live="polite">
@@ -1153,7 +1313,7 @@ export default function SupportPlanWorkspace({
 
   if (loadFailed)
     return (
-      <div className="mbw-page">
+      <div className="mbw-page" data-page-motion="off">
         {header()}
         <WorkspaceMessage
           alert
@@ -1178,7 +1338,7 @@ export default function SupportPlanWorkspace({
 
   if (!loaded)
     return (
-      <div className="mbw-page">
+      <div className="mbw-page" data-page-motion="off">
         {header()}
         <WorkspaceLoading label="Đang tải kế hoạch…" />
       </div>
@@ -1187,8 +1347,15 @@ export default function SupportPlanWorkspace({
   // No current plan: either the proposal preview, or one honest next step.
   if (!current) {
     const hadPlan = (loaded.history?.items.length ?? 0) > 0
+    const guideId = loaded.journey?.supportGuideId
+    // The one quiet free continuation, from Care's facts only.
+    const freeNext = guideId
+      ? { label: 'Xem lại gợi ý hỗ trợ', href: `/support-guides/${guideId}` }
+      : loaded.journey?.stage === 'ASSESSMENT_REQUIRED'
+        ? { label: 'Làm bài kiểm tra ngắn', href: '/initial-check' }
+        : { label: 'Xem gợi ý hỗ trợ', href: '/support-guides' }
     return (
-      <div className="mbw-page">
+      <div className="mbw-page" data-page-motion="off">
         {header(draft ? 'Xem trước rồi bắt đầu khi bạn sẵn sàng.' : undefined)}
         {live}
         {message && (
@@ -1197,6 +1364,7 @@ export default function SupportPlanWorkspace({
           </p>
         )}
         {safetyCard}
+        {draft && expiredNotice}
         {draft ? (
           <ProposalPreview
             draft={draft}
@@ -1264,17 +1432,26 @@ export default function SupportPlanWorkspace({
           >
             <p>Kế hoạch có thể đợi. Hãy liên hệ người hỗ trợ trước.</p>
           </WorkspaceMessage>
-        ) : proposal === 'free' ? (
+        ) : !hadPlan &&
+          (proposal === 'free' ||
+            access.status === 'free' ||
+            access.status === 'expired') ? (
+          <LockedPlanPreview
+            expired={access.status === 'expired'}
+            pendingPayment={access.pendingPayment}
+            next={freeNext}
+          />
+        ) : !hadPlan && access.status === 'unavailable' ? (
           <WorkspaceMessage
-            title="Kế hoạch theo ngày có trong gói Plus và Premium"
-            primary={{
-              label: 'Xem gợi ý hỗ trợ của bạn',
-              href: '/support-guides',
-            }}
-            secondary={{ label: 'Xem các gói', href: '/subscription' }}
+            alert
+            title="Chưa kiểm tra được gói của bạn"
+            primary={{ label: 'Thử lại', onClick: () => void retryAccess() }}
+            secondary={freeNext}
           >
-            <p>Gợi ý hỗ trợ sau bài kiểm tra vẫn dùng được với gói hiện tại.</p>
+            <p>Kết nối vừa bị gián đoạn. Gợi ý hỗ trợ vẫn mở được.</p>
           </WorkspaceMessage>
+        ) : !hadPlan && access.status === 'loading' ? (
+          <WorkspaceLoading label="Đang kiểm tra gói của bạn…" />
         ) : proposal === 'no-screening' ||
           loaded.journey?.stage === 'ASSESSMENT_REQUIRED' ? (
           <WorkspaceMessage
@@ -1317,14 +1494,32 @@ export default function SupportPlanWorkspace({
               label: 'Làm bài kiểm tra lại',
               href: '/initial-check?purpose=reassessment',
             }}
-            secondary={{
-              label: 'Xem đề xuất mới',
-              onClick: () =>
-                void propose({
-                  deterministic: false,
-                  preferReassessment: true,
-                }),
-            }}
+            secondary={
+              access.status === 'paid' && proposal !== 'free'
+                ? {
+                    label: 'Xem đề xuất mới',
+                    onClick: () =>
+                      void propose({
+                        deterministic: false,
+                        preferReassessment: true,
+                      }),
+                  }
+                : access.status === 'free' ||
+                    access.status === 'expired' ||
+                    proposal === 'free'
+                  ? {
+                      label: access.pendingPayment
+                        ? 'Xem trạng thái thanh toán'
+                        : access.status === 'expired'
+                          ? 'Gia hạn Plus'
+                          : 'Nâng cấp Plus',
+                      href: '/subscription',
+                      onNavigate: () => rememberUpgradeIntent(),
+                    }
+                  : access.status === 'unavailable'
+                    ? { label: 'Thử lại', onClick: () => void retryAccess() }
+                    : undefined
+            }
           >
             <p>Kiểm tra lại giúp đề xuất mới khớp với bạn lúc này.</p>
             <PlanHistory initial={loaded.history} />
@@ -1347,13 +1542,30 @@ export default function SupportPlanWorkspace({
   }
 
   return (
-    <div className="mbw-page">
-      {header(
-        cycleLine(current.cycle) ??
-          (current.status === 'PAUSED'
-            ? 'Đang tạm dừng'
-            : 'Đang theo kế hoạch'),
-      )}
+    <div className="mbw-page" data-page-motion="off">
+      <header className="mbw-header mbw-header-cycle">
+        <div className="mbw-header-main">
+          <h1>Kế hoạch của bạn</h1>
+          <p className="mbw-lead">
+            {cycleLine(current.cycle) ??
+              (current.status === 'PAUSED'
+                ? 'Đang tạm dừng'
+                : 'Đang theo kế hoạch')}
+          </p>
+          <CycleStrip
+            plan={current}
+            occurrences={known}
+            today={today}
+            known={occurrencesReady}
+            still={safetyFirst}
+          />
+        </div>
+        {current.cycle?.reviewDueOn && dayLabel(current.cycle.reviewDueOn) && (
+          <div className="mbw-review-date">
+            Xem lại vào <strong>{dayLabel(current.cycle.reviewDueOn)}</strong>
+          </div>
+        )}
+      </header>
       {live}
       {(invalidOrigin || staleOrigin) && (
         <p className="mbw-inline-alert" role="status">
@@ -1376,7 +1588,7 @@ export default function SupportPlanWorkspace({
               onClick={() =>
                 void command(async () => {
                   await reload()
-                  await loadOccurrences()
+                  await latestLoad.current()
                 })
               }
             >
@@ -1386,6 +1598,7 @@ export default function SupportPlanWorkspace({
         </div>
       )}
       {safetyCard}
+      {expiredNotice}
       <div
         className="mbw-tabs"
         role="tablist"
@@ -1414,35 +1627,54 @@ export default function SupportPlanWorkspace({
           role="tabpanel"
           aria-labelledby={`tab-${tab}`}
           className="mbw-tabpanel"
+          data-still={safetyFirst ? '' : undefined}
         >
           {tab === 'today' && focus && (
             <TodayPanel
               plan={current}
               focus={focus}
-              occurrences={occurrences}
+              occurrences={known}
               today={today}
-              loading={occurrencesLoading && !occurrencesReady}
+              timezone={timezone}
+              ready={occurrencesReady}
+              still={safetyFirst}
               loadError={occurrencesFailed}
               returnedOccurrenceId={returnOrigin?.occurrenceId}
               engageable={engageable}
               rows={{ busy: rowBusy, messages: rowMessages }}
               busy={busy}
               companion={companion}
+              mam={mamEnabled ? mamExplain : undefined}
               onRetry={() => void loadOccurrences()}
               onSkip={(item) => void changeState(item, 'SKIPPED')}
               onReopen={(item) => void changeState(item, 'SCHEDULED')}
               onAcknowledge={(item) => void changeState(item, 'COMPLETED')}
-              onRate={(item, value) => void rate(item, value)}
+              onRate={(item, value, reuse) => void rate(item, value, reuse)}
+              onBarrier={(item, value, reuse) =>
+                void skipReason(item, value, reuse)
+              }
               onResume={() => void lifecycle(current, 'ACTIVE')}
               onOpenReview={openReview}
               onOpenPlan={() => void changeTab('plan')}
             />
           )}
-          {tab === 'plan' && <PlanPanel plan={current} companion={companion} />}
+          {tab === 'plan' && (
+            <PlanPanel
+              plan={current}
+              today={today}
+              onAdjust={() => void changeTab('adjust')}
+              companion={companion}
+              mam={mamEnabled ? mamExplain : undefined}
+            />
+          )}
           {tab === 'progress' && (
             <ProgressPanel
+              plan={current}
+              today={today}
+              timezone={timezone}
               summary={progress}
-              occurrences={occurrences}
+              still={safetyFirst}
+              occurrences={known}
               loadError={occurrencesFailed}
               onRetry={() => void loadOccurrences()}
             />
@@ -1455,6 +1687,7 @@ export default function SupportPlanWorkspace({
               busy={busy}
               dirty={dirty}
               reviewOpen={reviewOpen}
+              mamReview={mamEnabled}
               schedule={scheduleEditor(current)}
               preferences={
                 <SupportPlanPersonalization
@@ -1463,7 +1696,11 @@ export default function SupportPlanWorkspace({
                 />
               }
               history={<PlanHistory />}
-              onContinueCycle={() => void continueCycle()}
+              onApplied={reviewApplied}
+              onDiscardDraft={async () => {
+                if (draft) await lifecycle(draft, 'DISCARDED')
+              }}
+              onRefreshPlan={async () => void (await reload())}
               onProposeReplacement={() => void proposeReplacement()}
               onReviewReplacement={() => void reviewReplacement()}
               onConfirmReplacement={() => void confirmReplacement()}
@@ -1480,54 +1717,6 @@ export default function SupportPlanWorkspace({
             />
           )}
         </section>
-        <aside className="mbw-aside">
-          <SupportPlanCompanionShell
-            state={
-              companion.snapshot?.status === 'loading' ? 'thinking' : 'idle'
-            }
-            surface={tab}
-            contextual={companion.snapshot}
-            onContextualDismiss={companion.dismiss}
-            guidedContext={{
-              supportPlanId: current.supportPlanId,
-              action: companionAction
-                ? {
-                    actionId: companionAction.actionId,
-                    title: companionAction.presentation.title,
-                    requestSurface:
-                      tab === 'today'
-                        ? ('TODAY' as const)
-                        : tab === 'plan'
-                          ? ('PLAN' as const)
-                          : undefined,
-                  }
-                : undefined,
-              reviewAvailable: false,
-            }}
-            companionRequestPending={companion.pending}
-            interruptionActive={companion.interrupted}
-            onGuidedRequest={(request) => void companion.request(request)}
-            onGuidedDismiss={companion.dismissGuided}
-            onGuidedNavigate={({
-              surface,
-              actionId,
-            }: SupportPlanGuidedNavigationTarget) =>
-              void changeTab(surface).then((changed) => {
-                if (!changed) return
-                window.requestAnimationFrame(() => {
-                  const target =
-                    (actionId &&
-                      document.querySelector<HTMLElement>(
-                        `[data-support-plan-action-id="${CSS.escape(actionId)}"]`,
-                      )) ||
-                    document.getElementById(`tab-${surface}`)
-                  target?.scrollIntoView?.({ block: 'center' })
-                  target?.focus()
-                })
-              })
-            }
-          />
-        </aside>
       </div>
       <p className="mbw-disclaimer">{current.disclaimer}</p>
     </div>

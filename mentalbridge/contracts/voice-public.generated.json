@@ -1,0 +1,952 @@
+{
+  "$id": "mentalbridge-voice-public",
+  "$defs": {
+    "Eligibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policyVersion",
+        "state",
+        "eligible",
+        "packageCode",
+        "quota",
+        "checkedAt",
+        "voiceConsentVersion",
+        "maxSessionSeconds",
+        "availableSessionSeconds"
+      ],
+      "properties": {
+        "policyVersion": {
+          "const": "companion-voice-policy-v1"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "ELIGIBLE",
+            "FREE_LOCKED",
+            "CONSENT_REQUIRED",
+            "VOICE_CONSENT_REQUIRED",
+            "ENTITLEMENT_UNAVAILABLE",
+            "CONSENT_UNAVAILABLE",
+            "SESSION_LIMIT",
+            "GLOBAL_CAPACITY_FULL",
+            "QUOTA_EXHAUSTED",
+            "RATE_LIMITED",
+            "PROVIDER_UNAVAILABLE"
+          ]
+        },
+        "eligible": {
+          "type": "boolean"
+        },
+        "packageCode": {
+          "type": "string",
+          "enum": [
+            "FREE",
+            "PLUS",
+            "PREMIUM"
+          ]
+        },
+        "quota": {
+          "$ref": "#/$defs/VoiceQuota"
+        },
+        "checkedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "voiceConsentVersion": {
+          "const": "ai-voice-processing-capstone-v1"
+        },
+        "maxSessionSeconds": {
+          "type": "integer",
+          "enum": [
+            0,
+            300,
+            600
+          ],
+          "description": "Current package policy ceiling in seconds. Not an admission or reservation."
+        },
+        "availableSessionSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600,
+          "description": "Display-only min(maxSessionSeconds, unreserved daily remainingSeconds) when eligible; zero otherwise. Reauthorize and admit atomically on POST; never derive a deadline from this snapshot."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "ELIGIBLE"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "eligible": {
+                "const": true
+              },
+              "packageCode": {
+                "type": "string",
+                "enum": [
+                  "PLUS",
+                  "PREMIUM"
+                ]
+              },
+              "availableSessionSeconds": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "eligible": {
+                "const": false
+              },
+              "availableSessionSeconds": {
+                "const": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "packageCode": {
+                "const": "FREE"
+              }
+            },
+            "required": [
+              "packageCode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "maxSessionSeconds": {
+                "const": 0
+              },
+              "availableSessionSeconds": {
+                "type": "integer",
+                "maximum": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "packageCode": {
+                "const": "PLUS"
+              }
+            },
+            "required": [
+              "packageCode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "maxSessionSeconds": {
+                "const": 300
+              },
+              "availableSessionSeconds": {
+                "type": "integer",
+                "maximum": 300
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "packageCode": {
+                "const": "PREMIUM"
+              }
+            },
+            "required": [
+              "packageCode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "maxSessionSeconds": {
+                "const": 600
+              },
+              "availableSessionSeconds": {
+                "type": "integer",
+                "maximum": 600
+              }
+            }
+          }
+        }
+      ]
+    },
+    "VoiceQuota": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policyVersion",
+        "quotaDay",
+        "timeZone",
+        "resetAt",
+        "remainingSessions",
+        "remainingSeconds",
+        "reservedSessions",
+        "reservedSeconds"
+      ],
+      "properties": {
+        "policyVersion": {
+          "const": "companion-voice-policy-v1"
+        },
+        "quotaDay": {
+          "type": "string",
+          "format": "date"
+        },
+        "timeZone": {
+          "const": "Asia/Ho_Chi_Minh"
+        },
+        "resetAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "remainingSessions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "remainingSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1800
+        },
+        "reservedSessions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reservedSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600
+        }
+      }
+    },
+    "Session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "voiceSessionId",
+        "policyVersion",
+        "state",
+        "createdAt",
+        "chargedSeconds",
+        "deliveredSession"
+      ],
+      "properties": {
+        "voiceSessionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "policyVersion": {
+          "const": "companion-voice-policy-v1"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "REQUESTED",
+            "AUTHORIZED",
+            "CONNECTING",
+            "ACTIVE",
+            "RECONNECTING",
+            "ENDING",
+            "ENDED",
+            "FAILED",
+            "EXPIRED"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "authorizedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "hardStopAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "quotaDay": {
+          "type": "string",
+          "format": "date"
+        },
+        "admittedSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600
+        },
+        "chargedSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600
+        },
+        "deliveredSession": {
+          "type": "boolean"
+        },
+        "terminalReason": {
+          "type": "string",
+          "enum": [
+            "USER_ENDED",
+            "CONSENT_REVOKED",
+            "VOICE_CONSENT_REVOKED",
+            "ENTITLEMENT_LOST",
+            "OWNER_UNAVAILABLE",
+            "IDLE_TIMEOUT",
+            "HARD_DEADLINE",
+            "QUOTA_EXHAUSTED",
+            "RECONNECT_TIMEOUT",
+            "PROVIDER_FAILURE",
+            "AGENT_FAILURE",
+            "AUTHORIZATION_EXPIRED",
+            "ACCOUNT_DELETED"
+          ]
+        }
+      }
+    },
+    "Connection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "voiceSessionId",
+        "transport",
+        "serverUrl",
+        "participantToken",
+        "tokenExpiresAt",
+        "hardStopAt",
+        "audioOnly",
+        "roomName",
+        "agentIdentity"
+      ],
+      "properties": {
+        "voiceSessionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "transport": {
+          "const": "LIVEKIT_CLOUD"
+        },
+        "serverUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^wss://"
+        },
+        "participantToken": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 8192,
+          "readOnly": true,
+          "description": "Ephemeral owner-scoped media credential; never log, persist or place in metadata."
+        },
+        "tokenExpiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "hardStopAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "audioOnly": {
+          "const": true
+        },
+        "roomName": {
+          "type": "string",
+          "pattern": "^ai-voice-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "description": "Exact admitted room for this connection. Compare the connected SDK room name before reading Agent hints."
+        },
+        "agentIdentity": {
+          "type": "string",
+          "pattern": "^va-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "description": "Exact admitted Agent attempt identity. Require ParticipantKind.AGENT in roomName; never select a participant from its attributes."
+        }
+      }
+    },
+    "EmptyCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {}
+    },
+    "VoiceConsent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consentType",
+        "consentVersion",
+        "current",
+        "granted"
+      ],
+      "properties": {
+        "consentType": {
+          "const": "AI_VOICE_PROCESSING"
+        },
+        "consentVersion": {
+          "const": "ai-voice-processing-capstone-v1"
+        },
+        "current": {
+          "type": "boolean"
+        },
+        "granted": {
+          "type": "boolean"
+        },
+        "acceptedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "revokedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "granted": {
+                "const": true
+              }
+            },
+            "required": [
+              "granted"
+            ]
+          },
+          "then": {
+            "properties": {
+              "acceptedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "acceptedAt"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "current": {
+                "const": true
+              },
+              "granted": {
+                "const": false
+              }
+            },
+            "required": [
+              "current",
+              "granted"
+            ]
+          },
+          "then": {
+            "properties": {
+              "revokedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "revokedAt"
+            ]
+          }
+        }
+      ]
+    },
+    "VoiceConsentCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consentVersion",
+        "granted"
+      ],
+      "properties": {
+        "consentVersion": {
+          "const": "ai-voice-processing-capstone-v1"
+        },
+        "granted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "VoiceDisclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consentType",
+        "consentVersion",
+        "language",
+        "disclosureText",
+        "publishedAt"
+      ],
+      "properties": {
+        "consentType": {
+          "const": "AI_VOICE_PROCESSING"
+        },
+        "consentVersion": {
+          "const": "ai-voice-processing-capstone-v1"
+        },
+        "language": {
+          "const": "vi-VN"
+        },
+        "disclosureText": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 12000
+        },
+        "publishedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Problem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "title",
+        "status",
+        "code",
+        "correlationId"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 400,
+          "maximum": 599
+        },
+        "code": {
+          "type": "string",
+          "enum": [
+            "UNAUTHENTICATED",
+            "FORBIDDEN",
+            "FREE_LOCKED",
+            "CONSENT_REQUIRED",
+            "VOICE_CONSENT_REQUIRED",
+            "SESSION_NOT_FOUND",
+            "SESSION_LIMIT",
+            "IDEMPOTENCY_CONFLICT",
+            "STALE_ATTEMPT",
+            "INVALID_SESSION_STATE",
+            "SESSION_EXPIRED",
+            "INVALID_REQUEST",
+            "INVALID_FINAL_TRANSCRIPT",
+            "GLOBAL_CAPACITY_FULL",
+            "QUOTA_EXHAUSTED",
+            "RATE_LIMITED",
+            "ENTITLEMENT_UNAVAILABLE",
+            "CONSENT_UNAVAILABLE",
+            "PROVIDER_UNAVAILABLE",
+            "PROVIDER_TIMEOUT"
+          ]
+        },
+        "correlationId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "UNAUTHENTICATED"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 401
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "FORBIDDEN"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 403
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "FREE_LOCKED"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 403
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "CONSENT_REQUIRED"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 403
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "VOICE_CONSENT_REQUIRED"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 403
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "SESSION_NOT_FOUND"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 404
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "SESSION_LIMIT"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 409
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "IDEMPOTENCY_CONFLICT"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 409
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "STALE_ATTEMPT"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 409
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "INVALID_SESSION_STATE"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 409
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "SESSION_EXPIRED"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 410
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "INVALID_REQUEST"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 422
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "INVALID_FINAL_TRANSCRIPT"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 422
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "GLOBAL_CAPACITY_FULL"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 429
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "QUOTA_EXHAUSTED"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 429
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "RATE_LIMITED"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 429
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "ENTITLEMENT_UNAVAILABLE"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 503
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "CONSENT_UNAVAILABLE"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 503
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "PROVIDER_UNAVAILABLE"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 503
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "PROVIDER_TIMEOUT"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": 504
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

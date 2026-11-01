@@ -18,7 +18,13 @@ import {
   VolumeX,
   Waves,
 } from 'lucide-react'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 
 import { Dialog } from '@/components/ui/Dialog'
 
@@ -37,6 +43,7 @@ type Props = Readonly<{
   progressLoadState: 'loading' | 'ready' | 'error'
   saving: boolean
   message: string
+  planNotice?: ReactNode
   confirmationOpen: boolean
   onConfirmationOpenChange: (open: boolean) => void
   onRetryProgress: () => void
@@ -57,6 +64,7 @@ export function MindfulnessResourceDetail({
   progressLoadState,
   saving,
   message,
+  planNotice,
   confirmationOpen,
   onConfirmationOpenChange,
   onRetryProgress,
@@ -514,6 +522,7 @@ export function MindfulnessResourceDetail({
           )}
         </section>
 
+        {planNotice}
         {Array.isArray(resource.safetyNotes) &&
           resource.safetyNotes.length > 0 && (
             <p className={styles.safetyNote}>

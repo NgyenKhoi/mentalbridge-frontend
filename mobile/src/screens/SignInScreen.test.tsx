@@ -102,4 +102,12 @@ describe('USER sign-in screen', () => {
 
     expect(mockPush).toHaveBeenCalledWith('./register')
   })
+
+  it('links to the public password recovery flow', async () => {
+    await render(<SignInScreen />)
+
+    await fireEvent.press(screen.getByText('Quên mật khẩu?'))
+
+    expect(mockPush).toHaveBeenCalledWith('./reset-password')
+  })
 })

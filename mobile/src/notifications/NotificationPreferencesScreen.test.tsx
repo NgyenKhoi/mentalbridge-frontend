@@ -74,6 +74,38 @@ it('saves supported channels, disabled category and overnight quiet hours with t
     screen.getByLabelText('Lưu tùy chọn PUSH (chưa hỗ trợ gửi)'),
   ).toBeChecked()
 })
+it('shows only specialist-safe preferences and sends the bounded ETag patch', async () => {
+  mockSession = { subject, role: 'SPECIALIST' }
+  const api = fixtureApi({
+    savePreferences: jest.fn().mockResolvedValue(preferences(1)),
+  })
+  await mount(api)
+  expect(
+    await screen.findByRole('header', {
+      name: 'Tùy chọn thông báo chuyên môn',
+    }),
+  ).toBeOnTheScreen()
+  expect(await screen.findByLabelText('Lịch hẹn và tin nhắn')).toBeOnTheScreen()
+  expect(screen.getByLabelText('Tài khoản và hệ thống')).toBeOnTheScreen()
+  expect(screen.queryByLabelText('Nhắc viết nhật ký')).toBeNull()
+  expect(screen.queryByLabelText('Email')).toBeNull()
+  expect(screen.queryByLabelText('Bật giờ yên lặng')).toBeNull()
+  await toggle('Trong ứng dụng', false)
+  await toggle('Lịch hẹn và tin nhắn', false)
+  await save()
+  await waitFor(() => expect(api.savePreferences).toHaveBeenCalledTimes(1))
+  expect(api.savePreferences).toHaveBeenCalledWith(
+    {
+      notificationsEnabled: true,
+      channels: { inApp: false },
+      contentGroups: {
+        appointmentMessage: false,
+        resourceSystem: true,
+      },
+    },
+    '"0"',
+  )
+})
 it('keeps inbox history distinct from new-notification category preferences', async () => {
   const value = preferences()
   value.preferences.notificationsEnabled = false
@@ -209,7 +241,12 @@ it('does not reinsert old-owner preferences after a late save completes', async 
   value.client.removeQueries({ queryKey: ['notifications', subject] })
   await act(async () => resolve(preferences(1)))
   expect(
-    value.client.getQueryData(['notifications', subject, 'preferences']),
+    value.client.getQueryData([
+      'notifications',
+      subject,
+      'USER',
+      'preferences',
+    ]),
   ).toBeUndefined()
 })
 it.each([401, 503])(

@@ -4,7 +4,8 @@ import {
   emotionOccurrenceFixture,
   nativeSupportPlanFixture,
 } from '../testing/native-support-plan-fixture'
-import { actionDestination, canAcknowledge } from './workspace-links'
+import { actionDestination } from './workspace-links'
+import { rowCapability } from './workspace-model'
 
 const plan = nativeSupportPlanFixture()
 const emotion = plan.focuses[0].actions[0]
@@ -97,14 +98,20 @@ describe('workspace destinations', () => {
       localDate: '2026-10-13',
     })
     expect(
-      canAcknowledge(plan, {
-        occurrence: { ...occurrence, actionType: 'RESOURCE' },
-        action: resource,
-      }),
+      rowCapability(
+        plan,
+        {
+          occurrence: { ...occurrence, actionType: 'RESOURCE' },
+          action: resource,
+        },
+        true,
+      ).complete,
     ).toBe(true)
   })
 
   it('never offers a manual done for emotion or journal activities', () => {
-    expect(canAcknowledge(plan, { occurrence, action: emotion })).toBe(false)
+    expect(
+      rowCapability(plan, { occurrence, action: emotion }, true).complete,
+    ).toBe(false)
   })
 })

@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import AdminOperationsDashboard from '@/features/dashboard/components/AdminOperationsDashboard'
-
 import type { ProductJourneyMetrics } from '@/features/auth/api/identity-contract'
 
 import './admin-dashboard-manager.css'
@@ -21,7 +19,6 @@ const LABELS: Record<string, string> = {
   CONSULTATIONS_CONFIRMED: 'Lịch tư vấn đã xác nhận',
   CONSULTATIONS_COMPLETED: 'Lịch tư vấn đã hoàn thành',
 }
-
 const RATE_DENOMINATOR_LABELS: Record<string, string> = {
   USER_ACCOUNTS_REGISTERED: 'trong số tài khoản đăng ký',
   CONSULTATIONS_REQUESTED: 'trong số lịch tư vấn đã yêu cầu',
@@ -247,18 +244,5 @@ export function ProductJourneyMetricsPanel({
         ) : null}
       </section>
     </div>
-  )
-}
-
-export default function AdminDashboardManager({
-  onNotice,
-}: {
-  onNotice: (message: string) => void
-}) {
-  return (
-    <>
-      <AdminOperationsDashboard onNotice={onNotice} />
-      <ProductJourneyMetricsPanel onNotice={onNotice} />
-    </>
   )
 }

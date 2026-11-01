@@ -97,6 +97,13 @@ export function SignInScreen() {
           style={styles.input}
           value={password}
         />
+        <Text
+          accessibilityRole="link"
+          onPress={() => router.push('./reset-password')}
+          style={styles.link}
+        >
+          Quên mật khẩu?
+        </Text>
       </View>
       {error ? (
         <Text accessibilityRole="alert" style={styles.error}>

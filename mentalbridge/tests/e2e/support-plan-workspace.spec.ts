@@ -2,15 +2,25 @@ import { expect, type Page, type Route } from '@playwright/test'
 import { test } from './test-fixtures'
 import type {
   ActionOccurrence,
+  AdaptiveSupportPlanReview,
+  NativeSupportPlanReplacementReview,
   PlanAction,
   SupportPlanV3,
 } from '../../features/support-plan/api/support-plan-contract'
+import { nativeSupportPlanReviewFixture } from '../../features/support-plan/testing/native-support-plan-review-fixture'
+import { adaptiveReviewFixture } from '../../features/support-plan/testing/adaptive-review-fixture'
 import {
   emotionActionId,
   emotionOccurrenceFixture,
   emotionOccurrenceId,
   nativeSupportPlanFixture,
 } from '../../features/support-plan/testing/native-support-plan-fixture'
+import {
+  completeResourceReflection,
+  mockResourceCompletionDetail,
+  resourceCompletionHref,
+  resourceCompletionWorld,
+} from './resource-completion-mocks'
 
 const today = '2026-10-13'
 const evaluationId = '90000000-0000-4000-8000-000000000669'
@@ -19,6 +29,14 @@ const resourceOccurrenceId = 'b2000000-0000-4000-8000-000000000644'
 const resourceId = 'b3000000-0000-4000-8000-000000000644'
 
 type Cycle = NonNullable<SupportPlanV3['cycle']>
+
+/** One row of the Today list, found by its title heading. */
+const todayRow = (page: Page, title: string) =>
+  page.getByRole('listitem').filter({
+    has: page.getByRole('heading', { name: title, exact: true }),
+  })
+const dayBar = (page: Page) =>
+  page.getByRole('progressbar', { name: 'Việc đã xong hôm nay' })
 
 function cycle(overrides: Partial<Cycle> = {}): Cycle {
   return {
@@ -154,6 +172,20 @@ type World = {
   proposeStatus?: number
   reconcile?: () => { status: number; recorded: boolean }
   stateStatus?: number
+  replacementDraft?: SupportPlanV3
+  replacementReview?: NativeSupportPlanReplacementReview
+  reassessmentSummaryId?: string
+  adaptiveReview?: AdaptiveSupportPlanReview
+}
+
+/** Care's adaptive review for the world's current plan (synthetic fixture period, not real days). */
+function adaptiveReviewFor(plan: SupportPlanV3): AdaptiveSupportPlanReview {
+  return {
+    ...adaptiveReviewFixture(),
+    supportPlanId: plan.supportPlanId,
+    planVersion: plan.version,
+    cycle: plan.cycle ?? null,
+  }
 }
 
 async function authenticate(page: Page) {
@@ -233,15 +265,26 @@ async function mockPlanApi(page: Page, world: World) {
         entitlementStatus: 'VERIFIED',
       })
     if (path === '/api/care/v2/support-plans/evaluation-source')
-      return json({ sourceSupportEvaluationId: evaluationId })
+      return json({
+        sourceSupportEvaluationId:
+          url.searchParams.get('purpose') === 'REASSESSMENT'
+            ? '90000000-0000-4000-8000-000000000652'
+            : evaluationId,
+      })
+    if (path === '/api/care/reassessment-summaries/current')
+      return world.reassessmentSummaryId
+        ? json({ summaryId: world.reassessmentSummaryId })
+        : problem(404, 'REASSESSMENT_SUMMARY_NOT_FOUND')
     if (path === '/api/care/support-plan-personalization')
       return json(personalization)
     if (path === '/api/care/v2/support-plans' && request.method() === 'POST') {
       if (world.proposeStatus)
         return problem(world.proposeStatus, 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED')
-      world.draft = draftOf(proposalPlan())
+      world.draft = world.replacementDraft ?? draftOf(proposalPlan())
       return json(world.draft, 201)
     }
+    if (path.endsWith('/replacement-review') && world.replacementReview)
+      return json(world.replacementReview)
     if (path.endsWith('/activate') && world.draft) {
       world.current = proposalPlan()
       world.draft = undefined
@@ -258,6 +301,26 @@ async function mockPlanApi(page: Page, world: World) {
         cycle: world.current.cycle && cycle(),
       }
       return json(world.current)
+    }
+    if (
+      path.endsWith('/adaptive-review') &&
+      request.method() === 'GET' &&
+      world.current
+    )
+      return json(world.adaptiveReview ?? adaptiveReviewFor(world.current))
+    if (path.endsWith('/adaptive-review/confirm') && world.current) {
+      const { optionId } = request.postDataJSON() as { optionId: string }
+      world.current = {
+        ...world.current,
+        version: world.current.version + 1,
+        cycle: cycle({ cycleNumber: 2 }),
+      }
+      return json({
+        result: 'CYCLE_CONTINUED',
+        optionId,
+        plan: world.current,
+        draft: null,
+      })
     }
     if (path.endsWith('/cycle-continuation') && world.current) {
       world.current = {
@@ -403,6 +466,160 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     'Controlled plan states must not mutate shared accounts.',
   )
 
+  test('MB-670 a saved Resource practice reconciles with its pinned version and Today shows accepted completion without undo', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    const resourceWorld = resourceCompletionWorld(today)
+    const world: World = {
+      ...resourceWorld,
+      history: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    const calls = await mockPlanApi(page, world)
+    const detail = await mockResourceCompletionDetail(page, world)
+    await page.goto('/support-plan')
+    const openResource = page.getByRole('link', { name: 'Mở nội dung' })
+    const href = new URL(
+      (await openResource.getAttribute('href'))!,
+      'http://127.0.0.1:3100',
+    )
+    expect(Object.fromEntries(href.searchParams)).toMatchObject({
+      from: 'support-plan',
+      contentVersion: '4',
+      localDate: today,
+    })
+    await openResource.click()
+    await expect(page).toHaveURL(href.toString())
+    await expect(
+      page.getByRole('heading', {
+        name: 'Viết vài dòng dịu dàng',
+        level: 1,
+        exact: true,
+      }),
+    ).toBeVisible()
+    expect(new Set(detail.reads)).toEqual(new Set(['4']))
+    expect(detail.reconciles).toHaveLength(0)
+    await completeResourceReflection(page)
+    await expect(
+      page.getByText('Đã ghi nhận vào kế hoạch hôm nay.', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      page.getByText('Đã ghi nhận từ bài luyện tập', { exact: true }),
+    ).toHaveCount(0)
+    await expect(
+      page.getByText(/Kết quả hoàn thành đã được ghi nhận/),
+    ).toHaveCount(0)
+    expect(detail.saves.at(-1)).toMatchObject({
+      status: 'COMPLETED',
+      resourceVersion: '4',
+    })
+    expect(detail.reconciles).toEqual([{ ifMatch: '"3"' }])
+    await page
+      .getByRole('link', { name: 'Quay lại kế hoạch', exact: true })
+      .click()
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '1')
+    await expect(
+      page.getByText('Đã ghi nhận từ bài luyện tập', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', {
+        name: /Làm lại hôm nay|Hoàn tác|Đã làm xong/,
+      }),
+    ).toHaveCount(0)
+    expect(calls.filter((call) => call.path.endsWith('/state'))).toHaveLength(0)
+    await page.getByRole('tab', { name: 'Tiến triển' }).click()
+    // The count row and the selected day both name it.
+    await expect(
+      page.getByText('Đã ghi nhận từ bài luyện tập', { exact: true }).first(),
+    ).toBeVisible()
+  })
+
+  test('MB-670 reconcile 503 preserves the Content save and open occurrence until an explicit retry succeeds', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    const resourceWorld = resourceCompletionWorld(today)
+    const world: World & { reconcileStatus: number } = {
+      ...resourceWorld,
+      reconcileStatus: 503,
+      history: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    await mockPlanApi(page, world)
+    const detail = await mockResourceCompletionDetail(page, world)
+    await page.goto(resourceCompletionHref(today))
+    await completeResourceReflection(page)
+    await expect(
+      page.getByText(
+        'Đã lưu bài luyện tập. Kế hoạch sẽ cập nhật khi kết nối lại.',
+      ),
+    ).toBeVisible()
+    await expect(
+      page.getByText('Đã ghi nhận vào kế hoạch hôm nay.', { exact: true }),
+    ).toHaveCount(0)
+    expect(world.occurrences[0].state).toBe('SCHEDULED')
+    const saveCount = detail.saves.length
+    world.reconcileStatus = 200
+    await page.getByRole('button', { name: 'Thử lại', exact: true }).click()
+    await expect(
+      page.getByText('Đã ghi nhận vào kế hoạch hôm nay.', { exact: true }),
+    ).toBeVisible()
+    expect(detail.saves).toHaveLength(saveCount)
+    expect(detail.reconciles).toHaveLength(2)
+    await page
+      .getByRole('link', { name: 'Quay lại kế hoạch', exact: true })
+      .click()
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '1')
+  })
+
+  test('MB-670 missing Resource evidence keeps acknowledgement available on return', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    const world = {
+      ...resourceCompletionWorld(today),
+      reconcileStatus: 409,
+      history: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    await mockPlanApi(page, world)
+    await mockResourceCompletionDetail(page, world)
+    await page.goto(resourceCompletionHref(today))
+    await completeResourceReflection(page)
+    await expect(
+      page.getByText(
+        'Đã lưu bài luyện tập. Bạn có thể xác nhận trong kế hoạch.',
+      ),
+    ).toBeVisible()
+    await page.getByRole('link', { name: 'Xem trong kế hoạch' }).click()
+    await expect(
+      page.getByRole('button', { name: 'Đã làm xong', exact: true }),
+    ).toBeVisible()
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '0')
+  })
+
+  test('MB-670 a historical Resource occurrence never offers automatic reconciliation', async ({
+    page,
+  }) => {
+    await authenticate(page)
+    const past = '2026-10-12'
+    const world: World = {
+      ...resourceCompletionWorld(past),
+      history: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    await mockPlanApi(page, world)
+    const detail = await mockResourceCompletionDetail(page, world)
+    await page.goto(resourceCompletionHref(past))
+    await completeResourceReflection(page)
+    expect(detail.reconciles).toHaveLength(0)
+    expect(world.occurrences[0].state).toBe('SCHEDULED')
+    await expect(
+      page.getByText('Đã ghi nhận từ bài luyện tập', { exact: true }),
+    ).toHaveCount(0)
+  })
+
   test('MB-669 prepares a 14-day proposal without a generate button and starts only on request', async ({
     page,
   }, testInfo) => {
@@ -445,7 +662,7 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
       'aria-selected',
       'true',
     )
-    await expect(page.getByText('Ngày 1/14')).toBeVisible()
+    await expect(page.getByText(/Ngày 1\/14/)).toBeVisible()
     const activation = calls.find((call) => call.path.endsWith('/activate'))
     expect(activation?.headers['if-match']).toBe('"0"')
   })
@@ -466,7 +683,7 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     }
     const calls = await mockPlanApi(page, world)
     await page.goto('/support-plan')
-    const next = page.getByRole('region', { name: 'Thở chậm 3 phút' })
+    const next = todayRow(page, 'Thở chậm 3 phút')
     await expect(next).toBeVisible()
     const open = next.getByRole('link', { name: /Mở nội dung/ })
     const href = new URL(
@@ -482,22 +699,18 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
       localDate: today,
     })
     expect((await open.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
-    await expect(
-      page.getByRole('heading', { name: 'Sau đó trong hôm nay' }),
-    ).toBeVisible()
+    await expect(todayRow(page, 'Check-in cảm xúc')).toBeVisible()
     await noHorizontalScroll(page, 'today', (name) => testInfo.outputPath(name))
     await page.goto(
       `/support-plan?source=resource&occurrenceId=${resourceOccurrenceId}&actionId=${resourceActionId}&localDate=${today}`,
     )
-    const confirm = page
-      .getByRole('region', { name: 'Thở chậm 3 phút' })
-      .getByRole('button', { name: 'Đã làm xong' })
+    const confirm = todayRow(page, 'Thở chậm 3 phút').getByRole('button', {
+      name: 'Đã làm xong',
+    })
     await expect(confirm).toBeVisible()
     expect(calls.filter((call) => call.path.endsWith('/state'))).toHaveLength(0)
     await confirm.click()
-    await expect(
-      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
-    ).toBeVisible()
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '1')
     const state = calls.find((call) => call.path.endsWith('/state'))
     expect(state?.body).toEqual({ state: 'COMPLETED' })
     await page
@@ -510,7 +723,11 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
       )
       .toBe(1)
     await page.getByRole('tab', { name: 'Tiến triển' }).click()
-    await expect(page.getByText('1 lần đã làm')).toBeVisible()
+    await expect(
+      page
+        .locator('.mbw-count')
+        .filter({ has: page.getByText('Đã làm', { exact: true }) }),
+    ).toContainText('1 việc')
     await expect(page.locator('.mbw-page')).not.toContainText('%')
   })
 
@@ -534,17 +751,15 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     await mockPlanApi(page, world)
     const back = `/support-plan?occurrenceId=${emotionOccurrenceId}&actionId=${emotionActionId}&localDate=${today}`
     await page.goto(back)
-    const next = page.getByRole('region', { name: 'Check-in cảm xúc' })
+    const next = todayRow(page, 'Check-in cảm xúc')
     await expect(next.getByText(/Chưa thực hiện được/)).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
-    ).toHaveCount(0)
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '0')
     expect(attempts).toBe(1)
     await page.reload()
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '1')
     await expect(
-      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
+      todayRow(page, 'Check-in cảm xúc').getByText(/Đã xong|Xong lúc/),
     ).toBeVisible()
-    await expect(page.getByText('Đã xong', { exact: true })).toBeVisible()
     expect(attempts).toBe(2)
   })
 
@@ -588,14 +803,37 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
       calls.some((call) => call.path.endsWith('/cycle-continuation')),
     ).toBe(false)
     await page.getByRole('button', { name: /Xem lại kế hoạch/ }).click()
-    await page.getByRole('button', { name: 'Tiếp tục thêm 14 ngày' }).click()
+    // MB-645: the review shows separate sources and applies nothing until an explicit choice.
+    await expect(page.getByLabel('Những gì đã ghi nhận')).toBeVisible()
+    await expect(
+      page.getByText(/Hai bài sàng lọc đang đi theo hai hướng khác nhau/),
+    ).toBeVisible()
+    expect(
+      calls.some((call) => call.path.endsWith('/adaptive-review/confirm')),
+    ).toBe(false)
+    await page.getByRole('radio', { name: /Giữ nhịp này thêm 14 ngày/ }).check()
+    await page
+      .getByRole('button', { name: 'Giữ nhịp này thêm 14 ngày' })
+      .click()
     await expect
       .poll(
         () =>
-          calls.filter((call) => call.path.endsWith('/cycle-continuation'))
+          calls.filter((call) => call.path.endsWith('/adaptive-review/confirm'))
             .length,
       )
       .toBe(1)
+    const confirm = calls.find((call) =>
+      call.path.endsWith('/adaptive-review/confirm'),
+    )
+    expect(confirm?.headers['if-match']).toBe(`"${proposalPlan().version}"`)
+    expect(confirm?.headers['idempotency-key']).toBeTruthy()
+    expect(confirm?.body).toMatchObject({ optionId: 'keep-current-1' })
+    expect(
+      calls.some((call) => call.path.endsWith('/cycle-continuation')),
+    ).toBe(false)
+    await expect(
+      page.getByRole('heading', { name: 'Đến lúc cùng xem lại kế hoạch' }),
+    ).toHaveCount(0)
   })
 
   test('MB-644 load errors, stale commands and the FREE tier stay truthful', async ({
@@ -618,28 +856,170 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
       page.getByRole('heading', { name: 'Chưa tải được kế hoạch' }),
     ).toBeVisible()
     await page.getByRole('button', { name: 'Thử lại' }).click()
-    const next = page.getByRole('region', { name: 'Check-in cảm xúc' })
+    const next = todayRow(page, 'Check-in cảm xúc')
     await expect(next).toBeVisible()
     await next.getByRole('button', { name: 'Để hôm khác' }).click()
     await expect(
       next.getByText(/Kế hoạch vừa thay đổi ở nơi khác/),
     ).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Đã ghi nhận hôm nay' }),
-    ).toHaveCount(0)
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '0')
 
     world.current = undefined
     world.proposeStatus = 403
     world.journeyNext = 'START_PLAN_PROPOSAL'
     await page.goto('/support-plan')
     await expect(
-      page.getByRole('heading', {
-        name: 'Kế hoạch theo ngày có trong gói Plus và Premium',
-      }),
+      page.getByRole('heading', { name: 'Kế hoạch 14 ngày có trong gói Plus' }),
     ).toBeVisible()
     await expect(
       page.getByRole('button', { name: 'Bắt đầu kế hoạch' }),
     ).toHaveCount(0)
+  })
+
+  test('MB-671 FREE sees a labelled example, upgrades and continues to a real proposal', async ({
+    page,
+  }, testInfo) => {
+    await authenticate(page)
+    const world: World = {
+      history: [],
+      occurrences: [],
+      journeyNext: 'START_PLAN_PROPOSAL',
+    }
+    const calls = await mockPlanApi(page, world)
+    // Consultation's own answer; flipped once the payment would be confirmed.
+    let paid = false
+    await page.route('**/api/consultation/service-credits', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          accountId: '6a000000-0000-4000-8000-000000000671',
+          packageCode: paid ? 'PLUS' : 'FREE',
+          source: paid ? 'PAID' : 'DEFAULT_FREE',
+          sourceReference: paid ? '51500000-0000-4000-8000-000000000671' : null,
+          periodStart: paid ? '2026-10-13T00:00:00Z' : null,
+          periodEnd: paid ? '2026-11-13T00:00:00Z' : null,
+          policyVersion: 'consultation-credit-v2',
+          balance: {
+            available: 0,
+            held: 0,
+            consumed: 0,
+            forfeited: 0,
+            total: 0,
+            releasedTransitions: 0,
+          },
+          reservationCapacity: { active: 0, maximum: 0, remaining: 0 },
+          history: [],
+          generatedAt: '2026-10-13T05:00:00Z',
+          entitlementState: paid ? 'ACTIVE' : 'DEFAULT_FREE',
+          supportPlanEnabled: paid,
+        }),
+      }),
+    )
+
+    await page.goto('/support-plan')
+    const sample = page.getByRole('figure', {
+      name: 'Ví dụ minh hoạ, không phải kế hoạch của bạn',
+    })
+    await expect(sample).toBeVisible()
+    await sample.getByRole('button', { name: /Đọc một bài ngắn/ }).click()
+    await expect(sample).toContainText('5 việc đã làm')
+    await page.screenshot({
+      path: testInfo.outputPath('mb-671-free-preview.png'),
+      fullPage: true,
+    })
+    expect(
+      calls.some(
+        (call) =>
+          call.method === 'POST' && call.path === '/api/care/v2/support-plans',
+      ),
+    ).toBe(false)
+
+    await page.reload()
+    await expect(sample).toBeVisible()
+    expect(
+      calls.filter(
+        (call) =>
+          call.method === 'POST' && call.path === '/api/care/v2/support-plans',
+      ),
+    ).toHaveLength(0)
+
+    await page.getByRole('link', { name: 'Nâng cấp Plus' }).click()
+    await expect(page).toHaveURL(/\/subscription$/)
+    await expect(
+      page.getByRole('link', { name: /Tiếp tục tới kế hoạch/ }),
+    ).toHaveCount(0)
+
+    paid = true
+    await page.reload()
+    await page.getByRole('link', { name: /Tiếp tục tới kế hoạch/ }).click()
+    await expect(page).toHaveURL(/\/support-plan$/)
+    await expect(
+      page.getByRole('button', { name: 'Bắt đầu kế hoạch' }),
+    ).toBeVisible()
+    expect(
+      calls.filter(
+        (call) =>
+          call.method === 'POST' && call.path === '/api/care/v2/support-plans',
+      ),
+    ).toHaveLength(1)
+    expect(calls.some((call) => call.path.endsWith('/activate'))).toBe(false)
+  })
+
+  test('MB-772 explains the adaptive review inline through Mầm without mutating the plan', async ({
+    page,
+  }) => {
+    test.skip(
+      process.env.MAM_WEB_ENABLED === 'false',
+      'The Mầm inline review renders only with MAM_WEB_ENABLED=true.',
+    )
+    test.setTimeout(90_000)
+    await authenticate(page)
+    const review = nativeSupportPlanReviewFixture()
+    const world: World = {
+      current: review.currentPlan,
+      replacementDraft: review.proposedPlan,
+      replacementReview: review,
+      reassessmentSummaryId: review.reassessmentSummary.summaryId,
+      history: [],
+      occurrences: [],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    const calls = await mockPlanApi(page, world)
+
+    await page.goto('/support-plan')
+    await page.getByRole('tab', { name: 'Điều chỉnh' }).click()
+    await page.getByText('Phương án khác', { exact: true }).click()
+    await page.getByRole('button', { name: 'Xem phương án mới' }).click()
+    await page
+      .getByRole('button', { name: 'So sánh với kế hoạch hiện tại' })
+      .click()
+    await expect(
+      page.getByRole('complementary', {
+        name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+      }),
+    ).toHaveCount(0)
+
+    const toggle = page.getByRole('button', {
+      name: 'Mầm xem lại tuần của bạn',
+    })
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const section = page.getByRole('region', {
+      name: 'Mầm xem lại tuần của bạn',
+    })
+    await expect(
+      section.getByRole('heading', { name: 'Điều MentalBridge đã ghi nhận' }),
+    ).toBeVisible()
+    await expect(section.getByText(/PHQ-9:/)).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Mầm' })).toHaveCount(0)
+
+    await section.getByRole('button', { name: 'Thu gọn' }).click()
+    await expect(section).toHaveCount(0)
+    await expect(toggle).toBeFocused()
+    expect(calls.some((call) => call.path.endsWith('/replacement'))).toBe(false)
+    expect(
+      calls.some((call) => call.path.endsWith('/companion-explanation')),
+    ).toBe(false)
   })
 
   test('MB-644 a v2 resource plan opens in the same workspace', async ({
@@ -672,11 +1052,99 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     }
     await mockPlanApi(page, world)
     await page.goto('/support-plan')
-    await expect(
-      page.getByRole('region', { name: 'Thở chậm 3 phút' }),
-    ).toBeVisible()
+    await expect(todayRow(page, 'Thở chậm 3 phút')).toBeVisible()
     await expect(page.getByText('Đang theo kế hoạch')).toBeVisible()
     await page.getByRole('tab', { name: 'Kế hoạch' }).click()
-    await expect(page.getByText(/Mỗi ngày · khoảng 5 phút/)).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: '1 việc trong kế hoạch' }),
+    ).toBeVisible()
+    await expect(page.getByRole('table')).toContainText('08:00')
+  })
+
+  test('MB-783 all four tabs render with the fixture, marking a Resource done moves the bar, and Progress shows each day', async ({
+    page,
+  }, testInfo) => {
+    const runtimeErrors: string[] = []
+    page.on('pageerror', (error) => runtimeErrors.push(error.message))
+    page.on('console', (message) => {
+      if (
+        message.type() === 'error' &&
+        !message.text().startsWith('Failed to load resource')
+      )
+        runtimeErrors.push(message.text())
+    })
+    await authenticate(page)
+    const world: World = {
+      current: proposalPlan(),
+      history: [],
+      occurrences: [
+        resourceOccurrence(),
+        { ...emotionOccurrenceFixture(), displayState: 'SCHEDULED' },
+      ],
+      journeyNext: 'OPEN_CURRENT_PLAN',
+    }
+    const calls = await mockPlanApi(page, world)
+    await page.goto('/support-plan')
+
+    // Hôm nay: nothing done yet, then one Resource acknowledged.
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '0')
+    await expect(dayBar(page)).toHaveAttribute('aria-valuemax', '2')
+    await todayRow(page, 'Thở chậm 3 phút')
+      .getByRole('button', { name: 'Đã làm xong' })
+      .click()
+    await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '1')
+    await expect(page.locator('.mbw-day-count')).toContainText(
+      '1 / 2 việc hôm nay',
+    )
+    expect(calls.find((call) => call.path.endsWith('/state'))?.body).toEqual({
+      state: 'COMPLETED',
+    })
+
+    // Kế hoạch: one row per việc across the week.
+    await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+    await expect(
+      page.getByRole('heading', { name: '2 việc trong kế hoạch' }),
+    ).toBeVisible()
+    const week = page.getByRole('table', { name: /Lịch trong tuần/ })
+    await expect(
+      week.getByRole('rowheader', { name: /Thở chậm 3 phút/ }),
+    ).toBeVisible()
+    await expect(week).toContainText('08:00')
+    await noHorizontalScroll(page, 'plan', (name) => testInfo.outputPath(name))
+
+    // Tiến triển: the count follows the save, and a day shows its history.
+    await page.getByRole('tab', { name: 'Tiến triển' }).click()
+    await expect(
+      page
+        .locator('.mbw-count')
+        .filter({ has: page.getByText('Đã làm', { exact: true }) }),
+    ).toContainText('1 việc')
+    const history = page.locator('.mbw-hist')
+    await expect(history).toContainText('Xong lúc 12:01')
+    await expect(history).toContainText('Chưa tới giờ')
+    await page.getByRole('button', { name: /^Thứ Tư, 14\/10/ }).click()
+    await expect(history).toContainText('Không có việc nào trong ngày này.')
+    await page.getByRole('button', { name: /, hôm nay:/ }).click()
+    await expect(history).toContainText('Xong lúc 12:01')
+    await expect(page.locator('.mbw-page')).not.toContainText('%')
+    await noHorizontalScroll(page, 'progress', (name) =>
+      testInfo.outputPath(name),
+    )
+
+    // Điều chỉnh: the review invite leads, the rest is a quiet list.
+    await page.getByRole('tab', { name: 'Điều chỉnh' }).click()
+    await expect(
+      page.getByRole('heading', { name: /^Lời mời xem lại: / }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Xem lại kế hoạch' }),
+    ).toHaveCount(1)
+    await expect(
+      page.getByRole('button', { name: 'Các kế hoạch trước' }),
+    ).toBeVisible()
+    await noHorizontalScroll(page, 'adjust', (name) =>
+      testInfo.outputPath(name),
+    )
+    expect(runtimeErrors).toEqual([])
   })
 })

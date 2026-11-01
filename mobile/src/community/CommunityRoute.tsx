@@ -55,6 +55,14 @@ function AccountCommunityRoute({
         {...(postId ? { initialPostId: postId } : {})}
         media={communityMediaTransport}
         onBack={() => router.back()}
+        onChat={() => router.push('/(user)/community-chat')}
+        onPeerChat={(peerId) => {
+          if (z.uuid().safeParse(peerId).success)
+            router.push({
+              pathname: '/(user)/community-chat',
+              params: { peerId },
+            })
+        }}
         onResource={(resourceId) =>
           router.push(
             resourceDetailHref(

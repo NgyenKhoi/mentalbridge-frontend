@@ -1,4 +1,4 @@
-import { expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 
 import {
   emotionOccurrenceFixture,
@@ -6,7 +6,18 @@ import {
 } from '../../features/support-plan/testing/native-support-plan-fixture'
 import { test } from './test-fixtures'
 
+/** One row of the Today list, found by its title heading. */
+const todayRow = (page: Page, title: string) =>
+  page.getByRole('listitem').filter({
+    has: page.getByRole('heading', { name: title, exact: true }),
+  })
+
 test.describe('MB-650 contextual SupportPlan Companion', () => {
+  // MB-772: with the flag on, the global Mầm replaces this Companion (mam-support-plan.spec.ts).
+  test.skip(
+    process.env.MAM_WEB_ENABLED !== 'false',
+    'Legacy SupportPlan Companion renders only with MAM_WEB_ENABLED=false.',
+  )
   test.skip(
     process.env.E2E_RUNTIME === 'live-cross-stack',
     'The deterministic Companion response belongs to the fixture browser gate.',
@@ -137,10 +148,7 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/support-plan')
     // Today shows one next action; the explanation sits on that card only.
-    const activity = page.getByRole('region', {
-      name: 'Check-in cảm xúc',
-      exact: true,
-    })
+    const activity = todayRow(page, 'Check-in cảm xúc')
     const trigger = activity.getByRole('button', {
       name: /Nhờ bạn đồng hành giải thích/,
     })
@@ -149,9 +157,7 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
       exact: true,
     })
     await expect(activity).toBeVisible()
-    await expect(
-      page.getByRole('region', { name: 'Sau đó trong hôm nay' }),
-    ).toContainText('Bài thực hành tiếp theo')
+    await expect(todayRow(page, 'Bài thực hành tiếp theo')).toBeVisible()
     await trigger.focus()
     expect(requests).toBe(0)
     await trigger.click()
@@ -179,10 +185,15 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
     await expect(trigger).toBeFocused()
     await page.setViewportSize({ width: 375, height: 812 })
     await trigger.click()
-    const mobileTray = page.locator('.support-plan-companion-contextual-tray')
-    await expect(mobileTray).toContainText(responseText)
-    await expect(mobileTray).toBeVisible()
-    await expect(desktopBubble).toBeHidden()
+    // The bubble flows under its button on a phone, inside the viewport.
+    await expect(desktopBubble).toContainText(responseText)
+    await expect(desktopBubble).toBeVisible()
+    expect(
+      await desktopBubble.evaluate((bubble) => {
+        const rect = bubble.getBoundingClientRect()
+        return rect.left >= 0 && rect.right <= window.innerWidth
+      }),
+    ).toBe(true)
     await expect(originalAction).toBeVisible()
     expect(
       await page.evaluate(

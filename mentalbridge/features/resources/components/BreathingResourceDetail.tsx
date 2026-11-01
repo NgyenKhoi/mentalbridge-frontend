@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { Dialog } from '@/components/ui/Dialog'
 
@@ -32,6 +32,7 @@ type Props = Readonly<{
   onRetryProgress: () => void
   saving: boolean
   message: string
+  planNotice?: ReactNode
   confirmationOpen: boolean
   onConfirmationOpenChange: (open: boolean) => void
   onStartPause: () => void
@@ -60,6 +61,7 @@ export function BreathingResourceDetail({
   onRetryProgress,
   saving,
   message,
+  planNotice,
   confirmationOpen,
   onConfirmationOpenChange,
   onStartPause,
@@ -468,6 +470,7 @@ export function BreathingResourceDetail({
                   aria-label="Đang tải tiến độ đã lưu"
                 />
               )}
+              {planNotice}
               {progressState === 'error' && (
                 <div className={styles.progressRecovery} role="alert">
                   <p className={styles.progressNotice}>

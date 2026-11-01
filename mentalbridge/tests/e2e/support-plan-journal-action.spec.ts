@@ -1,5 +1,11 @@
-import { expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import { test } from './test-fixtures'
+
+/** One row of the Today list, found by its title heading. */
+const todayRow = (page: Page, title: string) =>
+  page.getByRole('listitem').filter({
+    has: page.getByRole('heading', { name: title, exact: true }),
+  })
 import type {
   JournalEntry,
   JournalSummary,
@@ -224,8 +230,7 @@ test.describe('MB-642 canonical Journal action', () => {
     })
 
     await page.goto('/support-plan')
-    const activity = () =>
-      page.getByRole('region', { name: 'Viết một suy nghĩ ngắn', exact: true })
+    const activity = () => todayRow(page, 'Viết một suy nghĩ ngắn')
     await expect(activity()).toBeVisible()
     expect(checks).toBe(0)
     for (const [width, height] of [
@@ -387,17 +392,14 @@ test.describe('MB-642 canonical Journal action', () => {
     await expect(activity().getByText(/Chưa thực hiện được/)).toBeVisible()
     expect(checks).toBe(1)
     expect(occurrence.state).toBe('SCHEDULED')
-    await expect(
-      page.getByRole('region', { name: 'Đã ghi nhận hôm nay' }),
-    ).toHaveCount(0)
+    await expect(activity()).not.toContainText(/Đã xong|Xong lúc/)
     unavailable = false
     await page.reload()
-    const done = page.getByRole('region', { name: 'Đã ghi nhận hôm nay' })
-    await expect(done).toContainText('Viết một suy nghĩ ngắn')
-    await expect(done).toContainText('Đã xong')
+    const done = todayRow(page, 'Viết một suy nghĩ ngắn')
+    await expect(done).toContainText(/Đã xong|Xong lúc/)
     expect(checks).toBe(2)
     await page.reload()
-    await expect(done).toContainText('Đã xong')
+    await expect(done).toContainText(/Đã xong|Xong lúc/)
     // Accepted completion is never re-checked or rewritten by later visits.
     expect(checks).toBe(2)
     expect(revisions).toBe(0)

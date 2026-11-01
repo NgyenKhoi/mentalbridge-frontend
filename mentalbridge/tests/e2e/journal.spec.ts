@@ -53,8 +53,12 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
         )
       ).status(),
     ).toBe(204)
-    await page.locator('.journal-live-hero button').click()
-    await page.getByRole('radio', { name: 'Tốt', exact: true }).check()
+    await page
+      .getByRole('button', { name: 'Viết nhật ký mới', exact: true })
+      .click()
+    const goodMood = page.getByRole('radio', { name: 'Tốt', exact: true })
+    await page.locator('label').filter({ has: goodMood }).click()
+    await expect(goodMood).toBeChecked()
     await page.getByLabel('Nội dung').fill('Nội dung được giữ sau khi tải lại')
     await page.getByLabel('Thẻ do bạn đặt').fill('riêng tư, hôm nay')
     page.once('dialog', (dialog) => dialog.dismiss())
@@ -88,7 +92,9 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
       (detailDialogBox?.y ?? 0) + (detailDialogBox?.height ?? 0),
     ).toBeLessThanOrEqual(720)
     await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
-    await page.getByRole('radio', { name: 'Không tốt', exact: true }).check()
+    const lowMood = page.getByRole('radio', { name: 'Không tốt', exact: true })
+    await page.locator('label').filter({ has: lowMood }).click()
+    await expect(lowMood).toBeChecked()
     await page.getByLabel('Nội dung').fill('Bản chỉnh sửa không bị mất')
     await expect(
       (
@@ -133,8 +139,15 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
     await page.setViewportSize({ width: 375, height: 812 })
     await authenticated(context)
     await page.goto('/journal')
-    await page.locator('.journal-live-hero button').click()
-    await page.getByRole('radio', { name: 'Bình thường' }).check()
+    await page
+      .getByRole('button', { name: 'Viết nhật ký mới', exact: true })
+      .click()
+    const neutralMood = page.getByRole('radio', {
+      name: 'Bình thường',
+      exact: true,
+    })
+    await page.locator('label').filter({ has: neutralMood }).click()
+    await expect(neutralMood).toBeChecked()
     await page.getByLabel('Nội dung').fill('Nhật ký trên thiết bị di động')
     await page.getByLabel('Thẻ do bạn đặt').fill('riêng tư')
     await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
@@ -174,8 +187,15 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
     await authenticated(context)
 
     await page.goto('/journal')
-    await page.locator('.journal-live-hero button').click()
-    await page.getByRole('radio', { name: 'Bình thường' }).check()
+    await page
+      .getByRole('button', { name: 'Viết nhật ký mới', exact: true })
+      .click()
+    const neutralMood = page.getByRole('radio', {
+      name: 'Bình thường',
+      exact: true,
+    })
+    await page.locator('label').filter({ has: neutralMood }).click()
+    await expect(neutralMood).toBeChecked()
     await page
       .getByLabel('Nội dung')
       .fill('Tôi đã dành một khoảng lặng ngắn sau giờ làm việc.')

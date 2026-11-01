@@ -20,13 +20,12 @@ type Props = Readonly<{
   }>
 }>
 
-function planReturnHref(query: Awaited<Props['searchParams']>) {
+function planOrigin(query: Awaited<Props['searchParams']>) {
   if (query.from !== 'support-plan') return undefined
   const params = new URLSearchParams()
   for (const key of ['occurrenceId', 'actionId', 'localDate'] as const)
     for (const value of [query[key] ?? []].flat()) params.append(key, value)
-  const origin = parseEmotionPlanOrigin(params)
-  return origin ? resourcePlanHref(origin) : '/support-plan'
+  return parseEmotionPlanOrigin(params) ?? undefined
 }
 
 export default async function ResourceDetailPage({
@@ -36,10 +35,18 @@ export default async function ResourceDetailPage({
   const [{ resourceId }, query] = await Promise.all([params, searchParams])
   const guideHistory =
     query.from === 'support-guide' && query.guideHistory === '1'
+  const origin = planOrigin(query)
   return (
     <ResourceDetail
       resourceId={resourceId}
-      supportPlanReturnHref={planReturnHref(query)}
+      supportPlanReturnHref={
+        query.from === 'support-plan'
+          ? origin
+            ? resourcePlanHref(origin)
+            : '/support-plan'
+          : undefined
+      }
+      supportPlanOrigin={origin}
       returnSupportGuideId={
         query.from === 'support-guide' && isUuid(query.supportGuideId)
           ? query.supportGuideId
@@ -52,7 +59,9 @@ export default async function ResourceDetailPage({
             ? query.resultEvaluationId
             : undefined,
       }}
-      activityDate={typeof query.date === 'string' ? query.date : undefined}
+      activityDate={
+        typeof query.date === 'string' ? query.date : origin?.localDate
+      }
       contentVersion={
         typeof query.contentVersion === 'string'
           ? query.contentVersion

@@ -104,6 +104,50 @@ describe('AppointmentRequestPanel', () => {
 
   beforeEach(() => vi.clearAllMocks())
 
+  it.each(['CONFIRMED', 'SESSION_ENDED'] as const)(
+    'opens %s video in its dedicated room without inline media and with the visible action in its accessible name',
+    async (status) => {
+      appointmentClient.slots.mockResolvedValue({
+        items: [],
+        count: 0,
+        generatedAt: '2099-01-01T00:00:00Z',
+        videoEnabled: true,
+      })
+      appointmentClient.list.mockResolvedValue({
+        items: [
+          {
+            ...appointment,
+            modality: 'IN_APP_VIDEO',
+            status,
+            decidedAt: '2099-01-01T01:00:00Z',
+            decisionReason: 'SPECIALIST_ACCEPTED',
+            version: 1,
+          },
+        ],
+        count: 1,
+        generatedAt: '2099-01-01T00:00:00Z',
+      })
+      render(<AppointmentRequestPanel focusAppointmentId={appointment.id} />)
+      expect(
+        await screen.findByRole('link', {
+          name:
+            status === 'CONFIRMED'
+              ? /Mở phòng tư vấn với Appointment specialist/
+              : /Xem phiên tư vấn video với Appointment specialist/,
+        }),
+      ).toHaveAttribute('href', `/appointments/${appointment.id}/video`)
+      expect(
+        screen.queryByRole('region', { name: 'Cuộc gọi tư vấn' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: 'Tham gia phiên tư vấn' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('link', { name: /Mở tin nhắn/ }),
+      ).not.toBeInTheDocument()
+    },
+  )
+
   afterAll(() => {
     if (originalTimezone === undefined) delete process.env.TZ
     else process.env.TZ = originalTimezone
@@ -555,6 +599,99 @@ describe('AppointmentRequestPanel', () => {
     expect(await screen.findByText('Thông tin hủy lịch')).toBeInTheDocument()
     expect(screen.getByText('Đã được hoàn lại')).toBeInTheDocument()
     expect(screen.getByText('Lý do: bạn yêu cầu hủy')).toBeInTheDocument()
+  })
+
+  it('shows the saved credit transfer and replacement link on a rescheduled original', async () => {
+    const replacementId = '423e4567-e89b-42d3-a456-426614174003'
+    const replacementStart = '2099-01-04T04:00:00Z'
+    const original = {
+      ...appointment,
+      status: 'CANCELLED' as const,
+      cancelledAt: '2099-01-01T01:00:00Z',
+      cancellationReason: 'USER_RESCHEDULED' as const,
+      cancellationActor: 'USER' as const,
+      cancellationCreditOutcome: 'TRANSFERRED_TO_REPLACEMENT' as const,
+      creditState: 'HELD' as const,
+      replacedByAppointmentId: replacementId,
+      version: 1,
+    }
+    const replacement = {
+      ...appointment,
+      id: replacementId,
+      scheduledStartAt: replacementStart,
+      scheduledEndAt: '2099-01-04T05:00:00Z',
+      replacesAppointmentId: appointment.id,
+    }
+    appointmentClient.slots.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2099-01-01T00:00:00Z',
+      videoEnabled: false,
+    })
+    appointmentClient.list.mockResolvedValue({
+      items: [original, replacement],
+      count: 2,
+      generatedAt: '2099-01-01T01:00:01Z',
+    })
+    render(<AppointmentRequestPanel focusAppointmentId={appointment.id} />)
+
+    const info = await screen.findByRole('region', {
+      name: 'Thông tin hủy lịch',
+    })
+    expect(
+      within(info).getByText('Lượt tư vấn đã chuyển sang lịch mới'),
+    ).toBeInTheDocument()
+    expect(
+      within(info).getByText(
+        `Đã đổi sang ${formatInSnapshotTimezone(replacementStart)}`,
+      ),
+    ).toBeInTheDocument()
+    expect(within(info).getByText('Lý do: bạn đã đổi lịch')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Lượt tư vấn đã được cập nhật'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('ignores a second cancel while the authoritative reload is pending', async () => {
+    let finishReload: (value: unknown) => void = () => {}
+    appointmentClient.slots.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2099-01-01T00:00:00Z',
+      videoEnabled: false,
+    })
+    appointmentClient.list
+      .mockResolvedValueOnce({
+        items: [appointment],
+        count: 1,
+        generatedAt: '2099-01-01T00:00:00Z',
+      })
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (finishReload = resolve)),
+      )
+    const user = userEvent.setup()
+    render(<AppointmentRequestPanel focusAppointmentId={appointment.id} />)
+
+    const cancel = await screen.findByRole('button', { name: 'Hủy lịch' })
+    await user.click(cancel)
+    expect(cancel).toHaveAttribute('aria-disabled', 'true')
+    expect(cancel).toHaveAttribute('aria-busy', 'true')
+    expect(cancel).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Đổi lịch' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    await user.click(cancel)
+    expect(appointmentClient.list).toHaveBeenCalledTimes(2)
+
+    await act(async () =>
+      finishReload({
+        items: [{ ...appointment, status: 'EXPIRED' }],
+        count: 1,
+        generatedAt: '2099-01-01T00:00:01Z',
+      }),
+    )
+    expect(appointmentClient.cancel).not.toHaveBeenCalled()
   })
 
   it('carries the old appointment id and version through a replacement request', async () => {

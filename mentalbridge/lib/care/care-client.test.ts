@@ -8,6 +8,71 @@ import { careClient } from './care-client'
 
 const assessmentId = '10000000-0000-4000-8000-000000000003'
 
+const firstUseHome = {
+  homePolicyVersion: 'mb-home-next-step-v1',
+  journey: {
+    journeyPolicyVersion: 'mb-guided-journey-v1',
+    stage: 'ASSESSMENT_REQUIRED',
+    assessmentInProgress: false,
+    episodeId: null,
+    episodeCompletedAt: null,
+    presentationEvaluationId: null,
+    supportGuideId: null,
+    nextAction: null,
+    currentSupportPlanId: null,
+    entitlementStatus: 'NOT_REQUIRED',
+  },
+  plan: null,
+  lastCompletedPlan: null,
+} as const
+
+describe('Care Home next-step client', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('forwards the owner bearer and IANA time zone to the sibling read', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    mockServer.use(
+      http.get('http://care.test/api/v1/home-next-step', ({ request }) => {
+        expect(new URL(request.url).searchParams.get('timezone')).toBe(
+          'Asia/Bangkok',
+        )
+        expect(request.headers.get('authorization')).toBe('Bearer owner-token')
+        expect(request.cache).toBe('no-store')
+        return HttpResponse.json({ ...firstUseHome, rawAnswers: [1, 2] })
+      }),
+    )
+
+    await expect(
+      careClient.homeNextStep('owner-token', 'Asia/Bangkok', 'correlation'),
+    ).resolves.toEqual(firstUseHome)
+  })
+
+  it('omits timezone when the plan schedule supplies the default', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    mockServer.use(
+      http.get('http://care.test/api/v1/home-next-step', ({ request }) => {
+        expect(new URL(request.url).searchParams.has('timezone')).toBe(false)
+        return HttpResponse.json(firstUseHome)
+      }),
+    )
+    await expect(
+      careClient.homeNextStep('owner-token', undefined, 'correlation'),
+    ).resolves.toEqual(firstUseHome)
+  })
+
+  it('rejects malformed embedded journey data', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    mockServer.use(
+      http.get('http://care.test/api/v1/home-next-step', () =>
+        HttpResponse.json({ ...firstUseHome, journey: {} }),
+      ),
+    )
+    await expect(
+      careClient.homeNextStep('owner-token', undefined, 'correlation'),
+    ).rejects.toMatchObject({ code: 'CARE_MALFORMED_RESPONSE', status: 502 })
+  })
+})
+
 describe('Care client progress validation', () => {
   afterEach(() => vi.unstubAllEnvs())
 

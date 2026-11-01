@@ -33,6 +33,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react'
 
 import type { PublicResourceDetail } from '../api/browser-resources'
@@ -47,6 +48,8 @@ type Props = Readonly<{
   progressLoadState: 'loading' | 'ready' | 'error'
   saving: boolean
   message: string
+  planNotice?: ReactNode
+  planCompletionRecorded?: boolean
   onRetryProgress: () => void
   onRecord: (watchedSeconds: number, practiceNote?: string) => Promise<boolean>
 }>
@@ -104,6 +107,8 @@ export function ProblemSolvingResourceDetail({
   progressLoadState,
   saving,
   message,
+  planNotice,
+  planCompletionRecorded = false,
   onRecord,
 }: Props) {
   const config = problemSolvingLessonConfig
@@ -1097,9 +1102,10 @@ export function ProblemSolvingResourceDetail({
                 </p>
               )}
 
-              {recordState === 'success' && (
+              {planNotice}
+              {recordState === 'success' && !planCompletionRecorded && (
                 <p className={styles.recordSuccess} role="status">
-                  ✓ Đã ghi nhận thành công vào Kế hoạch hỗ trợ!
+                  Đã lưu kết quả hoàn thành bài tập.
                 </p>
               )}
 
@@ -1124,10 +1130,10 @@ export function ProblemSolvingResourceDetail({
                 <PenTool size={16} aria-hidden="true" />
                 <span>
                   {status === 'COMPLETED'
-                    ? 'Đã ghi nhận vào Kế hoạch hỗ trợ'
+                    ? 'Đã ghi nhận bài tập'
                     : saving || recordState === 'sending'
                       ? 'Đang ghi nhận…'
-                      : 'Ghi nhận vào Kế hoạch hỗ trợ'}
+                      : 'Ghi nhận bài tập'}
                 </span>
               </button>
             </div>

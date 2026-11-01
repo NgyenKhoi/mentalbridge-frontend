@@ -139,7 +139,11 @@ function ResultPanel({
   const instrumentLabel = instrumentLabels[assessment.instrument]
 
   return (
-    <section className="care-result" aria-labelledby="care-result-title">
+    <section
+      className="care-result"
+      aria-labelledby="care-result-title"
+      data-page-motion="off"
+    >
       <header>
         <span className="eyebrow">Kết quả sàng lọc của bạn</span>
         <h1 id="care-result-title">{instrumentLabel.resultTitle}</h1>

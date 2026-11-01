@@ -93,24 +93,27 @@ describe('Consultation v1.12.0 public discovery boundary', () => {
       }).success,
     ).toBe(false)
   })
-  it('only accepts supported filter criteria, not health payloads or actor IDs', () => {
+  it('accepts only the opaque evaluation reference and supported filters', () => {
+    const supportEvaluationId = '40000000-0000-4000-8000-000000000725'
     expect(
       discoveryCriteriaSchema.parse({
+        supportEvaluationId,
         language: 'vi',
         modality: 'IN_APP_CHAT',
       }),
-    ).toEqual({ language: 'vi', modality: 'IN_APP_CHAT' })
-    for (const field of [
-      'actorId',
-      'accountId',
-      'supportEvaluationId',
-      'score',
-      'journal',
-      'q',
-    ])
+    ).toEqual({
+      supportEvaluationId,
+      language: 'vi',
+      modality: 'IN_APP_CHAT',
+    })
+    for (const field of ['actorId', 'accountId', 'score', 'journal', 'q'])
       expect(
         discoveryCriteriaSchema.safeParse({ [field]: 'private' }).success,
       ).toBe(false)
+    expect(
+      discoveryCriteriaSchema.safeParse({ supportEvaluationId: 'private' })
+        .success,
+    ).toBe(false)
     expect(
       discoveryCriteriaSchema.safeParse({ timezone: 'invalid-zone' }).success,
     ).toBe(false)
