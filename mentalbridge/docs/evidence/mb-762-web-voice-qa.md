@@ -27,7 +27,35 @@ this QA task. The local real-stack checkpoint below uses the separate backend
 prerequisite PR; this frontend PR does not deploy Cloud infrastructure or enable
 provider admission.
 
-## Live status
+## Completed local microphone checkpoint, 2026-11-01
+
+[Jira 10383](https://vunguyenkhoi47.atlassian.net/browse/MB-762?focusedCommentId=10383)
+records the completed, single-admission Liên pilot. The tested runtime was
+backend/Agent `4358343116dbd3e8c72542734dfcf2b9e7ed9140` and Web
+`8fbb989366512ba8a57d2f85978f0c3c528b68ae`, both unmerged. This later evidence
+supersedes the preparation-only status below for this specific local call.
+
+The user confirmed the voice was much louder and clearer and that complete
+replies were audible. Metadata confirms Nova-3 → Journal/Claude Sonnet 4.6 →
+Sonic 3/Liên, with 13 valid Sonnet replies and 11 first-audio publications.
+The differing counts do not establish that every generated reply was audible.
+
+| Observed boundary       | Result                                                                                                                                                                  |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Admission and heartbeat | One admission; 27/27 heartbeats acknowledged, maximum ACK latency 2,056 ms.                                                                                             |
+| Duration and quota      | Session ended after 186 seconds with `USER_ENDED`; 161 seconds charged against a 600-second admitted limit. It did not expire at the duration cap.                      |
+| Response latency        | Accepted STT final to first audio: median 6,117 ms, maximum 18,129 ms. Queue before the Journal request reached 13,291 ms. Conversational latency remains a limitation. |
+| Teardown                | PASS: Voice/Agent OFF, no remaining room or active Egress, session settled and quota reservation released.                                                              |
+
+The terminal diagnostic classification can still race with intentional user
+shutdown; that remaining issue is recorded separately from the successful
+audible replies and final `USER_ENDED` session settlement. This 186-second call
+does not prove uninterrupted 600-second operation, noise or dialect coverage,
+concurrent callers, Android behavior, or staging readiness. No transcript,
+audio, credentials or private participant identifiers are included here. No
+merge, staging deployment or automatic next campaign is implied.
+
+## Historical preparation status, 2026-10-29
 
 **REAL_PROVIDER_NOT_RUN; local preflight implemented.** Jira comments 10247–10255
 approve a conditional MB-762 budget of $1 total ($0.50 existing LiveKit credit,
@@ -121,7 +149,10 @@ separates reader count from USER contexts and rejects dialect overclaims;
 focused tests and targeted lint/format cover those changes without repeating
 the complete suite. CI validates all tests on the published head.
 
-No live microphone, LiveKit media, STT/TTS/Claude inference, recording, Android
-hardware or paid call has run. Read-only Cloud metadata and real synthetic-user
-consent UI checks do not establish call proof. Live scenarios remain NOT_RUN;
-no Jira Done/closure, merge or provider activation is implied by CI.
+At that historical checkpoint, no live microphone, LiveKit media,
+STT/TTS/Claude inference, recording, Android hardware or paid call had run.
+Read-only Cloud metadata and synthetic-user consent UI checks did not establish
+call proof. The initial manifest retains that NOT_RUN snapshot; the later local
+microphone checkpoint above supplies its own bounded evidence. Broader live
+scenarios remain unverified; CI does not imply Jira Done/closure, merge or
+provider activation.
