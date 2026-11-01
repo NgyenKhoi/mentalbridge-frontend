@@ -57,6 +57,15 @@ function continuationFor(
   guide: SupportGuide,
 ) {
   if (!nextAction || nextAction === 'REVIEW_SAFETY_SUPPORT') return null
+  if (nextAction === 'FIND_SPECIALIST') {
+    return {
+      path: {
+        pathname: './specialists' as const,
+        params: { supportEvaluationId: guide.supportEvaluationId },
+      },
+      label: nextActionRoutes.FIND_SPECIALIST.label,
+    }
+  }
   const firstResource = guide.resources[0]
   if (nextAction === 'EXPLORE_GUIDE_RESOURCES' && firstResource) {
     return {

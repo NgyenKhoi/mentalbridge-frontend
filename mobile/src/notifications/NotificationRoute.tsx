@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { createApiClient } from '@/api/api-client'
+import type { MobileRole } from '@/auth/session'
 import { useSession } from '@/auth/session-context'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
 import type { RuntimeConfig } from '@/config/runtime-config'
@@ -14,7 +15,13 @@ function AccountNotificationRoute({
   config,
   preferences,
   subject,
-}: Readonly<{ config: RuntimeConfig; preferences: boolean; subject: string }>) {
+  role,
+}: Readonly<{
+  config: RuntimeConfig
+  preferences: boolean
+  subject: string
+  role: MobileRole | null
+}>) {
   const queryClient = useQueryClient()
   useFocusEffect(
     useCallback(() => {
@@ -23,12 +30,13 @@ function AccountNotificationRoute({
           queryKey: [
             'notifications',
             subject,
+            role,
             preferences ? 'preferences' : 'inbox',
           ],
         },
         { cancelRefetch: false },
       )
-    }, [queryClient, subject, preferences]),
+    }, [queryClient, subject, role, preferences]),
   )
   const [binding] = useState(() => {
     const controller = new AbortController()
@@ -75,10 +83,11 @@ export function NotificationRoute({
   const { session } = useSession()
   return (
     <AccountNotificationRoute
-      key={`${session?.subject ?? ''}:${preferences}`}
+      key={`${session?.subject ?? ''}:${session?.role ?? ''}:${preferences}`}
       config={config}
       preferences={preferences}
       subject={session?.subject ?? ''}
+      role={session?.role ?? null}
     />
   )
 }

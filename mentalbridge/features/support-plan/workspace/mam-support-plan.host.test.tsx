@@ -1,5 +1,13 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
 import { MamCardButton } from '@/features/mam/MamCardButton'
 import { MamDock } from '@/features/mam/MamDock'
@@ -8,6 +16,7 @@ import { useMamSuppress } from '@/features/mam/mam-suppression'
 import { resolveMamTarget, mamFallbackText } from '@/features/mam/mam-targets'
 import { useMamPageTarget, useMamTarget } from '@/features/mam/use-mam-target'
 import { useMamActionExplain } from './mam-support-plan'
+import { loadMamDockHost } from '@/features/mam/testing/load-mam-dock-host'
 
 // The real host -> resolver -> shared Care hook -> browser API boundary; only
 // the HTTP client is replaced, and it honours the request's AbortSignal.
@@ -110,6 +119,9 @@ const press = (card: CardKey) => {
 }
 const active = () => http.calls.filter((call) => !call.signal.aborted)
 const dialog = () => screen.queryByRole('dialog', { name: 'Mầm' })
+
+// The dock host is lazy (MB-781): load it once, as the app does.
+beforeAll(loadMamDockHost, 20_000)
 
 describe('SupportPlan Mầm Care requests across the host boundary', () => {
   beforeEach(() => {

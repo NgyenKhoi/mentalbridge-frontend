@@ -137,6 +137,42 @@ function native(owner = api()) {
     />
   )
 }
+
+function homeEntryFixture(
+  actionType: 'RESOURCE' | 'ROUTINE_SELF_MANAGEMENT' | 'SELF_REPORT_REVIEW',
+) {
+  const owner = api()
+  const plan = nativePlan()
+  const action = plan.focuses[0]!.actions[0]!
+  action.actionType = actionType
+  action.presentation.title = `Home ${actionType}`
+  action.source =
+    actionType === 'RESOURCE'
+      ? {
+          ownerDomain: 'CONTENT',
+          sourceKind: 'RESOURCE_VERSION',
+          sourceId: '70000000-0000-4000-8000-000000000641',
+          sourceRevision: '1',
+          sourcePolicyVersion: 'content-publication-v1',
+          publicationId: '80000000-0000-4000-8000-000000000641',
+          eligibilityPolicyVersion: 'content-eligibility-v1',
+          verifiedAt: '2026-10-13T01:00:00Z',
+        }
+      : null
+  const occurrence = nativeOccurrence({ actionType })
+  owner.getCurrent.mockResolvedValue(plan)
+  owner.getOccurrences.mockResolvedValue({
+    supportPlanId: plan.supportPlanId,
+    supportPlanStatus: 'ACTIVE',
+    representationMode: 'NATIVE_V3',
+    from: occurrence.localDate,
+    through: occurrence.localDate,
+    occurrences: [occurrence],
+    interpretationCode:
+      'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
+  })
+  return { owner, plan, action, occurrence }
+}
 beforeEach(() => jest.clearAllMocks())
 
 const journalId = '60000000-0000-4000-8000-000000000642'
@@ -397,6 +433,94 @@ it('returns to exact owned activity, never checks automatically, and canonical e
     params: origin.value,
   })
   expect(owner.reconcileEmotion).not.toHaveBeenCalled()
+})
+
+it.each(['RESOURCE', 'ROUTINE_SELF_MANAGEMENT', 'SELF_REPORT_REVIEW'] as const)(
+  'focuses the exact Home %s owner occurrence without treating it as Emotion',
+  async (actionType) => {
+    const f = homeEntryFixture(actionType)
+    await mount(
+      <NativeSupportPlanScreen
+        api={f.owner}
+        legacyApi={legacy}
+        emotionApi={emotion}
+        current={f.plan}
+        draft={null}
+        onChanged={jest.fn().mockResolvedValue(undefined)}
+        origin={{ state: 'none' }}
+        homeOrigin={{
+          state: 'valid',
+          value: {
+            source: 'home',
+            occurrenceId: f.occurrence.occurrenceId,
+            actionId: f.occurrence.actionId,
+            actionType,
+            localDate: f.occurrence.localDate,
+          },
+        }}
+        now={now}
+      />,
+    )
+
+    await screen.findByText('Hoạt động bạn vừa mở từ Trang chủ')
+    expect(
+      screen.getByTestId(`plan-activity-${f.occurrence.occurrenceId}`),
+    ).toBeTruthy()
+    expect(f.owner.getOccurrences).toHaveBeenCalledWith(
+      f.occurrence.localDate,
+      f.occurrence.localDate,
+    )
+    expect(
+      screen.queryByText('Bạn vừa quay lại từ ghi nhận cảm xúc'),
+    ).toBeNull()
+
+    if (actionType === 'RESOURCE') {
+      await fireEvent.press(
+        screen.getByRole('button', {
+          name: `Mở ${f.action.presentation.title}`,
+        }),
+      )
+      expect(mockPush).toHaveBeenCalledWith({
+        pathname: '/(user)/resources/[resourceId]',
+        params: {
+          resourceId: f.action.source!.sourceId,
+          date: f.occurrence.localDate,
+        },
+      })
+    }
+  },
+)
+
+it('keeps a recoverable neutral plan state when a Home occurrence changed', async () => {
+  const f = homeEntryFixture('RESOURCE')
+  await mount(
+    <NativeSupportPlanScreen
+      api={f.owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={f.plan}
+      draft={null}
+      onChanged={jest.fn().mockResolvedValue(undefined)}
+      origin={{ state: 'none' }}
+      homeOrigin={{
+        state: 'valid',
+        value: {
+          source: 'home',
+          occurrenceId: f.occurrence.occurrenceId,
+          actionId: 'changed-action',
+          actionType: 'RESOURCE',
+          localDate: f.occurrence.localDate,
+        },
+      }}
+      now={now}
+    />,
+  )
+
+  await screen.findByText(/Hoạt động đã thay đổi/)
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Tải lại hoạt động' }),
+  )
+  await waitFor(() => expect(f.owner.getOccurrences).toHaveBeenCalledTimes(2))
 })
 it('checks only after explicit click, prevents a double request and retains authoritative completion on retry/outage', async () => {
   const owner = api()

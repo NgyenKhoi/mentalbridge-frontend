@@ -116,6 +116,46 @@ it('opens only the fresh mark-read action, persists read and reloads the server 
   await mount(api)
   expect(await screen.findByText('0 thông báo chưa đọc')).toBeOnTheScreen()
 })
+it('opens only a server-confirmed SPECIALIST appointment destination', async () => {
+  mockSession = { subject, role: 'SPECIALIST' }
+  const item = notification({
+    kind: 'APPOINTMENT',
+    title: 'Lịch hẹn chuyên gia đã cập nhật',
+    action: {
+      type: 'OPEN_SPECIALIST_APPOINTMENTS',
+      href: '/specialist/appointments',
+      targetId: null,
+    },
+  })
+  const read = { ...item, read: true, readAt: date }
+  const api = fixtureApi({
+    list: jest
+      .fn()
+      .mockResolvedValueOnce(page([item]))
+      .mockResolvedValue(page([read])),
+    markRead: jest.fn().mockResolvedValue(read),
+  })
+  const value = await mount(api)
+  await screen.findByText('1 thông báo chưa đọc')
+  await press('Mở: Lịch hẹn chuyên gia đã cập nhật')
+  await waitFor(() =>
+    expect(value.onOpen).toHaveBeenCalledWith({
+      pathname: '/(specialist)/appointments',
+    }),
+  )
+  expect(api.markRead).toHaveBeenCalledWith(notificationId)
+})
+it('keeps USER-only actions inert in the SPECIALIST workspace', async () => {
+  mockSession = { subject, role: 'SPECIALIST' }
+  const value = await mount()
+  expect(
+    await screen.findByText('Liên kết này chưa khả dụng trong ứng dụng.'),
+  ).toBeOnTheScreen()
+  expect(
+    screen.queryByRole('button', { name: 'Mở: Lời nhắc của bạn' }),
+  ).toBeNull()
+  expect(value.onOpen).not.toHaveBeenCalled()
+})
 it('marks all read only after server command and refresh', async () => {
   const api = fixtureApi({
     list: jest
@@ -194,7 +234,7 @@ it.each([401, 403, 503])(
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false, gcTime: Infinity } },
     })
-    client.setQueryData(['notifications', subject, 'inbox'], {
+    client.setQueryData(['notifications', subject, 'USER', 'inbox'], {
       pages: [page()],
       pageParams: [undefined],
     })
@@ -240,6 +280,28 @@ it('prevents a late old-account action from navigating after subject changes', a
   await screen.findByText('1 thông báo chưa đọc')
   await press('Mở: Lời nhắc của bạn')
   mockSession = { subject: targetId, role: 'USER' }
+  await value.view.rerender(value.tree())
+  await screen.findByText(/Chưa có thông báo/)
+  await act(async () => complete(notification({ read: true, readAt: date })))
+  expect(value.onOpen).not.toHaveBeenCalled()
+})
+it('prevents a late USER action from navigating after the same subject changes role', async () => {
+  let complete!: (
+    item: Awaited<ReturnType<NotificationApi['markRead']>>,
+  ) => void
+  const result = new Promise<Awaited<ReturnType<NotificationApi['markRead']>>>(
+    (resolve) => {
+      complete = resolve
+    },
+  )
+  const api = fixtureApi({
+    markRead: jest.fn().mockReturnValue(result),
+    list: jest.fn().mockResolvedValueOnce(page()).mockResolvedValue(page([])),
+  })
+  const value = await mount(api)
+  await screen.findByText('1 thông báo chưa đọc')
+  await press('Mở: Lời nhắc của bạn')
+  mockSession = { subject, role: 'SPECIALIST' }
   await value.view.rerender(value.tree())
   await screen.findByText(/Chưa có thông báo/)
   await act(async () => complete(notification({ read: true, readAt: date })))

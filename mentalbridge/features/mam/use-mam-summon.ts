@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 import type { MamLoopingBehavior } from './mam-contract'
 import { runMamRequest } from './mam-requests'
-import { MAM_SUMMON_EVENT, type MamSummonRequest } from './mam-summon-request'
+import {
+  discardPendingMamSummon,
+  listenMamSummons,
+  MAM_SUMMON_EVENT,
+  stopHearingMamSummons,
+  takePendingMamSummon,
+  type MamSummonRequest,
+} from './mam-summon-request'
 import {
   mamFallbackText,
   mamReviewedAnswer,
@@ -355,9 +362,12 @@ export function useMamSummon({
 
   // A card's own Mầm button opens its bubble already asking (no menu step).
   useEffect(() => {
-    if (!enabled) return
-    const onSummon = (event: Event) => {
-      const { source, intent } = (event as CustomEvent<MamSummonRequest>).detail
+    // A host that starts disabled drops a press made while it loaded (MB-781).
+    if (!enabled) {
+      discardPendingMamSummon()
+      return
+    }
+    const summon = ({ source, intent }: MamSummonRequest) => {
       const found = findMamTarget(source)
       if (!found?.target.intents.includes(intent)) return
       const rect = source.getBoundingClientRect()
@@ -373,8 +383,23 @@ export function useMamSummon({
       )
       if (opened && latest.current) start(latest.current, intent)
     }
+    const onSummon = (event: Event) =>
+      summon((event as CustomEvent<MamSummonRequest>).detail)
     window.addEventListener(MAM_SUMMON_EVENT, onSummon)
-    return () => window.removeEventListener(MAM_SUMMON_EVENT, onSummon)
+    listenMamSummons()
+    // A press made while the lazy host was loading (MB-781), taken only once the
+    // subscription survived, so a StrictMode replay cannot consume and abort it.
+    let live = true
+    queueMicrotask(() => {
+      if (!live) return
+      const missed = takePendingMamSummon()
+      if (missed) summon(missed)
+    })
+    return () => {
+      live = false
+      stopHearingMamSummons()
+      window.removeEventListener(MAM_SUMMON_EVENT, onSummon)
+    }
   }, [enabled, open, start])
 
   // The card Mầm is talking about shows it (feature CSS reads the attribute).

@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
+import type { AppointmentDisputeApi } from '@/appointment-dispute/appointment-dispute-api'
+import { AppointmentDisputePanel } from '@/appointment-dispute/AppointmentDisputePanel'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
@@ -44,6 +46,7 @@ import {
 
 type Props = Readonly<{
   api: AppointmentApi
+  disputeApi?: AppointmentDisputeApi
   consultationBriefApi?: ConsultationBriefApi
   discovery: DiscoveryApi
   onBack: () => void
@@ -51,6 +54,7 @@ type Props = Readonly<{
   videoApi?: VideoApi
   initialSelection?: SlotSelection | undefined
   originatingPlanActionId?: string | undefined
+  supportEvaluationId?: string | undefined
 }>
 type Review =
   | { kind: 'cancel'; appointment: Appointment }
@@ -131,12 +135,14 @@ function AppointmentFacts({ item }: Readonly<{ item: Appointment }>) {
 }
 function AccountAppointmentsScreen({
   api,
+  disputeApi,
   consultationBriefApi,
   discovery,
   onBack,
   initialSelection,
   originatingPlanActionId,
   sessionSummaryApi,
+  supportEvaluationId,
   videoApi,
   subject,
 }: Props & { subject: string }) {
@@ -209,9 +215,10 @@ function AccountAppointmentsScreen({
     selection: SlotSelection,
     replacing: Appointment | null,
   ) {
+    const discoveryCriteria = supportEvaluationId ? { supportEvaluationId } : {}
     const [page, profile, slots, account] = await Promise.all([
-      discovery.list({}),
-      discovery.detail(selection.slot.specialistAccountId, {}),
+      discovery.list(discoveryCriteria),
+      discovery.detail(selection.slot.specialistAccountId, discoveryCriteria),
       api.slots(),
       api.credits(),
     ])
@@ -392,6 +399,7 @@ function AccountAppointmentsScreen({
         api={discovery}
         onBack={() => setChoosing(false)}
         onBook={(selection) => void prepare(selection, replacement)}
+        {...(supportEvaluationId ? { supportEvaluationId } : {})}
       />
     )
   return (
@@ -640,6 +648,18 @@ function AccountAppointmentsScreen({
                       userAccountId={subject}
                     />
                   )}
+                  {disputeApi &&
+                    item.sessionOutcome &&
+                    item.sessionSettledAt &&
+                    ['SESSION_ENDED', 'COMPLETED'].includes(item.status) && (
+                      <AppointmentDisputePanel
+                        key={`${subject}:${item.id}`}
+                        api={disputeApi}
+                        appointment={item}
+                        serverNow={data.generatedAt}
+                        subject={subject}
+                      />
+                    )}
                   {item.replacedByAppointmentId && (
                     <>
                       <Text style={styles.body}>

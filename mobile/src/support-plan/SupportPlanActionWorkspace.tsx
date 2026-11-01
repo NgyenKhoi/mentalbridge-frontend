@@ -27,6 +27,11 @@ import {
   type EmotionPlanOrigin,
   type OriginInput,
 } from './emotion-plan-context'
+import {
+  noHomePlanOrigin,
+  resolveNativeHomePlanOrigin,
+  type HomePlanOriginInput,
+} from './home-plan-context'
 import type { SupportPlanApi } from './support-plan-api'
 import type { SupportPlanActionApi } from './support-plan-action-api'
 import type {
@@ -133,6 +138,7 @@ type Props = Readonly<{
   legacyApi: SupportPlanApi
   emotionApi: Pick<EmotionApi, 'getProgress'>
   origin: OriginInput
+  homeOrigin?: HomePlanOriginInput
   journalOrigin?: JournalOriginInput
   proposalId?: string
   now?: () => Date
@@ -144,6 +150,7 @@ export function SupportPlanActionWorkspace({
   legacyApi,
   emotionApi,
   origin,
+  homeOrigin = noHomePlanOrigin,
   journalOrigin = noJournalOrigin,
   proposalId,
   now = () => new Date(),
@@ -243,6 +250,7 @@ export function SupportPlanActionWorkspace({
     return (
       <SupportPlanScreen
         api={legacyApi}
+        homeOrigin={homeOrigin}
         {...(proposalId ? { proposalId } : {})}
         nativeProposalEntry={
           <NativeProposalEntry
@@ -264,6 +272,7 @@ export function SupportPlanActionWorkspace({
       draft={draft.data ?? null}
       onChanged={refresh}
       origin={origin}
+      homeOrigin={homeOrigin}
       journalOrigin={journalOrigin}
       now={now}
     />
@@ -350,6 +359,7 @@ type NativeProps = Readonly<{
   draft: CanonicalSupportPlan | null
   onChanged: () => Promise<void>
   origin: OriginInput
+  homeOrigin?: HomePlanOriginInput
   journalOrigin?: JournalOriginInput
   now: () => Date
 }>
@@ -362,6 +372,7 @@ export function NativeSupportPlanScreen({
   draft,
   onChanged,
   origin,
+  homeOrigin = noHomePlanOrigin,
   journalOrigin = noJournalOrigin,
   now,
 }: NativeProps) {
@@ -402,7 +413,12 @@ export function NativeSupportPlanScreen({
           from: journalOrigin.value.localDate,
           through: journalOrigin.value.localDate,
         }
-      : occurrenceWindow(now(), timezone)
+      : homeOrigin.state === 'valid'
+        ? {
+            from: homeOrigin.value.localDate,
+            through: homeOrigin.value.localDate,
+          }
+        : occurrenceWindow(now(), timezone)
   const occurrences = useQuery({
     queryKey: [
       'support-plan-v3',
@@ -438,6 +454,10 @@ export function NativeSupportPlanScreen({
     occurrences.data?.supportPlanStatus === current?.status &&
     occurrences.data?.representationMode === 'NATIVE_V3'
   const items = matching ? (occurrences.data?.occurrences ?? []) : []
+  const homeReturned =
+    homeOrigin.state === 'valid'
+      ? resolveNativeHomePlanOrigin(current, occurrences.data, homeOrigin.value)
+      : null
   const returned =
     journalOrigin.state === 'valid'
       ? items.find(
@@ -447,14 +467,16 @@ export function NativeSupportPlanScreen({
             x.localDate === journalOrigin.value.localDate &&
             x.actionType === 'JOURNAL',
         )
-      : origin.state === 'valid'
-        ? items.find(
-            (x) =>
-              x.occurrenceId === origin.value.occurrenceId &&
-              x.actionId === origin.value.actionId &&
-              x.actionType === 'EMOTION_CHECK_IN',
-          )
-        : undefined
+      : homeReturned
+        ? homeReturned
+        : origin.state === 'valid'
+          ? items.find(
+              (x) =>
+                x.occurrenceId === origin.value.occurrenceId &&
+                x.actionId === origin.value.actionId &&
+                x.actionType === 'EMOTION_CHECK_IN',
+            )
+          : undefined
   const ordered = returned
     ? [
         returned,
@@ -648,14 +670,23 @@ export function NativeSupportPlanScreen({
             Hoạt động gần đây và sắp tới
           </Text>
           {origin.state === 'invalid' ||
+          homeOrigin.state === 'invalid' ||
           journalOrigin.state === 'invalid' ||
-          ((origin.state === 'valid' || journalOrigin.state === 'valid') &&
+          ((origin.state === 'valid' ||
+            homeOrigin.state === 'valid' ||
+            journalOrigin.state === 'valid') &&
             !occurrences.isPending &&
             !returned) ? (
-            <Text accessibilityLiveRegion="polite" style={styles.body}>
-              Không xác định được hoạt động vừa mở. Các hoạt động hiện tại vẫn ở
-              bên dưới; không có mục nào được cập nhật thay.
-            </Text>
+            <>
+              <Text accessibilityLiveRegion="polite" style={styles.body}>
+                Hoạt động đã thay đổi hoặc không còn trong kế hoạch hiện tại.
+                Các mục bên dưới vẫn giữ nguyên.
+              </Text>
+              <Secondary
+                label="Tải lại hoạt động"
+                onPress={() => void occurrences.refetch()}
+              />
+            </>
           ) : null}
           {occurrences.isPending ? (
             <ActivityIndicator
@@ -704,7 +735,15 @@ export function NativeSupportPlanScreen({
                       Boolean(current.activatedAt) &&
                       action.actionVersion === item.actionVersion))
                 }
-                returned={returned?.occurrenceId === item.occurrenceId}
+                returnSource={
+                  returned?.occurrenceId !== item.occurrenceId
+                    ? null
+                    : homeReturned?.occurrenceId === item.occurrenceId
+                      ? 'home'
+                      : journalOrigin.state === 'valid'
+                        ? 'journal'
+                        : 'emotion'
+                }
                 journalOrigin={
                   journalOrigin.state === 'valid' &&
                   returned?.occurrenceId === item.occurrenceId
@@ -1033,7 +1072,7 @@ function NativeActivity({
   summary,
   source,
   journalEligible,
-  returned,
+  returnSource,
   journalOrigin,
   navigationBlocked,
   onReturnLayout,
@@ -1047,7 +1086,7 @@ function NativeActivity({
   summary: string | null
   source: CanonicalSupportPlan['focuses'][number]['actions'][number]['source']
   journalEligible: boolean
-  returned: boolean
+  returnSource: 'home' | 'journal' | 'emotion' | null
   journalOrigin?: JournalPlanOrigin | undefined
   navigationBlocked: boolean
   onReturnLayout: (target: View, heading: Text) => void
@@ -1063,6 +1102,7 @@ function NativeActivity({
   const activityRef = useRef<View>(null)
   const headingRef = useRef<Text>(null)
   const returnFocused = useRef(false)
+  const returned = returnSource !== null
   const focusReturn = useCallback(() => {
     if (
       !returnFocused.current &&
@@ -1174,9 +1214,11 @@ function NativeActivity({
     >
       {returned ? (
         <Text accessibilityLiveRegion="polite" style={styles.eyebrow}>
-          {journal
-            ? 'Bạn vừa quay lại từ nhật ký'
-            : 'Bạn vừa quay lại từ ghi nhận cảm xúc'}
+          {returnSource === 'home'
+            ? 'Hoạt động bạn vừa mở từ Trang chủ'
+            : returnSource === 'journal'
+              ? 'Bạn vừa quay lại từ nhật ký'
+              : 'Bạn vừa quay lại từ ghi nhận cảm xúc'}
         </Text>
       ) : null}
       <Text style={styles.supporting}>

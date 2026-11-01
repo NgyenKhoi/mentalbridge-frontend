@@ -28,6 +28,7 @@ type Props = Readonly<{
   api: DiscoveryApi
   onBack: () => void
   onBook?: (selection: SlotSelection) => void
+  supportEvaluationId?: string
 }>
 
 function Choice({
@@ -101,6 +102,7 @@ function AccountDiscoveryScreen({
   onBack,
   onBook,
   subject,
+  supportEvaluationId,
 }: Props & { subject: string }) {
   const client = useQueryClient()
   const [draft, setDraft] = useState<DiscoveryCriteria>({})
@@ -112,9 +114,18 @@ function AccountDiscoveryScreen({
   const [blocked, setBlocked] = useState(false)
   const [notice, setNotice] = useState('')
   const sequence = useRef(0)
+  const requestCriteria: DiscoveryCriteria = {
+    ...criteria,
+    ...(supportEvaluationId ? { supportEvaluationId } : {}),
+  }
   const page = useQuery({
-    queryKey: ['specialist-discovery', subject, criteria, cursors.at(-1)],
-    queryFn: () => api.list(criteria, cursors.at(-1)),
+    queryKey: [
+      'specialist-discovery',
+      subject,
+      requestCriteria,
+      cursors.at(-1),
+    ],
+    queryFn: () => api.list(requestCriteria, cursors.at(-1)),
     enabled: profileId === null,
     retry: false,
     staleTime: 0,
@@ -123,11 +134,11 @@ function AccountDiscoveryScreen({
     'specialist-discovery-detail',
     subject,
     profileId,
-    criteria,
+    requestCriteria,
   ]
   const detail = useQuery({
     queryKey: detailKey,
-    queryFn: () => api.detail(profileId!, criteria),
+    queryFn: () => api.detail(profileId!, requestCriteria),
     enabled: profileId !== null,
     retry: false,
     staleTime: 0,
@@ -169,8 +180,8 @@ function AccountDiscoveryScreen({
     const request = sequence.current
     setVerifying(true)
     try {
-      const policy = await api.list(criteria)
-      const item = await api.detail(slot.specialistAccountId, criteria)
+      const policy = await api.list(requestCriteria)
+      const item = await api.detail(slot.specialistAccountId, requestCriteria)
       if (request !== sequence.current) return
       const handoff = selectedHandoff(item, slot, policy)
       const stored = client.setQueryData<DiscoveryItem>(detailKey, item)

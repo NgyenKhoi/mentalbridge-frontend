@@ -1,0 +1,451 @@
+/* In-app bank-transfer payment (MB-786). Class names avoid the shell's -card/-panel/-summary overrides. */
+.pay {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+  border-radius: 20px;
+  background: #fff;
+  color: var(--ink);
+  /* scrollIntoView lands below the sticky shell header, keeping the title and countdown visible. */
+  scroll-margin-top: 112px;
+}
+
+.pay-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pay-title,
+.pay-state-title {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.pay-title {
+  font-size: clamp(20px, 2.4vw, 26px);
+}
+
+.pay-state-title {
+  font-size: 22px;
+}
+
+.pay-title:focus-visible,
+.pay-state-title:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.pay-ring {
+  position: relative;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+}
+
+.pay-ring svg {
+  transform: rotate(-90deg);
+}
+
+.pay-ring circle {
+  fill: none;
+  stroke-width: 5;
+}
+
+.pay-ring-track {
+  stroke: var(--teal-pale);
+}
+
+.pay-ring-fill {
+  stroke: var(--teal);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.pay-ring-time {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.pay-qr-col {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: 256px;
+}
+
+/* No padding: the SVG carries its own 4-module quiet zone. */
+.pay-qr {
+  width: 256px;
+  height: 256px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.pay-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pay-hint {
+  margin: 0;
+  font-size: 14px;
+  text-align: center;
+}
+
+.pay-info {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.pay-steps {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pay-steps li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.pay-dot {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  transition:
+    background-color var(--motion-medium) var(--ease-standard),
+    border-color var(--motion-medium) var(--ease-standard);
+}
+
+.pay-steps .is-now .pay-dot {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.pay-steps .is-done .pay-dot {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: #fff;
+}
+
+.pay-steps .is-now .pay-step-text {
+  font-weight: 650;
+}
+
+.pay-kv {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.pay-kv-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+  min-height: 44px;
+}
+
+.pay-kv dt {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.pay-kv dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.pay-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--teal-deep);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform var(--motion-instant) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+
+.pay-copy:hover {
+  background: var(--teal-pale);
+}
+
+.pay-copy:active,
+.pay-primary:active {
+  transform: scale(var(--motion-scale-enter));
+}
+
+.pay-ack {
+  min-height: 20px;
+  margin-top: -10px;
+  color: var(--teal-deep);
+  font-size: 14px;
+}
+
+.pay-ack-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #a8372c;
+  font-weight: 650;
+}
+
+.pay-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px; /* taste-skill-ignore: visually-hidden text, not a rule */
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* Result views sit centred in the height the waiting view held. */
+.pay-stage {
+  display: grid;
+  align-content: center;
+}
+
+.pay-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.pay-pulse {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+  animation: pay-pulse 1.6s ease-in-out infinite;
+}
+
+.pay-test {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.pay-result {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 16px 0 8px;
+  text-align: center;
+}
+
+.pay-result p {
+  max-width: 44ch;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.pay-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: var(--teal-deep);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 650;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform var(--motion-instant) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+
+.pay-primary:hover:not(:disabled) {
+  background: var(--teal);
+}
+
+.pay-primary:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.pay-check {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--teal);
+}
+
+.pay-check path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: pay-draw 420ms 120ms var(--ease-standard) forwards;
+}
+
+.pay-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--ink);
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.pay-copy:focus-visible,
+.pay-primary:focus-visible,
+.pay-back:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* First reveal in reading order; CSS so it plays before hydration. */
+.pay-rise {
+  animation: pay-rise var(--motion-medium) var(--ease-standard) both;
+}
+
+@keyframes pay-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-md));
+  }
+}
+
+@keyframes pay-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes pay-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .pay {
+    padding: 18px;
+  }
+
+  .pay-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+  }
+
+  .pay-qr-col {
+    width: 100%;
+  }
+
+  .pay-qr {
+    width: min(256px, 100%);
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .pay-kv-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pay-kv dt {
+    grid-column: 1 / -1;
+    margin-top: 6px;
+  }
+
+  .pay-kv dd {
+    grid-column: 1;
+  }
+
+  .pay-copy {
+    grid-column: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pay-rise,
+  .pay-pulse {
+    animation: none;
+  }
+
+  .pay-check path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .pay-ring-fill,
+  .pay-dot,
+  .pay-copy,
+  .pay-primary {
+    transition: none;
+  }
+
+  .pay-copy:active,
+  .pay-primary:active {
+    transform: none;
+  }
+}

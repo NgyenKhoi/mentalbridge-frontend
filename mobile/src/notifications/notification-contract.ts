@@ -113,6 +113,14 @@ export const preferencePatchSchema = z
     email: emailSchema.partial().optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0)
+export const specialistPreferencePatchSchema = z.strictObject({
+  notificationsEnabled: z.boolean(),
+  channels: z.strictObject({ inApp: z.boolean() }),
+  contentGroups: z.strictObject({
+    appointmentMessage: z.boolean(),
+    resourceSystem: z.boolean(),
+  }),
+})
 export const etagSchema = z.string().regex(/^"(0|[1-9][0-9]*)"$/)
 export type InboxNotification = z.infer<typeof notificationSchema>
 export type NotificationAction = z.infer<typeof notificationActionSchema>

@@ -1,4 +1,4 @@
-﻿.card {
+.card {
   scroll-margin-top: 120px;
   display: flex;
   flex-direction: column;
@@ -12,8 +12,7 @@
 .header {
   margin: 0;
 }
-/* Anchors the Mầm slot. Not on `.card`: the file's leading BOM makes that
-   first selector never match, and enabling it would change the incumbent look. */
+/* Anchors the Mầm slot; only the saved home card carries the button. */
 .mamCard {
   position: relative;
 }

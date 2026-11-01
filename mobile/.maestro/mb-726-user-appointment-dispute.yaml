@@ -1,0 +1,74 @@
+appId: com.mentalbridge.mobile
+name: MB-726 USER appointment dispute open, retry, replay, resolved, and expired
+---
+# Author-only evidence. NOT_RUN until the MB-666 staging/device gate provides
+# one resettable disposable USER with three ordered history appointments:
+#   0 — eligible settled appointment with no dispute;
+#   1 — existing RESOLVED / RELEASE_USER_CREDIT dispute older than 24 hours;
+#   2 — expired settled appointment with no dispute.
+# Reset the backend fixture and its idempotency records before every run. Never
+# run this mutation journey against shared dev or production data.
+- launchApp:
+    clearState: false
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Lịch hẹn của tôi'
+- tapOn: 'Lịch sử'
+
+# Appointment 0: eligible → ambiguous network result → explicit same-key replay
+# → server-confirmed OPEN. The app must not issue an automatic second POST.
+- scrollUntilVisible:
+    element:
+      id: appointment-open-detail
+    direction: DOWN
+- tapOn:
+    id: appointment-open-detail
+    index: 0
+- scrollUntilVisible:
+    element:
+      id: appointment-dispute-panel
+    direction: DOWN
+- assertVisible: 'Yêu cầu xem xét kết quả phiên'
+- assertVisible: 'Có thể gửi đến'
+- assertNotVisible: 'Ghi chú'
+- tapOn: 'Kết quả phiên chưa chính xác'
+- setAirplaneMode: enabled
+- tapOn: 'Gửi yêu cầu xem xét'
+- assertVisible: 'Chưa thể xác nhận kết quả yêu cầu.'
+- setAirplaneMode: disabled
+- tapOn: 'Kiểm tra lại cùng yêu cầu'
+- assertVisible: 'Yêu cầu đang được xem xét'
+- assertNotVisible: 'Gửi yêu cầu xem xét'
+- tapOn: 'Đóng chi tiết'
+
+# Appointment 1: an existing resolved dispute remains readable after 24 hours.
+- scrollUntilVisible:
+    element:
+      id: appointment-open-detail
+    direction: DOWN
+- tapOn:
+    id: appointment-open-detail
+    index: 1
+- scrollUntilVisible:
+    element:
+      id: appointment-dispute-panel
+    direction: DOWN
+- assertVisible: 'Đã trả lại lượt tư vấn'
+- assertNotVisible: 'Gửi yêu cầu xem xét'
+- assertNotVisible: 'Hoàn tiền'
+- tapOn: 'Đóng chi tiết'
+
+# Appointment 2: expired without a dispute explains availability and offers no
+# second/open action.
+- scrollUntilVisible:
+    element:
+      id: appointment-open-detail
+    direction: DOWN
+- tapOn:
+    id: appointment-open-detail
+    index: 2
+- scrollUntilVisible:
+    element:
+      id: appointment-dispute-panel
+    direction: DOWN
+- assertVisible: 'Đã hết thời hạn gửi yêu cầu'
+- assertNotVisible: 'Gửi yêu cầu xem xét'

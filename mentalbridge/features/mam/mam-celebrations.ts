@@ -6,6 +6,7 @@ import type {
   ResourceBingoBoard,
 } from '@/lib/content/content-validation'
 import type { MamOneShot } from './mam-contract'
+import { slottedMamAccountId } from './MamDockSlot'
 
 export const MAM_AWARD_READ_EVENT = 'mam:award-read'
 
@@ -141,8 +142,33 @@ export function awardsFromBingo(
   }
 }
 
+// The dock host loads lazily (MB-781). A page read that lands before it listens
+// is kept in order, with the signed-in account it was made for, and handed to
+// that account's host once, so the first baseline and later awards stay apart.
+// shortcut: keeps the last 50 reads; a load slow enough to drop one loses its
+// baseline, raise the cap if that is ever seen.
+let hostListening = false
+let unheard: { accountId: string; read: MamAwardRead }[] = []
+
 export function dispatchMamAwardRead(read: MamAwardRead) {
+  const accountId = slottedMamAccountId()
+  if (!hostListening && accountId)
+    unheard = [...unheard, { accountId, read }].slice(-50)
   window.dispatchEvent(new CustomEvent(MAM_AWARD_READ_EVENT, { detail: read }))
+}
+
+/** The host starts listening: returns this account's missed reads, in order, once. */
+export function takeUnheardMamAwardReads(accountId: string): MamAwardRead[] {
+  hostListening = true
+  const reads = unheard
+    .filter((entry) => entry.accountId === accountId)
+    .map((entry) => entry.read)
+  unheard = []
+  return reads
+}
+
+export function stopHearingMamAwardReads() {
+  hostListening = false
 }
 
 const object = (value: unknown): Record<string, unknown> | null =>

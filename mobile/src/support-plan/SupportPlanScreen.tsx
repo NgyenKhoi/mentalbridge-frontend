@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { randomUUID } from 'expo-crypto'
-import { router } from 'expo-router'
-import { useRef, useState, type ReactNode } from 'react'
+import { router, useFocusEffect } from 'expo-router'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Linking,
   Pressable,
@@ -11,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
+import type { ScrollView } from 'react-native'
 import { z } from 'zod'
 
 import { ApiError } from '@/api/api-error'
@@ -21,6 +23,11 @@ import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type { SupportPlanApi } from './support-plan-api'
+import {
+  noHomePlanOrigin,
+  resolveLegacyHomePlanOrigin,
+  type HomePlanOriginInput,
+} from './home-plan-context'
 import { SupportPlanPersonalizationCard } from './SupportPlanPersonalizationCard'
 import { SupportPlanScheduleEditor } from './SupportPlanScheduleEditor'
 import type {
@@ -349,7 +356,10 @@ function PlanCard({
               onPress={() =>
                 router.push({
                   pathname: './specialists',
-                  params: { planActionId: professionalAction.actionId },
+                  params: {
+                    planActionId: professionalAction.actionId,
+                    supportEvaluationId: plan.source.supportEvaluationId,
+                  },
                 })
               }
             />
@@ -592,14 +602,40 @@ function OccurrenceCard({
   busy,
   canEdit,
   onSave,
+  onReturnLayout,
   occurrence,
+  returnedFromHome = false,
 }: Readonly<{
   busy: boolean
   canEdit: boolean
   onSave: (engagement: OccurrenceEngagement) => void
+  onReturnLayout?: (target: View, heading: Text) => void
   occurrence: SupportPlanOccurrence
+  returnedFromHome?: boolean
 }>) {
   const [reflection, setReflection] = useState(occurrence.reflection ?? '')
+  const activityRef = useRef<View>(null)
+  const headingRef = useRef<Text>(null)
+  const returnFocused = useRef(false)
+  const focusReturn = useCallback(() => {
+    if (
+      !returnFocused.current &&
+      returnedFromHome &&
+      activityRef.current &&
+      headingRef.current &&
+      onReturnLayout
+    ) {
+      onReturnLayout(activityRef.current, headingRef.current)
+      returnFocused.current = true
+    }
+  }, [onReturnLayout, returnedFromHome])
+  useFocusEffect(
+    useCallback(() => {
+      returnFocused.current = false
+      const frame = requestAnimationFrame(focusReturn)
+      return () => cancelAnimationFrame(frame)
+    }, [focusReturn]),
+  )
   const editable = canEdit && occurrence.state !== 'CANCELLED'
   const save = (change: Partial<OccurrenceEngagement>) => {
     if (!editable) return
@@ -628,9 +664,26 @@ function OccurrenceCard({
   }
 
   return (
-    <View style={styles.occurrencePanel}>
+    <View
+      ref={activityRef}
+      onLayout={focusReturn}
+      style={styles.occurrencePanel}
+      testID={`plan-activity-${occurrence.occurrenceId}`}
+    >
+      {returnedFromHome ? (
+        <Text accessibilityLiveRegion="polite" style={styles.eyebrow}>
+          Hoạt động bạn vừa mở từ Trang chủ
+        </Text>
+      ) : null}
       <View style={styles.rowBetween}>
-        <Text style={styles.itemTitle}>{occurrence.source.title}</Text>
+        <Text
+          ref={headingRef}
+          accessible
+          accessibilityRole="header"
+          style={styles.itemTitle}
+        >
+          {occurrence.source.title}
+        </Text>
         <Text style={styles.badge}>
           {occurrenceLabels[occurrence.displayState]}
         </Text>
@@ -733,10 +786,12 @@ function OccurrenceCard({
 
 export function SupportPlanScreen({
   api,
+  homeOrigin = noHomePlanOrigin,
   proposalId,
   nativeProposalEntry,
 }: Readonly<{
   api: SupportPlanApi
+  homeOrigin?: HomePlanOriginInput
   proposalId?: string
   nativeProposalEntry?: ReactNode
 }>) {
@@ -747,13 +802,31 @@ export function SupportPlanScreen({
   const [authorityRecovery, setAuthorityRecovery] =
     useState<AuthorityRecovery>('idle')
   const authorityLockedRef = useRef(false)
+  const scrollRef = useRef<ScrollView>(null)
+  const contentRef = useRef<View>(null)
   const recoveryRunningRef = useRef(false)
   const recoveryContextRef = useRef<AuthorityRecoveryContext | null>(null)
   const activationKey = useRef<CommandKey>(null)
   const replacementKey = useRef<CommandKey>(null)
   const proposalReviewKey = useRef<CommandKey>(null)
   const proposalDecisionKey = useRef<CommandKey>(null)
-  const window = dateWindow()
+  const focusReturnedActivity = useCallback((target: View, heading: Text) => {
+    if (!contentRef.current) return
+    target.measureLayout(contentRef.current, (_x, y) => {
+      scrollRef.current?.scrollTo({
+        y: Math.max(0, y + spacing.xxxl - spacing.md),
+        animated: false,
+      })
+      AccessibilityInfo.sendAccessibilityEvent?.(heading, 'focus')
+    })
+  }, [])
+  const window =
+    homeOrigin.state === 'valid'
+      ? {
+          from: homeOrigin.value.localDate,
+          through: homeOrigin.value.localDate,
+        }
+      : dateWindow()
   const currentKey = ['support-plan', subject, 'current'] as const
   const draftKey = ['support-plan', subject, 'draft'] as const
   const historyKey = ['support-plan', subject, 'history'] as const
@@ -1295,6 +1368,25 @@ export function SupportPlanScreen({
   const current = currentQuery.data
   const draft = draftQuery.data
   const activePlan = current ?? draft
+  const homeReturned =
+    homeOrigin.state === 'valid'
+      ? resolveLegacyHomePlanOrigin(
+          current,
+          currentActionsQuery.data,
+          occurrenceQuery.data,
+          homeOrigin.value,
+        )
+      : null
+  const visibleOccurrences =
+    occurrenceQuery.data?.occurrences.filter((item) => !item.hidden) ?? []
+  const orderedOccurrences = homeReturned
+    ? [
+        homeReturned,
+        ...visibleOccurrences.filter(
+          (item) => item.occurrenceId !== homeReturned.occurrenceId,
+        ),
+      ]
+    : visibleOccurrences
   const replacementAuthorityMatchesPlans = Boolean(
     current &&
     draft &&
@@ -1311,7 +1403,7 @@ export function SupportPlanScreen({
     replacementQuery.data?.rationaleCodes.includes('PROPOSED_PLAN_ADMISSIBLE')
 
   return (
-    <Screen>
+    <Screen scrollRef={scrollRef} contentRef={contentRef}>
       <SecondaryButton label="← Quay lại" onPress={() => router.back()} />
       <Text style={styles.eyebrow}>CHĂM SÓC BẢN THÂN</Text>
       <Text accessibilityRole="header" style={styles.title}>
@@ -1590,6 +1682,28 @@ export function SupportPlanScreen({
                 />
               </View>
             )}
+            {(homeOrigin.state === 'invalid' ||
+              (homeOrigin.state === 'valid' &&
+                !currentActionsQuery.isPending &&
+                !occurrenceQuery.isPending &&
+                !homeReturned)) && (
+              <View style={styles.partialError}>
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={styles.supportingText}
+                >
+                  Hoạt động đã thay đổi hoặc không còn trong kế hoạch hiện tại.
+                  Các mục bên dưới vẫn giữ nguyên.
+                </Text>
+                <SecondaryButton
+                  label="Tải lại hoạt động"
+                  onPress={() => {
+                    void currentActionsQuery.refetch()
+                    void occurrenceQuery.refetch()
+                  }}
+                />
+              </View>
+            )}
             {!occurrenceAuthorityMismatch && occurrenceQuery.isPending && (
               <Text
                 accessibilityLiveRegion="polite"
@@ -1614,28 +1728,29 @@ export function SupportPlanScreen({
               </View>
             )}
             {!occurrenceAuthorityMismatch &&
-              occurrenceQuery.data?.occurrences.filter((item) => !item.hidden)
-                .length === 0 && (
+              orderedOccurrences.length === 0 && (
                 <Text style={styles.supportingText}>
                   Chưa có hoạt động trong khoảng thời gian này.
                 </Text>
               )}
             {!occurrenceAuthorityMismatch &&
-              occurrenceQuery.data?.occurrences
-                .filter((item) => !item.hidden)
-                .map((occurrence) => (
-                  <OccurrenceCard
-                    busy={busy}
-                    canEdit={current.status === 'ACTIVE'}
-                    key={`${occurrence.occurrenceId}:${occurrence.version}`}
-                    occurrence={occurrence}
-                    onSave={(engagement) =>
-                      runGovernedMutation(() =>
-                        occurrenceMutation.mutate({ occurrence, engagement }),
-                      )
-                    }
-                  />
-                ))}
+              orderedOccurrences.map((occurrence) => (
+                <OccurrenceCard
+                  busy={busy}
+                  canEdit={current.status === 'ACTIVE'}
+                  key={`${occurrence.occurrenceId}:${occurrence.version}`}
+                  occurrence={occurrence}
+                  onReturnLayout={focusReturnedActivity}
+                  returnedFromHome={
+                    homeReturned?.occurrenceId === occurrence.occurrenceId
+                  }
+                  onSave={(engagement) =>
+                    runGovernedMutation(() =>
+                      occurrenceMutation.mutate({ occurrence, engagement }),
+                    )
+                  }
+                />
+              ))}
           </View>
         )}
 

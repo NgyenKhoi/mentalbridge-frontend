@@ -46,6 +46,16 @@ describe('SPECIALIST home screen', () => {
     expect(mockPush).toHaveBeenCalledWith('./messages')
   })
 
+  it('opens the owner-scoped specialist notification inbox', async () => {
+    await render(<SpecialistHomeScreen />)
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Thông báo chuyên môn' }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('./notifications')
+  })
+
   it('opens the availability journey', async () => {
     await render(<SpecialistHomeScreen />)
 

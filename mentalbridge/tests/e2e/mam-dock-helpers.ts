@@ -1,6 +1,27 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+
 import { expect, type Locator, type Page } from '@playwright/test'
 
 // Shared by the Mầm dock and release-gate specs (MB-768, MB-775).
+
+// MB-781: built chunks only the dock host, its character or Rive need, found by
+// content in the build the E2E servers run (hashes change per build).
+export function mamExclusiveChunks() {
+  const directory = resolve('.next', 'static', 'chunks')
+  const chunks = readdirSync(directory)
+    .filter(
+      (name) =>
+        name.endsWith('.js') &&
+        /data-mam-dock|data-mam-status|@rive-app/.test(
+          readFileSync(join(directory, name), 'utf8'),
+        ),
+    )
+    .map((name) => `/_next/static/chunks/${name}`)
+  // The host and the Rive runtime are separate chunks; fewer means the markers broke.
+  expect(chunks.length).toBeGreaterThanOrEqual(2)
+  return new Set(chunks)
+}
 
 export const dock = (page: Page) =>
   page.getByRole('button', { name: 'Mầm', exact: true })

@@ -2,6 +2,7 @@ import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 
 import { createApiClient } from '@/api/api-client'
+import { createAppointmentDisputeApi } from '@/appointment-dispute/appointment-dispute-api'
 import { useSession } from '@/auth/session-context'
 import type { RuntimeConfig } from '@/config/runtime-config'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
@@ -26,6 +27,7 @@ function AccountAppointmentsRoute({
     return {
       client,
       api: createAppointmentApi(client, subject),
+      dispute: createAppointmentDisputeApi(client),
       consultationBrief: createConsultationBriefApi(client),
       discovery: createDiscoveryApi(client),
       sessionSummary: createUserSummaryApi(client, subject),
@@ -46,6 +48,7 @@ function AccountAppointmentsRoute({
   return (
     <AppointmentsScreen
       api={binding.api}
+      disputeApi={binding.dispute}
       consultationBriefApi={binding.consultationBrief}
       discovery={binding.discovery}
       sessionSummaryApi={binding.sessionSummary}

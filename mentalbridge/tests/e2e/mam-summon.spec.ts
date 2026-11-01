@@ -4,7 +4,8 @@ import { test } from './test-fixtures'
 import { homeWorld, installHomeMocks } from './home-next-step-mocks'
 
 // MB-769: Mầm targets, summon gestures and reviewed explanations. V1 answers
-// come from reviewed copy, so a summon never calls an AI endpoint.
+// come from reviewed copy, so a summon never calls an AI endpoint. Gestures
+// are the dock host's, which loads lazily (MB-781): tests wait for the dock.
 
 const dock = (page: Page) =>
   page.getByRole('button', { name: 'Mầm', exact: true })
@@ -91,6 +92,7 @@ test.describe('MB-769 Mầm summon', () => {
     await installHomeMocks(page, homeWorld('do-today'))
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/dashboard')
+    await expect(dock(page)).toBeVisible()
     await resources(page)
       .getByRole('heading', { level: 2 })
       .click({ button: 'right' })
@@ -120,6 +122,7 @@ test.describe('MB-769 Mầm summon', () => {
     await installHomeMocks(page, homeWorld('do-today'))
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/dashboard')
+    await expect(dock(page)).toBeVisible()
     await resources(page)
       .getByRole('heading', { level: 2 })
       .click({ button: 'right' })
@@ -130,6 +133,8 @@ test.describe('MB-769 Mầm summon', () => {
       '/dashboard?occurrenceId=occ-1&actionId=act-1&localDate=2026-10-27',
     )
     await expect(bubble(page)).toHaveCount(0)
+    // The host is back before the gesture, so "no bubble" means no target.
+    await expect(dock(page)).toBeVisible()
     await resources(page)
       .getByRole('heading', { level: 2 })
       .click({ button: 'right' })
@@ -154,6 +159,7 @@ test.describe('MB-769 Mầm summon', () => {
       const page = await context.newPage()
       await installHomeMocks(page, homeWorld('do-today'))
       await page.goto('/dashboard')
+      await expect(dock(page)).toBeVisible()
       const heading = resources(page).getByRole('heading', { level: 2 })
       await heading.scrollIntoViewIfNeeded()
       const box = await heading.boundingBox()

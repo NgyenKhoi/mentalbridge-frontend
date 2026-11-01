@@ -1,16 +1,12 @@
 'use client'
 
-import {
-  CheckCircle2,
-  ExternalLink,
-  RefreshCw,
-  ShieldCheck,
-} from 'lucide-react'
+import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { browserServiceCredits } from '@/features/service-credits/api/browser-client'
 import PlanUpgradeContinue from '@/features/support-plan-access/PlanUpgradeContinue'
 import type { ServiceCreditAccount } from '@/lib/consultation/consultation-validation'
 import type {
+  PaymentProvider,
   PlanCode,
   PlanPayment,
   ServicePlanCatalogue,
@@ -20,6 +16,7 @@ import {
   browserSubscription,
   SubscriptionBrowserError,
 } from '../api/browser-client'
+import PayosPaymentPanel from './PayosPaymentPanel'
 
 const PLAN_COPY: Record<
   PlanCode,
@@ -50,10 +47,26 @@ function formatVnd(value: number) {
   }).format(value)
 }
 
+const PROVIDER_LINE: Record<PaymentProvider, string> = {
+  PAYOS: 'Thanh toán qua chuyển khoản ngân hàng (payOS).',
+  MOMO: 'Thanh toán qua MoMo.',
+  FAKE: 'Thanh toán thử, không trừ tiền thật.',
+}
+
+const PROVIDER_NAME: Record<PaymentProvider, string> = {
+  PAYOS: 'payOS',
+  MOMO: 'MoMo',
+  FAKE: 'thanh toán thử',
+}
+
+// A pending payment the user can pay in the app: the server confirmed the QR.
+const payableInApp = (payment: PlanPayment | null) =>
+  payment?.status === 'PENDING' && !!payment.qrCode
+
 function friendlyError(error: unknown) {
   if (error instanceof SubscriptionBrowserError) {
     if (error.code === 'PAYMENT_CHECKOUT_DISABLED')
-      return 'Thanh toán MoMo chưa được mở. Thông tin gói vẫn có thể xem bình thường.'
+      return 'Thanh toán chưa được mở. Thông tin gói vẫn có thể xem bình thường.'
     if (
       error.code === 'SUBSCRIPTION_PAYMENT_PENDING' ||
       error.code === 'SUBSCRIPTION_UPGRADE_PENDING'
@@ -102,12 +115,12 @@ function actionFor(
   if (current === 'PREMIUM' || (current === 'PLUS' && plan.planCode === 'PLUS'))
     return { label: 'Không áp dụng', available: false }
   if (!managed) return { label: 'Không áp dụng', available: false }
-  if (!enabled) return { label: 'MoMo chưa mở', available: false }
+  if (!enabled) return { label: 'Thanh toán chưa mở', available: false }
   return {
     label:
       current === 'PLUS'
-        ? 'Nâng cấp qua MoMo'
-        : `Chọn ${plan.displayName} qua MoMo`,
+        ? `Nâng cấp lên ${plan.displayName}`
+        : `Chọn ${plan.displayName}`,
     available: true,
   }
 }
@@ -119,6 +132,8 @@ export default function PlanCheckoutPanel() {
   const [submitting, setSubmitting] = useState<PlanCode | null>(null)
   const [error, setError] = useState('')
   const [payment, setPayment] = useState<PlanPayment | null>(null)
+  const [payOpen, setPayOpen] = useState(false)
+  const [payFocus, setPayFocus] = useState(false)
   const checkoutIntent = useRef<{ planVersionId: string; key: string } | null>(
     null,
   )
@@ -131,6 +146,8 @@ export default function PlanCheckoutPanel() {
       setCatalogue(result.catalogue)
       setAccount(result.account)
       setPayment(result.payment)
+      setPayOpen(payableInApp(result.payment))
+      setPayFocus(false)
     } catch (caught) {
       setError(friendlyError(caught))
     } finally {
@@ -146,6 +163,7 @@ export default function PlanCheckoutPanel() {
         setCatalogue(result.catalogue)
         setAccount(result.account)
         setPayment(result.payment)
+        setPayOpen(payableInApp(result.payment))
       })
       .catch((caught) => {
         if (active) setError(friendlyError(caught))
@@ -176,17 +194,46 @@ export default function PlanCheckoutPanel() {
       )
       setPayment(payment)
       checkoutIntent.current = null
-      if (
-        payment.provider === 'MOMO' &&
-        payment.status === 'PENDING' &&
-        payment.checkoutUrl
-      )
-        window.location.assign(payment.checkoutUrl)
-      else setSubmitting(null)
+      setPayOpen(payableInApp(payment))
+      setPayFocus(true)
+      setSubmitting(null)
     } catch (caught) {
       setError(friendlyError(caught))
       setSubmitting(null)
     }
+  }
+
+  // An expired code is replaced: close it on the server first, then create a fresh one.
+  async function renew() {
+    const plan = catalogue?.plans.find(
+      (item) => item.planVersionId === payment?.planVersionId,
+    )
+    if (!plan || !payment) return
+    setSubmitting(plan.planCode)
+    setError('')
+    try {
+      const latest =
+        payment.status === 'PENDING'
+          ? await browserSubscription.payment(payment.paymentId)
+          : payment
+      // A FAILED re-read is not shown: the fresh checkout below replaces it without flashing a failure.
+      if (latest.status !== 'FAILED') setPayment(latest)
+      if (latest.status === 'PENDING') {
+        setError('Mã cũ đang được đóng. Vui lòng thử lại sau ít giây.')
+        setSubmitting(null)
+        return
+      }
+      // Only a confirmed FAILED payment may be replaced; success/chargeback stay as the server says.
+      if (latest.status !== 'FAILED') {
+        setSubmitting(null)
+        return
+      }
+    } catch (caught) {
+      setError(friendlyError(caught))
+      setSubmitting(null)
+      return
+    }
+    await checkout(plan)
   }
 
   if (loading) {
@@ -227,8 +274,8 @@ export default function PlanCheckoutPanel() {
         </span>
         <h2 id="subscription-plans-title">Chọn mức đồng hành phù hợp</h2>
         <p>
-          Mỗi gói có giá VND, số lượt tư vấn và giới hạn lịch đang giữ riêng.
-          MoMo là phương thức thanh toán duy nhất của luồng này.
+          Mỗi gói có giá VND, số lượt tư vấn và giới hạn lịch đang giữ riêng.{' '}
+          {PROVIDER_LINE[catalogue.paymentProvider]}
         </p>
       </div>
 
@@ -243,7 +290,7 @@ export default function PlanCheckoutPanel() {
         </p>
       )}
 
-      {payment && (
+      {payment && !payOpen && (
         <div className="svc-price-note svc-checkout-feedback">
           <p role="status">
             {payment.status === 'SUCCEEDED'
@@ -252,34 +299,38 @@ export default function PlanCheckoutPanel() {
                 ? 'Giao dịch chưa thành công. Quyền lợi không được kích hoạt từ giao dịch này.'
                 : payment.status === 'CHARGEBACK'
                   ? 'Giao dịch cần được đối soát lại.'
-                  : 'Giao dịch đang chờ xác nhận. Chưa kích hoạt quyền lợi mới.'}
+                  : payableInApp(payment)
+                    ? 'Bạn có một thanh toán đang chờ.'
+                    : 'Giao dịch đang chờ xác nhận. Chưa kích hoạt quyền lợi mới.'}
           </p>
-          {payment.provider === 'FAKE' && (
-            <p>
-              Đây là giao dịch mô phỏng, không thu tiền thật và không mở ví
-              MoMo.
-            </p>
+          {payableInApp(payment) ? (
+            <button
+              type="button"
+              onClick={() => {
+                setPayFocus(true)
+                setPayOpen(true)
+              }}
+            >
+              Tiếp tục thanh toán
+            </button>
+          ) : (
+            payment.status === 'PENDING' && (
+              <>
+                <button
+                  type="button"
+                  disabled={loading || submitting !== null}
+                  onClick={() => void load()}
+                >
+                  Kiểm tra trạng thái
+                </button>
+                {payment.checkoutUrl && (
+                  <a href={payment.checkoutUrl} rel="noopener noreferrer">
+                    Mở trang thanh toán của {PROVIDER_NAME[payment.provider]}
+                  </a>
+                )}
+              </>
+            )
           )}
-          {payment.provider === 'MOMO' &&
-            payment.status === 'PENDING' &&
-            !payment.checkoutUrl && (
-              <p>
-                Chưa thể mở thanh toán. Giao dịch vẫn đang chờ xác nhận; hãy
-                kiểm tra trạng thái, không tạo giao dịch mới.
-              </p>
-            )}
-          <button
-            type="button"
-            disabled={loading || submitting !== null}
-            onClick={() => void load()}
-          >
-            Kiểm tra trạng thái
-          </button>
-          {payment.provider === 'MOMO' &&
-            payment.status === 'PENDING' &&
-            payment.checkoutUrl && (
-              <a href={payment.checkoutUrl}>Tiếp tục thanh toán qua MoMo</a>
-            )}
         </div>
       )}
 
@@ -291,84 +342,107 @@ export default function PlanCheckoutPanel() {
         </p>
       )}
 
-      <div className="svc-tiers">
-        {catalogue.plans.map((plan) => {
-          const action = actionFor(
-            plan,
-            account.packageCode,
-            catalogue.checkoutEnabled,
-            account.packageCode === 'FREE' || account.source === 'PAID',
-          )
-          const busy = submitting === plan.planCode
-          return (
-            <article
-              key={plan.planVersionId}
-              className={`svc-tier svc-tier-${plan.planCode.toLowerCase()}`}
-            >
-              {plan.planCode === 'PLUS' && (
-                <span className="svc-popular">PHỔ BIẾN</span>
-              )}
-              <div className="svc-tier-top">
-                <span>{PLAN_COPY[plan.planCode].eyebrow}</span>
-                <small>{plan.consultationCredits} lượt / kỳ</small>
-              </div>
-              <h3>{plan.displayName}</h3>
-              <p>{PLAN_COPY[plan.planCode].description}</p>
-              <div className="svc-tier-price">
-                <strong>{formatVnd(plan.priceVnd)}</strong>
-                <span>
-                  / {plan.planCode === 'FREE' ? 'không thời hạn' : 'tháng'}
-                </span>
-              </div>
-              <ul className="svc-tier-facts">
-                <li>
-                  <CheckCircle2 size={17} aria-hidden="true" />{' '}
-                  <span>
-                    <strong>{plan.consultationCredits} lượt tư vấn</strong>{' '}
-                    trong mỗi kỳ, không cộng dồn
-                  </span>
-                </li>
-                <li>
-                  <CheckCircle2 size={17} aria-hidden="true" />{' '}
-                  <span>
-                    Giữ tối đa{' '}
-                    <strong>{plan.maxActiveReservations} lịch</strong> cùng lúc
-                  </span>
-                </li>
-                <li>
-                  <CheckCircle2 size={17} aria-hidden="true" />{' '}
-                  <span>
-                    {plan.supportPlanEnabled
-                      ? 'Có kế hoạch hỗ trợ cá nhân'
-                      : 'Công cụ tự chăm sóc cơ bản'}
-                  </span>
-                </li>
-              </ul>
-              <button
-                type="button"
-                disabled={
-                  !action.available ||
-                  submitting !== null ||
-                  payment?.status === 'PENDING'
-                }
-                aria-busy={busy}
-                onClick={() => void checkout(plan)}
-              >
-                {busy ? 'Đang tạo giao dịch…' : action.label}
-                {action.available && !busy && (
-                  <ExternalLink size={15} aria-hidden="true" />
-                )}
-              </button>
-            </article>
-          )
-        })}
-      </div>
+      {payOpen && payment ? (
+        <PayosPaymentPanel
+          key={payment.paymentId}
+          payment={payment}
+          planName={
+            catalogue.plans.find(
+              (item) => item.planVersionId === payment.planVersionId,
+            )?.displayName ?? payment.planCode
+          }
+          busy={submitting !== null}
+          focusOnOpen={payFocus}
+          onPayment={(next) => {
+            setError('')
+            setPayment(next)
+          }}
+          onBack={() => setPayOpen(false)}
+          onRenew={() => void renew()}
+          onActivated={() => window.location.reload()}
+        />
+      ) : (
+        <>
+          <div className="svc-tiers">
+            {catalogue.plans.map((plan) => {
+              const action = actionFor(
+                plan,
+                account.packageCode,
+                catalogue.checkoutEnabled,
+                account.packageCode === 'FREE' || account.source === 'PAID',
+              )
+              const busy = submitting === plan.planCode
+              return (
+                <article
+                  key={plan.planVersionId}
+                  className={`svc-tier svc-tier-${plan.planCode.toLowerCase()}`}
+                >
+                  {plan.planCode === 'PLUS' && (
+                    <span className="svc-popular">PHỔ BIẾN</span>
+                  )}
+                  <div className="svc-tier-top">
+                    <span>{PLAN_COPY[plan.planCode].eyebrow}</span>
+                    <small>{plan.consultationCredits} lượt / kỳ</small>
+                  </div>
+                  <h3>{plan.displayName}</h3>
+                  <p>{PLAN_COPY[plan.planCode].description}</p>
+                  <div className="svc-tier-price">
+                    <strong>{formatVnd(plan.priceVnd)}</strong>
+                    <span>
+                      / {plan.planCode === 'FREE' ? 'không thời hạn' : 'tháng'}
+                    </span>
+                  </div>
+                  <ul className="svc-tier-facts">
+                    <li>
+                      <CheckCircle2 size={17} aria-hidden="true" />{' '}
+                      <span>
+                        <strong>{plan.consultationCredits} lượt tư vấn</strong>{' '}
+                        trong mỗi kỳ, không cộng dồn
+                      </span>
+                    </li>
+                    <li>
+                      <CheckCircle2 size={17} aria-hidden="true" />{' '}
+                      <span>
+                        Giữ tối đa{' '}
+                        <strong>{plan.maxActiveReservations} lịch</strong> cùng
+                        lúc
+                      </span>
+                    </li>
+                    <li>
+                      <CheckCircle2 size={17} aria-hidden="true" />{' '}
+                      <span>
+                        {plan.supportPlanEnabled
+                          ? 'Có kế hoạch hỗ trợ cá nhân'
+                          : 'Công cụ tự chăm sóc cơ bản'}
+                      </span>
+                    </li>
+                  </ul>
+                  <button
+                    type="button"
+                    disabled={
+                      !action.available ||
+                      submitting !== null ||
+                      payment?.status === 'PENDING'
+                    }
+                    aria-busy={busy}
+                    onClick={() => void checkout(plan)}
+                  >
+                    {busy ? 'Đang tạo giao dịch…' : action.label}
+                    {action.available && !busy && (
+                      <ArrowRight size={15} aria-hidden="true" />
+                    )}
+                  </button>
+                </article>
+              )
+            })}
+          </div>
 
-      <p className="svc-price-note">
-        Giá và quyền lợi do máy chủ xác nhận theo đúng phiên bản gói. Giao dịch
-        chỉ kích hoạt sau khi MoMo xác nhận thành công; lượt tư vấn hết hạn cùng
-        kỳ và không chuyển sang kỳ sau.
-      </p>
+          <p className="svc-price-note">
+            Giá và quyền lợi do máy chủ xác nhận theo đúng phiên bản gói; lượt
+            tư vấn hết hạn cùng kỳ và không chuyển sang kỳ sau.
+          </p>
+        </>
+      )}
     </section>
   )
 }

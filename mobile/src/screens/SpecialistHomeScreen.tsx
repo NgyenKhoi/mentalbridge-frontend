@@ -36,6 +36,16 @@ export function SpecialistHomeScreen() {
         </Pressable>
         <Pressable
           accessibilityRole="button"
+          onPress={() => router.push('./notifications')}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.secondaryLabel}>Thông báo chuyên môn</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           onPress={() => router.push('./profile')}
           style={({ pressed }) => [
             styles.secondaryButton,

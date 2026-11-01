@@ -34,11 +34,6 @@
   --mam-dock-offset: 76px;
 }
 
-/* Lets the last row of a page scroll clear of the dock. */
-:global(body:has([data-mam-dock])) :global(.ref-main) {
-  padding-bottom: 104px;
-}
-
 .dockWrap {
   position: relative;
 }
@@ -280,10 +275,6 @@
   :global(body:has(.ref-shell)) .root,
   :global(body:has(.ref-shell.collapsed)) .root {
     --mam-dock-offset: 0px;
-  }
-
-  :global(body:has([data-mam-dock])) :global(.ref-main) {
-    padding-bottom: 96px;
   }
 }
 

@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 
-import { expect, type Page } from '@playwright/test'
+import { expect, type Page, type Route } from '@playwright/test'
 
 import { test } from './test-fixtures'
 import {
@@ -18,6 +18,7 @@ import {
   dock,
   expectNothingCoveredAtBottom,
   expectPageActionsClickable,
+  mamExclusiveChunks,
   menu,
 } from './mam-dock-helpers'
 import { installSupportPlanMocks } from './support-plan-mam-mocks'
@@ -274,6 +275,105 @@ test.describe('MB-775 Mầm web gate', () => {
       timeout: 15_000,
     })
     expect(await settledBoxes(page)).toEqual(before)
+  })
+
+  // MB-781: the host is its own chunk, recognised by content (hashes change).
+  async function routeHostChunk(
+    page: Page,
+    handle: (route: Route, send: () => Promise<void>) => Promise<void>,
+  ) {
+    const attempts: string[] = []
+    await page.route('**/_next/static/chunks/*.js', async (route) => {
+      const response = await route.fetch()
+      const body = await response.text()
+      if (!/data-mam-dock/.test(body)) return route.fulfill({ response, body })
+      attempts.push(route.request().url())
+      await handle(route, () => route.fulfill({ response, body }))
+    })
+    return attempts
+  }
+
+  const clearance = (page: Page) =>
+    page
+      .locator('.ref-main')
+      .evaluate((main) => getComputedStyle(main).paddingBottom)
+
+  async function stableBoxes(page: Page) {
+    await page.mouse.move(2, 2)
+    const read = async () => ({
+      crisis: await box(crisis(page)),
+      start: await box(startToday(page)),
+      clearance: await clearance(page),
+    })
+    let previous = await read()
+    await expect(async () => {
+      await page.waitForTimeout(200)
+      const current = await read()
+      const same = JSON.stringify(current) === JSON.stringify(previous)
+      previous = current
+      expect(same).toBe(true)
+    }).toPass({ timeout: 5000 })
+    return previous
+  }
+
+  test('keeps the page usable and still while the host chunk is held', async ({
+    page,
+  }) => {
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const attempts = await routeHostChunk(page, async (_route, send) => {
+      await held
+      await send()
+    })
+    await openHome(page)
+    await page.goto('/dashboard')
+    await expect.poll(() => attempts.length).toBe(1)
+    await expect(page.locator('[data-mam-dock]')).toHaveCount(0)
+    await startToday(page).click({ trial: true })
+    await crisis(page).click({ trial: true })
+    const before = await stableBoxes(page)
+    expect(before.clearance).toBe('104px')
+
+    release()
+    await expect(status(page)).toHaveAttribute('data-mam-status', 'ready', {
+      timeout: 15_000,
+    })
+    expect(await stableBoxes(page)).toEqual(before)
+  })
+
+  test('leaves the page whole and silent when the host chunk fails', async ({
+    page,
+  }) => {
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    const attempts = await routeHostChunk(page, (route) =>
+      route.abort('failed'),
+    )
+    await openHome(page)
+    await page.goto('/dashboard')
+    await expect.poll(() => attempts.length).toBe(1)
+    await page.waitForTimeout(2000)
+    await expect(page.locator('[data-mam-dock]')).toHaveCount(0)
+    await expect(page.getByText(/This page couldn.t load/)).toHaveCount(0)
+    expect(await clearance(page)).toBe('104px')
+    await startToday(page).click({ trial: true })
+    await crisis(page).click({ trial: true })
+    // The last page action still takes a click at the scroll end.
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    await page.locator('.ref-content a[href]').last().click({ trial: true })
+    // Turbopack's loader may ask twice before rejecting; the host never retries.
+    const settled = attempts.length
+    expect(settled).toBeLessThanOrEqual(2)
+    // The flag-off detector recognises this failed request as Mầm-only.
+    const exclusive = mamExclusiveChunks()
+    expect(attempts.every((url) => exclusive.has(new URL(url).pathname))).toBe(
+      true,
+    )
+    await page.waitForTimeout(3000)
+    expect(attempts).toHaveLength(settled)
+    expect(errors).toEqual([])
   })
 
   test('keeps working when the network drops mid-session', async ({

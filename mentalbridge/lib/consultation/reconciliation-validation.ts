@@ -53,6 +53,7 @@ const shape =
     Object.entries(fields).every(([key, check]) => check(value[key]))
 
 const provider = oneOf('FAKE', 'MOMO')
+const paymentProvider = oneOf('FAKE', 'MOMO', 'PAYOS')
 const payoutStatus = oneOf(
   'PENDING',
   'PROCESSING',
@@ -78,7 +79,7 @@ const payment = shape({
   planCode: oneOf('PLUS', 'PREMIUM'),
   pricingPolicyVersion: oneOf('upgrade-offset-v1', 'sandbox-full-price-v1'),
   purpose: oneOf('PURCHASE', 'UPGRADE'),
-  provider,
+  provider: paymentProvider,
   status: oneOf('PENDING', 'SUCCEEDED', 'FAILED', 'CHARGEBACK'),
   amountVnd: isCount,
   currency: oneOf('VND'),

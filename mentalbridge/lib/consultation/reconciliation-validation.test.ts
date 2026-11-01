@@ -116,6 +116,30 @@ describe('reconciliation-validation', () => {
         payments: [{ amountVnd: '500000' }],
       }),
     ).toBeNull()
+    const payosPayment = {
+      paymentId: '62200000-0000-4000-8000-000000000001',
+      subscriptionId: '62200000-0000-4000-8000-000000000010',
+      planVersionId: '62200000-0000-4000-8000-000000000012',
+      planCode: 'PLUS',
+      pricingPolicyVersion: 'sandbox-full-price-v1',
+      purpose: 'PURCHASE',
+      provider: 'PAYOS',
+      status: 'SUCCEEDED',
+      amountVnd: 5000,
+      currency: 'VND',
+      createdAt: '2026-10-21T00:00:00Z',
+      paidAt: '2026-10-21T00:01:00Z',
+      failedAt: null,
+    }
+    expect(
+      parseAdminCommercialProvenance({ ...trace, payments: [payosPayment] }),
+    ).not.toBeNull()
+    expect(
+      parseAdminCommercialProvenance({
+        ...trace,
+        payments: [{ ...payosPayment, provider: 'STRIPE' }],
+      }),
+    ).toBeNull()
     expect(
       parseAdminCommercialProvenance({ ...trace, subscriptions: [null] }),
     ).toBeNull()
