@@ -20,7 +20,7 @@ name: MB-701 authorized paid plan preview
     retryTapIfNoChange: true
 - assertVisible: 'Chào mừng bạn quay lại'
 - tapOn: 'Bắt đầu sàng lọc'
-- tapOn: 'Bắt đầu hoặc tiếp tục'
+- tapOn: 'Bắt đầu sàng lọc'
 - assertVisible: 'Bài PHQ-9'
 - repeat:
     times: 8

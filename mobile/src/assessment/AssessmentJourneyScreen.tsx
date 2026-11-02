@@ -72,7 +72,12 @@ function continuationFor(
     }
   }
   const firstResource = guide.resources[0]
-  if (nextAction === 'EXPLORE_GUIDE_RESOURCES' && firstResource) {
+  if (
+    nextAction === 'EXPLORE_GUIDE_RESOURCES' &&
+    firstResource &&
+    (guide.resourceResolution.status === 'AVAILABLE' ||
+      guide.resourceResolution.status === 'PARTIAL')
+  ) {
     return {
       path: `./resources/${encodeURIComponent(firstResource.resourceId)}` as const,
       label: 'Bắt đầu với bài tập đầu tiên',
@@ -417,7 +422,11 @@ function GuidePanel({
             tone="error"
           />
         )}
-        {guide.resources.length === 0 ? (
+        {resourceStatus === 'STALE' || resourceStatus === 'UNAVAILABLE' ? (
+          <Text style={styles.supportingText}>
+            Mở thư viện tài nguyên chung để xem nội dung hiện có.
+          </Text>
+        ) : guide.resources.length === 0 ? (
           <Text style={styles.supportingText}>
             Chưa có tài nguyên đã rà soát phù hợp trong snapshot này.
           </Text>
@@ -1002,9 +1011,17 @@ export function AssessmentJourneyScreen({
             <Text accessibilityRole="header" style={styles.title}>
               Ý nghĩa của kết quả
             </Text>
-            {meaning.safetyGuidance && (
+            {!guide &&
+            meaning.presentationPriority === 'SAFETY' &&
+            meaning.safetyGuidance ? (
+              <HelpNowPanel
+                api={api}
+                defaultTrigger="POSITIVE_ITEM_9"
+                guidance={meaning.safetyGuidance}
+              />
+            ) : meaning.safetyGuidance ? (
               <StateMessage message={meaning.safetyGuidance} />
-            )}
+            ) : null}
             {nativeError && <StateMessage message={nativeError} tone="error" />}
             <Text style={styles.body}>{meaning.baseMeaning.text}</Text>
             <Text style={styles.body}>{meaning.baseMeaning.rationale}</Text>
@@ -1027,9 +1044,16 @@ export function AssessmentJourneyScreen({
           </>
         ) : (
           <View style={styles.errorPanel}>
-            {meaning.safetyGuidance && (
+            {meaning.presentationPriority === 'SAFETY' &&
+            meaning.safetyGuidance ? (
+              <HelpNowPanel
+                api={api}
+                defaultTrigger="POSITIVE_ITEM_9"
+                guidance={meaning.safetyGuidance}
+              />
+            ) : meaning.safetyGuidance ? (
               <StateMessage message={meaning.safetyGuidance} />
-            )}
+            ) : null}
             <StateMessage
               message={
                 nativeError ?? 'Gợi ý hỗ trợ chưa được lưu. Hãy thử lại.'
@@ -1341,9 +1365,11 @@ export function AssessmentJourneyScreen({
           )}
           <View style={styles.heroPanel}>
             <Text style={styles.sectionTitle}>
-              {overview.episode && overview.episode.status !== 'COMPLETED'
-                ? 'Tiếp tục lượt đang làm'
-                : 'Bắt đầu lượt sàng lọc'}
+              {!overview.episode
+                ? 'Bắt đầu lượt sàng lọc'
+                : overview.episode.status === 'COMPLETED'
+                  ? 'Xem lại lượt sàng lọc đã hoàn tất'
+                  : 'Tiếp tục lượt đang làm'}
             </Text>
             <Text style={styles.body}>
               Hai bài hỏi về trải nghiệm trong 14 ngày gần đây. Kết quả dùng để
@@ -1351,7 +1377,15 @@ export function AssessmentJourneyScreen({
             </Text>
             <PrimaryButton
               disabled={working || Boolean(loadError)}
-              label={working ? 'Đang chuẩn bị…' : 'Bắt đầu hoặc tiếp tục'}
+              label={
+                working
+                  ? 'Đang chuẩn bị…'
+                  : !overview.episode
+                    ? 'Bắt đầu sàng lọc'
+                    : overview.episode.status === 'COMPLETED'
+                      ? 'Xem lại kết quả sàng lọc'
+                      : 'Tiếp tục sàng lọc'
+              }
               onPress={() => void startOrResume()}
             />
           </View>

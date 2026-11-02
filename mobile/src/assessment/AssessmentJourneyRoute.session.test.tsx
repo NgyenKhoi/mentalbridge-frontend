@@ -196,18 +196,20 @@ it.each(['PHQ9', 'GAD7'] as const)(
       startEpisode: jest.fn(),
       ensureEpisodeSupportGuide: jest.fn(),
       grantPrivacyConsent: jest.fn().mockResolvedValue(undefined),
-      submitEpisodeAssessment: jest.fn().mockRejectedValue(new Error('offline')),
+      submitEpisodeAssessment: jest
+        .fn()
+        .mockRejectedValue(new Error('offline')),
     }
-    const refresh = jest
-      .fn()
-      .mockResolvedValue({
-        session: { ...ownerA },
-        accessExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
-      })
+    const refresh = jest.fn().mockResolvedValue({
+      session: { ...ownerA },
+      accessExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    })
     mockApiQueue.push(assessmentApi)
     await setup(async () => {}, refresh)
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     await fireEvent.press(
       await screen.findByRole('radio', { name: 'Vài ngày' }),
@@ -215,19 +217,35 @@ it.each(['PHQ9', 'GAD7'] as const)(
     await fireEvent.press(screen.getByRole('button', { name: 'Câu tiếp theo' }))
     expect(screen.getByText('Câu hỏi hai')).toBeOnTheScreen()
     await fireEvent.press(screen.getByRole('radio', { name: 'Vài ngày' }))
-    await fireEvent.press(screen.getByRole('checkbox', { name: 'Đồng ý xử lý dữ liệu sàng lọc' }))
-    await fireEvent.press(screen.getByRole('button', { name: 'Hoàn tất bài này' }))
-    await waitFor(() => expect(assessmentApi.submitEpisodeAssessment).toHaveBeenCalledTimes(1))
+    await fireEvent.press(
+      screen.getByRole('checkbox', { name: 'Đồng ý xử lý dữ liệu sàng lọc' }),
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Hoàn tất bài này' }),
+    )
+    await waitFor(() =>
+      expect(assessmentApi.submitEpisodeAssessment).toHaveBeenCalledTimes(1),
+    )
     await fireEvent.press(screen.getByRole('button', { name: 'Login A' }))
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
     expect(screen.getByText('Câu hỏi hai')).toBeOnTheScreen()
     await fireEvent.press(screen.getByRole('button', { name: 'Câu trước' }))
-    expect(screen.getByRole('radio', { name: 'Vài ngày', checked: true })).toBeOnTheScreen()
+    expect(
+      screen.getByRole('radio', { name: 'Vài ngày', checked: true }),
+    ).toBeOnTheScreen()
     await fireEvent.press(screen.getByRole('button', { name: 'Câu tiếp theo' }))
-    await fireEvent.press(screen.getByRole('button', { name: 'Hoàn tất bài này' }))
-    await waitFor(() => expect(assessmentApi.submitEpisodeAssessment).toHaveBeenCalledTimes(2))
-    expect(assessmentApi.submitEpisodeAssessment.mock.calls[0]?.[3]).toEqual(assessmentApi.submitEpisodeAssessment.mock.calls[1]?.[3])
-    expect(assessmentApi.grantPrivacyConsent.mock.calls[0]?.[1]).toEqual(assessmentApi.grantPrivacyConsent.mock.calls[1]?.[1])
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Hoàn tất bài này' }),
+    )
+    await waitFor(() =>
+      expect(assessmentApi.submitEpisodeAssessment).toHaveBeenCalledTimes(2),
+    )
+    expect(assessmentApi.submitEpisodeAssessment.mock.calls[0]?.[3]).toEqual(
+      assessmentApi.submitEpisodeAssessment.mock.calls[1]?.[3],
+    )
+    expect(assessmentApi.grantPrivacyConsent.mock.calls[0]?.[1]).toEqual(
+      assessmentApi.grantPrivacyConsent.mock.calls[1]?.[1],
+    )
     expect(assessmentApi.startEpisode).not.toHaveBeenCalled()
     expect(assessmentApi.ensureEpisodeSupportGuide).not.toHaveBeenCalled()
   },

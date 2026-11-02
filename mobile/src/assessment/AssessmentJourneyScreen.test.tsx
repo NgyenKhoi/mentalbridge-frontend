@@ -361,6 +361,87 @@ describe('mobile assessment and support-guide journey', () => {
   })
 
   it.each([
+    [null, 'Bắt đầu lượt sàng lọc', 'Bắt đầu sàng lọc'],
+    [phqEpisode, 'Tiếp tục lượt đang làm', 'Tiếp tục sàng lọc'],
+    [
+      completedEpisode,
+      'Xem lại lượt sàng lọc đã hoàn tất',
+      'Xem lại kết quả sàng lọc',
+    ],
+  ])(
+    'shows the matching overview entry for the current episode',
+    async (episode, heading, label) => {
+      const api = assessmentApi({
+        getCurrentEpisode: episode
+          ? jest.fn().mockResolvedValue(episode)
+          : jest.fn().mockRejectedValue(missingEpisode()),
+      })
+      await render(<AssessmentJourneyScreen api={api} />)
+      expect(await screen.findByText(heading as string)).toBeOnTheScreen()
+      expect(
+        screen.getByRole('button', { name: label as string }),
+      ).toBeOnTheScreen()
+      expect(api.startEpisode).not.toHaveBeenCalled()
+      expect(api.ensureEpisodeSupportGuide).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['STALE', 'UNAVAILABLE'] as const)(
+    'opens the catalogue instead of a %s Guide snapshot resource',
+    async (status) => {
+      const api = assessmentApi({
+        getCurrentEpisode: jest.fn().mockResolvedValue(completedEpisode),
+      })
+      const result = {
+        episode: completedEpisode,
+        guide: {
+          ...guide,
+          resourceResolution: { ...guide.resourceResolution, status },
+          resources: [
+            {
+              resourceId: '30000000-0000-4000-8000-000000000668',
+              title: 'Bài tập',
+              summary: 'Nội dung',
+            },
+          ],
+        },
+        journey: guidedJourney('EXPLORE_GUIDE_RESOURCES'),
+        meaning: {
+          baseMeaning: {
+            text: 'Ý nghĩa đã lưu',
+            rationale: 'Giải thích đã lưu',
+          },
+          safetyGuidance: null,
+          disclaimer: 'Không phải chẩn đoán',
+        },
+      }
+      const journeyApi = {
+        ensureGuide: jest.fn().mockResolvedValue(result),
+        read: jest.fn().mockResolvedValue(result),
+      } as unknown as ReturnType<typeof createNativeGuidedJourneyApi>
+      await render(
+        <AssessmentJourneyScreen api={api} journeyApi={journeyApi} />,
+      )
+      await fireEvent.press(
+        await screen.findByRole('button', { name: 'Xem lại kết quả sàng lọc' }),
+      )
+      await fireEvent.press(
+        await screen.findByRole('button', { name: 'Tiếp tục' }),
+      )
+      expect(screen.queryByText('Bài tập')).toBeNull()
+      expect(
+        screen.getByText(
+          'Mở thư viện tài nguyên chung để xem nội dung hiện có.',
+        ),
+      ).toBeOnTheScreen()
+      await fireEvent.press(
+        screen.getByRole('button', { name: 'Khám phá thư viện tài nguyên' }),
+      )
+      expect(mockPush).toHaveBeenCalledWith('./resources')
+    },
+  )
+
+  it.each([
     [401, 'Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục.'],
     [403, 'Tài khoản này không có quyền tiếp tục hành trình sàng lọc.'],
   ] as const)(
@@ -382,7 +463,9 @@ describe('mobile assessment and support-guide journey', () => {
         <AssessmentJourneyScreen api={api} journeyApi={journeyApi} />,
       )
       await fireEvent.press(
-        await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+        await screen.findByRole('button', {
+          name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+        }),
       )
       expect(await screen.findByText(message)).toBeOnTheScreen()
       expect(screen.queryByText('Gợi ý hỗ trợ sau sàng lọc')).toBeNull()
@@ -419,6 +502,7 @@ describe('mobile assessment and support-guide journey', () => {
             text: 'Ý nghĩa đã lưu',
             rationale: 'Giải thích đã lưu',
           },
+          presentationPriority: 'SAFETY',
           safetyGuidance: 'Hướng dẫn an toàn từ Care',
           disclaimer: 'Không phải chẩn đoán',
         },
@@ -434,12 +518,31 @@ describe('mobile assessment and support-guide journey', () => {
         <AssessmentJourneyScreen api={api} journeyApi={journeyApi} />,
       )
       await fireEvent.press(
-        await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+        await screen.findByRole('button', {
+          name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+        }),
       )
       expect(
         await screen.findByText('Hướng dẫn an toàn từ Care'),
       ).toBeOnTheScreen()
       expect(screen.getByText(message)).toBeOnTheScreen()
+      await fireEvent.press(
+        screen.getByRole('button', { name: 'Tôi cần hỗ trợ ngay' }),
+      )
+      await fireEvent.changeText(
+        screen.getByLabelText('Khu vực cần tìm hỗ trợ'),
+        'Thành phố Hồ Chí Minh',
+      )
+      await fireEvent.press(
+        screen.getByRole('button', { name: 'Tìm hỗ trợ đã rà soát' }),
+      )
+      expect(
+        await screen.findByText('Cơ sở hỗ trợ đã rà soát'),
+      ).toBeOnTheScreen()
+      expect(api.lookupSafetyDirectory).toHaveBeenCalledWith(
+        'POSITIVE_ITEM_9',
+        'Thành phố Hồ Chí Minh',
+      )
       await fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục' }))
       expect(screen.getByText('Hướng dẫn an toàn từ Care')).toBeOnTheScreen()
       expect(screen.queryByText('Gợi ý hỗ trợ sau sàng lọc')).toBeNull()
@@ -481,7 +584,9 @@ describe('mobile assessment and support-guide journey', () => {
         <AssessmentJourneyScreen api={api} journeyApi={journeyApi} />,
       )
       await fireEvent.press(
-        await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+        await screen.findByRole('button', {
+          name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+        }),
       )
       await fireEvent.press(
         await screen.findByRole('button', { name: 'Tiếp tục' }),
@@ -525,7 +630,9 @@ describe('mobile assessment and support-guide journey', () => {
     >
     await render(<AssessmentJourneyScreen api={api} journeyApi={journeyApi} />)
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     await fireEvent.press(
       await screen.findByRole('button', { name: 'Tiếp tục' }),
@@ -572,7 +679,9 @@ describe('mobile assessment and support-guide journey', () => {
     >
     await render(<AssessmentJourneyScreen api={api} journeyApi={journeyApi} />)
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     await fireEvent.press(
       await screen.findByRole('button', { name: 'Tiếp tục' }),
@@ -615,7 +724,9 @@ describe('mobile assessment and support-guide journey', () => {
     >
     await render(<AssessmentJourneyScreen api={api} journeyApi={journeyApi} />)
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     await fireEvent.press(
       await screen.findByRole('button', { name: 'Tiếp tục' }),
@@ -655,7 +766,9 @@ describe('mobile assessment and support-guide journey', () => {
     } as unknown as ReturnType<typeof createNativeGuidedJourneyApi>
     await render(<AssessmentJourneyScreen api={api} journeyApi={journeyApi} />)
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     await fireEvent.press(
       await screen.findByRole('button', { name: 'Tiếp tục' }),
@@ -698,7 +811,9 @@ describe('mobile assessment and support-guide journey', () => {
     >
     await render(<AssessmentJourneyScreen api={api} journeyApi={journeyApi} />)
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     expect(
       await screen.findByText('Hướng dẫn an toàn từ Care'),
@@ -718,6 +833,10 @@ describe('mobile assessment and support-guide journey', () => {
       episode: completedEpisode,
       guide: {
         ...guide,
+        resourceResolution: {
+          ...guide.resourceResolution,
+          status: 'AVAILABLE',
+        },
         resources: [
           {
             resourceId: '30000000-0000-4000-8000-000000000668',
@@ -743,7 +862,9 @@ describe('mobile assessment and support-guide journey', () => {
     >
     await render(<AssessmentJourneyScreen api={api} journeyApi={journeyApi} />)
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     await fireEvent.press(
       await screen.findByRole('button', { name: 'Tiếp tục' }),
@@ -777,7 +898,9 @@ describe('mobile assessment and support-guide journey', () => {
     >
     await render(<AssessmentJourneyScreen api={api} journeyApi={journeyApi} />)
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     await fireEvent.press(
       await screen.findByRole('button', { name: 'Tiếp tục' }),
@@ -800,7 +923,9 @@ describe('mobile assessment and support-guide journey', () => {
     >
     await render(<AssessmentJourneyScreen api={api} journeyApi={journeyApi} />)
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     expect(await screen.findByText('Bài GAD-7')).toBeOnTheScreen()
     expect(ensureGuide).not.toHaveBeenCalled()
@@ -828,7 +953,9 @@ describe('mobile assessment and support-guide journey', () => {
     >
     await render(<AssessmentJourneyScreen api={api} journeyApi={journeyApi} />)
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     expect(await screen.findByText('Ý nghĩa đã lưu')).toBeOnTheScreen()
     await fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục' }))
@@ -874,7 +1001,9 @@ describe('mobile assessment and support-guide journey', () => {
     >
     await render(<AssessmentJourneyScreen api={api} journeyApi={journeyApi} />)
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     expect(
       await screen.findByRole('button', { name: 'Thử lại' }),
@@ -895,7 +1024,9 @@ describe('mobile assessment and support-guide journey', () => {
     await render(<AssessmentJourneyScreen api={api} />)
 
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     expect(await screen.findByText('Bài PHQ-9')).toBeOnTheScreen()
     await fireEvent.press(screen.getByRole('radio', { name: 'Vài ngày' }))
@@ -967,7 +1098,9 @@ describe('mobile assessment and support-guide journey', () => {
     await render(<AssessmentJourneyScreen api={api} />)
 
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     const submit = await screen.findByRole('button', {
       name: 'Hoàn tất bài này',
@@ -997,7 +1130,9 @@ describe('mobile assessment and support-guide journey', () => {
     await render(<AssessmentJourneyScreen api={api} />)
 
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
 
     expect(await screen.findByText('Bài GAD-7')).toBeOnTheScreen()
@@ -1085,7 +1220,9 @@ describe('mobile assessment and support-guide journey', () => {
     await render(<AssessmentJourneyScreen api={api} />)
 
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     await fireEvent.press(
       await screen.findByRole('button', {
@@ -1113,7 +1250,9 @@ describe('mobile assessment and support-guide journey', () => {
     await render(<AssessmentJourneyScreen api={api} />)
 
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
 
     expect(
@@ -1152,7 +1291,9 @@ describe('mobile assessment and support-guide journey', () => {
     await render(<AssessmentJourneyScreen api={api} />)
 
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
 
     expect(
@@ -1183,7 +1324,9 @@ describe('mobile assessment and support-guide journey', () => {
     await render(<AssessmentJourneyScreen api={api} />)
 
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
 
     expect(
@@ -1256,7 +1399,9 @@ describe('mobile assessment and support-guide journey', () => {
     await render(<AssessmentJourneyScreen api={api} />)
 
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      await screen.findByRole('button', {
+        name: /Bắt đầu sàng lọc|Tiếp tục sàng lọc|Xem lại kết quả sàng lọc/,
+      }),
     )
     await fireEvent.press(
       await screen.findByRole('button', {
