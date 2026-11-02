@@ -1,5 +1,6 @@
 'use client'
 
+import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
@@ -9,6 +10,7 @@ import type {
   CompanionConversationSummary,
   CompanionContextSources,
   CompanionQuota,
+  CompanionSuggestion,
 } from '@/lib/companion/companion-contract'
 import {
   getResourceCatalogue,
@@ -26,6 +28,7 @@ import {
 import styles from './AiCompanionChat.module.css'
 import CompanionContextDialog from './CompanionContextDialog'
 import StreamingText from './StreamingText'
+import { suggestionLink } from './suggestion-link'
 import VoiceEntry from '../voice/VoiceEntry'
 
 const starters = [
@@ -102,6 +105,36 @@ function InfoIcon() {
       <circle cx="12" cy="12" r="9" />
       <path d="M12 10.7v5.1M12 7.7h.01" />
     </Icon>
+  )
+}
+
+function ArrowIcon() {
+  return (
+    <Icon>
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </Icon>
+  )
+}
+
+function SuggestionAction({
+  suggestion,
+}: {
+  suggestion: CompanionSuggestion | null | undefined
+}) {
+  const link = suggestionLink(suggestion)
+  if (!link) return null
+  return (
+    <motion.div
+      className={styles.messageSuggestion}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <Link href={link.href}>
+        {link.label}
+        <ArrowIcon />
+      </Link>
+    </motion.div>
   )
 }
 
@@ -289,6 +322,7 @@ export default function AiCompanionChat() {
                   content: result.assistant,
                   createdAt: result.createdAt,
                   contextKinds: result.contextKinds,
+                  suggestion: result.suggestion ?? null,
                 },
               ],
               updatedAt: result.createdAt,
@@ -343,6 +377,12 @@ export default function AiCompanionChat() {
   const finishStreaming = useCallback(() => {
     setStreamingId(null)
     setSending(false)
+    // A suggestion mounts once streaming ends; keep it in view for a reader at the bottom.
+    if (nearBottomRef.current)
+      window.requestAnimationFrame(() => {
+        const container = messagesRef.current
+        if (container) container.scrollTop = container.scrollHeight
+      })
   }, [])
 
   const trackStreaming = useCallback((value: string) => {
@@ -714,6 +754,10 @@ export default function AiCompanionChat() {
                           item.content
                         )}
                       </p>
+                      {/* The action arrives only once the reply has finished streaming. */}
+                      {streamingId === item.messageId ? null : (
+                        <SuggestionAction suggestion={item.suggestion} />
+                      )}
                       {item.contextKinds.length > 0 ? (
                         <details className={styles.messageContextChip}>
                           <summary>
