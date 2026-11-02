@@ -131,7 +131,7 @@ describe('AuthenticatedShell', () => {
     ).toBeVisible()
   })
 
-  it('offers Community from the USER header and main navigation without a plan gate', () => {
+  it('offers Community in the USER header without duplicating it in the sidebar', () => {
     render(
       <AuthenticatedShell workspaces={[]}>
         <p>Nội dung dashboard</p>
@@ -152,34 +152,37 @@ describe('AuthenticatedShell', () => {
     expect(
       within(
         screen.getByRole('navigation', { name: 'Điều hướng chính' }),
-      ).getByRole('link', { name: 'Cộng đồng' }),
-    ).toHaveAttribute('href', '/community')
+      ).queryByRole('link', { name: 'Cộng đồng' }),
+    ).not.toBeInTheDocument()
   })
 
-  it('keeps the Community sidebar link named when the sidebar is collapsed', async () => {
+  it('keeps Community reachable from the header when the sidebar is collapsed', async () => {
     const user = userEvent.setup()
     render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
 
     await user.click(screen.getByRole('button', { name: 'Thu gọn sidebar' }))
 
-    const link = within(
-      screen.getByRole('navigation', { name: 'Điều hướng chính' }),
-    ).getByRole('link', { name: 'Cộng đồng' })
-    expect(link).toHaveAttribute('title', 'Cộng đồng')
-    expect(link).toHaveAttribute('aria-label', 'Cộng đồng')
+    expect(
+      within(
+        screen.getByRole('navigation', { name: 'Điều hướng chính' }),
+      ).queryByRole('link', { name: 'Cộng đồng' }),
+    ).not.toBeInTheDocument()
+    const link = within(screen.getByRole('banner')).getByRole('link', {
+      name: 'Cộng đồng',
+    })
     expect(link).toHaveAttribute('href', '/community')
   })
 
-  it('closes the mobile menu when its labeled Community entry is chosen', async () => {
+  it('closes the mobile menu when Community is chosen from the header', async () => {
     const user = userEvent.setup()
     render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
     const trigger = screen.getByRole('button', { name: 'Mở menu' })
 
     await user.click(trigger)
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
-    const link = within(
-      screen.getByRole('navigation', { name: 'Điều hướng chính' }),
-    ).getByRole('link', { name: 'Cộng đồng' })
+    const link = within(screen.getByRole('banner')).getByRole('link', {
+      name: 'Cộng đồng',
+    })
     link.addEventListener('click', (event) => event.preventDefault())
     await user.click(link)
 

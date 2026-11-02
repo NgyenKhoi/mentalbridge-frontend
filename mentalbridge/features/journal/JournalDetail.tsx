@@ -26,6 +26,7 @@ export function JournalDetail({
     .filter(Boolean).length
 
   useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
     let disposed = false
     let revert: (() => void) | undefined
     void import('gsap').then(({ gsap }) => {
