@@ -1,0 +1,68 @@
+appId: com.mentalbridge.mobile
+name: MB-701 unavailable entitlement retains FREE resource
+---
+# TEST_AUTHORED_NOT_RUN; NOT_EXECUTABLE_YET. Requires the disposable FREE
+# fixture used by MB-701, plus controlled entitlement unavailability while
+# Care still returns EXPLORE_GUIDE_RESOURCES with UNAVAILABLE status. Existing
+# MAESTRO_MB_USER_EMAIL and MAESTRO_MB_USER_PASSWORD are protected inputs.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Bắt đầu sàng lọc'
+- tapOn: 'Bắt đầu hoặc tiếp tục'
+- assertVisible: 'Bài PHQ-9'
+- repeat:
+    times: 8
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Bài GAD-7'
+- stopApp
+- launchApp:
+    clearState: false
+- assertVisible: 'Tiếp tục sàng lọc'
+- tapOn: 'Tiếp tục sàng lọc'
+- tapOn: 'Bắt đầu hoặc tiếp tục'
+- assertVisible: 'Bài GAD-7'
+- repeat:
+    times: 6
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Ý nghĩa của kết quả'
+- tapOn: 'Tiếp tục'
+- assertVisible: 'Gợi ý hỗ trợ sau sàng lọc'
+- assertNotVisible: 'Tạo gợi ý'
+- assertNotVisible: 'Tiếp tục với kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element: 'Bắt đầu với bài tập đầu tiên'
+    direction: DOWN
+- tapOn: 'Bắt đầu với bài tập đầu tiên'
+- assertNotVisible: 'Tiếp tục hành trình'
+- back
+- scrollUntilVisible:
+    element: 'Bắt đầu với bài tập đầu tiên'
+    direction: DOWN
+- assertVisible: 'Bắt đầu với bài tập đầu tiên'
+- scrollUntilVisible:
+    element: 'Chưa kiểm tra được quyền lợi gói của bạn, nên MentalBridge gợi ý bắt đầu với các bài tập miễn phí.'
+    direction: DOWN
+- assertVisible: 'Chưa kiểm tra được quyền lợi gói của bạn, nên MentalBridge gợi ý bắt đầu với các bài tập miễn phí.'
+- assertNotVisible: 'Tiếp tục với kế hoạch hỗ trợ'

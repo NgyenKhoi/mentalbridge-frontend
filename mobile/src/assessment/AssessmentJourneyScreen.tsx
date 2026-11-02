@@ -1,5 +1,5 @@
 import { randomUUID } from 'expo-crypto'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
@@ -17,6 +17,11 @@ import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type { AssessmentApi } from './assessment-api'
+import {
+  NativeGuideReadError,
+  type createNativeGuidedJourneyApi,
+  type NativeGuidedJourney,
+} from './native-guided-journey-api'
 import type {
   Assessment,
   AssessmentHistory,
@@ -169,6 +174,13 @@ function mutationErrorMessage(error: unknown) {
 }
 
 function journeyErrorMessage(error: unknown) {
+  if (error instanceof NativeGuideReadError) {
+    if (error.kind === 'missing')
+      return 'Không tìm thấy gợi ý đã lưu. Hãy thử tải lại.'
+    if (error.kind === 'unavailable')
+      return 'Dịch vụ gợi ý tạm thời không khả dụng. Hãy thử lại.'
+    return 'Không thể tải gợi ý đã lưu. Hãy thử lại.'
+  }
   if (error instanceof ApiError && error.status === 401) {
     return 'Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục.'
   }
@@ -435,12 +447,14 @@ function JourneyContinuation({
   showUnavailable = false,
   working,
   onRetry,
+  onContinue,
 }: Readonly<{
   guide: SupportGuide
   journey: GuidedJourney | null
   showUnavailable?: boolean
   working: boolean
   onRetry: () => void
+  onContinue?: () => void
 }>) {
   const nextAction = currentNextAction(journey, guide)
   const continuation = continuationFor(nextAction, guide)
@@ -453,7 +467,10 @@ function JourneyContinuation({
           </Text>
           <PrimaryButton
             label={continuation.label}
-            onPress={() => router.push(continuation.path)}
+            disabled={working}
+            onPress={() =>
+              onContinue ? onContinue() : router.push(continuation.path)
+            }
           />
         </View>
       )}
@@ -482,7 +499,11 @@ function JourneyContinuation({
 
 export function AssessmentJourneyScreen({
   api,
-}: Readonly<{ api: AssessmentApi }>) {
+  journeyApi,
+}: Readonly<{
+  api: AssessmentApi
+  journeyApi?: ReturnType<typeof createNativeGuidedJourneyApi>
+}>) {
   const { session, signOut } = useSession()
   const [overview, setOverview] = useState<Overview | null>(null)
   const [view, setView] = useState<ViewState>({ name: 'overview' })
@@ -493,10 +514,54 @@ export function AssessmentJourneyScreen({
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const [step, setStep] = useState(0)
   const [acknowledged, setAcknowledged] = useState(false)
+  const [nativeJourney, setNativeJourney] =
+    useState<NativeGuidedJourney | null>(null)
+  const [nativeStep, setNativeStep] = useState<'meaning' | 'guide' | null>(null)
+  const [nativeError, setNativeError] = useState<string | null>(null)
+  const [nativeAuthError, setNativeAuthError] = useState<401 | 403 | null>(null)
+  const returningFromAction = useRef(false)
+  const nativeRequest = useRef(0)
   const consentKey = useRef(randomUUID())
   const assessmentKey = useRef(randomUUID())
 
   const subject = session?.subject
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!returningFromAction.current || !journeyApi) return
+      returningFromAction.current = false
+      const request = ++nativeRequest.current
+      setNativeJourney(null)
+      setNativeError(null)
+      setNativeAuthError(null)
+      void journeyApi
+        .read()
+        .then((result) => {
+          if (request === nativeRequest.current) {
+            if (result.meaning) setNativeJourney(result)
+            else
+              setNativeError(
+                'Hành trình đã thay đổi. Hãy quay lại để tiếp tục lượt hiện tại.',
+              )
+          }
+        })
+        .catch((error: unknown) => {
+          if (request === nativeRequest.current) {
+            if (error instanceof NativeGuideReadError)
+              setNativeJourney(error.partial)
+            if (
+              error instanceof ApiError &&
+              (error.status === 401 || error.status === 403)
+            )
+              setNativeAuthError(error.status)
+            setNativeError(journeyErrorMessage(error))
+          }
+        })
+      return () => {
+        nativeRequest.current += 1
+      }
+    }, [journeyApi]),
+  )
 
   const loadOverview = useCallback(async () => {
     setLoading(true)
@@ -572,6 +637,12 @@ export function AssessmentJourneyScreen({
           }
         : await api.completeEpisode(episode.episodeId)
 
+    if (journeyApi) {
+      setNativeStep('meaning')
+      await loadNativeJourney()
+      return
+    }
+
     const { guide, journey } = await prepareGuide(outcome.episode.episodeId)
     const latestGuides = await api.listSupportGuides().catch(() => null)
 
@@ -596,6 +667,110 @@ export function AssessmentJourneyScreen({
         journey,
       },
     })
+  }
+
+  const loadNativeJourney = async () => {
+    if (!journeyApi) return
+    const request = ++nativeRequest.current
+    setNativeError(null)
+    setNativeAuthError(null)
+    setNativeJourney(null)
+    try {
+      const result = await journeyApi.ensureGuide()
+      if (!result.meaning) throw new Error('Meaning unavailable')
+      if (request === nativeRequest.current) setNativeJourney(result)
+    } catch (error) {
+      if (request !== nativeRequest.current) return
+      if (error instanceof NativeGuideReadError) {
+        setNativeJourney(error.partial)
+        setNativeError(journeyErrorMessage(error))
+        return
+      }
+      if (
+        error instanceof ApiError &&
+        (error.status === 401 || error.status === 403)
+      ) {
+        setNativeAuthError(error.status)
+        setNativeError(journeyErrorMessage(error))
+        return
+      }
+      if (!(
+        error instanceof ApiError &&
+        (error.status === 401 || error.status === 403)
+      )) {
+        try {
+          const current = await journeyApi.read()
+          if (
+            request === nativeRequest.current &&
+            current.journey.stage === 'GUIDE_REQUIRED'
+          )
+            setNativeJourney(current)
+        } catch (fallbackError) {
+          if (
+            request === nativeRequest.current &&
+            fallbackError instanceof ApiError &&
+            (fallbackError.status === 401 || fallbackError.status === 403)
+          ) {
+            setNativeJourney(null)
+            setNativeAuthError(fallbackError.status)
+            setNativeError(journeyErrorMessage(fallbackError))
+            return
+          }
+          // The original failure remains visible; no stale data is substituted.
+        }
+      }
+      if (request === nativeRequest.current)
+        setNativeError(journeyErrorMessage(error))
+    }
+  }
+
+  const continueNativeJourney = async () => {
+    if (!journeyApi || !nativeJourney?.guide || working) return
+    const previous = nativeJourney
+    const request = ++nativeRequest.current
+    setWorking(true)
+    try {
+      const fresh = await journeyApi.read()
+      if (request !== nativeRequest.current) return
+      if (!fresh.meaning) {
+        setNativeJourney(null)
+        setNativeError(
+          'Hành trình đã thay đổi. Hãy quay lại để tiếp tục lượt hiện tại.',
+        )
+        return
+      }
+      setNativeJourney(fresh)
+      if (
+        !fresh.guide ||
+        fresh.journey.stage !== 'GUIDE_READY' ||
+        fresh.journey.supportGuideId !== previous.journey.supportGuideId ||
+        fresh.journey.nextAction !== previous.journey.nextAction ||
+        fresh.journey.currentSupportPlanId !==
+          previous.journey.currentSupportPlanId ||
+        fresh.journey.entitlementStatus !== previous.journey.entitlementStatus
+      )
+        return
+      const continuation = continuationFor(
+        currentNextAction(fresh.journey, fresh.guide),
+        fresh.guide,
+      )
+      if (!continuation) return
+      returningFromAction.current = true
+      router.push(continuation.path)
+    } catch (error) {
+      if (request !== nativeRequest.current) return
+      setNativeJourney(
+        error instanceof NativeGuideReadError ? error.partial : null,
+      )
+      if (
+        error instanceof ApiError &&
+        (error.status === 401 || error.status === 403)
+      )
+        setNativeAuthError(error.status)
+      setNativeError(journeyErrorMessage(error))
+    } finally {
+      setWorking(false)
+    }
   }
 
   const prepareGuide = async (
@@ -784,6 +959,88 @@ export function AssessmentJourneyScreen({
             MentalBridge đang tải dữ liệu đã lưu của bạn.
           </Text>
         </View>
+      </Screen>
+    )
+  }
+
+  if (nativeStep) {
+    const guide = nativeJourney?.guide
+    const meaning = nativeJourney?.meaning
+    return (
+      <Screen>
+        <BackButton
+          onPress={() => {
+            if (nativeStep === 'guide') {
+              nativeRequest.current += 1
+              setNativeStep('meaning')
+            } else {
+              nativeRequest.current += 1
+              setNativeStep(null)
+              setNativeJourney(null)
+              returnToOverview()
+            }
+          }}
+        />
+        {nativeError && !meaning ? (
+          <View style={styles.errorPanel}>
+            <StateMessage message={nativeError} tone="error" />
+            {nativeAuthError !== 403 && (
+              <PrimaryButton
+                label={nativeAuthError === 401 ? 'Đăng nhập lại' : 'Thử lại'}
+                onPress={() =>
+                  nativeAuthError === 401
+                    ? void signOut()
+                    : void loadNativeJourney()
+                }
+              />
+            )}
+          </View>
+        ) : !meaning ? (
+          <ActivityIndicator accessibilityLabel="Đang tải kết quả" />
+        ) : nativeStep === 'meaning' ? (
+          <View style={styles.sectionGap}>
+            <Text accessibilityRole="header" style={styles.title}>
+              Ý nghĩa của kết quả
+            </Text>
+            {meaning.safetyGuidance && (
+              <StateMessage message={meaning.safetyGuidance} />
+            )}
+            {nativeError && <StateMessage message={nativeError} tone="error" />}
+            <Text style={styles.body}>{meaning.baseMeaning.text}</Text>
+            <Text style={styles.body}>{meaning.baseMeaning.rationale}</Text>
+            <Text style={styles.supportingText}>{meaning.disclaimer}</Text>
+            <PrimaryButton
+              label="Tiếp tục"
+              onPress={() => setNativeStep('guide')}
+            />
+          </View>
+        ) : guide ? (
+          <>
+            <GuidePanel api={api} guide={guide} />
+            <JourneyContinuation
+              guide={guide}
+              journey={nativeJourney.journey}
+              working={working}
+              onRetry={() => void loadNativeJourney()}
+              onContinue={() => void continueNativeJourney()}
+            />
+          </>
+        ) : (
+          <View style={styles.errorPanel}>
+            {meaning.safetyGuidance && (
+              <StateMessage message={meaning.safetyGuidance} />
+            )}
+            <StateMessage
+              message={
+                nativeError ?? 'Gợi ý hỗ trợ chưa được lưu. Hãy thử lại.'
+              }
+            />
+            <PrimaryButton
+              label="Thử lại"
+              onPress={() => void loadNativeJourney()}
+            />
+          </View>
+        )}
       </Screen>
     )
   }
