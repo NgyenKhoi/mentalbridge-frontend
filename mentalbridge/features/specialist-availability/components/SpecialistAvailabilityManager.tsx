@@ -161,6 +161,9 @@ export default function SpecialistAvailabilityManager() {
   )
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [withdrawError, setWithdrawError] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
+  const createButtonRef = useRef<HTMLButtonElement>(null)
+  const restoreCreateFocus = useCallback(() => createButtonRef.current, [])
   const formRef = useRef<HTMLFormElement>(null)
   const listRef = useRef<HTMLHeadingElement>(null)
   const rangeAnchorRef = useRef('')
@@ -392,6 +395,7 @@ export default function SpecialistAvailabilityManager() {
         description: message,
         tone: 'success',
       })
+      setCreateOpen(false)
       if (rangeAnchorRef.current) {
         const window = availabilityWindow(rangeAnchorRef.current)
         if (
@@ -505,301 +509,358 @@ export default function SpecialistAvailabilityManager() {
             kéo dài 60 phút.
           </p>
         </div>
-        <div className={styles.summary} aria-label="Tổng quan lịch khả dụng">
+        <div className={styles.headingActions}>
+          <div className={styles.summary} aria-label="Tổng quan lịch khả dụng">
+            <button
+              type="button"
+              aria-label="Xem khung giờ có thể đặt"
+              aria-pressed={filter === 'AVAILABLE'}
+              disabled={!loaded}
+              onClick={() =>
+                setFilter(filter === 'AVAILABLE' ? 'ALL' : 'AVAILABLE')
+              }
+            >
+              <span className={styles.statusDot} />
+              <strong>{loaded ? counts.available : '—'}</strong> có thể đặt
+            </button>
+            <button
+              type="button"
+              aria-label="Xem khung giờ đã rút"
+              aria-pressed={filter === 'WITHDRAWN'}
+              disabled={!loaded}
+              onClick={() =>
+                setFilter(filter === 'WITHDRAWN' ? 'ALL' : 'WITHDRAWN')
+              }
+            >
+              <CalendarX2 size={14} />
+              <strong>{loaded ? counts.withdrawn : '—'}</strong> đã rút
+            </button>
+          </div>
           <button
+            ref={createButtonRef}
             type="button"
-            aria-label="Xem khung giờ có thể đặt"
-            aria-pressed={filter === 'AVAILABLE'}
-            disabled={!loaded}
-            onClick={() =>
-              setFilter(filter === 'AVAILABLE' ? 'ALL' : 'AVAILABLE')
-            }
+            className={`btn-primary ${styles.createButton}`}
+            aria-haspopup="dialog"
+            aria-expanded={createOpen}
+            onClick={() => setCreateOpen(true)}
           >
-            <span className={styles.statusDot} />
-            <strong>{loaded ? counts.available : '—'}</strong> có thể đặt
-          </button>
-          <button
-            type="button"
-            aria-label="Xem khung giờ đã rút"
-            aria-pressed={filter === 'WITHDRAWN'}
-            disabled={!loaded}
-            onClick={() =>
-              setFilter(filter === 'WITHDRAWN' ? 'ALL' : 'WITHDRAWN')
-            }
-          >
-            <CalendarX2 size={14} />
-            <strong>{loaded ? counts.withdrawn : '—'}</strong> đã rút
+            <CalendarPlus size={18} />
+            Thêm khung giờ
           </button>
         </div>
       </header>
       <div className={styles.layout}>
-        <form
-          ref={formRef}
-          className={styles.form}
-          onSubmit={publish}
-          aria-labelledby="availability-form-title"
+        <Dialog
+          open={createOpen}
+          onOpenChange={(open) => {
+            if (!pendingRef.current) setCreateOpen(open)
+          }}
+          labelledBy="availability-form-title"
+          describedBy="availability-form-description"
+          className={styles.createDialog}
+          restoreFocusTo={restoreCreateFocus}
         >
-          <div className={styles.panelHeading}>
-            <div>
-              <h2 id="availability-form-title">Thêm khung giờ</h2>
-              <p>Thiết lập một lời mời trò chuyện.</p>
-            </div>
-            <button
-              type="button"
-              className={styles.resetButton}
-              disabled={
-                !!pending ||
-                (!form.date &&
-                  !form.startTime &&
-                  form.modality === 'IN_APP_CHAT')
-              }
-              onClick={resetForm}
-            >
-              Nhập lại
-            </button>
-          </div>
-          <fieldset disabled={!!pending} className={styles.formFields}>
-            <legend className={styles.srOnly}>
-              Thiết lập khung giờ tư vấn
-            </legend>
-            <div className={styles.fieldHeading}>
-              <span>Chọn ngày làm việc</span>
-              {form.date && (
-                <small>
-                  {formatDate(form.date, {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                  })}
-                </small>
-              )}
-            </div>
-            <div
-              className={styles.quickDays}
-              aria-label="Chọn nhanh ngày tư vấn"
-            >
-              {quickDays.map((date) => (
-                <button
-                  key={date}
-                  type="button"
-                  aria-label={formatDate(date, {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                  aria-pressed={form.date === date}
-                  onClick={() => updateForm('date', date)}
-                >
-                  <span>
-                    {date === minDate
-                      ? 'Hôm nay'
-                      : formatDate(date, { weekday: 'short' })}
-                  </span>
-                  <strong>{date.slice(-2)}</strong>
-                  <small>{formatDate(date, { month: '2-digit' })}</small>
-                </button>
-              ))}
-            </div>
-            <AvailabilityDatePicker
-              value={form.date}
-              min={minDate}
-              disabled={!!pending}
-              onChange={(value) => updateForm('date', value)}
-            />
-            <div className={styles.fieldHeading}>
-              <span>Khung giờ hợp ý bạn</span>
-              <small>60 phút / khung</small>
-            </div>
-            {TIMES.map((times, index) => (
-              <div key={index} className={styles.timeSuggestions}>
-                <small>{index === 0 ? 'Buổi sáng' : 'Buổi chiều & tối'}</small>
-                <div>
-                  {times.map((time) => {
-                    const issue = suggestIssue(time)
-                    return (
-                      <button
-                        key={time}
-                        type="button"
-                        aria-label={`Chọn ${time}${issue ? ` · ${issue}` : ''}`}
-                        aria-pressed={form.startTime === time}
-                        disabled={!!pending || !!issue}
-                        title={issue || `${time} · 60 phút`}
-                        onClick={() => updateForm('startTime', time)}
-                      >
-                        {time}
-                      </button>
-                    )
-                  })}
-                </div>
+          <form
+            ref={formRef}
+            className={styles.form}
+            onSubmit={publish}
+            aria-labelledby="availability-form-title"
+          >
+            <div className={styles.panelHeading}>
+              <div>
+                <h2 id="availability-form-title">Thêm khung giờ</h2>
+                <p id="availability-form-description">
+                  Thiết lập một lời mời trò chuyện.
+                </p>
               </div>
-            ))}
-            <AvailabilityTimePicker
-              value={form.startTime}
-              disabled={!!pending}
-              onChange={(value) => updateForm('startTime', value)}
-            />
-            <div className={styles.timezoneField}>
-              <label htmlFor="availability-timezone">Múi giờ hiển thị</label>
-              <div className={styles.inputShell}>
-                <Globe2 size={16} />
-                <input
-                  id="availability-timezone"
-                  required
-                  maxLength={64}
-                  list="availability-timezones"
-                  value={form.timezone}
-                  onChange={(event) =>
-                    updateForm('timezone', event.target.value)
+              <div className={styles.formHeadingActions}>
+                <button
+                  type="button"
+                  className={styles.resetButton}
+                  disabled={
+                    !!pending ||
+                    (!form.date &&
+                      !form.startTime &&
+                      form.modality === 'IN_APP_CHAT')
                   }
-                  aria-describedby="availability-timezone-help"
-                  aria-invalid={!validTimezone(form.timezone)}
+                  onClick={resetForm}
+                >
+                  Nhập lại
+                </button>
+                <button
+                  type="button"
+                  className={styles.iconButton}
+                  aria-label="Đóng thêm khung giờ"
+                  disabled={!!pending}
+                  onClick={() => setCreateOpen(false)}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            <fieldset disabled={!!pending} className={styles.formFields}>
+              <legend className={styles.srOnly}>
+                Thiết lập khung giờ tư vấn
+              </legend>
+              <div className={styles.formSchedule}>
+                <div className={styles.fieldHeading}>
+                  <span>Chọn ngày làm việc</span>
+                  {form.date && (
+                    <small>
+                      {formatDate(form.date, {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })}
+                    </small>
+                  )}
+                </div>
+                <div
+                  className={styles.quickDays}
+                  aria-label="Chọn nhanh ngày tư vấn"
+                >
+                  {quickDays.map((date) => (
+                    <button
+                      key={date}
+                      type="button"
+                      aria-label={formatDate(date, {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                      aria-pressed={form.date === date}
+                      onClick={() => updateForm('date', date)}
+                    >
+                      <span>
+                        {date === minDate
+                          ? 'Hôm nay'
+                          : formatDate(date, { weekday: 'short' })}
+                      </span>
+                      <strong>{date.slice(-2)}</strong>
+                      <small>{formatDate(date, { month: '2-digit' })}</small>
+                    </button>
+                  ))}
+                </div>
+                <AvailabilityDatePicker
+                  value={form.date}
+                  min={minDate}
+                  disabled={!!pending}
+                  onChange={(value) => updateForm('date', value)}
+                />
+                <div className={styles.fieldHeading}>
+                  <span>Khung giờ hợp ý bạn</span>
+                  <small>60 phút / khung</small>
+                </div>
+                {TIMES.map((times, index) => (
+                  <div key={index} className={styles.timeSuggestions}>
+                    <small>
+                      {index === 0 ? 'Buổi sáng' : 'Buổi chiều & tối'}
+                    </small>
+                    <div>
+                      {times.map((time) => {
+                        const issue = suggestIssue(time)
+                        return (
+                          <button
+                            key={time}
+                            type="button"
+                            aria-label={`Chọn ${time}${issue ? ` · ${issue}` : ''}`}
+                            aria-pressed={form.startTime === time}
+                            disabled={!!pending || !!issue}
+                            title={issue || `${time} · 60 phút`}
+                            onClick={() => updateForm('startTime', time)}
+                          >
+                            {time}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <AvailabilityTimePicker
+                  value={form.startTime}
+                  disabled={!!pending}
+                  onChange={(value) => updateForm('startTime', value)}
                 />
               </div>
-              <datalist id="availability-timezones">
-                {[
-                  'Asia/Ho_Chi_Minh',
-                  'Asia/Bangkok',
-                  'Asia/Singapore',
-                  'Europe/London',
-                  'America/New_York',
-                ].map((zone) => (
-                  <option key={zone} value={zone} />
-                ))}
-              </datalist>
-              <small id="availability-timezone-help">
-                Tên múi giờ IANA ·{' '}
-                {now ? timezoneOffset(safeTimezone, now) : 'GMT+7'}
-              </small>
-            </div>
-            <fieldset className={styles.modalityGroup}>
-              <legend>Hình thức tư vấn</legend>
-              <div className={styles.modalities}>
-                <label
-                  className={styles.modality}
-                  data-selected={form.modality === 'IN_APP_CHAT'}
-                >
-                  <input
-                    type="radio"
-                    name="availability-modality"
-                    aria-label="Chat trong ứng dụng"
-                    checked={form.modality === 'IN_APP_CHAT'}
-                    onChange={() => updateForm('modality', 'IN_APP_CHAT')}
-                  />
-                  <span>
-                    <MessageSquare size={18} />
-                    <strong>Chat trực tuyến</strong>
-                    <Check size={14} />
-                  </span>
-                  <small>Nhắn tin trực tiếp với bạn.</small>
-                </label>
-                <label
-                  className={styles.modality}
-                  data-selected={form.modality === 'IN_APP_VIDEO'}
-                  data-disabled={!videoEnabled}
-                >
-                  <input
-                    type="radio"
-                    name="availability-modality"
-                    aria-label="Video trong ứng dụng"
-                    checked={form.modality === 'IN_APP_VIDEO'}
-                    disabled={!loaded || !videoEnabled}
-                    onChange={() => updateForm('modality', 'IN_APP_VIDEO')}
-                  />
-                  <span>
-                    <Video size={18} />
-                    <strong>Video call</strong>
-                    {videoEnabled ? (
-                      <Check size={14} />
-                    ) : (
-                      <LockKeyhole size={13} />
-                    )}
-                  </span>
-                  <small>
-                    {!loaded
-                      ? 'Đang kiểm tra hình thức tư vấn…'
-                      : videoEnabled
-                        ? 'Gặp gỡ qua video trong ứng dụng.'
-                        : 'Chưa được bật cho lịch tư vấn.'}
+              <div className={styles.formDetails}>
+                <div className={styles.timezoneField}>
+                  <label htmlFor="availability-timezone">
+                    Múi giờ hiển thị
+                  </label>
+                  <div className={styles.inputShell}>
+                    <Globe2 size={16} />
+                    <input
+                      id="availability-timezone"
+                      required
+                      maxLength={64}
+                      list="availability-timezones"
+                      value={form.timezone}
+                      onChange={(event) =>
+                        updateForm('timezone', event.target.value)
+                      }
+                      aria-describedby="availability-timezone-help"
+                      aria-invalid={!validTimezone(form.timezone)}
+                    />
+                  </div>
+                  <datalist id="availability-timezones">
+                    {[
+                      'Asia/Ho_Chi_Minh',
+                      'Asia/Bangkok',
+                      'Asia/Singapore',
+                      'Europe/London',
+                      'America/New_York',
+                    ].map((zone) => (
+                      <option key={zone} value={zone} />
+                    ))}
+                  </datalist>
+                  <small id="availability-timezone-help">
+                    Tên múi giờ IANA ·{' '}
+                    {now ? timezoneOffset(safeTimezone, now) : 'GMT+7'}
                   </small>
-                </label>
-              </div>
-            </fieldset>
-            {loaded && !videoEnabled && (
-              <p className={styles.info} role="note">
-                <Info size={16} />
-                <span>
-                  <strong>Video chưa sẵn sàng.</strong> Bạn vẫn có thể xuất bản
-                  lịch chat.
-                </span>
-              </p>
-            )}
-            <div
-              className={styles.preview}
-              aria-live="polite"
-              aria-atomic="true"
-              data-ready={!!selection.range && !selection.issue}
-            >
-              <Clock3 size={18} />
-              <div>
-                <small>Khung giờ sẽ xuất bản</small>
-                <strong>
-                  {selection.range
-                    ? slotRange({ ...selection.range, timezone: form.timezone })
-                    : 'Chọn ngày và giờ bắt đầu'}
-                </strong>
-                {selection.range && (
-                  <span>
-                    {formatDate(form.date, {
-                      weekday: 'short',
-                      day: '2-digit',
-                      month: '2-digit',
-                    })}{' '}
-                    · 60 phút ·{' '}
-                    {form.modality === 'IN_APP_CHAT' ? 'Chat' : 'Video'}
-                  </span>
+                </div>
+                <fieldset className={styles.modalityGroup}>
+                  <legend>Hình thức tư vấn</legend>
+                  <div className={styles.modalities}>
+                    <label
+                      className={styles.modality}
+                      data-selected={form.modality === 'IN_APP_CHAT'}
+                    >
+                      <input
+                        type="radio"
+                        name="availability-modality"
+                        aria-label="Chat trong ứng dụng"
+                        checked={form.modality === 'IN_APP_CHAT'}
+                        onChange={() => updateForm('modality', 'IN_APP_CHAT')}
+                      />
+                      <span>
+                        <MessageSquare size={18} />
+                        <strong>Chat trực tuyến</strong>
+                        <Check size={14} />
+                      </span>
+                      <small>Nhắn tin trực tiếp với bạn.</small>
+                    </label>
+                    <label
+                      className={styles.modality}
+                      data-selected={form.modality === 'IN_APP_VIDEO'}
+                      data-disabled={!videoEnabled}
+                    >
+                      <input
+                        type="radio"
+                        name="availability-modality"
+                        aria-label="Video trong ứng dụng"
+                        checked={form.modality === 'IN_APP_VIDEO'}
+                        disabled={!loaded || !videoEnabled}
+                        onChange={() => updateForm('modality', 'IN_APP_VIDEO')}
+                      />
+                      <span>
+                        <Video size={18} />
+                        <strong>Video call</strong>
+                        {videoEnabled ? (
+                          <Check size={14} />
+                        ) : (
+                          <LockKeyhole size={13} />
+                        )}
+                      </span>
+                      <small>
+                        {!loaded
+                          ? 'Đang kiểm tra hình thức tư vấn…'
+                          : videoEnabled
+                            ? 'Gặp gỡ qua video trong ứng dụng.'
+                            : 'Chưa được bật cho lịch tư vấn.'}
+                      </small>
+                    </label>
+                  </div>
+                </fieldset>
+                {loaded && !videoEnabled && (
+                  <p className={styles.info} role="note">
+                    <Info size={16} />
+                    <span>
+                      <strong>Video chưa sẵn sàng.</strong> Bạn vẫn có thể xuất
+                      bản lịch chat.
+                    </span>
+                  </p>
+                )}
+                <div
+                  className={styles.preview}
+                  aria-live="polite"
+                  aria-atomic="true"
+                  data-ready={!!selection.range && !selection.issue}
+                >
+                  <Clock3 size={18} />
+                  <div>
+                    <small>Khung giờ sẽ xuất bản</small>
+                    <strong>
+                      {selection.range
+                        ? slotRange({
+                            ...selection.range,
+                            timezone: form.timezone,
+                          })
+                        : 'Chọn ngày và giờ bắt đầu'}
+                    </strong>
+                    {selection.range && (
+                      <span>
+                        {formatDate(form.date, {
+                          weekday: 'short',
+                          day: '2-digit',
+                          month: '2-digit',
+                        })}{' '}
+                        · 60 phút ·{' '}
+                        {form.modality === 'IN_APP_CHAT' ? 'Chat' : 'Video'}
+                      </span>
+                    )}
+                  </div>
+                  {selection.range && !selection.issue && (
+                    <CheckCircle2 size={17} />
+                  )}
+                </div>
+                {selection.issue && (
+                  <p className={styles.fieldIssue}>
+                    <Info size={15} />
+                    {selection.issue}
+                  </p>
+                )}
+                {formError && (
+                  <p className={styles.error} role="alert">
+                    {formError}
+                  </p>
                 )}
               </div>
-              {selection.range && !selection.issue && (
-                <CheckCircle2 size={17} />
-              )}
-            </div>
-            {selection.issue && (
-              <p className={styles.fieldIssue}>
-                <Info size={15} />
-                {selection.issue}
-              </p>
-            )}
-            {formError && (
-              <p className={styles.error} role="alert">
-                {formError}
-              </p>
-            )}
-            <button
-              type="submit"
-              className={`btn-primary ${styles.primaryButton}`}
-              disabled={
-                !loaded ||
-                !!pending ||
-                !selection.range ||
-                !!selection.issue ||
-                (form.modality === 'IN_APP_VIDEO' && !videoEnabled)
-              }
-            >
-              {pending === 'publish' ? (
-                <>
-                  <LoaderCircle className={styles.spinner} size={18} />
-                  Đang xuất bản…
-                </>
-              ) : (
-                <>
-                  <CalendarPlus size={18} />
-                  Xuất bản khung giờ
-                </>
-              )}
-            </button>
-          </fieldset>
-        </form>
+              <div className={styles.formFooter}>
+                <button
+                  type="button"
+                  className={styles.keepButton}
+                  onClick={() => setCreateOpen(false)}
+                >
+                  Đóng
+                </button>
+                <button
+                  type="submit"
+                  className={`btn-primary ${styles.primaryButton}`}
+                  disabled={
+                    !loaded ||
+                    !!pending ||
+                    !selection.range ||
+                    !!selection.issue ||
+                    (form.modality === 'IN_APP_VIDEO' && !videoEnabled)
+                  }
+                >
+                  {pending === 'publish' ? (
+                    <>
+                      <LoaderCircle className={styles.spinner} size={18} />
+                      Đang xuất bản…
+                    </>
+                  ) : (
+                    <>
+                      <CalendarPlus size={18} />
+                      Xuất bản khung giờ
+                    </>
+                  )}
+                </button>
+              </div>
+            </fieldset>
+          </form>
+        </Dialog>
         <div className={styles.rightColumn}>
           <section
             className={styles.list}
@@ -972,10 +1033,7 @@ export default function SpecialistAvailabilityManager() {
                   className={`btn-outline ${styles.emptyAction}`}
                   onClick={() => {
                     if (filter !== 'ALL') setFilter('ALL')
-                    else
-                      formRef.current
-                        ?.querySelector<HTMLInputElement>('input[type="date"]')
-                        ?.focus()
+                    else setCreateOpen(true)
                   }}
                 >
                   {filter === 'ALL' ? (

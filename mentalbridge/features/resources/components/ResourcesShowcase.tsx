@@ -33,6 +33,7 @@ import {
   type AchievementCollection,
 } from '@/features/achievements/api/browser-achievements'
 import { AnimatedResourceSticker } from './AnimatedResourceSticker'
+import { resourceArtwork } from '../model/resource-artwork'
 import { PlanResourcesSection } from './PlanResourcesSection'
 import styles from './resources-showcase.module.css'
 
@@ -53,64 +54,27 @@ const ACHIEVEMENT_ICONS: Record<string, string> = {
   'resource.practice-7-days': '🌟',
 }
 
-const resourceArtworks = [
-  {
-    title: 'thở chậm',
-    src: '/images/resource-breathing.webp',
-    alt: 'Ngồi thở chậm với tay đặt trên ngực và bụng',
-  },
-  {
-    title: 'ba phút nhận biết hiện tại',
-    src: '/images/resource-mindfulness.webp',
-    alt: 'Chú ý quan sát chiếc lá, ánh sáng và những vật gần mình',
-  },
-  {
-    title: 'giãn cơ và đổi tư thế',
-    src: '/images/resource-stretch.webp',
-    alt: 'Đứng vững và vươn tay để giãn nhẹ một bên thân',
-  },
-  {
-    title: 'giải quyết một vấn đề theo từng bước',
-    src: '/images/resource-problem-solving.webp',
-    alt: 'Chia một vấn đề thành những bước nhỏ trên bàn làm việc',
-  },
-  {
-    title: 'thư giãn cơ tiến triển',
-    src: '/images/resource-pmr.webp',
-    alt: 'Nằm thư giãn và nhẹ nhàng siết rồi thả lỏng từng nhóm cơ',
-  },
-  {
-    title: 'thả lỏng cơ',
-    src: '/images/resource-pmr.webp',
-    alt: 'Nằm thư giãn và nhẹ nhàng siết rồi thả lỏng từng nhóm cơ',
-  },
-] as const
 function resourceHref(resource: PublicResourceSummary, date: string) {
   return `/resources/${resource.id}?from=resources&date=${date}`
 }
 
 function ResourceArt({ resource }: { resource: PublicResourceSummary }) {
   const meta = resourcePresentation(resource)
-  const artwork = resourceArtworks.find(({ title }) =>
-    resource.title.toLocaleLowerCase('vi-VN').includes(title),
-  )
+  const artwork = resourceArtwork(resource)
 
   return (
     <div
       className={`${styles.art} ${styles[`art${resource.category}`]}`}
       data-resource-surface="dark"
     >
-      {artwork ? (
-        <Image
-          src={artwork.src}
-          alt={artwork.alt}
-          fill
-          sizes="(max-width: 600px) 100vw, (max-width: 900px) 90vw, 44vw"
-          className={styles.artImage}
-        />
-      ) : (
-        <AnimatedResourceSticker variant={meta.sticker} size="large" />
-      )}
+      <Image
+        src={artwork.src}
+        alt={artwork.alt}
+        fill
+        sizes="(max-width: 600px) 100vw, (max-width: 900px) 90vw, 44vw"
+        className={styles.artImage}
+        style={{ objectPosition: artwork.position }}
+      />
       <div className={styles.artBadges}>
         <span>
           {resource.category === 'VIDEO'

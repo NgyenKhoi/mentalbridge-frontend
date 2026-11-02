@@ -1,0 +1,206 @@
+.ref-shell[data-onboarding-active],
+.ref-shell[data-onboarding-active] .ref-sidebar {
+  transition: none;
+}
+
+.role-shell[data-onboarding-active] .role-sidebar,
+.role-shell[data-onboarding-active] .role-main {
+  transition: none;
+}
+
+.driver-popover.mb-onboarding-popover.mb-onboarding-specialist {
+  font-family:
+    var(--font-plus-jakarta), var(--font-be-vietnam-variable), sans-serif;
+}
+.driver-popover.mb-onboarding-specialist .driver-popover-title {
+  font-family: var(--font-lora-variable), Georgia, serif;
+}
+
+body.mb-onboarding-active .driver-overlay {
+  z-index: 2147483000;
+}
+
+.driver-popover.mb-onboarding-popover {
+  z-index: 2147483001;
+  box-sizing: border-box;
+  width: min(352px, calc(100vw - 32px));
+  min-width: min(250px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: visible;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-shell);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-be-vietnam), sans-serif;
+  box-shadow: var(--elevation-dialog);
+  overscroll-behavior: contain;
+}
+
+.mb-onboarding-popover .mb-onboarding-content {
+  box-sizing: border-box;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: var(--space-6);
+  border-radius: inherit;
+  overscroll-behavior: contain;
+}
+
+.mb-onboarding-popover .driver-popover-title {
+  margin: 0 0 var(--space-3);
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 1.375rem;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.mb-onboarding-popover .driver-popover-title::before {
+  content: '✦';
+  display: block;
+  margin-bottom: var(--space-3);
+  color: var(--teal);
+  font-family: inherit;
+  font-size: 1.5rem;
+}
+
+.mb-onboarding-popover .driver-popover-description {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.mb-onboarding-popover .driver-popover-footer {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.mb-onboarding-popover .driver-popover-progress-text {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.mb-onboarding-popover .driver-popover-navigation-btns {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.mb-onboarding-popover button {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--teal-deep);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.4;
+  text-shadow: none;
+  text-align: center;
+}
+
+.mb-onboarding-popover .driver-popover-navigation-btns button {
+  flex: 1;
+  float: none;
+}
+
+.mb-onboarding-popover .driver-popover-next-btn {
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+  color: var(--surface);
+}
+
+.mb-onboarding-popover .driver-popover-next-btn:hover {
+  background: var(--teal);
+}
+
+.mb-onboarding-popover .driver-popover-prev-btn:hover {
+  background: var(--surface-soft);
+}
+
+.mb-onboarding-popover .driver-popover-close-btn {
+  position: static;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.mb-onboarding-popover .driver-popover-close-btn:hover {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.mb-onboarding-popover button:focus-visible,
+.mb-onboarding-unavailable button:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 3px;
+}
+
+.mb-onboarding-popover .driver-popover-arrow {
+  border-color: transparent;
+}
+.mb-onboarding-popover .driver-popover-arrow-side-left {
+  border-left-color: var(--surface);
+}
+.mb-onboarding-popover .driver-popover-arrow-side-right {
+  border-right-color: var(--surface);
+}
+.mb-onboarding-popover .driver-popover-arrow-side-top {
+  border-top-color: var(--surface);
+}
+.mb-onboarding-popover .driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--surface);
+}
+
+.mb-onboarding-unavailable {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 200;
+  width: min(360px, calc(100% - 32px));
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--elevation-2);
+}
+.mb-onboarding-unavailable p {
+  margin: 0 0 var(--space-3);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.mb-onboarding-unavailable button {
+  min-height: 44px;
+  margin-right: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.mb-onboarding-active .driver-overlay,
+  .mb-onboarding-popover,
+  .mb-onboarding-popover * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
