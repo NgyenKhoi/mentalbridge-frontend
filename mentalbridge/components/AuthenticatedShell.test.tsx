@@ -1,5 +1,6 @@
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { ApiError } from '@/lib/api/api-error'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
@@ -9,8 +10,22 @@ vi.mock('@/features/assessment/api/browser-care', () => ({
   getCareProfile: profileApi.getCareProfile,
 }))
 vi.mock('@/features/auth/components/SessionActions', () => ({
-  default: () => <div>Phiên người dùng</div>,
+  default: ({
+    displayName,
+    accountLabel,
+    avatar,
+  }: {
+    displayName: string
+    accountLabel: string
+    avatar: string
+  }) => (
+    <div data-testid="sidebar-account">
+      Phiên người dùng <span>{displayName}</span> <span>{accountLabel}</span>{' '}
+      <span>{avatar}</span>
+    </div>
+  ),
 }))
+vi.mock('@/features/onboarding/OnboardingTour', () => ({ default: () => null }))
 vi.mock('@/features/auth/components/WorkspaceSwitcher', () => ({
   default: () => <div>Đổi không gian</div>,
 }))
@@ -23,7 +38,77 @@ import AuthenticatedShell from './AuthenticatedShell'
 describe('AuthenticatedShell', () => {
   beforeEach(() => {
     navigation.pathname = '/dashboard'
-    profileApi.getCareProfile.mockReset().mockResolvedValue(null)
+    profileApi.getCareProfile.mockReset().mockReturnValue(new Promise(() => {}))
+  })
+
+  it('shows the real profile name and initials in the sidebar and header', async () => {
+    profileApi.getCareProfile.mockResolvedValue({
+      displayName: '  Nguyễn Minh An  ',
+    })
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    const account = within(screen.getByTestId('sidebar-account'))
+    expect(await account.findByText('Nguyễn Minh An')).toBeVisible()
+    expect(account.getByText('MA')).toBeVisible()
+    expect(account.getByText('Hồ sơ cá nhân')).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Hồ sơ Nguyễn Minh An' }),
+    ).toHaveTextContent('MA')
+  })
+
+  it('invites an account without a profile to add their own name', async () => {
+    profileApi.getCareProfile.mockRejectedValue(
+      new ApiError({
+        message: 'Missing profile',
+        code: 'PROFILE_NOT_FOUND',
+        status: 404,
+      }),
+    )
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    const account = within(screen.getByTestId('sidebar-account'))
+    expect(await account.findByText('Hoàn thiện hồ sơ')).toBeVisible()
+    expect(account.getByText('Thêm tên của bạn')).toBeVisible()
+    expect(account.queryByText('Người dùng')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Hồ sơ Hoàn thiện hồ sơ' }),
+    ).toHaveAttribute('href', '/profile')
+  })
+
+  it('keeps an updated name when an earlier profile read finishes late', async () => {
+    let finish!: (value: { displayName: string }) => void
+    profileApi.getCareProfile.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('mb:profile-updated', {
+          detail: { displayName: 'Tên vừa cập nhật' },
+        }),
+      )
+    })
+    await act(async () => finish({ displayName: 'Tên cũ' }))
+    expect(
+      within(screen.getByTestId('sidebar-account')).getByText(
+        'Tên vừa cập nhật',
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText('Tên cũ')).not.toBeInTheDocument()
+  })
+
+  it('explains an unavailable profile and reloads it when the user returns', async () => {
+    profileApi.getCareProfile.mockRejectedValueOnce(new Error('offline'))
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    expect(await screen.findByText('Chưa tải được thông tin')).toBeVisible()
+    profileApi.getCareProfile.mockResolvedValue({ displayName: 'Nguyễn An' })
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'))
+    })
+    expect(
+      await screen.findByRole('link', { name: 'Hồ sơ Nguyễn An' }),
+    ).toBeVisible()
   })
 
   it('keeps AI conversation and appointment messaging separate in the USER workspace', () => {
@@ -107,7 +192,7 @@ describe('AuthenticatedShell', () => {
 
   it.each(['loading', 'unavailable'])(
     'keeps Community reachable when the Care profile is %s',
-    (state) => {
+    async (state) => {
       if (state === 'loading')
         profileApi.getCareProfile.mockReturnValue(new Promise(() => {}))
       else
@@ -115,6 +200,8 @@ describe('AuthenticatedShell', () => {
           new Error('Profile unavailable'),
         )
       render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+      if (state === 'unavailable')
+        await screen.findByText('Chưa tải được thông tin')
 
       expect(
         within(screen.getByRole('banner')).getByRole('link', {
