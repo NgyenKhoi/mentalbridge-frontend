@@ -8,17 +8,21 @@ import styles from './Voice.module.css'
 const VoiceDialog = dynamic(() => import('./VoiceDialog'), { ssr: false })
 export default function VoiceEntry({
   placement,
+  conversation,
 }: {
   placement: 'desktop' | 'mobile'
+  conversation?: { conversationId: string; title: string }
 }) {
   const [open, setOpen] = useState(false)
   const [instance, setInstance] = useState(0)
+  const [selectedConversation, setSelectedConversation] = useState(conversation)
   return (
     <>
       <button
         type="button"
         className={`${styles.entry} ${placement === 'mobile' ? styles.mobileEntry : styles.desktopEntry}`}
         onClick={() => {
+          setSelectedConversation(conversation)
           setInstance((value) => value + 1)
           setOpen(true)
         }}
@@ -27,7 +31,12 @@ export default function VoiceEntry({
         <Phone size={16} aria-hidden="true" /> Gọi AI
       </button>
       {instance > 0 ? (
-        <VoiceDialog key={instance} open={open} onOpenChange={setOpen} />
+        <VoiceDialog
+          key={instance}
+          open={open}
+          onOpenChange={setOpen}
+          conversation={selectedConversation}
+        />
       ) : null}
     </>
   )

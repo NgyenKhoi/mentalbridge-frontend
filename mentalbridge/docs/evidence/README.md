@@ -1,5 +1,9 @@
 # Synthetic browser evidence
 
+MB-790 adds explicit selected Text-to-Voice continuation with Care Voice v2.
+[Acceptance states and verification](mb-790-text-voice-handoff.md) distinguish
+local contract/component checks from the still-gated live provider journey.
+
 MB-762 extends Web Voice failure/isolation QA and prepares the opt-in live
 demo runbook with a closed operator manifest. [Coverage and current status](mb-762-web-voice-qa.md)
 separate deterministic checks from real-cloud evidence, which remains blocked.

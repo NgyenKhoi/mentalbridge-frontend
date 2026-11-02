@@ -37,6 +37,52 @@ const request = (
     ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),
   })
 describe('closed Voice BFF', () => {
+  it('validates selected conversation handoff and start tickets without forwarding raw context', async () => {
+    const token = 'opaque'.repeat(10)
+    const fetch = vi.fn().mockResolvedValue(
+      Response.json({
+        handoffToken: token,
+        expiresAt: new Date(Date.now() + 120000).toISOString(),
+        selectedPairs: 1,
+        policyVersion: 'text-voice-handoff-v1',
+      }),
+    )
+    vi.stubGlobal('fetch', fetch)
+    const prepared = await voiceBff(
+      request('POST', { conversationId: voiceSessionId }),
+      ['context-handoffs'],
+    )
+    expect(prepared.status).toBe(200)
+    expect(prepared.headers.get('Cache-Control')).toBe('no-store')
+    expect(fetch.mock.calls[0]?.[1].body).toBe(
+      JSON.stringify({ conversationId: voiceSessionId }),
+    )
+    fetch.mockResolvedValue(
+      Response.json(session({ contextMode: 'TEXT_HANDOFF' })),
+    )
+    expect(
+      (await voiceBff(request('POST', { handoffToken: token }), ['sessions']))
+        .status,
+    ).toBe(202)
+    fetch.mockClear()
+    for (const body of [
+      { conversationId: voiceSessionId, transcript: 'PRIVATE' },
+      { ownerId: voiceSessionId },
+      { conversationId: 'invalid' },
+    ])
+      expect(
+        (await voiceBff(request('POST', body), ['context-handoffs'])).status,
+      ).toBe(422)
+    expect(
+      (
+        await voiceBff(
+          request('POST', { handoffToken: token, transcript: 'PRIVATE' }),
+          ['sessions'],
+        )
+      ).status,
+    ).toBe(422)
+    expect(fetch).not.toHaveBeenCalled()
+  })
   beforeEach(() => {
     vi.stubEnv('JOURNAL_AI_SERVICE_URL', 'http://journal.test')
     vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
@@ -112,7 +158,7 @@ describe('closed Voice BFF', () => {
         ['consent'],
         {
           consentType: 'AI_VOICE_PROCESSING',
-          consentVersion: 'ai-voice-processing-capstone-v1',
+          consentVersion: 'ai-voice-processing-capstone-v2',
           granted: true,
           current: true,
           acceptedAt: new Date().toISOString(),
@@ -127,7 +173,7 @@ describe('closed Voice BFF', () => {
           'POST',
           parts[0] === 'consent'
             ? {
-                consentVersion: 'ai-voice-processing-capstone-v1',
+                consentVersion: 'ai-voice-processing-capstone-v2',
                 granted: true,
               }
             : {},
