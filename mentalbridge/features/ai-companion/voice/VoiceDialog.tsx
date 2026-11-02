@@ -2,7 +2,15 @@
 
 import Link from 'next/link'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
-import { Mic, MicOff, PhoneOff, ShieldAlert, Sparkles, X } from 'lucide-react'
+import {
+  Mic,
+  MicOff,
+  PhoneOff,
+  ShieldAlert,
+  Sparkles,
+  Volume2,
+  X,
+} from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import {
   parseAiProcessingDisclosure,
@@ -318,38 +326,52 @@ export default function VoiceDialog({
             {view.audioBlocked ? (
               <button
                 type="button"
-                className={styles.secondary}
+                className={`${styles.secondary} ${styles.iconButton} ${styles.audioControl}`}
+                aria-label="Bật âm thanh"
+                title="Bật âm thanh"
                 onClick={() => void controller.audio()}
               >
-                Bật âm thanh
+                <Volume2 size={22} aria-hidden="true" />
               </button>
             ) : null}
             <div className={styles.controls}>
               {view.phase === 'connected' ? (
                 <button
                   type="button"
-                  className={styles.secondary}
+                  className={`${styles.secondary} ${styles.iconButton}`}
+                  aria-label={view.muted ? 'Bật micro' : 'Tắt micro'}
+                  title={view.muted ? 'Bật micro' : 'Tắt micro'}
                   aria-pressed={view.muted}
                   onClick={() => void controller.mute()}
                 >
                   {view.muted ? (
-                    <Mic size={17} aria-hidden="true" />
+                    <Mic size={22} aria-hidden="true" />
                   ) : (
-                    <MicOff size={17} aria-hidden="true" />
+                    <MicOff size={22} aria-hidden="true" />
                   )}
-                  {view.muted ? 'Bật micro' : 'Tắt micro'}
                 </button>
               ) : null}
               <button
                 type="button"
-                className={`${styles.primary} ${styles.end}`}
+                className={`${styles.primary} ${styles.end} ${styles.iconButton}`}
+                aria-label={
+                  view.phase === 'ending' ? 'Xác nhận kết thúc' : 'Kết thúc'
+                }
+                title={
+                  view.phase === 'ending' ? 'Xác nhận kết thúc' : 'Kết thúc'
+                }
                 onClick={() => void controller.end()}
               >
-                <PhoneOff size={17} aria-hidden="true" />
-                {view.phase === 'ending' ? 'Xác nhận kết thúc' : 'Kết thúc'}
+                <PhoneOff size={22} aria-hidden="true" />
               </button>
             </div>
-            <p className={styles.note}>Không ghi âm · Không lưu bản chép lời</p>
+            <p className={styles.note}>
+              Không ghi âm · Không lưu bản chép lời
+              <br />
+              <span>
+                Tự kết thúc sau 60 giây không có lời nói được nhận diện.
+              </span>
+            </p>
           </div>
         ) : view.phase === 'ended' ? (
           <>
@@ -467,6 +489,10 @@ export default function VoiceDialog({
               {useTextContext
                 ? 'Phần ngữ cảnh cuộc gọi được xóa khi kết thúc; tin nhắn gốc vẫn được giữ theo lựa chọn của bạn.'
                 : 'Chỉ dùng hội thoại trong cuộc gọi hiện tại.'}
+              <br />
+              <span>
+                Tự kết thúc sau 60 giây không có lời nói được nhận diện.
+              </span>
             </p>
           </>
         ) : (

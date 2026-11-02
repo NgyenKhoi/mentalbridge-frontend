@@ -313,25 +313,56 @@ describe('accessible AI Voice dialog', () => {
   })
   it('announces media states, keeps safety visible, mutes and ends with server confirmation', async () => {
     const f = fixture()
+    expect(
+      await screen.findByText(
+        'Tự kết thúc sau 60 giây không có lời nói được nhận diện.',
+      ),
+    ).toBeVisible()
     fireEvent.click(
       await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
     )
     await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+    expect(
+      screen.getByText(
+        'Tự kết thúc sau 60 giây không có lời nói được nhận diện.',
+      ),
+    ).toBeVisible()
     act(() => f.events()?.hint('thinking'))
     expect(screen.getByRole('status')).toHaveTextContent('AI đang nghĩ')
     expect(
       screen.getByRole('link', { name: 'Cần trợ giúp ngay' }),
     ).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Tắt micro' }))
+    const mute = screen.getByRole('button', { name: 'Tắt micro' })
+    expect(mute).toHaveAttribute('title', 'Tắt micro')
+    expect(mute.textContent).toBe('')
+    expect(mute.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    fireEvent.click(mute)
     expect(
       await screen.findByRole('button', { name: 'Bật micro' }),
     ).toHaveAttribute('aria-pressed', 'true')
     act(() => f.events()?.reconnecting())
     expect(screen.getByRole('status')).toHaveTextContent('Đang kết nối lại')
-    fireEvent.click(screen.getByRole('button', { name: 'Kết thúc' }))
+    const end = screen.getByRole('button', { name: 'Kết thúc' })
+    expect(end).toHaveAttribute('title', 'Kết thúc')
+    expect(end.textContent).toBe('')
+    fireEvent.click(end)
     expect(await screen.findByText('Đã kết thúc')).toBeVisible()
     expect(f.media.close).toHaveBeenCalled()
     expect(f.api.end).toHaveBeenCalled()
+  })
+  it('keeps the icon-only audio recovery control named and actionable', async () => {
+    const f = fixture()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
+    )
+    await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+    act(() => f.events()?.audioBlocked())
+    const audio = screen.getByRole('button', { name: 'Bật âm thanh' })
+    expect(audio).toHaveAttribute('title', 'Bật âm thanh')
+    expect(audio.textContent).toBe('')
+    fireEvent.click(audio)
+    await waitFor(() => expect(f.media.audio).toHaveBeenCalledOnce())
+    await act(async () => f.controller.end())
   })
   it.each(['agent-first', 'session-first'])(
     'invites speech only after both active session and fresh listening hint, %s',

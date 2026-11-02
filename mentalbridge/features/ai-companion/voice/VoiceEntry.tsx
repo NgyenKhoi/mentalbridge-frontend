@@ -20,7 +20,9 @@ export default function VoiceEntry({
     <>
       <button
         type="button"
-        className={`${styles.entry} ${placement === 'mobile' ? styles.mobileEntry : styles.desktopEntry}`}
+        className={`${styles.entry} ${styles.iconButton} ${placement === 'mobile' ? styles.mobileEntry : styles.desktopEntry}`}
+        aria-label="Gọi AI"
+        title="Gọi AI"
         onClick={() => {
           setSelectedConversation(conversation)
           setInstance((value) => value + 1)
@@ -28,7 +30,7 @@ export default function VoiceEntry({
         }}
         aria-haspopup="dialog"
       >
-        <Phone size={16} aria-hidden="true" /> Gọi AI
+        <Phone size={20} aria-hidden="true" />
       </button>
       {instance > 0 ? (
         <VoiceDialog

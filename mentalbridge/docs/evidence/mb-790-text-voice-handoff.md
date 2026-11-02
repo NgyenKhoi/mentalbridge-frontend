@@ -38,6 +38,8 @@ dialog says context is attached only after an authoritative session response.
 | Voice-only session | Label and notice that Text context is not used | Selected chat content was silently included | Session attachment absence |
 | End/close/unmount | Stop microphone, end same session and clear transient ticket | Text conversation itself is deleted | Journal terminal/cleanup acknowledgment |
 | Reconnect | Existing session binding only | A new ticket/call or time extension | Existing Voice lifecycle |
+| Voice actions | Phone entry and circular mic/end/audio icons with Vietnamese accessible names, focus states and tooltips | Icon alone communicates permission or admission | Existing controller state; 44px entry and 52px in-call targets |
+| Before/during call | Short notice that the call ends after 60 seconds without recognized speech | Audio energy or heartbeat counts as recognized activity | Existing backend idle policy, unchanged |
 
 The ticket, command intent and selected conversation are held only in component
 and controller memory, cleared at end/disposal. No browser storage, content
@@ -65,3 +67,18 @@ both sides while retaining exact assertion checks; all traceability tests pass.
 No live provider, microphone, Cloud deployment or campaign was executed. Backend
 capability remains OFF by default; these fixture/component results do not claim
 real model continuity or live E2E acceptance.
+
+## Compact Voice controls follow-up
+
+The phone entry now uses an icon instead of a persistent text label. In-call
+microphone, end and audio-recovery controls follow the same compact pattern;
+consent choices, start confirmation and state explanations remain text. Buttons
+retain Vietnamese accessible names and tooltips, mute exposes its pressed state,
+and the narrow/mobile layout keeps the existing shell. Component regressions
+cover entry, microphone toggle, audio recovery, end and the idle-policy notice.
+
+Follow-up verification: formatting, lint, typecheck and contract/budget checks
+passed. The full unit run had four asynchronous UI wait failures (2,650 tests
+passed); all four affected files and both Voice component files then passed
+sequentially, 167/167. No assertions or unrelated production files were changed
+to obtain that result. Exact-head CI remains the delivery gate.
