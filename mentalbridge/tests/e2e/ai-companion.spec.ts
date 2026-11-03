@@ -365,6 +365,122 @@ test('MB-512 retries an unchanged draft with a fresh key after provider failure'
   expect(keys[0]).not.toBe(keys[1])
 })
 
+test('MB-791 shows a server-resolved suggestion after the reply and keeps it on reload', async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    {
+      name: 'mentalbridge_access',
+      value: 'synthetic-resource-e2e-access',
+      domain: '127.0.0.1',
+      path: '/',
+      httpOnly: true,
+      sameSite: 'Lax',
+    },
+  ])
+  await page.setViewportSize({ width: 375, height: 844 })
+  await page.route('**/api/journals', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], page: { limit: 20, hasMore: false } }),
+    }),
+  )
+  const resourceId = '66666666-6666-4666-8666-666666666666'
+  const suggestion = {
+    destination: 'RESOURCE',
+    resourceId,
+    resourceTitle: 'Thở 4-7-8',
+  }
+  const messages: Array<Record<string, unknown>> = []
+  await page.route('**/api/ai-companion/conversations**', async (route) => {
+    const request = route.request()
+    if (new URL(request.url()).pathname.endsWith('/messages')) {
+      messages.push(
+        {
+          messageId: '44444444-4444-4444-8444-444444444444',
+          role: 'USER',
+          content: 'Ừ, thử bài thở đó coi',
+          createdAt: '2026-11-03T08:01:00Z',
+          contextKinds: [],
+          suggestion: null,
+        },
+        {
+          messageId: '55555555-5555-4555-8555-555555555555',
+          role: 'ASSISTANT',
+          content: 'Okela, bạn mở bài ở nút bên dưới nha. Thở chậm thôi.',
+          createdAt: '2026-11-03T08:01:00Z',
+          contextKinds: [],
+          suggestion,
+        },
+      )
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          conversationId,
+          userMessageId: messages[0]!.messageId,
+          assistantMessageId: messages[1]!.messageId,
+          assistant: messages[1]!.content,
+          createdAt: messages[1]!.createdAt,
+          contextKinds: [],
+          quota: {
+            plan: 'FREE',
+            policyVersion: 'companion-quota-v2',
+            remaining: 4,
+            resetAt: '2026-11-03T17:00:00Z',
+            limitDisplayed: true,
+          },
+          suggestion,
+        }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        new URL(request.url()).pathname.endsWith(`/${conversationId}`)
+          ? { ...conversationFixture(), messages }
+          : { items: [conversationSummaryFixture()] },
+      ),
+    })
+  })
+
+  await page.goto('/ai-companion')
+  await page
+    .getByRole('button', { name: /Cuộc trò chuyện mới.*Tiếp tục/ })
+    .click()
+  await page
+    .getByRole('textbox', { name: 'Tin nhắn' })
+    .fill('Ừ, thử bài thở đó coi')
+  await page.getByRole('button', { name: 'Gửi' }).click()
+  const chat = page.getByRole('region', { name: 'AI Companion' })
+  const link = chat.getByRole('link', { name: 'Mở bài: Thở 4-7-8' })
+  await expect(link).toBeVisible()
+  await expect(chat.getByText('Thở chậm thôi.', { exact: false })).toBeVisible()
+  await expect(link).toHaveAttribute(
+    'href',
+    `/resources/${resourceId}?from=ai-companion`,
+  )
+  const box = await link.boundingBox()
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(40)
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(375)
+
+  await page.reload()
+  await page
+    .getByRole('button', {
+      name: /Cuộc trò chuyện mới.*(?:Tiếp tục|Thở chậm thôi)/,
+    })
+    .click()
+  await expect(
+    page
+      .getByRole('region', { name: 'AI Companion' })
+      .getByRole('link', { name: 'Mở bài: Thở 4-7-8' }),
+  ).toBeVisible()
+})
+
 function conversationFixture() {
   return {
     conversationId,

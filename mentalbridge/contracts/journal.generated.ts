@@ -1182,6 +1182,14 @@ export interface components {
         };
         /** @enum {string} */
         AiContextKind: "JOURNAL" | "SUPPORT_PLAN" | "REASSESSMENT" | "RESOURCE";
+        /** @description Optional navigation the server resolved from the TEXT companion reply (ADR 0049). The model chooses only the destination and a catalogue ref; the server maps the ref to a published reviewed Resource. RESOURCE carries resourceId and resourceTitle; every other destination carries null for both. No href or label is sent: clients own routes and copy. Null when guidance v2 is off, the reply offered nothing, or the suggestion was invalid. The destination page performs its own access and package checks. */
+        AiCompanionSuggestion: {
+            /** @enum {string} */
+            destination: "RESOURCE" | "RESOURCE_LIBRARY" | "JOURNAL" | "EMOTION_CHECK_IN" | "SUPPORT_PLAN" | "SPECIALIST_DISCOVERY";
+            /** Format: uuid */
+            resourceId: string | null;
+            resourceTitle: string | null;
+        } | null;
         AiMessage: {
             /** Format: uuid */
             messageId: string;
@@ -1191,6 +1199,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             contextKinds: components["schemas"]["AiContextKind"][];
+            suggestion: components["schemas"]["AiCompanionSuggestion"];
         };
         AiConversation: {
             /** Format: uuid */
@@ -1216,12 +1225,12 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
         };
-        /** @description PREMIUM returns null remaining and no displayed daily cap, while hidden server token/rate/fair-use controls still apply. */
+        /** @description companion-quota-v2 applies a per-plan daily provider token budget (FREE 100000, PLUS 250000, PREMIUM 600000 by default) that refuses a request before the provider call when its estimated input would exceed it. PREMIUM returns null remaining and no displayed daily cap, while hidden server token/rate/fair-use controls still apply. companion-quota-v1 may still appear on idempotent replays recorded before v2. */
         AiQuota: {
             /** @enum {string} */
             plan: "FREE" | "PLUS" | "PREMIUM";
-            /** @constant */
-            policyVersion: "companion-quota-v1";
+            /** @enum {string} */
+            policyVersion: "companion-quota-v1" | "companion-quota-v2";
             remaining: number | null;
             /** Format: date-time */
             resetAt: string;
@@ -1239,6 +1248,7 @@ export interface components {
             createdAt: string;
             contextKinds: components["schemas"]["AiContextKind"][];
             quota: components["schemas"]["AiQuota"];
+            suggestion: components["schemas"]["AiCompanionSuggestion"];
         };
         /**
          * @description Self-selected, non-clinical label shared with Journal authoring.

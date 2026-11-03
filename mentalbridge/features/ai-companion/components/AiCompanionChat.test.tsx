@@ -443,4 +443,81 @@ describe('AiCompanionChat', () => {
       within(chat).getAllByText('Mình đã nhận được tin nhắn.'),
     ).toHaveLength(1)
   })
+
+  it('shows one suggestion link after the reply finishes and keeps it after reload', async () => {
+    vi.mocked(companionBrowserClient.get).mockResolvedValueOnce(conversation)
+    vi.mocked(companionBrowserClient.send).mockResolvedValue({
+      conversationId: conversation.conversationId,
+      userMessageId: '44444444-4444-4444-8444-444444444444',
+      assistantMessageId: '55555555-5555-4555-8555-555555555555',
+      assistant: 'Okela, bạn mở bài ở nút bên dưới nha.',
+      createdAt: '2026-11-03T08:01:00Z',
+      contextKinds: [],
+      quota: {
+        plan: 'FREE',
+        policyVersion: 'companion-quota-v2',
+        remaining: 4,
+        resetAt: '2026-11-03T17:00:00Z',
+        limitDisplayed: true,
+      },
+      suggestion: {
+        destination: 'RESOURCE',
+        resourceId: '66666666-6666-4666-8666-666666666666',
+        resourceTitle: 'Thở 4-7-8',
+      },
+    })
+    const user = userEvent.setup()
+    const { unmount } = render(<AiCompanionChat />)
+    const composer = await screen.findByRole('textbox', { name: 'Tin nhắn' })
+    await user.type(composer, 'Ừ, thử bài thở đó coi')
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+
+    expect(
+      await screen.findByRole('button', { name: 'Dừng phản hồi' }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('link', { name: 'Mở bài: Thở 4-7-8' }),
+    ).not.toBeInTheDocument()
+    await screen.findByRole('button', { name: 'Gửi' }, { timeout: 5_000 })
+    const link = screen.getByRole('link', { name: 'Mở bài: Thở 4-7-8' })
+    expect(link).toHaveAttribute(
+      'href',
+      '/resources/66666666-6666-4666-8666-666666666666?from=ai-companion',
+    )
+    expect(screen.getByRole('button', { name: 'Gửi' })).toBeVisible()
+    unmount()
+
+    vi.mocked(companionBrowserClient.get).mockResolvedValueOnce({
+      ...conversation,
+      messages: [
+        {
+          messageId: '55555555-5555-4555-8555-555555555555',
+          role: 'ASSISTANT',
+          content: 'Okela, bạn mở bài ở nút bên dưới nha.',
+          createdAt: '2026-11-03T08:01:00Z',
+          contextKinds: [],
+          suggestion: {
+            destination: 'JOURNAL',
+            resourceId: null,
+            resourceTitle: null,
+          },
+        },
+        {
+          messageId: '77777777-7777-4777-8777-777777777777',
+          role: 'ASSISTANT',
+          content: 'Mình vẫn ở đây nè.',
+          createdAt: '2026-11-03T08:02:00Z',
+          contextKinds: [],
+          suggestion: null,
+        },
+      ],
+    })
+    render(<AiCompanionChat />)
+    expect(
+      await screen.findByRole('link', { name: 'Mở Nhật ký' }),
+    ).toHaveAttribute('href', '/journal')
+    expect(
+      screen.getAllByRole('link', { name: /^(?:Mở |Tìm chuyên gia)/ }),
+    ).toHaveLength(1)
+  })
 })
