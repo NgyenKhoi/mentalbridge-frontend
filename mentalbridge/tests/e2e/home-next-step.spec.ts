@@ -58,8 +58,16 @@ test.describe('MB-672 Home next step', () => {
       )
       await expect(page).toHaveURL(/\/support-plan\?.*source=resource/)
       await expect(
-        page.getByRole('region', { name: 'Đã ghi nhận hôm nay' }),
-      ).toContainText('Viết vài dòng dịu dàng')
+        page
+          .getByRole('tabpanel', { name: 'Hôm nay' })
+          .getByRole('listitem')
+          .filter({
+            has: page.getByRole('heading', {
+              name: 'Viết vài dòng dịu dàng',
+              exact: true,
+            }),
+          }),
+      ).toContainText('Đã ghi nhận từ bài luyện tập')
       const readsBeforeReturn = world.homeReads
       if (width === 375)
         await keyboardActivate(

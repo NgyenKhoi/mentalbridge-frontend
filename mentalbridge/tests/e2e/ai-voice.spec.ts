@@ -118,7 +118,9 @@ async function setup(page: Page, value = eligibility(), selectedText = false) {
   await page.goto('/ai-companion')
   if (selectedText)
     await expect(
-      page.getByText('Synthetic selected reply.', { exact: true }),
+      page
+        .getByRole('region', { name: 'AI Companion', exact: true })
+        .getByText('Synthetic selected reply.', { exact: true }),
     ).toBeVisible()
   const entry = page.getByRole('button', { name: 'Gọi AI', exact: true })
   await expect(entry).toBeVisible()
