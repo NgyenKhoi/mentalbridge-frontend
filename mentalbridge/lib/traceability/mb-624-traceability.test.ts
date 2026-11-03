@@ -267,7 +267,7 @@ describe('MB-624 atomic UC traceability report', () => {
           )
           const source = resolve(process.cwd(), '..', binding!.source!)
           expect(existsSync(source), binding?.source).toBe(true)
-          const sourceText = readFileSync(source, 'utf8')
+          const sourceText = readFileSync(source, 'utf8').replace(/\r\n/g, '\n')
           expect(
             sourceText,
             `${row.atomic_uc_id} ${binding?.source}`,
@@ -287,7 +287,7 @@ describe('MB-624 atomic UC traceability report', () => {
             expect(
               sourceText,
               `${row.atomic_uc_id} ${binding?.source} assertion ${assertion}`,
-            ).toContain(assertion)
+            ).toContain(assertion.replace(/\r\n/g, '\n'))
           }
           const repeatKey = `${channel}|${binding!.source}|${binding!.scenario}`
           activeBindings.set(repeatKey, [

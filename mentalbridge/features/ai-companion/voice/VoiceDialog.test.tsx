@@ -13,13 +13,18 @@ import type { Media, MediaEvents } from './media'
 import type { VoiceSession } from './contract'
 import VoiceDialog from './VoiceDialog'
 
-function fixture(value = eligibility(), patch: Partial<VoiceSession> = {}) {
+function fixture(
+  value = eligibility(),
+  patch: Partial<VoiceSession> = {},
+  conversation?: { conversationId: string; title: string },
+) {
   const bound = connection()
   const current = session({ hardStopAt: bound.hardStopAt, ...patch })
   const api = {
     eligibility: vi.fn().mockResolvedValue(value),
     disclosure: vi.fn(),
     consent: vi.fn(),
+    contextHandoff: vi.fn(),
     create: vi.fn().mockResolvedValue(current),
     connection: vi.fn().mockResolvedValue(bound),
     session: vi.fn().mockResolvedValue(current),
@@ -48,6 +53,7 @@ function fixture(value = eligibility(), patch: Partial<VoiceSession> = {}) {
       open
       onOpenChange={close}
       createController={() => controller}
+      conversation={conversation}
     />,
   )
   return { api, media, controller, current, close, events: () => events }
@@ -58,6 +64,104 @@ afterEach(() => {
   vi.useRealTimers()
 })
 describe('accessible AI Voice dialog', () => {
+  const selectedConversation = {
+    conversationId: '33333333-3333-4333-8333-333333333333',
+    title: 'Cuộc trò chuyện được chọn',
+  }
+  it('leaves Text continuity unchecked and starts voice-only until explicitly selected', async () => {
+    const f = fixture(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+      {},
+      selectedConversation,
+    )
+    expect(await screen.findByRole('checkbox')).not.toBeChecked()
+    expect(f.api.contextHandoff).not.toHaveBeenCalled()
+    expect(f.media.permission).not.toHaveBeenCalled()
+    expect(f.api.create).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu cuộc gọi' }))
+    expect(
+      await screen.findByText('Cuộc gọi không dùng tin nhắn trước đó.'),
+    ).toBeVisible()
+    expect(f.api.contextHandoff).not.toHaveBeenCalled()
+    expect(f.api.create).toHaveBeenCalledWith(expect.any(String))
+    await act(async () => f.controller.end())
+  })
+  it('waits for the selected-chat ticket and authoritative attachment before claiming continuity', async () => {
+    const f = fixture(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+      { contextMode: 'TEXT_HANDOFF' },
+      selectedConversation,
+    )
+    let release:
+      | ((value: {
+          handoffToken: string
+          expiresAt: string
+          selectedPairs: number
+          policyVersion: string
+        }) => void)
+      | undefined
+    f.api.contextHandoff.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve
+      }),
+    )
+    fireEvent.click(await screen.findByRole('checkbox'))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Tiếp tục bằng giọng nói' }),
+    )
+    await waitFor(() =>
+      expect(f.api.contextHandoff).toHaveBeenCalledWith(
+        selectedConversation.conversationId,
+      ),
+    )
+    expect(f.media.permission).not.toHaveBeenCalled()
+    expect(f.api.create).not.toHaveBeenCalled()
+    expect(
+      screen.queryByText('Đã chuẩn bị bối cảnh từ cuộc trò chuyện bạn chọn.'),
+    ).not.toBeInTheDocument()
+    await act(async () => {
+      release?.({
+        handoffToken: 'synthetic-ticket'.repeat(4),
+        expiresAt: new Date(Date.now() + 120_000).toISOString(),
+        selectedPairs: 1,
+        policyVersion: 'text-voice-handoff-v1',
+      })
+    })
+    expect(
+      await screen.findByText(
+        'Đã chuẩn bị bối cảnh từ cuộc trò chuyện bạn chọn.',
+      ),
+    ).toBeVisible()
+    expect(f.api.create).toHaveBeenCalledWith(expect.any(String), {
+      handoffToken: 'synthetic-ticket'.repeat(4),
+    })
+    expect(f.api.create).toHaveBeenCalledTimes(1)
+    await act(async () => f.controller.end())
+  })
+  it('requires a new explicit voice-only choice after handoff denial before opening the microphone', async () => {
+    const f = fixture(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+      {},
+      selectedConversation,
+    )
+    f.api.contextHandoff.mockRejectedValue(new Error('synthetic denial'))
+    fireEvent.click(await screen.findByRole('checkbox'))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Tiếp tục bằng giọng nói' }),
+    )
+    const withoutText = await screen.findByRole('button', {
+      name: 'Gọi không dùng tin nhắn',
+    })
+    expect(f.media.permission).not.toHaveBeenCalled()
+    expect(f.api.create).not.toHaveBeenCalled()
+    fireEvent.click(withoutText)
+    expect(
+      await screen.findByText('Cuộc gọi không dùng tin nhắn trước đó.'),
+    ).toBeVisible()
+    expect(f.api.contextHandoff).toHaveBeenCalledTimes(1)
+    expect(f.api.create).toHaveBeenCalledWith(expect.any(String))
+    await act(async () => f.controller.end())
+  })
   it('presents FREE as a locked preview and leaves text continuation available', async () => {
     const f = fixture(eligibility('FREE'))
     expect(
@@ -209,25 +313,56 @@ describe('accessible AI Voice dialog', () => {
   })
   it('announces media states, keeps safety visible, mutes and ends with server confirmation', async () => {
     const f = fixture()
+    expect(
+      await screen.findByText(
+        'Tự kết thúc sau 60 giây không có lời nói được nhận diện.',
+      ),
+    ).toBeVisible()
     fireEvent.click(
       await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
     )
     await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+    expect(
+      screen.getByText(
+        'Tự kết thúc sau 60 giây không có lời nói được nhận diện.',
+      ),
+    ).toBeVisible()
     act(() => f.events()?.hint('thinking'))
     expect(screen.getByRole('status')).toHaveTextContent('AI đang nghĩ')
     expect(
       screen.getByRole('link', { name: 'Cần trợ giúp ngay' }),
     ).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Tắt micro' }))
+    const mute = screen.getByRole('button', { name: 'Tắt micro' })
+    expect(mute).toHaveAttribute('title', 'Tắt micro')
+    expect(mute.textContent).toBe('')
+    expect(mute.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    fireEvent.click(mute)
     expect(
       await screen.findByRole('button', { name: 'Bật micro' }),
     ).toHaveAttribute('aria-pressed', 'true')
     act(() => f.events()?.reconnecting())
     expect(screen.getByRole('status')).toHaveTextContent('Đang kết nối lại')
-    fireEvent.click(screen.getByRole('button', { name: 'Kết thúc' }))
+    const end = screen.getByRole('button', { name: 'Kết thúc' })
+    expect(end).toHaveAttribute('title', 'Kết thúc')
+    expect(end.textContent).toBe('')
+    fireEvent.click(end)
     expect(await screen.findByText('Đã kết thúc')).toBeVisible()
     expect(f.media.close).toHaveBeenCalled()
     expect(f.api.end).toHaveBeenCalled()
+  })
+  it('keeps the icon-only audio recovery control named and actionable', async () => {
+    const f = fixture()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
+    )
+    await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+    act(() => f.events()?.audioBlocked())
+    const audio = screen.getByRole('button', { name: 'Bật âm thanh' })
+    expect(audio).toHaveAttribute('title', 'Bật âm thanh')
+    expect(audio.textContent).toBe('')
+    fireEvent.click(audio)
+    await waitFor(() => expect(f.media.audio).toHaveBeenCalledOnce())
+    await act(async () => f.controller.end())
   })
   it.each(['agent-first', 'session-first'])(
     'invites speech only after both active session and fresh listening hint, %s',

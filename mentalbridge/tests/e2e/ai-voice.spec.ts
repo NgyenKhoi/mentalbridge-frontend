@@ -2,7 +2,8 @@ import { expect, type Page } from '@playwright/test'
 import { test } from './test-fixtures'
 import { disclosure, eligibility } from '../fixtures/voice'
 
-async function setup(page: Page, value = eligibility()) {
+const selectedConversationId = '33333333-3333-4333-8333-333333333333'
+async function setup(page: Page, value = eligibility(), selectedText = false) {
   await page.context().addCookies([
     {
       name: 'mentalbridge_access',
@@ -25,13 +26,56 @@ async function setup(page: Page, value = eligibility()) {
       },
     })
   })
-  await page.route('**/api/ai-companion/conversations**', (route) =>
-    route.fulfill({ json: { items: [] } }),
-  )
+  const summary = {
+    conversationId: selectedConversationId,
+    title: 'Chủ đề thử tiếp nối',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+  }
+  await page.route('**/api/ai-companion/conversations**', (route) => {
+    const detail = new URL(route.request().url()).pathname.endsWith(
+      `/${selectedConversationId}`,
+    )
+    return route.fulfill({
+      json:
+        selectedText && detail
+          ? {
+              ...summary,
+              context: {
+                sources: {
+                  plan: false,
+                  diary: false,
+                  screening: false,
+                  resourceIds: [],
+                },
+                updatedAt: summary.updatedAt,
+              },
+              messages: [
+                {
+                  messageId: '44444444-4444-4444-8444-444444444444',
+                  role: 'USER',
+                  content: 'Synthetic selected question.',
+                  createdAt: summary.createdAt,
+                  contextKinds: [],
+                },
+                {
+                  messageId: '55555555-5555-4555-8555-555555555555',
+                  role: 'ASSISTANT',
+                  content: 'Synthetic selected reply.',
+                  createdAt: summary.createdAt,
+                  contextKinds: [],
+                },
+              ],
+            }
+          : { items: selectedText ? [summary] : [] },
+    })
+  })
   await page.route('**/api/resources**', (route) =>
     route.fulfill({ json: { items: [] } }),
   )
   let admitted = 0
+  const handoffBodies: unknown[] = []
   let state = value
   await page.route('**/api/ai-companion/voice/**', (route) => {
     const name = new URL(route.request().url()).pathname.split('/').at(-1)
@@ -41,6 +85,18 @@ async function setup(page: Page, value = eligibility()) {
         headers: { 'Cache-Control': 'no-store' },
       })
     if (name === 'disclosure') return route.fulfill({ json: disclosure })
+    if (name === 'context-handoffs') {
+      handoffBodies.push(route.request().postDataJSON())
+      return route.fulfill({
+        json: {
+          handoffToken: 'synthetic-ticket'.repeat(4),
+          expiresAt: new Date(Date.now() + 120_000).toISOString(),
+          selectedPairs: 1,
+          policyVersion: 'text-voice-handoff-v1',
+        },
+        headers: { 'Cache-Control': 'no-store' },
+      })
+    }
     if (name === 'consent') {
       state = eligibility()
       return route.fulfill({
@@ -60,6 +116,10 @@ async function setup(page: Page, value = eligibility()) {
     })
   })
   await page.goto('/ai-companion')
+  if (selectedText)
+    await expect(
+      page.getByText('Synthetic selected reply.', { exact: true }),
+    ).toBeVisible()
   const entry = page.getByRole('button', { name: 'Gọi AI', exact: true })
   await expect(entry).toBeVisible()
   await expect
@@ -67,8 +127,39 @@ async function setup(page: Page, value = eligibility()) {
     .toBe(0)
   await entry.click()
   await expect(page.getByRole('dialog', { name: 'Gọi AI' })).toBeVisible()
-  return { admitted: () => admitted, entry }
+  return { admitted: () => admitted, handoffBodies, entry }
 }
+
+test('MB-790 selected Text continuity is opt-in and sends only its selector before microphone permission', async ({
+  page,
+}) => {
+  const f = await setup(
+    page,
+    eligibility('PLUS', { textContextHandoffEnabled: true }),
+    true,
+  )
+  const dialog = page.getByRole('dialog', { name: 'Gọi AI' })
+  const choice = dialog.getByRole('checkbox')
+  await expect(choice).not.toBeChecked()
+  expect(f.handoffBodies).toEqual([])
+  expect(f.admitted()).toBe(0)
+  await choice.check()
+  await expect(
+    dialog.getByRole('button', {
+      name: 'Gọi không dùng tin nhắn',
+    }),
+  ).toBeVisible()
+  await dialog.getByRole('button', { name: 'Tiếp tục bằng giọng nói' }).click()
+  await expect(dialog.getByText(/Micro chưa được cho phép/)).toBeVisible()
+  expect(f.handoffBodies).toEqual([{ conversationId: selectedConversationId }])
+  expect(f.admitted()).toBe(0)
+  expect(
+    await page.evaluate(() => Reflect.get(window, '__voiceMicRequests')),
+  ).toBe(1)
+  await expect(
+    dialog.getByText('Đã chuẩn bị bối cảnh từ cuộc trò chuyện bạn chọn.'),
+  ).toHaveCount(0)
+})
 
 for (const width of [1440, 375])
   test(`MB-761 finite preview, keyboard and microphone denial at ${width}px`, async ({

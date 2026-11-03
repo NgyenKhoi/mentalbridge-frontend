@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * getVoiceDisclosure
-         * @description Care publishes the exact immutable Vietnamese ai-voice-processing-capstone-v1 title and content. Requires authenticated USER; no microphone or provider call.
+         * @description Care publishes the exact immutable Vietnamese ai-voice-processing-capstone-v2 title and content, including optional explicit bounded Text-to-Voice continuation. Existing v1 Voice users must accept v2 before further Voice access; AI_PROCESSING and Text consent are unchanged. Requires authenticated USER; no microphone or provider call.
          */
         get: operations["getVoiceDisclosure"];
         put?: never;
@@ -33,13 +33,13 @@ export interface paths {
         };
         /**
          * getCurrentVoiceConsent
-         * @description Read only the authenticated owner current voice decision. Missing/outdated decision returns current=false and granted=false. current indicates policy-version freshness; an old POST replay never restores authority.
+         * @description Read only the authenticated owner current v2 voice decision. Missing/outdated v1 decision returns v2 with current=false and granted=false. current indicates policy-version freshness; an old POST replay never restores authority or enables context attachment.
          */
         get: operations["getCurrentVoiceConsent"];
         put?: never;
         /**
          * recordVoiceConsentDecision
-         * @description Append a separate AI_VOICE_PROCESSING decision for the authenticated owner with an existing Care profile; no paid plan or text grant is required. Exact UUID idempotency replay returns the immutable original decision without restoring a revoked grant. Store only purpose/owner-scoped HMAC of the key and safe intent digest. Withdrawal preserves historical decisions. Unknown/invalid fields return INVALID_REQUEST (422).
+         * @description Append a separate current v2 AI_VOICE_PROCESSING decision for the authenticated owner with an existing Care profile; no paid plan or text grant is required. A new v1 command is rejected with INVALID_REQUEST (422); an exact historical v1 UUID replay may return its original v1 decision with current=false, never a v2 grant. Changed intent/version under the same key returns IDEMPOTENCY_CONFLICT (409). Store only purpose/owner-scoped HMAC of the key and safe intent digest. Withdrawal preserves historical decisions. Context attachment additionally requires explicit per-call selection and Journal owner/session authorization. Unknown/invalid fields return INVALID_REQUEST (422).
          */
         post: operations["recordVoiceConsentDecision"];
         delete?: never;
@@ -2046,7 +2046,7 @@ export interface components {
             /** @constant */
             consentType: "AI_VOICE_PROCESSING";
             /** @constant */
-            consentVersion: "ai-voice-processing-capstone-v1";
+            consentVersion: "ai-voice-processing-capstone-v2";
             /** @constant */
             language: "vi-VN";
             disclosureText: string;
@@ -2066,8 +2066,11 @@ export interface components {
         VoiceConsent: {
             /** @constant */
             consentType: "AI_VOICE_PROCESSING";
-            /** @constant */
-            consentVersion: "ai-voice-processing-capstone-v1";
+            /**
+             * @description v2 for current reads/new decisions; v1 only for an exact immutable historical POST replay, always current=false.
+             * @enum {string}
+             */
+            consentVersion: "ai-voice-processing-capstone-v1" | "ai-voice-processing-capstone-v2";
             current: boolean;
             granted: boolean;
             /** Format: date-time */
@@ -2076,8 +2079,11 @@ export interface components {
             revokedAt?: string;
         } & (unknown & unknown);
         VoiceConsentCommand: {
-            /** @constant */
-            consentVersion: "ai-voice-processing-capstone-v1";
+            /**
+             * @description New decisions require v2. v1 is accepted only when the owner-scoped idempotency key and exact historical intent already exist; it never appends/restores a grant.
+             * @enum {string}
+             */
+            consentVersion: "ai-voice-processing-capstone-v1" | "ai-voice-processing-capstone-v2";
             granted: boolean;
         };
         VoiceOwnerCheck: {
@@ -2098,7 +2104,7 @@ export interface components {
             aiProcessingGranted: boolean;
             voiceProcessingGranted: boolean;
             /** @constant */
-            voiceConsentVersion: "ai-voice-processing-capstone-v1";
+            voiceConsentVersion: "ai-voice-processing-capstone-v2";
             authorized: boolean;
             /** Format: date-time */
             checkedAt: string;

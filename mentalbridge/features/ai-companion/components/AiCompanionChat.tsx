@@ -457,7 +457,14 @@ export default function AiCompanionChat() {
           </button>
         </div>
 
-        <VoiceEntry placement="mobile" />
+        <VoiceEntry
+          placement="mobile"
+          conversation={
+            active
+              ? { conversationId: active.conversationId, title: active.title }
+              : undefined
+          }
+        />
         {conversations.length > 4 ? (
           <label className={styles.search}>
             <span className="sr-only">Tìm kiếm hội thoại</span>
@@ -558,7 +565,17 @@ export default function AiCompanionChat() {
             </div>
           </div>
           <div className={styles.headerActions}>
-            <VoiceEntry placement="desktop" />
+            <VoiceEntry
+              placement="desktop"
+              conversation={
+                active
+                  ? {
+                      conversationId: active.conversationId,
+                      title: active.title,
+                    }
+                  : undefined
+              }
+            />
             {active ? (
               <button
                 type="button"

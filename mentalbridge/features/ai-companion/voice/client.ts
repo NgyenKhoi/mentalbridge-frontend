@@ -3,13 +3,14 @@ import {
   VoiceError,
   type Responses,
   type ConsentCommand,
+  type VoiceStartCommand,
 } from './contract'
 
 async function read<K extends keyof Responses>(
   path: string,
   kind: K,
   signal?: AbortSignal,
-  command?: { key: string; body: object; keepalive?: boolean },
+  command?: { key?: string; body: object; keepalive?: boolean },
 ): Promise<Responses[K]> {
   let response: Response
   try {
@@ -26,7 +27,7 @@ async function read<K extends keyof Responses>(
         ? {
             headers: {
               'Content-Type': 'application/json',
-              'Idempotency-Key': command.key,
+              ...(command.key ? { 'Idempotency-Key': command.key } : {}),
             },
             body: JSON.stringify(command.body),
           }
@@ -59,8 +60,12 @@ export const voiceClient = {
     read('disclosure', 'disclosure', signal),
   consent: (body: ConsentCommand, key: string, signal?: AbortSignal) =>
     read('consent', 'consent', signal, { key, body }),
-  create: (key: string, signal?: AbortSignal) =>
-    read('sessions', 'session', signal, { key, body: {} }),
+  contextHandoff: (conversationId: string, signal?: AbortSignal) =>
+    read('context-handoffs', 'handoff', signal, {
+      body: { conversationId },
+    }),
+  create: (key: string, body: VoiceStartCommand = {}, signal?: AbortSignal) =>
+    read('sessions', 'session', signal, { key, body }),
   session: (id: string, signal?: AbortSignal) =>
     read(`sessions/${id}`, 'session', signal),
   connection: (id: string, key: string, signal?: AbortSignal) =>

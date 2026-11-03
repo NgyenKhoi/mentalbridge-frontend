@@ -16,6 +16,7 @@ function fixture() {
     eligibility: vi.fn().mockResolvedValue(eligibility()),
     disclosure: vi.fn(),
     consent: vi.fn(),
+    contextHandoff: vi.fn(),
     create: vi.fn().mockResolvedValue(current),
     connection: vi.fn().mockResolvedValue(bound),
     session: vi.fn().mockResolvedValue(current),
@@ -64,6 +65,76 @@ const flush = async () => {
 afterEach(() => vi.useRealTimers())
 
 describe('Voice call lifecycle', () => {
+  it('prepares selected chat before microphone and trusts only server-confirmed attachment', async () => {
+    const f = fixture()
+    f.api.eligibility.mockResolvedValue(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+    )
+    f.api.contextHandoff.mockResolvedValue({
+      handoffToken: 'opaque'.repeat(10),
+      expiresAt: new Date(Date.now() + 120000).toISOString(),
+      selectedPairs: 1,
+      policyVersion: 'text-voice-handoff-v1',
+    })
+    f.api.create.mockResolvedValue(
+      session({ ...f.current, contextMode: 'TEXT_HANDOFF' }),
+    )
+    await f.controller.start(voiceKey)
+    expect(f.api.contextHandoff).toHaveBeenCalledWith(voiceKey)
+    expect(f.api.contextHandoff.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(f.media.permission).mock.invocationCallOrder[0]!,
+    )
+    expect(f.api.create).toHaveBeenCalledWith(expect.any(String), {
+      handoffToken: 'opaque'.repeat(10),
+    })
+    expect(f.controller.snapshot().contextAttached).toBe(true)
+    await f.controller.end()
+    expect(f.controller.snapshot().contextAttached).toBe(false)
+    f.controller.dispose()
+  })
+  it('prepare failure leaves microphone and admission untouched; voice-only fallback requires a new explicit choice', async () => {
+    const f = fixture()
+    f.api.eligibility.mockResolvedValue(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+    )
+    f.api.contextHandoff.mockRejectedValue(new VoiceError('SESSION_NOT_FOUND'))
+    await f.controller.start(voiceKey)
+    expect(f.controller.snapshot()).toMatchObject({
+      phase: 'error',
+      handoffFailed: true,
+      uncertain: false,
+    })
+    expect(f.media.permission).not.toHaveBeenCalled()
+    expect(f.api.create).not.toHaveBeenCalled()
+    await f.controller.start()
+    expect(f.api.create).toHaveBeenCalledWith(expect.any(String))
+    expect(f.api.contextHandoff).toHaveBeenCalledTimes(1)
+    f.controller.dispose()
+  })
+  it('an unknown admission freezes the original ticket and key instead of creating a voice-only replacement', async () => {
+    const f = fixture()
+    f.api.eligibility.mockResolvedValue(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+    )
+    const body = { handoffToken: 'opaque'.repeat(10) }
+    f.api.contextHandoff.mockResolvedValue({
+      ...body,
+      expiresAt: new Date(Date.now() + 120000).toISOString(),
+      selectedPairs: 1,
+      policyVersion: 'text-voice-handoff-v1',
+    })
+    f.api.create
+      .mockRejectedValueOnce(new VoiceError('OUTCOME_UNKNOWN'))
+      .mockResolvedValueOnce(
+        session({ ...f.current, contextMode: 'TEXT_HANDOFF' }),
+      )
+    await f.controller.start(voiceKey)
+    expect(f.controller.snapshot().uncertain).toBe(true)
+    await f.controller.start()
+    expect(f.api.contextHandoff).toHaveBeenCalledTimes(1)
+    expect(f.api.create.mock.calls[1]).toEqual(f.api.create.mock.calls[0])
+    f.controller.dispose()
+  })
   it('does not request microphone or mutate quota for FREE/denied entitlement and requires explicit start', async () => {
     for (const denied of [
       eligibility('FREE'),
