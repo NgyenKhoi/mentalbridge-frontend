@@ -17,10 +17,14 @@ option.
 | State                                                               | Mobile presentation                                                         | Recovery or next action                                                               |
 | ------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Reassessment `INCOMPLETE`                                           | Names the missing PHQ-9/GAD-7 instrument                                    | Opens a `REASSESSMENT` screening episode and returns to reassessment after completion |
+| Route resumes after screening                                       | Marks retained data stale while Care is queried again                       | Replaces `INCOMPLETE` only after the authoritative context becomes `READY`            |
+| First load or focus refresh fails                                   | Shows a retry control; retained values are visibly stale and read-only      | Blocks every write until Care revalidates the period                                  |
+| Care rolls the comparison period                                    | Clears old fields, summary, jobs and command keys                           | Starts new exact-period intents only                                                  |
 | Self-report absent                                                  | Shows explicit experience choices and optional 500-character context fields | Creates an exact-period report with a stable idempotency key                          |
 | Self-report already saved                                           | Reopens the exact-period values                                             | Sends `If-Match` only when the USER changes them                                      |
 | Journal AI succeeds                                                 | Composes the snapshot from the terminal job identity                        | Shows four source-backed dimensions                                                   |
-| Journal AI/consent is unavailable                                   | Care records the source as unavailable; mobile does not invent a result     | The snapshot remains usable with the unavailable reason visible                       |
+| Journal returns a terminal failed job                               | Sends that real job identity to Care                                        | Care persists the Journal dimension as `UNAVAILABLE`                                  |
+| Consent/network fails before a Journal job exists                   | Shows the saved local source states and an unavailable Journal card         | Never invents a UUID; retry waits for an approved Journal/Care source reference       |
 | Journal job still running/interrupted                               | Saved self-report remains authoritative                                     | USER retries without losing the submitted report                                      |
 | Review `EARLY`                                                      | Shows factual elapsed days and current counts                               | Keeping the plan is a no-change confirmation                                          |
 | Review `REVIEW_DUE`                                                 | Explains the governed 14-day invitation, not a fixed outcome promise        | `KEEP_CURRENT` may continue the next governed cycle                                   |
@@ -29,6 +33,7 @@ option.
 | Admission unavailable or entitlement blocks an option               | Care's unavailable option remains unavailable                               | Current plan and history remain unchanged                                             |
 | Stale plan/review (`409`/`412`)                                     | Confirmation stops and reports stale authority                              | Reloads the plan/review before another choice                                         |
 | Replacement requires comparison                                     | First confirmation prepares a DRAFT only                                    | A later explicit confirmation supplies the exact draft id/version                     |
+| Foreign or mismatched DRAFT                                         | Shows a binding error and omits replacement confirmation                    | Requires the exact option/fingerprint/plan-version candidate returned by Care         |
 
 ## Owner contracts
 
@@ -45,6 +50,10 @@ Strict Zod parsing and response identity checks fail closed for contract drift,
 different periods, stale self-report revisions, a different plan revision, or a
 different confirmed option.
 
+Summary command idempotency is scoped to the exact period, self-report identity
+and revision, and Journal job. A lost response reuses the same key; a confirmed
+self-report revision creates a new composition intent and therefore a new key.
+
 ## Verification and evidence status
 
 Focused Jest coverage verifies reassessment owner transport, exact-period and
@@ -52,10 +61,16 @@ revision checks, the component journey, purpose-specific screening return, and
 adaptive review request/confirmation headers. The existing Assessment and
 SupportPlan component suites cover integration with their parent screens.
 
-`.maestro/mb-664-reassessment-plan-review.yaml` is authored for the protected
-synthetic staging fixture. It loads the real plan review, chooses the fixture's
-approved option, confirms it, captures the final screen, and reloads authority.
-Credentials and expected fixture text remain Environment secrets/inputs.
+Three protected-fixture Maestro sources are authored and explicitly `NOT_RUN`:
+
+- `.maestro/mb-664-reassessment-screening-resume.yaml` covers the
+  purpose-specific paired screening, interruption/resume, retained-route refresh
+  and self-report re-entry.
+- `.maestro/mb-664-reassessment-keep.yaml` covers the explicit keep path.
+- `.maestro/mb-664-reassessment-change.yaml` covers DRAFT preparation,
+  material comparison and the second replacement confirmation.
+
+Credentials and expected fixture text remain environment secrets/inputs.
 
 Per the Jira addendum, source and Maestro belong on `dev`, while the complete
 native real-contract execution and its staging screenshot/video are pending the

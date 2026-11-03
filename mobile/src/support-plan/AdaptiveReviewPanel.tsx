@@ -36,6 +36,14 @@ const stateNotes: Record<AdaptiveReview['reassessment']['state'], string> = {
   UNAVAILABLE: 'Chưa thể kiểm tra bản đánh giá lại lúc này.',
 }
 
+type PreparedCandidate = Readonly<{
+  optionId: string
+  reviewFingerprint: string
+  currentPlanId: string
+  currentVersion: number
+  draft: CanonicalSupportPlan
+}>
+
 function changeText(change: AdaptiveReviewOption['changes'][number]) {
   const before = change.before ?? '—'
   const after = change.after ?? '—'
@@ -65,6 +73,100 @@ function reviewError(error: unknown) {
   return 'Chưa tải được phần xem lại. Kế hoạch vẫn giữ nguyên.'
 }
 
+function candidateMatches(
+  prepared: PreparedCandidate,
+  option: AdaptiveReviewOption,
+  review: AdaptiveReview,
+  current: CanonicalSupportPlan,
+) {
+  return (
+    option.executionKind === 'PREPARE_REPLACEMENT' &&
+    prepared.optionId === option.optionId &&
+    prepared.reviewFingerprint === review.reviewFingerprint &&
+    prepared.currentPlanId === current.supportPlanId &&
+    prepared.currentVersion === current.version
+  )
+}
+
+function sameDraft(left: CanonicalSupportPlan, right: CanonicalSupportPlan) {
+  return (
+    left.supportPlanId === right.supportPlanId && left.version === right.version
+  )
+}
+
+function PlanColumn({
+  label,
+  plan,
+}: Readonly<{ label: string; plan: CanonicalSupportPlan }>) {
+  return (
+    <View style={styles.planColumn}>
+      <Text style={styles.planHeading}>{label}</Text>
+      {plan.focuses.map((focus) => (
+        <View key={focus.focusId} style={styles.planFocus}>
+          <Text style={styles.optionTitle}>{focus.title}</Text>
+          {focus.actions.map((action) => {
+            const schedule = action.schedules[0]
+            return (
+              <View key={action.actionId} style={styles.planAction}>
+                <Text style={styles.body}>{action.presentation.title}</Text>
+                {schedule ? (
+                  <Text style={styles.quiet}>
+                    {schedule.estimatedDurationMinutes} phút ·{' '}
+                    {schedule.preferredDaypart ??
+                      schedule.localTime ??
+                      'Linh hoạt'}
+                  </Text>
+                ) : (
+                  <Text style={styles.quiet}>Không có lịch cố định</Text>
+                )}
+              </View>
+            )
+          })}
+        </View>
+      ))}
+    </View>
+  )
+}
+
+function DraftComparison({
+  current,
+  candidate,
+  option,
+}: Readonly<{
+  current: CanonicalSupportPlan
+  candidate: CanonicalSupportPlan
+  option: AdaptiveReviewOption
+}>) {
+  return (
+    <View
+      accessibilityLabel="So sánh kế hoạch hiện tại và phương án mới"
+      style={styles.comparison}
+    >
+      <Text accessibilityRole="header" style={styles.title}>
+        So sánh trước khi thay thế
+      </Text>
+      <View style={styles.planColumns}>
+        <PlanColumn label="Hiện tại" plan={current} />
+        <PlanColumn label="Phương án mới" plan={candidate} />
+      </View>
+      <View style={styles.materialChanges}>
+        <Text style={styles.planHeading}>Thay đổi vật chất do Care nêu</Text>
+        {option.changes.length > 0 ? (
+          option.changes.map((change) => (
+            <Text key={change.field} style={styles.body}>
+              {changeText(change)}
+            </Text>
+          ))
+        ) : (
+          <Text style={styles.quiet}>
+            Care không trả về thay đổi vật chất; không thể xác nhận thay thế.
+          </Text>
+        )}
+      </View>
+    </View>
+  )
+}
+
 export function AdaptiveReviewPanel({
   api,
   current,
@@ -84,6 +186,9 @@ export function AdaptiveReviewPanel({
 }>) {
   const [review, setReview] = useState<AdaptiveReview | null>(null)
   const [choice, setChoice] = useState<string | null>(null)
+  const [prepared, setPrepared] = useState<PreparedCandidate | null>(null)
+  const [comparing, setComparing] = useState(false)
+  const [acknowledged, setAcknowledged] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const key = useRef<{ signature: string; value: string } | null>(null)
@@ -93,12 +198,25 @@ export function AdaptiveReviewPanel({
     setLoading(true)
     setMessage('')
     setChoice(null)
+    setComparing(false)
+    setAcknowledged(false)
     try {
-      setReview(
-        await api.getAdaptiveReview(current.supportPlanId, current.version),
+      const next = await api.getAdaptiveReview(
+        current.supportPlanId,
+        current.version,
+      )
+      setReview(next)
+      setPrepared((value) =>
+        value &&
+        value.reviewFingerprint === next.reviewFingerprint &&
+        value.currentPlanId === current.supportPlanId &&
+        value.currentVersion === current.version
+          ? value
+          : null,
       )
     } catch (error) {
       setReview(null)
+      setPrepared(null)
       setMessage(reviewError(error))
     } finally {
       setLoading(false)
@@ -106,6 +224,25 @@ export function AdaptiveReviewPanel({
   }
 
   const selected = review?.options.find((option) => option.optionId === choice)
+  const preparedForChoice =
+    prepared &&
+    selected &&
+    review &&
+    candidateMatches(prepared, selected, review, current)
+      ? prepared
+      : null
+  const draftMismatch = Boolean(
+    preparedForChoice && draft && !sameDraft(preparedForChoice.draft, draft),
+  )
+  const candidate = draftMismatch
+    ? null
+    : preparedForChoice
+      ? (draft ?? preparedForChoice.draft)
+      : null
+  const foreignDraft = Boolean(
+    selected?.executionKind === 'PREPARE_REPLACEMENT' && draft && !candidate,
+  )
+  const showComparison = Boolean(comparing && candidate && selected)
 
   async function confirm(option: AdaptiveReviewOption) {
     if (!review || loading || disabled) return
@@ -113,10 +250,21 @@ export function AdaptiveReviewPanel({
       onProfessionalSupport()
       return
     }
-    const proposed =
-      option.executionKind === 'PREPARE_REPLACEMENT' && draft
-        ? draft
-        : undefined
+
+    const replacing =
+      option.executionKind === 'PREPARE_REPLACEMENT' &&
+      preparedForChoice &&
+      candidate &&
+      comparing &&
+      acknowledged &&
+      option.changes.length > 0
+    if (
+      option.executionKind === 'PREPARE_REPLACEMENT' &&
+      (foreignDraft || draftMismatch || (preparedForChoice && !replacing))
+    )
+      return
+
+    const proposed = replacing ? candidate : undefined
     const signature = `${review.reviewFingerprint}:${option.optionId}:${proposed?.supportPlanId ?? ''}:${proposed?.version ?? ''}`
     if (key.current?.signature !== signature)
       key.current = { signature, value: randomUUID() }
@@ -131,31 +279,78 @@ export function AdaptiveReviewPanel({
         key.current.value,
         proposed,
       )
-      await onChanged()
       key.current = null
-      setChoice(null)
-      if (result.result === 'DRAFT_PREPARED') {
+      if (result.result === 'DRAFT_PREPARED' && result.draft) {
+        const binding: PreparedCandidate = {
+          optionId: option.optionId,
+          reviewFingerprint: review.reviewFingerprint,
+          currentPlanId: current.supportPlanId,
+          currentVersion: current.version,
+          draft: result.draft,
+        }
+        setPrepared(binding)
+        setComparing(true)
+        setAcknowledged(false)
         setMessage(
-          'Đã chuẩn bị phương án để so sánh. Kế hoạch hiện tại chưa thay đổi.',
+          'Đã chuẩn bị phương án mới. Kế hoạch hiện tại chưa thay đổi; hãy so sánh và xác nhận lần hai.',
         )
-      } else {
-        setMessage(
-          result.result === 'KEPT' || result.result === 'CYCLE_CONTINUED'
-            ? 'Bạn đã chọn giữ kế hoạch. Không có thay đổi nào ngoài chu kỳ bạn đã xác nhận.'
-            : 'Lựa chọn đã được Care áp dụng và lịch sử trước đó vẫn được giữ.',
-        )
+        try {
+          await onChanged()
+        } catch {
+          setMessage(
+            'Phương án đã được chuẩn bị nhưng chưa đồng bộ lại được. Chỉ bản DRAFT vừa nhận mới được dùng để so sánh.',
+          )
+        }
+        return
       }
+
+      await onChanged()
+      setPrepared(null)
+      setComparing(false)
+      setAcknowledged(false)
+      setChoice(null)
       setReview(null)
+      setMessage(
+        result.result === 'KEPT' || result.result === 'CYCLE_CONTINUED'
+          ? 'Bạn đã chọn giữ kế hoạch. Không có thay đổi nào ngoài chu kỳ bạn đã xác nhận.'
+          : 'Lựa chọn đã được Care áp dụng và lịch sử trước đó vẫn được giữ.',
+      )
     } catch (error) {
       setMessage(reviewError(error))
       if (
         error instanceof ApiError &&
         (error.code === 'ADAPTIVE_REVIEW_STALE' || error.status === 412)
-      )
+      ) {
         setReview(null)
+        setPrepared(null)
+        setComparing(false)
+        setAcknowledged(false)
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  function choose(option: AdaptiveReviewOption) {
+    setChoice(option.optionId)
+    setAcknowledged(false)
+    setMessage('')
+    setComparing(
+      Boolean(
+        review &&
+        prepared &&
+        candidateMatches(prepared, option, review, current),
+      ),
+    )
+  }
+
+  function cancelComparison() {
+    setChoice(null)
+    setComparing(false)
+    setAcknowledged(false)
+    setMessage(
+      'Phương án DRAFT chưa được áp dụng. Kế hoạch hiện tại vẫn giữ nguyên.',
+    )
   }
 
   return (
@@ -219,7 +414,7 @@ export function AdaptiveReviewPanel({
               }}
               disabled={loading}
               key={option.optionId}
-              onPress={() => setChoice(option.optionId)}
+              onPress={() => choose(option)}
               style={[
                 styles.option,
                 choice === option.optionId && styles.selected,
@@ -243,30 +438,77 @@ export function AdaptiveReviewPanel({
               <Text style={styles.body}>
                 Bạn chọn: {optionNames[selected.kind]}.
               </Text>
-              <Text style={styles.quiet}>
-                Chỉ thay đổi được mô tả ở trên được áp dụng sau khi bạn xác
-                nhận.
-              </Text>
-              <PrimaryButton
-                disabled={loading || disabled}
-                label={
-                  selected.executionKind === 'NAVIGATE_PROFESSIONAL_SUPPORT'
-                    ? 'Tìm chuyên gia'
-                    : selected.executionKind === 'PREPARE_REPLACEMENT' && !draft
-                      ? 'Chuẩn bị phương án để so sánh'
-                      : selected.executionKind === 'PREPARE_REPLACEMENT'
-                        ? 'Chuyển sang phương án này'
-                        : 'Xác nhận lựa chọn'
-                }
-                onPress={() => void confirm(selected)}
-                testID="adaptive-review-confirm"
-              />
+              {foreignDraft || draftMismatch ? (
+                <Text accessibilityLiveRegion="polite" style={styles.warning}>
+                  DRAFT hiện có không khớp lựa chọn và fingerprint vừa chọn. Ứng
+                  dụng sẽ không gửi DRAFT này để thay thế.
+                </Text>
+              ) : showComparison && candidate ? (
+                <>
+                  <DraftComparison
+                    candidate={candidate}
+                    current={current}
+                    option={selected}
+                  />
+                  <PrimaryButton
+                    disabled={loading}
+                    label={
+                      acknowledged
+                        ? 'Đã xác nhận đã so sánh'
+                        : 'Tôi đã so sánh hai phương án'
+                    }
+                    onPress={() => setAcknowledged(true)}
+                    testID="adaptive-review-acknowledge"
+                  />
+                  <PrimaryButton
+                    disabled={
+                      loading ||
+                      disabled ||
+                      !acknowledged ||
+                      selected.changes.length === 0
+                    }
+                    label="Xác nhận thay thế kế hoạch"
+                    onPress={() => void confirm(selected)}
+                    testID="adaptive-review-replace-confirm"
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={cancelComparison}
+                    style={styles.reload}
+                    testID="adaptive-review-cancel-comparison"
+                  >
+                    <Text style={styles.reloadText}>
+                      Hủy, giữ kế hoạch hiện tại
+                    </Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.quiet}>
+                    Chỉ thay đổi được mô tả ở trên được áp dụng sau khi bạn xác
+                    nhận.
+                  </Text>
+                  <PrimaryButton
+                    disabled={loading || disabled || foreignDraft}
+                    label={
+                      selected.executionKind === 'NAVIGATE_PROFESSIONAL_SUPPORT'
+                        ? 'Tìm chuyên gia'
+                        : selected.executionKind === 'PREPARE_REPLACEMENT'
+                          ? 'Chuẩn bị phương án để so sánh'
+                          : 'Xác nhận lựa chọn'
+                    }
+                    onPress={() => void confirm(selected)}
+                    testID="adaptive-review-confirm"
+                  />
+                </>
+              )}
             </View>
           )}
           <Pressable
             accessibilityRole="button"
             onPress={() => void load()}
             style={styles.reload}
+            testID="adaptive-review-reload"
           >
             <Text style={styles.reloadText}>Tải lại phần xem lại</Text>
           </Pressable>
@@ -317,6 +559,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     padding: spacing.md,
   },
+  warning: {
+    backgroundColor: '#F8E8DF',
+    borderRadius: radii.control,
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 20,
+    padding: spacing.md,
+  },
   option: {
     backgroundColor: colors.surface,
     borderColor: colors.line,
@@ -336,6 +586,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.control,
     gap: spacing.md,
+    padding: spacing.md,
+  },
+  comparison: { gap: spacing.md },
+  planColumns: { flexDirection: 'row', gap: spacing.sm },
+  planColumn: {
+    borderColor: colors.line,
+    borderRadius: radii.control,
+    borderWidth: 1,
+    flex: 1,
+    gap: spacing.sm,
+    padding: spacing.sm,
+  },
+  planHeading: { color: colors.tealDeep, fontSize: 14, fontWeight: '800' },
+  planFocus: { gap: spacing.xs },
+  planAction: { gap: spacing.xs },
+  materialChanges: {
+    backgroundColor: colors.tealPale,
+    borderRadius: radii.control,
+    gap: spacing.xs,
     padding: spacing.md,
   },
   reload: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },

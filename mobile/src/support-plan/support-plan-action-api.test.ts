@@ -302,6 +302,58 @@ describe('Native SupportPlan mobile transport', () => {
       optionId: review.options[0].optionId,
     })
   })
+  it('sends a proposed plan only for a PREPARE_REPLACEMENT option and only while it is DRAFT', async () => {
+    const option = adaptiveReviewOptionSchema.parse({
+      optionId: 'alternative-action-1',
+      kind: 'ALTERNATIVE_ACTION',
+      executionKind: 'PREPARE_REPLACEMENT',
+      actionId,
+      focusId: null,
+      rationaleCodes: ['REPEATED_BARRIER'],
+      evidenceRefs: [],
+      conflictingEvidenceRefs: [],
+      changes: [{ field: 'ACTION', before: 'Old', after: 'New' }],
+    })
+    const active = planFixture()
+    const draft = {
+      ...active,
+      supportPlanId: '90000000-0000-4000-8000-000000000664',
+      status: 'DRAFT' as const,
+      version: 0,
+      activatedAt: null,
+    }
+    const confirmation = {
+      result: 'REPLACED',
+      optionId: option.optionId,
+      plan: active,
+      draft: null,
+    } as const
+    const { api, requests } = apiFixture([confirmation])
+    await expect(
+      api.confirmAdaptiveReview(
+        planId,
+        1,
+        '3f2a9c4d7e1b6a5f8c0d2e4f6a8b0c1d',
+        option,
+        'adaptive-replace-key-01',
+        active,
+      ),
+    ).rejects.toThrow('Only a compared DRAFT')
+    await api.confirmAdaptiveReview(
+      planId,
+      1,
+      '3f2a9c4d7e1b6a5f8c0d2e4f6a8b0c1d',
+      option,
+      'adaptive-replace-key-01',
+      draft,
+    )
+    expect(JSON.parse(requests[0]?.data)).toEqual({
+      reviewFingerprint: '3f2a9c4d7e1b6a5f8c0d2e4f6a8b0c1d',
+      optionId: option.optionId,
+      proposedPlanId: draft.supportPlanId,
+      proposedVersion: 0,
+    })
+  })
   it('creates a separate native draft and activates with strong validators, preserving legacy model', async () => {
     const active = planFixture()
     const draft = { ...active, status: 'DRAFT', activatedAt: null }

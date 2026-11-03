@@ -197,6 +197,10 @@ export const adaptiveReviewConfirmationSchema = z
     (value) => (value.result === 'DRAFT_PREPARED') === (value.draft !== null),
     'Prepared replacement must include its draft.',
   )
+  .refine(
+    (value) => value.draft === null || value.draft.status === 'DRAFT',
+    'Prepared replacement candidate must still be a DRAFT.',
+  )
 
 export type AdaptiveReview = z.infer<typeof adaptiveReviewSchema>
 export type AdaptiveReviewOption = z.infer<typeof adaptiveReviewOptionSchema>

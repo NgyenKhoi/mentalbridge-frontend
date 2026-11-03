@@ -1,5 +1,5 @@
-import { router } from 'expo-router'
-import { useState } from 'react'
+import { router, useFocusEffect } from 'expo-router'
+import { useCallback, useRef, useState } from 'react'
 
 import { createApiClient } from '@/api/api-client'
 import { useSession } from '@/auth/session-context'
@@ -15,6 +15,8 @@ function AccountReassessmentRoute({
   config,
   subject,
 }: Readonly<{ config: RuntimeConfig; subject: string }>) {
+  const [refreshToken, setRefreshToken] = useState(0)
+  const focusedOnce = useRef(false)
   const [binding] = useState(() => {
     const client = createApiClient({
       config,
@@ -26,9 +28,19 @@ function AccountReassessmentRoute({
     }
   })
 
+  useFocusEffect(
+    useCallback(() => {
+      // Initial loading belongs to the screen. Every later focus can follow a
+      // completed assessment, so Care must revalidate the retained route.
+      if (focusedOnce.current) setRefreshToken((value) => value + 1)
+      else focusedOnce.current = true
+    }, []),
+  )
+
   return (
     <ReassessmentJourneyScreen
       {...binding}
+      refreshToken={refreshToken}
       onScreening={() =>
         router.push({
           pathname: '/(user)/assessment',

@@ -40,11 +40,15 @@ const stateLabel = {
   UNAVAILABLE: 'Tạm thời không khả dụng',
 } as const
 
+type AuthorityState = 'LOADING' | 'FRESH' | 'STALE' | 'ERROR'
+type JournalGap = Readonly<{ reason: string; retryLabel: string }>
+
 type Props = Readonly<{
   api: ReassessmentApi
   journalApi: Pick<JournalApi, 'requestTrend' | 'trendJob'>
   onScreening: () => void
   onReturnToPlan: () => void
+  refreshToken?: number
   wait?: (milliseconds: number) => Promise<void>
 }>
 
@@ -53,6 +57,10 @@ function samePeriod(
   expected: { startAt: string; endAt: string },
 ) {
   return value.startAt === expected.startAt && value.endAt === expected.endAt
+}
+
+function periodKey(context: ReassessmentContext) {
+  return `${context.previousPeriod.startAt}:${context.previousPeriod.endAt}:${context.currentPeriod.startAt}:${context.currentPeriod.endAt}`
 }
 
 function errorMessage(error: unknown) {
@@ -68,6 +76,25 @@ function errorMessage(error: unknown) {
       return 'Kết quả sàng lọc đã thay đổi. Hãy tải lại lượt đánh giá này.'
   }
   return 'Chưa thể hoàn tất đánh giá lại. Không có kết quả nào được tự tạo hoặc suy đoán.'
+}
+
+function journalGap(error: unknown): JournalGap {
+  if (
+    error instanceof ApiError &&
+    ['CONSENT_REQUIRED', 'CONSENT_REVOKED', 'CONSENT_UNAVAILABLE'].includes(
+      error.code,
+    )
+  )
+    return {
+      reason:
+        'Bạn chưa cho phép hoặc đã thu hồi quyền xử lý AI cho Nhật ký. Câu trả lời tự báo cáo vẫn được lưu và ứng dụng không tự xin quyền thay bạn.',
+      retryLabel: 'Kiểm tra lại nguồn Nhật ký',
+    }
+  return {
+    reason:
+      'Dịch vụ Nhật ký chưa trả về mã công việc nguồn. Ứng dụng không tạo mã thay thế hoặc giả dữ liệu.',
+    retryLabel: 'Thử lại nguồn Nhật ký',
+  }
 }
 
 async function terminalJob(
@@ -166,11 +193,48 @@ function Summary({ summary }: { summary: ReassessmentSummary }) {
   )
 }
 
+function AvailableSources({
+  report,
+  gap,
+}: Readonly<{ report: ReassessmentSelfReport; gap: JournalGap }>) {
+  return (
+    <View accessibilityLabel="Nguồn đánh giá hiện có" style={styles.summary}>
+      <Text accessibilityRole="header" style={styles.sectionTitle}>
+        Các nguồn hiện có
+      </Text>
+      <DimensionCard title="1. Sàng lọc theo giai đoạn">
+        <Text style={styles.state}>Care đã xác nhận đủ PHQ-9 và GAD-7</Text>
+        <Text style={styles.quiet}>
+          Điểm và xu hướng chỉ hiển thị sau khi Care tạo được bản tổng hợp.
+        </Text>
+      </DimensionCard>
+      <DimensionCard title="2. Bối cảnh nhật ký">
+        <Text style={styles.state}>Tạm thời không khả dụng</Text>
+        <Text style={styles.quiet}>{gap.reason}</Text>
+      </DimensionCard>
+      <DimensionCard title="3. Mức độ tham gia kế hoạch">
+        <Text style={styles.state}>Đang chờ Care tổng hợp</Text>
+      </DimensionCard>
+      <DimensionCard title="4. Trải nghiệm bạn tự báo cáo">
+        <Text style={styles.state}>Đã lưu</Text>
+        <Text style={styles.body}>
+          {experienceLabel[report.currentExperience]}
+        </Text>
+      </DimensionCard>
+      <Text style={styles.boundary}>
+        Đây là trạng thái nguồn, không phải bản tổng hợp bốn chiều. Ứng dụng
+        không tự tạo Journal job hoặc suy đoán dữ liệu còn thiếu.
+      </Text>
+    </View>
+  )
+}
+
 export function ReassessmentJourneyScreen({
   api,
   journalApi,
   onScreening,
   onReturnToPlan,
+  refreshToken = 0,
   wait = (milliseconds) =>
     new Promise((resolve) => setTimeout(resolve, milliseconds)),
 }: Props) {
@@ -182,16 +246,35 @@ export function ReassessmentJourneyScreen({
   )
   const [helpful, setHelpful] = useState('')
   const [difficult, setDifficult] = useState('')
+  const [authority, setAuthority] = useState<AuthorityState>('LOADING')
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
   const [notice, setNotice] = useState('')
+  const [pendingJob, setPendingJob] = useState<TrendJob | null>(null)
+  const [missingJournal, setMissingJournal] = useState<JournalGap | null>(null)
   const reportKey = useRef(randomUUID())
   const trendKey = useRef(randomUUID())
-  const summaryKey = useRef(randomUUID())
+  const compositionKey = useRef<{
+    signature: string
+    value: string
+  } | null>(null)
+  const loadedPeriod = useRef<string | null>(null)
+  const hasAuthority = useRef(false)
+  const loadRequest = useRef(0)
+
+  const resetIntents = useCallback(() => {
+    reportKey.current = randomUUID()
+    trendKey.current = randomUUID()
+    compositionKey.current = null
+    setPendingJob(null)
+    setMissingJournal(null)
+  }, [])
 
   const load = useCallback(async () => {
+    const request = ++loadRequest.current
     setLoading(true)
     setNotice('')
+    setAuthority(hasAuthority.current ? 'STALE' : 'LOADING')
     try {
       const loadedContext = await api.getContext()
       const [loadedReport, loadedSummary] = await Promise.all([
@@ -204,36 +287,56 @@ export function ReassessmentJourneyScreen({
           throw error
         }),
       ])
+      if (request !== loadRequest.current) return
+
+      const nextPeriod = periodKey(loadedContext)
+      const periodChanged =
+        loadedPeriod.current !== null && loadedPeriod.current !== nextPeriod
+      if (periodChanged) resetIntents()
+      loadedPeriod.current = nextPeriod
       setContext(loadedContext)
-      if (
+
+      const currentReport =
         loadedReport &&
         samePeriod(loadedReport.currentPeriod, loadedContext.currentPeriod)
-      ) {
-        setReport(loadedReport)
-        setExperience(loadedReport.currentExperience)
-        setHelpful(loadedReport.helpfulContext ?? '')
-        setDifficult(loadedReport.difficultContext ?? '')
-      } else setReport(null)
+          ? loadedReport
+          : null
+      setReport(currentReport)
+      setExperience(currentReport?.currentExperience ?? null)
+      setHelpful(currentReport?.helpfulContext ?? '')
+      setDifficult(currentReport?.difficultContext ?? '')
       setSummary(
         loadedSummary &&
           samePeriod(loadedSummary.currentPeriod, loadedContext.currentPeriod)
           ? loadedSummary
           : null,
       )
+      if (periodChanged) setNotice('Đã tải giai đoạn đánh giá mới từ Care.')
+      hasAuthority.current = true
+      setAuthority('FRESH')
     } catch (error) {
+      if (request !== loadRequest.current) return
       setNotice(errorMessage(error))
+      setAuthority(hasAuthority.current ? 'STALE' : 'ERROR')
     } finally {
-      setLoading(false)
+      if (request === loadRequest.current) setLoading(false)
     }
-  }, [api])
+  }, [api, resetIntents])
 
   useEffect(() => {
     const timer = setTimeout(() => void load(), 0)
     return () => clearTimeout(timer)
-  }, [load])
+  }, [load, refreshToken])
 
   async function submit() {
-    if (!context || context.state !== 'READY' || !experience || working) return
+    if (
+      authority !== 'FRESH' ||
+      !context ||
+      context.state !== 'READY' ||
+      !experience ||
+      working
+    )
+      return
     setWorking(true)
     setNotice('Đang lưu câu trả lời và tổng hợp bốn nguồn…')
     try {
@@ -243,7 +346,7 @@ export function ReassessmentJourneyScreen({
         difficultContext: difficult.trim() || null,
       }
       const changed =
-        report &&
+        report != null &&
         (report.currentExperience !== draft.currentExperience ||
           report.helpfulContext !== draft.helpfulContext ||
           report.difficultContext !== draft.difficultContext)
@@ -253,29 +356,48 @@ export function ReassessmentJourneyScreen({
           : report
         : await api.createReport(context, draft, reportKey.current)
       setReport(saved)
-      const job = await terminalJob(
-        journalApi,
-        await journalApi.requestTrend(
-          {
-            previousPeriod: context.previousPeriod,
-            currentPeriod: context.currentPeriod,
-            excludedJournalIds: [],
-          },
-          trendKey.current,
-        ),
-        wait,
-      )
-      if (job.status === 'RUNNING') {
+      if (changed) setSummary(null)
+
+      let initial: TrendJob
+      try {
+        initial = pendingJob
+          ? await journalApi.trendJob(pendingJob.jobId)
+          : await journalApi.requestTrend(
+              {
+                previousPeriod: context.previousPeriod,
+                currentPeriod: context.currentPeriod,
+                excludedJournalIds: [],
+              },
+              trendKey.current,
+            )
+      } catch (error) {
+        const gap = journalGap(error)
+        setMissingJournal(gap)
         setNotice(
-          'Nhật ký vẫn đang xử lý. Hãy thử lại để tiếp tục bằng dữ liệu đã lưu.',
+          'Câu trả lời đã được lưu. Nguồn Nhật ký chưa cấp mã công việc nên Care chưa thể tạo bản tổng hợp; bạn vẫn có thể xem các nguồn hiện có hoặc thử lại.',
         )
         return
       }
+
+      setPendingJob(initial)
+      const job = await terminalJob(journalApi, initial, wait)
+      setPendingJob(job.status === 'RUNNING' ? job : null)
+      if (job.status === 'RUNNING') {
+        setNotice(
+          'Nhật ký vẫn đang xử lý. Hãy thử lại để tiếp tục đúng công việc đã tạo.',
+        )
+        return
+      }
+
+      setMissingJournal(null)
+      const signature = `${periodKey(context)}:${saved.selfReportId}:${saved.version}:${job.jobId}`
+      if (compositionKey.current?.signature !== signature)
+        compositionKey.current = { signature, value: randomUUID() }
       const composed = await api.compose(
         context,
         job.jobId,
         saved.selfReportId,
-        summaryKey.current,
+        compositionKey.current.value,
       )
       setSummary(composed)
       setNotice('Bản tổng hợp bốn góc nhìn đã sẵn sàng để bạn xem lại.')
@@ -286,13 +408,42 @@ export function ReassessmentJourneyScreen({
     }
   }
 
-  if (loading)
+  const stale = authority === 'STALE'
+  const canWrite = authority === 'FRESH' && !working
+
+  if (authority === 'LOADING' && !context)
     return (
       <Screen>
         <ActivityIndicator
           accessibilityLabel="Đang tải đánh giá lại"
           color={colors.tealDeep}
         />
+      </Screen>
+    )
+
+  if (authority === 'ERROR' && !context)
+    return (
+      <Screen>
+        <Text accessibilityRole="header" style={styles.title}>
+          Chưa tải được đánh giá lại
+        </Text>
+        <View style={styles.errorPanel}>
+          <Text accessibilityLiveRegion="polite" style={styles.body}>
+            {notice}
+          </Text>
+          <PrimaryButton
+            label="Thử tải lại"
+            onPress={() => void load()}
+            testID="reassessment-retry"
+          />
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onReturnToPlan}
+          style={styles.back}
+        >
+          <Text style={styles.backText}>Quay lại Kế hoạch hỗ trợ</Text>
+        </Pressable>
       </Screen>
     )
 
@@ -307,13 +458,35 @@ export function ReassessmentJourneyScreen({
         chia sẻ. MentalBridge không tự chẩn đoán hoặc tự đổi kế hoạch.
       </Text>
 
+      {(stale || (loading && context)) && (
+        <View style={styles.errorPanel}>
+          {loading ? <ActivityIndicator color={colors.tealDeep} /> : null}
+          <Text accessibilityLiveRegion="polite" style={styles.body}>
+            {loading
+              ? 'Đang xác nhận lại giai đoạn và dữ liệu với Care. Tạm khóa thay đổi.'
+              : `${notice} Dữ liệu đang hiển thị có thể đã cũ; mọi thao tác lưu đang bị khóa.`}
+          </Text>
+          {!loading && (
+            <PrimaryButton
+              label="Thử tải lại"
+              onPress={() => void load()}
+              testID="reassessment-retry"
+            />
+          )}
+        </View>
+      )}
+
       {context?.state === 'INCOMPLETE' ? (
         <View style={styles.noticePanel}>
           <Text style={styles.body}>
             Cần hoàn tất {context.missingInstruments.join(' và ')} cho giai đoạn
             này.
           </Text>
-          <PrimaryButton label="Làm bài kiểm tra lại" onPress={onScreening} />
+          <PrimaryButton
+            disabled={!canWrite}
+            label="Làm bài kiểm tra lại"
+            onPress={onScreening}
+          />
         </View>
       ) : context ? (
         <View style={styles.form}>
@@ -325,9 +498,9 @@ export function ReassessmentJourneyScreen({
               accessibilityRole="radio"
               accessibilityState={{
                 checked: experience === value,
-                disabled: working,
+                disabled: !canWrite,
               }}
-              disabled={working}
+              disabled={!canWrite}
               key={value}
               onPress={() => setExperience(value)}
               style={[
@@ -343,7 +516,7 @@ export function ReassessmentJourneyScreen({
           </Text>
           <TextInput
             accessibilityLabel="Điều gì đã giúp ích"
-            editable={!working}
+            editable={canWrite}
             maxLength={500}
             multiline
             onChangeText={setHelpful}
@@ -355,7 +528,7 @@ export function ReassessmentJourneyScreen({
           </Text>
           <TextInput
             accessibilityLabel="Điều gì khiến bạn thấy khó khăn"
-            editable={!working}
+            editable={canWrite}
             maxLength={500}
             multiline
             onChangeText={setDifficult}
@@ -363,28 +536,38 @@ export function ReassessmentJourneyScreen({
             value={difficult}
           />
           <PrimaryButton
-            disabled={working || !experience}
+            disabled={!canWrite || !experience}
             label={
               working
                 ? 'Đang xử lý…'
                 : summary
                   ? 'Cập nhật bản tổng hợp'
-                  : 'Xem bốn góc nhìn'
+                  : missingJournal
+                    ? missingJournal.retryLabel
+                    : 'Xem bốn góc nhìn'
             }
             onPress={() => void submit()}
+            testID="reassessment-submit"
           />
         </View>
       ) : null}
 
-      {notice && (
+      {notice && !stale && (
         <Text accessibilityLiveRegion="polite" style={styles.notice}>
           {notice}
         </Text>
       )}
       {summary && <Summary summary={summary} />}
-      {summary && (
+      {!summary && report && missingJournal && (
+        <AvailableSources gap={missingJournal} report={report} />
+      )}
+      {(summary || (report && missingJournal)) && (
         <PrimaryButton
-          label="Xem lựa chọn giữ hoặc đổi kế hoạch"
+          label={
+            summary
+              ? 'Xem lựa chọn giữ hoặc đổi kế hoạch'
+              : 'Tiếp tục với các nguồn hiện có'
+          }
           onPress={onReturnToPlan}
         />
       )}
@@ -456,6 +639,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.panel,
     gap: spacing.lg,
+    padding: spacing.lg,
+  },
+  errorPanel: {
+    backgroundColor: '#F8E8DF',
+    borderRadius: radii.panel,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
     padding: spacing.lg,
   },
   notice: {

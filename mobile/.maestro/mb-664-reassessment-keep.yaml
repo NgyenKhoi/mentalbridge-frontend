@@ -1,0 +1,39 @@
+appId: com.mentalbridge.mobile
+name: MB-664 reassessment keeps the current Care plan
+---
+# AUTHOR_ONLY / NOT_RUN. MB-666 owns protected Android staging execution.
+# Requires a disposable seeded USER whose current reassessment context is READY,
+# Journal returns a terminal source-backed job, and Care offers KEEP_CURRENT.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB664_KEEP_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB664_KEEP_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- openLink: 'mentalbridge://reassessment'
+- assertVisible: 'Điều gì đã thay đổi với bạn?'
+- tapOn: 'Tôi chưa chắc'
+- tapOn:
+    id: 'reassessment-submit'
+- extendedWaitUntil:
+    visible: 'Bốn góc nhìn riêng biệt'
+    timeout: 60000
+- tapOn: 'Xem lựa chọn giữ hoặc đổi kế hoạch'
+- scrollUntilVisible:
+    element:
+      text: 'Tiến độ và điều chỉnh'
+    direction: DOWN
+- tapOn:
+    id: 'adaptive-review-open'
+- tapOn: 'Giữ nhịp này thêm 14 ngày'
+- tapOn:
+    id: 'adaptive-review-confirm'
+- assertVisible: 'Bạn đã chọn giữ kế hoạch.*'
+- takeScreenshot: 'native-evidence/mb-664-keep-confirmed'

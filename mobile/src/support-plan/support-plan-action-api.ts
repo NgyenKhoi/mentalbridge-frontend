@@ -185,6 +185,14 @@ export function createSupportPlanActionApi(
       key,
       proposed,
     ) {
+      if (
+        proposed &&
+        (option.executionKind !== 'PREPARE_REPLACEMENT' ||
+          proposed.status !== 'DRAFT')
+      )
+        throw new Error(
+          'Only a compared DRAFT can confirm a replacement option.',
+        )
       const body = {
         reviewFingerprint: z.string().min(16).max(128).parse(reviewFingerprint),
         optionId: z.string().min(1).max(128).parse(option.optionId),
