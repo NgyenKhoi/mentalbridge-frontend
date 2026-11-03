@@ -10,10 +10,33 @@ import {
   getEmotionCheckInProgress,
   listEmotionCheckIns,
 } from '@/features/emotion-check-in/api/browser-emotion-check-in'
-import type { EmotionCheckIn } from '@/lib/emotion-check-in/contract'
+import type { Emotion, EmotionCheckIn } from '@/lib/emotion-check-in/contract'
 import { emotionPresentation } from '@/lib/emotion-check-in/presentation'
 import { homeEmotionWeek } from './emotion-week'
 import styles from './HomeEmotionSection.module.css'
+
+const dailyMessages: Record<Emotion, { title: string; body: string }> = {
+  GREAT: {
+    title: 'Một khoảnh khắc đáng trân trọng',
+    body: 'Điều gì đã làm ngày hôm nay của bạn thật vui? Bạn có thể giữ lại khoảnh khắc ấy bằng vài dòng để đọc lại khi muốn.',
+  },
+  GOOD: {
+    title: 'Dành chỗ cho những điều đang tốt',
+    body: 'Một niềm vui nhỏ cũng đáng được ghi nhớ. Nếu muốn, hãy viết lại điều đã khiến hôm nay dễ chịu hơn với bạn.',
+  },
+  OKAY: {
+    title: 'Cứ đi theo nhịp của bạn',
+    body: 'Những ngày bình thường cũng có câu chuyện riêng. Bạn có thể dành một chút thời gian để nhìn lại điều đang ở trong tâm trí mình.',
+  },
+  LOW: {
+    title: 'Hôm nay, hãy nhẹ nhàng với mình',
+    body: 'Bạn không cần làm mọi thứ cùng lúc. Nếu muốn, hãy cho mình một khoảng nghỉ, viết vài dòng hoặc trò chuyện với người bạn tin tưởng.',
+  },
+  VERY_LOW: {
+    title: 'Bạn không cần gồng mình một mình',
+    body: 'Cảm ơn bạn đã dành thời gian lắng nghe cảm xúc của mình. Bạn có thể viết ra điều đang nặng lòng hoặc tìm một người tin tưởng để chia sẻ, khi sẵn sàng.',
+  },
+}
 
 type WeekState =
   | { phase: 'loading' }
@@ -74,6 +97,9 @@ export function HomeEmotionWeek({
       ? homeEmotionWeek(state.localDate, state.records)
       : null
   const yesterday = days?.[5]?.emotion
+  const today = days?.[6]?.emotion
+  const message = today ? dailyMessages[today] : null
+  const recordedDays = days?.filter((day) => day.emotion).length ?? 0
 
   return (
     <section
@@ -153,6 +179,35 @@ export function HomeEmotionWeek({
               )}
               Ngày trống chỉ là ngày chưa ghi.
             </div>
+          </div>
+          <div
+            className={styles.encouragement}
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <div className={styles.messageLabel}>
+              <span>Một lời nhắn cho bạn</span>
+              {today && (
+                <span className={styles.emotionLabel}>
+                  Hôm nay: {emotionPresentation[today].label}
+                </span>
+              )}
+            </div>
+            <h3>{message?.title ?? 'Dành một phút để lắng nghe mình'}</h3>
+            <p>
+              {message?.body ??
+                'Bạn đang cảm thấy thế nào? Khi bạn lưu cảm xúc hôm nay, một lời nhắn dành cho cảm xúc ấy sẽ xuất hiện ở đây.'}
+            </p>
+            {today && (
+              <Link href="/journal" className={styles.journalLink}>
+                Viết vài dòng cho mình <span aria-hidden="true">→</span>
+              </Link>
+            )}
+            <p className={styles.recordedDays}>
+              {recordedDays > 0
+                ? `Bạn đã dành thời gian ghi nhận cảm xúc ${recordedDays}/7 ngày gần đây.`
+                : 'Bạn có thể bắt đầu từ hôm nay, theo nhịp của mình.'}
+            </p>
           </div>
         </>
       ) : null}

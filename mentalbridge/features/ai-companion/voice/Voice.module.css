@@ -1,10 +1,12 @@
 .entry {
   display: inline-flex;
+  width: 44px;
+  min-width: 44px;
   min-height: 44px;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 14px;
+  padding: 0;
   border: 1px solid var(--teal-soft, #b4c9c1);
   border-radius: 12px;
   background: var(--surface, #fcfdfa);
@@ -19,6 +21,36 @@
 }
 .mobileEntry {
   display: none;
+}
+.iconButton {
+  position: relative;
+}
+.iconButton::after {
+  position: absolute;
+  z-index: 2;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  width: max-content;
+  max-width: 180px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--teal-deep);
+  color: var(--surface, #fcfdfa);
+  content: attr(aria-label);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%);
+}
+.iconButton:focus-visible::after {
+  opacity: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  .iconButton:hover::after {
+    opacity: 1;
+  }
 }
 .dialog {
   width: min(560px, calc(100vw - 28px));
@@ -228,11 +260,30 @@
   display: flex;
   align-items: stretch;
   gap: 12px;
+  justify-content: center;
   margin-top: 25px;
 }
 .controls button {
   flex: 1;
   margin: 0;
+}
+.controls .iconButton,
+.audioControl {
+  width: 52px;
+  min-width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 50%;
+}
+.controls .iconButton {
+  flex: 0 0 52px;
+}
+.audioControl {
+  margin-inline: auto;
+}
+.controls .iconButton[aria-pressed='true'] {
+  background: var(--teal-pale);
+  color: var(--teal-deep);
 }
 .end {
   background: #a65042;
@@ -298,7 +349,7 @@
   }
   .mobileEntry {
     display: flex;
-    width: calc(100% - 36px);
+    width: 44px;
     flex: none;
     margin: 0 18px 12px;
   }

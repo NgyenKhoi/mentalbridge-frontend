@@ -41,7 +41,7 @@ export default function LoginForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="auth-form">
+    <form method="post" onSubmit={handleSubmit} className="auth-form">
       {notice ? (
         <div className="auth-success" role="status">
           {notice}

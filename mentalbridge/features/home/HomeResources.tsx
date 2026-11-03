@@ -1,10 +1,12 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Skeleton } from '@/components/ui/Skeleton'
 import type { HomeNextStep } from '@/features/assessment/api/care-contract'
 import { useMamTarget } from '@/features/mam/use-mam-target'
+import { resourceArtwork } from '@/features/resources/model/resource-artwork'
 import {
   loadHomeResources,
   type HomeResource,
@@ -18,27 +20,28 @@ const sourceTags = {
   library: 'Từ thư viện',
 }
 
-function ResourceArt({ category }: Pick<HomeResource, 'category'>) {
-  const path =
-    category === 'ARTICLE' || category === 'JOURNALING'
-      ? 'M14 22c8-4 16-4 22 2 6-6 14-6 22-2v30c-8-4-16-4-22 2-6-6-14-6-22-2zM36 24v30'
-      : category === 'VIDEO'
-        ? 'M14 18h44v36H14zM31 28l14 8-14 8z'
-        : 'M36 14a22 22 0 1 0 0 44 22 22 0 0 0 0-44zM36 24a12 12 0 1 0 0 24 12 12 0 0 0 0-24zM36 32a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'
+function ResourceArt({ resource }: Readonly<{ resource: HomeResource }>) {
+  const artwork = resourceArtwork(resource)
   return (
-    <svg
-      width="72"
-      height="72"
-      viewBox="0 0 72 72"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d={path} />
-    </svg>
+    <>
+      <Image
+        src={artwork.src}
+        alt=""
+        fill
+        sizes="(max-width: 760px) 100vw, (max-width: 1280px) 25vw, 20vw"
+        className={styles.artImage}
+        style={{ objectPosition: artwork.position }}
+      />
+      <div className={styles.artLight} aria-hidden="true" />
+      <svg
+        className={styles.artSparkles}
+        viewBox="0 0 100 60"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path d="M78 12v8m-4-4h8M88 29v6m-3-3h6M68 36v5m-2.5-2.5h5" />
+      </svg>
+    </>
   )
 }
 
@@ -149,7 +152,7 @@ export function HomeResources({
                 <div className={styles.tag}>
                   {sourceTags[state.data.source]}
                 </div>
-                <ResourceArt category={resource.category} />
+                <ResourceArt resource={resource} />
               </div>
               <div className={styles.resourceBody}>
                 {resource.meta && (

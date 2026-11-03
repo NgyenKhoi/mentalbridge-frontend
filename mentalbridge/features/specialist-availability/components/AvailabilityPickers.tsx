@@ -131,6 +131,8 @@ export function AvailabilityDatePicker({
       }}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && open) {
+          // A native modal <dialog> closes on Escape unless the key's default is prevented.
+          event.preventDefault()
           event.stopPropagation()
           closePicker(true)
         }
@@ -337,6 +339,8 @@ export function AvailabilityTimePicker({
       }}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && open) {
+          // A native modal <dialog> closes on Escape unless the key's default is prevented.
+          event.preventDefault()
           event.stopPropagation()
           closePicker(true)
         }

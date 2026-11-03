@@ -4,8 +4,8 @@ import {
   Fraunces,
   Lora,
   Playfair_Display,
-  Plus_Jakarta_Sans,
 } from 'next/font/google'
+import localFont from 'next/font/local'
 import CrisisSupportWidget from '../components/crisis-support/CrisisSupportWidget'
 import MotionPreferences from '../components/motion/MotionPreferences'
 import SmoothScroll from '../components/SmoothScroll'
@@ -35,9 +35,10 @@ const lora = Lora({
   display: 'swap',
 })
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ['latin', 'vietnamese'],
-  weight: ['400', '500', '600', '700', '800'],
+const plusJakartaSans = localFont({
+  src: './fonts/plus-jakarta-sans/PlusJakartaSans.ttf',
+  weight: '400 800',
+  style: 'normal',
   variable: '--font-plus-jakarta',
   display: 'swap',
 })

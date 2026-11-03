@@ -82,4 +82,44 @@ describe('AI Companion server-only client', () => {
       status: 503,
     })
   })
+
+  it('passes a server-resolved suggestion and quota v2 through send', async () => {
+    configure()
+    const result = {
+      conversationId,
+      userMessageId: '22222222-2222-4222-8222-222222222222',
+      assistantMessageId: '33333333-3333-4333-8333-333333333333',
+      assistant: 'Okela, bạn mở bài ở nút bên dưới nha.',
+      createdAt: timestamp,
+      contextKinds: [],
+      quota: {
+        plan: 'FREE',
+        policyVersion: 'companion-quota-v2',
+        remaining: 4,
+        resetAt: '2026-09-20T17:00:00Z',
+        limitDisplayed: true,
+      },
+      suggestion: {
+        destination: 'RESOURCE',
+        resourceId: '44444444-4444-4444-8444-444444444444',
+        resourceTitle: 'Thở 4-7-8',
+      },
+    }
+    mockServer.use(
+      http.post(
+        `${baseUrl}/api/v1/ai-companion/conversations/${conversationId}/messages`,
+        () => HttpResponse.json(result, { status: 201 }),
+      ),
+    )
+
+    await expect(
+      companionClient.send(
+        'access-token',
+        conversationId,
+        { message: 'Ừ, thử bài thở đó coi' },
+        'companion-command-0002',
+        'correlation-id',
+      ),
+    ).resolves.toEqual(result)
+  })
 })

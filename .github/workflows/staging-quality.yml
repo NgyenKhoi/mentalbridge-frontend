@@ -110,7 +110,8 @@ jobs:
 
   release-quality:
     name: Staging frontend and fixture browser checks
-    needs: [promotion-policy, milestone-provenance]
+    # Web must not wait on mobile provenance; staging-quality-gate still requires both.
+    needs: [promotion-policy]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -129,7 +130,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: NgyenKhoi/mentalbridge-backend
-          ref: ${{ needs.milestone-provenance.outputs.backend_sha }}
+          ref: ${{ inputs.backend_commit_sha || 'staging' }}
           path: realtime-provider
           sparse-checkout: contracts/websocket/realtime
 

@@ -172,7 +172,7 @@ export function CombinedMeaningCard({
 
       {isSafety && (
         <section
-          className="combined-meaning-safety"
+          className={`combined-meaning-safety${historical ? ' combined-meaning-safety-historical' : ''}`}
           aria-labelledby="combined-safety-title"
         >
           <div className="combined-meaning-safety-icon">

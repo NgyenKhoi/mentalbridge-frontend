@@ -84,6 +84,24 @@ describe('SessionActions', () => {
     ).toHaveAttribute('href', '/subscription')
   })
 
+  it('replays the tour from the signed-in account menu and closes the menu', async () => {
+    const replay = vi.fn()
+    render(
+      <SessionActions
+        displayName="Nguyễn An"
+        avatar="NA"
+        onReplayTour={replay}
+      />,
+    )
+    const trigger = screen.getByRole('button', { name: 'Mở menu tài khoản' })
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Xem lại hướng dẫn' }))
+    expect(replay).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('data-onboarding', 'profile')
+  })
+
   it('keeps specialist account actions accessible when the sidebar is collapsed', async () => {
     mocks.terminate.mockResolvedValue(undefined)
     render(

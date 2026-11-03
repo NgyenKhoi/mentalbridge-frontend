@@ -690,6 +690,72 @@
   line-height: 1.65;
 }
 
+/* One server-resolved next step under a finished reply (ADR 0049). */
+.messageSuggestion {
+  margin-top: 12px;
+}
+
+.messageSuggestion a {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 15px;
+  border: 1px solid color-mix(in srgb, var(--teal) 32%, var(--line));
+  /* A full pill on one line; stays calm when a long title wraps. */
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--teal-pale) 45%, var(--surface));
+  color: var(--teal-deep);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition:
+    background var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+.messageSuggestion a:hover {
+  border-color: color-mix(in srgb, var(--teal) 55%, var(--line));
+  background: var(--teal-pale);
+}
+
+.messageSuggestion a:active {
+  transform: scale(var(--motion-scale-enter));
+}
+
+.messageSuggestion a:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--teal) 35%, transparent);
+  outline-offset: 3px;
+}
+
+.messageSuggestion svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+
+.messageSuggestion a:hover svg,
+.messageSuggestion a:focus-visible svg {
+  transform: translateX(var(--motion-distance-sm));
+}
+
+@media (pointer: coarse) {
+  .messageSuggestion a {
+    min-height: 44px;
+  }
+}
+
 .messageContextChip {
   position: relative;
   margin-top: 9px;
@@ -1902,7 +1968,9 @@
   .history > button,
   .starters button,
   .chevron,
-  .contextCard {
+  .contextCard,
+  .messageSuggestion a,
+  .messageSuggestion svg {
     transition: none;
   }
 }

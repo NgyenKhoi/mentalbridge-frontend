@@ -1,0 +1,20 @@
+[
+  {
+    "name": "sleep",
+    "tool": "image_gen built-in",
+    "reference": "public/images/resource-mindfulness.webp",
+    "prompt": "Create one landscape 3:2 editorial illustration, no text, no letters, no watermark, for a Vietnamese mental wellbeing resource card. Match the visual language of the referenced asset: delicate painterly digital illustration with natural realistic texture, warm cream and sage green palette, quiet lived-in apartment, soft light, houseplants, young Vietnamese adult, humane and calm. Not clinical, no brain diagrams, no sad stereotypes. Compose the primary person and action centrally so the image crops well to a small wide thumbnail. Scene: preparing a gentle sleep routine in a cozy bedroom at dusk, a young Vietnamese woman in loose cream pajamas sitting on the edge of a bed, setting a closed book on a wooden bedside table next to a warm shaded lamp, folded sage linen duvet, a leafy plant, blue evening visible through a window. Restful and grounded. No phone screen."
+  },
+  {
+    "name": "understanding-emotions",
+    "tool": "image_gen built-in",
+    "reference": "public/images/resource-mindfulness.webp",
+    "prompt": "Create one landscape 3:2 editorial illustration, no text, no letters, no watermark, for a Vietnamese mental wellbeing resource card. Match the visual language of the referenced asset: delicate painterly digital illustration with natural realistic texture, warm cream and sage green palette, quiet lived-in apartment, soft light, houseplants, young Vietnamese adult, humane and calm. Not clinical, no brain diagrams, no sad stereotypes. Compose the primary person and action centrally so the image crops well to a small wide thumbnail. Scene: a young Vietnamese woman in soft sage cardigan sitting beside a bright window with an open notebook in her lap and one hand resting lightly over her chest, thoughtful calm expression as she notices her feelings, soft cloudy daylight, indoor plants. Compassionate neutral expression, no forced smile, no tears, no despair. A quiet illustration about understanding emotions."
+  },
+  {
+    "name": "small-steps",
+    "tool": "image_gen built-in",
+    "reference": "public/images/resource-mindfulness.webp",
+    "prompt": "Create one landscape 3:2 editorial illustration, no text, no letters, no watermark, for a Vietnamese mental wellbeing resource card. Match the visual language of the referenced asset: delicate painterly digital illustration with natural realistic texture, warm cream and sage green palette, quiet lived-in apartment, soft light, houseplants, young Vietnamese adult, humane and calm. Not clinical, no brain diagrams, no sad stereotypes. Compose the primary person and action centrally so the image crops well to a small wide thumbnail. Scene: a young Vietnamese woman wearing a cream shirt and muted sage trousers tending a small potted plant at a sunlit wooden table, gently watering it with a small ceramic watering can. She has chosen one simple everyday activity. Morning window light, leaves and warm cream walls, hopeful but unforced, realistic anatomy and hands."
+  }
+]

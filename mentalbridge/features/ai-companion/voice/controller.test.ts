@@ -16,6 +16,7 @@ function fixture() {
     eligibility: vi.fn().mockResolvedValue(eligibility()),
     disclosure: vi.fn(),
     consent: vi.fn(),
+    contextHandoff: vi.fn(),
     create: vi.fn().mockResolvedValue(current),
     connection: vi.fn().mockResolvedValue(bound),
     session: vi.fn().mockResolvedValue(current),
@@ -64,6 +65,76 @@ const flush = async () => {
 afterEach(() => vi.useRealTimers())
 
 describe('Voice call lifecycle', () => {
+  it('prepares selected chat before microphone and trusts only server-confirmed attachment', async () => {
+    const f = fixture()
+    f.api.eligibility.mockResolvedValue(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+    )
+    f.api.contextHandoff.mockResolvedValue({
+      handoffToken: 'opaque'.repeat(10),
+      expiresAt: new Date(Date.now() + 120000).toISOString(),
+      selectedPairs: 1,
+      policyVersion: 'text-voice-handoff-v1',
+    })
+    f.api.create.mockResolvedValue(
+      session({ ...f.current, contextMode: 'TEXT_HANDOFF' }),
+    )
+    await f.controller.start(voiceKey)
+    expect(f.api.contextHandoff).toHaveBeenCalledWith(voiceKey)
+    expect(f.api.contextHandoff.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(f.media.permission).mock.invocationCallOrder[0]!,
+    )
+    expect(f.api.create).toHaveBeenCalledWith(expect.any(String), {
+      handoffToken: 'opaque'.repeat(10),
+    })
+    expect(f.controller.snapshot().contextAttached).toBe(true)
+    await f.controller.end()
+    expect(f.controller.snapshot().contextAttached).toBe(false)
+    f.controller.dispose()
+  })
+  it('prepare failure leaves microphone and admission untouched; voice-only fallback requires a new explicit choice', async () => {
+    const f = fixture()
+    f.api.eligibility.mockResolvedValue(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+    )
+    f.api.contextHandoff.mockRejectedValue(new VoiceError('SESSION_NOT_FOUND'))
+    await f.controller.start(voiceKey)
+    expect(f.controller.snapshot()).toMatchObject({
+      phase: 'error',
+      handoffFailed: true,
+      uncertain: false,
+    })
+    expect(f.media.permission).not.toHaveBeenCalled()
+    expect(f.api.create).not.toHaveBeenCalled()
+    await f.controller.start()
+    expect(f.api.create).toHaveBeenCalledWith(expect.any(String))
+    expect(f.api.contextHandoff).toHaveBeenCalledTimes(1)
+    f.controller.dispose()
+  })
+  it('an unknown admission freezes the original ticket and key instead of creating a voice-only replacement', async () => {
+    const f = fixture()
+    f.api.eligibility.mockResolvedValue(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+    )
+    const body = { handoffToken: 'opaque'.repeat(10) }
+    f.api.contextHandoff.mockResolvedValue({
+      ...body,
+      expiresAt: new Date(Date.now() + 120000).toISOString(),
+      selectedPairs: 1,
+      policyVersion: 'text-voice-handoff-v1',
+    })
+    f.api.create
+      .mockRejectedValueOnce(new VoiceError('OUTCOME_UNKNOWN'))
+      .mockResolvedValueOnce(
+        session({ ...f.current, contextMode: 'TEXT_HANDOFF' }),
+      )
+    await f.controller.start(voiceKey)
+    expect(f.controller.snapshot().uncertain).toBe(true)
+    await f.controller.start()
+    expect(f.api.contextHandoff).toHaveBeenCalledTimes(1)
+    expect(f.api.create.mock.calls[1]).toEqual(f.api.create.mock.calls[0])
+    f.controller.dispose()
+  })
   it('does not request microphone or mutate quota for FREE/denied entitlement and requires explicit start', async () => {
     for (const denied of [
       eligibility('FREE'),
@@ -153,6 +224,36 @@ describe('Voice call lifecycle', () => {
     expect(f.controller.snapshot().phase).toBe('ended')
     f.controller.dispose()
   })
+  it('keeps local connection and agent hints separate from authoritative session readiness', async () => {
+    vi.useFakeTimers()
+    const f = fixture()
+    const connecting = session({ ...f.current, state: 'CONNECTING' })
+    f.api.create.mockResolvedValue(connecting)
+    f.api.session.mockResolvedValue(connecting)
+    await f.controller.start()
+    expect(f.controller.snapshot()).toMatchObject({
+      phase: 'connected',
+      hint: 'initializing',
+      session: {
+        state: 'CONNECTING',
+        deliveredSession: false,
+        chargedSeconds: 0,
+      },
+    })
+    f.events().hint('listening')
+    expect(f.controller.snapshot().session?.state).toBe('CONNECTING')
+    f.api.session.mockResolvedValue(f.current)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(f.controller.snapshot()).toMatchObject({
+      phase: 'connected',
+      hint: 'listening',
+      session: { state: 'ACTIVE', deliveredSession: false, chargedSeconds: 0 },
+    })
+    f.events().hint('unavailable')
+    expect(f.controller.snapshot().session?.state).toBe('ACTIVE')
+    expect(f.api.create).toHaveBeenCalledTimes(1)
+    f.controller.dispose()
+  })
   it('ends a late admitted session after unmount without ever opening media', async () => {
     const f = fixture()
     const admission = deferred<ReturnType<typeof session>>()
@@ -211,4 +312,59 @@ describe('Voice call lifecycle', () => {
     expect(f.api.end).toHaveBeenCalled()
     f.controller.dispose()
   })
+  it.each([
+    'CONSENT_REVOKED',
+    'VOICE_CONSENT_REVOKED',
+    'ENTITLEMENT_LOST',
+    'IDLE_TIMEOUT',
+    'HARD_DEADLINE',
+    'RECONNECT_TIMEOUT',
+    'PROVIDER_FAILURE',
+  ] as const)(
+    'MB-762 stops media and does not reuse a terminal session after %s',
+    async (terminalReason) => {
+      vi.useFakeTimers()
+      const f = fixture()
+      await f.controller.start()
+      f.api.session.mockResolvedValue(
+        session({ ...f.current, state: 'ENDED', terminalReason }),
+      )
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(f.controller.snapshot()).toMatchObject({
+        phase: 'ended',
+        hint: 'unavailable',
+      })
+      expect(f.media.close).toHaveBeenCalled()
+      const grants = f.api.connection.mock.calls.length
+      f.events().reconnected()
+      await flush()
+      await flush()
+      expect(f.api.connection).toHaveBeenCalledTimes(grants)
+      expect(f.media.resume).not.toHaveBeenCalled()
+      f.controller.dispose()
+    },
+  )
+  it.each([
+    'GLOBAL_CAPACITY_FULL',
+    'SESSION_LIMIT',
+    'QUOTA_EXHAUSTED',
+    'RATE_LIMITED',
+    'PROVIDER_UNAVAILABLE',
+  ])(
+    'MB-762 stops the microphone after admission denial %s without retrying',
+    async (code) => {
+      const f = fixture()
+      f.api.create.mockRejectedValueOnce(new VoiceError(code))
+      await f.controller.start()
+      expect(f.media.close).toHaveBeenCalled()
+      expect(f.media.connect).not.toHaveBeenCalled()
+      expect(f.api.create).toHaveBeenCalledTimes(1)
+      expect(f.controller.snapshot()).toMatchObject({
+        phase: 'error',
+        error: code,
+        uncertain: false,
+      })
+      f.controller.dispose()
+    },
+  )
 })

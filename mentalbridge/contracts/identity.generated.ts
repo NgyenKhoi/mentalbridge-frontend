@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/internal/v1/accounts/{accountId}/authorization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve whether an account is currently ACTIVE
+         * @description Current, non-cacheable authorization check for authenticated Care, Community, and Consultation callers. Unknown and every non-ACTIVE status return active false without exposing role, status, or account metadata.
+         */
+        get: operations["authorizeActiveAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/community-chat/account-authorizations": {
         parameters: {
             query?: never;
@@ -1238,6 +1258,36 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    authorizeActiveAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-MentalBridge-Service-Id": "care-service" | "community-service" | "consultation-service";
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                accountId: components["parameters"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimized current account authorization result */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        active: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+        };
+    };
     authorizeCommunityChatAccounts: {
         parameters: {
             query?: never;

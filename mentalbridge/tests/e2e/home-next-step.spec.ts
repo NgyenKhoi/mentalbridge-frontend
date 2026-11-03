@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test'
 import { test } from './test-fixtures'
+import type { CareProfile } from '../../features/assessment/api/care-contract'
 import {
   homeWorld,
   installHomeMocks,
@@ -57,8 +58,16 @@ test.describe('MB-672 Home next step', () => {
       )
       await expect(page).toHaveURL(/\/support-plan\?.*source=resource/)
       await expect(
-        page.getByRole('region', { name: 'Đã ghi nhận hôm nay' }),
-      ).toContainText('Viết vài dòng dịu dàng')
+        page
+          .getByRole('tabpanel', { name: 'Hôm nay' })
+          .getByRole('listitem')
+          .filter({
+            has: page.getByRole('heading', {
+              name: 'Viết vài dòng dịu dàng',
+              exact: true,
+            }),
+          }),
+      ).toContainText('Đã ghi nhận từ bài luyện tập')
       const readsBeforeReturn = world.homeReads
       if (width === 375)
         await keyboardActivate(
@@ -421,12 +430,38 @@ test.describe('MB-672 Home next step', () => {
 
     test(`mood selection reveals intensity and save updates the week at ${width}`, async ({
       page,
-    }) => {
+    }, testInfo) => {
       const world = v2HomeWorld('check-in-idle')
       world.week = 'none'
       await installHomeMocks(page, world)
+      await page.route('**/api/care/profile', (route) =>
+        route.fulfill({
+          json: {
+            accountId: '10000000-0000-4000-8000-000000000007',
+            displayName: 'Nguyễn Minh An',
+            dateOfBirth: '2000-01-01',
+            gender: null,
+            locale: 'vi-VN',
+            timezone: 'Asia/Ho_Chi_Minh',
+            reminderEnabled: false,
+            createdAt: '2026-10-01T00:00:00Z',
+            updatedAt: '2026-10-01T00:00:00Z',
+            version: 0,
+          } satisfies CareProfile,
+        }),
+      )
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/dashboard')
+      if (width === 375)
+        await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
+      await expect(
+        page.getByRole('button', { name: 'Mở menu tài khoản', exact: true }),
+      ).toContainText('Nguyễn Minh An')
+      if (width === 375)
+        await page
+          .getByRole('navigation', { name: 'Điều hướng chính' })
+          .getByRole('link', { name: 'Tổng quan', exact: true })
+          .click()
       const mood = page.locator('#emotion-check-in')
       await expect(
         mood.getByRole('radiogroup', { name: /Mức độ/ }),
@@ -459,6 +494,27 @@ test.describe('MB-672 Home next step', () => {
           .getByRole('listitem'),
       ).toHaveCount(7)
       expect(world.emotionSaves).toBe(1)
+      const week = page.getByRole('region', { name: 'Tuần này của bạn' })
+      await expect(
+        week.getByRole('heading', { name: 'Dành chỗ cho những điều đang tốt' }),
+      ).toBeVisible()
+      await expect(
+        week.getByRole('link', { name: 'Viết vài dòng cho mình' }),
+      ).toHaveAttribute('href', '/journal')
+      for (const viewport of width === 1440 ? [1440, 1280, 768] : [375]) {
+        await page.setViewportSize({ width: viewport, height: 900 })
+        await week.scrollIntoViewIfNeeded()
+        await expect
+          .poll(() =>
+            page.evaluate(
+              () => document.documentElement.scrollWidth <= window.innerWidth,
+            ),
+          )
+          .toBe(true)
+        await page.screenshot({
+          path: testInfo.outputPath(`dashboard-emotion-${viewport}.png`),
+        })
+      }
     })
   }
 

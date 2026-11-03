@@ -398,6 +398,60 @@
   background: var(--amber-deep);
   color: var(--surface);
 }
+.combined-meaning-safety.combined-meaning-safety-historical {
+  gap: 12px;
+  padding: 18px 20px;
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--amber-soft) 68%, var(--surface));
+}
+.combined-meaning-safety-historical > div:last-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px 24px;
+  flex: 1;
+  min-width: 0;
+}
+.combined-meaning-safety-historical :is(h1, h2) {
+  grid-column: 1;
+  margin: 0 0 2px;
+  font-size: 18px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+.combined-meaning-safety-historical p {
+  grid-column: 1;
+  max-width: 100ch;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.combined-meaning-safety-historical .combined-meaning-safety-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+}
+.combined-meaning-safety-historical .combined-meaning-primary {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  align-self: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+@media (max-width: 1000px) {
+  .combined-meaning-safety-historical > div:last-child {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+  .combined-meaning-safety-historical .combined-meaning-primary {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+    margin-top: 4px;
+  }
+}
 @media (max-width: 700px) {
   .combined-meaning {
     gap: var(--space-4);
@@ -438,6 +492,17 @@
   .combined-meaning-safety-icon {
     width: 32px;
     height: 32px;
+  }
+  .combined-meaning-safety.combined-meaning-safety-historical {
+    padding: 16px;
+    gap: 10px;
+  }
+  .combined-meaning-safety-historical :is(h1, h2) {
+    font-size: 16px;
+  }
+  .combined-meaning-safety-historical .combined-meaning-safety-icon {
+    width: 26px;
+    height: 26px;
   }
 }
 /* Result reveal, once on load, in reading order: the meaning arrives, the two

@@ -2,7 +2,15 @@
 
 import Link from 'next/link'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
-import { Mic, MicOff, PhoneOff, ShieldAlert, Sparkles, X } from 'lucide-react'
+import {
+  Mic,
+  MicOff,
+  PhoneOff,
+  ShieldAlert,
+  Sparkles,
+  Volume2,
+  X,
+} from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import {
   parseAiProcessingDisclosure,
@@ -19,11 +27,13 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   createController?: () => VoiceController
+  conversation?: { conversationId: string; title: string }
 }
 export default function VoiceDialog({
   open,
   onOpenChange,
   createController,
+  conversation,
 }: Props) {
   const [controller] = useState(
     () => createController?.() ?? new VoiceController(),
@@ -40,6 +50,7 @@ export default function VoiceDialog({
   const [consentError, setConsentError] = useState('')
   const [accepted, setAccepted] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [includeTextContext, setIncludeTextContext] = useState(false)
   const [now, setNow] = useState(Date.now)
   const consentKey = useRef<string | undefined>(undefined)
   const pendingDisclosure = useRef<AbortController | undefined>(undefined)
@@ -149,6 +160,10 @@ export default function VoiceDialog({
     }
   }
   const eligibility = view.eligibility
+  const useTextContext =
+    includeTextContext &&
+    eligibility?.textContextHandoffEnabled === true &&
+    !!conversation
   const consentRequired =
     eligibility?.state === 'CONSENT_REQUIRED' ||
     eligibility?.state === 'VOICE_CONSENT_REQUIRED'
@@ -156,22 +171,28 @@ export default function VoiceDialog({
   const calling = ['starting', 'connected', 'reconnecting', 'ending'].includes(
     view.phase,
   )
-  const status =
-    view.phase === 'starting'
-      ? 'Đang chuẩn bị cuộc gọi'
-      : view.phase === 'reconnecting'
-        ? 'Đang kết nối lại'
-        : view.phase === 'ending'
-          ? 'Đang xác nhận kết thúc'
-          : view.muted
-            ? 'Micro đang tắt'
-            : view.hint === 'thinking'
-              ? 'AI đang nghĩ'
-              : view.hint === 'speaking'
-                ? 'AI đang nói'
-                : view.hint === 'listening'
-                  ? 'AI đang lắng nghe'
-                  : 'Đang chờ AI'
+  const preparing =
+    view.phase === 'starting' ||
+    (view.phase === 'connected' && view.session?.state !== 'ACTIVE')
+  const listening =
+    view.phase === 'connected' &&
+    view.session?.state === 'ACTIVE' &&
+    view.hint === 'listening'
+  const status = preparing
+    ? 'Đang chuẩn bị cuộc gọi'
+    : view.phase === 'reconnecting'
+      ? 'Đang kết nối lại'
+      : view.phase === 'ending'
+        ? 'Đang xác nhận kết thúc'
+        : view.muted
+          ? 'Micro đang tắt'
+          : view.hint === 'thinking'
+            ? 'AI đang nghĩ'
+            : view.hint === 'speaking'
+              ? 'AI đang nói'
+              : listening
+                ? 'AI đang lắng nghe'
+                : 'Đang chờ AI'
   const terminalReason = view.session?.terminalReason
   return (
     <Dialog
@@ -204,7 +225,7 @@ export default function VoiceDialog({
             <h3>
               {disclosure.consentType === 'AI_PROCESSING'
                 ? 'Đồng ý xử lý AI'
-                : 'Trước cuộc gọi đầu tiên'}
+                : 'Thông tin xử lý giọng nói'}
             </h3>
             <div className={styles.disclosure}>
               {disclosure.consentType === 'AI_PROCESSING'
@@ -256,6 +277,13 @@ export default function VoiceDialog({
         ) : calling ? (
           <div className={styles.center}>
             <span className={styles.eyebrow}>Cuộc gọi AI</span>
+            <p className={styles.small}>
+              {view.contextAttached
+                ? 'Đã chuẩn bị bối cảnh từ cuộc trò chuyện bạn chọn.'
+                : preparing
+                  ? 'Đang xác nhận lựa chọn cuộc gọi.'
+                  : 'Cuộc gọi không dùng tin nhắn trước đó.'}
+            </p>
             <span className={styles.mark} data-state={view.hint}>
               {view.muted ? (
                 <MicOff aria-hidden="true" />
@@ -273,9 +301,13 @@ export default function VoiceDialog({
                   ? 'Micro đã ngắt. Hệ thống đang xác nhận trạng thái phiên.'
                   : view.muted
                     ? 'Bật micro khi bạn muốn nói tiếp.'
-                    : view.hint === 'unavailable'
-                      ? 'Chưa nhận được trạng thái mới từ AI. Bạn có thể kết thúc hoặc chờ trong giây lát.'
-                      : 'Chia sẻ khi bạn sẵn sàng.'}
+                    : preparing
+                      ? 'Vui lòng chờ AI sẵn sàng trước khi nói.'
+                      : view.hint === 'unavailable'
+                        ? 'Chưa nhận được trạng thái mới từ AI. Bạn có thể kết thúc hoặc chờ trong giây lát.'
+                        : listening
+                          ? 'Chia sẻ khi bạn sẵn sàng.'
+                          : 'Vui lòng chờ AI sẵn sàng trước khi nói.'}
             </p>
             {view.session?.hardStopAt ? (
               <>
@@ -294,38 +326,52 @@ export default function VoiceDialog({
             {view.audioBlocked ? (
               <button
                 type="button"
-                className={styles.secondary}
+                className={`${styles.secondary} ${styles.iconButton} ${styles.audioControl}`}
+                aria-label="Bật âm thanh"
+                title="Bật âm thanh"
                 onClick={() => void controller.audio()}
               >
-                Bật âm thanh
+                <Volume2 size={22} aria-hidden="true" />
               </button>
             ) : null}
             <div className={styles.controls}>
               {view.phase === 'connected' ? (
                 <button
                   type="button"
-                  className={styles.secondary}
+                  className={`${styles.secondary} ${styles.iconButton}`}
+                  aria-label={view.muted ? 'Bật micro' : 'Tắt micro'}
+                  title={view.muted ? 'Bật micro' : 'Tắt micro'}
                   aria-pressed={view.muted}
                   onClick={() => void controller.mute()}
                 >
                   {view.muted ? (
-                    <Mic size={17} aria-hidden="true" />
+                    <Mic size={22} aria-hidden="true" />
                   ) : (
-                    <MicOff size={17} aria-hidden="true" />
+                    <MicOff size={22} aria-hidden="true" />
                   )}
-                  {view.muted ? 'Bật micro' : 'Tắt micro'}
                 </button>
               ) : null}
               <button
                 type="button"
-                className={`${styles.primary} ${styles.end}`}
+                className={`${styles.primary} ${styles.end} ${styles.iconButton}`}
+                aria-label={
+                  view.phase === 'ending' ? 'Xác nhận kết thúc' : 'Kết thúc'
+                }
+                title={
+                  view.phase === 'ending' ? 'Xác nhận kết thúc' : 'Kết thúc'
+                }
                 onClick={() => void controller.end()}
               >
-                <PhoneOff size={17} aria-hidden="true" />
-                {view.phase === 'ending' ? 'Xác nhận kết thúc' : 'Kết thúc'}
+                <PhoneOff size={22} aria-hidden="true" />
               </button>
             </div>
-            <p className={styles.note}>Không ghi âm · Không lưu bản chép lời</p>
+            <p className={styles.note}>
+              Không ghi âm · Không lưu bản chép lời
+              <br />
+              <span>
+                Tự kết thúc sau 60 giây không có lời nói được nhận diện.
+              </span>
+            </p>
           </div>
         ) : view.phase === 'ended' ? (
           <>
@@ -398,17 +444,55 @@ export default function VoiceDialog({
               {durationLabel(eligibility.maxSessionSeconds)}. Thời lượng thực tế
               được xác nhận khi bắt đầu.
             </p>
+            {conversation && eligibility.textContextHandoffEnabled ? (
+              <label className={styles.checkbox}>
+                <input
+                  type="checkbox"
+                  checked={includeTextContext}
+                  onChange={(event) =>
+                    setIncludeTextContext(event.target.checked)
+                  }
+                />
+                <span>
+                  Tiếp tục cuộc trò chuyện “{conversation.title}” bằng giọng
+                  nói. Dùng tối đa hai lượt trao đổi gần đây, không lấy thêm
+                  nhật ký hoặc dữ liệu riêng khác.
+                </span>
+              </label>
+            ) : null}
             <button
               type="button"
               className={styles.primary}
-              onClick={() => void controller.start()}
+              onClick={() =>
+                void controller.start(
+                  useTextContext ? conversation?.conversationId : undefined,
+                )
+              }
             >
-              Bắt đầu cuộc gọi
+              {useTextContext ? 'Tiếp tục bằng giọng nói' : 'Bắt đầu cuộc gọi'}
             </button>
+            {useTextContext ? (
+              <button
+                type="button"
+                className={styles.secondary}
+                onClick={() => {
+                  setIncludeTextContext(false)
+                  void controller.start()
+                }}
+              >
+                Gọi không dùng tin nhắn
+              </button>
+            ) : null}
             <p className={styles.note}>
               Không ghi âm, không lưu bản chép lời.
               <br />
-              Chỉ dùng hội thoại trong cuộc gọi hiện tại.
+              {useTextContext
+                ? 'Phần ngữ cảnh cuộc gọi được xóa khi kết thúc; tin nhắn gốc vẫn được giữ theo lựa chọn của bạn.'
+                : 'Chỉ dùng hội thoại trong cuộc gọi hiện tại.'}
+              <br />
+              <span>
+                Tự kết thúc sau 60 giây không có lời nói được nhận diện.
+              </span>
             </p>
           </>
         ) : (
@@ -424,7 +508,18 @@ export default function VoiceDialog({
             <p className={styles.copy}>
               {voiceErrorText(view.error ?? eligibility?.state)}
             </p>
-            {consentRequired ? (
+            {view.handoffFailed ? (
+              <button
+                type="button"
+                className={styles.primary}
+                onClick={() => {
+                  setIncludeTextContext(false)
+                  void controller.start()
+                }}
+              >
+                Gọi không dùng tin nhắn
+              </button>
+            ) : consentRequired ? (
               <button
                 type="button"
                 className={styles.primary}

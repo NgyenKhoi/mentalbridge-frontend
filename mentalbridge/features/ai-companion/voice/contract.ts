@@ -10,12 +10,17 @@ export type Connection = Journal['schemas']['VoiceConnection']
 export type Disclosure = Care['schemas']['VoiceDisclosure']
 export type VoiceConsent = Care['schemas']['VoiceConsent']
 export type ConsentCommand = Care['schemas']['VoiceConsentCommand']
+export type VoiceStartCommand = Journal['schemas']['VoiceStartCommand']
+export type ContextHandoff = Journal['schemas']['VoiceContextHandoff']
+export type ContextHandoffCommand =
+  Journal['schemas']['VoiceContextHandoffCommand']
 export type Responses = {
   eligibility: Eligibility
   session: VoiceSession
   connection: Connection
   disclosure: Disclosure
   consent: VoiceConsent
+  handoff: ContextHandoff
 }
 const ajv = new Ajv2020({ strict: true, allErrors: false })
 addFormats(ajv)
@@ -30,11 +35,16 @@ export const validators: {
   connection: compile<Connection>('Connection'),
   disclosure: compile<Disclosure>('VoiceDisclosure'),
   consent: compile<VoiceConsent>('VoiceConsent'),
+  handoff: compile<ContextHandoff>('ContextHandoff'),
 }
 export const validConsentCommand = compile<ConsentCommand>(
   'VoiceConsentCommand',
 )
 export const validEmptyCommand = compile<Record<string, never>>('EmptyCommand')
+export const validStartCommand = compile<VoiceStartCommand>('StartCommand')
+export const validContextHandoffCommand = compile<ContextHandoffCommand>(
+  'ContextHandoffCommand',
+)
 export const publicVoiceCode = (value: unknown) =>
   typeof value === 'string' &&
   schema.$defs.Problem.properties.code.enum.some((code) => code === value)
@@ -67,7 +77,7 @@ export function validResponse<K extends keyof Responses>(
   if (!validate(value)) return false
   if (kind === 'eligibility' && validators.eligibility(value) && value.eligible)
     return (
-      value.availableSessionSeconds ===
+      value.availableSessionSeconds <=
       Math.min(value.maxSessionSeconds, value.quota.remainingSeconds)
     )
   return true

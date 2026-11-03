@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai-companion/voice-context-handoffs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prepare an explicitly selected owner Text conversation for Voice.
+         * @description Disabled by default. Requires current AI_PROCESSING, Voice disclosure v2 and PLUS/PREMIUM. Return a content-free signed ticket expiring in 120 seconds; no admission, provider or microphone. Only the last two complete adjacent pairs with empty contextKinds and at most 1200 UTF-8 bytes are eligible; stop at an ineligible/oversized pair rather than silently cross a private-context gap. START rechecks owner, current authority and exact unexpired snapshot. A ticket is bound once to one session through the admission transaction. Wrong/missing/deleted/expired conversation returns404; no eligible pair returns422. Errors never contain Text, ticket or owner identifiers. No automatic fallback.
+         */
+        post: operations["prepareVoiceContextHandoff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai-companion/voice-sessions": {
         parameters: {
             query?: never;
@@ -35,7 +55,7 @@ export interface paths {
         put?: never;
         /**
          * startVoiceSession
-         * @description USER only. Resolve current subject, both consents and entitlement before atomic Mongo admission. Reserve user1/global2 and finite session+seconds before any room/dispatch effect. Existing attempt conflict SESSION_LIMIT; duplicate same key reuses logical session. Snapshot day/route/deadline; no text quota or financial writes.
+         * @description USER only. Resolve current subject, both consents and entitlement before atomic Mongo admission. Reserve user1/global2 and finite session+seconds before any room/dispatch effect. Existing attempt conflict SESSION_LIMIT; duplicate same key reuses logical session. Snapshot day/route/deadline; no text quota or financial writes. Optional handoffToken is an explicit Text-context opt-in; absence means zero Text context. Same key with changed intent returns409; consumed handoff cannot be reused with another key. Attached content exists only in RAM and shares the existing four-pair/2000-byte context and token caps.
          */
         post: operations["startVoiceSession"];
         delete?: never;
@@ -742,6 +762,11 @@ export interface components {
             policyVersion: "companion-voice-policy-v1";
         };
         VoiceSession: {
+            /**
+             * @description Present only after server-bound selected Text context; absence means voice-only.
+             * @constant
+             */
+            contextMode?: "TEXT_HANDOFF";
             /** Format: uuid */
             voiceSessionId: string;
             /** @constant */
@@ -781,6 +806,22 @@ export interface components {
             roomName: string;
             /** @description Exact admitted Agent attempt identity. Require ParticipantKind.AGENT in roomName; never select a participant from its attributes. */
             agentIdentity: string;
+        };
+        VoiceContextHandoffCommand: {
+            /** Format: uuid */
+            conversationId: string;
+        };
+        VoiceContextHandoff: {
+            /** @description Opaque one-session capability; no Text content; keep in RAM and never log or cache. */
+            handoffToken: string;
+            /** Format: date-time */
+            expiresAt: string;
+            selectedPairs: number;
+            /** @constant */
+            policyVersion: "text-voice-handoff-v1";
+        };
+        VoiceStartCommand: {
+            handoffToken?: string;
         };
         VoiceEmptyCommand: Record<string, never>;
         VoiceAgentClaim: {
@@ -982,13 +1023,15 @@ export interface components {
             /** Format: date-time */
             checkedAt: string;
             /** @constant */
-            voiceConsentVersion: "ai-voice-processing-capstone-v1";
+            voiceConsentVersion: "ai-voice-processing-capstone-v2";
+            /** @description Optional capability hint; absent or false means handoff is disabled, not an authorization grant. */
+            textContextHandoffEnabled?: boolean;
             /**
              * @description Current package policy ceiling in seconds. Not an admission or reservation.
              * @enum {integer}
              */
             maxSessionSeconds: 0 | 300 | 600;
-            /** @description Display-only min(maxSessionSeconds, unreserved daily remainingSeconds) when eligible; zero otherwise. Reauthorize and admit atomically on POST; never derive a deadline from this snapshot. */
+            /** @description Display-only server-derived duration when ELIGIBLE, positive and at most min(maxSessionSeconds, unreserved daily remainingSeconds); additional operational caps or a remaining operational window may reduce it further. Zero otherwise. Reauthorize and admit atomically on POST; never derive a deadline from this snapshot. */
             availableSessionSeconds: number;
         } & (unknown & unknown & unknown & unknown);
         VoiceQuota: {
@@ -1139,6 +1182,14 @@ export interface components {
         };
         /** @enum {string} */
         AiContextKind: "JOURNAL" | "SUPPORT_PLAN" | "REASSESSMENT" | "RESOURCE";
+        /** @description Optional navigation the server resolved from the TEXT companion reply (ADR 0049). The model chooses only the destination and a catalogue ref; the server maps the ref to a published reviewed Resource. RESOURCE carries resourceId and resourceTitle; every other destination carries null for both. No href or label is sent: clients own routes and copy. Null when guidance v2 is off, the reply offered nothing, or the suggestion was invalid. The destination page performs its own access and package checks. */
+        AiCompanionSuggestion: {
+            /** @enum {string} */
+            destination: "RESOURCE" | "RESOURCE_LIBRARY" | "JOURNAL" | "EMOTION_CHECK_IN" | "SUPPORT_PLAN" | "SPECIALIST_DISCOVERY";
+            /** Format: uuid */
+            resourceId: string | null;
+            resourceTitle: string | null;
+        } | null;
         AiMessage: {
             /** Format: uuid */
             messageId: string;
@@ -1148,6 +1199,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             contextKinds: components["schemas"]["AiContextKind"][];
+            suggestion: components["schemas"]["AiCompanionSuggestion"];
         };
         AiConversation: {
             /** Format: uuid */
@@ -1173,12 +1225,12 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
         };
-        /** @description PREMIUM returns null remaining and no displayed daily cap, while hidden server token/rate/fair-use controls still apply. */
+        /** @description companion-quota-v2 applies a per-plan daily provider token budget (FREE 100000, PLUS 250000, PREMIUM 600000 by default) that refuses a request before the provider call when its estimated input would exceed it. PREMIUM returns null remaining and no displayed daily cap, while hidden server token/rate/fair-use controls still apply. companion-quota-v1 may still appear on idempotent replays recorded before v2. */
         AiQuota: {
             /** @enum {string} */
             plan: "FREE" | "PLUS" | "PREMIUM";
-            /** @constant */
-            policyVersion: "companion-quota-v1";
+            /** @enum {string} */
+            policyVersion: "companion-quota-v1" | "companion-quota-v2";
             remaining: number | null;
             /** Format: date-time */
             resetAt: string;
@@ -1196,6 +1248,7 @@ export interface components {
             createdAt: string;
             contextKinds: components["schemas"]["AiContextKind"][];
             quota: components["schemas"]["AiQuota"];
+            suggestion: components["schemas"]["AiCompanionSuggestion"];
         };
         /**
          * @description Self-selected, non-clinical label shared with Journal authoring.
@@ -2166,6 +2219,38 @@ export interface operations {
             504: components["responses"]["VoiceProblem504"];
         };
     };
+    prepareVoiceContextHandoff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceContextHandoffCommand"];
+            };
+        };
+        responses: {
+            /** @description Expiring content-free context capability; does not authorize media. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceContextHandoff"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            404: components["responses"]["VoiceProblem404"];
+            409: components["responses"]["VoiceProblem409"];
+            422: components["responses"]["VoiceProblem422"];
+            429: components["responses"]["VoiceProblem429"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
     startVoiceSession: {
         parameters: {
             query?: never;
@@ -2178,7 +2263,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["VoiceEmptyCommand"];
+                "application/json": components["schemas"]["VoiceStartCommand"];
             };
         };
         responses: {

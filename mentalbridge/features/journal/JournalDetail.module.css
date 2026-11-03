@@ -1,0 +1,219 @@
+.detail {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(330px, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+.reading,
+.insights {
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--teal) 25%, transparent) transparent;
+  scrollbar-gutter: stable;
+}
+.reading {
+  padding: clamp(24px, 3vw, 44px);
+  background: var(--surface);
+}
+.readingHeading {
+  padding-bottom: 22px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--teal);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.readingHeading h3 {
+  margin: 12px 0 14px;
+  color: var(--teal-deep);
+  font: 540 clamp(23px, 2.1vw, 30px)/1.25 var(--font-fraunces);
+  text-wrap: balance;
+}
+.metadata,
+.metadata time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.metadata {
+  gap: 10px 18px;
+  flex-wrap: wrap;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.metadata .mood {
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-weight: 600;
+}
+.prose {
+  max-width: 74ch;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+.prose p {
+  margin: 0 0 1.2em;
+  white-space: pre-wrap;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 24px;
+}
+.tags span {
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+  font-size: 12px;
+}
+.endMark {
+  margin-top: 28px;
+  color: var(--teal);
+  text-align: center;
+  font-size: 22px;
+  opacity: 0.5;
+}
+.insights {
+  padding: 26px;
+  background: color-mix(in srgb, var(--teal-pale) 28%, var(--surface-soft));
+  border-left: 1px solid var(--line);
+}
+.insights > section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 18px;
+}
+.insights > section > header h3 {
+  font-size: clamp(22px, 1.8vw, 27px);
+  line-height: 1.35;
+  text-wrap: balance;
+}
+.insights > section > header p {
+  font-size: 13px;
+  line-height: 1.65;
+}
+.footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 26px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.footerNote {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font:
+    600 13px/1.4 var(--font-be-vietnam),
+    sans-serif;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
+}
+.actions .edit {
+  color: var(--surface);
+  background: var(--teal-deep);
+  border-color: var(--teal-deep);
+}
+.actions .delete {
+  color: #943f39;
+  background: var(--surface);
+}
+.reading:focus-visible,
+.insights:focus-visible,
+.actions button:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: -3px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .actions button:hover {
+    transform: translateY(-1px);
+  }
+  .actions .edit:hover {
+    background: var(--teal);
+  }
+  .actions .delete:hover {
+    background: #fbf0ee;
+  }
+}
+@media (max-width: 860px) {
+  .workspace {
+    display: block;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .reading,
+  .insights {
+    overflow: visible;
+    padding: 24px;
+    scrollbar-gutter: auto;
+  }
+  .insights {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .footer {
+    padding: 12px 20px;
+  }
+}
+@media (max-width: 480px) {
+  .footerNote {
+    display: none;
+  }
+  .actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .reading,
+  .insights {
+    padding: 22px 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .actions button {
+    transition: none;
+  }
+}
