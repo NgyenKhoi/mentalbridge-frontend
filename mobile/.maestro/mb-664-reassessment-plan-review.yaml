@@ -1,0 +1,46 @@
+appId: com.mentalbridge.mobile
+name: MB-664 reassessment to governed plan decision
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_REASSESSMENT_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_REASSESSMENT_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Hôm nay của bạn'
+- openLink: 'mentalbridge://reassessment'
+- assertVisible: 'Điều gì đã thay đổi với bạn?'
+- tapOn: 'Tôi chưa chắc'
+- tapOn: 'Xem bốn góc nhìn'
+- extendedWaitUntil:
+    visible: 'Bốn góc nhìn riêng biệt'
+    timeout: 60000
+- assertVisible: '1. Thay đổi sàng lọc'
+- assertVisible: '2. Bối cảnh nhật ký'
+- assertVisible: '3. Mức độ tham gia kế hoạch'
+- assertVisible: '4. Trải nghiệm bạn tự báo cáo'
+- takeScreenshot: 'native-evidence/mb-664-four-dimensions'
+- tapOn: 'Xem lựa chọn giữ hoặc đổi kế hoạch'
+- assertVisible: 'Kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element:
+      text: 'Tiến độ và điều chỉnh'
+    direction: DOWN
+- tapOn:
+    id: 'adaptive-review-open'
+- assertVisible: '${MAESTRO_MB_REASSESSMENT_EXPECTED_OPTION}'
+- tapOn: '${MAESTRO_MB_REASSESSMENT_EXPECTED_OPTION}'
+- assertVisible: 'Bạn chọn:'
+- tapOn:
+    id: 'adaptive-review-confirm'
+- assertVisible: '${MAESTRO_MB_REASSESSMENT_EXPECTED_RESULT}'
+- takeScreenshot: 'native-evidence/mb-664-plan-review-confirmed'
+- tapOn: 'Tải lại phần xem lại'
+- assertVisible: 'Tiến độ và điều chỉnh'

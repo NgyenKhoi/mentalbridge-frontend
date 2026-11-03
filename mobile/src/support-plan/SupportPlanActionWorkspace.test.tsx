@@ -82,6 +82,8 @@ function api(): jest.Mocked<SupportPlanActionApi> {
     getReassessmentSummary: jest
       .fn()
       .mockResolvedValue(makeReassessmentSummary()),
+    getAdaptiveReview: jest.fn(),
+    confirmAdaptiveReview: jest.fn(),
     replaceSchedule: jest.fn(),
     reviewReplacement: jest.fn(),
     replace: jest.fn(),

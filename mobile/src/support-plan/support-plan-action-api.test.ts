@@ -13,6 +13,8 @@ import {
   type CanonicalSupportPlan,
 } from './support-plan-action-contract'
 import { makePlan, makeReassessmentSummary } from './support-plan-test-fixtures'
+import { adaptiveReviewOptionSchema } from './adaptive-review-contract'
+import { makeMobileReassessmentSummary } from '@/reassessment/reassessment-test-fixtures'
 
 const planId = '10000000-0000-4000-8000-000000000641'
 const actionId = '20000000-0000-4000-8000-000000000641'
@@ -221,6 +223,84 @@ describe('Native SupportPlan mobile transport', () => {
     )
     expect(requests[1]?.headers.get('If-Match')).toBe('"1"')
     expect(JSON.parse(requests[1]?.data)).toEqual({ schedule: null })
+  })
+  it('reads and confirms only the Care-governed adaptive review revision', async () => {
+    const review = {
+      schemaVersion: 'adaptive-support-plan-review-v1',
+      policyVersion: 'support-plan-review-v1',
+      supportPlanId: planId,
+      planVersion: 1,
+      planStatus: 'ACTIVE',
+      reviewedAt: instant,
+      programPeriod: {
+        startedOn: '2026-09-30',
+        asOf: '2026-10-13',
+        timezone: 'Asia/Ho_Chi_Minh',
+        elapsedDays: 14,
+        pausedDays: 0,
+        fullCycleElapsed: true,
+        scheduledCount: 14,
+        completedCount: 9,
+        skippedCount: 3,
+        openCount: 2,
+      },
+      reviewState: 'REVIEW_DUE',
+      reassessment: {
+        state: 'AVAILABLE',
+        reasonCode: null,
+        summary: makeMobileReassessmentSummary(),
+      },
+      currentAdmission: 'ADMISSIBLE',
+      outcome: 'CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE',
+      patterns: [],
+      contradictions: [],
+      options: [
+        adaptiveReviewOptionSchema.parse({
+          optionId: 'keep-current-1',
+          kind: 'KEEP_CURRENT',
+          executionKind: 'CONTINUE_CYCLE',
+          actionId: null,
+          focusId: null,
+          rationaleCodes: ['CURRENT_PLAN_STILL_ADMISSIBLE'],
+          evidenceRefs: [],
+          conflictingEvidenceRefs: [],
+          changes: [],
+        }),
+      ],
+      unavailableOptions: [],
+      reviewFingerprint: '3f2a9c4d7e1b6a5f8c0d2e4f6a8b0c1d',
+    } as const
+    const confirmation = {
+      result: 'CYCLE_CONTINUED',
+      optionId: review.options[0].optionId,
+      plan: { ...planFixture(), version: 2 },
+      draft: null,
+    } as const
+    const { api, requests } = apiFixture([review, confirmation])
+    expect((await api.getAdaptiveReview(planId, 1)).reviewState).toBe(
+      'REVIEW_DUE',
+    )
+    await api.confirmAdaptiveReview(
+      planId,
+      1,
+      review.reviewFingerprint,
+      review.options[0],
+      'adaptive-review-key-01',
+    )
+    expect(requests[0]?.url).toBe(
+      `/api/v2/support-plans/${planId}/adaptive-review`,
+    )
+    expect(requests[0]?.headers.get('If-Match')).toBe('"1"')
+    expect(requests[1]?.url).toBe(
+      `/api/v2/support-plans/${planId}/adaptive-review/confirm`,
+    )
+    expect(requests[1]?.headers.get('Idempotency-Key')).toBe(
+      'adaptive-review-key-01',
+    )
+    expect(JSON.parse(requests[1]?.data)).toEqual({
+      reviewFingerprint: review.reviewFingerprint,
+      optionId: review.options[0].optionId,
+    })
   })
   it('creates a separate native draft and activates with strong validators, preserving legacy model', async () => {
     const active = planFixture()
