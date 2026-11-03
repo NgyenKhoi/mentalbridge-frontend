@@ -70,7 +70,7 @@ test.describe('Community feed journey', () => {
     ).toHaveCount(0)
   })
 
-  test('opens Community from the visible compact USER header and mobile menu, then returns to the dashboard', async ({
+  test('opens Community from the visible compact USER header, not duplicated in the mobile menu, then returns to the dashboard', async ({
     page,
     request,
   }) => {
@@ -99,12 +99,25 @@ test.describe('Community feed journey', () => {
     await page.getByRole('link', { name: 'Về không gian của bạn' }).click()
     await expect(page).toHaveURL(/\/dashboard$/)
 
-    await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
-    const menuEntry = page
-      .getByRole('navigation', { name: 'Điều hướng chính', exact: true })
-      .getByRole('link', { name: 'Cộng đồng', exact: true })
-    await expect(menuEntry).toBeVisible()
-    await menuEntry.click()
+    const menuTrigger = page.getByRole('button', {
+      name: 'Mở menu',
+      exact: true,
+    })
+    await menuTrigger.click()
+    await expect(menuTrigger).toHaveAttribute('aria-expanded', 'true')
+    // Community lives in the header only; the open menu does not duplicate it.
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Điều hướng chính', exact: true })
+        .getByRole('link', { name: 'Cộng đồng', exact: true }),
+    ).toHaveCount(0)
+    const overlay = page.getByRole('button', { name: 'Đóng menu' })
+    const overlayBox = await overlay.boundingBox()
+    await overlay.click({
+      position: { x: (overlayBox?.width ?? 1) - 8, y: 8 },
+    })
+    await expect(menuTrigger).toHaveAttribute('aria-expanded', 'false')
+    await entry.click()
     await expect(page).toHaveURL(/\/community$/)
     await expect(
       page.getByRole('heading', { name: 'Cộng đồng MentalBridge' }),
