@@ -2663,14 +2663,14 @@ export interface components {
             planVersion: string;
             /**
              * Format: int64
-             * @description Allocation snapshot from the consumed credit period.
+             * @description Default allocation snapshot from the consumed credit period. Under staging-demo-paid-v1 this earning-only snapshot is floor of verified collected VND divided by frozen plan credits; the nominal period allocation stays unchanged.
              */
             creditAllocationVnd: number;
             /** @constant */
             sharePercent: 70;
             /**
              * Format: int64
-             * @description Exactly 70 percent of creditAllocationVnd under specialist-earning-v1.
+             * @description Floor of 70 percent of creditAllocationVnd. The default policy uses the credit allocation; staging-demo-paid-v1 uses floor of verified collected VND divided by frozen plan credits, under the explicit staging-only gate.
              */
             earningAmountVnd: number;
             /** @enum {string} */
@@ -2785,7 +2785,10 @@ export interface components {
             id: string;
             /** Format: uuid */
             destinationId: string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Must meet the server-configured minimum; production remains at least 100000 VND. Smaller payouts require the explicit staging demo gate.
+             */
             amountVnd: number;
             /** @enum {string} */
             provider: "FAKE" | "MOMO" | "PAYOS";
@@ -2814,6 +2817,23 @@ export interface components {
             completedAt?: string | null;
         };
         /**
+         * @example {
+         *       "currency": "VND",
+         *       "earningPolicyVersion": "staging-demo-paid-v1",
+         *       "settlementHoldDays": 0,
+         *       "settlementHoldSeconds": 600,
+         *       "minimumWithdrawalVnd": 2000,
+         *       "generatedAt": "2026-11-04T03:00:00Z",
+         *       "balance": {
+         *         "pendingSettlementVnd": 0,
+         *         "availableVnd": 2625,
+         *         "retryPendingVnd": 0,
+         *         "processingVnd": 0,
+         *         "paidVnd": 0
+         *       },
+         *       "earnings": [],
+         *       "payouts": []
+         *     }
          * @example {
          *       "currency": "VND",
          *       "earningPolicyVersion": "specialist-earning-v1",
@@ -2868,21 +2888,26 @@ export interface components {
         SpecialistEarnings: {
             /** @constant */
             currency: "VND";
-            /** @constant */
-            earningPolicyVersion: "specialist-earning-v1";
+            /** @enum {string} */
+            earningPolicyVersion: "specialist-earning-v1" | "staging-demo-paid-v1";
             /**
              * @description Optional additive field identifying the configured withdrawal adapter; omitted in DISABLED mode. Identifies the provider even before a destination exists. FAKE is synthetic and does not move money.
              * @enum {string}
              */
             payoutProvider?: "FAKE" | "MOMO" | "PAYOS";
             payoutAvailability?: components["schemas"]["PayoutAvailability"];
-            /** @constant */
-            settlementHoldDays: 7;
+            /** @description Whole days in the configured hold, rounded down for compatibility. Use settlementHoldSeconds for exact sub-day duration; each earning has an exact settlementAvailableAt. Production remains at least seven days. */
+            settlementHoldDays: number;
             /**
              * Format: int64
-             * @constant
+             * @description Optional exact configured hold in seconds, emitted only in effective staging demo mode. PT10M is 600. Default and production payloads omit this field and retain settlementHoldDays.
              */
-            minimumWithdrawalVnd: 100000;
+            settlementHoldSeconds?: number;
+            /**
+             * Format: int64
+             * @description Server-configured minimum. Production remains at least 100000; staging demo uses 2000 pending live-provider confirmation.
+             */
+            minimumWithdrawalVnd: number;
             /** Format: date-time */
             generatedAt: string;
             balance: components["schemas"]["SpecialistEarningBalance"];
@@ -3052,7 +3077,10 @@ export interface components {
             /** Format: uuid */
             specialistAccountId: string;
             destinationHint: string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Frozen payout total meeting the server-configured minimum. Production remains at least 100000 VND.
+             */
             amountVnd: number;
             /** @constant */
             currency: "VND";

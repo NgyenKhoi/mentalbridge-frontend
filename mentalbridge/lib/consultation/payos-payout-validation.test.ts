@@ -91,6 +91,43 @@ describe('PayOS payout validators', () => {
     expect(parseSpecialistEarnings(legacy)).not.toBeNull()
   })
 
+  it('accepts the staging demo policy and an exact short hold', () => {
+    const demo = {
+      ...earnings,
+      earningPolicyVersion: 'staging-demo-paid-v1',
+      settlementHoldDays: 0,
+      settlementHoldSeconds: 600,
+      minimumWithdrawalVnd: 2000,
+    }
+    expect(parseSpecialistEarnings(demo)).toMatchObject({
+      settlementHoldSeconds: 600,
+    })
+    const production: Record<string, unknown> = { ...demo }
+    delete production.settlementHoldSeconds
+    expect(
+      parseSpecialistEarnings({
+        ...production,
+        earningPolicyVersion: 'specialist-earning-v1',
+        settlementHoldDays: 7,
+        minimumWithdrawalVnd: 100000,
+      }),
+    ).not.toBeNull()
+  })
+
+  it('rejects an unknown policy and invalid hold or minimum values', () => {
+    for (const patch of [
+      { earningPolicyVersion: 'staging-demo-paid-v2' },
+      { settlementHoldDays: -1 },
+      { settlementHoldDays: 0.5 },
+      { settlementHoldSeconds: 0 },
+      { settlementHoldSeconds: 1.5 },
+      { settlementHoldSeconds: '600' },
+      { minimumWithdrawalVnd: 0 },
+      { minimumWithdrawalVnd: 2000.5 },
+    ])
+      expect(parseSpecialistEarnings({ ...earnings, ...patch })).toBeNull()
+  })
+
   it('rejects unknown providers, modes, statuses and extra keys', () => {
     expect(
       parsePayoutDestination({ ...pending, provider: 'STRIPE' }),
