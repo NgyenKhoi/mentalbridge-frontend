@@ -115,7 +115,20 @@
   background: var(--teal-deep);
   color: #fff;
 }
-.primary:hover {
+/* The shell forces white text on button[class*="primary"] with !important (role-workspace.css), so the disabled text must be !important too. */
+.workspace .primary:disabled,
+.workspace .primary:disabled *,
+.dialog .primary:disabled,
+.dialog .primary:disabled * {
+  color: var(--ink-soft) !important;
+}
+.workspace .primary:disabled,
+.dialog .primary:disabled {
+  opacity: 1;
+  background: var(--surface-soft);
+  border-color: var(--line);
+}
+.primary:hover:not(:disabled) {
   background: var(--teal);
   box-shadow: var(--elevation-1);
 }
@@ -189,8 +202,16 @@
 .badge[data-state='PAID'] {
   background: var(--teal-pale);
 }
+.badge[data-state='PENDING_CONFIRMATION'],
+.badge[data-state='VERIFIED'] {
+  background: var(--teal-pale);
+}
 .badge[data-state='UNKNOWN'] {
   background: var(--lavender-pale);
+}
+.badge[data-state='CLOSED'] {
+  color: var(--ink-soft);
+  background: var(--surface-soft);
 }
 .badge[data-state='FAILED'],
 .badge[data-state='REVERSED'] {
@@ -211,7 +232,7 @@
 }
 .balanceDetails {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: var(--space-3);
   margin: var(--space-4) 0 var(--space-5);
   padding-top: var(--space-4);
@@ -282,6 +303,16 @@
   display: grid;
   gap: var(--space-1);
   min-width: 0;
+}
+.destination .destinationName {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.4;
 }
 .destination strong {
   overflow-wrap: anywhere;
@@ -358,6 +389,67 @@
 .payoutRow > p {
   grid-column: 2 / -1;
   font-size: 13px;
+}
+.payoutRow > .steps {
+  grid-column: 2 / -1;
+}
+.steps {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.steps li[data-step='current'] {
+  color: var(--ink);
+  font-weight: 650;
+}
+.steps li[data-step='done'] {
+  color: var(--teal-deep);
+}
+.stepMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+.stepMark i {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+}
+.stepMark i[data-dot='current'] {
+  background: var(--teal);
+  animation: step-busy 1.4s ease-in-out infinite;
+}
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.fieldGroup {
+  display: grid;
+  gap: var(--space-1);
+}
+@keyframes step-busy {
+  50% {
+    opacity: 0.35;
+  }
 }
 .empty {
   display: flex;
@@ -641,8 +733,13 @@
   .dialogFooter {
     padding: var(--space-4);
   }
+  .dialogFooter {
+    flex-direction: column-reverse;
+  }
   .dialogFooter > button {
-    flex: 1;
+    flex: 1 1 100%;
+    width: 100%;
+    white-space: nowrap;
   }
   .dialog h2 {
     font-size: 17px;

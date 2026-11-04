@@ -82,7 +82,9 @@ describe('RoleWorkspace specialist production closure', () => {
     expect(screen.queryByText('Admin Console')).not.toBeInTheDocument()
     expect(screen.queryByText('12.480 người dùng')).not.toBeInTheDocument()
     expect(screen.queryByText('Nguyễn Minh Anh')).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Users' }),
+    ).not.toBeInTheDocument()
   })
 
   it('keeps the new navigation and renders the authenticated profile identity', async () => {
