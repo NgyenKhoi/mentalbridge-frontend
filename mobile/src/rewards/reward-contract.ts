@@ -13,7 +13,7 @@ export const resourceBookmarkSchema = z
   .strict()
 
 export const resourceBookmarkListSchema = z
-  .object({ items: z.array(resourceBookmarkSchema).max(500) })
+  .object({ items: z.array(resourceBookmarkSchema).max(1000) })
   .strict()
 
 export const bingoItemSchema = z

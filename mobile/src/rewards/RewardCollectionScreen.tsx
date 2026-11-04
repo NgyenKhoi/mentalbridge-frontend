@@ -25,7 +25,11 @@ import type {
   ResourceReward,
 } from './reward-contract'
 
-type BookmarkView = ResourceBookmark & { title: string | null }
+type BookmarkLookup =
+  | { status: 'AVAILABLE'; title: string }
+  | { status: 'DELETED' }
+  | { status: 'LOOKUP_UNAVAILABLE' }
+type BookmarkView = ResourceBookmark & { lookup: BookmarkLookup }
 type SourceName = 'achievements' | 'rewards' | 'bookmarks' | 'bingo'
 type Errors = Partial<Record<SourceName, string>>
 
@@ -76,6 +80,14 @@ function optionalPlan(request: Promise<CanonicalSupportPlan>) {
   })
 }
 
+function unavailableBookmark(error: unknown): BookmarkLookup {
+  return error instanceof ApiError &&
+    error.status !== undefined &&
+    [404, 410].includes(error.status)
+    ? { status: 'DELETED' }
+    : { status: 'LOOKUP_UNAVAILABLE' }
+}
+
 function SectionState({ message }: Readonly<{ message: string }>) {
   return (
     <Text accessibilityLiveRegion="assertive" style={styles.error}>
@@ -92,6 +104,7 @@ export function RewardCollectionScreen({
   onOpenResource,
   timezone: timezoneOverride,
   now = () => new Date(),
+  refreshToken = 0,
 }: Readonly<{
   api: RewardApi
   planApi: Pick<SupportPlanActionApi, 'getCurrent'>
@@ -100,6 +113,7 @@ export function RewardCollectionScreen({
   onOpenResource: (resourceId: string) => void
   timezone?: string
   now?: () => Date
+  refreshToken?: number
 }>) {
   const { session, signOut } = useSession()
   const timezone = useMemo(
@@ -114,6 +128,7 @@ export function RewardCollectionScreen({
     [now, timezone],
   )
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [working, setWorking] = useState<string | null>(null)
   const [errors, setErrors] = useState<Errors>({})
   const [achievements, setAchievements] = useState<{
@@ -126,98 +141,129 @@ export function RewardCollectionScreen({
     board: ResourceBingoBoard
     etag: string
     planStatus: CanonicalSupportPlan['status'] | null
+    context: 'CURRENT_PLAN' | 'HISTORICAL'
     unavailableActions: ResourceBingoPlanSync['unavailableActions']
   } | null>(null)
   const request = useRef(0)
+  const hasLoaded = useRef(false)
+  const loadedSubject = useRef<string | null>(null)
 
-  const load = useCallback(async () => {
-    const serial = ++request.current
-    setLoading(true)
-    setErrors({})
-    setAchievements(null)
-    setRewards(null)
-    setBookmarks(null)
-    setBingo(null)
-
-    const [achievementResult, rewardResult, bookmarkResult, planResult] =
-      await Promise.allSettled([
-        api.getAchievements(timezone),
-        api.getResourceRewards(),
-        api.getBookmarks(),
-        optionalPlan(planApi.getCurrent()),
-      ])
-    if (serial !== request.current) return
-
-    const nextErrors: Errors = {}
-    if (achievementResult.status === 'fulfilled')
-      setAchievements(achievementResult.value)
-    else
-      nextErrors.achievements = sourceMessage(
-        'achievements',
-        achievementResult.reason,
-      )
-
-    if (rewardResult.status === 'fulfilled') setRewards(rewardResult.value)
-    else nextErrors.rewards = sourceMessage('rewards', rewardResult.reason)
-
-    if (bookmarkResult.status === 'fulfilled') {
-      const detailed = await Promise.all(
-        bookmarkResult.value.map(async (bookmark) => {
-          try {
-            const resource = await resourceApi.getResource(
-              bookmark.resourceId,
-              'vi-VN',
-            )
-            return { ...bookmark, title: resource.title }
-          } catch {
-            return { ...bookmark, title: null }
-          }
-        }),
-      )
-      if (serial !== request.current) return
-      setBookmarks(detailed)
-    } else
-      nextErrors.bookmarks = sourceMessage('bookmarks', bookmarkResult.reason)
-
-    if (planResult.status === 'rejected') {
-      nextErrors.bingo = sourceMessage('bingo', planResult.reason)
-    } else {
-      const plan = planResult.value
-      try {
-        const planScoped =
-          plan?.status === 'ACTIVE' || plan?.status === 'PAUSED'
-        const result = planScoped
-          ? await api.syncBingo(weekStart, timezone)
-          : await api.getBingo(weekStart)
-        if (serial !== request.current) return
-        setBingo({
-          board: result.board,
-          etag: result.etag,
-          planStatus: plan?.status ?? null,
-          unavailableActions: planScoped
-            ? (result.board as ResourceBingoPlanSync).unavailableActions
-            : [],
-        })
-      } catch (error) {
-        const message = sourceMessage('bingo', error)
-        if (message) nextErrors.bingo = message
+  const load = useCallback(
+    async (clearSnapshot = false) => {
+      const serial = ++request.current
+      const isRefresh = hasLoaded.current && !clearSnapshot
+      setLoading(!isRefresh)
+      setRefreshing(isRefresh)
+      setErrors({})
+      if (!isRefresh) {
+        setAchievements(null)
+        setRewards(null)
+        setBookmarks(null)
+        setBingo(null)
       }
-    }
-    if (serial === request.current) {
-      setErrors(nextErrors)
-      setLoading(false)
-    }
-  }, [api, planApi, resourceApi, timezone, weekStart])
+
+      const [achievementResult, rewardResult, bookmarkResult, planResult] =
+        await Promise.allSettled([
+          api.getAchievements(timezone),
+          api.getResourceRewards(),
+          api.getBookmarks(),
+          optionalPlan(planApi.getCurrent()),
+        ])
+      if (serial !== request.current) return
+
+      const nextErrors: Errors = {}
+      if (achievementResult.status === 'fulfilled')
+        setAchievements(achievementResult.value)
+      else {
+        setAchievements(null)
+        nextErrors.achievements = sourceMessage(
+          'achievements',
+          achievementResult.reason,
+        )
+      }
+
+      if (rewardResult.status === 'fulfilled') setRewards(rewardResult.value)
+      else {
+        setRewards(null)
+        nextErrors.rewards = sourceMessage('rewards', rewardResult.reason)
+      }
+
+      if (bookmarkResult.status === 'fulfilled') {
+        const detailed = await Promise.all(
+          bookmarkResult.value.map(async (bookmark) => {
+            try {
+              const resource = await resourceApi.getResource(
+                bookmark.resourceId,
+                'vi-VN',
+              )
+              return {
+                ...bookmark,
+                lookup: { status: 'AVAILABLE', title: resource.title } as const,
+              }
+            } catch (error) {
+              return { ...bookmark, lookup: unavailableBookmark(error) }
+            }
+          }),
+        )
+        if (serial !== request.current) return
+        setBookmarks(detailed)
+      } else {
+        setBookmarks(null)
+        nextErrors.bookmarks = sourceMessage('bookmarks', bookmarkResult.reason)
+      }
+
+      if (planResult.status === 'rejected') {
+        setBingo(null)
+        nextErrors.bingo = sourceMessage('bingo', planResult.reason)
+      } else {
+        const plan = planResult.value
+        try {
+          const planScoped =
+            plan?.status === 'ACTIVE' || plan?.status === 'PAUSED'
+          const result = planScoped
+            ? await api.syncBingo(weekStart, timezone)
+            : await api.getBingo(weekStart)
+          if (serial !== request.current) return
+          setBingo({
+            board: result.board,
+            etag: result.etag,
+            planStatus: plan?.status ?? null,
+            context: planScoped ? 'CURRENT_PLAN' : 'HISTORICAL',
+            unavailableActions: planScoped
+              ? (result.board as ResourceBingoPlanSync).unavailableActions
+              : [],
+          })
+        } catch (error) {
+          setBingo(null)
+          const message = sourceMessage('bingo', error)
+          if (message) nextErrors.bingo = message
+        }
+      }
+      if (serial === request.current) {
+        setErrors(nextErrors)
+        setLoading(false)
+        setRefreshing(false)
+        hasLoaded.current = true
+      }
+    },
+    [api, planApi, resourceApi, timezone, weekStart],
+  )
 
   useEffect(() => {
-    void load()
+    const subject = session?.subject ?? null
+    const accountChanged = loadedSubject.current !== subject
+    if (accountChanged) {
+      loadedSubject.current = subject
+      hasLoaded.current = false
+    }
+    void load(accountChanged)
     return () => {
       request.current += 1
     }
-  }, [load, session?.subject])
+  }, [load, refreshToken, session?.subject])
 
   async function changeAchievementVisibility() {
-    if (!achievements || working) return
+    if (!achievements || working || refreshing) return
     setWorking('achievements')
     try {
       const result = await api.setAchievementVisibility(
@@ -248,7 +294,7 @@ export function RewardCollectionScreen({
   }
 
   async function changeRewardVisibility() {
-    if (!rewards || working) return
+    if (!rewards || working || refreshing) return
     setWorking('rewards')
     try {
       setRewards(
@@ -273,7 +319,7 @@ export function RewardCollectionScreen({
   }
 
   async function removeBookmark(resourceId: string) {
-    if (!bookmarks || working) return
+    if (!bookmarks || working || refreshing) return
     setWorking(`bookmark:${resourceId}`)
     try {
       await api.deleteBookmark(resourceId)
@@ -292,8 +338,48 @@ export function RewardCollectionScreen({
     }
   }
 
+  async function retryBookmarkLookup(resourceId: string) {
+    if (!bookmarks || working || refreshing) return
+    setWorking(`bookmark-lookup:${resourceId}`)
+    try {
+      const resource = await resourceApi.getResource(resourceId, 'vi-VN')
+      setBookmarks(
+        (current) =>
+          current?.map((bookmark) =>
+            bookmark.resourceId === resourceId
+              ? {
+                  ...bookmark,
+                  lookup: {
+                    status: 'AVAILABLE' as const,
+                    title: resource.title,
+                  },
+                }
+              : bookmark,
+          ) ?? null,
+      )
+    } catch (error) {
+      setBookmarks(
+        (current) =>
+          current?.map((bookmark) =>
+            bookmark.resourceId === resourceId
+              ? { ...bookmark, lookup: unavailableBookmark(error) }
+              : bookmark,
+          ) ?? null,
+      )
+    } finally {
+      setWorking(null)
+    }
+  }
+
   async function toggleBingo(position: number, selfConfirmed: boolean) {
-    if (!bingo || working || bingo.planStatus !== 'ACTIVE') return
+    if (
+      !bingo ||
+      working ||
+      refreshing ||
+      bingo.context !== 'CURRENT_PLAN' ||
+      bingo.planStatus !== 'ACTIVE'
+    )
+      return
     setWorking(`bingo:${position}`)
     try {
       const result = await api.setBingoSelfConfirmation(
@@ -358,6 +444,12 @@ export function RewardCollectionScreen({
         </View>
       ) : (
         <>
+          {refreshing ? (
+            <Text accessibilityLiveRegion="polite" style={styles.notice}>
+              Đang xác nhận dữ liệu mới nhất. Thông tin bên dưới chỉ để tham
+              khảo và tạm thời không thể chỉnh sửa.
+            </Text>
+          ) : null}
           <View style={styles.section} testID="reward-summary">
             <Text accessibilityRole="header" style={styles.sectionTitle}>
               Ghi nhận từ tài nguyên
@@ -389,7 +481,7 @@ export function RewardCollectionScreen({
             ) : null}
             {rewards ? (
               <PrimaryButton
-                disabled={working === 'rewards'}
+                disabled={refreshing || working === 'rewards'}
                 label={
                   rewards.visibilityState === 'VISIBLE'
                     ? 'Ẩn điểm ghi nhận'
@@ -434,7 +526,7 @@ export function RewardCollectionScreen({
             ) : null}
             {achievements ? (
               <PrimaryButton
-                disabled={working === 'achievements'}
+                disabled={refreshing || working === 'achievements'}
                 label={
                   achievements.collection.visibilityState === 'VISIBLE'
                     ? 'Ẩn bộ sưu tập'
@@ -457,14 +549,19 @@ export function RewardCollectionScreen({
               bookmarks?.map((bookmark) => (
                 <View key={bookmark.resourceId} style={styles.card}>
                   <Text style={styles.cardTitle}>
-                    {bookmark.title ?? 'Tài nguyên đã lưu không còn khả dụng'}
+                    {bookmark.lookup.status === 'AVAILABLE'
+                      ? bookmark.lookup.title
+                      : bookmark.lookup.status === 'DELETED'
+                        ? 'Tài nguyên đã lưu không còn khả dụng'
+                        : 'Chưa thể kiểm tra tài nguyên đã lưu này'}
                   </Text>
                   <Text style={styles.supporting}>
                     Phiên bản đã lưu: {bookmark.contentVersion}
                   </Text>
-                  {bookmark.title ? (
+                  {bookmark.lookup.status === 'AVAILABLE' ? (
                     <Pressable
                       accessibilityRole="button"
+                      disabled={refreshing}
                       onPress={() => onOpenResource(bookmark.resourceId)}
                       style={({ pressed }) => [
                         styles.quietButton,
@@ -474,9 +571,30 @@ export function RewardCollectionScreen({
                       <Text style={styles.link}>Mở tài nguyên</Text>
                     </Pressable>
                   ) : null}
+                  {bookmark.lookup.status === 'LOOKUP_UNAVAILABLE' ? (
+                    <>
+                      <Text style={styles.body}>
+                        Kết nối tới nguồn tài nguyên đang không chắc chắn. Không
+                        xem mục này là đã bị xoá.
+                      </Text>
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={refreshing || working !== null}
+                        onPress={() =>
+                          void retryBookmarkLookup(bookmark.resourceId)
+                        }
+                        style={({ pressed }) => [
+                          styles.quietButton,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Text style={styles.link}>Thử tải lại tài nguyên</Text>
+                      </Pressable>
+                    </>
+                  ) : null}
                   <Pressable
                     accessibilityRole="button"
-                    disabled={working !== null}
+                    disabled={refreshing || working !== null}
                     onPress={() => void removeBookmark(bookmark.resourceId)}
                     style={({ pressed }) => [
                       styles.quietButton,
@@ -492,9 +610,11 @@ export function RewardCollectionScreen({
 
           <View style={styles.section} testID="reward-bingo">
             <Text accessibilityRole="header" style={styles.sectionTitle}>
-              {bingo?.planStatus === 'ACTIVE' || bingo?.planStatus === 'PAUSED'
+              {bingo?.context === 'CURRENT_PLAN'
                 ? 'Bingo trong kế hoạch tuần này'
-                : 'Bingo tuần này'}
+                : bingo?.context === 'HISTORICAL'
+                  ? 'Bảng Bingo đã lưu trước đó'
+                  : 'Bingo trong kế hoạch'}
             </Text>
             {errors.bingo ? (
               <SectionState message={errors.bingo} />
@@ -511,11 +631,11 @@ export function RewardCollectionScreen({
                     hoạt động lại.
                   </Text>
                 ) : null}
-                {bingo.planStatus &&
-                !['ACTIVE', 'PAUSED'].includes(bingo.planStatus) ? (
+                {bingo.context === 'HISTORICAL' ? (
                   <Text style={styles.notice}>
-                    Kế hoạch nguồn không còn hiện tại. Bảng cũ chỉ đọc và không
-                    được trình bày như kế hoạch đang áp dụng.
+                    Đây là bảng đã lưu từ một kế hoạch trước đó. Bảng chỉ đọc;
+                    ứng dụng không coi đây là kế hoạch hiện tại và không suy
+                    đoán kế hoạch nguồn khi chưa có dữ liệu xác nhận.
                   </Text>
                 ) : null}
                 {bingo.unavailableActions.some(
@@ -539,6 +659,8 @@ export function RewardCollectionScreen({
                     Boolean(item.selfConfirmedAt) ||
                     item.evidence === 'SELF_CONFIRMED'
                   const interactive =
+                    !refreshing &&
+                    bingo.context === 'CURRENT_PLAN' &&
                     bingo.planStatus === 'ACTIVE' &&
                     !item.retired &&
                     (!verified || selfConfirmed)
@@ -579,12 +701,11 @@ export function RewardCollectionScreen({
             )}
           </View>
 
-          {Object.keys(errors).length > 0 ? (
-            <PrimaryButton
-              label="Tải lại dữ liệu"
-              onPress={() => void load()}
-            />
-          ) : null}
+          <PrimaryButton
+            disabled={refreshing || working !== null}
+            label={refreshing ? 'Đang làm mới dữ liệu…' : 'Làm mới dữ liệu'}
+            onPress={() => void load()}
+          />
         </>
       )}
     </Screen>

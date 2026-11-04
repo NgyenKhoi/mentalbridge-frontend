@@ -1,5 +1,5 @@
-import { router } from 'expo-router'
-import { useState } from 'react'
+import { router, useFocusEffect } from 'expo-router'
+import { useCallback, useRef, useState } from 'react'
 
 import { createApiClient } from '@/api/api-client'
 import { useSession } from '@/auth/session-context'
@@ -20,6 +20,14 @@ export function RewardCollectionRoute() {
 
 function AccountRewardCollectionRoute() {
   const config = useRuntimeConfig()
+  const focusedOnce = useRef(false)
+  const [refreshToken, setRefreshToken] = useState(0)
+  useFocusEffect(
+    useCallback(() => {
+      if (focusedOnce.current) setRefreshToken((current) => current + 1)
+      else focusedOnce.current = true
+    }, []),
+  )
   const [binding] = useState(() => {
     const client = createApiClient({
       config,
@@ -34,6 +42,7 @@ function AccountRewardCollectionRoute() {
   return (
     <RewardCollectionScreen
       {...binding}
+      refreshToken={refreshToken}
       onBack={() => router.back()}
       onOpenResource={(resourceId) =>
         router.push({

@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -84,20 +85,22 @@ function plan(status: CanonicalSupportPlan['status'] = 'ACTIVE') {
   } as Pick<SupportPlanActionApi, 'getCurrent'>
 }
 
-function resourceApi(title: string | null = 'Thở chậm ba phút') {
+function resourceApi(result: string | Error | null = 'Thở chậm ba phút') {
   return {
     getResource: jest.fn().mockImplementation(() =>
-      title
-        ? Promise.resolve({ title } as Awaited<
+      typeof result === 'string'
+        ? Promise.resolve({ title: result } as Awaited<
             ReturnType<ResourceApi['getResource']>
           >)
-        : Promise.reject(
-            new ApiError({
-              message: 'gone',
-              code: 'NOT_FOUND',
-              status: 404,
-            }),
-          ),
+        : result instanceof Error
+          ? Promise.reject(result)
+          : Promise.reject(
+              new ApiError({
+                message: 'gone',
+                code: 'NOT_FOUND',
+                status: 404,
+              }),
+            ),
     ),
   } as Pick<ResourceApi, 'getResource'>
 }
@@ -209,8 +212,8 @@ describe('mobile owner rewards, bookmarks and plan Bingo', () => {
     const view = await render(
       <RewardCollectionScreen {...props(owner, plan('SUPERSEDED'))} />,
     )
-    expect(await view.findByText('Bingo tuần này')).toBeTruthy()
-    expect(view.getByText(/Kế hoạch nguồn không còn hiện tại/)).toBeTruthy()
+    expect(await view.findByText('Bảng Bingo đã lưu trước đó')).toBeTruthy()
+    expect(view.getByText(/bảng đã lưu từ một kế hoạch trước đó/)).toBeTruthy()
     expect(view.getByTestId('bingo-item-1')).toBeDisabled()
     expect(owner.getBingo).toHaveBeenCalledWith('2026-11-02')
     expect(owner.syncBingo).not.toHaveBeenCalled()
@@ -251,6 +254,98 @@ describe('mobile owner rewards, bookmarks and plan Bingo', () => {
     ).toBeTruthy()
     expect(view.queryByRole('button', { name: 'Mở tài nguyên' })).toBeNull()
     expect(view.getByRole('button', { name: 'Bỏ lưu' })).toBeTruthy()
+  })
+
+  it('keeps an uncertain bookmark lookup distinct from an authoritative deletion and retries it', async () => {
+    const unavailable = new ApiError({
+      message: 'provider unavailable',
+      code: 'SERVICE_UNAVAILABLE',
+      status: 503,
+    })
+    const resources = resourceApi(unavailable)
+    jest
+      .mocked(resources.getResource)
+      .mockRejectedValueOnce(unavailable)
+      .mockResolvedValueOnce({ title: 'Tài nguyên đã phục hồi' } as Awaited<
+        ReturnType<ResourceApi['getResource']>
+      >)
+    const view = await render(
+      <RewardCollectionScreen {...props(api(), plan(), resources)} />,
+    )
+
+    expect(
+      await view.findByText('Chưa thể kiểm tra tài nguyên đã lưu này'),
+    ).toBeTruthy()
+    expect(view.queryByText('Tài nguyên đã lưu không còn khả dụng')).toBeNull()
+    await fireEvent.press(
+      view.getByRole('button', { name: 'Thử tải lại tài nguyên' }),
+    )
+    expect(await view.findByText('Tài nguyên đã phục hồi')).toBeTruthy()
+  })
+
+  it('presents a board as historical when no current plan exists', async () => {
+    const noCurrentPlan = {
+      getCurrent: jest.fn().mockRejectedValue(
+        new ApiError({
+          message: 'no current plan',
+          code: 'NOT_FOUND',
+          status: 404,
+        }),
+      ),
+    }
+    const owner = api()
+    const view = await render(
+      <RewardCollectionScreen {...props(owner, noCurrentPlan)} />,
+    )
+
+    expect(await view.findByText('Bảng Bingo đã lưu trước đó')).toBeTruthy()
+    expect(view.getByText(/không coi đây là kế hoạch hiện tại/)).toBeTruthy()
+    expect(view.getByTestId('bingo-item-1')).toBeDisabled()
+    expect(owner.getBingo).toHaveBeenCalledWith('2026-11-02')
+    expect(owner.syncBingo).not.toHaveBeenCalled()
+  })
+
+  it('keeps the old snapshot visibly read-only while focus refreshes changed facts and plan state', async () => {
+    let resolveRewards: ((value: typeof rewards) => void) | undefined
+    const nextRewards = { ...rewards, level: 3, totalXp: 250 }
+    const owner = api({
+      getResourceRewards: jest
+        .fn()
+        .mockResolvedValueOnce(rewards)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveRewards = resolve
+            }),
+        ),
+    })
+    const planOwner = {
+      getCurrent: jest
+        .fn()
+        .mockResolvedValueOnce({ status: 'ACTIVE' } as CanonicalSupportPlan)
+        .mockResolvedValueOnce({ status: 'PAUSED' } as CanonicalSupportPlan),
+    }
+    const resources = resourceApi()
+    const baseProps = props(owner, planOwner, resources)
+    const view = await render(
+      <RewardCollectionScreen {...baseProps} refreshToken={0} />,
+    )
+    await view.findByText('Cấp 2 · 120 XP')
+
+    await view.rerender(
+      <RewardCollectionScreen {...baseProps} refreshToken={1} />,
+    )
+    expect(await view.findByText(/Đang xác nhận dữ liệu mới nhất/)).toBeTruthy()
+    expect(view.getByText('Cấp 2 · 120 XP')).toBeTruthy()
+    expect(
+      view.getByRole('button', { name: 'Đang làm mới dữ liệu…' }),
+    ).toBeDisabled()
+
+    await act(async () => resolveRewards?.(nextRewards))
+    expect(await view.findByText('Cấp 3 · 250 XP')).toBeTruthy()
+    expect(view.getByText(/Bingo chỉ đọc/)).toBeTruthy()
+    expect(view.getByTestId('bingo-item-1')).toBeDisabled()
+    expect(owner.getResourceRewards).toHaveBeenCalledTimes(2)
   })
 
   it('clears the old account snapshot and reloads every owner source on account switch', async () => {

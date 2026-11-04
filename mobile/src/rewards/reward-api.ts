@@ -16,6 +16,7 @@ import {
   type ResourceBookmark,
   type ResourceReward,
 } from './reward-contract'
+import { contentOwnerRoutes, fillProviderRoute } from './reward-routes'
 
 const etagSchema = z.string().regex(/^"(0|[1-9]\d*)"$/)
 const idSchema = z.uuid()
@@ -79,7 +80,7 @@ export interface RewardApi {
 export function createRewardApi(client: AxiosInstance): RewardApi {
   return {
     async getAchievements(timezone) {
-      const response = await client.get('/api/v1/achievements', {
+      const response = await client.get(contentOwnerRoutes.achievements.path, {
         params: { timezone: timezoneSchema.parse(timezone) },
       })
       return {
@@ -89,7 +90,7 @@ export function createRewardApi(client: AxiosInstance): RewardApi {
     },
     async setAchievementVisibility(timezone, visibilityState, currentEtag) {
       const response = await client.put(
-        '/api/v1/achievements/preference',
+        contentOwnerRoutes.achievementPreference.path,
         { visibilityState },
         {
           params: { timezone: timezoneSchema.parse(timezone) },
@@ -103,13 +104,13 @@ export function createRewardApi(client: AxiosInstance): RewardApi {
     },
     async getResourceRewards() {
       return resourceRewardSchema.parse(
-        (await client.get('/api/v1/resources/rewards')).data,
+        (await client.get(contentOwnerRoutes.resourceRewards.path)).data,
       )
     },
     async setResourceRewardVisibility(visibilityState) {
       return resourceRewardSchema.parse(
         (
-          await client.put('/api/v1/resources/rewards', {
+          await client.put(contentOwnerRoutes.resourceRewardPreference.path, {
             visibilityState,
           })
         ).data,
@@ -117,7 +118,7 @@ export function createRewardApi(client: AxiosInstance): RewardApi {
     },
     async getBookmarks() {
       return resourceBookmarkListSchema.parse(
-        (await client.get('/api/v1/resources/bookmarks')).data,
+        (await client.get(contentOwnerRoutes.resourceBookmarks.path)).data,
       ).items
     },
     async saveBookmark(resourceId) {
@@ -125,7 +126,9 @@ export function createRewardApi(client: AxiosInstance): RewardApi {
       return resourceBookmarkSchema.parse(
         (
           await client.put(
-            `/api/v1/resources/bookmarks/${encodeURIComponent(id)}`,
+            fillProviderRoute(contentOwnerRoutes.resourceBookmark.path, {
+              resourceId: id,
+            }),
             {},
           )
         ).data,
@@ -134,12 +137,16 @@ export function createRewardApi(client: AxiosInstance): RewardApi {
     async deleteBookmark(resourceId) {
       const id = idSchema.parse(resourceId)
       await client.delete(
-        `/api/v1/resources/bookmarks/${encodeURIComponent(id)}`,
+        fillProviderRoute(contentOwnerRoutes.deleteResourceBookmark.path, {
+          resourceId: id,
+        }),
       )
     },
     async getBingo(weekStart) {
       const response = await client.get(
-        `/api/v1/resources/bingo/${encodeURIComponent(dateSchema.parse(weekStart))}`,
+        fillProviderRoute(contentOwnerRoutes.resourceBingo.path, {
+          weekStart: dateSchema.parse(weekStart),
+        }),
       )
       return {
         board: resourceBingoBoardSchema.parse(response.data),
@@ -148,7 +155,9 @@ export function createRewardApi(client: AxiosInstance): RewardApi {
     },
     async syncBingo(weekStart, timezone) {
       const response = await client.put(
-        `/api/v1/resources/bingo/${encodeURIComponent(dateSchema.parse(weekStart))}/plan-sync`,
+        fillProviderRoute(contentOwnerRoutes.resourceBingoPlanSync.path, {
+          weekStart: dateSchema.parse(weekStart),
+        }),
         { timeZone: timezoneSchema.parse(timezone) },
       )
       return {
@@ -163,7 +172,13 @@ export function createRewardApi(client: AxiosInstance): RewardApi {
       currentEtag,
     ) {
       const response = await client.put(
-        `/api/v1/resources/bingo/${encodeURIComponent(dateSchema.parse(weekStart))}/items/${z.number().int().min(1).max(25).parse(position)}`,
+        fillProviderRoute(
+          contentOwnerRoutes.resourceBingoSelfConfirmation.path,
+          {
+            weekStart: dateSchema.parse(weekStart),
+            position: z.number().int().min(1).max(25).parse(position),
+          },
+        ),
         { selfConfirmed },
         { headers: { 'If-Match': etagSchema.parse(currentEtag) } },
       )

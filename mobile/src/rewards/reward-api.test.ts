@@ -5,6 +5,8 @@ import {
 } from 'axios'
 
 import { createRewardApi } from './reward-api'
+import { resourceBookmarkListSchema } from './reward-contract'
+import { contentOwnerRoutes } from './reward-routes'
 import {
   achievements,
   bingo,
@@ -57,15 +59,20 @@ describe('mobile owner reward transport', () => {
     expect(requests.map(({ method, url }) => `${method}:${url}`)).toEqual([
       'get:/api/v1/achievements',
       'put:/api/v1/achievements/preference',
-      'get:/api/v1/resources/rewards',
-      'put:/api/v1/resources/rewards',
-      'get:/api/v1/resources/bookmarks',
-      `put:/api/v1/resources/bookmarks/${resourceId}`,
-      `delete:/api/v1/resources/bookmarks/${resourceId}`,
-      'get:/api/v1/resources/bingo/2026-11-02',
-      'put:/api/v1/resources/bingo/2026-11-02/plan-sync',
-      'put:/api/v1/resources/bingo/2026-11-02/items/1',
+      'get:/api/v1/resource-rewards',
+      'put:/api/v1/resource-rewards',
+      'get:/api/v1/resource-bookmarks',
+      `put:/api/v1/resource-bookmarks/${resourceId}`,
+      `delete:/api/v1/resource-bookmarks/${resourceId}`,
+      'get:/api/v1/resource-bingo/2026-11-02',
+      'put:/api/v1/resource-bingo/2026-11-02/plan-sync',
+      'put:/api/v1/resource-bingo/2026-11-02/items/1/self-confirmation',
     ])
+    expect(contentOwnerRoutes.resourceBookmark.method).toBe('put')
+    expect(contentOwnerRoutes.deleteResourceBookmark.method).toBe('delete')
+    expect(contentOwnerRoutes.resourceBingoSelfConfirmation.path).toBe(
+      '/api/v1/resource-bingo/{weekStart}/items/{position}/self-confirmation',
+    )
     expect(requests[1]?.headers.get('If-Match')).toBe('"5"')
     expect(requests[9]?.headers.get('If-Match')).toBe('"5"')
     expect(JSON.parse(String(requests[3]?.data))).toEqual({
@@ -73,6 +80,9 @@ describe('mobile owner reward transport', () => {
     })
     expect(JSON.parse(String(requests[8]?.data))).toEqual({
       timeZone: 'Asia/Ho_Chi_Minh',
+    })
+    expect(JSON.parse(String(requests[9]?.data))).toEqual({
+      selfConfirmed: true,
     })
     expect(JSON.stringify(requests)).not.toMatch(
       /clinical|adherence|scoreRule|threshold|rawJournal|emotionNote/i,
@@ -103,5 +113,18 @@ describe('mobile owner reward transport', () => {
     await expect(
       createRewardApi(create({ adapter })).getAchievements('UTC'),
     ).rejects.toBeDefined()
+  })
+
+  it('accepts the provider bookmark maximum and rejects overflow', () => {
+    expect(
+      resourceBookmarkListSchema.safeParse({
+        items: Array.from({ length: 1000 }, () => bookmark),
+      }).success,
+    ).toBe(true)
+    expect(
+      resourceBookmarkListSchema.safeParse({
+        items: Array.from({ length: 1001 }, () => bookmark),
+      }).success,
+    ).toBe(false)
   })
 })
