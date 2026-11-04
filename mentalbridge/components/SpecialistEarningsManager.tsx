@@ -131,6 +131,15 @@ function payoutView(payout: Payout): {
     active: false,
   }
 }
+// Exact short hold (staging demo) in plain minutes/hours; whole days otherwise.
+function formatHold(days: number, seconds?: number) {
+  if (seconds === undefined) return `${days} ngày`
+  if (seconds % 86400 === 0) return `${seconds / 86400} ngày`
+  if (seconds % 3600 === 0) return `${seconds / 3600} giờ`
+  if (seconds % 60 === 0) return `${seconds / 60} phút`
+  return `${seconds} giây`
+}
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
@@ -804,7 +813,13 @@ export default function SpecialistEarningsManager() {
           </div>
           <div className={styles.balanceDetails}>
             <div>
-              <span>Chờ đối soát · {data.settlementHoldDays} ngày</span>
+              <span>
+                Chờ đối soát ·{' '}
+                {formatHold(
+                  data.settlementHoldDays,
+                  data.settlementHoldSeconds,
+                )}
+              </span>
               <b>{formatCurrency(data.balance.pendingSettlementVnd)}</b>
             </div>
             {retryPendingVnd > 0 && (

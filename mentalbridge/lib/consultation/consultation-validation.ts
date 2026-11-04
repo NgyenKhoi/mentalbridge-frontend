@@ -594,11 +594,19 @@ const RECONCILIATION_STATUSES = [
   'NEEDS_REVIEW',
   'COMPLETE',
 ] as const
+const EARNING_POLICY_VERSIONS = [
+  'specialist-earning-v1',
+  'staging-demo-paid-v1',
+] as const
 const PAYOUT_MODES = ['DISABLED', 'FAKE', 'MOMO', 'PAYOS'] as const
 const PAYOUT_DESTINATION_TYPES = ['MOMO_WALLET', 'BANK_ACCOUNT'] as const
 
 function nonNegativeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0
+}
+
+function positiveInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) > 0
 }
 
 function nullableString(value: unknown): value is string | null {
@@ -749,16 +757,17 @@ export function parseSpecialistEarnings(
         'earnings',
         'payouts',
       ],
-      ['payoutProvider', 'payoutAvailability'],
+      ['payoutProvider', 'payoutAvailability', 'settlementHoldSeconds'],
     ) ||
     response.currency !== 'VND' ||
-    response.earningPolicyVersion !== 'specialist-earning-v1' ||
+    !EARNING_POLICY_VERSIONS.includes(response.earningPolicyVersion as never) ||
     !(
       response.payoutProvider === undefined ||
       PAYOUT_PROVIDERS.includes(response.payoutProvider as never)
     ) ||
-    response.settlementHoldDays !== 7 ||
-    response.minimumWithdrawalVnd !== 100000 ||
+    !nonNegativeInteger(response.settlementHoldDays) ||
+    !absentOr(response.settlementHoldSeconds, positiveInteger) ||
+    !positiveInteger(response.minimumWithdrawalVnd) ||
     !utcInstant(response.generatedAt) ||
     !absentOr(response.payoutAvailability, validPayoutAvailability)
   )

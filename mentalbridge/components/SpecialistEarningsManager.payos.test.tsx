@@ -199,6 +199,33 @@ describe('SpecialistEarningsManager under PayOS', () => {
     ).toBeEnabled()
   })
 
+  it('shows the exact short hold and enables withdrawal at the demo minimum', async () => {
+    api.get.mockResolvedValue({
+      ...base,
+      earningPolicyVersion: 'staging-demo-paid-v1',
+      settlementHoldDays: 0,
+      settlementHoldSeconds: 600,
+      minimumWithdrawalVnd: 2000,
+      balance: { ...base.balance, availableVnd: 2625 },
+      destination: confirmed,
+    })
+    render(<SpecialistEarningsManager />)
+    expect(
+      await screen.findByText('Chờ đối soát · 10 phút'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Tối thiểu.*2.000/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Rút toàn bộ số dư' }),
+    ).toBeEnabled()
+  })
+
+  it('keeps the production hold in days and the 100,000 minimum', async () => {
+    api.get.mockResolvedValue({ ...base, destination: confirmed })
+    render(<SpecialistEarningsManager />)
+    expect(await screen.findByText('Chờ đối soát · 7 ngày')).toBeInTheDocument()
+    expect(screen.getByText(/Tối thiểu.*100.000/)).toBeInTheDocument()
+  })
+
   it('keeps legacy MoMo history readable and asks for a bank account', async () => {
     const user = userEvent.setup()
     api.get.mockResolvedValue({
