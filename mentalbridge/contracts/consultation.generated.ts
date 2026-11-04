@@ -999,7 +999,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns the authenticated approved specialist's evidence-backed earning balances, immutable earning snapshots, masked destination, and payout history. Settlement eligibility is evaluated against server time. */
+        /** @description Returns the authenticated approved specialist's evidence-backed earning balances, immutable earning snapshots, current pending or confirmed masked destination, provider readiness, retry-pending linked earnings, and immutable provider payout history. Settlement eligibility is evaluated against server time. */
         get: operations["getSpecialistEarnings"];
         put?: never;
         post?: never;
@@ -1017,7 +1017,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** @description Encrypts one specialist-owned payout destination and returns only a masked hint. Local and CI use the deterministic FAKE provider. MoMo disbursement requires explicit production approval and complete credentials. */
+        /** @description SPECIALIST-only save of the JWT-owned encrypted destination. PAYOS requires BANK_ACCOUNT with a six-digit listed BIN, 6-32 digit accountReference and trimmed 1-100 character holder. Legacy MoMo inputs remain supported in MOMO mode. Material changes including holder-only edits or reverting to an old bank create a new immutable PENDING_CONFIRMATION revision; exact unchanged input is a no-op. Broad projections remain masked; no previous confirmation is inherited. */
         put: operations["saveSpecialistPayoutDestination"];
         post?: never;
         delete?: never;
@@ -1035,8 +1035,110 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Idempotently attaches all currently available earnings to at most one payout request per specialist per day. Server-side earnings determine the amount; the client cannot submit an amount. */
+        /** @description SPECIALIST-only idempotent request attaching all eligible unlinked earnings, at most one logical request per server day. Amount is server-derived. Missing/foreign resources are indistinguishable 404. Requires the exact confirmed compatible destination and readiness before dispatch; confirmation/provider/minimum/day/synthetic conflicts return 409. Same key/body replay only observes the prior outcome, including FAILED, without another attempt; changed body conflicts. Known attempt failures are returned in history. Uncertain acceptance remains reserved and polled, never resubmitted. */
         post: operations["requestSpecialistPayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/payout-banks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description SPECIALIST-only backend proxy of VietQR BIN/name/shortName with a 24-hour in-process cache and bounded upstream timeout. No fresh list returns PAYOUT_BANK_LIST_UNAVAILABLE; existing confirmed destinations remain readable. QR transfer support is not a PayOS eligibility claim. */
+        get: operations["listSpecialistPayoutBanks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payout-destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ADMIN-only masked current destination revisions ordered by updatedAt/id. Count is page count. Never returns raw account or holder. */
+        get: operations["listAdminPayoutDestinations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payout-destinations/{destinationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ADMIN-only exact bank revision inspection for manual account-holder verification. Authorized decryption is audited without bank data and no-store. This is the only projection exposing full account/name. No automated name inquiry or matching is claimed. */
+        get: operations["getAdminPayoutDestinationDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payout-destinations/{destinationId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description ADMIN-only manual holder-check confirmation of the exact locked current revision/version, recorded with actor/time and deduplicated content-free audit. Same key/body replay is a no-op; changed body conflicts. Stale, noncurrent or disabled revisions return PAYOUT_DESTINATION_VERSION_CONFLICT. A later edit requires new confirmation. Creates no payout and makes no PayOS call; actual submission uses validateDestination=true. */
+        post: operations["confirmAdminPayoutDestination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payouts/{payoutId}/close-failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description ADMIN-only closure of the latest definitely FAILED/COMPLETE payout with an unusable destination. Makes no provider call. Retains immutable destination, amount and allocation history, releases active earning ownership for a later normally eligible withdrawal, and forbids retry. Daily cap, minimum, hold, dispute, synthetic and confirmation gates still apply. Same key/body observes the closed payout; conflicting reuse returns 409. */
+        post: operations["closeFailedAdminPayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payouts/{payoutId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description ADMIN-only explicit provider-affine retry of the latest definitely FAILED attempt. Revalidates the unchanged confirmed original destination and original earning lineage, hold/dispute/synthetic eligibility. Active, UNKNOWN, review, stale attempt, changed bank or ineligible items return PAYOUT_RETRY_NOT_AVAILABLE; unavailable original provider returns 503 before dispatch. Same key/body replay observes the same attempt. A later deliberate retry needs the latest failed attempt ID and a new command key. No per-withdrawal approval. */
+        post: operations["retryAdminPayout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1067,7 +1169,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns a bounded reconciliation view with masked destinations and no raw provider payload or destination data. */
+        /** @description ADMIN-only bounded provider-affine reconciliation view with masked destinations, actual historical provider and reconciliation scheduling/review evidence, including overdue attempts. No raw provider payload or destination data. */
         get: operations["listAdminPayouts"];
         put?: never;
         post?: never;
@@ -1084,7 +1186,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns payout details including masked destination, attempts, earnings, and provider events. */
+        /** @description ADMIN-only payout details including masked destination, provider-affine numbered attempts, polling/review state, frozen earnings, and minimized provider events. Exact replay observes prior attempts. */
         get: operations["getAdminPayoutDetail"];
         put?: never;
         post?: never;
@@ -1118,7 +1220,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns authoritative commercial discrepancies including pending/failed/duplicate webhooks, failed payouts, held earnings, and disputed settlements. */
+        /** @description Returns authoritative commercial discrepancies including pending/failed/duplicate webhooks, failed or overdue provider-affine payouts with reconciliation/review evidence, held earnings, and disputed settlements. */
         get: operations["getAdminCommercialDiscrepancies"];
         put?: never;
         post?: never;
@@ -1655,7 +1757,7 @@ export interface components {
             checkoutUrl?: string | null;
             /** Format: uri */
             qrCodeUrl?: string | null;
-            /** @description VietQR payload for in-app rendering */
+            /** @description VietQR payload for in-app rendering, not a URL. FAKE uses a deterministic simulated payload. */
             qrCode?: string | null;
             /** @description Transfer bank BIN returned by the collect adapter. */
             bin?: string | null;
@@ -2262,36 +2364,290 @@ export interface components {
             rating: components["schemas"]["SpecialistRatingMetrics"];
             financials: components["schemas"]["SpecialistFinancialMetrics"];
         };
+        /**
+         * @example {
+         *       "mode": "DISABLED",
+         *       "ready": false,
+         *       "reasonCode": "REAL_PAYOUT_DISABLED"
+         *     }
+         * @example {
+         *       "mode": "PAYOS",
+         *       "ready": true,
+         *       "reasonCode": null
+         *     }
+         */
+        PayoutAvailability: {
+            /** @enum {string} */
+            mode: "DISABLED" | "FAKE" | "MOMO" | "PAYOS";
+            /** @description Provider readiness only, not financial eligibility. */
+            ready: boolean;
+            reasonCode: string | null;
+        };
+        /**
+         * @example {
+         *       "bin": "970436",
+         *       "name": "Synthetic bank",
+         *       "shortName": "SYNTHETIC"
+         *     }
+         */
+        PayoutBank: {
+            bin: string;
+            name: string;
+            shortName: string;
+        };
+        /**
+         * @example {
+         *       "generatedAt": "2026-11-04T03:00:00Z",
+         *       "items": [
+         *         {
+         *           "bin": "970436",
+         *           "name": "Synthetic bank",
+         *           "shortName": "SYNTHETIC"
+         *         }
+         *       ]
+         *     }
+         */
+        PayoutBankList: {
+            /** Format: date-time */
+            generatedAt: string;
+            items: components["schemas"]["PayoutBank"][];
+        };
+        /**
+         * @example {
+         *       "destination": {
+         *         "id": "78700000-0000-4000-8000-000000000001",
+         *         "provider": "PAYOS",
+         *         "destinationType": "BANK_ACCOUNT",
+         *         "displayHint": "970436 ****7890",
+         *         "status": "PENDING_CONFIRMATION",
+         *         "verifiedAt": null,
+         *         "bankCode": "970436",
+         *         "bankName": "Synthetic bank",
+         *         "version": 0,
+         *         "updatedAt": "2026-11-04T03:00:00Z",
+         *         "usableForPayout": false
+         *       },
+         *       "specialistAccountId": "78700000-0000-4000-8000-000000000002"
+         *     }
+         */
+        AdminPayoutDestination: {
+            destination: components["schemas"]["PayoutDestination"];
+            /** Format: uuid */
+            specialistAccountId: string;
+        };
+        /**
+         * @example {
+         *       "generatedAt": "2026-11-04T03:00:00Z",
+         *       "count": 1,
+         *       "items": [
+         *         {
+         *           "destination": {
+         *             "id": "78700000-0000-4000-8000-000000000001",
+         *             "provider": "PAYOS",
+         *             "destinationType": "BANK_ACCOUNT",
+         *             "displayHint": "970436 ****7890",
+         *             "status": "PENDING_CONFIRMATION",
+         *             "verifiedAt": null,
+         *             "bankCode": "970436",
+         *             "bankName": "Synthetic bank",
+         *             "version": 0,
+         *             "updatedAt": "2026-11-04T03:00:00Z",
+         *             "usableForPayout": false
+         *           },
+         *           "specialistAccountId": "78700000-0000-4000-8000-000000000002"
+         *         }
+         *       ]
+         *     }
+         */
+        AdminPayoutDestinationList: {
+            /** Format: date-time */
+            generatedAt: string;
+            /** @description Page count, not the total matching revisions. */
+            count: number;
+            items: components["schemas"]["AdminPayoutDestination"][];
+        };
+        /**
+         * @example {
+         *       "destination": {
+         *         "id": "78700000-0000-4000-8000-000000000001",
+         *         "provider": "PAYOS",
+         *         "destinationType": "BANK_ACCOUNT",
+         *         "displayHint": "970436 ****7890",
+         *         "status": "PENDING_CONFIRMATION",
+         *         "verifiedAt": null,
+         *         "bankCode": "970436",
+         *         "bankName": "Synthetic bank",
+         *         "version": 0,
+         *         "updatedAt": "2026-11-04T03:00:00Z",
+         *         "usableForPayout": false
+         *       },
+         *       "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *       "accountReference": "1234567890",
+         *       "accountHolderName": "NGUYEN VAN A",
+         *       "confirmedBy": null
+         *     }
+         */
+        AdminPayoutDestinationDetail: {
+            destination: components["schemas"]["PayoutDestination"];
+            /** Format: uuid */
+            specialistAccountId: string;
+            accountReference: string;
+            accountHolderName: string;
+            /** Format: uuid */
+            confirmedBy: string | null;
+        };
+        /**
+         * @example {
+         *       "expectedVersion": 0,
+         *       "reasonCode": "ACCOUNT_HOLDER_CHECKED"
+         *     }
+         */
+        ConfirmPayoutDestination: {
+            /** Format: int64 */
+            expectedVersion: number;
+            /** @constant */
+            reasonCode: "ACCOUNT_HOLDER_CHECKED";
+        };
+        /**
+         * @example {
+         *       "expectedAttemptId": "78700000-0000-4000-8000-000000000004",
+         *       "reasonCode": "DESTINATION_UNUSABLE"
+         *     }
+         */
+        CloseFailedPayout: {
+            /** Format: uuid */
+            expectedAttemptId: string;
+            /** @constant */
+            reasonCode: "DESTINATION_UNUSABLE";
+        };
+        /**
+         * @example {
+         *       "expectedAttemptId": "78700000-0000-4000-8000-000000000004"
+         *     }
+         */
+        RetryPayout: {
+            /** Format: uuid */
+            expectedAttemptId: string;
+        };
+        /**
+         * @example {
+         *       "id": "78700000-0000-4000-8000-000000000001",
+         *       "provider": "PAYOS",
+         *       "destinationType": "BANK_ACCOUNT",
+         *       "displayHint": "970436 ****7890",
+         *       "status": "PENDING_CONFIRMATION",
+         *       "verifiedAt": null,
+         *       "bankCode": "970436",
+         *       "bankName": "Synthetic bank",
+         *       "version": 0,
+         *       "updatedAt": "2026-11-04T03:00:00Z",
+         *       "usableForPayout": false
+         *     }
+         * @example {
+         *       "id": "78700000-0000-4000-8000-000000000001",
+         *       "provider": "PAYOS",
+         *       "destinationType": "BANK_ACCOUNT",
+         *       "displayHint": "970436 ****7890",
+         *       "status": "VERIFIED",
+         *       "verifiedAt": "2026-11-04T03:00:00Z",
+         *       "bankCode": "970436",
+         *       "bankName": "Synthetic bank",
+         *       "version": 1,
+         *       "updatedAt": "2026-11-04T03:00:00Z",
+         *       "usableForPayout": true
+         *     }
+         * @example {
+         *       "id": "78700000-0000-4000-8000-000000000001",
+         *       "provider": "MOMO",
+         *       "destinationType": "MOMO_WALLET",
+         *       "displayHint": "MOMO ****7890",
+         *       "status": "DISABLED",
+         *       "verifiedAt": "2026-11-04T03:00:00Z",
+         *       "bankCode": null,
+         *       "bankName": null,
+         *       "version": 1,
+         *       "updatedAt": "2026-11-04T03:00:00Z",
+         *       "usableForPayout": false
+         *     }
+         * @example {
+         *       "id": "78700000-0000-4000-8000-000000000001",
+         *       "provider": "FAKE",
+         *       "destinationType": "BANK_ACCOUNT",
+         *       "displayHint": "SIMULATED ****7890",
+         *       "status": "VERIFIED",
+         *       "verifiedAt": "2026-11-04T03:00:00Z",
+         *       "bankCode": "970436",
+         *       "bankName": "Synthetic bank",
+         *       "version": 1,
+         *       "updatedAt": "2026-11-04T03:00:00Z",
+         *       "usableForPayout": true
+         *     }
+         */
         PayoutDestination: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            provider: "FAKE" | "MOMO";
+            provider: "FAKE" | "MOMO" | "PAYOS";
             /** @enum {string} */
             destinationType: "MOMO_WALLET" | "BANK_ACCOUNT";
             displayHint: string;
             /** @enum {string} */
-            status: "VERIFIED" | "DISABLED";
+            status: "PENDING_CONFIRMATION" | "VERIFIED" | "DISABLED";
             /** Format: date-time */
-            verifiedAt: string;
+            verifiedAt: string | null;
+            /** @description Six-digit bank BIN for PAYOS; legacy MoMo codes remain historical. */
+            bankCode?: string | null;
+            bankName?: string | null;
+            /** Format: int64 */
+            version?: number;
+            /** Format: date-time */
+            updatedAt?: string;
+            /** @description True only for the exact current confirmed revision compatible with the configured provider. */
+            usableForPayout?: boolean;
         };
+        /**
+         * @example {
+         *       "destinationType": "BANK_ACCOUNT",
+         *       "bankCode": "970436",
+         *       "accountReference": "1234567890",
+         *       "accountHolderName": "NGUYEN VAN A"
+         *     }
+         */
         SavePayoutDestination: {
             /** @enum {string} */
             destinationType: "MOMO_WALLET" | "BANK_ACCOUNT";
             accountReference: string;
+            /** @description Trimmed holder name. Any material change including holder-only edits creates a pending PAYOS revision. */
             accountHolderName: string;
-            /** @description Required when destinationType is BANK_ACCOUNT. */
+            /** @description Required when destinationType is BANK_ACCOUNT. PAYOS requires a six-digit BIN from the current bank list; legacy MoMo inputs remain supported in MOMO mode. */
             bankCode?: string;
         };
         CreateSpecialistPayout: {
             /** Format: uuid */
             destinationId: string;
         };
+        /**
+         * @example {
+         *       "pendingSettlementVnd": 0,
+         *       "availableVnd": 0,
+         *       "retryPendingVnd": 210000,
+         *       "processingVnd": 0,
+         *       "paidVnd": 0
+         *     }
+         */
         SpecialistEarningBalance: {
             /** Format: int64 */
             pendingSettlementVnd: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Only eligible AVAILABLE earnings not linked to any prior logical payout.
+             */
             availableVnd: number;
+            /**
+             * Format: int64
+             * @description Linked AVAILABLE earnings awaiting explicit retry of their original failed payout.
+             */
+            retryPendingVnd?: number;
             /** Format: int64 */
             processingVnd: number;
             /** Format: int64 */
@@ -2307,14 +2663,14 @@ export interface components {
             planVersion: string;
             /**
              * Format: int64
-             * @description Allocation snapshot from the consumed credit period.
+             * @description Default allocation snapshot from the consumed credit period. Under staging-demo-paid-v1 this earning-only snapshot is floor of verified collected VND divided by frozen plan credits; the nominal period allocation stays unchanged.
              */
             creditAllocationVnd: number;
             /** @constant */
             sharePercent: 70;
             /**
              * Format: int64
-             * @description Exactly 70 percent of creditAllocationVnd under specialist-earning-v1.
+             * @description Floor of 70 percent of creditAllocationVnd. The default policy uses the credit allocation; staging-demo-paid-v1 uses floor of verified collected VND divided by frozen plan credits, under the explicit staging-only gate.
              */
             earningAmountVnd: number;
             /** @enum {string} */
@@ -2324,44 +2680,238 @@ export interface components {
             /** Format: date-time */
             settlementAvailableAt: string;
         };
+        /**
+         * @example {
+         *       "id": "78700000-0000-4000-8000-000000000003",
+         *       "destinationId": "78700000-0000-4000-8000-000000000001",
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "PROCESSING",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": null,
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": null,
+         *       "reconciliationStatus": "POLLING",
+         *       "nextReconciliationAt": "2026-11-04T03:00:05Z",
+         *       "reviewRequiredAt": null
+         *     }
+         * @example {
+         *       "id": "78700000-0000-4000-8000-000000000003",
+         *       "destinationId": "78700000-0000-4000-8000-000000000001",
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "SUCCEEDED",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": null,
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": "2026-11-04T03:00:00Z",
+         *       "reconciliationStatus": "COMPLETE",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": null
+         *     }
+         * @example {
+         *       "id": "78700000-0000-4000-8000-000000000003",
+         *       "destinationId": "78700000-0000-4000-8000-000000000001",
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "FAILED",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": "PAYOUT_PROVIDER_REJECTED",
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": "2026-11-04T03:00:00Z",
+         *       "reconciliationStatus": "COMPLETE",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": null
+         *     }
+         * @example {
+         *       "id": "78700000-0000-4000-8000-000000000003",
+         *       "destinationId": "78700000-0000-4000-8000-000000000001",
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "FAILED",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": "PAYOUT_INSUFFICIENT_BALANCE",
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": "2026-11-04T03:00:00Z",
+         *       "reconciliationStatus": "COMPLETE",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": null
+         *     }
+         * @example {
+         *       "id": "78700000-0000-4000-8000-000000000003",
+         *       "destinationId": "78700000-0000-4000-8000-000000000001",
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "FAILED",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": "PAYOUT_SERVICE_CREDITS_INSUFFICIENT",
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": "2026-11-04T03:00:00Z",
+         *       "reconciliationStatus": "COMPLETE",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": null
+         *     }
+         * @example {
+         *       "id": "78700000-0000-4000-8000-000000000003",
+         *       "destinationId": "78700000-0000-4000-8000-000000000001",
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "UNKNOWN",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": "PAYOUT_RECONCILIATION_OVERDUE",
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": null,
+         *       "reconciliationStatus": "NEEDS_REVIEW",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": "2026-11-05T03:00:00Z"
+         *     }
+         * @example {
+         *       "id": "78700000-0000-4000-8000-000000000003",
+         *       "destinationId": "78700000-0000-4000-8000-000000000001",
+         *       "amountVnd": 210000,
+         *       "provider": "FAKE",
+         *       "status": "SUCCEEDED",
+         *       "providerReference": "fake-synthetic-787",
+         *       "failureCode": null,
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": "2026-11-04T03:00:00Z",
+         *       "reconciliationStatus": "COMPLETE",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": null
+         *     }
+         */
         SpecialistPayout: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
             destinationId: string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Must meet the server-configured minimum; production remains at least 100000 VND. Smaller payouts require the explicit staging demo gate.
+             */
             amountVnd: number;
             /** @enum {string} */
-            provider: "FAKE" | "MOMO";
+            provider: "FAKE" | "MOMO" | "PAYOS";
             /** @enum {string} */
             status: "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
             providerReference?: string | null;
+            /** @description Safe codes include PAYOUT_PROVIDER_REJECTED/PAYOUT_INSUFFICIENT_BALANCE/PAYOUT_SERVICE_CREDITS_INSUFFICIENT/PAYOUT_SUBMISSION_UNKNOWN/PAYOUT_RECONCILIATION_OVERDUE; never raw provider text. */
             failureCode?: string | null;
+            /**
+             * @description COMPLETE means locally terminal including definite failure.
+             * @enum {string}
+             */
+            reconciliationStatus?: "PENDING" | "POLLING" | "NEEDS_REVIEW" | "COMPLETE";
+            /** Format: date-time */
+            nextReconciliationAt?: string | null;
+            /** Format: date-time */
+            reviewRequiredAt?: string | null;
+            /**
+             * Format: date-time
+             * @description ADMIN closed definite failure; earning ownership released and retry forbidden; historical destination and items retained.
+             */
+            closedAt?: string | null;
             /** Format: date-time */
             requestedAt: string;
             /** Format: date-time */
             completedAt?: string | null;
         };
+        /**
+         * @example {
+         *       "currency": "VND",
+         *       "earningPolicyVersion": "staging-demo-paid-v1",
+         *       "settlementHoldDays": 0,
+         *       "settlementHoldSeconds": 600,
+         *       "minimumWithdrawalVnd": 2000,
+         *       "generatedAt": "2026-11-04T03:00:00Z",
+         *       "balance": {
+         *         "pendingSettlementVnd": 0,
+         *         "availableVnd": 2625,
+         *         "retryPendingVnd": 0,
+         *         "processingVnd": 0,
+         *         "paidVnd": 0
+         *       },
+         *       "earnings": [],
+         *       "payouts": []
+         *     }
+         * @example {
+         *       "currency": "VND",
+         *       "earningPolicyVersion": "specialist-earning-v1",
+         *       "payoutProvider": "PAYOS",
+         *       "payoutAvailability": {
+         *         "mode": "PAYOS",
+         *         "ready": true,
+         *         "reasonCode": null
+         *       },
+         *       "settlementHoldDays": 7,
+         *       "minimumWithdrawalVnd": 100000,
+         *       "generatedAt": "2026-11-04T03:00:00Z",
+         *       "balance": {
+         *         "pendingSettlementVnd": 0,
+         *         "availableVnd": 0,
+         *         "retryPendingVnd": 0,
+         *         "processingVnd": 210000,
+         *         "paidVnd": 0
+         *       },
+         *       "destination": {
+         *         "id": "78700000-0000-4000-8000-000000000001",
+         *         "provider": "PAYOS",
+         *         "destinationType": "BANK_ACCOUNT",
+         *         "displayHint": "970436 ****7890",
+         *         "status": "VERIFIED",
+         *         "verifiedAt": "2026-11-04T03:00:00Z",
+         *         "bankCode": "970436",
+         *         "bankName": "Synthetic bank",
+         *         "version": 1,
+         *         "updatedAt": "2026-11-04T03:00:00Z",
+         *         "usableForPayout": true
+         *       },
+         *       "earnings": [],
+         *       "payouts": [
+         *         {
+         *           "id": "78700000-0000-4000-8000-000000000003",
+         *           "destinationId": "78700000-0000-4000-8000-000000000001",
+         *           "amountVnd": 210000,
+         *           "provider": "PAYOS",
+         *           "status": "PROCESSING",
+         *           "providerReference": "synthetic-payos-outer-787",
+         *           "failureCode": null,
+         *           "requestedAt": "2026-11-04T03:00:00Z",
+         *           "completedAt": null,
+         *           "reconciliationStatus": "POLLING",
+         *           "nextReconciliationAt": "2026-11-04T03:00:05Z",
+         *           "reviewRequiredAt": null
+         *         }
+         *       ]
+         *     }
+         */
         SpecialistEarnings: {
             /** @constant */
             currency: "VND";
-            /** @constant */
-            earningPolicyVersion: "specialist-earning-v1";
+            /** @enum {string} */
+            earningPolicyVersion: "specialist-earning-v1" | "staging-demo-paid-v1";
             /**
-             * @description Optional additive field identifying the configured withdrawal adapter even before a destination exists. FAKE is synthetic and does not move money.
+             * @description Optional additive field identifying the configured withdrawal adapter; omitted in DISABLED mode. Identifies the provider even before a destination exists. FAKE is synthetic and does not move money.
              * @enum {string}
              */
-            payoutProvider?: "FAKE" | "MOMO";
-            /** @constant */
-            settlementHoldDays: 7;
+            payoutProvider?: "FAKE" | "MOMO" | "PAYOS";
+            payoutAvailability?: components["schemas"]["PayoutAvailability"];
+            /** @description Whole days in the configured hold, rounded down for compatibility. Use settlementHoldSeconds for exact sub-day duration; each earning has an exact settlementAvailableAt. Production remains at least seven days. */
+            settlementHoldDays: number;
             /**
              * Format: int64
-             * @constant
+             * @description Optional exact configured hold in seconds, emitted only in effective staging demo mode. PT10M is 600. Default and production payloads omit this field and retain settlementHoldDays.
              */
-            minimumWithdrawalVnd: 100000;
+            settlementHoldSeconds?: number;
+            /**
+             * Format: int64
+             * @description Server-configured minimum. Production remains at least 100000; staging demo uses 2000 pending live-provider confirmation.
+             */
+            minimumWithdrawalVnd: number;
             /** Format: date-time */
             generatedAt: string;
             balance: components["schemas"]["SpecialistEarningBalance"];
+            /** @description Current pending or confirmed immutable revision; never falls back to an older verified revision. Legacy MoMo may be shown as unusable in PAYOS mode. */
             destination?: components["schemas"]["PayoutDestination"] | null;
             earnings: components["schemas"]["SpecialistEarning"][];
             payouts: components["schemas"]["SpecialistPayout"][];
@@ -2400,28 +2950,428 @@ export interface components {
             /** Format: date-time */
             failedAt: string | null;
         };
+        /**
+         * @example {
+         *       "payoutId": "78700000-0000-4000-8000-000000000003",
+         *       "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *       "destinationHint": "970436 ****7890",
+         *       "currency": "VND",
+         *       "earningCount": 1,
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "PROCESSING",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": null,
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": null,
+         *       "reconciliationStatus": "POLLING",
+         *       "nextReconciliationAt": "2026-11-04T03:00:05Z",
+         *       "reviewRequiredAt": null
+         *     }
+         * @example {
+         *       "payoutId": "78700000-0000-4000-8000-000000000003",
+         *       "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *       "destinationHint": "970436 ****7890",
+         *       "currency": "VND",
+         *       "earningCount": 1,
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "SUCCEEDED",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": null,
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": "2026-11-04T03:00:00Z",
+         *       "reconciliationStatus": "COMPLETE",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": null
+         *     }
+         * @example {
+         *       "payoutId": "78700000-0000-4000-8000-000000000003",
+         *       "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *       "destinationHint": "970436 ****7890",
+         *       "currency": "VND",
+         *       "earningCount": 1,
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "FAILED",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": "PAYOUT_PROVIDER_REJECTED",
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": "2026-11-04T03:00:00Z",
+         *       "reconciliationStatus": "COMPLETE",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": null
+         *     }
+         * @example {
+         *       "payoutId": "78700000-0000-4000-8000-000000000003",
+         *       "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *       "destinationHint": "970436 ****7890",
+         *       "currency": "VND",
+         *       "earningCount": 1,
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "FAILED",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": "PAYOUT_INSUFFICIENT_BALANCE",
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": "2026-11-04T03:00:00Z",
+         *       "reconciliationStatus": "COMPLETE",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": null
+         *     }
+         * @example {
+         *       "payoutId": "78700000-0000-4000-8000-000000000003",
+         *       "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *       "destinationHint": "970436 ****7890",
+         *       "currency": "VND",
+         *       "earningCount": 1,
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "FAILED",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": "PAYOUT_SERVICE_CREDITS_INSUFFICIENT",
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": "2026-11-04T03:00:00Z",
+         *       "reconciliationStatus": "COMPLETE",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": null
+         *     }
+         * @example {
+         *       "payoutId": "78700000-0000-4000-8000-000000000003",
+         *       "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *       "destinationHint": "970436 ****7890",
+         *       "currency": "VND",
+         *       "earningCount": 1,
+         *       "amountVnd": 210000,
+         *       "provider": "PAYOS",
+         *       "status": "UNKNOWN",
+         *       "providerReference": "synthetic-payos-outer-787",
+         *       "failureCode": "PAYOUT_RECONCILIATION_OVERDUE",
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": null,
+         *       "reconciliationStatus": "NEEDS_REVIEW",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": "2026-11-05T03:00:00Z"
+         *     }
+         * @example {
+         *       "payoutId": "78700000-0000-4000-8000-000000000003",
+         *       "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *       "destinationHint": "970436 ****7890",
+         *       "currency": "VND",
+         *       "earningCount": 1,
+         *       "amountVnd": 210000,
+         *       "provider": "FAKE",
+         *       "status": "SUCCEEDED",
+         *       "providerReference": "fake-synthetic-787",
+         *       "failureCode": null,
+         *       "requestedAt": "2026-11-04T03:00:00Z",
+         *       "completedAt": "2026-11-04T03:00:00Z",
+         *       "reconciliationStatus": "COMPLETE",
+         *       "nextReconciliationAt": null,
+         *       "reviewRequiredAt": null
+         *     }
+         */
         AdminPayout: {
             /** Format: uuid */
             payoutId: string;
             /** Format: uuid */
             specialistAccountId: string;
             destinationHint: string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Frozen payout total meeting the server-configured minimum. Production remains at least 100000 VND.
+             */
             amountVnd: number;
             /** @constant */
             currency: "VND";
             /** @enum {string} */
-            provider: "FAKE" | "MOMO";
+            provider: "FAKE" | "MOMO" | "PAYOS";
             /** @enum {string} */
             status: "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
             earningCount: number;
             providerReference?: string | null;
+            /** @description Safe codes include PAYOUT_PROVIDER_REJECTED/PAYOUT_INSUFFICIENT_BALANCE/PAYOUT_SERVICE_CREDITS_INSUFFICIENT/PAYOUT_SUBMISSION_UNKNOWN/PAYOUT_RECONCILIATION_OVERDUE; never raw provider text. */
             failureCode?: string | null;
+            /**
+             * @description COMPLETE means locally terminal including definite failure.
+             * @enum {string}
+             */
+            reconciliationStatus?: "PENDING" | "POLLING" | "NEEDS_REVIEW" | "COMPLETE";
+            /** Format: date-time */
+            nextReconciliationAt?: string | null;
+            /** Format: date-time */
+            reviewRequiredAt?: string | null;
+            /**
+             * Format: date-time
+             * @description ADMIN closed definite failure; earning ownership released and retry forbidden; historical destination and items retained.
+             */
+            closedAt?: string | null;
             /** Format: date-time */
             requestedAt: string;
             /** Format: date-time */
             completedAt?: string | null;
         };
+        /**
+         * @example {
+         *       "payout": {
+         *         "payoutId": "78700000-0000-4000-8000-000000000003",
+         *         "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *         "destinationHint": "970436 ****7890",
+         *         "currency": "VND",
+         *         "earningCount": 1,
+         *         "amountVnd": 210000,
+         *         "provider": "PAYOS",
+         *         "status": "PROCESSING",
+         *         "providerReference": "synthetic-payos-outer-787",
+         *         "failureCode": null,
+         *         "requestedAt": "2026-11-04T03:00:00Z",
+         *         "completedAt": null,
+         *         "reconciliationStatus": "POLLING",
+         *         "nextReconciliationAt": "2026-11-04T03:00:05Z",
+         *         "reviewRequiredAt": null
+         *       },
+         *       "attempts": [
+         *         {
+         *           "attemptId": "78700000-0000-4000-8000-000000000004",
+         *           "attemptNumber": 1,
+         *           "provider": "PAYOS",
+         *           "status": "PROCESSING",
+         *           "providerReference": "synthetic-payos-outer-787",
+         *           "failureCode": null,
+         *           "requestedAt": "2026-11-04T03:00:00Z",
+         *           "confirmedAt": null,
+         *           "failedAt": null,
+         *           "reconciliationStatus": "POLLING",
+         *           "nextReconciliationAt": "2026-11-04T03:00:05Z",
+         *           "reviewRequiredAt": null
+         *         }
+         *       ],
+         *       "earnings": [],
+         *       "events": []
+         *     }
+         * @example {
+         *       "payout": {
+         *         "payoutId": "78700000-0000-4000-8000-000000000003",
+         *         "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *         "destinationHint": "970436 ****7890",
+         *         "currency": "VND",
+         *         "earningCount": 1,
+         *         "amountVnd": 210000,
+         *         "provider": "PAYOS",
+         *         "status": "SUCCEEDED",
+         *         "providerReference": "synthetic-payos-outer-787",
+         *         "failureCode": null,
+         *         "requestedAt": "2026-11-04T03:00:00Z",
+         *         "completedAt": "2026-11-04T03:00:00Z",
+         *         "reconciliationStatus": "COMPLETE",
+         *         "nextReconciliationAt": null,
+         *         "reviewRequiredAt": null
+         *       },
+         *       "attempts": [
+         *         {
+         *           "attemptId": "78700000-0000-4000-8000-000000000004",
+         *           "attemptNumber": 1,
+         *           "provider": "PAYOS",
+         *           "status": "SUCCEEDED",
+         *           "providerReference": "synthetic-payos-outer-787",
+         *           "failureCode": null,
+         *           "requestedAt": "2026-11-04T03:00:00Z",
+         *           "confirmedAt": "2026-11-04T03:00:00Z",
+         *           "failedAt": null,
+         *           "reconciliationStatus": "COMPLETE",
+         *           "nextReconciliationAt": null,
+         *           "reviewRequiredAt": null
+         *         }
+         *       ],
+         *       "earnings": [],
+         *       "events": []
+         *     }
+         * @example {
+         *       "payout": {
+         *         "payoutId": "78700000-0000-4000-8000-000000000003",
+         *         "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *         "destinationHint": "970436 ****7890",
+         *         "currency": "VND",
+         *         "earningCount": 1,
+         *         "amountVnd": 210000,
+         *         "provider": "PAYOS",
+         *         "status": "FAILED",
+         *         "providerReference": "synthetic-payos-outer-787",
+         *         "failureCode": "PAYOUT_PROVIDER_REJECTED",
+         *         "requestedAt": "2026-11-04T03:00:00Z",
+         *         "completedAt": "2026-11-04T03:00:00Z",
+         *         "reconciliationStatus": "COMPLETE",
+         *         "nextReconciliationAt": null,
+         *         "reviewRequiredAt": null
+         *       },
+         *       "attempts": [
+         *         {
+         *           "attemptId": "78700000-0000-4000-8000-000000000004",
+         *           "attemptNumber": 1,
+         *           "provider": "PAYOS",
+         *           "status": "FAILED",
+         *           "providerReference": "synthetic-payos-outer-787",
+         *           "failureCode": "PAYOUT_PROVIDER_REJECTED",
+         *           "requestedAt": "2026-11-04T03:00:00Z",
+         *           "confirmedAt": null,
+         *           "failedAt": "2026-11-04T03:00:00Z",
+         *           "reconciliationStatus": "COMPLETE",
+         *           "nextReconciliationAt": null,
+         *           "reviewRequiredAt": null
+         *         }
+         *       ],
+         *       "earnings": [],
+         *       "events": []
+         *     }
+         * @example {
+         *       "payout": {
+         *         "payoutId": "78700000-0000-4000-8000-000000000003",
+         *         "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *         "destinationHint": "970436 ****7890",
+         *         "currency": "VND",
+         *         "earningCount": 1,
+         *         "amountVnd": 210000,
+         *         "provider": "PAYOS",
+         *         "status": "FAILED",
+         *         "providerReference": "synthetic-payos-outer-787",
+         *         "failureCode": "PAYOUT_INSUFFICIENT_BALANCE",
+         *         "requestedAt": "2026-11-04T03:00:00Z",
+         *         "completedAt": "2026-11-04T03:00:00Z",
+         *         "reconciliationStatus": "COMPLETE",
+         *         "nextReconciliationAt": null,
+         *         "reviewRequiredAt": null
+         *       },
+         *       "attempts": [
+         *         {
+         *           "attemptId": "78700000-0000-4000-8000-000000000004",
+         *           "attemptNumber": 1,
+         *           "provider": "PAYOS",
+         *           "status": "FAILED",
+         *           "providerReference": "synthetic-payos-outer-787",
+         *           "failureCode": "PAYOUT_INSUFFICIENT_BALANCE",
+         *           "requestedAt": "2026-11-04T03:00:00Z",
+         *           "confirmedAt": null,
+         *           "failedAt": "2026-11-04T03:00:00Z",
+         *           "reconciliationStatus": "COMPLETE",
+         *           "nextReconciliationAt": null,
+         *           "reviewRequiredAt": null
+         *         }
+         *       ],
+         *       "earnings": [],
+         *       "events": []
+         *     }
+         * @example {
+         *       "payout": {
+         *         "payoutId": "78700000-0000-4000-8000-000000000003",
+         *         "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *         "destinationHint": "970436 ****7890",
+         *         "currency": "VND",
+         *         "earningCount": 1,
+         *         "amountVnd": 210000,
+         *         "provider": "PAYOS",
+         *         "status": "FAILED",
+         *         "providerReference": "synthetic-payos-outer-787",
+         *         "failureCode": "PAYOUT_SERVICE_CREDITS_INSUFFICIENT",
+         *         "requestedAt": "2026-11-04T03:00:00Z",
+         *         "completedAt": "2026-11-04T03:00:00Z",
+         *         "reconciliationStatus": "COMPLETE",
+         *         "nextReconciliationAt": null,
+         *         "reviewRequiredAt": null
+         *       },
+         *       "attempts": [
+         *         {
+         *           "attemptId": "78700000-0000-4000-8000-000000000004",
+         *           "attemptNumber": 1,
+         *           "provider": "PAYOS",
+         *           "status": "FAILED",
+         *           "providerReference": "synthetic-payos-outer-787",
+         *           "failureCode": "PAYOUT_SERVICE_CREDITS_INSUFFICIENT",
+         *           "requestedAt": "2026-11-04T03:00:00Z",
+         *           "confirmedAt": null,
+         *           "failedAt": "2026-11-04T03:00:00Z",
+         *           "reconciliationStatus": "COMPLETE",
+         *           "nextReconciliationAt": null,
+         *           "reviewRequiredAt": null
+         *         }
+         *       ],
+         *       "earnings": [],
+         *       "events": []
+         *     }
+         * @example {
+         *       "payout": {
+         *         "payoutId": "78700000-0000-4000-8000-000000000003",
+         *         "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *         "destinationHint": "970436 ****7890",
+         *         "currency": "VND",
+         *         "earningCount": 1,
+         *         "amountVnd": 210000,
+         *         "provider": "PAYOS",
+         *         "status": "UNKNOWN",
+         *         "providerReference": "synthetic-payos-outer-787",
+         *         "failureCode": "PAYOUT_RECONCILIATION_OVERDUE",
+         *         "requestedAt": "2026-11-04T03:00:00Z",
+         *         "completedAt": null,
+         *         "reconciliationStatus": "NEEDS_REVIEW",
+         *         "nextReconciliationAt": null,
+         *         "reviewRequiredAt": "2026-11-05T03:00:00Z"
+         *       },
+         *       "attempts": [
+         *         {
+         *           "attemptId": "78700000-0000-4000-8000-000000000004",
+         *           "attemptNumber": 1,
+         *           "provider": "PAYOS",
+         *           "status": "UNKNOWN",
+         *           "providerReference": "synthetic-payos-outer-787",
+         *           "failureCode": "PAYOUT_RECONCILIATION_OVERDUE",
+         *           "requestedAt": "2026-11-04T03:00:00Z",
+         *           "confirmedAt": null,
+         *           "failedAt": null,
+         *           "reconciliationStatus": "NEEDS_REVIEW",
+         *           "nextReconciliationAt": null,
+         *           "reviewRequiredAt": "2026-11-05T03:00:00Z"
+         *         }
+         *       ],
+         *       "earnings": [],
+         *       "events": []
+         *     }
+         * @example {
+         *       "payout": {
+         *         "payoutId": "78700000-0000-4000-8000-000000000003",
+         *         "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *         "destinationHint": "970436 ****7890",
+         *         "currency": "VND",
+         *         "earningCount": 1,
+         *         "amountVnd": 210000,
+         *         "provider": "FAKE",
+         *         "status": "SUCCEEDED",
+         *         "providerReference": "fake-synthetic-787",
+         *         "failureCode": null,
+         *         "requestedAt": "2026-11-04T03:00:00Z",
+         *         "completedAt": "2026-11-04T03:00:00Z",
+         *         "reconciliationStatus": "COMPLETE",
+         *         "nextReconciliationAt": null,
+         *         "reviewRequiredAt": null
+         *       },
+         *       "attempts": [
+         *         {
+         *           "attemptId": "78700000-0000-4000-8000-000000000004",
+         *           "attemptNumber": 1,
+         *           "provider": "FAKE",
+         *           "status": "SUCCEEDED",
+         *           "providerReference": "fake-synthetic-787",
+         *           "failureCode": null,
+         *           "requestedAt": "2026-11-04T03:00:00Z",
+         *           "confirmedAt": "2026-11-04T03:00:00Z",
+         *           "failedAt": null,
+         *           "reconciliationStatus": "COMPLETE",
+         *           "nextReconciliationAt": null,
+         *           "reviewRequiredAt": null
+         *         }
+         *       ],
+         *       "earnings": [],
+         *       "events": []
+         *     }
+         */
         AdminPayoutDetail: {
             payout: components["schemas"]["AdminPayout"];
             attempts: {
@@ -2429,11 +3379,20 @@ export interface components {
                 attemptId: string;
                 attemptNumber: number;
                 /** @enum {string} */
-                provider: "FAKE" | "MOMO";
+                provider: "FAKE" | "MOMO" | "PAYOS";
                 /** @enum {string} */
                 status: "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
                 providerReference?: string | null;
                 failureCode?: string | null;
+                /**
+                 * @description COMPLETE means locally terminal including definite failure.
+                 * @enum {string}
+                 */
+                reconciliationStatus?: "PENDING" | "POLLING" | "NEEDS_REVIEW" | "COMPLETE";
+                /** Format: date-time */
+                nextReconciliationAt?: string | null;
+                /** Format: date-time */
+                reviewRequiredAt?: string | null;
                 /** Format: date-time */
                 requestedAt: string;
                 /** Format: date-time */
@@ -2546,9 +3505,14 @@ export interface components {
                 amountVnd: number;
                 /** @constant */
                 currency: "VND";
-                provider: string;
+                /** @enum {string} */
+                provider: "FAKE" | "MOMO" | "PAYOS";
                 status: string;
                 failureCode?: string | null;
+                /** @enum {string} */
+                reconciliationStatus?: "PENDING" | "POLLING" | "NEEDS_REVIEW" | "COMPLETE";
+                /** Format: date-time */
+                reviewRequiredAt?: string | null;
                 /** Format: date-time */
                 requestedAt: string;
             }[];
@@ -2701,6 +3665,31 @@ export interface components {
             }[];
             payouts: components["schemas"]["AdminPayout"][];
         };
+        /**
+         * @example {
+         *       "generatedAt": "2026-11-04T03:00:00Z",
+         *       "count": 1,
+         *       "items": [
+         *         {
+         *           "payoutId": "78700000-0000-4000-8000-000000000003",
+         *           "specialistAccountId": "78700000-0000-4000-8000-000000000002",
+         *           "destinationHint": "970436 ****7890",
+         *           "currency": "VND",
+         *           "earningCount": 1,
+         *           "amountVnd": 210000,
+         *           "provider": "PAYOS",
+         *           "status": "UNKNOWN",
+         *           "providerReference": "synthetic-payos-outer-787",
+         *           "failureCode": "PAYOUT_RECONCILIATION_OVERDUE",
+         *           "requestedAt": "2026-11-04T03:00:00Z",
+         *           "completedAt": null,
+         *           "reconciliationStatus": "NEEDS_REVIEW",
+         *           "nextReconciliationAt": null,
+         *           "reviewRequiredAt": "2026-11-05T03:00:00Z"
+         *         }
+         *       ]
+         *     }
+         */
         AdminPayoutList: {
             /** Format: date-time */
             generatedAt: string;
@@ -3261,6 +4250,7 @@ export interface components {
             title: string;
             status: number;
             detail?: string;
+            /** @description Stable payout codes: 400 PAYOUT_DESTINATION_INVALID; 409 PAYOUT_DESTINATION_CONFIRMATION_REQUIRED, PAYOUT_DESTINATION_PROVIDER_MISMATCH, PAYOUT_DESTINATION_VERSION_CONFLICT, PAYOUT_RETRY_NOT_AVAILABLE, PAYOUT_CLOSE_NOT_AVAILABLE, IDEMPOTENCY_KEY_CONFLICT, PAYOUT_MINIMUM_NOT_REACHED, PAYOUT_DAILY_LIMIT_REACHED, SANDBOX_EARNINGS_REAL_PAYOUT_DISABLED; 503 REAL_PAYOUT_DISABLED, PAYOUT_PROVIDER_UNAVAILABLE, PAYOUT_BANK_LIST_UNAVAILABLE, PAYOUT_CONFIGURATION_UNAVAILABLE. Outage before possible acceptance is unavailable; after possible acceptance it remains UNKNOWN/POLLING in payout history. */
             code: string;
             /** Format: uuid */
             correlationId: string;
@@ -3797,7 +4787,7 @@ export interface operations {
                     credentialType: "DEGREE" | "LICENSE" | "CERTIFICATE";
                     /**
                      * Format: binary
-                     * @description PDF
+                     * @description PDF, JPEG or PNG; at most 10 MiB.
                      */
                     file: string;
                 };
@@ -5517,25 +6507,59 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Masked verified destination */
+            /** @description Current canonical payout projection */
             200: {
                 headers: {
+                    "Cache-Control"?: "no-store";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["PayoutDestination"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-            503: components["responses"]["UnavailableProblem"];
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     requestSpecialistPayout: {
         parameters: {
             query?: never;
             header: {
+                /** @description Same key and body observe the existing outcome without another action; a changed body conflicts. */
                 "Idempotency-Key": string;
             };
             path?: never;
@@ -5547,20 +6571,489 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Updated earning and payout projection */
+            /** @description Current canonical payout projection */
             200: {
                 headers: {
+                    "Cache-Control"?: "no-store";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["SpecialistEarnings"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-            404: components["responses"]["NotFoundProblem"];
-            409: components["responses"]["ConflictProblem"];
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listSpecialistPayoutBanks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current canonical payout projection */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutBankList"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAdminPayoutDestinations: {
+        parameters: {
+            query?: {
+                status?: "ALL" | "PENDING_CONFIRMATION" | "VERIFIED" | "DISABLED";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current canonical payout projection */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPayoutDestinationList"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAdminPayoutDestinationDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                destinationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current canonical payout projection */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPayoutDestinationDetail"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    confirmAdminPayoutDestination: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Same key and body observe the existing outcome without another action; a changed body conflicts. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                destinationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmPayoutDestination"];
+            };
+        };
+        responses: {
+            /** @description Current canonical payout projection */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutDestination"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    closeFailedAdminPayout: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                payoutId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloseFailedPayout"];
+            };
+        };
+        responses: {
+            /** @description Failed payout closed and earning ownership released */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPayoutDetail"];
+                };
+            };
+            /** @description Invalid close request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description ADMIN role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description PAYOUT_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description PAYOUT_CLOSE_NOT_AVAILABLE or IDEMPOTENCY_KEY_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    retryAdminPayout: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Same key and body observe the existing outcome without another action; a changed body conflicts. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                payoutId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetryPayout"];
+            };
+        };
+        responses: {
+            /** @description Current canonical payout projection */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPayoutDetail"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Safe Problem Details; no raw provider or bank data. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listAdminPayments: {
