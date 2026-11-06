@@ -26,6 +26,12 @@ export function mamExclusiveChunks() {
 export const dock = (page: Page) =>
   page.getByRole('button', { name: 'Mầm', exact: true })
 export const menu = (page: Page) => page.getByRole('group', { name: 'Mầm' })
+// The one character's box; the dock button itself never moves.
+export const character = (page: Page) =>
+  page.locator('[data-mam-dock] [data-mam-status]')
+export const dockRoot = (page: Page) => page.locator('[data-mam-dock]')
+export const travelling = (page: Page, mode: string, timeout = 10_000) =>
+  expect(dockRoot(page)).toHaveAttribute('data-mam-travel', mode, { timeout })
 export const crisis = (page: Page) =>
   page.getByRole('button', { name: 'Mở hỗ trợ khẩn cấp' })
 

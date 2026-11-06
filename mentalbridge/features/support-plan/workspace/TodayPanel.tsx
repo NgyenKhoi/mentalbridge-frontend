@@ -723,6 +723,7 @@ function DayRow({
                 )}
                 {mam && explainable && (
                   <MamCardButton
+                    hiddenUntilFocus
                     label={`Mầm giải thích: ${title}`}
                     disabled={
                       mam.pendingActionId !== undefined &&

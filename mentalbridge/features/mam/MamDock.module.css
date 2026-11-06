@@ -45,7 +45,8 @@
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
-  touch-action: manipulation;
+  /* Drag is play (MB-814): the character, and only it, takes touch drags. */
+  touch-action: none;
   transition: transform var(--motion-fast) var(--ease-standard);
 }
 
@@ -323,6 +324,129 @@
 
 @media (prefers-reduced-motion: reduce) {
   .flight[data-flight='true'] {
+    animation: none;
+  }
+}
+
+/*
+ * MB-814 living motion. The mover carries the character away from the dock
+ * (climb, drag, throw); only transform and opacity ever animate.
+ */
+.mover {
+  position: relative;
+  display: block;
+}
+
+.root:not([data-mam-travel='dock']) .mover {
+  will-change: transform;
+}
+
+.body {
+  display: block;
+  line-height: 0;
+}
+
+.breath {
+  position: relative;
+  display: block;
+  transform-origin: 50% 100%;
+}
+
+.breath[data-asleep='true'] {
+  animation: mam-breathe 3400ms ease-in-out infinite;
+}
+
+@keyframes mam-breathe {
+  50% {
+    transform: scale(1.035, 0.965);
+  }
+}
+
+/* "z z Z" float up from the head, 2.8 s each, 0.9 s apart (host DOM, aria-hidden). */
+.letters {
+  position: absolute;
+  top: 18px;
+  left: 4%;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.letters span {
+  position: absolute;
+  color: var(--teal);
+  font-family: var(--font-fraunces);
+  font-weight: 600;
+  opacity: 0;
+  animation: mam-letter 2800ms ease-out infinite;
+}
+
+.letters span:nth-child(1) {
+  font-size: 14px;
+}
+
+.letters span:nth-child(2) {
+  font-size: 18px;
+  animation-delay: 900ms;
+}
+
+.letters span:nth-child(3) {
+  font-size: 23px;
+  animation-delay: 1800ms;
+}
+
+@keyframes mam-letter {
+  0% {
+    opacity: 0;
+    transform: translate(0, 10px);
+  }
+
+  25% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(22px, -34px);
+  }
+}
+
+/* Small paws on the card's top edge; drawn above the clip line (never clipped). */
+.paw {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 12px;
+  border: 2px solid #2f5a53; /* Mầm's outline colour in the rig */
+  border-radius: 50%;
+  background: #7aa298; /* Mầm's paw tone in the rig */
+  transform-origin: 50% 100%;
+  pointer-events: none;
+}
+
+/* Away from the dock (perched, dragged, thrown): above page content, below toasts and the crisis widget. */
+.root[data-front='true'] {
+  z-index: 5000;
+}
+
+.root:not([data-mam-travel='dock']) .dock {
+  transform: none;
+}
+
+.root[data-front='true'] .dock {
+  cursor: grabbing;
+}
+
+/* A no-interrupt zone freezes the host-owned loops; the sleep pose itself stays. */
+.root[data-mam-suppressed='true'] .breath,
+.root[data-mam-suppressed='true'] .letters span {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breath[data-asleep='true'],
+  .letters span {
     animation: none;
   }
 }

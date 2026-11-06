@@ -1,8 +1,8 @@
-# Mầm v0.3 — Rive rig
+# Mầm v0.4 — Rive rig (v0.3 + trạng thái `sleep`)
 
 > Nguồn sinh asset, đã đưa vào repo trong MB-767 (bản gốc ở
 > `creative/mam-rive/`, nằm ngoài Git). Thư mục này không được Next.js phục vụ.
-> Ứng dụng dùng `public/mam/mam-v03.riv`. Hash của file đó được khóa trong
+> Ứng dụng dùng `public/mam/mam-v04.riv` (v0.4, MB-814). Hash của file đó được khóa trong
 > `docs/ADR_MAM_RIVE_V1_CONTRACT.md`. Nếu đổi `build.mjs`, phải build lại, cập
 > nhật hash và làm lại QA hình ảnh. Các lệnh bên dưới chạy trong thư mục gốc
 > `creative/mam-rive/`.
@@ -19,7 +19,7 @@ Rig Rive dựng lại từ canvas **"Mầm — Character Sheet v0.3"** (file
 - `controls-sheet.png`: hero frame 4, rồi hero, soft và light_success sau khi
   tự về idle, light_success đang chạy, reducedMotion, chỉ đặt enum hero mà
   không fire, và isVisible=false (ô trống).
-- `rig/build/mam-v03.riv`: bản build unsigned để preview cục bộ.
+- `rig/build/mam-v04.riv`: bản build unsigned để preview cục bộ.
 
 Preview trực tiếp (PowerShell, trong thư mục này):
 
@@ -38,7 +38,7 @@ Preview trực tiếp (PowerShell, trong thư mục này):
   `leafL/leafR` (gốc lá), `armL/armR` (vai), `head` (cổ), `body` (đáy thân).
 - Biến thể mắt (`open, wide, focus, lookup, soft, sad, happy`), mày
   (`neutral, raised, high, soft, sad, low`), miệng (`smile, gentle, rest, side,
-  frown, o, talk, open, big`) và mí (`lidSoft, lidSad`) xếp chồng đúng vị trí.
+  frown, o, talk, open, big`) và mí (`lidSoft, lidSad, lidBlink`) xếp chồng đúng vị trí.
   Mỗi state chỉ bật biến thể của nó.
 - FX: `fxCurious, fxListen, fxThink, thinkRings, fxExplain, fxHappy,
   fxSparkle, fxRing, fxConfetti`, cùng `tear` và `orbDim` (giọt sáng tắt khi buồn).
@@ -49,7 +49,7 @@ State machine `MamBehaviorController`, View Model `MamControls`, instance `Defau
 
 | Property | Kiểu | Ý nghĩa |
 | --- | --- | --- |
-| `behaviorState` | enum `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy` | Hành vi |
+| `behaviorState` | enum `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy, sleep` | Hành vi |
 | `attentionDirection` | number −1…1 | Hướng nhìn; đồng tử lệch tối đa 6 px |
 | `celebrationTier` | enum `none, soft, hero` | Chọn celebration theo tier |
 | `playOnce` | trigger | Phát one-shot đã chọn |
@@ -71,6 +71,10 @@ cần chọn behavior hoặc tier rồi fire `playOnce`. Khi xong, asset ghi l�
 Nhịp chuyển động theo bảng Motion spec của canvas:
 
 - Idle: thở 3.5 s, chớp mắt mỗi 3.5 s, lá đung đưa ±4°.
+- Sleep (v0.4, lặp): mắt nhắm (`lidBlink`), mày `soft`, miệng `o` phồng nhẹ và thân
+  thở cùng nhịp 3.4 s; layer `blanket` (chăn) chỉ hiện ở sleep. Host lo việc nằm
+  xoay, "z z Z" và đưa vào sleep sau 60 s không thao tác (không bao giờ khi reduced
+  motion).
 - Listening: sóng âm 1.2 s.
 - Thinking: vòng sáng và 3 chấm nối tiếp, chu kỳ 1.5 s.
 - Gentle: thở chậm 4 s.
@@ -84,7 +88,7 @@ Không cần npm dependency để build:
 
 ```powershell
 node build.mjs                      # ghi rig/scene.rml + capture/scene.rml
-..\..\.artifacts\tools\rive\rive.exe .\rig --once   # rig/build/mam-v03.riv
+..\..\.artifacts\tools\rive\rive.exe .\rig --once   # rig/build/mam-v04.riv
 node capture.mjs                    # previews/*.png từ project capture (nền kem)
 ```
 

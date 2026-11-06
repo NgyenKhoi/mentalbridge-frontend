@@ -40,14 +40,15 @@ Owner direction (MB-766 discussion, 2026-10-26):
 
 ## Decision summary
 
-1. Freeze asset `mam-v03.riv` by SHA-256, and freeze its `MamControls` view
+1. Freeze asset `mam-v04.riv` by SHA-256, and freeze its `MamControls` view
    model exactly as built.
-2. V1 hosts use 10 of the 12 `behaviorState` values. `sad` and `rest` are
-   reserved.
+2. V1 hosts use 11 of the 13 `behaviorState` values (`sleep` was appended in
+   v0.4, MB-814). `sad` and `rest` are reserved.
 3. Only the MB-767 adapter writes to Rive. Features emit typed Mầm events.
    They never touch the runtime or the DOM of other features.
 4. Mầm is summon-first. Automatic behaviour is limited to source-verified award
-   celebrations and confirmed-save acknowledgements, within the budget below.
+   celebrations, confirmed-save acknowledgements (within the budget below) and
+   the one-time tip that teaches the summon gesture (MB-814).
 5. Release ships with the free MIT runtime and the CLI-built asset. No paid
    Rive plan is assumed. Production enablement is gated (see "Licensing and
    release gate").
@@ -56,10 +57,10 @@ Owner direction (MB-766 discussion, 2026-10-26):
 
 | Field                                     | Value                                                                                            |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| File                                      | `mam-v03.riv`, 80,826 bytes                                                                      |
-| SHA-256                                   | `2fbd1dacf9845f03e8710b61ab0110df616028467bd287fe9001a573a44e53a6`                               |
+| File                                      | `mam-v04.riv`, 89,991 bytes (v0.3 art plus the looping `sleep` state)                            |
+| SHA-256                                   | `94a915169778318883a941f8f361d108292c65a69621126d2c6b0e54a02c5efd`                               |
 | Built by                                  | Rive CLI 1.7.0, `rive <rig> --once` (unsigned, no login)                                         |
-| Rebuild                                   | Deterministic: rebuilding the rig on 2026-10-27 gave the same hash, with 0 errors and 0 warnings |
+| Rebuild                                   | Deterministic: rebuilding on 2026-11-06 gave the same hash, with 0 errors and 0 warnings         |
 | Artboard                                  | `companion_main`, 512×512, no artboard fill (transparent)                                        |
 | State machine                             | `MamBehaviorController`, layers `Behavior`, `Face`, `Attention`                                  |
 | View model                                | `MamControls`, instance `Default`                                                                |
@@ -72,7 +73,7 @@ version and needs a new visual QA pass.
 
 MB-767 lands the asset in the web repository:
 
-- `public/mam/mam-v03.riv` holds the file with the hash above. Budget: at most
+- `public/mam/mam-v04.riv` holds the file with the hash above. Budget: at most
   100 KB.
 - `design-source/mam-rive/` holds the generator inputs. Next.js does not serve
   this folder.
@@ -91,7 +92,7 @@ contract and stay unchanged.
 
 | Property             | Type                                                                                                                                                                               | Rule                                                                                         |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `behaviorState`      | enum `MamBehavior` (12 values, IDs fixed in this order: `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy`) | Looping poses blend in 260 ms (`sad` 600 ms). The face layer switches in 0 ms                |
+| `behaviorState`      | enum `MamBehavior` (13 values, IDs fixed in this order: `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy, sleep`) | Looping poses blend in 260 ms (`sad` 600 ms). The face layer switches in 0 ms                |
 | `attentionDirection` | number −1…1, clamped                                                                                                                                                               | Moves only the pupils. Measured ±6 artboard px at the extremes                               |
 | `celebrationTier`    | enum `none, soft, hero`                                                                                                                                                            | Picks a celebration when `behaviorState` is not itself a one-shot                            |
 | `playOnce`           | trigger                                                                                                                                                                            | Required to start any one-shot. Setting a one-shot enum value alone plays nothing (verified) |
@@ -116,6 +117,7 @@ its last write is still current.
 | `listening`      | Mầm offered an optional next step and waits for the user's choice                            | offer shown                              |
 | `gentle`         | Sensitive or failed-request context: calm template text                                      | request failed, sensitive review surface |
 | `happy`          | A verified-award bubble is open                                                              | celebration bubble                       |
+| `sleep`          | Host-set only after 60 s idle, never in reduced motion, never reflects user data             | idle timer                               |
 | `light_success`  | One-shot: a confirmed save or a Content-verified Bingo item                                  | confirmed source event                   |
 | `celebrate_soft` | One-shot: a verified achievement (not the day's hero)                                        | celebration scheduler                    |
 | `celebrate_hero` | One-shot: the first verified achievement of the day                                          | celebration scheduler                    |
@@ -240,6 +242,65 @@ intent or context fails closed.
   (same as policy v1).
 - One bubble at a time. While a request is pending, a repeated summon shares
   the pending state.
+
+### User-initiated travel (MB-814)
+
+The dock is Mầm's home, not its only place. Two user actions move the one
+character away from it, and nothing else does:
+
+- **Summon climb.** An element-target summon makes Mầm leave the dock, climb up
+  from behind the summoned card's top edge and answer beside its head. The
+  character layer is clipped at the card's top edge (the card's `z-index` is
+  never raised) and at the bottom of the sticky app header, so Mầm never draws
+  over the header. The page first scrolls the smallest amount that leaves
+  `0.64·S + 16 px` above the card's top edge; focus never moves. While perched,
+  Mầm follows the card on scroll and resize. If the card unmounts, goes
+  offscreen or its top edge rises above that room, the bubble closes and Mầm
+  returns home without the thanks beat. A page-level target (no element) keeps
+  the dock bubble.
+- **Drag and throw.** On the docked character, a pointer drag of 6 px or more
+  (mouse, pen or touch) carries Mầm; release tosses it upward with damping, it
+  bounces and hops back to the dock. A press under 6 px is a tap. This is play:
+  there is no keyboard equivalent, and it is unavailable while perched, away,
+  suppressed, dizzy or in reduced motion. Mầm travels above page content but
+  below toasts and the crisis widget.
+
+Gaze is unchanged: the drag tilt is physics, not gaze, and `attentionDirection`
+still points at the active anchor. A route change, a modal, suppression or
+reduced motion snaps a travelling Mầm home with no animation; Escape does the
+same during a throw or hop, and retreats a perched Mầm normally. The no-interrupt
+zones below are unchanged.
+
+### One-time tip (MB-814)
+
+The tip is the second automatic appearance, once per device
+(`mentalbridge_mam_tip_seen`, localStorage). It shows 1.4 s after load when
+Mầm is shown and not away or suppressed, "Mầm tự lên tiếng" is on and the page
+has at least one registered element target. Mầm hops once (no hop in reduced
+motion) and says how to summon on a card: right-click on a fine pointer,
+long-press on a coarse pointer. The tip never takes focus, and it is marked
+seen when shown. The dock menu lead repeats the same guidance permanently, so
+the path survives a skipped tip.
+
+Mầm's per-card button stays in the DOM with its name and action, but is
+visually hidden until `:focus-visible`; the dock button remains the touch path
+that always works.
+
+### Sleep and dizzy (MB-814)
+
+- **Sleep** is a quiet exit, not an appearance. After 60 s without input, a
+  docked, visible, unsuppressed Mầm with nothing open lies down; the host sets
+  the looping `sleep` state, which draws the closed eyes, breathing and blanket,
+  and floats "z z Z". It never sleeps in reduced motion. Only an interaction
+  with Mầm (tap, drag, summon, a celebration) wakes it; other page input does
+  not.
+- **Dizzy** means only that Mầm itself is broken: a load error, a contract
+  mismatch or a lost canvas context. It lasts until the page reloads, is drawn
+  by the host (swirl eyes and orbiting stars, static in reduced motion) and
+  disables climbing, dragging, sleeping and celebrating. A tap or a summon opens
+  a short dock bubble saying Mầm cannot help right now, with "Đã hiểu" and
+  "Ẩn Mầm". Dizzy never reflects user data, mood or a failed explanation
+  request. A device without canvas or WebAssembly is unsupported, not dizzy.
 
 ### No-interrupt zones
 
@@ -398,10 +459,11 @@ does not use the budget but obeys hidden, muted, motion and suppression.
 | Hide Mầm       | `isVisible=false`, no automatic events. Summon is off until shown again               | Per device. MB-768 chooses the storage key, following the existing `mentalbridge_support_plan_companion_*` pattern |
 | Mute           | No automatic appearances and no live-region announcements. Requested text still shows | Session (policy v1). Cross-session needs the preference contract MB-653 names                                      |
 | Animations off | `reducedMotion=true`. The OS `prefers-reduced-motion` setting forces it on            | Per device                                                                                                         |
+| Tip seen       | The one-time tip (MB-814) never shows again                                           | Per device                                                                                                         |
 
 MB-768 stores them as `mentalbridge_mam_hidden` (localStorage),
 `mentalbridge_mam_session_muted` (sessionStorage) and `mentalbridge_mam_motion`
-(localStorage). A hidden Mầm leaves a 44 px "Hiện Mầm" handle in the dock
+(localStorage). The tip uses `mentalbridge_mam_tip_seen` (localStorage). A hidden Mầm leaves a 44 px "Hiện Mầm" handle in the dock
 corner.
 
 Controls are reachable from the dock by keyboard. Hiding Mầm never hides
@@ -422,7 +484,8 @@ authoritative plan, safety, save, validation or error feedback.
   - Mầm sits below toasts (`z-index` 100200) and below `CrisisSupportWidget`
     (120000).
   - It never covers the crisis widget, primary actions, sticky composers or a
-    focused element.
+    focused element. While Mầm is dragged or thrown the dock layer rises to
+    `z-index` 5000, still below toasts and the crisis widget.
   - Native modal dialogs render in the top layer above it.
   - The desktop dock sits bottom-left, because the crisis widget sits
     bottom-right. Below 900 px the 72 px dock also sits bottom-left, 16 px
@@ -439,8 +502,9 @@ authoritative plan, safety, save, validation or error feedback.
 
 | Case                                               | Behaviour                                                                                                                      |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Asset fetch or decode fails, or WASM init fails    | Static SVG Mầm with the same text and controls. No retry loop. The page is never blocked                                       |
-| Runtime unsupported or canvas context lost         | Same static fallback                                                                                                           |
+| Asset fetch or decode fails, or WASM init fails    | Static SVG Mầm with the same text and controls, plus the host-drawn dizzy overlay (MB-814). No retry loop. The page is never blocked |
+| Contract mismatch or canvas context lost           | Same as above: dizzy, until reload                                                                                             |
+| Runtime unsupported (no canvas or WebAssembly)     | Static SVG Mầm with the same text and controls. Not dizzy: a capability gap is not a fault                                     |
 | Rive WASM                                          | Self-hosted from the app origin, never fetched from a third-party CDN at runtime. A future CSP must allow `'wasm-unsafe-eval'` |
 | Explanation request fails, times out or hits quota | `gentle` plus approved template text for that intent. Mầm never invents an answer                                              |
 | Route change during a request or bubble            | Request result discarded, `returnToDock`                                                                                       |

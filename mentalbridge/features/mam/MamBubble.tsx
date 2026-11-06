@@ -7,6 +7,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type RefObject,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -15,13 +16,17 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Leaf, X } from 'lucide-react'
 
 import styles from './MamBubble.module.css'
+import { perchBubble } from './mam-motion'
 import { MAM_INTENT_LABELS, type MamIntent } from './mam-targets'
+import { mamVisibleTop, type MamPerch } from './mam-travel'
 import type { MamSummon } from './use-mam-summon'
 
 const GUTTER = 16
 const WIDTH = 320
 const OFFSET = 8
 const ANSWER_ROOM = 280
+// Beside a perched Mầm (design §A): width min(310 px, viewport - 32 px).
+const PERCH_WIDTH = 310
 const ease = [0.16, 1, 0.3, 1] as const
 
 /**
@@ -33,16 +38,22 @@ export function MamBubble({
   summon,
   reduced,
   bubbleRef,
+  perch = null,
   onChoose,
   onGo,
   onClose,
+  onThanks,
 }: Readonly<{
   summon: MamSummon
   reduced: boolean
   bubbleRef: RefObject<HTMLDivElement | null>
+  /** Where the perched character is; the bubble opens beside its head. */
+  perch?: MamPerch | null
   onChoose: (intent: MamIntent) => void
   onGo: () => void
   onClose: () => void
+  /** "Cảm ơn Mầm": closes like `onClose`, and Mầm answers with a happy beat. */
+  onThanks?: () => void
 }>) {
   const titleId = useId()
   const firstAction = useRef<HTMLButtonElement | null>(null)
@@ -54,6 +65,7 @@ export function MamBubble({
     left: number
     top: number
     above: boolean
+    side?: 'left' | 'right' | 'above'
   } | null>(null)
   const [resized, setResized] = useState(0)
   useEffect(() => {
@@ -65,6 +77,29 @@ export function MamBubble({
   useLayoutEffect(() => {
     if (anchor.kind !== 'point') return
     const viewport = document.documentElement.clientWidth
+    if (perch) {
+      const size = perch.size
+      const beside = perchBubble({
+        width:
+          bubbleRef.current?.offsetWidth ||
+          Math.min(PERCH_WIDTH, viewport - GUTTER * 2),
+        height: bubbleRef.current?.offsetHeight ?? 0,
+        charLeft: perch.left,
+        charTop: perch.top,
+        size,
+        cardTop: perch.cardTop,
+        viewportWidth: viewport,
+        viewportHeight: window.innerHeight,
+        viewportLeft: Math.max(
+          0,
+          document.querySelector('.ref-content')?.getBoundingClientRect()
+            .left ?? 0,
+        ),
+        visibleTop: mamVisibleTop(),
+      })
+      setPlacement({ ...beside, above: false })
+      return
+    }
     const width =
       bubbleRef.current?.offsetWidth || Math.min(WIDTH, viewport - GUTTER * 2)
     const minLeft = window.scrollX + GUTTER
@@ -87,7 +122,7 @@ export function MamBubble({
       top: Math.max(viewTop, Math.min(top, viewBottom - height)),
       above,
     })
-  }, [anchor, bubbleRef, phase, resized])
+  }, [anchor, bubbleRef, perch, phase, resized])
 
   // Each phase moves focus to its first control, so the keyboard stays inside.
   // A point bubble is measured hidden first, and hidden controls cannot take focus.
@@ -109,6 +144,7 @@ export function MamBubble({
       aria-labelledby={titleId}
       data-mam-bubble={phase}
       data-anchor={anchor.kind}
+      data-perch={perch ? (placement?.side ?? 'left') : undefined}
       style={
         anchor.kind === 'point'
           ? {
@@ -217,7 +253,7 @@ export function MamBubble({
               ref={firstAction}
               type="button"
               className={styles.done}
-              onClick={onClose}
+              onClick={onThanks ?? onClose}
             >
               Cảm ơn Mầm
             </button>
@@ -344,6 +380,151 @@ export function MamCelebrationBubble({
           Xem bộ sưu tập
         </Link>
       ) : null}
+    </motion.div>
+  )
+}
+
+/**
+ * A short message from the dock: the one-time tip (automatic, a group that
+ * never takes focus) and the dizzy notice (asked for, a dialog that takes focus
+ * and returns it). Esc, an outside press (not the dock) and its buttons close it.
+ */
+export function MamNoticeBubble({
+  text,
+  confirmLabel,
+  modal,
+  reduced,
+  bubbleRef,
+  dockRef,
+  returnFocus,
+  onClose,
+  onHide,
+}: Readonly<{
+  text: string
+  confirmLabel: string
+  modal: boolean
+  reduced: boolean
+  bubbleRef: RefObject<HTMLDivElement | null>
+  dockRef: RefObject<HTMLElement | null>
+  returnFocus: HTMLElement | null
+  onClose: () => void
+  /** Offers "Ẩn Mầm" next to the confirm button. */
+  onHide?: () => void
+}>) {
+  const titleId = useId()
+  const confirm = useRef<HTMLButtonElement | null>(null)
+  // A live region announces only text that changes after it is mounted.
+  const [spoken, setSpoken] = useState('')
+  useEffect(() => {
+    const timer = setTimeout(() => setSpoken(text), 60)
+    return () => clearTimeout(timer)
+  }, [text])
+  useEffect(() => {
+    if (modal) confirm.current?.focus({ preventScroll: true })
+  }, [modal])
+  // The dizzy dialog keeps Tab inside while it is open. It cannot be
+  // `aria-modal`: an open modal makes Mầm "away" and would remove the dock.
+  const loopTab = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!modal || event.key !== 'Tab') return
+    const buttons = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>('button'),
+    )
+    const first = buttons[0]
+    const last = buttons[buttons.length - 1]
+    if (!first || !last) return
+    const edge = event.shiftKey ? first : last
+    if (document.activeElement !== edge) return
+    event.preventDefault()
+    ;(event.shiftKey ? last : first).focus()
+  }
+
+  const close = useCallback(
+    (restore: boolean) => {
+      const inside = bubbleRef.current?.contains(document.activeElement)
+      onClose()
+      const back = returnFocus ?? dockRef.current
+      if ((restore || inside) && back?.isConnected) back.focus()
+    },
+    [bubbleRef, dockRef, onClose, returnFocus],
+  )
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      event.preventDefault()
+      close(modal)
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      const node = event.target as Node
+      if (
+        !bubbleRef.current?.contains(node) &&
+        !dockRef.current?.contains(node)
+      )
+        close(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('pointerdown', onPointerDown)
+    }
+  }, [bubbleRef, close, dockRef, modal])
+
+  const travel = reduced ? 0 : 6
+  return (
+    <motion.div
+      ref={bubbleRef}
+      className={styles.bubble}
+      role={modal ? 'dialog' : 'group'}
+      aria-labelledby={titleId}
+      data-mam-bubble={modal ? 'notice' : 'tip'}
+      data-anchor="dock"
+      onKeyDown={loopTab}
+      initial={{ opacity: 0, y: travel, scale: reduced ? 1 : 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: travel / 2, transition: { duration: 0.14, ease } }}
+      transition={{ duration: 0.22, ease }}
+    >
+      <div className={styles.head}>
+        <Leaf
+          className={styles.mark}
+          size={18}
+          strokeWidth={1.8}
+          aria-hidden="true"
+        />
+        <div id={titleId} className={styles.title}>
+          Mầm
+        </div>
+        <button
+          type="button"
+          className={styles.close}
+          aria-label="Đóng Mầm"
+          onClick={() => close(true)}
+        >
+          <X size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+      </div>
+      <div
+        className={`${styles.live} ${styles.liveHeld}`}
+        role="status"
+        aria-live="polite"
+      >
+        {spoken ? <div className={styles.answer}>{spoken}</div> : null}
+      </div>
+      <div className={styles.actions}>
+        <button
+          ref={confirm}
+          type="button"
+          className={onHide ? styles.primary : styles.done}
+          onClick={() => close(true)}
+        >
+          {confirmLabel}
+        </button>
+        {onHide ? (
+          <button type="button" className={styles.done} onClick={onHide}>
+            Ẩn Mầm
+          </button>
+        ) : null}
+      </div>
     </motion.div>
   )
 }
