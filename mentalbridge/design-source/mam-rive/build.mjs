@@ -1,4 +1,4 @@
-// Mầm v0.4 Rive rig (v0.3 art plus the looping `sleep` state): art from the "Mầm — Character Sheet v0.3" canvas
+// Mầm v0.5 Rive rig (v0.3 art plus the looping `sleep` and `speaking` states): art from the "Mầm — Character Sheet v0.3" canvas
 // (mam_v03_rive_layers.svg), motion from its Motion spec board.
 // Control contract (view model, enum IDs, state graph) is unchanged from the
 // mam-companion v0.2 rig so a consumer can swap the .riv without code changes.
@@ -265,7 +265,7 @@ const nodes = new Map()
 
 // ---------- motion ----------
 // Keep this order: enum IDs are the v0.2 control contract; new values are appended only.
-const behaviors = ['idle', 'curious', 'listening', 'thinking', 'gentle', 'explaining', 'light_success', 'celebrate_soft', 'celebrate_hero', 'rest', 'sad', 'happy', 'sleep']
+const behaviors = ['idle', 'curious', 'listening', 'thinking', 'gentle', 'explaining', 'light_success', 'celebrate_soft', 'celebrate_hero', 'rest', 'sad', 'happy', 'sleep', 'speaking']
 const finite = new Set(['light_success', 'celebrate_soft', 'celebrate_hero'])
 const ids = { vm: 3000, instance: 3001, behavior: 3010, attention: 3011, tier: 3012, reduced: 3013, visible: 3014, play: 3015, dock: 3016, machine: 3100 }
 const id = (number) => `0:${number}`
@@ -341,6 +341,19 @@ const lift = (side, frames) => ({ [`leaf${side}.rot`]: frames.map(([f, deg]) => 
 const leaves = (frames) => ({ ...lift('L', frames), ...lift('R', frames) })
 const arms = (l, r) => ({ ...(l && { 'armL.rot': l }), ...(r && { 'armR.rot': r }) })
 
+// Voice-call reply: the `explaining` pose with a talking mouth. Mouth shapes switch on a 1-frame
+// step (not audio-synced): 12 shapes x 8 frames (~133 ms) = 1.6 s, then `smile` holds 0.4 s.
+const SPEAK_MOUTH = ['talk', 'open', 'talk', 'rest', 'open', 'smile', 'talk', 'o', 'talk', 'open', 'talk', 'rest']
+const SPEAK_FRAMES = 8
+const SPEAK_TALK = SPEAK_MOUTH.length * SPEAK_FRAMES
+const SPEAK_END = SPEAK_TALK + 24
+// Shapes the cycle never shows keep the single hold key from `face()` (smaller asset).
+const speakMouth = Object.fromEntries([...new Set(SPEAK_MOUTH)].map((shape) => {
+  const at = (frame) => ((frame >= SPEAK_TALK ? shape === 'smile' : SPEAK_MOUTH[Math.floor(frame / SPEAK_FRAMES)] === shape) ? 1 : 0)
+  const flips = SPEAK_MOUTH.flatMap((_, i) => [(i + 1) * SPEAK_FRAMES - 1, (i + 1) * SPEAK_FRAMES]).filter((f) => at(f) !== at(f - 1) || at(f + 1) !== at(f))
+  const frames = [...new Set([0, ...flips, SPEAK_END])]
+  return [`mouth_${shape}.op`, frames.map((f) => [f, at(Math.min(f, SPEAK_END - 1))])]
+}))
 const happyFace = face({ eye: 'happy', brow: 'raised', mouth: 'open' })
 const timelines = {
   idle: [420, true, {
@@ -420,6 +433,16 @@ const timelines = {
     ...leaves(hold(-10)),
     'glow.s': hold(glowScale(18)), 'glow.op': hold(glowOp(0.18)), 'cheeks.op': hold(0.85),
     'blanket.op': hold(1),
+  }],
+  speaking: [SPEAK_END, true, {
+    ...face({ brow: 'raised', mouth: 'talk' }),
+    ...speakMouth,
+    'sprout.rot': hold(-3), ...leaves(F([0, 6], [24, 10], [48, 6], [72, 10], [96, 6], [SPEAK_END, 6])),
+    'glow.s': hold(glowScale(22)), 'glow.op': F([0, glowOp(0.26)], [24, glowOp(0.34)], [48, glowOp(0.26)], [72, glowOp(0.34)], [96, glowOp(0.26)], [SPEAK_END, glowOp(0.26)]),
+    ...arms(null, F([0, -108], [24, -96], [48, -108], [72, -96], [96, -108], [SPEAK_END, -108])),
+    'fxExplain.op': F([0, 0.35], [24, 1], [48, 0.35], [72, 1], [96, 0.35], [SPEAK_END, 0.35]),
+    'eyeL.sy': F([0, 1], [60, 1], [65, 0.1], [71, 1], [SPEAK_END, 1]),
+    'eyeR.sy': F([0, 1], [60, 1], [65, 0.1], [71, 1], [SPEAK_END, 1]),
   }],
   light_success: [72, false, {
     ...happyFace,
@@ -546,7 +569,7 @@ if (nodeIds.size + 10 >= 1000) throw Error('Node IDs overlap shape IDs')
 await mkdir(join(directory, 'rig'), { recursive: true })
 await mkdir(join(directory, 'capture'), { recursive: true })
 await writeFile(join(directory, 'rig', 'scene.rml'), buildScene())
-await writeFile(join(directory, 'rig', 'rive.yaml'), 'name: mam-v04\nmain: companion_main\nlogs:\n  file: build/rive.log\n  problems: build/problems.log\n')
+await writeFile(join(directory, 'rig', 'rive.yaml'), 'name: mam-v05\nmain: companion_main\nlogs:\n  file: build/rive.log\n  problems: build/problems.log\n')
 await writeFile(join(directory, 'capture', 'scene.rml'), buildScene('#F1F4EB'))
-await writeFile(join(directory, 'capture', 'rive.yaml'), 'name: mam-v04-capture\nmain: companion_main\n')
+await writeFile(join(directory, 'capture', 'rive.yaml'), 'name: mam-v05-capture\nmain: companion_main\n')
 console.log(JSON.stringify({ artboard: 'companion_main', nodes: nodeIds.size, shapes: shapeId - 1000, states: allStates.length }))

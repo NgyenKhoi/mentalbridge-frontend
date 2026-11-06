@@ -364,7 +364,7 @@ describe('MamCharacter', () => {
     const [first, second] = runtime.state.instances
     expect(first!.options.buffer).not.toBe(second!.options.buffer)
     expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch).toHaveBeenCalledWith('/mam/mam-v04.riv')
+    expect(fetch).toHaveBeenCalledWith('/mam/mam-v05.riv')
   })
 
   it('keeps the static pose when the asset download fails, and retries later', async () => {
@@ -443,6 +443,38 @@ describe('MamCharacter fallback reason', () => {
       container.querySelector('canvas')!.dispatchEvent(new Event('contextlost'))
     })
     await waitFor(() => expect(onFallback).toHaveBeenCalledWith('error'))
+  })
+
+  // MB-815: the voice call mounts MamCharacter alone; a broken renderer leaves the static
+  // image and nothing else (dizzy belongs to the dock host).
+  it.each([
+    [
+      'unsupported',
+      () =>
+        vi
+          .spyOn(HTMLCanvasElement.prototype, 'getContext')
+          .mockReturnValue(null),
+    ],
+    ['error', () => (runtime.state.runtimeError = new Error('wasm'))],
+  ])(
+    'keeps a speaking in-call avatar as a static image on %s',
+    async (reason, arrange) => {
+      arrange()
+      const onFallback = vi.fn()
+      const { container } = render(
+        <MamCharacter size={164} behavior="speaking" onFallback={onFallback} />,
+      )
+      await waitFor(() => expect(onFallback).toHaveBeenCalledWith(reason))
+      expect(container.querySelector('img')).not.toBeNull()
+      expect(container.querySelector('canvas')?.dataset.ready).not.toBe('true')
+      expect(container.querySelector('[role], [data-mam-dizzy]')).toBeNull()
+    },
+  )
+
+  it('sets the speaking behavior on the asset', async () => {
+    render(<MamCharacter size={164} behavior="speaking" />)
+    const instance = await loaded()
+    expect(instance.values.behaviorState!.value).toBe('speaking')
   })
 
   it('reports nothing while the character renders', async () => {

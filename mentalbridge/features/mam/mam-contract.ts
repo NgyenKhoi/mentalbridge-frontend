@@ -2,8 +2,8 @@
 // Changing any value here is a contract change and needs a new asset hash and QA pass.
 
 export const MAM_ASSET = {
-  src: '/mam/mam-v04.riv',
-  sha256: '94a915169778318883a941f8f361d108292c65a69621126d2c6b0e54a02c5efd',
+  src: '/mam/mam-v05.riv',
+  sha256: '6c1068eab4adedbca91a8db5670e02a47e8ec401805050eae90bdbc17588504a',
   wasmUrl: '/mam/rive-lite-2.47.1.wasm',
   fallbackSrc: '/mam/mam-v03-idle.svg',
   artboard: 'companion_main',
@@ -25,6 +25,7 @@ export const MAM_BEHAVIORS = [
   'sad',
   'happy',
   'sleep',
+  'speaking',
 ] as const
 
 export type MamBehavior = (typeof MAM_BEHAVIORS)[number]
@@ -39,6 +40,7 @@ export const MAM_LOOPING_BEHAVIORS = [
   'explaining',
   'happy',
   'sleep',
+  'speaking',
 ] as const satisfies readonly MamBehavior[]
 
 export type MamLoopingBehavior = (typeof MAM_LOOPING_BEHAVIORS)[number]

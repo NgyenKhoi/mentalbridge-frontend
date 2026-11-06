@@ -34,7 +34,7 @@ const startToday = (page: Page) =>
     .getByRole('region', { name: 'Bước tiếp theo', exact: true })
     .getByRole('link', { name: 'Bắt đầu ngay', exact: true })
 const providerFixtureUrl = 'http://127.0.0.1:3201'
-const RIV = '**/mam/mam-v04.riv'
+const RIV = '**/mam/mam-v05.riv'
 const WASM = '**/mam/rive-lite-2.47.1.wasm'
 
 // Measured 2026-10-28 (docs/evidence/mb-775-mam-web-gate.md): the measured
