@@ -64,6 +64,9 @@ describe('createMamControls', () => {
     controls.setBehavior('explaining')
     expect(values.behaviorState.value).toBe('explaining')
 
+    controls.setBehavior('speaking')
+    expect(values.behaviorState.value).toBe('speaking')
+
     controls.setBehavior('sleep')
     expect(values.behaviorState.value).toBe('sleep')
 
@@ -151,6 +154,7 @@ describe('createMamControls', () => {
       'sad',
       'happy',
       'sleep',
+      'speaking',
     ])
   })
 })

@@ -1,6 +1,8 @@
 import { StrictMode } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { MamDockSlot } from '@/features/mam/MamDockSlot'
+import { setMamHidden, setMamMotionOff } from '@/features/mam/mam-preferences'
 import {
   connection,
   disclosure,
@@ -12,6 +14,22 @@ import { voiceClient } from './client'
 import type { Media, MediaEvents } from './media'
 import type { VoiceSession } from './contract'
 import VoiceDialog from './VoiceDialog'
+
+// MB-815: the real character needs a canvas and WASM; the dialog only drives its props.
+vi.mock('@/features/mam/MamCharacter', () => ({
+  MamCharacter: (props: {
+    size: number
+    behavior?: string
+    reducedMotion?: boolean
+  }) => (
+    <span
+      data-testid="mam-character"
+      data-behavior={props.behavior}
+      data-size={props.size}
+      data-reduced={String(props.reducedMotion)}
+    />
+  ),
+}))
 
 function fixture(
   value = eligibility(),
@@ -48,15 +66,24 @@ function fixture(
   }
   const controller = new VoiceController(api, () => media)
   const close = vi.fn()
-  render(
+  const dialog = (open: boolean) => (
     <VoiceDialog
-      open
+      open={open}
       onOpenChange={close}
       createController={() => controller}
       conversation={conversation}
-    />,
+    />
   )
-  return { api, media, controller, current, close, events: () => events }
+  const view = render(dialog(true))
+  return {
+    api,
+    media,
+    controller,
+    current,
+    close,
+    events: () => events,
+    rerender: (open: boolean) => view.rerender(dialog(open)),
+  }
 }
 afterEach(() => {
   vi.restoreAllMocks()
@@ -429,4 +456,205 @@ describe('accessible AI Voice dialog', () => {
     ).toBeVisible()
     expect(controller.snapshot().phase).toBe('ready')
   })
+})
+
+describe('Mầm in the AI voice call', () => {
+  afterEach(() => window.localStorage.clear())
+  const character = () => screen.queryByTestId('mam-character')
+  const stage = () => document.querySelector('[data-mam-behavior]')
+  const badge = () => document.querySelector('[class*="micBadge"]')
+  const status = () => screen.getByRole('status')
+  function matchMedia(os = false, compact = false) {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('reduced-motion') ? os : compact,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+  }
+  async function call(patch: Partial<VoiceSession> = {}, slotted = true) {
+    matchMedia()
+    if (slotted) render(<MamDockSlot />)
+    const f = fixture(eligibility(), patch)
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
+    )
+    await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+    return f
+  }
+  const expectMam = (behavior: string, text: string) => {
+    expect(character()).toHaveAttribute('data-behavior', behavior)
+    expect(stage()).toHaveAttribute('data-mam-behavior', behavior)
+    expect(status()).toHaveTextContent(text)
+  }
+
+  it('keeps the Sparkles mark while the eligibility check loads', () => {
+    matchMedia()
+    render(<MamDockSlot />)
+    fixture()
+    expect(screen.getByText('Đang kiểm tra quyền gọi AI…')).toBeVisible()
+    expect(character()).toBeNull()
+  })
+
+  it('stays idle and says preparing, whatever the agent hint says', async () => {
+    const f = await call({ state: 'CONNECTING' })
+    for (const hint of ['speaking', 'thinking', 'listening'] as const) {
+      act(() => f.events()?.hint(hint))
+      expectMam('idle', 'Đang chuẩn bị cuộc gọi')
+    }
+    await act(async () => f.controller.end())
+  })
+
+  it.each([
+    ['listening', 'idle', 'Mầm đang lắng nghe'],
+    ['thinking', 'thinking', 'Mầm đang nghĩ'],
+    ['speaking', 'speaking', 'Mầm đang nói'],
+    ['idle', 'idle', 'Đang chờ Mầm'],
+    ['initializing', 'idle', 'Đang chờ Mầm'],
+    ['unavailable', 'idle', 'Đang chờ Mầm'],
+  ] as const)(
+    'maps hint %s to %s with "%s" and no dim',
+    async (hint, behavior, text) => {
+      const f = await call()
+      act(() => f.events()?.hint(hint))
+      expectMam(behavior, text)
+      expect(stage()).toHaveAttribute('data-dim', 'false')
+      expect(badge()).toBeNull()
+      await act(async () => f.controller.end())
+    },
+  )
+
+  it('unmounts Mầm when a retained dialog closes mid-call (R1-1)', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking'))
+    expect(character()).toHaveAttribute('data-behavior', 'speaking')
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Đóng và kết thúc cuộc gọi' }),
+    )
+    expect(f.close).toHaveBeenCalledWith(false)
+    // The parent keeps the dialog mounted with open=false, as VoiceEntry does.
+    f.rerender(false)
+    expect(character()).toBeNull()
+  })
+
+  it('unmounts Mầm when the call ends normally', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking'))
+    await act(async () => f.controller.end())
+    expect(character()).toBeNull()
+  })
+
+  it('names Mầm in the helper copy too, never mixing AI and Mầm', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking'))
+    expect(
+      screen.getByText('Vui lòng chờ Mầm sẵn sàng trước khi nói.'),
+    ).toBeInTheDocument()
+    act(() => f.events()?.hint('unavailable'))
+    expect(
+      screen.getByText(/Chưa nhận được trạng thái mới từ Mầm\./),
+    ).toBeInTheDocument()
+    await act(async () => f.controller.end())
+  })
+
+  it('dims only while reconnecting, as idle', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking'))
+    act(() => f.events()?.reconnecting())
+    expectMam('idle', 'Đang kết nối lại')
+    expect(stage()).toHaveAttribute('data-dim', 'true')
+    await act(async () => f.controller.end())
+  })
+
+  it('is idle while ending', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking'))
+    let confirm: (value: VoiceSession) => void = () => undefined
+    f.api.end.mockReturnValue(
+      new Promise<VoiceSession>((resolve) => (confirm = resolve)),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Kết thúc' }))
+    await screen.findByText('Đang xác nhận kết thúc')
+    expectMam('idle', 'Đang xác nhận kết thúc')
+    await act(async () => confirm(session({ ...f.current, state: 'ENDED' })))
+  })
+
+  it.each([
+    ['speaking', 'speaking'],
+    ['listening', 'idle'],
+  ] as const)(
+    'keeps following the hint when muted while %s, with a badge',
+    async (hint, behavior) => {
+      const f = await call()
+      act(() => f.events()?.hint(hint))
+      fireEvent.click(screen.getByRole('button', { name: 'Tắt micro' }))
+      await screen.findByRole('button', { name: 'Bật micro' })
+      expectMam(behavior, 'Micro đang tắt')
+      expect(badge()).toHaveAttribute('aria-hidden', 'true')
+      await act(async () => f.controller.end())
+    },
+  )
+
+  it('marks the character as decoration and keeps one live region', async () => {
+    const f = await call()
+    expect(character()?.closest('[aria-hidden="true"]')).not.toBeNull()
+    expect(document.querySelectorAll('[aria-live]')).toHaveLength(1)
+    await act(async () => f.controller.end())
+  })
+
+  it.each([
+    ['the flag is off', false, () => undefined],
+    ['the user hid Mầm', true, () => setMamHidden(true)],
+  ])(
+    'keeps the Sparkles mark and "AI" strings when %s',
+    async (_case, slotted, arrange) => {
+      arrange()
+      const f = await call({}, slotted)
+      act(() => f.events()?.hint('thinking'))
+      expect(character()).toBeNull()
+      expect(stage()).toBeNull()
+      expect(status()).toHaveTextContent('AI đang nghĩ')
+      act(() => f.events()?.hint('unavailable'))
+      expect(status()).toHaveTextContent('Đang chờ AI')
+      fireEvent.click(screen.getByRole('button', { name: 'Tắt micro' }))
+      await screen.findByRole('button', { name: 'Bật micro' })
+      expect(badge()).toBeNull()
+      await act(async () => f.controller.end())
+    },
+  )
+
+  it.each([
+    ['motion is full', () => undefined, false, 'false'],
+    ['the user reduced motion', () => setMamMotionOff(true), false, 'true'],
+    ['the OS reduces motion', () => undefined, true, 'true'],
+  ])('passes reducedMotion when %s', async (_case, arrange, os, expected) => {
+    arrange()
+    render(<MamDockSlot />)
+    matchMedia(os)
+    const f = fixture()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
+    )
+    await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+    expect(character()).toHaveAttribute('data-reduced', expected)
+    expect(stage()).toHaveAttribute('data-reduced', expected)
+    await act(async () => f.controller.end())
+  })
+
+  it.each([
+    [false, '164'],
+    [true, '116'],
+  ])(
+    'sizes the character by breakpoint (compact %s)',
+    async (compact, size) => {
+      render(<MamDockSlot />)
+      matchMedia(false, compact)
+      const f = fixture()
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
+      )
+      await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+      expect(character()).toHaveAttribute('data-size', size)
+      await act(async () => f.controller.end())
+    },
+  )
 })
