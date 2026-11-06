@@ -97,14 +97,21 @@ export function useMamSummon({
   reducedMotion,
   dockRef,
   bubbleRef,
+  onBlocked,
 }: Readonly<{
   pathname: string
   enabled: boolean
   reducedMotion: boolean
   dockRef: RefObject<HTMLElement | null>
   bubbleRef: RefObject<HTMLElement | null>
+  /** Set while Mầm cannot help (dizzy): a summon is reported here and opens nothing. */
+  onBlocked?: (returnFocus: HTMLElement | null) => void
 }>) {
   const [summon, setSummon] = useState<MamSummon | null>(null)
+  const blocked = useRef(onBlocked)
+  useEffect(() => {
+    blocked.current = onBlocked
+  })
   const request = useRef<AbortController | null>(null)
   const latest = useRef(summon)
   useEffect(() => {
@@ -140,6 +147,10 @@ export function useMamSummon({
       anchor: MamAnchor,
       returnFocus: HTMLElement | null,
     ): boolean => {
+      if (blocked.current) {
+        blocked.current(returnFocus)
+        return false
+      }
       // One bubble at a time; summoning the same target again keeps its state.
       const current = latest.current
       if (current && current.target === target && current.element === element)

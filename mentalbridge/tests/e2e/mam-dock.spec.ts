@@ -1,14 +1,17 @@
 import { expect, type Page } from '@playwright/test'
 
-import { test } from './test-fixtures'
+import { seedOnboardingSeen, test } from './test-fixtures'
 import { homeWorld, installHomeMocks } from './home-next-step-mocks'
 import {
+  character,
   crisis,
   dock,
+  dockRoot,
   expectNothingCoveredAtBottom,
   expectPageActionsClickable,
   menu,
   box,
+  travelling,
 } from './mam-dock-helpers'
 
 // MB-768: one Mầm per tab across eligible USER routes. The E2E servers run
@@ -198,5 +201,278 @@ test.describe('MB-768 Mầm dock', () => {
     await page.keyboard.press('Escape')
     await expect(page.locator('[aria-modal="true"]')).toHaveCount(0)
     await expect(dock(page)).toBeVisible()
+  })
+})
+
+// MB-814: Mầm plays, sleeps and gets dizzy. The asset is the real v0.4 .riv unless
+// a test aborts it; the clock specs keep to `page.clock` (no motion-frame capture).
+test.describe('MB-814 living Mầm on the dock', () => {
+  test.use({ timezoneId: 'Asia/Ho_Chi_Minh' })
+  test.skip(
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'The dock journey uses browser-owned fixtures only.',
+  )
+
+  // The dock yields (35% opacity, no pointer events) while it sits over a page
+  // action, by design. Scroll to the end, where the shell leaves room under the
+  // last row, so the gestures below meet a live dock. Waiting for the renderer
+  // also waits out hydration.
+  const settle = async (page: Page) => {
+    await expect(character(page)).toHaveAttribute('data-mam-status', 'ready', {
+      timeout: 15_000,
+    })
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    await expect(dockRoot(page)).toHaveAttribute('data-yield', 'false')
+  }
+  const open = async (page: Page, width = 1440) => {
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/dashboard')
+    await expect(dock(page)).toBeVisible()
+    await settle(page)
+  }
+
+  test.describe('the one-time tip', () => {
+    test.use({ mamTipSeen: false })
+
+    test('shows once after 1.4 s with the right-click copy, and not again', async ({
+      page,
+    }) => {
+      await open(page)
+      const tip = page.getByRole('group', { name: 'Mầm' })
+      await expect(tip).toContainText(
+        'Mẹo nè: chuột phải vào thẻ bất kỳ, mình sẽ trèo lên giải thích cho bạn.',
+      )
+      await expect(dock(page)).not.toBeFocused()
+      await tip.getByRole('button', { name: 'Cảm ơn Mầm' }).click()
+      await expect(tip).toHaveCount(0)
+
+      await page.reload()
+      await expect(dock(page)).toBeVisible()
+      await page.waitForTimeout(2500)
+      await expect(page.getByRole('group', { name: 'Mầm' })).toHaveCount(0)
+    })
+
+    test('stays quiet when "tự lên tiếng" is off', async ({ page }) => {
+      await page.addInitScript(() =>
+        sessionStorage.setItem('mentalbridge_mam_session_muted', 'true'),
+      )
+      await open(page)
+      await page.waitForTimeout(2500)
+      await expect(page.getByRole('group', { name: 'Mầm' })).toHaveCount(0)
+    })
+
+    test('shows the long-press copy on a coarse pointer', async ({
+      browser,
+    }) => {
+      const context = await browser.newContext({
+        hasTouch: true,
+        isMobile: true,
+        viewport: { width: 375, height: 812 },
+        timezoneId: 'Asia/Ho_Chi_Minh',
+      })
+      const page = await context.newPage()
+      await seedOnboardingSeen(page)
+      await installHomeMocks(page, homeWorld('do-today'))
+      await page.goto('/dashboard')
+      await settle(page)
+      await expect(page.getByRole('group', { name: 'Mầm' })).toContainText(
+        'Mẹo nè: nhấn giữ vào thẻ bất kỳ, mình sẽ trèo lên giải thích cho bạn.',
+      )
+      await context.close()
+    })
+
+    test('shows without a hop under reduced motion', async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await open(page)
+      await expect(page.getByRole('group', { name: 'Mầm' })).toContainText(
+        'Mẹo nè',
+      )
+      await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')
+    })
+  })
+
+  test('the menu lead names the right-click path even with the tip skipped', async ({
+    page,
+  }) => {
+    await open(page)
+    await dock(page).click()
+    await expect(menu(page)).toContainText(
+      'Chuột phải vào một thẻ để hỏi Mầm về thẻ đó.',
+    )
+  })
+
+  test('drag, release and Mầm ends back at the dock; a tiny press stays a tap', async ({
+    page,
+  }) => {
+    await open(page)
+    const home = await box(dock(page))
+    const grab = { x: home.x + 48, y: home.y + 48 }
+
+    // Under 6 px is a tap: the menu opens and nothing travels.
+    await page.mouse.move(grab.x, grab.y)
+    await page.mouse.down()
+    await page.mouse.move(grab.x + 3, grab.y + 2)
+    await page.mouse.up()
+    await expect(menu(page)).toBeVisible()
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')
+    await page.keyboard.press('Escape')
+
+    await page.mouse.move(grab.x, grab.y)
+    await page.mouse.down()
+    // Small steps: the character keeps its grab offset from where the 6 px slop
+    // ended, so a coarse path would leave it that far behind the pointer.
+    await page.mouse.move(grab.x + 240, grab.y - 160, { steps: 80 })
+    await travelling(page, 'drag')
+    await expect(async () => {
+      const mam = await box(character(page))
+      expect(Math.abs(mam.x - (home.x + 240))).toBeLessThan(16)
+      expect(Math.abs(mam.y - (home.y - 160))).toBeLessThan(16)
+    }).toPass()
+    // The dock button, and so every page action, never moved.
+    expect(await box(dock(page))).toEqual(home)
+    await page.mouse.up()
+    await travelling(page, 'fly')
+    await expect(menu(page)).toHaveCount(0)
+    await travelling(page, 'dock', 20_000)
+    await expect(async () => {
+      const mam = await box(character(page))
+      expect(Math.abs(mam.x - home.x)).toBeLessThan(3)
+      expect(Math.abs(mam.y - home.y)).toBeLessThan(3)
+    }).toPass()
+    await expectPageActionsClickable(page)
+  })
+
+  test('Escape during a throw snaps Mầm home', async ({ page }) => {
+    await open(page)
+    const home = await box(dock(page))
+    await page.mouse.move(home.x + 48, home.y + 48)
+    await page.mouse.down()
+    await page.mouse.move(home.x - 120, home.y - 200, { steps: 4 })
+    await page.mouse.up()
+    await travelling(page, 'fly')
+    await page.keyboard.press('Escape')
+    await travelling(page, 'dock', 1000)
+  })
+
+  test('does not drag under reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await open(page)
+    const home = await box(dock(page))
+    await page.mouse.move(home.x + 48, home.y + 48)
+    await page.mouse.down()
+    await page.mouse.move(home.x + 240, home.y - 160, { steps: 8 })
+    await page.mouse.up()
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')
+    expect(await box(character(page))).toEqual(home)
+  })
+
+  test('crisis support during a throw snaps Mầm home and removes it', async ({
+    page,
+  }) => {
+    await open(page)
+    const home = await box(dock(page))
+    await page.mouse.move(home.x + 48, home.y + 48)
+    await page.mouse.down()
+    await page.mouse.move(home.x - 120, home.y - 200, { steps: 4 })
+    await page.mouse.up()
+    await travelling(page, 'fly')
+    await crisis(page).evaluate((el) => (el as HTMLButtonElement).click())
+    await expect(page.locator('[aria-modal="true"]')).toBeVisible()
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-dock', 'away')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')
+  })
+
+  test('sleeps after 60 s, only Mầm wakes it, and a tap opens no menu', async ({
+    page,
+  }) => {
+    // A real minute of idle time: page.clock would stall Rive and rAF.
+    test.setTimeout(150_000)
+    await open(page)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'false')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'true', {
+      timeout: 80_000,
+    })
+    const sleeping = page.getByRole('button', {
+      name: 'Mầm đang ngủ, bấm để đánh thức',
+    })
+    await expect(sleeping).toBeVisible()
+    // Lying on its side with "z z Z" floating up.
+    await expect(async () => {
+      const lying = await character(page).evaluate(
+        (el) => getComputedStyle(el.parentElement!.parentElement!).transform,
+      )
+      expect(lying).not.toBe('none')
+    }).toPass()
+    await expect(page.locator('[data-mam-dock] span:text-is("Z")')).toHaveCount(
+      1,
+    )
+
+    // Other page input leaves it asleep (a mouse move is not an interaction with Mầm).
+    await page.mouse.move(600, 400)
+    await page.keyboard.press('Shift')
+    await page.waitForTimeout(1500)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'true')
+
+    await sleeping.click()
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'false')
+    await expect(menu(page)).toHaveCount(0)
+    await expect(dock(page)).toBeVisible()
+  })
+
+  test('never sleeps under reduced motion', async ({ page }) => {
+    test.setTimeout(150_000)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await open(page)
+    await page.waitForTimeout(65_000)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'false')
+  })
+
+  test('is dizzy when the asset fails, and a tap or a summon says so', async ({
+    page,
+  }) => {
+    await page.route('**/mam/mam-v04.riv', (route) => route.abort('failed'))
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/dashboard')
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    const broken = page.getByRole('button', { name: 'Mầm đang gặp sự cố' })
+    await expect(broken).toBeVisible()
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    await expect(dockRoot(page)).toHaveAttribute('data-yield', 'false')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-dizzy', 'true')
+    await expect(
+      page.locator('[data-mam-dock] [data-still="false"]'),
+    ).toHaveCount(1)
+
+    await broken.click()
+    const message = page.getByRole('dialog', { name: 'Mầm' })
+    await expect(message).toContainText(
+      'Mình đang bị choáng một chút nên tạm thời chưa giúp được.',
+    )
+    await expect(message.getByRole('button', { name: 'Đã hiểu' })).toBeFocused()
+    await expect(message.getByRole('button', { name: 'Ẩn Mầm' })).toBeVisible()
+    await message.getByRole('button', { name: 'Đã hiểu' }).click()
+    await expect(message).toHaveCount(0)
+    await expect(broken).toBeFocused()
+
+    // A summon on a card says the same and never climbs.
+    await page
+      .getByTestId('home-resources')
+      .getByRole('heading', { level: 2 })
+      .click({ button: 'right' })
+    await expect(message).toContainText('Mình đang bị choáng')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')
+    await expect(page.locator('[data-mam-paw]')).toHaveCount(0)
+  })
+
+  test('static dizzy art under reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.route('**/mam/mam-v04.riv', (route) => route.abort('failed'))
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.goto('/dashboard')
+    await expect(
+      page.locator('[data-mam-dock] [data-still="true"]'),
+    ).toHaveCount(1)
   })
 })

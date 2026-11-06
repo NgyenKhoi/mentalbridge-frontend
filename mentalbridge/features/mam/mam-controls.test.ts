@@ -64,9 +64,12 @@ describe('createMamControls', () => {
     controls.setBehavior('explaining')
     expect(values.behaviorState.value).toBe('explaining')
 
+    controls.setBehavior('sleep')
+    expect(values.behaviorState.value).toBe('sleep')
+
     controls.setBehavior('celebrate_hero' as MamLoopingBehavior)
     controls.setBehavior('sad' as MamLoopingBehavior)
-    expect(values.behaviorState.value).toBe('explaining')
+    expect(values.behaviorState.value).toBe('sleep')
     expect(fired).toEqual([])
   })
 
@@ -147,6 +150,7 @@ describe('createMamControls', () => {
       'rest',
       'sad',
       'happy',
+      'sleep',
     ])
   })
 })
