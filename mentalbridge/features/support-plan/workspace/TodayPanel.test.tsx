@@ -212,6 +212,30 @@ describe('TodayPanel rows and day footer', () => {
   }
   const rating = /Có giúp bạn không/
 
+  it('counts weekly outcomes without marking skipped or unknown states completed, and excludes cancelled work', () => {
+    render(
+      view([
+        { id: 'done', hour: '01', state: 'COMPLETED' },
+        { id: 'skipped', hour: '02', state: 'SKIPPED' },
+        { id: 'open', hour: '03' },
+        { id: 'cancelled', hour: '04', state: 'CANCELLED' },
+        { id: 'unknown', hour: '05', state: 'NEW_STATE' },
+      ]).ui,
+    )
+    const week = screen.getByRole('progressbar', {
+      name: 'Hoạt động đã hoàn thành trong tuần',
+    })
+    expect(week).toHaveAttribute('aria-valuenow', '1')
+    expect(week).toHaveAttribute('aria-valuemax', '4')
+    expect(week).toHaveTextContent('25%')
+    expect(
+      screen.getByRole('link', { name: 'Ghi nhận cảm xúc' }),
+    ).toHaveAttribute('href', '/dashboard')
+    expect(
+      screen.getByRole('link', { name: 'Trò chuyện cùng AI Companion' }),
+    ).toHaveAttribute('href', '/ai-companion')
+  })
+
   it('rates a completed Emotion row but never a read-only type', () => {
     render(view([{ id: 'e', hour: '01', state: 'COMPLETED' }]).ui)
     expect(screen.getAllByText(rating).length).toBeGreaterThan(0)

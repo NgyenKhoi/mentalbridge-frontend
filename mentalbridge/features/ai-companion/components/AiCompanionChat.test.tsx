@@ -281,7 +281,8 @@ describe('AiCompanionChat', () => {
 
     await user.click(screen.getByRole('button', { name: 'Gửi' }))
     await screen.findByRole('alert')
-    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+    const listCalls = vi.mocked(companionBrowserClient.list).mock.calls.length
+    await user.click(screen.getByRole('button', { name: 'Gửi lại' }))
 
     await waitFor(() =>
       expect(companionBrowserClient.send).toHaveBeenCalledTimes(2),
@@ -289,6 +290,7 @@ describe('AiCompanionChat', () => {
     expect(vi.mocked(companionBrowserClient.send).mock.calls[0]?.[2]).not.toBe(
       vi.mocked(companionBrowserClient.send).mock.calls[1]?.[2],
     )
+    expect(companionBrowserClient.list).toHaveBeenCalledTimes(listCalls)
     await waitFor(() => expect(composer).toHaveValue(''))
   })
 
@@ -323,7 +325,7 @@ describe('AiCompanionChat', () => {
 
     await user.click(screen.getByRole('button', { name: 'Gửi' }))
     await screen.findByRole('alert')
-    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+    await user.click(screen.getByRole('button', { name: 'Gửi lại' }))
 
     await waitFor(() =>
       expect(companionBrowserClient.send).toHaveBeenCalledTimes(2),

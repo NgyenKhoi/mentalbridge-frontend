@@ -1,21 +1,39 @@
 'use client'
 
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { EyeOff, Leaf, MessageCircleQuestion } from 'lucide-react'
 
 import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
 
-import { MamBubble, MamCelebrationBubble } from './MamBubble'
+import { MamBubble, MamCelebrationBubble, MamNoticeBubble } from './MamBubble'
 import { MamCharacter, type MamRenderStatus } from './MamCharacter'
 import styles from './MamDock.module.css'
 import { useMamAccountId } from './MamDockSlot'
+import { MamDizzy } from './MamDizzy'
+import { hasMamRendererFailed, markMamRendererFailed } from './mam-failure'
+import type { MamLoopingBehavior } from './mam-contract'
 import {
   setMamHidden,
   setMamMotionOff,
   setMamMuted,
+  setMamTipSeen,
   useMamPreferences,
 } from './mam-preferences'
+import {
+  createMamTravel,
+  type MamPerch,
+  type MamTravelMode,
+} from './mam-travel'
+import { useMamIdle } from './use-mam-idle'
 import { isMamCelebrationRoute, isMamStaticDockRoute } from './mam-routes'
 import {
   useMamCelebrationNote,
@@ -24,15 +42,27 @@ import {
 import { useMamSaved } from './mam-saved'
 import { useMamSummon } from './use-mam-summon'
 import { useMamAway, useMamSuppressed } from './use-mam-suppressed'
-import { useMamPageTargetValue } from './use-mam-target'
+import { useHasMamElementTarget, useMamPageTargetValue } from './use-mam-target'
 
 // Matches the shell's off-canvas sidebar breakpoint.
 const COMPACT_QUERY = '(max-width: 900px)'
+const COARSE_QUERY = '(pointer: coarse)'
+// A press that moves less than this is a tap, not a drag (design §C).
+const DRAG_SLOP_PX = 6
+const TIP_DELAY_MS = 1400
+const DIZZY_TEXT =
+  'Mình đang bị choáng một chút nên tạm thời chưa giúp được. Bạn vẫn dùng trang bình thường nha, lát nữa gọi lại mình nè.'
 const PAGE_ACTIONS =
   'a[href], button, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])'
 
 function subscribeCompact(onChange: () => void) {
   const query = window.matchMedia(COMPACT_QUERY)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+
+function subscribeCoarse(onChange: () => void) {
+  const query = window.matchMedia(COARSE_QUERY)
   query.addEventListener('change', onChange)
   return () => query.removeEventListener('change', onChange)
 }
@@ -47,8 +77,9 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const dockRef = useRef<HTMLButtonElement | null>(null)
   const bubbleRef = useRef<HTMLDivElement | null>(null)
   const celebrationRef = useRef<HTMLDivElement | null>(null)
+  const noticeRef = useRef<HTMLDivElement | null>(null)
   const focusAfterToggle = useRef(false)
-  const { hidden, muted, motionOff } = useMamPreferences()
+  const { hidden, muted, motionOff, tipSeen } = useMamPreferences()
   const suppressed = useMamSuppressed()
   const away = useMamAway()
   const osReduced = useReactiveReducedMotion()
@@ -57,19 +88,36 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     () => window.matchMedia(COMPACT_QUERY).matches,
     () => false,
   )
+  const coarse = useSyncExternalStore(
+    subscribeCoarse,
+    () => window.matchMedia(COARSE_QUERY).matches,
+    () => false,
+  )
   const [open, setOpen] = useState(false)
+  // Each time the dizzy message opens, the swirl and the stars play again.
+  const [dizzyPlay, setDizzyPlay] = useState(0)
+  // The one-time tip and the dizzy message: a short bubble at the dock.
+  const [notice, setNotice] = useState<{
+    kind: 'tip' | 'dizzy'
+    returnFocus: HTMLElement | null
+  } | null>(null)
 
   // A modal, a hidden tab or a route change closes the menu (ADR `mam.dismiss`).
   const [closedFor, setClosedFor] = useState({ suppressed, pathname })
   if (closedFor.suppressed !== suppressed || closedFor.pathname !== pathname) {
     setClosedFor({ suppressed, pathname })
-    if (suppressed || closedFor.pathname !== pathname) setOpen(false)
+    if (suppressed || closedFor.pathname !== pathname) {
+      setOpen(false)
+      setNotice(null)
+    }
   }
 
   const menuOpen = open && !hidden
 
   // Reduced motion keeps the fades and drops the travel; exits are quicker.
   const reduced = motionOff || osReduced
+  // A renderer failure (not an unsupported device) leaves Mầm dizzy until reload.
+  const [dizzy, setDizzy] = useState(hasMamRendererFailed)
   const pageTarget = useMamPageTargetValue()
   const { summon, summonPage, choose, go, close, behavior } = useMamSummon({
     pathname,
@@ -77,10 +125,111 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     reducedMotion: reduced,
     dockRef,
     bubbleRef,
+    onBlocked: dizzy
+      ? (returnFocus) => {
+          setNotice({
+            kind: 'dizzy',
+            returnFocus: returnFocus ?? dockRef.current,
+          })
+          setDizzyPlay((value) => value + 1)
+        }
+      : undefined,
   })
   const dockBubble = summon?.anchor.kind === 'dock'
   const accountId = useMamAccountId()
   const [status, setStatus] = useState<MamRenderStatus>('loading')
+  if (notice && (summon || menuOpen)) setNotice(null)
+  // A renderer failure retires what is open: the menu, the summon and its request.
+  if (dizzy && open) setOpen(false)
+  useEffect(() => {
+    if (!dizzy || !summon) return
+    // Focus that sat in the retired bubble goes back to what asked (else the
+    // dock), never to <body>.
+    const active = document.activeElement
+    const lost =
+      !active ||
+      active === document.body ||
+      Boolean(bubbleRef.current?.contains(active)) ||
+      Boolean(rootRef.current?.contains(active))
+    close(lost)
+    if (!lost) return
+    // What asked may not take focus (a plain card); the exiting bubble must not keep it.
+    const now = document.activeElement
+    if (!now || now === document.body || bubbleRef.current?.contains(now))
+      dockRef.current?.focus({ preventScroll: true })
+  }, [dizzy, summon, close])
+
+  // Travel (MB-814): the controller drives the character; React only learns
+  // what it must render. A reduced-motion setting or a still route keeps Mầm put.
+  const still = reduced || isMamStaticDockRoute(pathname)
+  const canTravel = !hidden && !away && !suppressed && !still && !dizzy
+  const size = compact ? 72 : 96
+  const thanksRef = useRef(false)
+  const dragRef = useRef<{
+    id: number
+    x: number
+    y: number
+    t: number
+    on: boolean
+  } | null>(null)
+  const afterDrag = useRef(false)
+  const [travelMode, setTravelMode] = useState<MamTravelMode>('dock')
+  const [travelBehavior, setTravelBehavior] =
+    useState<MamLoopingBehavior | null>(null)
+  const [attention, setAttention] = useState(0)
+  const [perch, setPerch] = useState<MamPerch | null>(null)
+  const [asleep, setAsleep] = useState(false)
+  const [travel] = useState(() =>
+    createMamTravel({
+      mode: setTravelMode,
+      behavior: setTravelBehavior,
+      attention: setAttention,
+      perch: setPerch,
+      asleep: setAsleep,
+    }),
+  )
+  const layerRef = useCallback(
+    (node: HTMLElement | null) => travel.setLayer(node),
+    [travel],
+  )
+  // The card left or scrolled out of reach: close the summon, Mầm goes home.
+  useEffect(() => {
+    travel.onLost(() => close(false))
+  })
+  useEffect(() => {
+    travel.attach({ root: rootRef.current, size })
+  }, [travel, size])
+  useEffect(() => () => travel.dispose(), [travel])
+  // A route change, a modal, suppression or reduced motion snaps Mầm home at
+  // once, and a stilled Mầm wakes without ceremony.
+  useEffect(() => {
+    travel.snap()
+  }, [travel, pathname])
+  useEffect(() => {
+    if (!canTravel) travel.snap()
+    if (still || dizzy) travel.wakeQuiet()
+  }, [travel, canTravel, still, dizzy])
+  // The summoned card: climb to it; a closed summon sends Mầm home.
+  const element = summon?.element ?? null
+  useEffect(() => {
+    const thanks = thanksRef.current
+    thanksRef.current = false
+    if (element && canTravel) void travel.climb(element)
+    else void travel.home(thanks)
+  }, [travel, element, canTravel])
+  // Escape snaps a flying or hopping Mầm home (a perched one retreats instead).
+  useEffect(() => {
+    if (travelMode === 'dock' || travelMode === 'perch') return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') travel.snap()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [travel, travelMode])
+  const climbing = canTravel && element !== null
+  const perched = travelMode === 'perch'
+  const flying =
+    travelMode === 'drag' || travelMode === 'fly' || travelMode === 'home'
 
   // ADR layering: page actions stay clickable; focused elements stay clear.
   const [yielding, setYielding] = useState<'none' | 'overlap' | 'focus'>('none')
@@ -96,7 +245,10 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       !muted &&
       !reduced &&
       !suppressed &&
+      !dizzy &&
+      !flying &&
       !summon &&
+      !notice &&
       !menuOpen,
     blocked: yielding !== 'none',
   })
@@ -107,7 +259,10 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       !muted &&
       !reduced &&
       !suppressed &&
+      !dizzy &&
+      !flying &&
       !summon &&
+      !notice &&
       !menuOpen,
     pathname,
   )
@@ -120,6 +275,51 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     accountId,
     open: menuOpen && (muted || reduced),
   })
+  // A celebration wakes a sleeping Mầm, quietly: its one-shot takes over.
+  const shot = celebration.oneShot ?? saved
+  useEffect(() => {
+    if (asleep && (shot || celebrating)) travel.wakeQuiet()
+  }, [travel, asleep, shot, celebrating])
+  // Sleep (design §D): 60 s without input, docked, quiet and nothing open.
+  useMamIdle(
+    canTravel &&
+      status === 'ready' &&
+      !asleep &&
+      travelMode === 'dock' &&
+      !menuOpen &&
+      !summon &&
+      !notice &&
+      !celebrating,
+    () => void travel.sleep(),
+  )
+  // The one-time tip: a card to ask about, "tự lên tiếng" on, not seen before.
+  const hasCards = useHasMamElementTarget()
+  const tipDue =
+    !hidden &&
+    !away &&
+    !suppressed &&
+    !muted &&
+    !tipSeen &&
+    hasCards &&
+    !dizzy &&
+    !asleep &&
+    travelMode === 'dock' &&
+    !menuOpen &&
+    !summon &&
+    !notice &&
+    !celebrating &&
+    !shot &&
+    yielding === 'none'
+  useEffect(() => {
+    if (!tipDue) return
+    const timer = setTimeout(() => {
+      setMamTipSeen()
+      setNotice({ kind: 'tip', returnFocus: null })
+      if (!still) void travel.tipHop()
+    }, TIP_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [tipDue, still, travel])
+
   useEffect(() => {
     let frame: number | null = null
     const content = document.querySelector('.ref-content')
@@ -131,6 +331,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         !root ||
         menuOpen ||
         dockBubble ||
+        travelMode !== 'dock' ||
         (active && root.contains(active))
       ) {
         setYielding('none')
@@ -222,7 +423,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       window.removeEventListener('scroll', scheduleCheck, true)
       window.removeEventListener('resize', scheduleCheck)
     }
-  }, [pathname, hidden, menuOpen, dockBubble, celebrating])
+  }, [pathname, hidden, menuOpen, dockBubble, celebrating, travelMode])
 
   // Leaving (a safety zone, a modal) while the dock owns focus would drop it on
   // the body; hand it to the page content. Focus a dialog already took is not in the
@@ -261,13 +462,82 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     node.focus()
   }
 
+  // A tap (under 6 px of travel) keeps the button's job; a drag is play.
+  const onDockPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (
+      !event.isPrimary ||
+      (event.pointerType === 'mouse' && event.button !== 0)
+    )
+      return
+    if (!canTravel || travelMode !== 'dock') return
+    // Capture at the press, not at the first move: a fast flick can jump off the
+    // button before the first pointermove, and the drag would never start.
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    dragRef.current = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      t: performance.now(),
+      on: false,
+    }
+  }
+  const onDockPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const press = dragRef.current
+    if (!press || press.id !== event.pointerId) return
+    if (!press.on) {
+      if (
+        Math.hypot(event.clientX - press.x, event.clientY - press.y) <
+        DRAG_SLOP_PX
+      )
+        return
+      // From where the press began, so the crossing move itself is a move.
+      if (!travel.dragStart(press.x, press.y, press.t)) {
+        dragRef.current = null
+        return
+      }
+      press.on = true
+      setOpen(false)
+      setNotice(null)
+      close(false)
+      celebration.dismiss()
+    }
+    travel.dragMove(event.clientX, event.clientY)
+  }
+  const onDockPointerEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const press = dragRef.current
+    if (!press || press.id !== event.pointerId) return
+    dragRef.current = null
+    if (!press.on) return
+    travel.dragEnd(event.clientX, event.clientY)
+    // The click that ends a drag is not a tap.
+    afterDrag.current = true
+    setTimeout(() => {
+      afterDrag.current = false
+    }, 0)
+  }
+  const onDockClick = () => {
+    if (afterDrag.current || travelMode !== 'dock') return
+    if (dizzy) {
+      setNotice(notice ? null : { kind: 'dizzy', returnFocus: dockRef.current })
+      if (!notice) setDizzyPlay((value) => value + 1)
+      return
+    }
+    if (asleep) {
+      void travel.wake()
+      return
+    }
+    setNotice(null)
+    if (dockBubble) close(false)
+    else setOpen((value) => !value)
+  }
+
   const toggleHidden = (next: boolean) => {
     focusAfterToggle.current = true
     setOpen(false)
     setMamHidden(next)
   }
 
-  const travel = reduced ? 0 : 8
+  const rise = reduced ? 0 : 8
   const shrink = reduced ? 1 : 0.98
   const transition = { duration: 0.22, ease }
   // Leaving for a modal or a safety zone is instant under reduced motion.
@@ -280,6 +550,11 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       data-mam-dock={away ? 'away' : hidden ? 'hidden' : 'shown'}
       data-yield={yielding !== 'none'}
       data-focus-yield={yielding === 'focus'}
+      data-mam-travel={travelMode}
+      data-mam-sleep={asleep}
+      data-mam-dizzy={dizzy}
+      data-mam-suppressed={suppressed}
+      data-front={flying}
     >
       <AnimatePresence initial={false} mode="wait">
         {away ? null : hidden ? (
@@ -305,10 +580,11 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         ) : (
           <motion.div
             key="dock"
+            ref={layerRef}
             className={styles.dockWrap}
-            initial={{ opacity: 0, y: travel }}
+            initial={{ opacity: 0, y: rise }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: travel, transition: exitTransition }}
+            exit={{ opacity: 0, y: rise, transition: exitTransition }}
             transition={transition}
           >
             <button
@@ -318,28 +594,87 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
               }}
               type="button"
               className={styles.dock}
-              aria-label="Mầm"
-              aria-expanded={menuOpen || dockBubble}
+              aria-label={
+                dizzy
+                  ? 'Mầm đang gặp sự cố'
+                  : asleep
+                    ? 'Mầm đang ngủ, bấm để đánh thức'
+                    : 'Mầm'
+              }
+              aria-expanded={menuOpen || dockBubble || notice?.kind === 'dizzy'}
               aria-controls={menuOpen ? menuId : undefined}
               data-open={menuOpen || dockBubble}
-              onClick={() => {
-                if (dockBubble) close(false)
-                else setOpen((value) => !value)
-              }}
+              // Away from the dock (perched, thrown) the button is an empty spot:
+              // out of the tab order, but not inert (a drag needs its pointer capture).
+              tabIndex={travelMode === 'dock' ? undefined : -1}
+              onClick={onDockClick}
+              onPointerDown={onDockPointerDown}
+              onPointerMove={onDockPointerMove}
+              onPointerUp={onDockPointerEnd}
+              onPointerCancel={onDockPointerEnd}
             >
               <span className={styles.flight} data-flight={celebration.flight}>
-                <MamCharacter
-                  size={compact ? 72 : 96}
-                  behavior={
-                    behavior ??
-                    (celebrating ? 'happy' : menuOpen ? 'curious' : 'idle')
-                  }
-                  reducedMotion={
-                    motionOff || suppressed || isMamStaticDockRoute(pathname)
-                  }
-                  oneShot={celebration.oneShot ?? saved}
-                  onStatusChange={setStatus}
-                />
+                <motion.span
+                  className={styles.mover}
+                  style={{ x: travel.values.x, y: travel.values.y }}
+                >
+                  <motion.span
+                    className={styles.body}
+                    style={{
+                      rotate: travel.values.rotate,
+                      scaleX: travel.values.scaleX,
+                      scaleY: travel.values.scaleY,
+                      originX: 0.5,
+                      originY: 0.62,
+                    }}
+                  >
+                    <span className={styles.breath} data-asleep={asleep}>
+                      <MamCharacter
+                        size={size}
+                        behavior={
+                          dizzy
+                            ? 'gentle'
+                            : (travelBehavior ??
+                              behavior ??
+                              (celebrating
+                                ? 'happy'
+                                : menuOpen
+                                  ? 'curious'
+                                  : 'idle'))
+                        }
+                        attention={attention}
+                        reducedMotion={
+                          motionOff ||
+                          suppressed ||
+                          isMamStaticDockRoute(pathname)
+                        }
+                        // Held while asleep: the quiet wake must clear the sleep state
+                        // first, or the renderer would cancel the command that woke Mầm.
+                        oneShot={asleep ? null : shot}
+                        onStatusChange={setStatus}
+                        onFallback={(reason) => {
+                          if (reason !== 'error') return
+                          markMamRendererFailed()
+                          setDizzy(true)
+                        }}
+                      />
+                      {dizzy ? (
+                        <MamDizzy
+                          key={dizzyPlay}
+                          size={size}
+                          still={still || suppressed}
+                        />
+                      ) : null}
+                    </span>
+                  </motion.span>
+                  {asleep ? (
+                    <span className={styles.letters} aria-hidden="true">
+                      <span>z</span>
+                      <span>z</span>
+                      <span>Z</span>
+                    </span>
+                  ) : null}
+                </motion.span>
               </span>
             </button>
 
@@ -351,11 +686,11 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                   className={styles.menu}
                   role="group"
                   aria-labelledby={titleId}
-                  initial={{ opacity: 0, y: travel, scale: shrink }}
+                  initial={{ opacity: 0, y: rise, scale: shrink }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{
                     opacity: 0,
-                    y: travel / 2,
+                    y: rise / 2,
                     scale: shrink,
                     transition: exitTransition,
                   }}
@@ -365,7 +700,10 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                     Mầm
                   </div>
                   <div className={styles.lead}>
-                    Mầm ngồi ở góc này và chỉ lên tiếng khi bạn cần.
+                    Mầm ngồi ở góc này và chỉ lên tiếng khi bạn cần.{' '}
+                    {coarse
+                      ? 'Nhấn giữ vào một thẻ để hỏi Mầm về thẻ đó.'
+                      : 'Chuột phải vào một thẻ để hỏi Mầm về thẻ đó.'}
                   </div>
                   {note ? <p className={styles.note}>{note}</p> : null}
 
@@ -434,16 +772,76 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         ) : null}
       </AnimatePresence>
 
+      {perched ? (
+        <>
+          <motion.span
+            className={styles.paw}
+            data-mam-paw=""
+            aria-hidden="true"
+            style={{
+              x: travel.values.pawLeft,
+              y: travel.values.pawY,
+              scale: travel.values.pawScale,
+            }}
+          />
+          <motion.span
+            className={styles.paw}
+            data-mam-paw=""
+            aria-hidden="true"
+            style={{
+              x: travel.values.pawRight,
+              y: travel.values.pawY,
+              scale: travel.values.pawScale,
+            }}
+          />
+        </>
+      ) : null}
+
       <AnimatePresence>
-        {summon ? (
+        {notice ? (
+          <MamNoticeBubble
+            key="notice"
+            text={
+              notice.kind === 'dizzy'
+                ? DIZZY_TEXT
+                : coarse
+                  ? 'Mẹo nè: nhấn giữ vào thẻ bất kỳ, mình sẽ trèo lên giải thích cho bạn.'
+                  : 'Mẹo nè: chuột phải vào thẻ bất kỳ, mình sẽ trèo lên giải thích cho bạn.'
+            }
+            confirmLabel={notice.kind === 'dizzy' ? 'Đã hiểu' : 'Cảm ơn Mầm'}
+            modal={notice.kind === 'dizzy'}
+            reduced={reduced}
+            bubbleRef={noticeRef}
+            dockRef={dockRef}
+            returnFocus={notice.returnFocus}
+            onClose={() => setNotice(null)}
+            onHide={
+              notice.kind === 'dizzy'
+                ? () => {
+                    setNotice(null)
+                    toggleHidden(true)
+                  }
+                : undefined
+            }
+          />
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {summon && (!climbing || perch) ? (
           <MamBubble
             key={summon.anchor.kind === 'dock' ? 'dock' : 'point'}
             summon={summon}
             reduced={reduced}
             bubbleRef={bubbleRef}
+            perch={climbing ? perch : null}
             onChoose={choose}
             onGo={go}
             onClose={() => close(true)}
+            onThanks={() => {
+              thanksRef.current = true
+              close(true)
+            }}
           />
         ) : null}
       </AnimatePresence>

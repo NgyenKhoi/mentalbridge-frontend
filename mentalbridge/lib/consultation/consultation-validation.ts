@@ -362,6 +362,15 @@ export type PayoutDestination = ConsultationSchemas['PayoutDestination']
 export type SavePayoutDestinationInput =
   ConsultationSchemas['SavePayoutDestination']
 export type AdminPayoutList = ConsultationSchemas['AdminPayoutList']
+export type PayoutBankList = ConsultationSchemas['PayoutBankList']
+export type AdminPayoutDestinationList =
+  ConsultationSchemas['AdminPayoutDestinationList']
+export type AdminPayoutDestinationDetail =
+  ConsultationSchemas['AdminPayoutDestinationDetail']
+export type ConfirmPayoutDestinationInput =
+  ConsultationSchemas['ConfirmPayoutDestination']
+export type RetryPayoutInput = ConsultationSchemas['RetryPayout']
+export type CloseFailedPayoutInput = ConsultationSchemas['CloseFailedPayout']
 export type DiscoverySlot = ConsultationSchemas['DiscoverySlot']
 export type DiscoveryExplanation = ConsultationSchemas['DiscoveryExplanation']
 export type SpecialistDiscoveryItem =
@@ -578,35 +587,102 @@ const PAYOUT_STATUSES = [
   'FAILED',
   'UNKNOWN',
 ] as const
-const PAYOUT_PROVIDERS = ['FAKE', 'MOMO'] as const
+const PAYOUT_PROVIDERS = ['FAKE', 'MOMO', 'PAYOS'] as const
+const RECONCILIATION_STATUSES = [
+  'PENDING',
+  'POLLING',
+  'NEEDS_REVIEW',
+  'COMPLETE',
+] as const
+const EARNING_POLICY_VERSIONS = [
+  'specialist-earning-v1',
+  'staging-demo-paid-v1',
+] as const
+const PAYOUT_MODES = ['DISABLED', 'FAKE', 'MOMO', 'PAYOS'] as const
 const PAYOUT_DESTINATION_TYPES = ['MOMO_WALLET', 'BANK_ACCOUNT'] as const
 
 function nonNegativeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0
 }
 
+function positiveInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) > 0
+}
+
 function nullableString(value: unknown): value is string | null {
   return value === null || typeof value === 'string'
+}
+
+// Fields the server emits since MB-787 are optional here so an older server still parses.
+function keysWithin(
+  value: Record<string, unknown>,
+  required: string[],
+  optionalKeys: string[],
+) {
+  const actual = Object.keys(value)
+  return (
+    required.every((key) => actual.includes(key)) &&
+    actual.every((key) => required.includes(key) || optionalKeys.includes(key))
+  )
+}
+
+function absentOr(value: unknown, check: (value: unknown) => boolean) {
+  return value === undefined || check(value)
+}
+
+const RECONCILIATION_KEYS = [
+  'reconciliationStatus',
+  'nextReconciliationAt',
+  'reviewRequiredAt',
+  'closedAt',
+]
+
+function validReconciliation(value: Record<string, unknown>) {
+  return (
+    absentOr(value.reconciliationStatus, (status) =>
+      RECONCILIATION_STATUSES.includes(status as never),
+    ) &&
+    absentOr(
+      value.nextReconciliationAt,
+      (at) => at === null || utcInstant(at),
+    ) &&
+    absentOr(value.reviewRequiredAt, (at) => at === null || utcInstant(at)) &&
+    absentOr(value.closedAt, (at) => at === null || utcInstant(at))
+  )
 }
 
 function parsePayoutDestinationValue(value: unknown): PayoutDestination | null {
   const destination = record(value)
   if (
     !destination ||
-    !exactKeys(destination, [
-      'id',
-      'provider',
-      'destinationType',
-      'displayHint',
-      'status',
-      'verifiedAt',
-    ]) ||
+    !keysWithin(
+      destination,
+      [
+        'id',
+        'provider',
+        'destinationType',
+        'displayHint',
+        'status',
+        'verifiedAt',
+      ],
+      ['bankCode', 'bankName', 'version', 'updatedAt', 'usableForPayout'],
+    ) ||
     !uuid(destination.id) ||
     !PAYOUT_PROVIDERS.includes(destination.provider as never) ||
     !PAYOUT_DESTINATION_TYPES.includes(destination.destinationType as never) ||
     typeof destination.displayHint !== 'string' ||
-    !['VERIFIED', 'DISABLED'].includes(String(destination.status)) ||
-    !utcInstant(destination.verifiedAt)
+    !['PENDING_CONFIRMATION', 'VERIFIED', 'DISABLED'].includes(
+      String(destination.status),
+    ) ||
+    !(destination.verifiedAt === null || utcInstant(destination.verifiedAt)) ||
+    !absentOr(destination.bankCode, nullableString) ||
+    !absentOr(destination.bankName, nullableString) ||
+    !absentOr(destination.version, nonNegativeInteger) ||
+    !absentOr(destination.updatedAt, utcInstant) ||
+    !absentOr(
+      destination.usableForPayout,
+      (usable) => typeof usable === 'boolean',
+    )
   )
     return null
   return destination as PayoutDestination
@@ -651,45 +727,61 @@ export function parseSavePayoutDestinationInput(
   return input as SavePayoutDestinationInput
 }
 
+function validPayoutAvailability(value: unknown) {
+  const availability = record(value)
+  return (
+    availability !== null &&
+    exactKeys(availability, ['mode', 'ready', 'reasonCode']) &&
+    PAYOUT_MODES.includes(availability.mode as never) &&
+    typeof availability.ready === 'boolean' &&
+    nullableString(availability.reasonCode)
+  )
+}
+
 export function parseSpecialistEarnings(
   value: unknown,
 ): SpecialistEarnings | null {
   const response = record(value)
   if (
     !response ||
-    !exactKeys(response, [
-      'currency',
-      'earningPolicyVersion',
-      ...(response.payoutProvider === undefined ? [] : ['payoutProvider']),
-      'settlementHoldDays',
-      'minimumWithdrawalVnd',
-      'generatedAt',
-      'balance',
-      'destination',
-      'earnings',
-      'payouts',
-    ]) ||
+    !keysWithin(
+      response,
+      [
+        'currency',
+        'earningPolicyVersion',
+        'settlementHoldDays',
+        'minimumWithdrawalVnd',
+        'generatedAt',
+        'balance',
+        'destination',
+        'earnings',
+        'payouts',
+      ],
+      ['payoutProvider', 'payoutAvailability', 'settlementHoldSeconds'],
+    ) ||
     response.currency !== 'VND' ||
-    response.earningPolicyVersion !== 'specialist-earning-v1' ||
+    !EARNING_POLICY_VERSIONS.includes(response.earningPolicyVersion as never) ||
     !(
       response.payoutProvider === undefined ||
       PAYOUT_PROVIDERS.includes(response.payoutProvider as never)
     ) ||
-    response.settlementHoldDays !== 7 ||
-    response.minimumWithdrawalVnd !== 100000 ||
-    !utcInstant(response.generatedAt)
+    !nonNegativeInteger(response.settlementHoldDays) ||
+    !absentOr(response.settlementHoldSeconds, positiveInteger) ||
+    !positiveInteger(response.minimumWithdrawalVnd) ||
+    !utcInstant(response.generatedAt) ||
+    !absentOr(response.payoutAvailability, validPayoutAvailability)
   )
     return null
 
   const balance = record(response.balance)
   if (
     !balance ||
-    !exactKeys(balance, [
-      'pendingSettlementVnd',
-      'availableVnd',
-      'processingVnd',
-      'paidVnd',
-    ]) ||
+    !keysWithin(
+      balance,
+      ['pendingSettlementVnd', 'availableVnd', 'processingVnd', 'paidVnd'],
+      ['retryPendingVnd'],
+    ) ||
+    !absentOr(balance.retryPendingVnd, nonNegativeInteger) ||
     !nonNegativeInteger(balance.pendingSettlementVnd) ||
     !nonNegativeInteger(balance.availableVnd) ||
     !nonNegativeInteger(balance.processingVnd) ||
@@ -745,17 +837,22 @@ export function parseSpecialistEarnings(
     const payout = record(value)
     if (
       !payout ||
-      !exactKeys(payout, [
-        'id',
-        'destinationId',
-        'amountVnd',
-        'provider',
-        'status',
-        'providerReference',
-        'failureCode',
-        'requestedAt',
-        'completedAt',
-      ]) ||
+      !keysWithin(
+        payout,
+        [
+          'id',
+          'destinationId',
+          'amountVnd',
+          'provider',
+          'status',
+          'providerReference',
+          'failureCode',
+          'requestedAt',
+          'completedAt',
+        ],
+        RECONCILIATION_KEYS,
+      ) ||
+      !validReconciliation(payout) ||
       !uuid(payout.id) ||
       !uuid(payout.destinationId) ||
       !nonNegativeInteger(payout.amountVnd) ||
@@ -795,20 +892,25 @@ export function parseAdminPayoutList(value: unknown): AdminPayoutList | null {
     const payout = record(value)
     if (
       !payout ||
-      !exactKeys(payout, [
-        'payoutId',
-        'specialistAccountId',
-        'destinationHint',
-        'amountVnd',
-        'currency',
-        'provider',
-        'status',
-        'earningCount',
-        'providerReference',
-        'failureCode',
-        'requestedAt',
-        'completedAt',
-      ]) ||
+      !keysWithin(
+        payout,
+        [
+          'payoutId',
+          'specialistAccountId',
+          'destinationHint',
+          'amountVnd',
+          'currency',
+          'provider',
+          'status',
+          'earningCount',
+          'providerReference',
+          'failureCode',
+          'requestedAt',
+          'completedAt',
+        ],
+        RECONCILIATION_KEYS,
+      ) ||
+      !validReconciliation(payout) ||
       !uuid(payout.payoutId) ||
       !uuid(payout.specialistAccountId) ||
       typeof payout.destinationHint !== 'string' ||
@@ -827,6 +929,123 @@ export function parseAdminPayoutList(value: unknown): AdminPayoutList | null {
   })
   if (items.some((item) => item === null)) return null
   return { ...response, items } as AdminPayoutList
+}
+
+export function parsePayoutBankList(value: unknown): PayoutBankList | null {
+  const response = record(value)
+  if (
+    !response ||
+    !exactKeys(response, ['generatedAt', 'items']) ||
+    !utcInstant(response.generatedAt) ||
+    !Array.isArray(response.items) ||
+    response.items.length > 1000
+  )
+    return null
+  const valid = response.items.every((item) => {
+    const bank = record(item)
+    return (
+      bank !== null &&
+      exactKeys(bank, ['bin', 'name', 'shortName']) &&
+      typeof bank.bin === 'string' &&
+      /^\d{6}$/.test(bank.bin) &&
+      typeof bank.name === 'string' &&
+      typeof bank.shortName === 'string'
+    )
+  })
+  return valid ? (response as PayoutBankList) : null
+}
+
+export function parseAdminPayoutDestinationList(
+  value: unknown,
+): AdminPayoutDestinationList | null {
+  const response = record(value)
+  if (
+    !response ||
+    !exactKeys(response, ['generatedAt', 'count', 'items']) ||
+    !utcInstant(response.generatedAt) ||
+    !nonNegativeInteger(response.count) ||
+    !Array.isArray(response.items) ||
+    response.count !== response.items.length ||
+    response.items.length > 200
+  )
+    return null
+  const items = response.items.map((value) => {
+    const item = record(value)
+    if (
+      !item ||
+      !exactKeys(item, ['destination', 'specialistAccountId']) ||
+      !uuid(item.specialistAccountId)
+    )
+      return null
+    const destination = parsePayoutDestinationValue(item.destination)
+    return destination ? { ...item, destination } : null
+  })
+  if (items.some((item) => item === null)) return null
+  return { ...response, items } as AdminPayoutDestinationList
+}
+
+export function parseAdminPayoutDestinationDetail(
+  value: unknown,
+): AdminPayoutDestinationDetail | null {
+  const response = record(value)
+  if (
+    !response ||
+    !exactKeys(response, [
+      'destination',
+      'specialistAccountId',
+      'accountReference',
+      'accountHolderName',
+      'confirmedBy',
+    ]) ||
+    !uuid(response.specialistAccountId) ||
+    typeof response.accountReference !== 'string' ||
+    typeof response.accountHolderName !== 'string' ||
+    !(response.confirmedBy === null || uuid(response.confirmedBy))
+  )
+    return null
+  const destination = parsePayoutDestinationValue(response.destination)
+  return destination
+    ? ({ ...response, destination } as AdminPayoutDestinationDetail)
+    : null
+}
+
+export function parseConfirmPayoutDestinationInput(
+  value: unknown,
+): ConfirmPayoutDestinationInput {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['expectedVersion', 'reasonCode']) ||
+    !nonNegativeInteger(input.expectedVersion) ||
+    input.reasonCode !== 'ACCOUNT_HOLDER_CHECKED'
+  )
+    throw new ConsultationInputError('confirmPayoutDestination')
+  return input as ConfirmPayoutDestinationInput
+}
+
+export function parseRetryPayoutInput(value: unknown): RetryPayoutInput {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['expectedAttemptId']) ||
+    !uuid(input.expectedAttemptId)
+  )
+    throw new ConsultationInputError('retryPayout')
+  return input as RetryPayoutInput
+}
+
+export function parseCloseFailedPayoutInput(
+  value: unknown,
+): CloseFailedPayoutInput {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['expectedAttemptId', 'reasonCode']) ||
+    !uuid(input.expectedAttemptId) ||
+    input.reasonCode !== 'DESTINATION_UNUSABLE'
+  )
+    throw new ConsultationInputError('closeFailedPayout')
+  return input as CloseFailedPayoutInput
 }
 
 function ianaTimezone(value: unknown): value is string {

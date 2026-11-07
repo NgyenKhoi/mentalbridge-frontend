@@ -36,7 +36,7 @@ describe('AdminCommercialReconciliationManager', () => {
         specialistAccountId: '62200000-0000-4000-8000-000000000030',
         amountVnd: 450000,
         currency: 'VND' as const,
-        provider: 'MOMO',
+        provider: 'MOMO' as const,
         status: 'FAILED',
         failureCode: 'ACCOUNT_INVALID',
         destinationHint: '0987***',
@@ -317,7 +317,7 @@ describe('AdminCommercialReconciliationManager', () => {
           planCode: 'PLUS' as const,
           pricingPolicyVersion: 'sandbox-full-price-v1',
           purpose: 'PURCHASE',
-          provider: 'FAKE',
+          provider: 'FAKE' as const,
           status: 'SUCCEEDED',
           amountVnd: 250000,
           currency: 'VND',
@@ -339,6 +339,43 @@ describe('AdminCommercialReconciliationManager', () => {
 
     expect(await screen.findByText(/250\.000/)).toBeInTheDocument()
     expect(screen.getByText('SUCCEEDED')).toBeInTheDocument()
+  })
+
+  it('shows PayOS payouts with the shared Vietnamese status and provider names', async () => {
+    vi.mocked(
+      browserCommercialReconciliation.getDiscrepancies,
+    ).mockResolvedValue(sampleDiscrepancies)
+    vi.mocked(browserCommercialReconciliation.getPayouts).mockResolvedValue({
+      generatedAt: '2026-11-04T03:00:00Z',
+      count: 1,
+      items: [
+        {
+          payoutId: '78700000-0000-4000-8000-000000000003',
+          specialistAccountId: '78700000-0000-4000-8000-000000000002',
+          destinationHint: '970436 ****7890',
+          amountVnd: 210000,
+          currency: 'VND',
+          provider: 'PAYOS',
+          status: 'UNKNOWN',
+          earningCount: 1,
+          providerReference: null,
+          failureCode: 'PAYOUT_RECONCILIATION_OVERDUE',
+          requestedAt: '2026-11-03T03:00:00Z',
+          completedAt: null,
+          reconciliationStatus: 'NEEDS_REVIEW',
+          nextReconciliationAt: null,
+          reviewRequiredAt: '2026-11-04T03:00:00Z',
+        },
+      ],
+    })
+
+    render(<AdminCommercialReconciliationManager />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Chi trả chuyên gia' }))
+
+    expect(await screen.findByText(/••••7890 \(PayOS\)/)).toBeInTheDocument()
+    expect(screen.getByText('Cần kiểm tra')).toBeInTheDocument()
+    expect(screen.getByText(/Cần kiểm tra từ/)).toBeInTheDocument()
+    expect(screen.queryByText('UNKNOWN')).not.toBeInTheDocument()
   })
 
   it('shows unapproved actions as disabled with proper security warnings', async () => {
@@ -603,7 +640,7 @@ describe('AdminCommercialReconciliationManager', () => {
           planCode: 'PLUS' as const,
           pricingPolicyVersion: 'sandbox-full-price-v1',
           purpose: 'PURCHASE',
-          provider: 'FAKE',
+          provider: 'FAKE' as const,
           status: 'SUCCEEDED',
           amountVnd: 250000,
           currency: 'VND',

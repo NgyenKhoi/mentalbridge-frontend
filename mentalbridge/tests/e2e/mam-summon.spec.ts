@@ -1,7 +1,8 @@
 import { expect, type Page } from '@playwright/test'
 
-import { test } from './test-fixtures'
+import { seedOnboardingSeen, test } from './test-fixtures'
 import { homeWorld, installHomeMocks } from './home-next-step-mocks'
+import { box, character, travelling } from './mam-dock-helpers'
 
 // MB-769: Mầm targets, summon gestures and reviewed explanations. V1 answers
 // come from reviewed copy, so a summon never calls an AI endpoint. Gestures
@@ -60,6 +61,103 @@ test.describe('MB-769 Mầm summon', () => {
     await page.keyboard.press('Escape')
     await expect(bubble(page)).toHaveCount(0)
     expect(aiCalls).toEqual([])
+  })
+
+  // MB-814: the one Mầm leaves the dock and climbs from behind the card's top edge.
+  test('right-click climbs from behind the card edge, answers beside Mầm and goes home', async ({
+    page,
+  }) => {
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/dashboard')
+    await expect(dock(page)).toBeVisible()
+    const home = await box(dock(page))
+    const card = page.locator('[data-mam-active]')
+    // The dashboard section marks its first card as the perch surface (data-mam-perch).
+    const surface = card.locator('[data-mam-perch]').first()
+
+    await resources(page)
+      .getByRole('heading', { level: 2 })
+      .click({ button: 'right' })
+    await expect(card).toHaveCount(1)
+    const zBefore = await card.evaluate((el) => getComputedStyle(el).zIndex)
+    await travelling(page, 'perch')
+    await expect(bubble(page)).toBeVisible()
+    await expect(page.locator('[data-mam-paw]')).toHaveCount(2)
+
+    // 0.64·S above the card's top edge, 28 px inside its right edge, one character.
+    await expect(async () => {
+      const edge = await box(surface)
+      const mam = await box(character(page))
+      expect(Math.abs(mam.y - (edge.y - 0.64 * 96))).toBeLessThan(4)
+      expect(
+        Math.abs(
+          mam.x - Math.min(edge.x + edge.width - 96 - 28, 1440 - 96 - 8),
+        ),
+      ).toBeLessThan(4)
+      // Beside the head: right edge 12 px left of Mầm, bottom 22 px under the edge.
+      const talk = await box(bubble(page))
+      if ((await bubble(page).getAttribute('data-perch')) === 'left') {
+        expect(Math.abs(talk.x + talk.width - (mam.x - 12))).toBeLessThan(3)
+        expect(Math.abs(talk.y + talk.height - (edge.y + 22))).toBeLessThan(3)
+      }
+    }).toPass()
+    await expect(page.locator('[data-mam-dock] [data-mam-status]')).toHaveCount(
+      1,
+    )
+    // Behind the card by clipping, never by raising the card.
+    expect(await card.evaluate((el) => getComputedStyle(el).zIndex)).toBe(
+      zBefore,
+    )
+    expect(
+      await page
+        .locator('[data-mam-dock] > div')
+        .evaluate((el) => (el as HTMLElement).style.clipPath),
+    ).toContain('inset(')
+    await expect(
+      bubble(page).getByRole('button', { name: 'Mầm giải thích' }),
+    ).toBeFocused()
+
+    // Scrolling follows the card.
+    await page.mouse.wheel(0, 120)
+    await expect(async () => {
+      const edge = await box(surface)
+      const mam = await box(character(page))
+      expect(Math.abs(mam.y - (edge.y - 0.64 * 96))).toBeLessThan(4)
+    }).toPass()
+
+    await page.keyboard.press('Escape')
+    await expect(bubble(page)).toHaveCount(0)
+    await travelling(page, 'dock')
+    await expect(async () => {
+      const mam = await box(character(page))
+      expect(Math.abs(mam.x - home.x)).toBeLessThan(3)
+      expect(Math.abs(mam.y - home.y)).toBeLessThan(3)
+    }).toPass()
+  })
+
+  test('a card too close to the top scrolls just enough, then Mầm climbs under the header', async ({
+    page,
+  }) => {
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/dashboard')
+    await expect(dock(page)).toBeVisible()
+    const heading = resources(page).getByRole('heading', { level: 2 })
+    // Put the card's top edge right under the sticky header.
+    await resources(page).evaluate((el) =>
+      window.scrollBy(0, el.getBoundingClientRect().top - 80),
+    )
+    const headerBottom = await page.evaluate(
+      () =>
+        document.querySelector('.ref-topbar')!.getBoundingClientRect().bottom,
+    )
+    await heading.click({ button: 'right' })
+    await travelling(page, 'perch')
+    await expect(bubble(page)).toBeVisible()
+    const mam = await box(character(page))
+    // Mầm's head is never above the header.
+    expect(mam.y).toBeGreaterThanOrEqual(headerBottom - 1)
   })
 
   test('dock asks about the page and leads to the next step by keyboard', async ({
@@ -157,6 +255,7 @@ test.describe('MB-769 Mầm summon', () => {
         timezoneId: 'Asia/Ho_Chi_Minh',
       })
       const page = await context.newPage()
+      await seedOnboardingSeen(page)
       await installHomeMocks(page, homeWorld('do-today'))
       await page.goto('/dashboard')
       await expect(dock(page)).toBeVisible()

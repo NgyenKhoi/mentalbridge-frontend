@@ -343,14 +343,18 @@ export default function SpecialistDiscovery({
         </Link>
       )}
       {/* Hero Section */}
-      <header className={styles.hero}>
-        <div className={styles.heroDecor} aria-hidden="true">
+      <header className={styles.hero} data-user-page-header>
+        <div
+          className={styles.heroDecor}
+          aria-hidden="true"
+          data-user-page-decoration
+        >
           <div className={styles.decorCircle1} />
           <div className={styles.decorCircle2} />
           <div className={styles.decorCircle3} />
         </div>
-        <div className={styles.heroContent}>
-          <div className={styles.heroBadge}>
+        <div className={styles.heroContent} data-user-page-heading>
+          <div className={styles.heroBadge} data-user-page-kicker>
             <span className={styles.greenDot} />
             <span>Kết nối trực tuyến</span>
           </div>

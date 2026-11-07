@@ -1,0 +1,212 @@
+.row {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  font-family: inherit;
+}
+
+.preview {
+  display: grid;
+  grid-template-columns: 152px minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.thumbnail {
+  overflow: hidden;
+  border-radius: var(--radius-control);
+}
+
+.textThumbnail {
+  display: grid;
+  min-height: 136px;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+  text-decoration: none;
+  text-align: center;
+  font-size: 0.75rem;
+}
+
+.content {
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.meta > span + span::before {
+  content: '·';
+  padding-right: var(--space-2);
+}
+
+.row .excerpt {
+  margin: 0;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.65;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+
+.excerpt > a {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: pre-line;
+}
+
+.author {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.author :global(.community-avatar) {
+  width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+}
+
+.author :global(.community-avatar) svg {
+  width: 16px;
+  height: 16px;
+}
+
+.author > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+.author strong {
+  color: var(--ink);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.actions > a,
+.actions > button,
+.options > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.actions .read {
+  color: var(--teal-deep);
+  background: var(--surface-soft);
+  font-weight: 600;
+}
+
+.options {
+  margin-left: auto;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+}
+
+.options[open] {
+  flex-basis: 100%;
+  margin-left: 0;
+}
+
+.options > summary > svg {
+  width: 16px;
+  height: 16px;
+}
+
+.actions > a:focus-visible,
+.actions > button:focus-visible,
+.excerpt > a:focus-visible,
+.textThumbnail:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .actions > a:hover,
+  .actions > button:hover,
+  .options > summary:hover {
+    color: var(--teal-deep);
+    background: var(--surface-soft);
+  }
+
+  .excerpt > a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+@media (max-width: 600px) {
+  .row {
+    padding: var(--space-4);
+  }
+
+  .preview {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .row .excerpt {
+    font-size: 0.875rem;
+  }
+
+  .textThumbnail {
+    min-height: 112px;
+  }
+
+  .actions {
+    gap: var(--space-1);
+  }
+
+  .actions > a,
+  .actions > button,
+  .options > summary {
+    padding-inline: var(--space-2);
+    font-size: 0.75rem;
+  }
+}

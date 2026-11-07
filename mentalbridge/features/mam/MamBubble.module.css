@@ -30,6 +30,21 @@
   transform-origin: bottom left;
 }
 
+/* Beside a perched Mầm: viewport coordinates, so it follows the card on scroll. */
+.bubble[data-perch] {
+  position: fixed;
+  width: min(310px, calc(100vw - 32px));
+  transform-origin: 100% 100%;
+}
+
+.bubble[data-perch='right'] {
+  transform-origin: 0 100%;
+}
+
+.bubble[data-perch='above'] {
+  transform-origin: 50% 100%;
+}
+
 .head {
   display: flex;
   align-items: center;

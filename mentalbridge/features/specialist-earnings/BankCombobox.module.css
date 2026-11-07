@@ -1,0 +1,125 @@
+.root {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.label {
+  font-size: 13px;
+  font-weight: 650;
+}
+.input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 10px 12px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  transition: border-color var(--motion-fast) var(--ease-standard);
+}
+.input:hover:not(:disabled) {
+  border-color: var(--teal);
+}
+.input:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 2px;
+  background: var(--surface);
+}
+.input[aria-invalid='true'] {
+  border-color: var(--terracotta);
+}
+.input[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+.retry {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--teal-deep);
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.list {
+  max-height: 352px;
+  margin: 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+.list[hidden] {
+  display: none;
+}
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+.option[data-active='true'] {
+  background: var(--teal-pale);
+  box-shadow: inset 2px 0 0 var(--teal-deep);
+}
+.option:active {
+  transform: scale(var(--motion-scale-enter));
+}
+.option > span {
+  display: grid;
+  min-width: 0;
+}
+.option strong {
+  font-weight: 700;
+  color: var(--ink);
+}
+.option em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.option svg {
+  flex-shrink: 0;
+  color: var(--teal-deep);
+  animation: bank-check-in var(--motion-instant) var(--ease-standard);
+}
+.empty {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+@keyframes bank-check-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .input,
+  .option,
+  .option svg {
+    animation: none !important;
+    transition: none !important;
+  }
+  .option:active {
+    transform: none;
+  }
+}

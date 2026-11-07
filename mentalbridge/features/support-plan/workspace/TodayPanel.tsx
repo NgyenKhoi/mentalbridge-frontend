@@ -3,7 +3,15 @@
 import Link from 'next/link'
 import { Fragment, useEffect, useState, type CSSProperties } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, Check, PauseCircle, RotateCcw } from 'lucide-react'
+import {
+  ArrowRight,
+  CalendarDays,
+  Check,
+  CirclePlay,
+  Clock3,
+  PauseCircle,
+  RotateCcw,
+} from 'lucide-react'
 import type {
   ActionOccurrence,
   SupportPlanV3,
@@ -16,6 +24,8 @@ import type { CompanionController } from './use-companion'
 import { actionDestination, REASSESSMENT_HREF } from './workspace-links'
 import { journalPlanHref } from '../journal-plan-origin'
 import { hasContentCompletion } from '../resource-plan-origin'
+import TodayOverview from './TodayOverview'
+import { activityPresentation } from './activity-presentation'
 import {
   barrierLine,
   BARRIERS,
@@ -335,10 +345,23 @@ export default function TodayPanel({
       )}
 
       {showDay && (
+        <TodayOverview
+          plan={plan}
+          occurrences={occurrences}
+          today={today}
+          timezone={timezone}
+          counts={counts}
+          next={focus.kind === 'OCCURRENCE' ? focus : next}
+          now={now}
+          onOpenPlan={onOpenPlan}
+        />
+      )}
+
+      {showDay && (
         <section className="mbw-tile mbw-day" aria-labelledby="mbw-day-title">
           <div className="mbw-day-head">
             <h2 id="mbw-day-title" tabIndex={-1}>
-              {dayLabel(today) || 'Hôm nay'}
+              Hoạt động hôm nay
             </h2>
             {counts.total > 0 && (
               <div className="mbw-day-count">
@@ -445,60 +468,92 @@ export default function TodayPanel({
 
       {earlier.length > 0 && (
         <section className="mbw-earlier" aria-labelledby="mbw-earlier-title">
-          <h3 id="mbw-earlier-title">Còn lại từ những ngày trước</h3>
+          <div className="mbw-earlier-heading">
+            <div>
+              <h3 id="mbw-earlier-title">Còn lại từ những ngày trước</h3>
+              <span className="mbw-activity-count">
+                {earlier.length} hoạt động
+              </span>
+            </div>
+            <p>Bạn có thể hoàn thành theo nhịp của mình.</p>
+          </div>
           <ul>
             {earlier.slice(0, MAX_EARLIER).map((item) => {
               const id = item.occurrence.occurrenceId
               const capability = rowCapability(plan, item, false)
               const destination = actionDestination(plan, item, today)
               const pending = Boolean(rows.busy[id]) || stale
+              const { Icon, tone, label } = activityPresentation(item)
+              const duration = scheduleOf(item)?.estimatedDurationMinutes
+              const summary =
+                item.action.presentation?.summary || item.action.rationale
               return (
                 <li
                   key={id}
+                  className={`mbw-activity-card is-${tone}`}
                   id={`activity-${id}`}
                   data-support-plan-action-id={item.action.actionId}
                   tabIndex={-1}
                 >
-                  <p className="mbw-row-title">
-                    {titleOf(item)}
-                    <span className="mbw-quiet">
-                      {` · ${dayLabel(item.occurrence.localDate)}`}
-                    </span>
-                  </p>
-                  {destination && (
-                    <Link className="mbw-row-link" href={destination.href}>
-                      {destination.label}
-                      <span className="mbw-visually-hidden">
-                        : {titleOf(item)}
+                  <div className="mbw-activity-icon" aria-hidden="true">
+                    <Icon size={25} strokeWidth={1.6} />
+                  </div>
+                  <div className="mbw-activity-content">
+                    <div className="mbw-activity-meta">
+                      <span className="mbw-activity-badge">{label}</span>
+                      {duration ? (
+                        <span>
+                          <Clock3 size={13} aria-hidden="true" /> {duration}{' '}
+                          phút
+                        </span>
+                      ) : null}
+                      <span>
+                        <CalendarDays size={13} aria-hidden="true" />{' '}
+                        {dayLabel(item.occurrence.localDate)}
                       </span>
-                    </Link>
-                  )}
-                  {capability.complete && (
-                    <button
-                      type="button"
-                      className="mbw-row-link"
-                      disabled={pending}
-                      onClick={() => onAcknowledge(item)}
-                    >
-                      Đã làm xong
-                      <span className="mbw-visually-hidden">
-                        : {titleOf(item)}
-                      </span>
-                    </button>
-                  )}
-                  {capability.skip && (
-                    <button
-                      type="button"
-                      className="mbw-row-link"
-                      disabled={pending}
-                      onClick={() => onSkip(item)}
-                    >
-                      Để hôm khác
-                      <span className="mbw-visually-hidden">
-                        : {titleOf(item)}
-                      </span>
-                    </button>
-                  )}
+                    </div>
+                    <p className="mbw-row-title">{titleOf(item)}</p>
+                    {summary && (
+                      <p className="mbw-activity-summary">{summary}</p>
+                    )}
+                  </div>
+                  <div className="mbw-activity-actions">
+                    {destination && (
+                      <Link className="mbw-row-link" href={destination.href}>
+                        <CirclePlay size={15} aria-hidden="true" />
+                        {destination.label}
+                        <span className="mbw-visually-hidden">
+                          : {titleOf(item)}
+                        </span>
+                      </Link>
+                    )}
+                    {capability.complete && (
+                      <button
+                        type="button"
+                        className="mbw-row-link mbw-complete-action"
+                        disabled={pending}
+                        onClick={() => onAcknowledge(item)}
+                      >
+                        <Check size={15} aria-hidden="true" /> Đã làm xong
+                        <span className="mbw-visually-hidden">
+                          : {titleOf(item)}
+                        </span>
+                      </button>
+                    )}
+                    {capability.skip && (
+                      <button
+                        type="button"
+                        className="mbw-row-link mbw-defer-action"
+                        disabled={pending}
+                        onClick={() => onSkip(item)}
+                      >
+                        Để hôm khác
+                        <span className="mbw-visually-hidden">
+                          : {titleOf(item)}
+                        </span>
+                      </button>
+                    )}
+                  </div>
                   {rows.messages[id] && (
                     <p className="mbw-row-note" role="alert">
                       {rows.messages[id]}
@@ -559,6 +614,7 @@ function DayRow({
   onBarrier: (item: PlannedOccurrence, value: Barrier, reuse: boolean) => void
 }>) {
   const { occurrence, action, status } = item
+  const { Icon, tone, label } = activityPresentation(item)
   const id = occurrence.occurrenceId
   const title = titleOf(item)
   const capability = rowCapability(plan, item, engageable)
@@ -616,12 +672,17 @@ function DayRow({
     >
       <div className="mbw-row-grid" style={{ '--i': index } as CSSProperties}>
         <span className="mbw-row-time">{time}</span>
-        <span className="mbw-row-dot" aria-hidden="true">
-          <svg width="13" height="13" viewBox="0 0 14 14">
-            <path d="M2 7.5l3 3 7-7" fill="none" strokeWidth="2.2" />
-          </svg>
+        <span className={`mbw-activity-icon is-${tone}`} aria-hidden="true">
+          {status === 'done' ? (
+            <Check size={23} />
+          ) : (
+            <Icon size={23} strokeWidth={1.6} />
+          )}
         </span>
         <div className="mbw-row-main">
+          <div className="mbw-activity-meta">
+            <span className={`mbw-activity-badge is-${tone}`}>{label}</span>
+          </div>
           {expanded && (
             <p className="mbw-meta">
               {[
@@ -635,6 +696,11 @@ function DayRow({
             </p>
           )}
           <h3 className="mbw-row-title">{title}</h3>
+          {!expanded && action.presentation?.summary && (
+            <p className="mbw-activity-summary">
+              {action.presentation.summary}
+            </p>
+          )}
           {!expanded && (
             <p className="mbw-quiet">
               {[
@@ -723,6 +789,7 @@ function DayRow({
                 )}
                 {mam && explainable && (
                   <MamCardButton
+                    hiddenUntilFocus
                     label={`Mầm giải thích: ${title}`}
                     disabled={
                       mam.pendingActionId !== undefined &&

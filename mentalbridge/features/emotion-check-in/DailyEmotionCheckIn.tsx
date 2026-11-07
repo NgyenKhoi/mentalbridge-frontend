@@ -358,7 +358,10 @@ export function DailyEmotionCheckIn({
           inert={!mamEligible}
           aria-hidden={!mamEligible || undefined}
         >
-          <MamCardButton label="Mầm giải thích: Cảm xúc hôm nay" />
+          <MamCardButton
+            hiddenUntilFocus
+            label="Mầm giải thích: Cảm xúc hôm nay"
+          />
         </div>
       )}
       {planOrigin && (

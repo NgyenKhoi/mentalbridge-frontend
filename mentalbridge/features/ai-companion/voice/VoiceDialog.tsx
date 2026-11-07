@@ -12,6 +12,8 @@ import {
   X,
 } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
+import { useMamDockSlotted } from '@/features/mam/MamDockSlot'
+import { useMamPreferences } from '@/features/mam/mam-preferences'
 import {
   parseAiProcessingDisclosure,
   parseConsentCollection,
@@ -22,6 +24,7 @@ import { voiceClient } from './client'
 import { VoiceError, type Disclosure } from './contract'
 import { clockLabel, durationLabel, voiceErrorText } from './copy'
 import styles from './Voice.module.css'
+import { VoiceMam, type VoiceMamBehavior } from './VoiceMam'
 
 type Props = {
   open: boolean
@@ -52,6 +55,10 @@ export default function VoiceDialog({
   const [saving, setSaving] = useState(false)
   const [includeTextContext, setIncludeTextContext] = useState(false)
   const [now, setNow] = useState(Date.now)
+  // The flag is read where the dock slot mounts, so a slotted page means MAM_WEB_ENABLED is on.
+  const slotted = useMamDockSlotted()
+  const { hidden } = useMamPreferences()
+  const mam = slotted && !hidden
   const consentKey = useRef<string | undefined>(undefined)
   const pendingDisclosure = useRef<AbortController | undefined>(undefined)
   const titleId = useId()
@@ -178,6 +185,14 @@ export default function VoiceDialog({
     view.phase === 'connected' &&
     view.session?.state === 'ACTIVE' &&
     view.hint === 'listening'
+  const who = mam ? 'Mầm' : 'AI'
+  // Mầm follows the call state only; muting and the status text never change it.
+  const mamBehavior: VoiceMamBehavior =
+    view.phase !== 'connected' || preparing
+      ? 'idle'
+      : view.hint === 'thinking' || view.hint === 'speaking'
+        ? view.hint
+        : 'idle'
   const status = preparing
     ? 'Đang chuẩn bị cuộc gọi'
     : view.phase === 'reconnecting'
@@ -187,12 +202,12 @@ export default function VoiceDialog({
         : view.muted
           ? 'Micro đang tắt'
           : view.hint === 'thinking'
-            ? 'AI đang nghĩ'
+            ? `${who} đang nghĩ`
             : view.hint === 'speaking'
-              ? 'AI đang nói'
+              ? `${who} đang nói`
               : listening
-                ? 'AI đang lắng nghe'
-                : 'Đang chờ AI'
+                ? `${who} đang lắng nghe`
+                : `Đang chờ ${who}`
   const terminalReason = view.session?.terminalReason
   return (
     <Dialog
@@ -284,13 +299,22 @@ export default function VoiceDialog({
                   ? 'Đang xác nhận lựa chọn cuộc gọi.'
                   : 'Cuộc gọi không dùng tin nhắn trước đó.'}
             </p>
-            <span className={styles.mark} data-state={view.hint}>
-              {view.muted ? (
-                <MicOff aria-hidden="true" />
-              ) : (
-                <Sparkles aria-hidden="true" />
-              )}
-            </span>
+            {/* `open`: parents keep a closed dialog mounted; dispose() leaves the last phase, so unmount the Rive instance here */}
+            {mam && open ? (
+              <VoiceMam
+                behavior={mamBehavior}
+                dimmed={view.phase === 'reconnecting'}
+                muted={view.muted}
+              />
+            ) : (
+              <span className={styles.mark} data-state={view.hint}>
+                {view.muted ? (
+                  <MicOff aria-hidden="true" />
+                ) : (
+                  <Sparkles aria-hidden="true" />
+                )}
+              </span>
+            )}
             <h3 className={styles.status} role="status" aria-live="polite">
               {status}
             </h3>
@@ -302,12 +326,12 @@ export default function VoiceDialog({
                   : view.muted
                     ? 'Bật micro khi bạn muốn nói tiếp.'
                     : preparing
-                      ? 'Vui lòng chờ AI sẵn sàng trước khi nói.'
+                      ? `Vui lòng chờ ${who} sẵn sàng trước khi nói.`
                       : view.hint === 'unavailable'
-                        ? 'Chưa nhận được trạng thái mới từ AI. Bạn có thể kết thúc hoặc chờ trong giây lát.'
+                        ? `Chưa nhận được trạng thái mới từ ${who}. Bạn có thể kết thúc hoặc chờ trong giây lát.`
                         : listening
                           ? 'Chia sẻ khi bạn sẵn sàng.'
-                          : 'Vui lòng chờ AI sẵn sàng trước khi nói.'}
+                          : `Vui lòng chờ ${who} sẵn sàng trước khi nói.`}
             </p>
             {view.session?.hardStopAt ? (
               <>

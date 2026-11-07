@@ -147,6 +147,9 @@ export async function getCommunityProfile() {
   return { data: response.data, etag: response.headers.etag ?? null }
 }
 
+export const COMMUNITY_PROFILE_CHANGED =
+  'mentalbridge:community-profile-changed'
+
 export async function putCommunityProfile(
   input: PutCommunityProfileRequest,
   etag: string | null,
@@ -156,6 +159,7 @@ export async function putCommunityProfile(
     input,
     { headers: etag ? { 'If-Match': etag } : undefined },
   )
+  window.dispatchEvent(new Event(COMMUNITY_PROFILE_CHANGED))
   return { data: response.data, etag: response.headers.etag ?? null }
 }
 
@@ -185,6 +189,7 @@ export async function putCommunityAvatar(
     { mediaId },
     { headers: { 'If-Match': etag }, ...(signal ? { signal } : {}) },
   )
+  window.dispatchEvent(new Event(COMMUNITY_PROFILE_CHANGED))
   return { data: response.data, etag: response.headers.etag ?? null }
 }
 

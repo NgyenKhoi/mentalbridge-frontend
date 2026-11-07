@@ -158,7 +158,10 @@ export default function AiCompanionChat() {
   const [quota, setQuota] = useState<CompanionQuota | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<{
+    message: string
+    retry: 'load' | 'send'
+  } | null>(null)
   const [search, setSearch] = useState('')
   const [contextOpen, setContextOpen] = useState(false)
   const [contextSaving, setContextSaving] = useState(false)
@@ -197,7 +200,7 @@ export default function AiCompanionChat() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    setError('')
+    setError(null)
     try {
       const today = localDate()
       const [history, resourceResult] = await Promise.all([
@@ -219,7 +222,7 @@ export default function AiCompanionChat() {
         setResources(catalogue.items.filter((item) => viewed.has(item.id)))
       } else setResources([])
     } catch (cause) {
-      setError(friendlyError(cause))
+      setError({ message: friendlyError(cause), retry: 'load' })
     } finally {
       setLoading(false)
     }
@@ -246,7 +249,7 @@ export default function AiCompanionChat() {
 
   const createConversation = async () => {
     if (!(await allowConversationChange())) return
-    setError('')
+    setError(null)
     try {
       const created = await companionBrowserClient.create()
       setConversations((current) => [
@@ -261,7 +264,7 @@ export default function AiCompanionChat() {
       pendingKey.current = null
       showActionToast({ title: 'Đã tạo cuộc trò chuyện mới' })
     } catch (cause) {
-      setError(friendlyError(cause))
+      setError({ message: friendlyError(cause), retry: 'load' })
     }
   }
 
@@ -271,14 +274,14 @@ export default function AiCompanionChat() {
       return
     }
     if (!(await allowConversationChange())) return
-    setError('')
+    setError(null)
     try {
       setActive(await companionBrowserClient.get(id))
       setQuota(null)
       setMobileView('chat')
       pendingKey.current = null
     } catch (cause) {
-      setError(friendlyError(cause))
+      setError({ message: friendlyError(cause), retry: 'load' })
     }
   }
 
@@ -286,7 +289,7 @@ export default function AiCompanionChat() {
     const text = message.trim()
     if (!active || !text || sending) return
     setSending(true)
-    setError('')
+    setError(null)
     pendingKey.current ??= crypto.randomUUID()
     const controller = new AbortController()
     requestControllerRef.current = controller
@@ -345,7 +348,7 @@ export default function AiCompanionChat() {
         cause.code !== 'COMPANION_OUTCOME_UNKNOWN'
       )
         pendingKey.current = null
-      setError(friendlyError(cause))
+      setError({ message: friendlyError(cause), retry: 'send' })
     } finally {
       requestControllerRef.current = null
       if (!animating) setSending(false)
@@ -398,7 +401,7 @@ export default function AiCompanionChat() {
   const saveContext = async (sources: CompanionContextSources) => {
     if (!active) return
     setContextSaving(true)
-    setError('')
+    setError(null)
     try {
       const updated = await companionBrowserClient.updateContext(
         active.conversationId,
@@ -429,7 +432,7 @@ export default function AiCompanionChat() {
       setContextVisibility(false)
       showActionToast({ title: 'Đã lưu nguồn thông tin' })
     } catch (cause) {
-      setError(friendlyError(cause))
+      setError({ message: friendlyError(cause), retry: 'load' })
     } finally {
       setContextSaving(false)
     }
@@ -468,7 +471,7 @@ export default function AiCompanionChat() {
         description: 'Các tin nhắn trong cuộc trò chuyện đã được xóa.',
       })
     } catch (cause) {
-      setError(friendlyError(cause))
+      setError({ message: friendlyError(cause), retry: 'load' })
     }
   }
 
@@ -660,9 +663,19 @@ export default function AiCompanionChat() {
 
         {error ? (
           <div className={styles.error} role="alert">
-            <p>{error}</p>
-            <button type="button" onClick={() => void load()}>
-              Tải lại
+            <p>{error.message}</p>
+            <button
+              type="button"
+              disabled={loading || sending}
+              onClick={() => {
+                if (error.retry === 'send' && active && message.trim())
+                  void send()
+                else void load()
+              }}
+            >
+              {error.retry === 'send' && active && message.trim()
+                ? 'Gửi lại'
+                : 'Tải lại'}
             </button>
           </div>
         ) : null}

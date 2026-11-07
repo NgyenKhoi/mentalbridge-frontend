@@ -1,0 +1,475 @@
+/* User workspace shares the specialist palette and typography.
+ * Body scoping also gives portalled user dialogs the same inherited tokens.
+ */
+body:has(.ref-shell),
+.ref-shell {
+  --clinical-font-sans:
+    var(--font-plus-jakarta), var(--font-be-vietnam-variable), -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --clinical-font-serif:
+    var(--font-lora-variable), 'Newsreader', 'Source Serif 4', Georgia, serif;
+  --font-be-vietnam: var(--clinical-font-sans);
+  --font-body: var(--clinical-font-sans);
+  --font-sans: var(--clinical-font-sans);
+  --font-fraunces: var(--clinical-font-serif);
+  --font-heading: var(--clinical-font-serif);
+  --font-display: var(--clinical-font-serif);
+  --type-page-title-size: clamp(30px, 2.8vw, 38px);
+  --type-page-title-leading: 1.2;
+  --type-page-lead-size: 14px;
+  --type-page-lead-leading: 1.5;
+  --type-card-title-size: 17px;
+  --type-card-title-leading: 1.4;
+  --type-card-meta-size: 12px;
+  --type-card-meta-leading: 1.5;
+  --type-filter-size: 13px;
+  --bg: var(--color-app-bg);
+  --bg-deep: var(--color-surface-soft);
+  --surface: var(--color-surface);
+  --surface-soft: var(--color-surface-soft);
+  --surface-glass: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  --ink: var(--color-text);
+  --ink-soft: var(--color-text-muted);
+  --ink-faint: var(--color-text-faint);
+  --teal: var(--color-primary);
+  --teal-deep: var(--color-primary-dark);
+  --teal-pale: var(--color-primary-soft);
+  --primary: var(--color-primary);
+  --primary-strong: var(--color-primary-dark);
+  --primary-foreground: var(--color-on-primary);
+  --line: var(--color-border);
+  --shadow: var(--shadow-card);
+  --elevation-1: var(--shadow-card);
+  --elevation-2: 0 8px 28px
+    color-mix(in srgb, var(--color-primary) 10%, transparent);
+  --focus-ring: 0 0 0 3px
+    color-mix(in srgb, var(--color-primary) 20%, transparent);
+  font-family: var(--clinical-font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.ref-shell :is(button, input, select, textarea),
+body:has(.ref-shell) :is(dialog, [role='dialog']) {
+  font-family: var(--clinical-font-sans) !important;
+}
+
+.ref-shell :is(button, input, select, textarea) {
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.ref-shell :is(h1, h2, h3, h4),
+body:has(.ref-shell) :is(dialog, [role='dialog']) :is(h1, h2, h3, h4) {
+  font-family: var(--clinical-font-serif) !important;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.ref-shell .ref-content h1 {
+  font-size: var(--type-page-title-size) !important;
+  font-weight: 500;
+  line-height: var(--type-page-title-leading);
+}
+
+.ref-shell .ref-content h2,
+body:has(.ref-shell) :is(dialog, [role='dialog']) h2 {
+  font-size: 20px !important;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ref-shell .ref-content :is(h3, h4) {
+  font-size: var(--type-card-title-size) !important;
+  font-weight: 600;
+  line-height: var(--type-card-title-leading);
+}
+
+.ref-shell .ref-content .mbw-today-hero h2 {
+  font-size: var(--type-page-title-size) !important;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.ref-shell .ref-content .mbw-earlier-heading h3 {
+  font-size: 20px !important;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ref-shell .mbw-upcoming-title,
+.ref-shell .home-journal-title {
+  font-family: var(--clinical-font-serif) !important;
+  font-size: 20px !important;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ref-shell .home-greeting-subline,
+.ref-shell .mbw-today-hero p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ref-shell .home-date-number {
+  font-size: 30px;
+  font-weight: 700;
+}
+
+body .ref-shell,
+.ref-shell .ref-main,
+.ref-shell .ref-content {
+  background: var(--color-app-bg) !important;
+}
+
+.ref-shell .ref-sidebar,
+.ref-shell::before {
+  background: var(--color-app-bg) !important;
+  border-right-color: var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.ref-shell .ref-brand {
+  border-bottom-color: var(--color-border);
+}
+
+.ref-shell .ref-brand > a {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: 0 4px 14px
+    color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.ref-shell .ref-brand > div b {
+  color: var(--color-primary);
+  font-family: var(--clinical-font-serif) !important;
+  font-size: 17px !important;
+  font-weight: 600;
+}
+
+.ref-shell .ref-brand > div span,
+.ref-shell .ref-sidebar nav h2 {
+  color: var(--color-text-muted) !important;
+}
+
+.ref-shell .ref-brand > div span {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: normal;
+}
+
+.ref-shell .ref-sidebar nav h2 {
+  font-family: var(--clinical-font-sans) !important;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.ref-shell .ref-brand > button {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-primary);
+  font-size: 19px;
+  line-height: 1;
+}
+
+.ref-shell .ref-sidebar nav a,
+.ref-shell .ref-sidebar-foot > a {
+  color: var(--color-text-muted);
+  font-family: var(--clinical-font-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.ref-shell .ref-sidebar nav a:hover,
+.ref-shell .ref-sidebar-foot > a:hover {
+  background: var(--color-surface-soft) !important;
+  color: var(--color-text) !important;
+}
+
+.ref-shell .ref-sidebar nav a.active,
+.ref-shell .ref-sidebar-foot > a.active {
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  font-weight: 600;
+  box-shadow: 0 2px 10px
+    color-mix(in srgb, var(--color-primary) 18%, transparent) !important;
+}
+
+.ref-shell .ref-sidebar nav a.active :is(i, svg, span),
+.ref-shell .ref-sidebar-foot > a.active :is(i, svg, span) {
+  color: var(--color-on-primary) !important;
+}
+
+.ref-shell .ref-topbar {
+  background: var(--color-app-bg) !important;
+  border-bottom-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+  backdrop-filter: none;
+  height: 64px;
+  padding: 0 28px;
+  gap: var(--space-4);
+}
+
+.ref-topbar-left {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+}
+
+.ref-shell .ref-context {
+  display: flex;
+  flex-direction: row;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.ref-shell .ref-context :is(a, span) {
+  font-family: var(--clinical-font-sans);
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.ref-shell .ref-context-parent {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.ref-shell .ref-context-parent:hover {
+  color: var(--color-primary);
+}
+
+.ref-shell .ref-context-parent:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.ref-shell .ref-context-separator {
+  color: var(--color-text-faint) !important;
+}
+
+.ref-shell .ref-context [aria-current='page'] {
+  display: inline !important;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text) !important;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.ref-shell .ref-workspace-label {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-soft);
+  color: var(--color-primary) !important;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ref-workspace-label i {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+}
+
+.ref-shell .ref-topbar > label {
+  width: min(280px, 28vw);
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: none;
+}
+
+.ref-shell .ref-topbar input {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.ref-shell .ref-topbar > label:focus-within {
+  border-color: var(--color-primary) !important;
+  box-shadow: var(--focus-ring);
+}
+
+.ref-shell :is(.ref-community-link, .ref-notify, .ref-mobile) {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.ref-shell :is(.ref-community-link, .ref-notify, .ref-mobile):hover {
+  background: var(--color-surface-soft);
+  color: var(--color-primary);
+}
+
+.ref-shell .ref-avatar {
+  background: var(--color-primary);
+  color: var(--color-on-primary) !important;
+  border-color: var(--color-primary);
+}
+
+.ref-shell .home-greeting {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+
+.ref-shell .home-date-tile {
+  background: var(--color-surface-soft);
+  border-color: var(--color-border);
+}
+
+.ref-shell .home-date-tile :is(.home-date-weekday, .home-date-month) {
+  color: var(--color-text-muted);
+}
+
+/* Functional page headings follow the specialist workspace heading pattern. */
+.ref-shell .ref-content [data-user-page-header] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-6);
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: left;
+}
+
+.ref-shell .ref-content [data-user-page-header]::before,
+.ref-shell .ref-content [data-user-page-header]::after,
+.ref-shell [data-user-page-decoration] {
+  display: none;
+}
+
+.ref-shell .ref-content [data-user-page-heading] {
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  align-content: start;
+  gap: var(--space-2);
+  text-align: left;
+}
+
+.ref-shell [data-user-page-header] > [data-user-page-heading] {
+  flex: 1 1 400px;
+}
+
+.ref-shell .ref-content [data-user-page-heading] > h1 {
+  max-width: 100%;
+  margin: 0 !important;
+  color: var(--color-text) !important;
+  font-family: var(--clinical-font-sans) !important;
+  font-size: clamp(24px, 2.5vw, 32px) !important;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.045em;
+  text-transform: none;
+  text-wrap: balance;
+}
+
+.ref-shell [data-user-page-heading] > h1 > span {
+  color: inherit !important;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.ref-shell .ref-content [data-user-page-heading] > p {
+  max-width: 65ch;
+  margin: 0 !important;
+  color: var(--color-text-muted) !important;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.ref-shell .ref-content [data-user-page-kicker] {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-primary) !important;
+  font-family: var(--clinical-font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ref-shell .ref-content [data-user-page-kicker] > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ref-shell [data-user-page-kicker] > span:not(:empty) {
+  color: inherit !important;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.ref-shell [data-user-page-heading] > .mbw-strip {
+  flex-basis: auto;
+  margin-top: var(--space-1);
+}
+
+@media (max-width: 1200px) {
+  .ref-shell .ref-workspace-label {
+    display: none;
+  }
+}
+
+@media (max-width: 1000px) {
+  .ref-shell .ref-context-parent,
+  .ref-shell .ref-context-separator {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .ref-shell .ref-topbar {
+    height: 60px;
+    padding-inline: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .ref-topbar-left {
+    gap: var(--space-2);
+  }
+
+  .ref-shell .ref-topbar > label {
+    width: min(150px, 28vw);
+  }
+
+  .ref-shell .ref-content h1,
+  .ref-shell .ref-content .mbw-today-hero h2 {
+    font-size: 30px !important;
+  }
+
+  .ref-shell :is(input, select, textarea) {
+    font-size: 16px;
+  }
+}
