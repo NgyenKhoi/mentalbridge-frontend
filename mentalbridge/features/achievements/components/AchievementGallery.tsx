@@ -195,9 +195,9 @@ export default function AchievementGallery() {
 
   return (
     <main className={styles.page}>
-      <header className={styles.hero}>
-        <div>
-          <span className={styles.eyebrow}>
+      <header className={styles.hero} data-user-page-header>
+        <div data-user-page-heading>
+          <span className={styles.eyebrow} data-user-page-kicker>
             <LockKeyhole aria-hidden="true" /> Riêng tư cho bạn
           </span>
           <h1>Bộ sưu tập hành trình</h1>

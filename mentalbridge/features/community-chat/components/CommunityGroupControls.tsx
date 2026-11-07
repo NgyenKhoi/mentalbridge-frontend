@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Users, X, UserRoundPlus } from 'lucide-react'
 
 import LightSelect from '@/components/LightSelect'
 import { Dialog } from '@/components/ui/Dialog'
@@ -183,10 +184,18 @@ export function GroupManagement({
   groups,
   viewerProfileId,
   inviteCandidates,
+  onLoadMoreCandidates,
+  loadingCandidates = false,
+  candidateError,
+  onRetryCandidates,
 }: Readonly<{
   groups: Groups
   viewerProfileId?: string
   inviteCandidates: ChatPeer[]
+  onLoadMoreCandidates?: () => void
+  loadingCandidates?: boolean
+  candidateError?: string
+  onRetryCandidates?: () => void
 }>) {
   const [open, setOpen] = useState(false)
   const [invitee, setInvitee] = useState('')
@@ -237,17 +246,41 @@ export function GroupManagement({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        {open
-          ? 'Đóng quản lý nhóm'
-          : `Thành viên · ${roleName(group.viewerRole)}`}
+        {open ? (
+          <>
+            <Users size={16} />
+            Thông tin nhóm
+          </>
+        ) : (
+          <>
+            <Users size={16} />
+            {group.peers.length} thành viên <span>·</span>{' '}
+            {roleName(group.viewerRole)}
+          </>
+        )}
       </button>
-      {open && (
+      <Dialog
+        open={open}
+        onOpenChange={setOpen}
+        labelledBy="community-group-info-title"
+        className={styles.groupDetailsDialog}
+      >
         <div className={styles.groupPanel}>
           <div className={styles.groupPanelHeader}>
             <div>
-              <h2>Quản lý thành viên</h2>
-              <p>Chỉ thành viên đã chấp thuận mới có thể đọc và gửi tin.</p>
+              <span className={styles.groupInfoIcon}>
+                <Users size={28} />
+              </span>
+              <h2 id="community-group-info-title">{group.groupName}</h2>
+              <p>Nhóm chat riêng · {group.peers.length} thành viên</p>
             </div>
+            <button
+              type="button"
+              aria-label="Đóng thông tin nhóm"
+              onClick={() => setOpen(false)}
+            >
+              <X size={19} />
+            </button>
           </div>
           {canInvite && (
             <form
@@ -261,11 +294,11 @@ export function GroupManagement({
               }}
             >
               <label id="community-group-invitee-label">
-                Chọn người từ trò chuyện riêng
+                <UserRoundPlus size={16} /> Mời thêm bạn bè
               </label>
               <p className={styles.inviteHint}>
-                Chỉ những người bạn đang có trò chuyện riêng mới xuất hiện ở
-                đây. MentalBridge không hiển thị danh bạ cộng đồng công khai.
+                Người được mời phải là bạn bè đã chấp nhận và tự đồng ý tham gia
+                nhóm.
               </p>
               {inviteOptions.length ? (
                 <div>
@@ -289,8 +322,27 @@ export function GroupManagement({
                 </div>
               ) : (
                 <p className={styles.inviteEmpty}>
-                  Chưa có người phù hợp để mời từ hộp thư riêng của bạn.
+                  {loadingCandidates
+                    ? 'Đang tải bạn bè…'
+                    : 'Chưa có bạn bè phù hợp để mời. Bạn có thể kết bạn từ trang cá nhân cộng đồng.'}
                 </p>
+              )}
+              {candidateError && (
+                <p role="alert">
+                  {candidateError}{' '}
+                  <button type="button" onClick={onRetryCandidates}>
+                    Thử lại
+                  </button>
+                </p>
+              )}
+              {onLoadMoreCandidates && (
+                <button
+                  type="button"
+                  disabled={loadingCandidates}
+                  onClick={onLoadMoreCandidates}
+                >
+                  {loadingCandidates ? 'Đang tải…' : 'Xem thêm bạn bè'}
+                </button>
               )}
             </form>
           )}
@@ -408,7 +460,7 @@ export function GroupManagement({
             </div>
           )}
         </div>
-      )}
+      </Dialog>
       <Dialog
         open={Boolean(confirm)}
         onOpenChange={(next) => {

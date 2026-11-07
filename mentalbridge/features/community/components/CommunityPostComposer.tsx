@@ -2,6 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import {
+  ImagePlus,
+  LockKeyhole,
+  NotebookPen,
+  Smile,
+  Sprout,
+} from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Disclosure } from '@/components/ui/Disclosure'
 import { ApiError } from '@/lib/api/api-error'
@@ -18,7 +26,13 @@ const MAX_CONTENT = 5000
 
 export default function CommunityPostComposer({
   topics,
-}: Readonly<{ topics: CommunityTopic[] }>) {
+  suggestion = '',
+  mediaRequest = 0,
+}: Readonly<{
+  topics: CommunityTopic[]
+  suggestion?: string
+  mediaRequest?: number
+}>) {
   const router = useRouter()
   const [expanded, setExpanded] = useState(false)
   const [content, setContent] = useState('')
@@ -49,6 +63,18 @@ export default function CommunityPostComposer({
   const hasDraft = Boolean(
     content || selected.length || mediaIds.length || mediaBusy || resourceId,
   )
+  const [appliedSuggestion, setAppliedSuggestion] = useState(suggestion)
+  const [appliedMediaRequest, setAppliedMediaRequest] = useState(mediaRequest)
+  if (mediaRequest !== appliedMediaRequest) {
+    setAppliedMediaRequest(mediaRequest)
+    setMediaOpened(true)
+    setPanel('media')
+    setExpanded(true)
+  }
+  if (suggestion !== appliedSuggestion) {
+    setAppliedSuggestion(suggestion)
+    if (suggestion) setContent((current) => current || `${suggestion}\n\n`)
+  }
 
   useEffect(() => {
     if (expanded) editor.current?.focus()
@@ -141,27 +167,99 @@ export default function CommunityPostComposer({
 
   return (
     <>
-      <section className={styles.launcher}>
-        <span className={styles.launcherMark} aria-hidden="true">
-          <ComposerIcon name="write" />
-        </span>
-        <div>
-          <strong>Bạn muốn chia sẻ điều gì?</strong>
-          <p>
-            {topics.length > 0
-              ? hasDraft
-                ? 'Bạn có một bài viết đang soạn.'
-                : 'Một suy nghĩ, một câu chuyện, một bước tiến nhỏ.'
-              : 'Chủ đề đang được cập nhật. Bạn có thể quay lại viết bài sau.'}
-          </p>
+      <section
+        id="community-compose"
+        className={styles.quickComposer}
+        aria-label="Soạn chia sẻ"
+      >
+        <div className={styles.quickEditor}>
+          <span className={styles.quickMark}>
+            <Sprout size={21} />
+          </span>
+          <label className={styles.srOnly} htmlFor="community-quick-content">
+            Nội dung chia sẻ nhanh
+          </label>
+          <textarea
+            id="community-quick-content"
+            value={content}
+            onChange={(event) => {
+              setContent(event.target.value)
+              setContentError('')
+            }}
+            placeholder="Viết ra để nhẹ lòng hơn… Bạn không phải gồng mình mạnh mẽ ở đây."
+            maxLength={10000}
+            disabled={submitting}
+          />
         </div>
-        <button
-          type="button"
-          disabled={topics.length === 0}
-          onClick={() => setExpanded(true)}
-        >
-          {hasDraft ? 'Viết tiếp' : 'Viết bài'}
-        </button>
+        <div className={styles.quickMeta}>
+          <span>{length.toLocaleString('vi-VN')} / 5.000 ký tự</span>
+          <span>
+            <LockKeyhole size={12} /> Bạn chọn cách xuất hiện
+          </span>
+        </div>
+        <fieldset className={styles.quickIdentity} disabled={submitting}>
+          <legend>Chia sẻ với cộng đồng bằng</legend>
+          <label>
+            <input
+              type="radio"
+              name="quick-author-mode"
+              checked={authorMode === 'ANONYMOUS'}
+              onChange={() => setAuthorMode('ANONYMOUS')}
+            />{' '}
+            Ẩn danh tên
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="quick-author-mode"
+              checked={authorMode === 'PROFILE'}
+              onChange={() => setAuthorMode('PROFILE')}
+            />{' '}
+            Danh tính cộng đồng
+          </label>
+        </fieldset>
+        <div className={styles.quickTools}>
+          <button
+            type="button"
+            aria-label="Thêm ảnh và video vào bài viết"
+            onClick={() => {
+              setMediaOpened(true)
+              setPanel('media')
+              setExpanded(true)
+            }}
+            disabled={topics.length === 0}
+          >
+            <ImagePlus size={15} /> Ảnh / video
+          </button>
+          <Link href="/journal">
+            <NotebookPen size={15} /> Nhật ký riêng
+          </Link>
+          <button
+            type="button"
+            aria-label="Đính kèm tài nguyên vào bài viết"
+            onClick={() => {
+              setResourceOpened(true)
+              setPanel('resource')
+              setExpanded(true)
+            }}
+            disabled={topics.length === 0}
+          >
+            <Smile size={15} /> Tài nguyên
+          </button>
+          <button
+            className={styles.quickContinue}
+            type="button"
+            disabled={topics.length === 0}
+            onClick={() => setExpanded(true)}
+          >
+            {hasDraft ? 'Viết tiếp' : 'Viết bài'}
+          </button>
+        </div>
+        {topics.length === 0 && (
+          <p className={styles.quickUnavailable}>
+            Chủ đề đang được cập nhật. Bạn có thể quay lại đăng bài sau.
+          </p>
+        )}
       </section>
       <Dialog
         open={expanded}

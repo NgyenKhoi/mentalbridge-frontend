@@ -325,7 +325,7 @@ export function parseCommunityOperationsSummary(
   }
 }
 
-function parseAuthor(value: unknown): CommunityAuthor | null {
+export function parseAuthor(value: unknown): CommunityAuthor | null {
   const author = record(value)
   if (!author) return null
   const hasAvatarPreset = Object.hasOwn(author, 'avatarPreset')

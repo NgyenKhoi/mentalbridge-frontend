@@ -1,0 +1,300 @@
+.comments.comments {
+  padding: var(--space-6);
+  color: var(--ink);
+  font-family: var(--font-be-vietnam-variable), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.comments :is(h2, p, strong, span, time, label, button, textarea) {
+  font-family: inherit;
+}
+
+.comments :global(.community-comments-state) {
+  margin-block: var(--space-4);
+  padding: var(--space-5) var(--space-4);
+  border: 0;
+  background: var(--surface-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.comments :global(.community-comments-state) strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.comments :global(.community-comments-state) p {
+  margin: var(--space-1) 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.comments :global(.community-comment-message) {
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.loadError,
+.profileNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.loadError strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.loadError p {
+  margin: var(--space-1) 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.loadError button,
+.profileNotice button {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--teal-deep);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.comments > header {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+}
+
+.comments > header h2 {
+  margin: 0;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.comments > header span {
+  display: none;
+}
+
+.comments > header p {
+  max-width: 65ch;
+  margin: 0;
+  color: var(--community-muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.comments :global(.community-comment-list) {
+  margin: var(--space-5) 0;
+  gap: var(--space-4);
+}
+
+.comments :global(.community-comment-bubble) {
+  width: fit-content;
+  max-width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface-soft) 65%, var(--surface));
+}
+
+.comments :global(.community-comment-bubble) > header {
+  display: grid;
+  gap: 2px;
+}
+
+.comments :global(.community-comment-bubble) strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.comments :global(.community-comment-bubble) time {
+  color: var(--community-muted);
+  font-size: 11px;
+}
+
+.comments :global(.community-comment-bubble) > p {
+  margin-top: var(--space-2);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.comments :global(.community-comment-actions) {
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding-inline: var(--space-1);
+}
+
+.comments :global(.community-comment-actions) button {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-control);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.comments :global(.community-comment-actions) button:hover {
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+}
+
+.comments
+  :global(.community-comment-body)
+  > :global(.community-safety-actions) {
+  margin: 0;
+}
+
+.comments .composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-4) 0 var(--space-2);
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
+}
+
+.composer .composerLabel {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.composer .inputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface-soft);
+}
+
+.inputRow:focus-within {
+  border-color: var(--teal);
+  box-shadow: var(--focus-ring);
+}
+
+.inputRow .composerMark {
+  display: grid;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.comments .composer textarea {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+  max-height: 180px;
+  padding: var(--space-2) var(--space-1);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.comments .composer textarea:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+
+.comments .inputRow .send {
+  display: grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--teal-deep);
+  color: var(--surface);
+  cursor: pointer;
+}
+
+.send:hover:not(:disabled) {
+  background: var(--teal);
+}
+
+.send:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.composer .composerMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  color: var(--community-muted);
+  font-size: 11px;
+}
+
+.composerMeta span:last-child {
+  font-variant-numeric: tabular-nums;
+}
+
+.composer .composerMeta > span {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.comments button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .comments.comments {
+    padding: var(--space-4);
+  }
+
+  .comments :global(.community-comment-list) > :global(.is-reply) {
+    margin-left: var(--space-5);
+    padding-left: var(--space-2);
+  }
+
+  .comments .composer textarea {
+    font-size: 16px;
+  }
+
+  .inputRow .composerMark {
+    display: none;
+  }
+}

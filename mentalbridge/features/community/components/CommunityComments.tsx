@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Send, Sprout } from 'lucide-react'
 
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
@@ -13,13 +14,16 @@ import {
   type CommunityComment,
 } from '@/features/community/api/browser-community'
 import CommunityAvatar from './CommunityAvatar'
+import CommunityAuthorLink from './CommunityAuthorLink'
 import CommunitySafetyActions from './CommunitySafetyActions'
+import styles from './CommunityComments.module.css'
 
 const MAX_COMMENT_CONTENT = 2000
 
 type Props = Readonly<{
   postId: string
   onCountChange: (difference: number) => void
+  focusComposer?: boolean
 }>
 
 function commentTime(value: string) {
@@ -29,7 +33,11 @@ function commentTime(value: string) {
   }).format(new Date(value))
 }
 
-export default function CommunityComments({ postId, onCountChange }: Props) {
+export default function CommunityComments({
+  postId,
+  onCountChange,
+  focusComposer = false,
+}: Props) {
   const { confirm, showActionToast } = useFeedback()
   const composer = useRef<HTMLTextAreaElement>(null)
   const [comments, setComments] = useState<CommunityComment[]>([])
@@ -38,6 +46,9 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [profileLoadError, setProfileLoadError] = useState(false)
+  const [retryAttempt, setRetryAttempt] = useState(0)
   const [content, setContent] = useState('')
   const [replyingTo, setReplyingTo] = useState<CommunityComment | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -48,32 +59,47 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
     undefined,
   )
 
+  useEffect(() => {
+    if (!focusComposer || loading) return
+    const frame = requestAnimationFrame(() =>
+      composer.current?.focus({ preventScroll: true }),
+    )
+    return () => cancelAnimationFrame(frame)
+  }, [focusComposer, loading])
+
   const load = useCallback(async () => {
     const page = await getCommunityComments(postId)
     setComments(page.items)
     setCursor(page.nextCursor)
     setHasMore(page.hasMore)
+    setLoadError('')
   }, [postId])
 
   useEffect(() => {
     let active = true
-    void Promise.all([
+    void Promise.allSettled([
       getCommunityComments(postId),
       getCommunityProfile().catch((error) => {
         if (error instanceof ApiError && error.status === 404) return null
         throw error
       }),
     ])
-      .then(([page, profile]) => {
+      .then(([pageResult, profileResult]) => {
         if (!active) return
-        setComments(page.items)
-        setCursor(page.nextCursor)
-        setHasMore(page.hasMore)
-        setOwnProfileId(profile?.data.communityProfileId ?? null)
-      })
-      .catch(() => {
-        if (active)
-          setMessage('Bình luận chưa tải được. Bạn có thể thử lại sau ít phút.')
+        if (pageResult.status === 'fulfilled') {
+          setComments(pageResult.value.items)
+          setCursor(pageResult.value.nextCursor)
+          setHasMore(pageResult.value.hasMore)
+          setLoadError('')
+        } else {
+          setLoadError('Bình luận tạm thời chưa tải được.')
+        }
+        if (profileResult.status === 'fulfilled') {
+          setOwnProfileId(profileResult.value?.data.communityProfileId ?? null)
+          setProfileLoadError(false)
+        } else {
+          setProfileLoadError(true)
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -81,7 +107,14 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
     return () => {
       active = false
     }
-  }, [postId])
+  }, [postId, retryAttempt])
+
+  function retryLoad() {
+    setLoading(true)
+    setLoadError('')
+    setProfileLoadError(false)
+    setRetryAttempt((current) => current + 1)
+  }
 
   function beginReply(comment: CommunityComment) {
     setReplyingTo(comment)
@@ -246,7 +279,10 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
   }
 
   return (
-    <section className="community-comments" aria-labelledby="comments-title">
+    <section
+      className={`community-comments ${styles.comments}`}
+      aria-labelledby="comments-title"
+    >
       <header>
         <div>
           <span>Cùng lắng nghe</span>
@@ -258,68 +294,35 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
         </p>
       </header>
 
-      <div className="community-comment-composer">
-        {replyingTo && (
-          <div className="community-replying-to">
-            <span>
-              Đang phản hồi <strong>{replyingTo.author.displayName}</strong>
-            </span>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => setReplyingTo(null)}
-            >
-              Hủy phản hồi
-            </button>
+      {loadError && !loading && (
+        <div className={styles.loadError} role="alert">
+          <div>
+            <strong>{loadError}</strong>
+            <p>Thử tải lại để tiếp tục đọc cuộc trò chuyện.</p>
           </div>
-        )}
-        <label htmlFor="community-comment-content">
-          {replyingTo ? 'Lời phản hồi của bạn' : 'Bạn muốn chia sẻ điều gì?'}
-        </label>
-        <textarea
-          ref={composer}
-          id="community-comment-content"
-          rows={4}
-          disabled={submitting}
-          maxLength={MAX_COMMENT_CONTENT * 2}
-          value={content}
-          placeholder="Viết bằng sự tôn trọng và đồng cảm…"
-          onChange={(event) => setContent(event.target.value)}
-        />
-        <div>
-          <span>
-            {[...content].length}/{MAX_COMMENT_CONTENT}
-          </span>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => void submit()}
-          >
-            {submitting
-              ? 'Đang gửi…'
-              : replyingTo
-                ? 'Gửi phản hồi'
-                : 'Gửi bình luận'}
+          <button type="button" onClick={retryLoad}>
+            Thử lại
           </button>
         </div>
-      </div>
-
-      {message && (
-        <p className="community-comment-message" role="alert">
-          {message}
-        </p>
       )}
-
-      {loading ? (
+      {profileLoadError && !loading && (
+        <div className={styles.profileNotice} role="status">
+          <span>Thông tin danh tính bình luận của bạn chưa tải được.</span>
+          <button type="button" onClick={retryLoad}>
+            Tải lại
+          </button>
+        </div>
+      )}
+      {loading && comments.length === 0 ? (
         <p className="community-comments-state" role="status">
           Đang tải bình luận…
         </p>
-      ) : comments.length === 0 ? (
+      ) : comments.length === 0 && !loadError ? (
         <div className="community-comments-state">
           <strong>Chưa có bình luận</strong>
           <p>Bạn có thể là người đầu tiên gửi một lời đồng hành.</p>
         </div>
-      ) : (
+      ) : comments.length > 0 ? (
         <ol className="community-comment-list">
           {comments.map((comment) => {
             const own =
@@ -331,17 +334,21 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
                 key={comment.commentId}
                 className={comment.parentCommentId ? 'is-reply' : undefined}
               >
-                <CommunityAvatar
-                  displayName={comment.author.displayName}
-                  avatarPreset={comment.author.avatarPreset}
-                  avatarImage={comment.author.avatarImage}
-                  deleted={comment.author.state === 'DELETED'}
-                  anonymous={comment.author.state === 'ANONYMOUS'}
-                />
+                <CommunityAuthorLink author={comment.author}>
+                  <CommunityAvatar
+                    displayName={comment.author.displayName}
+                    avatarPreset={comment.author.avatarPreset}
+                    avatarImage={comment.author.avatarImage}
+                    deleted={comment.author.state === 'DELETED'}
+                    anonymous={comment.author.state === 'ANONYMOUS'}
+                  />
+                </CommunityAuthorLink>
                 <div className="community-comment-body">
                   <div className="community-comment-bubble">
                     <header>
-                      <strong>{comment.author.displayName}</strong>
+                      <strong>
+                        <CommunityAuthorLink author={comment.author} />
+                      </strong>
                       <time dateTime={comment.createdAt}>
                         {commentTime(comment.createdAt)}
                       </time>
@@ -442,7 +449,7 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
             )
           })}
         </ol>
-      )}
+      ) : null}
 
       {hasMore && (
         <button
@@ -454,6 +461,74 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
           {loadingMore ? 'Đang tải…' : 'Xem thêm bình luận'}
         </button>
       )}
+      {message && (
+        <p
+          id="community-comment-message"
+          className="community-comment-message"
+          role="alert"
+        >
+          {message}
+        </p>
+      )}
+      <div className={`community-comment-composer ${styles.composer}`}>
+        {replyingTo && (
+          <div className="community-replying-to">
+            <span>
+              Đang phản hồi <strong>{replyingTo.author.displayName}</strong>
+            </span>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => setReplyingTo(null)}
+            >
+              Hủy phản hồi
+            </button>
+          </div>
+        )}
+        <label
+          className={styles.composerLabel}
+          htmlFor="community-comment-content"
+        >
+          {replyingTo ? 'Lời phản hồi của bạn' : 'Bạn muốn chia sẻ điều gì?'}
+        </label>
+        <div className={styles.inputRow}>
+          <span className={styles.composerMark} aria-hidden="true">
+            <Sprout size={21} />
+          </span>
+          <textarea
+            ref={composer}
+            id="community-comment-content"
+            rows={2}
+            disabled={submitting}
+            maxLength={MAX_COMMENT_CONTENT * 2}
+            value={content}
+            aria-describedby={message ? 'community-comment-message' : undefined}
+            placeholder="Viết bằng sự tôn trọng và đồng cảm…"
+            onChange={(event) => setContent(event.target.value)}
+          />
+          <button
+            type="button"
+            className={styles.send}
+            disabled={submitting || !content.trim()}
+            aria-label={
+              submitting
+                ? 'Đang gửi…'
+                : replyingTo
+                  ? 'Gửi phản hồi'
+                  : 'Gửi bình luận'
+            }
+            onClick={() => void submit()}
+          >
+            <Send size={18} aria-hidden="true" />
+          </button>
+        </div>
+        <div className={styles.composerMeta}>
+          <span>Lắng nghe bằng sự tôn trọng và đồng cảm.</span>
+          <span>
+            {[...content].length}/{MAX_COMMENT_CONTENT}
+          </span>
+        </div>
+      </div>
     </section>
   )
 }

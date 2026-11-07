@@ -63,6 +63,12 @@ describe('CommunityShell', () => {
       screen.getAllByRole('link', { name: 'Tin nhắn' })[0],
     ).toHaveAttribute('aria-current', 'page')
     expect(
+      screen.queryByRole('link', { name: 'Nhóm riêng (Vòng tay)' }),
+    ).not.toBeInTheDocument()
+    for (const link of screen.getAllByRole('link', { name: 'Tin nhắn' })) {
+      expect(link).toHaveAttribute('href', '/community/messages')
+    }
+    expect(
       screen.getAllByRole('link', { name: 'Bảng tin' })[0],
     ).not.toHaveAttribute('aria-current')
   })

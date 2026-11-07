@@ -818,8 +818,14 @@ export default function AppointmentRequestPanel({
     return (
       <>
         <main className={styles.page} data-appointments-ui="">
-          <header className={styles.header}>
-            <span className={styles.eyebrow}>TƯ VẤN SỨC KHỎE TÂM LÝ</span>
+          <header
+            className={styles.header}
+            data-user-page-header
+            data-user-page-heading
+          >
+            <span className={styles.eyebrow} data-user-page-kicker>
+              TƯ VẤN SỨC KHỎE TÂM LÝ
+            </span>
             <h1 className={styles.title}>Chi tiết lịch hẹn</h1>
             <p className={styles.subtitle}>
               Xem trạng thái, chuẩn bị cho buổi tư vấn và quản lý lịch hẹn này.
@@ -1027,8 +1033,14 @@ export default function AppointmentRequestPanel({
   return (
     <main className={styles.page} data-appointments-ui="">
       {/* Top Header */}
-      <header className={styles.header}>
-        <span className={styles.eyebrow}>TƯ VẤN SỨC KHỎE TÂM LÝ</span>
+      <header
+        className={styles.header}
+        data-user-page-header
+        data-user-page-heading
+      >
+        <span className={styles.eyebrow} data-user-page-kicker>
+          TƯ VẤN SỨC KHỎE TÂM LÝ
+        </span>
         <h1 className={styles.title}>Lịch hẹn của bạn</h1>
         <p className={styles.subtitle}>
           Quản lý hành trình chăm sóc bản thân. Mọi thông tin trao đổi giữa bạn
