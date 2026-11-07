@@ -357,7 +357,7 @@ export default function TodayPanel({
         />
       )}
 
-      {showDay && dayRows.length > 0 && (
+      {showDay && (
         <section className="mbw-tile mbw-day" aria-labelledby="mbw-day-title">
           <div className="mbw-day-head">
             <h2 id="mbw-day-title" tabIndex={-1}>
@@ -512,7 +512,7 @@ export default function TodayPanel({
                         {dayLabel(item.occurrence.localDate)}
                       </span>
                     </div>
-                    <h4 className="mbw-row-title">{titleOf(item)}</h4>
+                    <p className="mbw-row-title">{titleOf(item)}</p>
                     {summary && (
                       <p className="mbw-activity-summary">{summary}</p>
                     )}

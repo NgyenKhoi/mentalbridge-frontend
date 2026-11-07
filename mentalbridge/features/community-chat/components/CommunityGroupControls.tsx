@@ -259,7 +259,8 @@ export function GroupManagement({
           </>
         )}
       </button>
-      <Dialog
+      {open && (
+        <Dialog
         open={open}
         onOpenChange={setOpen}
         labelledBy="community-group-info-title"
@@ -461,6 +462,7 @@ export function GroupManagement({
           )}
         </div>
       </Dialog>
+      )}
       <Dialog
         open={Boolean(confirm)}
         onOpenChange={(next) => {

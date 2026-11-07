@@ -42,6 +42,8 @@ export default function CommunityCreateGroup({
           : old,
     )
   }
+  if (!open) return null
+
   return (
     <Dialog
       open={open}
@@ -204,11 +206,6 @@ export default function CommunityCreateGroup({
             Người được mời sẽ quyết định tham gia trước khi xem và gửi tin nhắn.
           </span>
         </div>
-        {groups.notice && (
-          <p className={styles.notice} role="status">
-            {groups.notice}
-          </p>
-        )}
         <footer className={styles.footer}>
           <span>
             {selected.length

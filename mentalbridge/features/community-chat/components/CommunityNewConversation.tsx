@@ -25,6 +25,8 @@ export default function CommunityNewConversation({
     createGroupAfterClose.current = false
     onCreateGroup()
   }, [onCreateGroup])
+
+  if (!open) return null
   return (
     <Dialog
       open={open}
@@ -49,6 +51,7 @@ export default function CommunityNewConversation({
           onClick={() => {
             onOpenChange(false)
             createGroupAfterClose.current = true
+            onCreateGroup()
           }}
         >
           <Users size={18} /> Tạo nhóm trò chuyện

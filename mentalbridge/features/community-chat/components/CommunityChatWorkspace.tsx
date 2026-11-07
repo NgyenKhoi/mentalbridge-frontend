@@ -381,23 +381,24 @@ export default function CommunityChatWorkspace({
 
   useEffect(() => {
     if (!lastMessageId) return
-    const frame = requestAnimationFrame(() => {
-      if (followLatest.current && transcript.current) {
-        transcript.current.scrollTop = transcript.current.scrollHeight
-        setNewMessagesBelow(false)
-        if (document.hasFocus()) void markMessagesViewed(lastMessageId)
-      } else setNewMessagesBelow(true)
-    })
-    return () => cancelAnimationFrame(frame)
-  }, [lastMessageId, markMessagesViewed])
+    if (followLatest.current && transcript.current) {
+      transcript.current.scrollTop = transcript.current.scrollHeight
+      setNewMessagesBelow(false)
+    } else if (transcript.current) {
+      setNewMessagesBelow(true)
+    }
+    if (chat.selectedConversationId) {
+      void markMessagesViewed(lastMessageId)
+    }
+  }, [chat.selectedConversationId, lastMessageId, markMessagesViewed])
 
   useEffect(() => {
     const viewed = () => {
       if (
         !document.hidden &&
-        document.hasFocus() &&
         followLatest.current &&
-        lastMessageId
+        lastMessageId &&
+        chat.selectedConversationId
       )
         void markMessagesViewed(lastMessageId)
     }
@@ -407,7 +408,7 @@ export default function CommunityChatWorkspace({
       window.removeEventListener('focus', viewed)
       document.removeEventListener('visibilitychange', viewed)
     }
-  }, [lastMessageId, markMessagesViewed])
+  }, [chat.selectedConversationId, lastMessageId, markMessagesViewed])
 
   useEffect(() => {
     reportConversationId.current = chat.selectedConversationId
@@ -1036,6 +1037,37 @@ export default function CommunityChatWorkspace({
                                       ? `${message.sender.displayName} đã gỡ tin nhắn`
                                       : 'Tin nhắn đã được gỡ'}
                               </p>
+                              {message.state === 'ACTIVE' &&
+                                (mine ? (
+                                  <button
+                                    type="button"
+                                    className={styles.messageAction}
+                                    disabled={retracting}
+                                    onClick={() => setRetractTarget(message)}
+                                    aria-label="Gỡ tin nhắn này cho mọi người"
+                                    title="Gỡ tin nhắn"
+                                  >
+                                    <Undo2 size={15} />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className={styles.messageAction}
+                                    onClick={() => {
+                                      setReportTarget(message)
+                                      setReportReason('HARASSMENT')
+                                      setReportDetails('')
+                                      setReportBusy(false)
+                                      setReportError('')
+                                      setReportNotice('')
+                                      reportAttempt.current = undefined
+                                    }}
+                                    aria-label={`Báo cáo tin nhắn: ${message.content}`}
+                                    title="Báo cáo tin nhắn"
+                                  >
+                                    <Flag size={15} />
+                                  </button>
+                                ))}
                             </div>
                             <div className={styles.messageMeta}>
                               <time dateTime={message.createdAt}>
@@ -1050,37 +1082,6 @@ export default function CommunityChatWorkspace({
                                 </span>
                               )}
                             </div>
-                            {message.state === 'ACTIVE' &&
-                              (mine ? (
-                                <button
-                                  type="button"
-                                  className={styles.messageAction}
-                                  disabled={retracting}
-                                  onClick={() => setRetractTarget(message)}
-                                  aria-label="Gỡ tin nhắn này cho mọi người"
-                                  title="Gỡ tin nhắn"
-                                >
-                                  <Undo2 size={15} />
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className={styles.messageAction}
-                                  onClick={() => {
-                                    setReportTarget(message)
-                                    setReportReason('HARASSMENT')
-                                    setReportDetails('')
-                                    setReportBusy(false)
-                                    setReportError('')
-                                    setReportNotice('')
-                                    reportAttempt.current = undefined
-                                  }}
-                                  aria-label={`Báo cáo tin nhắn: ${message.content}`}
-                                  title="Báo cáo tin nhắn"
-                                >
-                                  <Flag size={15} />
-                                </button>
-                              ))}
                             {retractionFailed && (
                               <span
                                 className={styles.retractFailure}
