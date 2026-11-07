@@ -34,7 +34,7 @@ const startToday = (page: Page) =>
     .getByRole('region', { name: 'Bước tiếp theo', exact: true })
     .getByRole('link', { name: 'Bắt đầu ngay', exact: true })
 const providerFixtureUrl = 'http://127.0.0.1:3201'
-const RIV = '**/mam/mam-v03.riv'
+const RIV = '**/mam/mam-v05.riv'
 const WASM = '**/mam/rive-lite-2.47.1.wasm'
 
 // Measured 2026-10-28 (docs/evidence/mb-775-mam-web-gate.md): the measured
@@ -228,7 +228,11 @@ test.describe('MB-775 Mầm web gate', () => {
         })
       await openHome(page)
       await page.goto('/dashboard')
-      await expect(dock(page)).toBeVisible()
+      // A renderer failure keeps the dock and static pose and adds the dizzy
+      // overlay (MB-814 design §E), so the button is named for the failure.
+      await expect(
+        page.getByRole('button', { name: 'Mầm đang gặp sự cố' }),
+      ).toBeVisible()
       await expect(status(page)).toHaveAttribute('data-mam-status', 'fallback')
       await expect(page.locator('[data-mam-dock] img')).toBeVisible()
       await startToday(page).click({ trial: true })
@@ -410,6 +414,18 @@ test.describe('MB-775 Mầm web gate', () => {
     await page.getByRole('switch', { name: 'Chuyển động' }).press('Space')
     await page.getByRole('button', { name: 'Ẩn Mầm' }).press('Enter')
     await expect(page.getByRole('button', { name: 'Hiện Mầm' })).toBeFocused()
+    // Muting with the menu open reads the celebration note, which writes the
+    // account record under a lock a moment later. (The achievements mock has no
+    // sources, so no award read writes it; nothing else does before this.)
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          Object.keys(localStorage).some((key) =>
+            key.startsWith('mentalbridge_mam_celebrations:'),
+          ),
+        ),
+      )
+      .toBe(true)
     const keys = await page.evaluate(() => ({
       local: Object.keys(localStorage)
         .filter((key) => key.includes('mam'))
@@ -424,6 +440,8 @@ test.describe('MB-775 Mầm web gate', () => {
         'mentalbridge_mam_celebrations:<account>',
         'mentalbridge_mam_hidden',
         'mentalbridge_mam_motion',
+        // MB-814: the e2e fixture marks the one-time tip as seen.
+        'mentalbridge_mam_tip_seen',
       ],
       session: [
         'mentalbridge_mam_celebration_session',
@@ -629,7 +647,8 @@ test.describe('MB-775 Mầm web gate', () => {
     await card.evaluate((element) =>
       element.scrollIntoView({ block: 'center' }),
     )
-    await button.click()
+    await button.focus()
+    await page.keyboard.press('Enter')
     await expect(bubble).toContainText('hãy viết vài dòng vào Nhật ký')
     await expect(bubble).not.toContainText('Tốt')
     await page.keyboard.press('Escape')
@@ -645,7 +664,8 @@ test.describe('MB-775 Mầm web gate', () => {
     await card.evaluate((element) =>
       element.scrollIntoView({ block: 'center' }),
     )
-    await button.click()
+    await button.focus()
+    await page.keyboard.press('Enter')
     await expect(bubble).toBeVisible()
     await card.getByText('Rất tốt', { exact: true }).click()
     await expect(bubble).toHaveCount(0)

@@ -1,4 +1,4 @@
-// Mầm v0.3 Rive rig: art from the "Mầm — Character Sheet v0.3" canvas
+// Mầm v0.5 Rive rig (v0.3 art plus the looping `sleep` and `speaking` states): art from the "Mầm — Character Sheet v0.3" canvas
 // (mam_v03_rive_layers.svg), motion from its Motion spec board.
 // Control contract (view model, enum IDs, state graph) is unchanged from the
 // mam-companion v0.2 rig so a consumer can swap the .riv without code changes.
@@ -94,6 +94,15 @@ const lid = (key, left, right, lineL, lineR) => node(key, [120, 124], [
 
 const arm = (key, x, deg) => node(key, [x, 186], [ell('arm', x, 204, 9.5, 20, { fill: C.shell, stroke: C.line, w: 3 })], { rot: deg })
 
+// Sleep-only blanket: drawn above body and arms, hidden (opacity 0) in every other state.
+const BLANKET = 'M80 186 L160 186 Q174 186 174 200 L174 238 Q174 252 160 252 L80 252 Q66 252 66 238 L66 200 Q66 186 80 186 Z'
+const HEM = 'M67.5 200 Q67.5 187.5 80 187.5 L160 187.5 Q172.5 187.5 172.5 200 L172.5 201 L67.5 201 Z'
+const blanket = node('blanket', [120, 252], [
+  pth('blanket_body', BLANKET, { fill: '#F5E6C6', stroke: '#C77B5C', w: 2.5 }),
+  pth('blanket_hem', HEM, fill('#FBF3E2')),
+  ...[214, 226, 238].map((y, i) => pth(`blanket_stripe_${i}`, `M72 ${y} L168 ${y}`, stroke('#EFD0B4', 3.2))),
+], { op: 0 })
+
 const head = node('head', [120, 192], [
   node('sprout', [120, 46], [
     node('glow', [120, 0], [ell('glow_outer', 120, 0, 34, 34, fill(C.glow, 0.5)), ell('glow_inner', 120, 0, 21.1, 21.1, fill(C.glow, 0.8))], { op: 0.44, s: 20 / 34 }),
@@ -114,6 +123,8 @@ const head = node('head', [120, 192], [
   node('cheeks', [120, 147], [ell('cheek_left', 80, 147, 10, 6, fill(C.cheek)), ell('cheek_right', 160, 147, 10, 6, fill(C.cheek))], { op: 0.75 }),
   eye('L', 0, 97), eye('R', 46, 143),
   lid('lidSoft', 'M87 117 L107 117 L107 128 Q97 131 87 128 Z', 'M133 117 L153 117 L153 128 Q143 131 133 128 Z', 'M88.5 128.5 Q97 131 105.5 128.5', 'M134.5 128.5 Q143 131 151.5 128.5'),
+  // Closed eyelid from the sheet's lid_blink; used by sleep with every eye variant hidden.
+  lid('lidBlink', 'M87 117 L107 117 L107 127 L87 127 Z', 'M133 117 L153 117 L153 127 L133 127 Z', 'M88.5 127 L105.5 127', 'M134.5 127 L151.5 127'),
   lid('lidSad', 'M107 116 L87 116 L87 127 L107 122 Z', 'M133 116 L153 116 L153 127 L133 122 Z', 'M105.5 122.6 L88.5 126.4', 'M134.5 122.6 L151.5 126.4'),
   ...brows,
   mouth,
@@ -158,6 +169,7 @@ const art = [
     node('body', [120, 244], [ell('body', 120, 206, 50, 38, { fill: C.shell, stroke: C.line, w: 3 }), ell('belly', 120, 214, 30, 22, fill(C.belly))]),
     head,
     arm('armL', 74, 18), arm('armR', 166, -18),
+    blanket,
     ...fx,
   ]),
 ]
@@ -252,8 +264,8 @@ const nodes = new Map()
 })(art, [ORIGIN[0] - 256 / S, ORIGIN[1] - 256 / S])
 
 // ---------- motion ----------
-// Keep this order: enum IDs are the v0.2 control contract.
-const behaviors = ['idle', 'curious', 'listening', 'thinking', 'gentle', 'explaining', 'light_success', 'celebrate_soft', 'celebrate_hero', 'rest', 'sad', 'happy']
+// Keep this order: enum IDs are the v0.2 control contract; new values are appended only.
+const behaviors = ['idle', 'curious', 'listening', 'thinking', 'gentle', 'explaining', 'light_success', 'celebrate_soft', 'celebrate_hero', 'rest', 'sad', 'happy', 'sleep', 'speaking']
 const finite = new Set(['light_success', 'celebrate_soft', 'celebrate_hero'])
 const ids = { vm: 3000, instance: 3001, behavior: 3010, attention: 3011, tier: 3012, reduced: 3013, visible: 3014, play: 3015, dock: 3016, machine: 3100 }
 const id = (number) => `0:${number}`
@@ -320,6 +332,7 @@ const face = (spec) => {
   for (const v of Object.keys(mouthShapes)) pose[`mouth_${v}.op`] = hold(v === pick.mouth ? 1 : 0)
   pose['lidSoft.op'] = hold(pick.lid === 'soft' ? 1 : 0)
   pose['lidSad.op'] = hold(pick.lid === 'sad' ? 1 : 0)
+  pose['lidBlink.op'] = hold(pick.lid === 'blink' ? 1 : 0)
   return pose
 }
 const glowScale = (r) => r / 34
@@ -328,6 +341,19 @@ const lift = (side, frames) => ({ [`leaf${side}.rot`]: frames.map(([f, deg]) => 
 const leaves = (frames) => ({ ...lift('L', frames), ...lift('R', frames) })
 const arms = (l, r) => ({ ...(l && { 'armL.rot': l }), ...(r && { 'armR.rot': r }) })
 
+// Voice-call reply: the `explaining` pose with a talking mouth. Mouth shapes switch on a 1-frame
+// step (not audio-synced): 12 shapes x 8 frames (~133 ms) = 1.6 s, then `smile` holds 0.4 s.
+const SPEAK_MOUTH = ['talk', 'open', 'talk', 'rest', 'open', 'smile', 'talk', 'o', 'talk', 'open', 'talk', 'rest']
+const SPEAK_FRAMES = 8
+const SPEAK_TALK = SPEAK_MOUTH.length * SPEAK_FRAMES
+const SPEAK_END = SPEAK_TALK + 24
+// Shapes the cycle never shows keep the single hold key from `face()` (smaller asset).
+const speakMouth = Object.fromEntries([...new Set(SPEAK_MOUTH)].map((shape) => {
+  const at = (frame) => ((frame >= SPEAK_TALK ? shape === 'smile' : SPEAK_MOUTH[Math.floor(frame / SPEAK_FRAMES)] === shape) ? 1 : 0)
+  const flips = SPEAK_MOUTH.flatMap((_, i) => [(i + 1) * SPEAK_FRAMES - 1, (i + 1) * SPEAK_FRAMES]).filter((f) => at(f) !== at(f - 1) || at(f + 1) !== at(f))
+  const frames = [...new Set([0, ...flips, SPEAK_END])]
+  return [`mouth_${shape}.op`, frames.map((f) => [f, at(Math.min(f, SPEAK_END - 1))])]
+}))
 const happyFace = face({ eye: 'happy', brow: 'raised', mouth: 'open' })
 const timelines = {
   idle: [420, true, {
@@ -397,6 +423,26 @@ const timelines = {
     'glow.op': hold(0), 'orbDim.op': hold(1), 'cheeks.op': hold(0.45),
     ...arms(hold(4), hold(-4)),
     'tear.op': F([0, 0], [40, 0], [70, 1]), 'tear.dy': F([0, -3], [40, -3], [90, 0]),
+  }],
+  // 3.4 s breath loop (204 frames): body and the mouth "o" swell together. Lying down and "z z Z" are host-side.
+  sleep: [204, true, {
+    ...face({ eye: 'none', lid: 'blink', brow: 'soft', mouth: 'o' }),
+    'body.sy': F([0, 1], [102, 1.02], [204, 1]),
+    'head.dy': F([0, 0], [102, -1], [204, 0]),
+    'mouth_o.s': F([0, 1], [102, 1.14], [204, 1]),
+    ...leaves(hold(-10)),
+    'glow.s': hold(glowScale(18)), 'glow.op': hold(glowOp(0.18)), 'cheeks.op': hold(0.85),
+    'blanket.op': hold(1),
+  }],
+  speaking: [SPEAK_END, true, {
+    ...face({ brow: 'raised', mouth: 'talk' }),
+    ...speakMouth,
+    'sprout.rot': hold(-3), ...leaves(F([0, 6], [24, 10], [48, 6], [72, 10], [96, 6], [SPEAK_END, 6])),
+    'glow.s': hold(glowScale(22)), 'glow.op': F([0, glowOp(0.26)], [24, glowOp(0.34)], [48, glowOp(0.26)], [72, glowOp(0.34)], [96, glowOp(0.26)], [SPEAK_END, glowOp(0.26)]),
+    ...arms(null, F([0, -108], [24, -96], [48, -108], [72, -96], [96, -108], [SPEAK_END, -108])),
+    'fxExplain.op': F([0, 0.35], [24, 1], [48, 0.35], [72, 1], [96, 0.35], [SPEAK_END, 0.35]),
+    'eyeL.sy': F([0, 1], [60, 1], [65, 0.1], [71, 1], [SPEAK_END, 1]),
+    'eyeR.sy': F([0, 1], [60, 1], [65, 0.1], [71, 1], [SPEAK_END, 1]),
   }],
   light_success: [72, false, {
     ...happyFace,
@@ -523,7 +569,7 @@ if (nodeIds.size + 10 >= 1000) throw Error('Node IDs overlap shape IDs')
 await mkdir(join(directory, 'rig'), { recursive: true })
 await mkdir(join(directory, 'capture'), { recursive: true })
 await writeFile(join(directory, 'rig', 'scene.rml'), buildScene())
-await writeFile(join(directory, 'rig', 'rive.yaml'), 'name: mam-v03\nmain: companion_main\nlogs:\n  file: build/rive.log\n  problems: build/problems.log\n')
+await writeFile(join(directory, 'rig', 'rive.yaml'), 'name: mam-v05\nmain: companion_main\nlogs:\n  file: build/rive.log\n  problems: build/problems.log\n')
 await writeFile(join(directory, 'capture', 'scene.rml'), buildScene('#F1F4EB'))
-await writeFile(join(directory, 'capture', 'rive.yaml'), 'name: mam-v03-capture\nmain: companion_main\n')
+await writeFile(join(directory, 'capture', 'rive.yaml'), 'name: mam-v05-capture\nmain: companion_main\n')
 console.log(JSON.stringify({ artboard: 'companion_main', nodes: nodeIds.size, shapes: shapeId - 1000, states: allStates.length }))

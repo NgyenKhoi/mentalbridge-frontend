@@ -103,6 +103,7 @@ export function HomeResources({
       {pending ? (
         <div
           className={styles.resourceGrid}
+          data-mam-perch=""
           role="status"
           aria-label="Đang tải tài nguyên"
           aria-busy="true"
@@ -142,6 +143,8 @@ export function HomeResources({
               href={resource.href}
               key={`${resource.id}-${index}`}
               data-testid={`home-resource-${index}`}
+              // Mầm perches on the first card, not on the empty heading row above it.
+              data-mam-perch={index === 0 ? '' : undefined}
               style={
                 {
                   '--home-section-delay': `${260 + index * 60}ms`,

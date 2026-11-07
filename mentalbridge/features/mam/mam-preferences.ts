@@ -12,6 +12,8 @@ import {
 const HIDDEN_KEY = 'mentalbridge_mam_hidden'
 const MUTED_KEY = 'mentalbridge_mam_session_muted'
 const MOTION_KEY = 'mentalbridge_mam_motion'
+// The one-time summon tip (MB-814); per device, like hide and motion.
+const TIP_SEEN_KEY = 'mentalbridge_mam_tip_seen'
 
 function usePreference(
   key: string,
@@ -31,6 +33,7 @@ export function useMamPreferences() {
     hidden: usePreference(HIDDEN_KEY, 'true', 'local'),
     muted: usePreference(MUTED_KEY, 'true', 'session'),
     motionOff: usePreference(MOTION_KEY, 'reduced', 'local'),
+    tipSeen: usePreference(TIP_SEEN_KEY, 'true', 'local'),
   }
 }
 
@@ -39,6 +42,9 @@ export const setMamHidden = (hidden: boolean) =>
 
 export const setMamMuted = (muted: boolean) =>
   writePreference(MUTED_KEY, String(muted), 'session')
+
+export const setMamTipSeen = () =>
+  writePreference(TIP_SEEN_KEY, 'true', 'local')
 
 export const setMamMotionOff = (off: boolean) =>
   writePreference(MOTION_KEY, off ? 'reduced' : 'full', 'local')

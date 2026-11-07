@@ -64,7 +64,12 @@ export function HomeUpcomingAppointment({
         <Link href="/appointments">Tất cả →</Link>
       </div>
       {state.status === 'loading' ? (
-        <div role="status" aria-label="Đang tải lịch hẹn" aria-busy="true">
+        <div
+          role="status"
+          aria-label="Đang tải lịch hẹn"
+          aria-busy="true"
+          data-mam-perch=""
+        >
           <Skeleton className={styles.skeleton} height={236} />
         </div>
       ) : state.status === 'error' ? (
@@ -83,6 +88,7 @@ export function HomeUpcomingAppointment({
       ) : view ? (
         <div
           className={`${styles.appointment} ${styles.reveal}`}
+          data-mam-perch=""
           style={{ '--home-section-delay': '300ms' } as CSSProperties}
         >
           <div className={styles.appointmentWhen}>
@@ -109,7 +115,10 @@ export function HomeUpcomingAppointment({
           </Link>
         </div>
       ) : (
-        <div className={`${styles.localState} ${styles.emptyAppointment}`}>
+        <div
+          className={`${styles.localState} ${styles.emptyAppointment}`}
+          data-mam-perch=""
+        >
           <svg
             className={styles.calendarArt}
             width="64"

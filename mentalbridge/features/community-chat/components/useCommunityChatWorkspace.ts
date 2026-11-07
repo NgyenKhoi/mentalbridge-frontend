@@ -27,6 +27,11 @@ import {
   type ChatRequest,
 } from '../api/browser-community-chat'
 import { UUID_PATTERN } from '../api/community-chat-contract'
+import { useCommunityChatRealtime } from './useCommunityChatRealtime'
+import {
+  refreshCommunityInbox,
+  useCommunityInbox,
+} from './CommunityInboxProvider'
 
 type FailedSend = Readonly<{
   conversationId: string
@@ -88,8 +93,10 @@ export function useCommunityChatWorkspace({
   initialTab?: 'conversations' | 'requests'
 }>) {
   const router = useRouter()
+  const inbox = useCommunityInbox()
   const startAttempted = useRef<string | undefined>(undefined)
   const threadGeneration = useRef(0)
+  const liveSyncGeneration = useRef(0)
   const messageCursorRef = useRef<string | null>(null)
   const deferredMessages = useRef<ChatMessage[]>([])
   const viewedMessage = useRef('')
@@ -108,6 +115,7 @@ export function useCommunityChatWorkspace({
   const [loading, setLoading] = useState(true)
   const [threadLoading, setThreadLoading] = useState(true)
   const [error, setError] = useState('')
+  const [unavailable, setUnavailable] = useState(false)
   const [threadErrorState, setThreadErrorState] = useState({
     conversationId: initialConversationId,
     message: '',
@@ -180,12 +188,19 @@ export function useCommunityChatWorkspace({
     if (privacyResult.status === 'fulfilled') setPrivacy(privacyResult.value)
     if (profileResult.status === 'fulfilled')
       setViewerProfileId(profileResult.value.data.communityProfileId)
-    if (
+    const overviewFailed =
       conversationResult.status === 'rejected' &&
       requestResult.status === 'rejected' &&
       privacyResult.status === 'rejected'
+    // The service uses this code for both a disabled rollout and unavailable
+    // dependencies. Describe availability without guessing why it is off.
+    setUnavailable(
+      overviewFailed &&
+        conversationResult.reason instanceof ApiError &&
+        conversationResult.reason.status === 503 &&
+        conversationResult.reason.code === 'DEPENDENCY_UNAVAILABLE',
     )
-      setError(friendlyError(conversationResult.reason))
+    if (overviewFailed) setError(friendlyError(conversationResult.reason))
     setLoading(false)
   }, [initialConversationId])
 
@@ -193,6 +208,12 @@ export function useCommunityChatWorkspace({
     const timeout = window.setTimeout(() => void loadOverview(), 0)
     return () => window.clearTimeout(timeout)
   }, [loadOverview])
+
+  useEffect(() => {
+    if (!inbox?.revision) return
+    const timer = window.setTimeout(() => void loadOverview(), 0)
+    return () => window.clearTimeout(timer)
+  }, [inbox?.revision, loadOverview])
 
   useEffect(() => {
     if (
@@ -250,7 +271,7 @@ export function useCommunityChatWorkspace({
         const page = await getChatMessages(conversationId)
         if (threadGeneration.current !== generation) return
         setConversation(nextConversation)
-        setMessages(mergeMessages([], page.items))
+        setMessages((live) => mergeMessages(page.items, live))
         setNextMessageCursor(page.nextCursor)
         setMessagePageError('')
       } catch (cause) {
@@ -279,6 +300,69 @@ export function useCommunityChatWorkspace({
     }
   }, [loadThread])
 
+  const receiveLiveMessage = useCallback(
+    (message: ChatMessage) => {
+      if (message.conversationId !== selectedConversationId) return
+      setMessages((current) => mergeMessages(current, [message]))
+      void loadOverview()
+    },
+    [selectedConversationId, loadOverview],
+  )
+
+  const synchronizeLiveThread = useCallback(async () => {
+    if (!selectedConversationId) return
+    const generation = threadGeneration.current
+    const synchronization = ++liveSyncGeneration.current
+    setMessages([])
+    setNextMessageCursor(null)
+    deferredMessages.current = []
+    try {
+      const current = await getChatConversation(selectedConversationId)
+      const page = await getChatMessages(selectedConversationId)
+      if (
+        threadGeneration.current !== generation ||
+        liveSyncGeneration.current !== synchronization
+      )
+        return
+      setConversation(current)
+      setMessages((live) => mergeMessages(page.items, live))
+      setNextMessageCursor(page.nextCursor)
+      setThreadErrorState({
+        conversationId: selectedConversationId,
+        message: '',
+      })
+    } catch (cause) {
+      if (
+        threadGeneration.current !== generation ||
+        liveSyncGeneration.current !== synchronization
+      )
+        return
+      setConversation(undefined)
+      setMessages([])
+      setThreadErrorState({
+        conversationId: selectedConversationId,
+        message: friendlyError(cause),
+      })
+    }
+  }, [selectedConversationId, setNextMessageCursor])
+
+  const invalidateLiveThread = useCallback(() => {
+    threadGeneration.current += 1
+    setConversation(undefined)
+    setMessages([])
+    setNextMessageCursor(null)
+    deferredMessages.current = []
+    void synchronizeLiveThread()
+    void loadOverview()
+  }, [synchronizeLiveThread, loadOverview, setNextMessageCursor])
+
+  const realtimePhase = useCommunityChatRealtime(
+    selectedConversationId,
+    receiveLiveMessage,
+    synchronizeLiveThread,
+    invalidateLiveThread,
+  )
+
   const markMessagesViewed = useCallback(
     async (messageId: string) => {
       if (
@@ -295,6 +379,7 @@ export function useCommunityChatWorkspace({
       viewedMessage.current = marker
       try {
         const read = await advanceChatReadCursor(conversationId, messageId)
+        refreshCommunityInbox()
         if (
           threadGeneration.current !== generation ||
           selectedConversationId !== conversationId
@@ -671,6 +756,7 @@ export function useCommunityChatWorkspace({
   }
 
   return {
+    realtimePhase,
     activeTab,
     setActiveTab,
     conversations,
@@ -697,6 +783,7 @@ export function useCommunityChatWorkspace({
     loading,
     threadLoading,
     error,
+    unavailable,
     threadError:
       threadErrorState.conversationId === selectedConversationId
         ? threadErrorState.message

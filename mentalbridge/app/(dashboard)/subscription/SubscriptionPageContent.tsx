@@ -16,11 +16,15 @@ export default function SubscriptionPageContent() {
     <div className="subscription-page svc-page">
       <ServiceCreditsPanel />
 
-      <header className="svc-intro">
-        <span className="svc-kicker">
+      <header
+        className="svc-intro"
+        data-user-page-header
+        data-user-page-heading
+      >
+        <span className="svc-kicker" data-user-page-kicker>
           <ShieldCheck size={14} aria-hidden="true" /> MINH BẠCH &amp; TIN CẬY
         </span>
-        <h1>GÓI DỊCH VỤ &amp; QUYỀN LỢI TƯ VẤN</h1>
+        <h1>Gói dịch vụ &amp; quyền lợi tư vấn</h1>
         <p>
           Theo dõi lượt tư vấn hiện có, so sánh quyền lợi từ catalogue chính
           thức và thanh toán an toàn khi bạn muốn đồng hành sâu hơn.

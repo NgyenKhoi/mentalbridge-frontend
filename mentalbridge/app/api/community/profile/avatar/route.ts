@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 
 import { correlationIdFrom } from '@/lib/auth/bff-response'
+import { isSameOrigin } from '@/lib/auth/same-origin'
 import { readBoundedJson, RequestBodyError } from '@/lib/auth/request-body'
 import {
   authenticatedCommunityUser,
@@ -27,7 +28,7 @@ export async function PUT(request: NextRequest) {
     return communityAuthenticationFailure(error, correlationId)
   }
   try {
-    if (request.headers.get('origin') !== request.nextUrl.origin) {
+    if (!isSameOrigin(request)) {
       return carryCommunitySession(
         localProblem(
           403,

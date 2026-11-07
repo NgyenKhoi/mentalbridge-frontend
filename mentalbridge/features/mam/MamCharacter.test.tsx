@@ -364,7 +364,7 @@ describe('MamCharacter', () => {
     const [first, second] = runtime.state.instances
     expect(first!.options.buffer).not.toBe(second!.options.buffer)
     expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch).toHaveBeenCalledWith('/mam/mam-v03.riv')
+    expect(fetch).toHaveBeenCalledWith('/mam/mam-v05.riv')
   })
 
   it('keeps the static pose when the asset download fails, and retries later', async () => {
@@ -390,5 +390,99 @@ describe('MamCharacter', () => {
     unmount()
     expect(instance.cleanup).toHaveBeenCalledTimes(1)
     act(() => instance.load())
+  })
+})
+
+// MB-814: dizzy shows for a broken renderer only, never for an unsupported device.
+describe('MamCharacter fallback reason', () => {
+  it('reports unsupported when the device has no canvas or WebAssembly', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('unsupported'))
+    expect(onFallback).toHaveBeenCalledTimes(1)
+    expect(runtime.state.instances).toHaveLength(0)
+  })
+
+  it.each([
+    ['the asset fails to load', () => (runtime.state.loadError = true)],
+    [
+      'the WASM runtime fails',
+      () => (runtime.state.runtimeError = new Error('wasm')),
+    ],
+  ])('reports an error when %s', async (_case, arrange) => {
+    arrange()
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    if (!runtime.state.runtimeError) {
+      await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+      act(() => runtime.state.instances[0]!.load())
+    }
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('error'))
+    expect(onFallback).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports an error when the asset breaks the contract', async () => {
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+    const instance = runtime.state.instances[0]!
+    delete instance.values.behaviorState
+    act(() => instance.load())
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('error'))
+  })
+
+  it('reports an error when the canvas context is lost', async () => {
+    const onFallback = vi.fn()
+    const { container } = render(
+      <MamCharacter size={96} onFallback={onFallback} />,
+    )
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+    act(() => runtime.state.instances[0]!.load())
+    act(() => {
+      container.querySelector('canvas')!.dispatchEvent(new Event('contextlost'))
+    })
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('error'))
+  })
+
+  // MB-815: the voice call mounts MamCharacter alone; a broken renderer leaves the static
+  // image and nothing else (dizzy belongs to the dock host).
+  it.each([
+    [
+      'unsupported',
+      () =>
+        vi
+          .spyOn(HTMLCanvasElement.prototype, 'getContext')
+          .mockReturnValue(null),
+    ],
+    ['error', () => (runtime.state.runtimeError = new Error('wasm'))],
+  ])(
+    'keeps a speaking in-call avatar as a static image on %s',
+    async (reason, arrange) => {
+      arrange()
+      const onFallback = vi.fn()
+      const { container } = render(
+        <MamCharacter size={164} behavior="speaking" onFallback={onFallback} />,
+      )
+      await waitFor(() => expect(onFallback).toHaveBeenCalledWith(reason))
+      expect(container.querySelector('img')).not.toBeNull()
+      expect(container.querySelector('canvas')?.dataset.ready).not.toBe('true')
+      expect(container.querySelector('[role], [data-mam-dizzy]')).toBeNull()
+    },
+  )
+
+  it('sets the speaking behavior on the asset', async () => {
+    render(<MamCharacter size={164} behavior="speaking" />)
+    const instance = await loaded()
+    expect(instance.values.behaviorState!.value).toBe('speaking')
+  })
+
+  it('reports nothing while the character renders', async () => {
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+    act(() => runtime.state.instances[0]!.load())
+    await act(async () => {})
+    expect(onFallback).not.toHaveBeenCalled()
   })
 })

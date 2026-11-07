@@ -21,6 +21,7 @@ import { MamDock } from './MamDock'
 import { MamDockSlot } from './MamDockSlot'
 import * as mamRequests from './mam-requests'
 import { MamCardButton } from './MamCardButton'
+import { resetMamRendererFailure } from './mam-failure'
 import { useMamSuppress } from './mam-suppression'
 import {
   useMamPageTarget,
@@ -35,11 +36,31 @@ vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
 }))
 
-vi.mock('./MamCharacter', () => ({
-  MamCharacter: (props: { behavior: string }) => (
-    <span data-testid="mam-character" data-behavior={props.behavior} />
-  ),
+const characterState = vi.hoisted(() => ({
+  fallback: null as 'error' | 'unsupported' | null,
+  // Lets a test break the renderer after the summon opened.
+  fail: null as ((reason: 'error' | 'unsupported') => void) | null,
 }))
+
+vi.mock('./MamCharacter', async () => {
+  const { useEffect } = await import('react')
+  return {
+    MamCharacter: (props: {
+      behavior: string
+      onFallback?: (reason: 'error' | 'unsupported') => void
+    }) => {
+      useEffect(() => {
+        characterState.fail = (reason) => props.onFallback?.(reason)
+      })
+      useEffect(() => {
+        if (characterState.fallback) props.onFallback?.(characterState.fallback)
+        // Mount only, as the real character reports its failure once.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [])
+      return <span data-testid="mam-character" data-behavior={props.behavior} />
+    },
+  }
+})
 
 function Page({
   card = true,
@@ -163,6 +184,15 @@ function selectionOf(start: Node, end: Node) {
   } as unknown as Selection
 }
 
+function stubMedia({ reduced }: Readonly<{ reduced: boolean }>) {
+  window.matchMedia = vi.fn((query: string) => ({
+    matches: reduced && query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  })) as unknown as typeof window.matchMedia
+}
+
 const behavior = () =>
   screen.getByTestId('mam-character').getAttribute('data-behavior')
 const contextMenu = (element: Element) =>
@@ -176,14 +206,13 @@ describe('Mầm summon', () => {
 
   beforeEach(() => {
     navigation.pathname = '/dashboard'
+    resetMamRendererFailure()
     window.localStorage.clear()
     window.sessionStorage.clear()
-    window.matchMedia = vi.fn((query: string) => ({
-      matches: false,
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })) as unknown as typeof window.matchMedia
+    // The suites below cover the answer, focus and lifetime semantics under
+    // reduced motion, which keeps today's bubble beside the card; the climb
+    // has its own suite at the end.
+    stubMedia({ reduced: true })
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -444,6 +473,71 @@ describe('Mầm summon', () => {
     expect(
       contextMenu(screen.getByRole('region', { name: 'Tài nguyên' })),
     ).toBe(true)
+  })
+
+  describe('a renderer failure while a summon is open', () => {
+    const dizzyDock = () =>
+      screen.getByRole('button', { name: 'Mầm đang gặp sự cố' })
+
+    it('retires the starter menu, and the dock says Mầm cannot help', async () => {
+      const request = vi.spyOn(mamRequests, 'runMamRequest')
+      render(<App />)
+      const card = screen.getByRole('region', { name: 'Tài nguyên' })
+      contextMenu(card)
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: 'Mầm giải thích' }),
+        ).toHaveFocus(),
+      )
+
+      act(() => characterState.fail?.('error'))
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('button', { name: 'Mầm giải thích' }),
+        ).toBeNull(),
+      )
+      expect(card).not.toHaveAttribute('data-mam-active')
+      expect(request).not.toHaveBeenCalled()
+      // Focus was inside the retired bubble; it goes back, never to <body>.
+      // The region card cannot take focus, so it lands on the dock.
+      await waitFor(() => expect(dizzyDock()).toHaveFocus())
+
+      // The failure notice is not swallowed by the retired summon.
+      fireEvent.click(dizzyDock())
+      expect(
+        await screen.findByText(/Mình đang bị choáng một chút/),
+      ).toBeInTheDocument()
+      expect(request).not.toHaveBeenCalled()
+    })
+
+    it('aborts an in-flight explain request and makes no further call', async () => {
+      navigation.pathname = '/support-plan'
+      const resolver = vi.fn<MamResolver>(() => new Promise(() => {}))
+      render(<PlanApp resolver={resolver} />)
+      const button = screen.getByRole('button', {
+        name: 'Mầm giải thích: Viết vài dòng',
+      })
+      fireEvent.pointerDown(button, { button: 0, pointerType: 'mouse' })
+      fireEvent.click(button)
+      expect(resolver).toHaveBeenCalledTimes(1)
+      const { signal } = resolver.mock.calls[0]![1]
+      expect(signal.aborted).toBe(false)
+
+      act(() => characterState.fail?.('error'))
+      await waitFor(() => expect(signal.aborted).toBe(true))
+      await waitFor(() =>
+        expect(screen.queryByText('Mầm đang nghĩ…')).toBeNull(),
+      )
+
+      // Asking again goes to the failure notice, never to the resolver.
+      fireEvent.pointerDown(button, { button: 0, pointerType: 'mouse' })
+      fireEvent.click(button)
+      expect(
+        await screen.findByText(/Mình đang bị choáng một chút/),
+      ).toBeInTheDocument()
+      expect(resolver).toHaveBeenCalledTimes(1)
+      fireEvent.click(dizzyDock())
+    })
   })
 
   describe('Mầm button on a SupportPlan card', () => {
@@ -743,6 +837,298 @@ describe('Mầm summon', () => {
       )
       expect(await screen.findByText(/Việc nên làm tiếp/)).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Đến việc này' })).toBeNull()
+    })
+  })
+  // MB-814: Mầm climbs from behind the card. Layout is stubbed (jsdom has none):
+  // the dock sits at the bottom left, cards in the upper page.
+  describe('climb', () => {
+    const rects = { top: 400, scroll: 0 }
+    const root = () => document.querySelector('[data-mam-dock]')!
+    const advance = (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms)
+      })
+    const dialog = () => screen.queryByRole('dialog', { name: 'Mầm' })
+    const active = (name = 'Bước tiếp theo') =>
+      screen.getByRole('region', { name }).hasAttribute('data-mam-active')
+    const mode = () => root().getAttribute('data-mam-travel')
+
+    beforeEach(() => {
+      stubMedia({ reduced: false })
+      window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true')
+      rects.top = 400
+      rects.scroll = 0
+      Object.defineProperty(window, 'scrollY', {
+        get: () => rects.scroll,
+        configurable: true,
+      })
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(
+        function (this: Element) {
+          if (this.matches('[data-mam-dock]'))
+            return new DOMRect(24, 700, 96, 96)
+          if (this.matches('.ref-topbar')) return new DOMRect(0, 0, 1024, 76)
+          if (this.matches('section[aria-label]'))
+            return new DOMRect(
+              100,
+              this.getAttribute('aria-label') === 'Tài nguyên'
+                ? rects.top + 200
+                : rects.top,
+              600,
+              120,
+            )
+          return new DOMRect()
+        },
+      )
+      const header = document.createElement('div')
+      header.className = 'ref-topbar'
+      document.body.appendChild(header)
+      vi.useFakeTimers()
+    })
+    afterEach(() => {
+      document.querySelector('.ref-topbar')?.remove()
+      Object.defineProperty(window, 'scrollY', {
+        value: 0,
+        configurable: true,
+      })
+    })
+
+    const climbed = async (card: Element) => {
+      contextMenu(card)
+      await advance(1600)
+      return screen.getByRole('dialog', { name: 'Mầm' })
+    }
+
+    it('dives, climbs behind the card edge and only then opens the starters beside it', async () => {
+      render(<App />)
+      const card = screen.getByRole('region', { name: 'Bước tiếp theo' })
+      contextMenu(card)
+      expect(dialog()).toBeNull()
+      expect(behavior()).toBe('curious')
+      expect(card).toHaveAttribute('data-mam-active')
+
+      await advance(400)
+      expect(mode()).toBe('perch')
+      expect(dialog()).toBeNull()
+
+      await advance(1200)
+      const bubble = screen.getByRole('dialog', { name: 'Mầm' })
+      expect(mode()).toBe('perch')
+      expect(bubble).toHaveAttribute('data-perch', 'left')
+      expect(
+        screen.getByRole('button', { name: 'Mầm giải thích' }),
+      ).toHaveFocus()
+    })
+
+    it('Esc closes the bubble at once and Mầm slides back down to the dock', async () => {
+      render(<App />)
+      await climbed(screen.getByRole('region', { name: 'Bước tiếp theo' }))
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+      expect(active()).toBe(false)
+      await advance(100)
+      expect(mode()).toBe('perch')
+      await advance(1800)
+      expect(mode()).toBe('dock')
+      expect(behavior()).toBe('idle')
+      expect(
+        screen.getByRole('region', { name: 'Bước tiếp theo' }),
+      ).not.toHaveAttribute('data-mam-active')
+    })
+
+    it('"Cảm ơn Mầm" plays the happy beat before going home and returns focus to the card button', async () => {
+      navigation.pathname = '/support-plan'
+      render(
+        <PlanApp
+          resolver={async () => ({ text: 'Mẫu có sẵn từ kế hoạch.' })}
+        />,
+      )
+      const button = screen.getByRole('button', {
+        name: 'Mầm giải thích: Viết vài dòng',
+      })
+      fireEvent.pointerDown(button, { button: 0, pointerType: 'mouse' })
+      fireEvent.click(button)
+      await advance(1800)
+      const thanks = screen.getByRole('button', { name: 'Cảm ơn Mầm' })
+      expect(behavior()).toBe('explaining')
+      fireEvent.click(thanks)
+      expect(behavior()).toBe('happy')
+      expect(
+        screen.getByRole('region', { name: 'Việc tiếp theo' }),
+      ).not.toHaveAttribute('data-mam-active')
+      await advance(400)
+      expect(mode()).toBe('perch')
+      await advance(1800)
+      expect(mode()).toBe('dock')
+      expect(behavior()).toBe('idle')
+      expect(button).toHaveFocus()
+    })
+
+    it('a close without thanks never plays the happy beat', async () => {
+      render(<App />)
+      await climbed(screen.getByRole('region', { name: 'Bước tiếp theo' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Đóng Mầm' }))
+      const seen = new Set<string | null>()
+      for (let step = 0; step < 50; step += 1) {
+        await advance(50)
+        seen.add(behavior())
+      }
+      expect(seen).not.toContain('happy')
+      expect(mode()).toBe('dock')
+    })
+
+    it('summoning another card retreats first, then climbs the new one', async () => {
+      render(<App />)
+      await climbed(screen.getByRole('region', { name: 'Bước tiếp theo' }))
+      const other = screen.getByRole('region', { name: 'Tài nguyên' })
+      contextMenu(other)
+      await advance(150)
+      expect(behavior()).toBe('gentle')
+      expect(other).toHaveAttribute('data-mam-active')
+      await advance(2500)
+      expect(dialog()).toBeInTheDocument()
+      expect(mode()).toBe('perch')
+      expect(
+        screen.getByRole('region', { name: 'Bước tiếp theo' }),
+      ).not.toHaveAttribute('data-mam-active')
+    })
+
+    it('keeps the dock bubble for a page target', async () => {
+      render(<App />)
+      fireEvent.click(screen.getByRole('button', { name: 'Mầm' }))
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Hỏi Mầm về trang này' }),
+      )
+      expect(dialog()).toHaveAttribute('data-anchor', 'dock')
+      await advance(500)
+      expect(mode()).toBe('dock')
+      expect(dialog()).toBeInTheDocument()
+    })
+
+    it('follows the card, and goes home when it is scrolled out of reach or unmounted', async () => {
+      const { rerender } = render(<App />)
+      await climbed(screen.getByRole('region', { name: 'Bước tiếp theo' }))
+      rects.top = 300
+      fireEvent.scroll(window)
+      await advance(60)
+      expect(dialog()).toBeInTheDocument()
+
+      // Under the header (top 76 + room 77): the bubble closes, Mầm retreats.
+      rects.scroll = 200
+      rects.top = 110
+      fireEvent.scroll(window)
+      await advance(60)
+      expect(active()).toBe(false)
+      await advance(2000)
+      expect(mode()).toBe('dock')
+
+      rects.scroll = 0
+      rects.top = 400
+      await climbed(screen.getByRole('region', { name: 'Bước tiếp theo' }))
+      rerender(<App card={false} />)
+      await advance(60)
+      await advance(2000)
+      expect(mode()).toBe('dock')
+    })
+
+    it('scrolls the page by the smallest amount before climbing, and never moves focus', async () => {
+      // Under the header: the top edge needs 76 + 77.44 - 100 more room.
+      rects.scroll = 300
+      rects.top = 100
+      const scrollBy = vi.fn(() => {
+        rects.top += 53.44
+        rects.scroll -= 53.44
+      })
+      window.scrollBy = scrollBy as unknown as typeof window.scrollBy
+      render(<App />)
+      const action = screen.getByRole('button', { name: 'Làm ngay' })
+      action.focus()
+      contextMenu(screen.getByRole('region', { name: 'Bước tiếp theo' }))
+      expect(document.activeElement).toBe(action)
+      await advance(500)
+      expect(document.activeElement).toBe(action)
+      await advance(2500)
+      expect(scrollBy).toHaveBeenCalledTimes(1)
+      expect(scrollBy).toHaveBeenCalledWith({
+        top: expect.closeTo(-53.44, 1),
+        behavior: 'smooth',
+      })
+      expect(dialog()).toBeInTheDocument()
+    })
+
+    it('a route change snaps Mầm home with no animation', async () => {
+      const { rerender } = render(<App />)
+      await climbed(screen.getByRole('region', { name: 'Bước tiếp theo' }))
+      navigation.pathname = '/achievements'
+      rerender(<App />)
+      expect(mode()).toBe('dock')
+      expect(active()).toBe(false)
+    })
+
+    it('a modal snaps Mầm home with no animation', async () => {
+      render(<App />)
+      await climbed(screen.getByRole('region', { name: 'Bước tiếp theo' }))
+      const modal = document.createElement('div')
+      modal.setAttribute('aria-modal', 'true')
+      await act(async () => {
+        document.body.appendChild(modal)
+      })
+      expect(root()).toHaveAttribute('data-mam-dock', 'away')
+      expect(mode()).toBe('dock')
+      modal.remove()
+    })
+
+    it('stays put when a dirty form suppresses Mầm', async () => {
+      const resolver = vi.fn<MamResolver>(async () => ({ text: 'Giải thích.' }))
+      navigation.pathname = '/support-plan'
+      const { rerender } = render(<PlanApp resolver={resolver} />)
+      await climbed(screen.getByRole('region', { name: 'Việc tiếp theo' }))
+      rerender(<PlanApp resolver={resolver} dirty />)
+      expect(mode()).toBe('dock')
+      expect(active('Việc tiếp theo')).toBe(false)
+    })
+
+    describe('while dizzy', () => {
+      beforeEach(() => {
+        characterState.fallback = 'error'
+      })
+      afterEach(() => {
+        characterState.fallback = null
+      })
+
+      it('a right-click opens the dizzy message at the dock, with no climb and no request', async () => {
+        const request = vi.spyOn(mamRequests, 'runMamRequest')
+        render(<App />)
+        expect(
+          contextMenu(screen.getByRole('region', { name: 'Tài nguyên' })),
+        ).toBe(false)
+        await advance(300)
+        const message = screen.getByRole('dialog', { name: 'Mầm' })
+        expect(message).toHaveTextContent('Mình đang bị choáng một chút')
+        expect(message).toHaveAttribute('data-anchor', 'dock')
+        expect(
+          screen.queryByRole('button', { name: 'Mầm giải thích' }),
+        ).toBeNull()
+        expect(mode()).toBe('dock')
+        expect(request).not.toHaveBeenCalled()
+      })
+
+      it('a card button asks nothing and says the same', async () => {
+        navigation.pathname = '/support-plan'
+        const resolver = vi.fn<MamResolver>(async () => ({ text: 'Không.' }))
+        render(<PlanApp resolver={resolver} />)
+        const button = screen.getByRole('button', {
+          name: 'Mầm giải thích: Viết vài dòng',
+        })
+        fireEvent.pointerDown(button, { button: 0, pointerType: 'mouse' })
+        fireEvent.click(button)
+        await advance(300)
+        expect(screen.getByRole('dialog', { name: 'Mầm' })).toHaveTextContent(
+          'Mình đang bị choáng',
+        )
+        expect(resolver).not.toHaveBeenCalled()
+        // Đã hiểu hands focus back to the card button that asked.
+        fireEvent.click(screen.getByRole('button', { name: 'Đã hiểu' }))
+        expect(button).toHaveFocus()
+      })
     })
   })
 })

@@ -40,14 +40,16 @@ Owner direction (MB-766 discussion, 2026-10-26):
 
 ## Decision summary
 
-1. Freeze asset `mam-v03.riv` by SHA-256, and freeze its `MamControls` view
+1. Freeze asset `mam-v05.riv` by SHA-256, and freeze its `MamControls` view
    model exactly as built.
-2. V1 hosts use 10 of the 12 `behaviorState` values. `sad` and `rest` are
-   reserved.
+2. The dock uses 11 of the 14 `behaviorState` values (`sleep` was appended in
+   v0.4, MB-814; `speaking` in v0.5, MB-815, for the AI voice call only).
+   `sad` and `rest` are reserved.
 3. Only the MB-767 adapter writes to Rive. Features emit typed Mầm events.
    They never touch the runtime or the DOM of other features.
 4. Mầm is summon-first. Automatic behaviour is limited to source-verified award
-   celebrations and confirmed-save acknowledgements, within the budget below.
+   celebrations, confirmed-save acknowledgements (within the budget below) and
+   the one-time tip that teaches the summon gesture (MB-814).
 5. Release ships with the free MIT runtime and the CLI-built asset. No paid
    Rive plan is assumed. Production enablement is gated (see "Licensing and
    release gate").
@@ -56,10 +58,10 @@ Owner direction (MB-766 discussion, 2026-10-26):
 
 | Field                                     | Value                                                                                            |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| File                                      | `mam-v03.riv`, 80,826 bytes                                                                      |
-| SHA-256                                   | `2fbd1dacf9845f03e8710b61ab0110df616028467bd287fe9001a573a44e53a6`                               |
+| File                                      | `mam-v05.riv`, 99,394 bytes (v0.3 art plus the looping `sleep` and `speaking` states)            |
+| SHA-256                                   | `6c1068eab4adedbca91a8db5670e02a47e8ec401805050eae90bdbc17588504a`                               |
 | Built by                                  | Rive CLI 1.7.0, `rive <rig> --once` (unsigned, no login)                                         |
-| Rebuild                                   | Deterministic: rebuilding the rig on 2026-10-27 gave the same hash, with 0 errors and 0 warnings |
+| Rebuild                                   | Deterministic: rebuilding on 2026-11-06 gave the same hash, with 0 errors and 0 warnings         |
 | Artboard                                  | `companion_main`, 512×512, no artboard fill (transparent)                                        |
 | State machine                             | `MamBehaviorController`, layers `Behavior`, `Face`, `Attention`                                  |
 | View model                                | `MamControls`, instance `Default`                                                                |
@@ -72,15 +74,16 @@ version and needs a new visual QA pass.
 
 MB-767 lands the asset in the web repository:
 
-- `public/mam/mam-v03.riv` holds the file with the hash above. Budget: at most
-  100 KB.
+- `public/mam/mam-v05.riv` holds the file with the hash above. Budget: at most
+  100 KB (v0.5 is 99,394 bytes).
 - `design-source/mam-rive/` holds the generator inputs. Next.js does not serve
   this folder.
 - The static fallback is a transparent SVG of the v0.3 `idle` pose, generated
   from the same `build.mjs` art tree. The v0.4 PNG in `creative/mam-companion/`
   is different art and is not used.
-- The Rive runtime and its WASM load lazily, and only on routes where the dock
-  is visible. They never enter the initial route bundle.
+- The Rive runtime and its WASM load lazily, and only where Mầm renders: on
+  routes where the dock is visible, and inside the AI voice call view while a
+  call is in progress (MB-815). They never enter the initial route bundle.
 
 The earlier
 `creative/mam-companion/` POC and the inline "Mầm An" SVG loading mascots
@@ -91,7 +94,7 @@ contract and stay unchanged.
 
 | Property             | Type                                                                                                                                                                               | Rule                                                                                         |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `behaviorState`      | enum `MamBehavior` (12 values, IDs fixed in this order: `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy`) | Looping poses blend in 260 ms (`sad` 600 ms). The face layer switches in 0 ms                |
+| `behaviorState`      | enum `MamBehavior` (14 values, IDs fixed in this order: `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy, sleep, speaking`) | Looping poses blend in 260 ms (`sad` 600 ms). The face layer switches in 0 ms                |
 | `attentionDirection` | number −1…1, clamped                                                                                                                                                               | Moves only the pupils. Measured ±6 artboard px at the extremes                               |
 | `celebrationTier`    | enum `none, soft, hero`                                                                                                                                                            | Picks a celebration when `behaviorState` is not itself a one-shot                            |
 | `playOnce`           | trigger                                                                                                                                                                            | Required to start any one-shot. Setting a one-shot enum value alone plays nothing (verified) |
@@ -116,11 +119,19 @@ its last write is still current.
 | `listening`      | Mầm offered an optional next step and waits for the user's choice                            | offer shown                              |
 | `gentle`         | Sensitive or failed-request context: calm template text                                      | request failed, sensitive review surface |
 | `happy`          | A verified-award bubble is open                                                              | celebration bubble                       |
+| `sleep`          | Host-set only after 60 s idle, never in reduced motion, never reflects user data             | idle timer                               |
+| `speaking`       | Mầm's voice-call reply audio is playing (agent state `speaking`). Voice call only. Never reflects user data | AI voice call dialog (never the dock)    |
 | `light_success`  | One-shot: a confirmed save or a Content-verified Bingo item                                  | confirmed source event                   |
 | `celebrate_soft` | One-shot: a verified achievement (not the day's hero)                                        | celebration scheduler                    |
 | `celebrate_hero` | One-shot: the first verified achievement of the day                                          | celebration scheduler                    |
 | `sad`            | **Reserved; not used in V1.** It must never mirror the user's emotion, journal or assessment | none                                     |
 | `rest`           | **Reserved for the asset's reduced-motion pose.** Hosts do not set it                        | asset                                    |
+
+The AI voice call sets only `idle` (preparing, the user's turn, waiting,
+reconnecting, ending), `thinking` and `speaking`; under reduced motion the asset
+shows `rest`. The call never sets any other value, and the dock never sets
+`speaking`. The `speaking` mouth cycles on a fixed timeline: it is not
+synchronised to the audio.
 
 SupportPlan Companion states map onto this vocabulary as follows:
 
@@ -241,6 +252,65 @@ intent or context fails closed.
 - One bubble at a time. While a request is pending, a repeated summon shares
   the pending state.
 
+### User-initiated travel (MB-814)
+
+The dock is Mầm's home, not its only place. Two user actions move the one
+character away from it, and nothing else does:
+
+- **Summon climb.** An element-target summon makes Mầm leave the dock, climb up
+  from behind the summoned card's top edge and answer beside its head. The
+  character layer is clipped at the card's top edge (the card's `z-index` is
+  never raised) and at the bottom of the sticky app header, so Mầm never draws
+  over the header. The page first scrolls the smallest amount that leaves
+  `0.64·S + 16 px` above the card's top edge; focus never moves. While perched,
+  Mầm follows the card on scroll and resize. If the card unmounts, goes
+  offscreen or its top edge rises above that room, the bubble closes and Mầm
+  returns home without the thanks beat. A page-level target (no element) keeps
+  the dock bubble.
+- **Drag and throw.** On the docked character, a pointer drag of 6 px or more
+  (mouse, pen or touch) carries Mầm; release tosses it upward with damping, it
+  bounces and hops back to the dock. A press under 6 px is a tap. This is play:
+  there is no keyboard equivalent, and it is unavailable while perched, away,
+  suppressed, dizzy or in reduced motion. Mầm travels above page content but
+  below toasts and the crisis widget.
+
+Gaze is unchanged: the drag tilt is physics, not gaze, and `attentionDirection`
+still points at the active anchor. A route change, a modal, suppression or
+reduced motion snaps a travelling Mầm home with no animation; Escape does the
+same during a throw or hop, and retreats a perched Mầm normally. The no-interrupt
+zones below are unchanged.
+
+### One-time tip (MB-814)
+
+The tip is the second automatic appearance, once per device
+(`mentalbridge_mam_tip_seen`, localStorage). It shows 1.4 s after load when
+Mầm is shown and not away or suppressed, "Mầm tự lên tiếng" is on and the page
+has at least one registered element target. Mầm hops once (no hop in reduced
+motion) and says how to summon on a card: right-click on a fine pointer,
+long-press on a coarse pointer. The tip never takes focus, and it is marked
+seen when shown. The dock menu lead repeats the same guidance permanently, so
+the path survives a skipped tip.
+
+Mầm's per-card button stays in the DOM with its name and action, but is
+visually hidden until `:focus-visible`; the dock button remains the touch path
+that always works.
+
+### Sleep and dizzy (MB-814)
+
+- **Sleep** is a quiet exit, not an appearance. After 60 s without input, a
+  docked, visible, unsuppressed Mầm with nothing open lies down; the host sets
+  the looping `sleep` state, which draws the closed eyes, breathing and blanket,
+  and floats "z z Z". It never sleeps in reduced motion. Only an interaction
+  with Mầm (tap, drag, summon, a celebration) wakes it; other page input does
+  not.
+- **Dizzy** means only that Mầm itself is broken: a load error, a contract
+  mismatch or a lost canvas context. It lasts until the page reloads, is drawn
+  by the host (swirl eyes and orbiting stars, static in reduced motion) and
+  disables climbing, dragging, sleeping and celebrating. A tap or a summon opens
+  a short dock bubble saying Mầm cannot help right now, with "Đã hiểu" and
+  "Ẩn Mầm". Dizzy never reflects user data, mood or a failed explanation
+  request. A device without canvas or WebAssembly is unsupported, not dizzy.
+
 ### No-interrupt zones
 
 In these zones Mầm never auto-appears, never celebrates, never announces
@@ -274,9 +344,11 @@ document keep the static, inert dock.
 | `/support-guides`, `/support-guides/[supportGuideId]`                                                                                                                                                                          | yes                        | none in V1                                                                                                     | none                                                                       |
 | `/journal` list view                                                                                                                                                                                                           | static dock                | none (MB-771)                                                                                                  | none; no save reaction (MB-771)                                            |
 | Journal authoring, `/assessment/*`, `/assessments`, `/initial-check`, `/safety-directory`, `/subscription`, checkout, appointment booking, `/messages`, community routes, `/ai-companion`, admin, specialist, anonymous routes | hidden (`isVisible=false`) | none                                                                                                           | none                                                                       |
+| AI voice call dialog (opened from `/ai-companion`; only when `MAM_WEB_ENABLED` is on and Mầm is not hidden) | none (the dock stays hidden) | none | none. The character is driven only by call state: `idle`, `thinking`, `speaking`, and `rest` under reduced motion |
 
-`/ai-companion` already has its own conversation surface, so a second character
-there would duplicate it.
+`/ai-companion` keeps a hidden dock, no summon and no automatic appearance. Its
+text chat has no character. The AI voice call uses Mầm as its face instead of
+adding a second character (MB-815).
 
 Since MB-772 the global dock shows on exact `/support-plan` when
 `MAM_WEB_ENABLED` is on, and the page then drops the legacy SupportPlan
@@ -398,10 +470,11 @@ does not use the budget but obeys hidden, muted, motion and suppression.
 | Hide Mầm       | `isVisible=false`, no automatic events. Summon is off until shown again               | Per device. MB-768 chooses the storage key, following the existing `mentalbridge_support_plan_companion_*` pattern |
 | Mute           | No automatic appearances and no live-region announcements. Requested text still shows | Session (policy v1). Cross-session needs the preference contract MB-653 names                                      |
 | Animations off | `reducedMotion=true`. The OS `prefers-reduced-motion` setting forces it on            | Per device                                                                                                         |
+| Tip seen       | The one-time tip (MB-814) never shows again                                           | Per device                                                                                                         |
 
 MB-768 stores them as `mentalbridge_mam_hidden` (localStorage),
 `mentalbridge_mam_session_muted` (sessionStorage) and `mentalbridge_mam_motion`
-(localStorage). A hidden Mầm leaves a 44 px "Hiện Mầm" handle in the dock
+(localStorage). The tip uses `mentalbridge_mam_tip_seen` (localStorage). A hidden Mầm leaves a 44 px "Hiện Mầm" handle in the dock
 corner.
 
 Controls are reachable from the dock by keyboard. Hiding Mầm never hides
@@ -422,7 +495,8 @@ authoritative plan, safety, save, validation or error feedback.
   - Mầm sits below toasts (`z-index` 100200) and below `CrisisSupportWidget`
     (120000).
   - It never covers the crisis widget, primary actions, sticky composers or a
-    focused element.
+    focused element. While Mầm is dragged or thrown the dock layer rises to
+    `z-index` 5000, still below toasts and the crisis widget.
   - Native modal dialogs render in the top layer above it.
   - The desktop dock sits bottom-left, because the crisis widget sits
     bottom-right. Below 900 px the 72 px dock also sits bottom-left, 16 px
@@ -439,12 +513,14 @@ authoritative plan, safety, save, validation or error feedback.
 
 | Case                                               | Behaviour                                                                                                                      |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Asset fetch or decode fails, or WASM init fails    | Static SVG Mầm with the same text and controls. No retry loop. The page is never blocked                                       |
-| Runtime unsupported or canvas context lost         | Same static fallback                                                                                                           |
+| Asset fetch or decode fails, or WASM init fails    | Static SVG Mầm with the same text and controls, plus the host-drawn dizzy overlay (MB-814). No retry loop. The page is never blocked |
+| Contract mismatch or canvas context lost           | Same as above: dizzy, until reload                                                                                             |
+| Runtime unsupported (no canvas or WebAssembly)     | Static SVG Mầm with the same text and controls. Not dizzy: a capability gap is not a fault                                     |
 | Rive WASM                                          | Self-hosted from the app origin, never fetched from a third-party CDN at runtime. A future CSP must allow `'wasm-unsafe-eval'` |
 | Explanation request fails, times out or hits quota | `gentle` plus approved template text for that intent. Mầm never invents an answer                                              |
 | Route change during a request or bubble            | Request result discarded, `returnToDock`                                                                                       |
 | Flag off                                           | Host not mounted. Existing SupportPlan Companion UI unchanged                                                                  |
+| Voice call dialog, any fallback reason (MB-815)    | Static idle image only: no dizzy overlay or message. The call and its status line work without Mầm. The dock rows above are unchanged |
 
 ## Licensing and release gate
 
@@ -496,8 +572,9 @@ Decision:
 
 ## Out of scope
 
-- AI Voice and LiveKit (MB-754), lip sync and visemes (`talk` is a static
-  mouth), video, specialist consultation.
+- Voice-call expressions beyond call state (per-reply expression tags come in a
+  later story), lip sync and visemes (`talk` is a static mouth; the `speaking`
+  mouth is not audio-synced), video, specialist consultation.
 - Autonomous Care, Journal or Content mutations.
 - New reward rules, XP, achievements or streaks.
 - Sentiment profiling, and reading raw Journal, emotion, assessment or chat

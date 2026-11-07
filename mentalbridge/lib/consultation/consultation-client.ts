@@ -49,6 +49,9 @@ import {
   parseSpecialistEarnings,
   parsePayoutDestination,
   parseAdminPayoutList,
+  parsePayoutBankList,
+  parseAdminPayoutDestinationList,
+  parseAdminPayoutDestinationDetail,
   parseSpecialistDiscoveryItem,
   parseSpecialistDiscoveryPage,
   parseSpecialistSuspensionResult,
@@ -71,6 +74,12 @@ import {
   type PayoutDestination,
   type SavePayoutDestinationInput,
   type AdminPayoutList,
+  type PayoutBankList,
+  type AdminPayoutDestinationList,
+  type AdminPayoutDestinationDetail,
+  type ConfirmPayoutDestinationInput,
+  type CloseFailedPayoutInput,
+  type RetryPayoutInput,
   type Appointment,
   type AppointmentRating,
   type AppointmentList,
@@ -601,6 +610,88 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseAdminPayoutList,
+    })
+  },
+  specialistPayoutBanks(token: string, correlationId: string) {
+    return request<PayoutBankList>({
+      method: 'GET',
+      path: '/api/v1/specialist/payout-banks',
+      token,
+      correlationId,
+      parse: parsePayoutBankList,
+    })
+  },
+  adminPayoutDestinations(token: string, correlationId: string, query = '') {
+    return request<AdminPayoutDestinationList>({
+      method: 'GET',
+      path: `/api/v1/admin/payout-destinations${query ? (query.startsWith('?') ? query : `?${query}`) : ''}`,
+      token,
+      correlationId,
+      parse: parseAdminPayoutDestinationList,
+    })
+  },
+  adminPayoutDestinationDetail(
+    token: string,
+    correlationId: string,
+    destinationId: string,
+  ) {
+    return request<AdminPayoutDestinationDetail>({
+      method: 'GET',
+      path: `/api/v1/admin/payout-destinations/${encodeURIComponent(destinationId)}`,
+      token,
+      correlationId,
+      parse: parseAdminPayoutDestinationDetail,
+    })
+  },
+  confirmAdminPayoutDestination(
+    token: string,
+    correlationId: string,
+    destinationId: string,
+    body: ConfirmPayoutDestinationInput,
+    idempotencyKey: string,
+  ) {
+    return request<PayoutDestination>({
+      method: 'POST',
+      path: `/api/v1/admin/payout-destinations/${encodeURIComponent(destinationId)}/confirm`,
+      token,
+      correlationId,
+      body,
+      idempotencyKey,
+      parse: parsePayoutDestination,
+    })
+  },
+  retryAdminPayout(
+    token: string,
+    correlationId: string,
+    payoutId: string,
+    body: RetryPayoutInput,
+    idempotencyKey: string,
+  ) {
+    return request<AdminPayoutDetail>({
+      method: 'POST',
+      path: `/api/v1/admin/payouts/${encodeURIComponent(payoutId)}/retry`,
+      token,
+      correlationId,
+      body,
+      idempotencyKey,
+      parse: parseAdminPayoutDetail,
+    })
+  },
+  closeFailedAdminPayout(
+    token: string,
+    correlationId: string,
+    payoutId: string,
+    body: CloseFailedPayoutInput,
+    idempotencyKey: string,
+  ) {
+    return request<AdminPayoutDetail>({
+      method: 'POST',
+      path: `/api/v1/admin/payouts/${encodeURIComponent(payoutId)}/close-failed`,
+      token,
+      correlationId,
+      body,
+      idempotencyKey,
+      parse: parseAdminPayoutDetail,
     })
   },
   adminPayoutDetail(token: string, correlationId: string, payoutId: string) {

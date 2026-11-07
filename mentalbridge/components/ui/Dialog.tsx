@@ -13,6 +13,7 @@ type DialogProps = Readonly<{
   children: ReactNode
   className?: string
   restoreFocusTo?: () => HTMLElement | null
+  onAfterClose?: () => void
 }>
 
 export function Dialog({
@@ -23,6 +24,7 @@ export function Dialog({
   children,
   className,
   restoreFocusTo,
+  onAfterClose,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
@@ -65,6 +67,7 @@ export function Dialog({
         ? restoreFocusRef.current
         : restoreFocusFallback.current?.()
       target?.focus()
+      onAfterClose?.()
       return
     }
 
@@ -81,9 +84,10 @@ export function Dialog({
         ? restoreFocusRef.current
         : restoreFocusFallback.current?.()
       target?.focus()
+      onAfterClose?.()
     }, 140)
     return () => window.clearTimeout(timer)
-  }, [open, restoreFocusTo])
+  }, [open, restoreFocusTo, onAfterClose])
 
   return (
     <dialog

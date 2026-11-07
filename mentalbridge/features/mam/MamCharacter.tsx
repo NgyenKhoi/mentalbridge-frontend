@@ -15,6 +15,13 @@ import { createMamControls, type MamControls } from './mam-controls'
 
 export type MamRenderStatus = 'loading' | 'ready' | 'fallback'
 
+/**
+ * Why the static pose shows: `unsupported` is a device without canvas or
+ * WebAssembly (not a fault); `error` is a load error, a contract mismatch or
+ * a lost context (Mầm itself is broken).
+ */
+export type MamFallbackReason = 'unsupported' | 'error'
+
 export interface MamOneShotCommand {
   kind: MamOneShot
   /**
@@ -35,6 +42,7 @@ export interface MamCharacterProps {
   oneShot?: MamOneShotCommand | null
   className?: string
   onStatusChange?: (status: MamRenderStatus) => void
+  onFallback?: (reason: MamFallbackReason) => void
 }
 
 type RiveModule = typeof import('@rive-app/canvas-lite')
@@ -89,6 +97,7 @@ export function MamCharacter({
   oneShot = null,
   className,
   onStatusChange,
+  onFallback,
 }: MamCharacterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const controlsRef = useRef<MamControls | null>(null)
@@ -107,6 +116,16 @@ export function MamCharacter({
     statusListener.current?.(status)
   }, [status])
 
+  const fallbackListener = useRef(onFallback)
+  useEffect(() => {
+    fallbackListener.current = onFallback
+  }, [onFallback])
+  const reasonRef = useRef<MamFallbackReason | null>(null)
+  useEffect(() => {
+    if (status === 'fallback' && reasonRef.current)
+      fallbackListener.current?.(reasonRef.current)
+  }, [status])
+
   const desiredBehavior = useRef(behavior)
   useEffect(() => {
     desiredBehavior.current = behavior
@@ -115,6 +134,7 @@ export function MamCharacter({
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !runtimeSupported(canvas)) {
+      reasonRef.current = 'unsupported'
       setStatus('fallback')
       return
     }
@@ -134,7 +154,9 @@ export function MamCharacter({
     const fail = () => {
       failed = true
       release()
-      if (!cancelled) setStatus('fallback')
+      if (cancelled) return
+      reasonRef.current = 'error'
+      setStatus('fallback')
     }
     canvas.addEventListener('contextlost', fail)
 

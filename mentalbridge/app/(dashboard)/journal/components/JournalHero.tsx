@@ -8,9 +8,11 @@ interface JournalHeroProps {
 
 export function JournalHero({ onOpenCreate }: JournalHeroProps) {
   return (
-    <div className="card hero">
-      <div>
-        <div className="eyebrow">Nhật ký riêng tư</div>
+    <div className="card hero" data-user-page-header>
+      <div data-user-page-heading>
+        <div className="eyebrow" data-user-page-kicker>
+          Nhật ký riêng tư
+        </div>
         <h1>Nhật ký của bạn</h1>
         <p>Ghi lại cảm xúc và những điều bạn muốn nhìn lại theo nhịp riêng.</p>
       </div>

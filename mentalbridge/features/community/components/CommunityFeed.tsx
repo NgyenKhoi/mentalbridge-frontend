@@ -13,11 +13,22 @@ import {
   type CommunityTopicCode,
 } from '@/features/community/api/browser-community'
 import CommunityMedia from './CommunityMedia'
+import CommunitySavedPost from './CommunitySavedPost'
 import CommunityPostComposer from './CommunityPostComposer'
 import CommunitySensitiveContent from './CommunitySensitiveContent'
 import CommunityAvatar from './CommunityAvatar'
+import CommunityAuthorLink from './CommunityAuthorLink'
 import CommunityInteractions from './CommunityInteractions'
 import CommunityResourceAttachment from './CommunityResourceAttachment'
+import {
+  CommunityHelpCard,
+  CommunityMembers,
+  CommunityMoments,
+  CommunityPrompt,
+} from './CommunityDiscovery'
+import CommunitySafetyActions from './CommunitySafetyActions'
+import CommunityCommentsDialog from './CommunityCommentsDialog'
+import discussionStyles from './CommunityCommentsDialog.module.css'
 
 type FeedPost = Omit<CommunityPostDetail, 'content'> & {
   contentPreview: string
@@ -25,6 +36,8 @@ type FeedPost = Omit<CommunityPostDetail, 'content'> & {
 
 type CommunityFeedProps = {
   view?: 'feed' | 'saved'
+  search?: string
+  openReels?: boolean
 }
 
 function communityTime(value: string) {
@@ -77,7 +90,11 @@ function FeedIcon({ name }: Readonly<{ name: 'comment' | 'heart' | 'lock' }>) {
   )
 }
 
-export default function CommunityFeed({ view = 'feed' }: CommunityFeedProps) {
+export default function CommunityFeed({
+  view = 'feed',
+  search = '',
+  openReels = false,
+}: CommunityFeedProps) {
   const savedView = view === 'saved'
   const [topics, setTopics] = useState<CommunityTopic[]>([])
   const [selectedTopics, setSelectedTopics] = useState<CommunityTopicCode[]>([])
@@ -90,10 +107,95 @@ export default function CommunityFeed({ view = 'feed' }: CommunityFeedProps) {
   const [topicsError, setTopicsError] = useState(false)
   const [topicsExpanded, setTopicsExpanded] = useState(true)
   const feedGeneration = useRef(0)
+  const [order, setOrder] = useState<'topics' | 'latest' | 'support'>('latest')
+  const [suggestion, setSuggestion] = useState('')
+  const [mediaComposeRequest, setMediaComposeRequest] = useState(0)
+  const [discussion, setDiscussion] = useState<{
+    postId: string
+    authorName: string
+  } | null>(null)
+  const [discussionOpen, setDiscussionOpen] = useState(false)
+  const discussionTrigger = useRef<HTMLButtonElement | null>(null)
+  const restoreDiscussionFocus = useCallback(
+    () =>
+      discussionTrigger.current?.isConnected
+        ? discussionTrigger.current
+        : document.querySelector<HTMLElement>(
+            '.community-feed-toolbar button, a[href="/community"]',
+          ),
+    [],
+  )
+
+  function openDiscussion(post: FeedPost, trigger: HTMLButtonElement) {
+    discussionTrigger.current = trigger
+    setDiscussion({ postId: post.postId, authorName: post.author.displayName })
+    setDiscussionOpen(true)
+  }
+
+  const syncDiscussionPost = useCallback(
+    (post: CommunityPostDetail) => {
+      setItems((current) =>
+        savedView && post.viewerState && !post.viewerState.bookmarked
+          ? current.filter((item) => item.postId !== post.postId)
+          : current.map((item) =>
+              item.postId === post.postId
+                ? {
+                    ...item,
+                    viewerState: post.viewerState,
+                    counts: post.counts,
+                  }
+                : item,
+            ),
+      )
+    },
+    [savedView],
+  )
+
+  function removeDiscussionPost(postId: string) {
+    setDiscussionOpen(false)
+    setItems((current) => current.filter((item) => item.postId !== postId))
+  }
+
+  function updateInteractions(
+    postId: string,
+    viewerState: NonNullable<CommunityPostDetail['viewerState']>,
+    reactions: number,
+  ) {
+    if (savedView && !viewerState.bookmarked) {
+      setItems((current) => current.filter((item) => item.postId !== postId))
+      void load()
+      return
+    }
+    setItems((current) =>
+      current.map((item) =>
+        item.postId === postId
+          ? { ...item, viewerState, counts: { ...item.counts, reactions } }
+          : item,
+      ),
+    )
+  }
+  const searchTerm = search
+    .trim()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLocaleLowerCase('vi-VN')
+    .replace(/đ/g, 'd')
+  const visibleItems = items.filter(
+    (post) =>
+      !searchTerm ||
+      `${post.contentPreview} ${post.author.displayName}`
+        .normalize('NFD')
+        .replace(/\p{M}/gu, '')
+        .toLocaleLowerCase('vi-VN')
+        .replace(/đ/g, 'd')
+        .includes(searchTerm),
+  )
+  if (order === 'support')
+    visibleItems.sort((a, b) => b.counts.reactions - a.counts.reactions)
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return
-    const desktop = window.matchMedia('(min-width: 901px)')
+    const desktop = window.matchMedia('(min-width: 1101px)')
     const sync = () => setTopicsExpanded(desktop.matches)
     sync()
     desktop.addEventListener('change', sync)
@@ -225,7 +327,9 @@ export default function CommunityFeed({ view = 'feed' }: CommunityFeedProps) {
   }
 
   return (
-    <div className="community-page">
+    <div
+      className={`community-page ${savedView ? 'community-saved-page' : 'community-home-page'}`}
+    >
       <div className="community-feed-intro">
         <header className="community-hero">
           <div>
@@ -245,100 +349,191 @@ export default function CommunityFeed({ view = 'feed' }: CommunityFeedProps) {
           </div>
         </header>
 
-        {!savedView && <CommunityPostComposer topics={topics} />}
+        {!savedView && (
+          <>
+            <CommunityMoments
+              posts={items}
+              openViewer={openReels}
+              onCreate={() => setMediaComposeRequest((current) => current + 1)}
+              loading={loading}
+              loadingMore={loadingMore}
+              onLoadMore={
+                nextCursor ? () => void load(nextCursor, true) : undefined
+              }
+            />
+            <CommunityPrompt
+              onUse={(prompt) => {
+                setSuggestion(prompt)
+                document.getElementById('community-quick-content')?.focus()
+              }}
+            />
+            <CommunityPostComposer
+              topics={topics}
+              suggestion={suggestion}
+              mediaRequest={mediaComposeRequest}
+            />
+          </>
+        )}
       </div>
 
       {!savedView && (
         <aside className="community-topic-dock" aria-label="Khám phá chủ đề">
-          <Disclosure
-            className="community-topic-disclosure"
-            summary="Khám phá theo chủ đề"
-            meta={
-              selectedTopics.length > 0
-                ? `${selectedTopics.length} đã chọn`
-                : 'Chọn tối đa 3'
-            }
-            open={topicsExpanded}
-            onToggle={(event) => setTopicsExpanded(event.currentTarget.open)}
-          >
-            <nav
-              className="community-topics"
-              aria-label="Lọc bảng tin theo chủ đề"
+          <CommunityHelpCard />
+          <div className="community-topic-panel">
+            <Disclosure
+              className="community-topic-disclosure"
+              summary="Khám phá theo chủ đề"
+              meta={
+                selectedTopics.length > 0
+                  ? `${selectedTopics.length} đã chọn`
+                  : 'Chọn tối đa 3'
+              }
+              open={topicsExpanded}
+              onToggle={(event) => setTopicsExpanded(event.currentTarget.open)}
             >
-              <button
-                type="button"
-                className={selectedTopics.length === 0 ? 'is-active' : ''}
-                aria-pressed={selectedTopics.length === 0}
-                onClick={() => changeTopics(() => [])}
+              <nav
+                className="community-topics"
+                aria-label="Lọc bảng tin theo chủ đề"
               >
-                Tất cả
-              </button>
-              {topics.map((topic) => (
                 <button
-                  key={topic.code}
                   type="button"
-                  title={topic.description}
-                  className={
-                    selectedTopics.includes(topic.code) ? 'is-active' : ''
-                  }
-                  aria-pressed={selectedTopics.includes(topic.code)}
-                  disabled={
-                    !selectedTopics.includes(topic.code) &&
-                    selectedTopics.length >= 3
-                  }
-                  onClick={() => toggleTopic(topic.code)}
+                  className={selectedTopics.length === 0 ? 'is-active' : ''}
+                  aria-pressed={selectedTopics.length === 0}
+                  onClick={() => changeTopics(() => [])}
                 >
-                  {topic.label}
+                  Tất cả
                 </button>
-              ))}
-            </nav>
-            {topicsLoading ? (
-              <p className="community-topic-status" role="status">
-                Đang tải chủ đề cộng đồng…
-              </p>
-            ) : topicsError ? (
-              <div className="community-inline-error" role="alert">
-                <span>Danh sách chủ đề tạm thời chưa tải được.</span>
-                <button type="button" onClick={() => void loadTopics()}>
-                  Thử lại
+                {topics.map((topic) => (
+                  <button
+                    key={topic.code}
+                    type="button"
+                    title={topic.description}
+                    className={
+                      selectedTopics.includes(topic.code) ? 'is-active' : ''
+                    }
+                    aria-pressed={selectedTopics.includes(topic.code)}
+                    disabled={
+                      !selectedTopics.includes(topic.code) &&
+                      selectedTopics.length >= 3
+                    }
+                    onClick={() => toggleTopic(topic.code)}
+                  >
+                    {topic.label}
+                  </button>
+                ))}
+              </nav>
+              {topicsLoading ? (
+                <p className="community-topic-status" role="status">
+                  Đang tải chủ đề cộng đồng…
+                </p>
+              ) : topicsError ? (
+                <div className="community-inline-error" role="alert">
+                  <span>Danh sách chủ đề tạm thời chưa tải được.</span>
+                  <button type="button" onClick={() => void loadTopics()}>
+                    Thử lại
+                  </button>
+                </div>
+              ) : topics.length === 0 ? (
+                <p className="community-topic-status" role="status">
+                  Chưa có chủ đề đang hoạt động. Bạn vẫn có thể đọc bảng tin
+                  nhưng chưa thể lọc hoặc đăng bài mới.
+                </p>
+              ) : (
+                <p className="community-topic-status" aria-live="polite">
+                  {selectedTopics.length === 0
+                    ? 'Đang hiển thị tất cả bài viết mới nhất.'
+                    : `Đang lọc theo ${selectedTopics.length} chủ đề.`}
+                </p>
+              )}
+              {selectedTopics.length > 0 && (
+                <button
+                  className="community-clear-topics"
+                  type="button"
+                  onClick={() => changeTopics(() => [])}
+                >
+                  Xóa bộ lọc
                 </button>
-              </div>
-            ) : topics.length === 0 ? (
-              <p className="community-topic-status" role="status">
-                Chưa có chủ đề đang hoạt động. Bạn vẫn có thể đọc bảng tin nhưng
-                chưa thể lọc hoặc đăng bài mới.
-              </p>
-            ) : (
-              <p className="community-topic-status" aria-live="polite">
-                {selectedTopics.length === 0
-                  ? 'Đang hiển thị tất cả bài viết mới nhất.'
-                  : `Đang lọc theo ${selectedTopics.length} chủ đề.`}
-              </p>
-            )}
-            {selectedTopics.length > 0 && (
-              <button
-                className="community-clear-topics"
-                type="button"
-                onClick={() => changeTopics(() => [])}
-              >
-                Xóa bộ lọc
-              </button>
-            )}
-          </Disclosure>
+              )}
+            </Disclosure>
+          </div>
+          <CommunityMembers />
         </aside>
       )}
 
       <div className="community-feed-content">
+        {!savedView && (
+          <div className="community-feed-toolbar">
+            <div role="group" aria-label="Sắp xếp bảng tin">
+              <button
+                type="button"
+                aria-pressed={order === 'topics'}
+                onClick={() => {
+                  setOrder('topics')
+                  setTopicsExpanded(true)
+                  document
+                    .querySelector<HTMLElement>(
+                      '.community-topic-disclosure > summary',
+                    )
+                    ?.focus()
+                }}
+              >
+                Dành cho bạn
+              </button>
+              <button
+                type="button"
+                aria-pressed={order === 'latest'}
+                onClick={() => setOrder('latest')}
+              >
+                Mới nhất
+              </button>
+              <button
+                type="button"
+                aria-pressed={order === 'support'}
+                onClick={() => setOrder('support')}
+              >
+                Nhiều đồng hành
+              </button>
+            </div>
+            <span>
+              <FeedIcon name="lock" /> Không gian sẻ chia
+            </span>
+          </div>
+        )}
+        {order === 'topics' && !selectedTopics.length && (
+          <p className="community-results-note">
+            Chọn tối đa 3 chủ đề để xem những câu chuyện bạn quan tâm.
+          </p>
+        )}
+        {(searchTerm || order === 'support') && (
+          <p className="community-results-note" role="status">
+            {searchTerm
+              ? `${visibleItems.length} kết quả cho “${search}” trong ${items.length} bài đã tải.`
+              : `Sắp xếp ${items.length} bài đã tải theo lượt đồng hành.`}{' '}
+            {nextCursor && 'Tải thêm để khám phá những câu chuyện khác.'}{' '}
+            {searchTerm && <Link href="/community">Xóa tìm kiếm</Link>}
+          </p>
+        )}
         {loading ? (
-          <section className="community-state" role="status" aria-busy="true">
-            <h2>
+          <section
+            className="community-feed-loading"
+            role="status"
+            aria-busy="true"
+          >
+            <span className="community-sr-only">
               {savedView ? 'Đang tải bài viết đã lưu…' : 'Đang tải câu chuyện…'}
-            </h2>
-            <p>
-              {savedView
-                ? 'Bộ sưu tập riêng của bạn đang được chuẩn bị.'
-                : 'Những chia sẻ mới nhất đang được chuẩn bị.'}
-            </p>
+            </span>
+            {[0, 1].map((item) => (
+              <div
+                className="community-feed-skeleton"
+                aria-hidden="true"
+                key={item}
+              >
+                <span className="community-skeleton-author" />
+                <span />
+                <span />
+                <span className="community-skeleton-media" />
+              </div>
+            ))}
           </section>
         ) : error && items.length === 0 ? (
           <section className="community-state" role="alert">
@@ -381,95 +576,143 @@ export default function CommunityFeed({ view = 'feed' }: CommunityFeedProps) {
                 savedView ? 'Bài viết bạn đã lưu' : 'Bài viết cộng đồng'
               }
             >
-              {items.map((post) => (
-                <article className="community-card" key={post.postId}>
-                  <header>
-                    <CommunityAvatar
-                      displayName={post.author.displayName}
-                      avatarPreset={post.author.avatarPreset}
-                      avatarImage={post.author.avatarImage}
-                      deleted={post.author.state === 'DELETED'}
-                      anonymous={post.author.state === 'ANONYMOUS'}
-                    />
-                    <div>
-                      <strong>{post.author.displayName}</strong>
-                      <time dateTime={post.publishedAt}>
-                        {communityTime(post.publishedAt)}
-                      </time>
-                    </div>
-                  </header>
-                  <div className="community-card-topics">
-                    {post.topics.map((topic) => (
-                      <span key={topic}>
-                        {topics.find((value) => value.code === topic)?.label ??
-                          topic}
-                      </span>
-                    ))}
-                  </div>
-                  <CommunitySensitiveContent
-                    warned={
-                      post.sensitiveContentWarning === 'SENSITIVE_CONTENT'
+              {visibleItems.map((post) =>
+                savedView ? (
+                  <CommunitySavedPost
+                    key={post.postId}
+                    post={post}
+                    topics={topics}
+                    onComment={(trigger) => openDiscussion(post, trigger)}
+                    onChange={(state, reactions) =>
+                      updateInteractions(post.postId, state, reactions)
                     }
-                  >
-                    <p className="community-card-copy">{post.contentPreview}</p>
-                    <CommunityMedia media={post.media} />
-                    <MediaNotice availability={post.mediaAvailability} />
-                    {post.resourceAttachment && (
-                      <CommunityResourceAttachment
-                        resourceId={post.resourceAttachment.resourceId}
-                      />
-                    )}
-                  </CommunitySensitiveContent>
-                  <footer>
-                    {post.viewerState ? (
-                      <CommunityInteractions
-                        postId={post.postId}
-                        viewerState={post.viewerState}
-                        reactionCount={post.counts.reactions}
-                        onChange={(viewerState, reactions) => {
-                          if (savedView && !viewerState.bookmarked) {
-                            setItems((current) =>
-                              current.filter(
-                                (item) => item.postId !== post.postId,
-                              ),
-                            )
-                            void load()
-                            return
-                          }
+                    onHidden={() =>
+                      setItems((current) =>
+                        current.filter((item) => item.postId !== post.postId),
+                      )
+                    }
+                  />
+                ) : (
+                  <article className="community-card" key={post.postId}>
+                    <header>
+                      <CommunityAuthorLink author={post.author}>
+                        <CommunityAvatar
+                          displayName={post.author.displayName}
+                          avatarPreset={post.author.avatarPreset}
+                          avatarImage={post.author.avatarImage}
+                          deleted={post.author.state === 'DELETED'}
+                          anonymous={post.author.state === 'ANONYMOUS'}
+                        />
+                      </CommunityAuthorLink>
+                      <div>
+                        <strong>
+                          <CommunityAuthorLink author={post.author} />
+                        </strong>
+                        <time dateTime={post.publishedAt}>
+                          {communityTime(post.publishedAt)}
+                        </time>
+                      </div>
+                      <CommunitySafetyActions
+                        targetType="POST"
+                        targetId={post.postId}
+                        communityProfileId={post.author.communityProfileId}
+                        onHidden={() =>
                           setItems((current) =>
-                            current.map((item) =>
-                              item.postId === post.postId
-                                ? {
-                                    ...item,
-                                    viewerState,
-                                    counts: { ...item.counts, reactions },
-                                  }
-                                : item,
+                            current.filter(
+                              (item) => item.postId !== post.postId,
                             ),
                           )
-                        }}
+                        }
                       />
-                    ) : (
-                      <span className="community-card-stat">
-                        <FeedIcon name="heart" />
-                        {post.counts.reactions} lượt đồng hành
-                      </span>
-                    )}
-                    <Link
-                      className="community-comment-link"
-                      href={`/community/${post.postId}#comments-title`}
-                      aria-label={`Bình luận bài viết của ${post.author.displayName}`}
+                    </header>
+                    <div className="community-card-topics">
+                      {post.topics.map((topic) => (
+                        <span key={topic}>
+                          {topics.find((value) => value.code === topic)
+                            ?.label ?? topic}
+                        </span>
+                      ))}
+                    </div>
+                    <CommunitySensitiveContent
+                      warned={
+                        post.sensitiveContentWarning === 'SENSITIVE_CONTENT'
+                      }
                     >
-                      <FeedIcon name="comment" />
-                      {post.counts.comments} bình luận
-                    </Link>
-                    <Link href={`/community/${post.postId}`}>
-                      Đọc bài viết <span aria-hidden="true">→</span>
-                    </Link>
-                  </footer>
-                </article>
-              ))}
+                      <p className="community-card-copy">
+                        {post.contentPreview}
+                      </p>
+                      <CommunityMedia media={post.media} />
+                      <MediaNotice availability={post.mediaAvailability} />
+                      {post.resourceAttachment && (
+                        <CommunityResourceAttachment
+                          resourceId={post.resourceAttachment.resourceId}
+                        />
+                      )}
+                    </CommunitySensitiveContent>
+                    <footer>
+                      {post.viewerState ? (
+                        <CommunityInteractions
+                          postId={post.postId}
+                          viewerState={post.viewerState}
+                          reactionCount={post.counts.reactions}
+                          onChange={(viewerState, reactions) =>
+                            updateInteractions(
+                              post.postId,
+                              viewerState,
+                              reactions,
+                            )
+                          }
+                        />
+                      ) : (
+                        <span className="community-card-stat">
+                          <FeedIcon name="heart" />
+                          {post.counts.reactions} lượt đồng hành
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        className={`community-comment-link ${discussionStyles.commentButton}`}
+                        aria-label={`Bình luận bài viết của ${post.author.displayName}`}
+                        aria-haspopup="dialog"
+                        onClick={(event) =>
+                          openDiscussion(post, event.currentTarget)
+                        }
+                      >
+                        <FeedIcon name="comment" />
+                        {post.counts.comments} bình luận
+                      </button>
+                      <Link href={`/community/${post.postId}`}>
+                        Đọc bài viết <span aria-hidden="true">→</span>
+                      </Link>
+                    </footer>
+                    {!post.sensitiveContentWarning && (
+                      <button
+                        type="button"
+                        className={discussionStyles.replyTrigger}
+                        aria-label={`Viết bình luận cho bài viết của ${post.author.displayName}`}
+                        aria-haspopup="dialog"
+                        onClick={(event) =>
+                          openDiscussion(post, event.currentTarget)
+                        }
+                      >
+                        <span className={discussionStyles.replyMark}>
+                          <FeedIcon name="comment" />
+                        </span>
+                        <span>Viết một bình luận tử tế…</span>
+                        <span aria-hidden="true">↗</span>
+                      </button>
+                    )}
+                  </article>
+                ),
+              )}
             </section>
+            {visibleItems.length === 0 && searchTerm && (
+              <section className="community-state">
+                <h2>Chưa tìm thấy câu chuyện phù hợp</h2>
+                <p>Thử một từ khóa khác hoặc tải thêm bài viết bên dưới.</p>
+                <Link href="/community">Xem tất cả câu chuyện</Link>
+              </section>
+            )}
             {nextCursor && (
               <button
                 type="button"
@@ -487,6 +730,18 @@ export default function CommunityFeed({ view = 'feed' }: CommunityFeedProps) {
           </>
         )}
       </div>
+      {discussion && (
+        <CommunityCommentsDialog
+          key={discussion.postId}
+          postId={discussion.postId}
+          authorName={discussion.authorName}
+          open={discussionOpen}
+          onOpenChange={setDiscussionOpen}
+          onPostChange={syncDiscussionPost}
+          onUnavailable={() => removeDiscussionPost(discussion.postId)}
+          restoreFocusTo={restoreDiscussionFocus}
+        />
+      )}
     </div>
   )
 }
