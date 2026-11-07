@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { readRealtimeServerConfig } from '@/lib/config/server'
+import { parseCommunityCredential } from '@/features/community-chat/api/community-presence'
 
 export class RealtimeServiceError extends Error {
   constructor(
@@ -62,6 +63,24 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 export const realtimeServerClient = {
+  async communityCredential(token: string, correlationId: string) {
+    const config = readRealtimeServerConfig()
+    const credential = parseCommunityCredential(
+      await call(
+        '/api/v1/community/socket-credentials',
+        token,
+        correlationId,
+        'POST',
+      ),
+    )
+    if (!credential || Date.parse(credential.expiresAt) <= Date.now())
+      throw new RealtimeServiceError(
+        502,
+        'REALTIME_MALFORMED_RESPONSE',
+        'Realtime returned an invalid response.',
+      )
+    return { ...credential, endpoint: config.publicUrl }
+  },
   async credential(token: string, correlationId: string) {
     const config = readRealtimeServerConfig()
     const value = asRecord(

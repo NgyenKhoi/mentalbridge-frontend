@@ -4,6 +4,579 @@
  */
 
 export interface paths {
+    "/api/v1/community/circles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listCommunityCircles"];
+        put?: never;
+        post: operations["createCommunityCircle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/circles/{circleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommunityCircle"];
+        put?: never;
+        post?: never;
+        delete: operations["archiveCommunityCircle"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/circles/{circleId}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["inviteCommunityCircleMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/circles/{circleId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decideCommunityCircleInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/circles/{circleId}/members/{profileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeCommunityCircleMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/circles/{circleId}/posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listCommunityCirclePosts"];
+        put?: never;
+        post: operations["createCommunityCirclePost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/circles/{circleId}/posts/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteCommunityCirclePost"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/circles/{circleId}/posts/{entryId}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listCommunityCircleComments"];
+        put?: never;
+        post: operations["createCommunityCircleComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/circles/{circleId}/comments/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteCommunityCircleComment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/friends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listCommunityFriends"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/friends/{profileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["requestCommunityFriendship"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/friendships/{friendshipId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["acceptCommunityFriendship"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/friendships/{friendshipId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeCommunityFriendship"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["searchCommunityMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/members/{profileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommunityMemberProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/comments/{commentId}/reaction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        /** Read my reaction and count for a currently visible comment */
+        get: operations["getCommentReaction"];
+        /**
+         * Replace my supportive reaction to a currently visible comment
+         * @description Naturally idempotent per actor/comment; no Idempotency-Key. First logical non-self reaction publishes one minimized outbox fact. Replacement/removal/re-add does not repeat notification. Does not change comment editing version.
+         */
+        put: operations["putCommentReaction"];
+        post?: never;
+        /** Remove my comment reaction idempotently */
+        delete: operations["deleteCommentReaction"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/community/chat/session-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * authorizeCommunitySession
+         * @description Signed realtime-service delegation with audience community-service and scope community:session:authorize, lifetime at most 30s. Resolve current active USER and unrestricted Community profile; no unsigned actor selectors.
+         */
+        post: operations["authorizeCommunitySession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/community/chat/realtime-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * authorize Community Realtime
+         * @description Community verifies authenticated service and signed short-lived USER delegation with exact audience/subject/action. Raw X-User/actor headers are not trusted. This boolean decision supports current subscribe/ephemeral visibility checks only; it is never a reusable permission grant or a way to fetch message content. Message fanout must use readCommunityMessageProjection for the exact message and viewer. MB-689 implements SUBSCRIBE only; ephemeral actions remain MB-690 and are rejected.
+         */
+        post: operations["authorizeCommunityRealtime"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/community/chat/message-projections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read one currently authorized message for an exact delegated viewer
+         * @description One read-only projection per exact conversation/message/viewer under RealtimeMessageReadDelegation. In the same consistent owner read, validate trusted service signature, audience/scope/expiry and target binding, resolve the signed USER subject, check current account/relationship/block/membership epoch/revocation and message visibility, then return only that Message. Never authorize separately then fetch content with a reusable boolean grant. Repeat the read for every recipient and replay; Realtime must discard queued projections on revocation, reauthorize immediately before fanout and must not retain a positive grant or raw content cache. Any known revocation wins over a queued send. A guessed/wrong-conversation/inaccessible message, blocked viewer, removed member, outsider or prior-epoch target is uniformly 404 TARGET_UNAVAILABLE. Invalid signed identity/audience is 401; wrong service/scope is 403; claims/body target mismatch is 404; unknown body identity selectors are 400. Owner dependency failure is 503 and never returns stale content. No Idempotency-Key on this read.
+         */
+        post: operations["readCommunityMessageProjection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/community/chat/replay-projections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * readCommunityReplayProjection
+         * @description Signed scope community:replay:project bound to the exact conversation and viewer. cursor=null establishes the current tail and returns no message IDs. Otherwise return up to 50 currently eligible message IDs in private ascending order, an opaque authenticated viewer/membership/visibility cursor, hasMore and absolute private ReadResult. Filter before pagination. The cursor never advances because of hidden traffic. It is an ephemeral live-delivery watermark, not a permission grant. Exact message content must be fetched separately for every recipient immediately before emit. Stale epochs return TARGET_UNAVAILABLE; establish a fresh tail and repair via public REST history without rebroadcasting old messages. No sequence is public.
+         */
+        post: operations["readCommunityReplayProjection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/community/chat/notification-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * authorize Chat Notification
+         * @description Read-only Content service scope community:notification:authorize. RS256 service JWT: issuer/subject content-notification-service, audience community-service, dedicated kid, jti UUID, iat <= now < exp <= iat + 30s. Exact stored target, actor, recipient, kind and conversation are verified against current Identity eligibility and local blocks, membership epoch and lifecycle. Request/invitation authorization does not grant transcript access. No content returned or cached permission grant. Target mismatch, denied, revoked and expired are uniform 404; dependency uncertainty is retryable 503. No Idempotency-Key.
+         */
+        post: operations["authorizeChatNotification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/community/chat/presence-projections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Project currently authorized Community presence peers
+         * @description Read-only, conversation-bound community:presence:project delegation. Community checks current USER eligibility, accepted direct relationship or current group membership, bilateral blocks/restrictions, subject presence opt-in and invisible mode before returning only eligible other current peers. Hidden subjects produce no row or denial reason. subjectRoutingReference is private Realtime-only routing, never a client field, cached grant, last-seen or durable presence fact. Reauthorize every fanout, including after Redis reads; no stale permission fallback. Wrong actor/scope is 403, signed target mismatch or inaccessible conversation 404, dependency uncertainty 503. Unknown body identity selectors are 400. No Idempotency-Key.
+         */
+        post: operations["projectCommunityPresence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/privacy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * get Chat Privacy
+         * @description Missing preferences return APPROVAL_REQUIRED, all visibility flags false and invisible false, version 0. No implicit opt-in.
+         */
+        get: operations["getChatPrivacy"];
+        /**
+         * replace Chat Privacy
+         * @description Complete replacement. Existing accepted conversations stay active; pending requests do not auto-accept. Revoke visibility immediately.
+         */
+        put: operations["replaceChatPrivacy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/direct-conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * start Direct Conversation
+         * @description Reuses the unique unordered profile pair. ANYONE creates an ACTIVE conversation; APPROVAL_REQUIRED creates a text-free request. Decline/block tombstones prevent repeated solicitation. No account-id or anonymous-author lookup.
+         */
+        post: operations["startDirectConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** list Incoming Requests */
+        get: operations["listIncomingRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/requests/{requestId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * decide Direct Request
+         * @description Recipient only. ACCEPT returns ACTIVE; DECLINE/BLOCK returns 204, never a conversation. Repeated same terminal decision is a no-op; conflicting terminal decision is 409.
+         */
+        post: operations["decideDirectRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * list Conversations
+         * @description Viewer-safe conversations only. Sort by latest eligible message (or eligible relationship creation), never global hidden activity; no global message count, timestamp or sequence-derived watermark. Management version changes only for authorized relationship/group management, not messages/read cursors.
+         */
+        get: operations["listConversations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/conversations/{conversationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * get Conversation
+         * @description Current viewer-safe conversation and its relationship/group management version. Not a message sequence or outbox revision. Use this read before another group command after a 204; self-leavers/removed viewers receive TARGET_UNAVAILABLE.
+         */
+        get: operations["getConversation"];
+        put?: never;
+        post?: never;
+        /**
+         * Clear a conversation and its history only for the current user
+         * @description Atomically records a server-ordered private cutoff for the current user. The conversation disappears from that user's inbox and pre-cutoff messages remain unavailable through history, projection, replay, report, notification and old cursors. Other participants are unchanged. A later authorized message after the cutoff makes the conversation visible again with only post-cutoff history.
+         */
+        delete: operations["clearConversationForCurrentUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/conversations/{conversationId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * list Messages
+         * @description Only current eligible participants; current-epoch group history only. Filter blocked/ineligible messages before pagination/counting. Return items in ascending private server sequence; never expose that sequence or gaps. nextCursor is an authenticated opaque, non-sequence-encoded continuation bound to actor, conversation, direction, membership and visibility epoch. Hidden traffic cannot alter visible items, continuation availability/meaning or reveal remaining counts; token bytes may vary due to nonce/signing. A stale visibility cursor is rejected generically as TARGET_UNAVAILABLE; restart an authorized read. No new eligible results means no nextCursor. Never disclose messages before join or prior rejoin epochs.
+         */
+        get: operations["listMessages"];
+        put?: never;
+        /**
+         * send Message
+         * @description Community transaction commits before 201. Dedupe (sender, conversationId, clientMessageId); retry same content returns same message, changed content is 409. Never implies recipient delivery/read/online.
+         */
+        post: operations["sendMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/conversations/{conversationId}/messages/{messageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Retract one own retained message
+         * @description The authenticated current participant may retract only their own retained message in this exact direct conversation or current group membership epoch. The first success erases ciphertext and returns the durable RETRACTED projection at the original position. An identical retry returns the same tombstone without another fact. Wrong conversation, another sender, block, restriction, departure, prior epoch or unknown target is uniformly TARGET_UNAVAILABLE. Retraction creates no unread item and does not move read watermarks or alter an existing report snapshot.
+         */
+        delete: operations["retractOwnMessage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/conversations/{conversationId}/read-cursor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * advance Read Cursor
+         * @description Resolve lastReadMessageId only if currently visible to this actor in this conversation and membership epoch. Atomically advance the private server sequence watermark by max(previous, resolved), never beyond eligible history; duplicate/out-of-order acknowledgements cannot decrease it or add unread. Return a currently eligible message reference or null, not a numeric counter. Unknown/cross-conversation/blocked/prior-epoch targets uniformly TARGET_UNAVAILABLE. Private unread persists with shared receipts off.
+         */
+        put: operations["advanceReadCursor"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/community/feed": {
         parameters: {
             query?: never;
@@ -356,10 +929,296 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/community/chat/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** create Private Group */
+        post: operations["createPrivateGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/groups/{conversationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * archive Private Group
+         * @description OWNER only. Archive stops new sends/invites and revokes pending invitations; current members may read retained eligible history.
+         */
+        delete: operations["archivePrivateGroup"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/groups/{conversationId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** list Group Members */
+        get: operations["listGroupMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/groups/{conversationId}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * invite Group Member
+         * @description If-Match binds the current group management revision, not an invitation revision. The success ETag is the current group management revision; Invitation.version is the separate invitation revision used only for its decision.
+         */
+        post: operations["inviteGroupMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** list Own Group Invitations */
+        get: operations["listOwnGroupInvitations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/invitations/{invitationId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * decide Group Invitation
+         * @description Invitee only. ACCEPT atomically revalidates inviter role, membership cap, blocks, suspension and group ACTIVE state before joining. DECLINE is 204. Invitation alone grants no history/member list/presence. If-Match is the invitation revision, not the group revision. ACCEPT returns the current Group management version/ETag; DECLINE 204 has no body/ETag and grants no group read. Never reuse the invitation version for group commands.
+         */
+        post: operations["decideGroupInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/groups/{conversationId}/members/{communityProfileId}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * set Group Member Role
+         * @description OWNER only; ADMIN/MEMBER transition for current non-owner member. No client-created owner role.
+         */
+        put: operations["setGroupMemberRole"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/groups/{conversationId}/members/{communityProfileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * remove Group Member
+         * @description OWNER may remove any non-owner; ADMIN may remove MEMBER only. Self-leave uses this path with own profile; OWNER must transfer ownership or archive first. Removal/leave revokes history, socket, unread, presence and receipt access immediately.
+         */
+        delete: operations["removeGroupMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/groups/{conversationId}/ownership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * transfer Group Ownership
+         * @description OWNER only; transfer atomically to active current ADMIN; former owner becomes ADMIN. Exactly one owner; concurrent transfer/leave fails 409.
+         */
+        post: operations["transferGroupOwnership"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/chat/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * report Visible Message
+         * @description Reporter must currently be allowed to read exact message. Capture only reported message; no full transcript, unrelated people or automatic crisis intervention.
+         */
+        post: operations["reportVisibleMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CommunityCircle: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: string;
+            /** @enum {string} */
+            membership: "ACTIVE" | "PENDING";
+            /** @enum {string} */
+            role: "OWNER" | "MEMBER";
+            memberCount: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CommunityCircleMember: {
+            profile: components["schemas"]["CommunityAuthor"];
+            /** @enum {string} */
+            role: "OWNER" | "MEMBER";
+            /** Format: date-time */
+            joinedAt: string;
+        };
+        CommunityCircleDetail: {
+            group: components["schemas"]["CommunityCircle"];
+            members: components["schemas"]["CommunityCircleMember"][];
+        };
+        CommunityCircleEntry: {
+            /** Format: uuid */
+            id: string;
+            author: components["schemas"]["CommunityAuthor"] | null;
+            text: string;
+            /** Format: date-time */
+            createdAt: string;
+            canDelete: boolean;
+        };
+        CommunityCircleEntryPage: {
+            items: components["schemas"]["CommunityCircleEntry"][];
+            /** Format: uuid */
+            nextCursor: string | null;
+        };
+        CommunityCirclePage: {
+            items: components["schemas"]["CommunityCircle"][];
+            /** Format: uuid */
+            nextCursor: string | null;
+        };
+        CreateCommunityCircle: {
+            name: string;
+            description: string;
+            invitees: string[];
+        };
+        WriteCommunityCircleEntry: {
+            text: string;
+        };
+        InviteCommunityCircleMember: {
+            /** Format: uuid */
+            profileId: string;
+        };
+        DecideCommunityCircleInvitation: {
+            /** @enum {string} */
+            decision: "ACCEPT" | "DECLINE";
+        };
+        CommunityMemberIdentity: components["schemas"]["CommunityAuthor"] & {
+            /** Format: uuid */
+            communityProfileId: string;
+            /** @enum {string} */
+            state: "ACTIVE";
+        };
+        CommunityFriendshipState: {
+            /** @enum {string} */
+            state: "SELF" | "NONE" | "OUTGOING" | "INCOMING" | "FRIENDS";
+            /** Format: uuid */
+            friendshipId: string | null;
+        };
+        CommunityFriendship: {
+            /** Format: uuid */
+            friendshipId: string;
+            peer: components["schemas"]["CommunityMemberIdentity"];
+            /** @enum {string} */
+            state: "OUTGOING" | "INCOMING" | "FRIENDS";
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CommunityFriendshipPage: {
+            items: components["schemas"]["CommunityFriendship"][];
+            /** Format: uuid */
+            nextCursor: string | null;
+        };
+        CommunityMemberProfile: {
+            member: components["schemas"]["CommunityMemberIdentity"];
+            friendship: components["schemas"]["CommunityFriendshipState"];
+            posts: components["schemas"]["CommunityFeedPage"];
+        };
+        CommunityMemberPage: {
+            items: components["schemas"]["CommunityMemberIdentity"][];
+            /** Format: uuid */
+            nextCursor: string | null;
+        };
         /** @enum {string} */
         CommunityTopicCode: "MY_STORY" | "SMALL_MILESTONE" | "HELPFUL_REFLECTION" | "PEER_QUESTION" | "EXPERIENCE_SHARING" | "HELPFUL_RESOURCE";
         CommunityTopic: {
@@ -660,6 +1519,301 @@ export interface components {
             /** Format: uuid */
             correlationId: string;
         };
+        CommentReaction: {
+            /** Format: uuid */
+            commentId: string;
+            /** @enum {string|null} */
+            reaction: null | "SUPPORT" | "RELATE" | "THANK_YOU";
+            reactionCount: number;
+        };
+        AuthorizationResult: {
+            allowed: boolean;
+            decisionVersion: string;
+        };
+        "schemas-Problem": {
+            type: string;
+            title: string;
+            status: number;
+            /** @enum {string} */
+            code: "INVALID_REQUEST" | "UNAUTHENTICATED" | "FORBIDDEN" | "TARGET_UNAVAILABLE" | "VERSION_CONFLICT" | "IDEMPOTENCY_CONFLICT" | "REQUEST_NOT_ALLOWED" | "MEMBER_LIMIT_REACHED" | "RATE_LIMITED" | "DEPENDENCY_UNAVAILABLE";
+            /** Format: uuid */
+            correlationId: string;
+        };
+        RealtimeAuthorization: {
+            /** Format: uuid */
+            conversationId: string;
+            /** @enum {string} */
+            action: "SUBSCRIBE";
+        } | {
+            /** Format: uuid */
+            conversationId: string;
+            /** @enum {string} */
+            action: "PRESENCE" | "TYPING" | "READ_RECEIPT";
+            /** Format: uuid */
+            targetCommunityProfileId: string;
+        };
+        MessageProjectionRequest: {
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: uuid */
+            messageId: string;
+        };
+        Peer: {
+            /** @constant */
+            state: "AVAILABLE";
+            /** Format: uuid */
+            communityProfileId: string;
+            displayName: string;
+        } | {
+            /** @constant */
+            state: "UNAVAILABLE";
+        };
+        /** @description Authorized active content or content-free retraction tombstone. Conversation-global ordering remains private; IDs are random opaque UUIDs, never sequence-encoded IDs. REST page order is authoritative; a socket event alone does not define transcript order. */
+        Message: {
+            /** Format: uuid */
+            messageId: string;
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: uuid */
+            clientMessageId: string;
+            sender: components["schemas"]["Peer"];
+            /** @enum {string} */
+            state: "ACTIVE" | "RETRACTED";
+            content?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            retractedAt?: string | null;
+        } & ({
+            /** @constant */
+            state?: "ACTIVE";
+            content: string;
+            retractedAt?: never;
+        } | {
+            /** @constant */
+            state?: "RETRACTED";
+            content?: never;
+            /** Format: date-time */
+            retractedAt: string;
+        });
+        ReplayProjectionRequest: {
+            /** Format: uuid */
+            conversationId: string;
+            cursor: string | null;
+        };
+        /** @description Last currently eligible read message reference, or null when none is visible. Private monotonic watermark is not disclosed; visibility changes may alter this safe reference without decreasing private state. */
+        ReadResult: {
+            /** Format: uuid */
+            lastReadMessageId: string | null;
+            unreadCount: number;
+        };
+        ReplayProjection: {
+            messageIds: string[];
+            cursor: string;
+            hasMore: boolean;
+            readState: components["schemas"]["ReadResult"];
+        };
+        NotificationAuthorizationQuery: {
+            /** Format: uuid */
+            recipientRoutingReference: string;
+            /** @enum {string} */
+            kind: "MESSAGE_RECEIVED" | "DIRECT_REQUESTED" | "GROUP_INVITED";
+            /** Format: uuid */
+            targetId: string;
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: uuid */
+            actorCommunityProfileId: string;
+        };
+        PresenceProjectionQuery: {
+            /** Format: uuid */
+            conversationId: string;
+        };
+        PresenceProjection: {
+            peers: {
+                /** Format: uuid */
+                communityProfileId: string;
+                /** Format: uuid */
+                subjectRoutingReference: string;
+            }[];
+        };
+        Privacy: {
+            /** @enum {string} */
+            directMessagePolicy: "ANYONE" | "APPROVAL_REQUIRED";
+            presenceVisible: boolean;
+            invisible: boolean;
+            typingVisible: boolean;
+            readReceiptsVisible: boolean;
+        };
+        PrivacyView: {
+            version: string;
+            preferences: components["schemas"]["Privacy"];
+        };
+        StartDirect: {
+            /** Format: uuid */
+            recipientCommunityProfileId: string;
+        };
+        DirectResult: {
+            /** @constant */
+            state: "ACTIVE";
+            /** Format: uuid */
+            conversationId: string;
+        } | {
+            /** @constant */
+            state: "PENDING";
+            /** Format: uuid */
+            requestId: string;
+        };
+        Request: {
+            /** Format: uuid */
+            requestId: string;
+            requester: components["schemas"]["Peer"];
+            /** @enum {string} */
+            state: "PENDING" | "ACCEPTED" | "DECLINED" | "BLOCKED" | "EXPIRED";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            version: string;
+        };
+        RequestPage: {
+            items: components["schemas"]["Request"][];
+            nextCursor: string | null;
+        };
+        RequestDecision: {
+            /** @enum {string} */
+            decision: "ACCEPT" | "DECLINE" | "BLOCK";
+        };
+        AcceptedDirect: {
+            /** @constant */
+            state: "ACTIVE";
+            /** Format: uuid */
+            conversationId: string;
+        };
+        /** @description Viewer-authorized projection. No global or last-visible sequence watermark. unreadCount counts only eligible non-self messages in the current membership/visibility epoch; hidden traffic cannot change this DTO or its list position. */
+        Conversation: {
+            /** Format: uuid */
+            conversationId: string;
+            /** @constant */
+            kind: "DIRECT";
+            /** @enum {string} */
+            state: "ACTIVE" | "READ_ONLY";
+            peers: components["schemas"]["Peer"][];
+            unreadCount: number;
+            /** @description Public relationship/group management revision only; never the private message sequence or outbox aggregateVersion. Sending/reading messages, including hidden traffic, does not advance this revision. */
+            version: string;
+        } | {
+            /** Format: uuid */
+            conversationId: string;
+            /** @constant */
+            kind: "GROUP";
+            /** @enum {string} */
+            state: "ACTIVE" | "ARCHIVED";
+            groupName: string;
+            /** @enum {string} */
+            viewerRole: "OWNER" | "ADMIN" | "MEMBER";
+            peers: components["schemas"]["Peer"][];
+            unreadCount: number;
+            /** @description Public relationship/group management revision only; never the private message sequence or outbox aggregateVersion. Sending/reading messages, including hidden traffic, does not advance this revision. */
+            version: string;
+        };
+        ConversationPage: {
+            items: components["schemas"]["Conversation"][];
+            nextCursor: string | null;
+        };
+        MessagePage: {
+            items: components["schemas"]["Message"][];
+            nextCursor: string | null;
+        };
+        SendMessage: {
+            /** Format: uuid */
+            clientMessageId: string;
+            content: string;
+        };
+        SendResult: {
+            message: components["schemas"]["Message"];
+            /** @constant */
+            persistence: "SAVED";
+            /** @constant */
+            delivery: "UNCONFIRMED";
+        };
+        /** @description Exact currently visible message in this conversation/current membership epoch. Community resolves its private sequence and atomically advances max(previous, resolved); no client-supplied sequence. Ineligible target is TARGET_UNAVAILABLE. */
+        ReadCursor: {
+            /** Format: uuid */
+            lastReadMessageId: string;
+        };
+        CreateGroup: {
+            name: string;
+        };
+        Group: {
+            /** Format: uuid */
+            conversationId: string;
+            /** @constant */
+            kind: "GROUP";
+            name: string;
+            /** @enum {string} */
+            state: "ACTIVE" | "ARCHIVED";
+            memberLimit: number;
+            /** @description Group management revision, distinct from private message ordering/outbox revision. Used by group If-Match. */
+            version: string;
+        };
+        Member: {
+            peer: components["schemas"]["Peer"];
+            /** @enum {string} */
+            role: "OWNER" | "ADMIN" | "MEMBER";
+            /** Format: date-time */
+            joinedAt: string;
+        };
+        MemberPage: {
+            items: components["schemas"]["Member"][];
+            nextCursor: string | null;
+        };
+        Invite: {
+            /** Format: uuid */
+            inviteeCommunityProfileId: string;
+        };
+        Invitation: {
+            /** Format: uuid */
+            invitationId: string;
+            /** Format: uuid */
+            conversationId: string;
+            groupName: string;
+            inviter: components["schemas"]["Peer"];
+            /** @enum {string} */
+            state: "PENDING" | "ACCEPTED" | "DECLINED" | "REVOKED" | "EXPIRED";
+            /** Format: date-time */
+            expiresAt: string;
+            version: string;
+        };
+        InvitationPage: {
+            items: components["schemas"]["Invitation"][];
+            nextCursor: string | null;
+        };
+        InviteDecision: {
+            /** @enum {string} */
+            decision: "ACCEPT" | "DECLINE";
+        };
+        SetRole: {
+            /** @enum {string} */
+            role: "ADMIN" | "MEMBER";
+        };
+        TransferOwner: {
+            /** Format: uuid */
+            newOwnerCommunityProfileId: string;
+        };
+        Report: {
+            /** Format: uuid */
+            messageId: string;
+            /** @enum {string} */
+            reasonCode: "HARASSMENT" | "SPAM" | "PRIVACY_CONCERN" | "SELF_HARM_OR_CRISIS_CONCERN" | "OTHER";
+            details?: string;
+        };
+        ReportResult: {
+            /** Format: uuid */
+            caseId: string;
+            /** @constant */
+            state: "RECEIVED";
+        };
     };
     responses: {
         /** @description RFC 9457 problem response with a stable application code. */
@@ -669,6 +1823,71 @@ export interface components {
             };
             content: {
                 "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Invalid closed request. */
+        InvalidRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["schemas-Problem"];
+            };
+        };
+        /** @description Missing or expired authentication. */
+        Unauthenticated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["schemas-Problem"];
+            };
+        };
+        /** @description Role or service scope denied. */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["schemas-Problem"];
+            };
+        };
+        /** @description Unknown and inaccessible targets are indistinguishable. */
+        TargetUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["schemas-Problem"];
+            };
+        };
+        /** @description Bounded rate limit; retry only after Retry-After. */
+        RateLimited: {
+            headers: {
+                /** @description Seconds until a retry may be attempted. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["schemas-Problem"];
+            };
+        };
+        /** @description Authoritative dependency unavailable; no allowed/success fallback. */
+        DependencyUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["schemas-Problem"];
+            };
+        };
+        /** @description Version, idempotency, lifecycle or member-cap conflict. */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["schemas-Problem"];
             };
         };
     };
@@ -693,6 +1912,2263 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listCommunityCircles: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current owner-authorized result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityCirclePage"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createCommunityCircle: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCommunityCircle"];
+            };
+        };
+        responses: {
+            /** @description Current owner-authorized result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityCircle"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getCommunityCircle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                circleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current owner-authorized result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityCircleDetail"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    archiveCommunityCircle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                circleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    inviteCommunityCircleMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                circleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteCommunityCircleMember"];
+            };
+        };
+        responses: {
+            /** @description Completed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    decideCommunityCircleInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                circleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecideCommunityCircleInvitation"];
+            };
+        };
+        responses: {
+            /** @description Completed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    removeCommunityCircleMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                circleId: string;
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listCommunityCirclePosts: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                circleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current owner-authorized result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityCircleEntryPage"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createCommunityCirclePost: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                circleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WriteCommunityCircleEntry"];
+            };
+        };
+        responses: {
+            /** @description Current owner-authorized result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityCircleEntry"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteCommunityCirclePost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                circleId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listCommunityCircleComments: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                circleId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current owner-authorized result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityCircleEntryPage"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createCommunityCircleComment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                circleId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WriteCommunityCircleEntry"];
+            };
+        };
+        responses: {
+            /** @description Current owner-authorized result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityCircleEntry"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteCommunityCircleComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                circleId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting, rate-limited or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listCommunityFriends: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                view?: "accepted" | "incoming" | "outgoing";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful owner-authorized response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityFriendshipPage"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    requestCommunityFriendship: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Successful owner-authorized response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityFriendship"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    acceptCommunityFriendship: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                friendshipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Successful owner-authorized response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityFriendship"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    removeCommunityFriendship: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                friendshipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful owner-authorized response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    searchCommunityMembers: {
+        parameters: {
+            query: {
+                cursor?: string;
+                limit?: number;
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful owner-authorized response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityMemberPage"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getCommunityMemberProfile: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful owner-authorized response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityMemberProfile"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Invalid, unauthorized, inaccessible, conflicting or unavailable request */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getCommentReaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current visible comment reaction state; no-store. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentReaction"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    putCommentReaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    reaction: "SUPPORT" | "RELATE" | "THANK_YOU";
+                };
+            };
+        };
+        responses: {
+            /** @description Current visible comment reaction state; no-store. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentReaction"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    deleteCommentReaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed or already absent; target must still be visible. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    authorizeCommunitySession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authorized owner projection; never cache. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorizationResult"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    authorizeCommunityRealtime: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RealtimeAuthorization"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorizationResult"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    readCommunityMessageProjection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageProjectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Fresh current-viewer Message only; no independent permission grant. Never cache. */
+            200: {
+                headers: {
+                    /** @description Private projection must not be cached. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    readCommunityReplayProjection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplayProjectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Current authorized owner projection; never cache. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayProjection"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    authorizeChatNotification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationAuthorizationQuery"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorizationResult"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    projectCommunityPresence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresenceProjectionQuery"];
+            };
+        };
+        responses: {
+            /** @description Current authorized other peers only; no-store. Empty peers reveals no hidden subject identity. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresenceProjection"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    getChatPrivacy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivacyView"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    replaceChatPrivacy: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Privacy"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    /** @description Strong current version */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivacyView"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    startDirectConversation: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartDirect"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectResult"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    listIncomingRequests: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    decideDirectRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestDecision"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    /** @description Strong current version */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedDirect"];
+                };
+            };
+            /** @description Request declined or blocked; no content or conversation disclosed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    listConversations: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    getConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversation"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    clearConversationForCurrentUser: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The private cutoff was committed; no body is returned. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    listMessages: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagePage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    sendMessage: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendMessage"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SendResult"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    retractOwnMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: string;
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative RETRACTED projection; no optimistic or appended message. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    advanceReadCursor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadCursor"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadResult"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
     browseCommunityFeed: {
         parameters: {
             query?: {
@@ -1522,6 +4998,350 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+        };
+    };
+    createPrivateGroup: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGroup"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    archivePrivateGroup: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Committed; no body and no ETag. Do not reuse or increment the previous group version. A still-authorized member must GET getConversation for the fresh group management version before another versioned command; a self-leaver/removed actor has no further read or management entitlement. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    listGroupMembers: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    inviteGroupMember: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Invite"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            201: {
+                headers: {
+                    /** @description Strong current version */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invitation"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    listOwnGroupInvitations: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationPage"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    decideGroupInvitation: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                invitationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteDecision"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    /** @description Strong current version */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"];
+                };
+            };
+            /** @description Invitation declined; no membership created. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    setGroupMemberRole: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                conversationId: string;
+                communityProfileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetRole"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    /** @description Strong current version */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    removeGroupMember: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                conversationId: string;
+                communityProfileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Committed; no body and no ETag. Do not reuse or increment the previous group version. A still-authorized member must GET getConversation for the fresh group management version before another versioned command; a self-leaver/removed actor has no further read or management entitlement. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    transferGroupOwnership: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwner"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            200: {
+                headers: {
+                    /** @description Strong current version */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    reportVisibleMessage: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Report"];
+            };
+        };
+        responses: {
+            /** @description Authoritative owner result; no optimistic success. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportResult"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["TargetUnavailable"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["DependencyUnavailable"];
         };
     };
 }

@@ -19,9 +19,9 @@ type State =
 
 function Header() {
   return (
-    <header className="analytics-hero">
-      <div>
-        <span>Hành trình của bạn</span>
+    <header className="analytics-hero" data-user-page-header>
+      <div data-user-page-heading>
+        <span data-user-page-kicker>Hành trình của bạn</span>
         <h1>Thống kê &amp; Phân tích</h1>
         <p>
           Xem lại các hoạt động bạn đã ghi nhận trên MentalBridge theo thời

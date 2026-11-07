@@ -15,6 +15,7 @@ import {
   ONBOARDING_NAV_TARGETS,
   requestOnboardingReplay,
 } from '@/features/onboarding/tour-steps'
+import '@/app/(dashboard)/user-workspace-theme.css'
 
 const Svg = ({ children }: { children: React.ReactNode }) => (
   <svg
@@ -188,6 +189,11 @@ function resolveContextLabel(pathname: string) {
   if (pathname.startsWith('/assessments/results/')) {
     return 'Kết quả sàng lọc'
   }
+
+  if (pathname.startsWith('/resources/')) return 'Chi tiết tài nguyên'
+  if (pathname.startsWith('/specialists/')) return 'Hồ sơ chuyên gia'
+  if (pathname.startsWith('/support-guides/')) return 'Chi tiết gợi ý hỗ trợ'
+  if (pathname.startsWith('/appointments/')) return 'Chi tiết lịch hẹn'
 
   return labels[pathname] ?? 'MentalBridge'
 }
@@ -447,44 +453,65 @@ export default function AuthenticatedShell({
               <path d="M4 7h16M4 12h16M4 17h16" />
             </Svg>
           </button>
-          {isProgressiveRelaxation ? (
-            <nav
-              className="pmr-top-crumb"
-              aria-label="Đường dẫn trên cùng"
-              data-onboarding="welcome"
-            >
-              <Link href="/resources">Tài nguyên</Link>
-              <span aria-hidden="true">›</span>
-              <span aria-current="page">
-                {pathname.endsWith('0216')
-                  ? 'Thả lỏng cơ theo từng vùng'
-                  : 'Thư giãn cơ tiến triển'}
+          <div className="ref-topbar-left">
+            {isProgressiveRelaxation ? (
+              <nav
+                className="ref-context pmr-top-crumb"
+                aria-label="Đường dẫn trên cùng"
+                data-onboarding="welcome"
+              >
+                <Link className="ref-context-parent" href="/resources">
+                  Tài nguyên
+                </Link>
+                <span className="ref-context-separator" aria-hidden="true">
+                  ›
+                </span>
+                <span aria-current="page">
+                  {pathname.endsWith('0216')
+                    ? 'Thả lỏng cơ theo từng vùng'
+                    : 'Thư giãn cơ tiến triển'}
+                </span>
+              </nav>
+            ) : isScreeningJourney ? (
+              <nav
+                className="ref-context ref-screening-crumb"
+                aria-label="Đường dẫn trên cùng"
+                data-onboarding="welcome"
+              >
+                <Link className="ref-context-parent" href="/dashboard">
+                  Không gian của bạn
+                </Link>
+                <span className="ref-context-separator" aria-hidden="true">
+                  ›
+                </span>
+                <span aria-current="page">{resolveContextLabel(pathname)}</span>
+              </nav>
+            ) : (
+              <nav
+                className="ref-context"
+                aria-label="Đường dẫn điều hướng"
+                data-onboarding="welcome"
+              >
+                <Link className="ref-context-parent" href="/dashboard">
+                  Không gian của bạn
+                </Link>
+                <span className="ref-context-separator" aria-hidden="true">
+                  ›
+                </span>
+                <span aria-current="page">
+                  {pathname === '/appointments'
+                    ? 'Lịch hẹn tư vấn'
+                    : resolveContextLabel(pathname)}
+                </span>
+              </nav>
+            )}
+            {!isProgressiveRelaxation && (
+              <span className="ref-workspace-label">
+                <i aria-hidden="true" />
+                Không gian cá nhân
               </span>
-            </nav>
-          ) : isScreeningJourney ? (
-            <nav
-              className="ref-screening-crumb"
-              aria-label="Đường dẫn trên cùng"
-              data-onboarding="welcome"
-            >
-              <Link href="/dashboard">Không gian của bạn</Link>
-              <span aria-hidden="true">/</span>
-              <span aria-current="page">{resolveContextLabel(pathname)}</span>
-            </nav>
-          ) : (
-            <div className="ref-context" data-onboarding="welcome">
-              <span>
-                {pathname === '/appointments'
-                  ? 'Không gian cá nhân / '
-                  : 'Không gian của bạn'}
-              </span>
-              <strong>
-                {pathname === '/appointments'
-                  ? 'Lịch hẹn tư vấn'
-                  : resolveContextLabel(pathname)}
-              </strong>
-            </div>
-          )}
+            )}
+          </div>
           <label>
             <Svg>
               <circle cx="11" cy="11" r="7" />

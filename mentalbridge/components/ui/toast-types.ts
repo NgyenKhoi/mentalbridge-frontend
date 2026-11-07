@@ -5,6 +5,7 @@ export type ToastInput = Readonly<{
   description?: string
   tone?: ToastTone
   duration?: number
+  action?: Readonly<{ label: string; href: string }>
 }>
 
 export type ToastItem = ToastInput &

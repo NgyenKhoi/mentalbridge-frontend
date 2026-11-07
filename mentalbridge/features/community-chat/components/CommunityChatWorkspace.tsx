@@ -1,7 +1,21 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import {
+  LockKeyhole,
+  MessageSquare,
+  Plus,
+  Search,
+  Send,
+  Users,
+  X,
+  MoreHorizontal,
+  Undo2,
+  Flag,
+  ChevronDown,
+  Check,
+} from 'lucide-react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 
 import LightSelect from '@/components/LightSelect'
 import { Dialog } from '@/components/ui/Dialog'
@@ -17,12 +31,12 @@ import type {
 } from '../api/community-chat-contract'
 import { useCommunityChatWorkspace } from './useCommunityChatWorkspace'
 import { useCommunityGroups } from './useCommunityGroups'
-import {
-  CreateGroupDialog,
-  GroupInvitations,
-  GroupManagement,
-} from './CommunityGroupControls'
+import { useCommunityFriends } from '@/features/community/components/useCommunityFriends'
+import CommunityNewConversation from './CommunityNewConversation'
+import CommunityCreateGroup from './CommunityCreateGroup'
+import { GroupInvitations, GroupManagement } from './CommunityGroupControls'
 import styles from './CommunityChatWorkspace.module.css'
+import { useCommunityPresenceContext } from './CommunityPresenceProvider'
 
 const reportReasons: Array<{ value: ChatReportReason; label: string }> = [
   { value: 'HARASSMENT', label: 'Quấy rối' },
@@ -73,6 +87,29 @@ function day(value: string) {
   }).format(new Date(value))
 }
 
+function sameMessageGroup(first: ChatMessage | undefined, second: ChatMessage) {
+  return (
+    first?.sender.state === 'AVAILABLE' &&
+    second.sender.state === 'AVAILABLE' &&
+    first.sender.communityProfileId === second.sender.communityProfileId &&
+    new Date(first.createdAt).toDateString() ===
+      new Date(second.createdAt).toDateString() &&
+    Math.abs(Date.parse(second.createdAt) - Date.parse(first.createdAt)) <
+      180000
+  )
+}
+
+function messageDay(value: string) {
+  const date = new Date(value)
+  return date.toDateString() === new Date().toDateString()
+    ? 'Hôm nay'
+    : new Intl.DateTimeFormat('vi-VN', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'numeric',
+      }).format(date)
+}
+
 function Avatar({ peer }: Readonly<{ peer?: ChatPeer }>) {
   const name = peerName(peer)
   return (
@@ -86,47 +123,58 @@ function PrivacyPanel({
   initial,
   busy,
   onSave,
+  friendsOnly = false,
 }: Readonly<{
   initial: ChatPrivacy
   busy: boolean
   onSave: (value: ChatPrivacy) => void
+  friendsOnly?: boolean
 }>) {
   const [value, setValue] = useState(initial)
   const toggle = (key: keyof ChatPrivacy) =>
     setValue((current) => ({ ...current, [key]: !current[key] }))
   return (
-    <details className={styles.privacy}>
+    <details id="community-chat-privacy" className={styles.privacy}>
       <summary>Quyền riêng tư tin nhắn</summary>
       <fieldset disabled={busy}>
         <legend>Ai có thể bắt đầu trò chuyện?</legend>
-        <label>
-          <input
-            type="radio"
-            name="direct-message-policy"
-            checked={value.directMessagePolicy === 'APPROVAL_REQUIRED'}
-            onChange={() =>
-              setValue((current) => ({
-                ...current,
-                directMessagePolicy: 'APPROVAL_REQUIRED',
-              }))
-            }
-          />
-          Cần tôi chấp thuận
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="direct-message-policy"
-            checked={value.directMessagePolicy === 'ANYONE'}
-            onChange={() =>
-              setValue((current) => ({
-                ...current,
-                directMessagePolicy: 'ANYONE',
-              }))
-            }
-          />
-          Cho phép nhắn trực tiếp
-        </label>
+        {friendsOnly ? (
+          <p>
+            Chỉ bạn bè đã chấp nhận mới có thể bắt đầu cuộc trò chuyện mới. Các
+            cuộc trò chuyện hiện có vẫn tiếp tục dùng được.
+          </p>
+        ) : (
+          <>
+            <label>
+              <input
+                type="radio"
+                name="direct-message-policy"
+                checked={value.directMessagePolicy === 'APPROVAL_REQUIRED'}
+                onChange={() =>
+                  setValue((current) => ({
+                    ...current,
+                    directMessagePolicy: 'APPROVAL_REQUIRED',
+                  }))
+                }
+              />
+              Cần tôi chấp thuận
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="direct-message-policy"
+                checked={value.directMessagePolicy === 'ANYONE'}
+                onChange={() =>
+                  setValue((current) => ({
+                    ...current,
+                    directMessagePolicy: 'ANYONE',
+                  }))
+                }
+              />
+              Cho phép nhắn trực tiếp
+            </label>
+          </>
+        )}
         {(
           [
             ['presenceVisible', 'Hiển thị trạng thái hoạt động'],
@@ -152,20 +200,77 @@ function PrivacyPanel({
   )
 }
 
+function ThreadWelcome({ unavailable = false }: { unavailable?: boolean }) {
+  return (
+    <div className={`${styles.state} ${styles.threadPlaceholder}`}>
+      <svg
+        className={styles.welcomeIllustration}
+        viewBox="0 0 190 140"
+        fill="none"
+        aria-hidden="true"
+      >
+        <circle cx="96" cy="70" r="64" fill="var(--surface-soft)" />
+        <path
+          d="M75 42h70a18 18 0 0 1 18 18v26a18 18 0 0 1-18 18h-9l-17 13v-13H75a18 18 0 0 1-18-18V60a18 18 0 0 1 18-18Z"
+          fill="var(--teal-pale)"
+          stroke="var(--teal)"
+          strokeWidth="1.5"
+        />
+        <path
+          d="M39 25h66a18 18 0 0 1 18 18v23a18 18 0 0 1-18 18H64L45 98V84h-6a18 18 0 0 1-18-18V43a18 18 0 0 1 18-18Z"
+          fill="var(--surface)"
+          stroke="var(--teal)"
+          strokeWidth="1.5"
+        />
+        <circle cx="53" cy="55" r="3.5" fill="var(--teal)" />
+        <circle cx="72" cy="55" r="3.5" fill="var(--teal)" />
+        <circle cx="91" cy="55" r="3.5" fill="var(--teal)" />
+      </svg>
+      <h2>
+        {unavailable ? 'Tin nhắn và nhóm riêng' : 'Chọn một cuộc trò chuyện'}
+      </h2>
+      <p>
+        {unavailable
+          ? 'Trò chuyện cá nhân, chia sẻ trong nhóm và quản lý lời mời ngay trong một hộp thư khi tính năng khả dụng.'
+          : 'Chọn một người hoặc nhóm ở bên trái để xem tin nhắn. Bạn cũng có thể tạo một nhóm riêng từ hộp thư này.'}
+      </p>
+      <div className={styles.welcomeTypes}>
+        <span>
+          <MessageSquare size={16} /> Cá nhân
+        </span>
+        <span>
+          <Users size={17} /> Nhóm riêng
+        </span>
+      </div>
+      <span className={styles.privacyHint}>
+        <LockKeyhole size={15} aria-hidden="true" /> Nội dung trò chuyện không
+        xuất hiện trên bảng tin
+      </span>
+    </div>
+  )
+}
+
 export default function CommunityChatWorkspace({
   initialConversationId,
   recipientCommunityProfileId,
   initialTab,
+  groupsOnly = false,
 }: Readonly<{
   initialConversationId?: string
   recipientCommunityProfileId?: string
   initialTab?: 'conversations' | 'requests'
+  groupsOnly?: boolean
 }>) {
   const chat = useCommunityChatWorkspace({
     initialConversationId,
     recipientCommunityProfileId,
     initialTab,
   })
+  const presence = useCommunityPresenceContext()
+  const transcript = useRef<HTMLDivElement>(null)
+  const followLatest = useRef(true)
+  const [newMessagesBelow, setNewMessagesBelow] = useState(false)
+  const friends = useCommunityFriends()
   const groups = useCommunityGroups({
     conversation: chat.conversation,
     viewerProfileId: chat.viewerProfileId,
@@ -173,6 +278,31 @@ export default function CommunityChatWorkspace({
     onConversationUpdated: chat.updateConversation,
   })
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
+  const [newConversationOpen, setNewConversationOpen] = useState(false)
+  const openCreateGroup = useCallback(() => setCreateGroupOpen(true), [])
+  const [conversationFilter, setConversationFilter] = useState<
+    'all' | 'direct' | 'groups'
+  >(groupsOnly ? 'groups' : 'all')
+  const [inboxSearch, setInboxSearch] = useState('')
+  const searchText = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '')
+      .toLocaleLowerCase('vi-VN')
+      .replace(/đ/g, 'd')
+  const query = searchText(inboxSearch.trim())
+  const listedConversations = chat.conversations.filter((item) => {
+    if (conversationFilter === 'groups' && item.kind !== 'GROUP') return false
+    if (conversationFilter === 'direct' && item.kind !== 'DIRECT') return false
+    if (!query) return true
+    if (item.kind === 'GROUP') return searchText(item.groupName).includes(query)
+    return item.peers.some(
+      (peer) =>
+        peer.state === 'AVAILABLE' &&
+        peer.communityProfileId !== chat.viewerProfileId &&
+        searchText(peer.displayName).includes(query),
+    )
+  })
   const [reportTarget, setReportTarget] = useState<ChatMessage>()
   const [retractTarget, setRetractTarget] = useState<ChatMessage>()
   const [clearConversationId, setClearConversationId] = useState<string>()
@@ -225,18 +355,16 @@ export default function CommunityChatWorkspace({
       peer.state === 'AVAILABLE' &&
       peer.communityProfileId !== chat.viewerProfileId,
   )
-  const inviteCandidates = Array.from(
-    new Map(
-      [chat.conversation, ...chat.conversations]
-        .filter((item) => item?.kind === 'DIRECT' && item.state === 'ACTIVE')
-        .flatMap((item) => item?.peers ?? [])
-        .filter(
-          (candidate): candidate is Extract<ChatPeer, { state: 'AVAILABLE' }> =>
-            candidate.state === 'AVAILABLE' &&
-            candidate.communityProfileId !== chat.viewerProfileId,
-        )
-        .map((candidate) => [candidate.communityProfileId, candidate] as const),
-    ).values(),
+  const inviteCandidates: ChatPeer[] = friends.items.flatMap((friend) =>
+    friend.peer.communityProfileId
+      ? [
+          {
+            state: 'AVAILABLE' as const,
+            communityProfileId: friend.peer.communityProfileId,
+            displayName: friend.peer.displayName,
+          },
+        ]
+      : [],
   )
   const visibleMessages = activeConversation
     ? chat.messages.filter(
@@ -248,8 +376,38 @@ export default function CommunityChatWorkspace({
   const markMessagesViewed = chat.markMessagesViewed
 
   useEffect(() => {
-    if (chat.selectedConversationId && lastMessageId)
+    followLatest.current = true
+  }, [chat.selectedConversationId])
+
+  useEffect(() => {
+    if (!lastMessageId) return
+    if (followLatest.current && transcript.current) {
+      transcript.current.scrollTop = transcript.current.scrollHeight
+      setNewMessagesBelow(false)
+    } else if (transcript.current) {
+      setNewMessagesBelow(true)
+    }
+    if (chat.selectedConversationId) {
       void markMessagesViewed(lastMessageId)
+    }
+  }, [chat.selectedConversationId, lastMessageId, markMessagesViewed])
+
+  useEffect(() => {
+    const viewed = () => {
+      if (
+        !document.hidden &&
+        followLatest.current &&
+        lastMessageId &&
+        chat.selectedConversationId
+      )
+        void markMessagesViewed(lastMessageId)
+    }
+    window.addEventListener('focus', viewed)
+    document.addEventListener('visibilitychange', viewed)
+    return () => {
+      window.removeEventListener('focus', viewed)
+      document.removeEventListener('visibilitychange', viewed)
+    }
   }, [chat.selectedConversationId, lastMessageId, markMessagesViewed])
 
   useEffect(() => {
@@ -298,19 +456,19 @@ export default function CommunityChatWorkspace({
   }
 
   return (
-    <section className={styles.page} aria-labelledby="community-chat-title">
-      <header className={styles.intro}>
-        <div>
-          <p className={styles.eyebrow}>Không gian riêng trong cộng đồng</p>
-          <h1 id="community-chat-title">Tin nhắn</h1>
-          <p>Trò chuyện trực tiếp, có quyền chấp thuận và lối thoát an toàn.</p>
-        </div>
-        <Link href="/community">← Bảng tin</Link>
-      </header>
-
+    <section
+      data-community-messaging
+      className={styles.page}
+      aria-labelledby="community-chat-title"
+    >
       {chat.notice && (
         <p className={styles.notice} role="status">
           {chat.notice}
+        </p>
+      )}
+      {chat.selectedConversationId && chat.realtimePhase === 'unavailable' && (
+        <p className={styles.notice} role="status">
+          Kết nối cập nhật tin nhắn đang gián đoạn. Đang tự kết nối lại.
         </p>
       )}
       {reportNotice && (
@@ -333,19 +491,51 @@ export default function CommunityChatWorkspace({
         className={`${styles.workspace} ${chat.selectedConversationId ? styles.hasSelected : ''}`}
       >
         <aside className={styles.inbox} aria-label="Hộp thư cộng đồng">
-          <button
-            type="button"
-            className={styles.createGroupButton}
-            onClick={() => setCreateGroupOpen(true)}
-          >
-            + Tạo nhóm riêng
-          </button>
+          <header className={styles.inboxHeading}>
+            <div>
+              <h1 id="community-chat-title">Tin nhắn</h1>
+              <p>Cá nhân và nhóm riêng, cùng một nơi</p>
+            </div>
+            <button
+              type="button"
+              className={styles.createGroupButton}
+              disabled={chat.unavailable || chat.loading}
+              onClick={() => setNewConversationOpen(true)}
+              aria-label="Tin nhắn mới hoặc tạo nhóm"
+              title="Tin nhắn mới hoặc tạo nhóm"
+            >
+              <Plus size={21} aria-hidden="true" />
+            </button>
+          </header>
+          {chat.activeTab === 'conversations' && (
+            <div className={styles.searchBox}>
+              <Search size={17} aria-hidden="true" />
+              <input
+                aria-label="Tìm người hoặc nhóm trong hộp thư"
+                placeholder="Tìm người hoặc nhóm…"
+                value={inboxSearch}
+                onChange={(event) => setInboxSearch(event.target.value)}
+                disabled={chat.unavailable || chat.loading}
+                maxLength={120}
+              />
+              {inboxSearch && (
+                <button
+                  type="button"
+                  onClick={() => setInboxSearch('')}
+                  aria-label="Xóa tìm kiếm hộp thư"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          )}
           <div
             className={styles.tabs}
             role="tablist"
             aria-label="Tin nhắn và lời mời"
           >
             <button
+              id="community-chat-conversations-tab"
               type="button"
               role="tab"
               aria-selected={chat.activeTab === 'conversations'}
@@ -354,6 +544,7 @@ export default function CommunityChatWorkspace({
               Trò chuyện
             </button>
             <button
+              id="community-chat-requests-tab"
               type="button"
               role="tab"
               aria-selected={chat.activeTab === 'requests'}
@@ -365,91 +556,184 @@ export default function CommunityChatWorkspace({
               )}
             </button>
           </div>
-
-          {chat.loading ? (
-            <div className={styles.state} role="status" aria-busy="true">
-              Đang tải hộp thư…
+          {chat.activeTab === 'conversations' && (
+            <div
+              className={styles.inboxFilters}
+              role="group"
+              aria-label="Lọc hội thoại"
+            >
+              {(
+                [
+                  { value: 'all', label: 'Tất cả' },
+                  { value: 'direct', label: 'Cá nhân' },
+                  { value: 'groups', label: 'Nhóm' },
+                ] as const
+              ).map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  aria-pressed={conversationFilter === filter.value}
+                  onClick={() => setConversationFilter(filter.value)}
+                >
+                  {filter.value === 'groups' && (
+                    <Users size={14} aria-hidden="true" />
+                  )}
+                  {filter.label}
+                </button>
+              ))}
             </div>
-          ) : chat.error ? (
-            <div className={styles.state} role="alert">
-              <p>{chat.error}</p>
-              <button type="button" onClick={() => void chat.reload()}>
-                Thử lại
-              </button>
-            </div>
-          ) : chat.activeTab === 'conversations' ? (
-            chat.conversations.length ? (
-              <>
-                <ul className={styles.list}>
-                  {chat.conversations.map((item) => {
-                    const peer =
-                      item.peers.find(
-                        (candidate) =>
-                          candidate.state === 'AVAILABLE' &&
-                          candidate.communityProfileId !== chat.viewerProfileId,
-                      ) ??
-                      item.peers.find(
-                        (candidate) => candidate.state === 'AVAILABLE',
+          )}
+          <div
+            className={styles.inboxBody}
+            role="tabpanel"
+            aria-labelledby={
+              chat.activeTab === 'conversations'
+                ? 'community-chat-conversations-tab'
+                : 'community-chat-requests-tab'
+            }
+          >
+            {chat.loading ? (
+              <div className={styles.state} role="status" aria-busy="true">
+                Đang tải hộp thư…
+              </div>
+            ) : chat.unavailable ? (
+              <div className={styles.state} role="status">
+                <strong>Tin nhắn hiện chưa khả dụng</strong>
+                <p>Bạn vẫn có thể đọc và chia sẻ trên bảng tin cộng đồng.</p>
+                <Link href="/community">Trở về bảng tin →</Link>
+              </div>
+            ) : chat.error ? (
+              <div className={styles.state} role="alert">
+                <p>{chat.error}</p>
+                <button type="button" onClick={() => void chat.reload()}>
+                  Thử lại
+                </button>
+              </div>
+            ) : chat.activeTab === 'conversations' ? (
+              listedConversations.length ? (
+                <>
+                  <ul className={styles.list}>
+                    {listedConversations.map((item) => {
+                      const peer =
+                        item.peers.find(
+                          (candidate) =>
+                            candidate.state === 'AVAILABLE' &&
+                            candidate.communityProfileId !==
+                              chat.viewerProfileId,
+                        ) ??
+                        item.peers.find(
+                          (candidate) => candidate.state === 'AVAILABLE',
+                        )
+                      return (
+                        <li key={item.conversationId}>
+                          <Link
+                            href={`/community/messages/${item.conversationId}`}
+                            onClick={() =>
+                              chat.selectConversation(item.conversationId)
+                            }
+                            aria-current={
+                              item.conversationId ===
+                              chat.selectedConversationId
+                                ? 'page'
+                                : undefined
+                            }
+                          >
+                            {item.kind === 'GROUP' ? (
+                              <span
+                                className={styles.groupAvatar}
+                                aria-hidden="true"
+                              >
+                                <Users size={20} />
+                              </span>
+                            ) : (
+                              <Avatar peer={peer} />
+                            )}
+                            <span className={styles.rowCopy}>
+                              <strong>
+                                {item.kind === 'GROUP'
+                                  ? item.groupName
+                                  : peerName(peer)}
+                              </strong>
+                              <small>
+                                {item.kind === 'GROUP'
+                                  ? item.state === 'ARCHIVED'
+                                    ? 'Nhóm đã lưu trữ · Chỉ đọc'
+                                    : `${item.viewerRole === 'OWNER' ? 'Chủ nhóm' : item.viewerRole === 'ADMIN' ? 'Quản trị viên' : 'Thành viên'} · ${item.peers.length} người`
+                                  : peer?.state === 'AVAILABLE' &&
+                                      presence?.states[
+                                        peer.communityProfileId
+                                      ] === 'ONLINE'
+                                    ? 'Đang trực tuyến'
+                                    : item.state === 'READ_ONLY'
+                                      ? 'Chỉ có thể xem'
+                                      : item.unreadCount
+                                        ? `${item.unreadCount} tin chưa đọc`
+                                        : 'Mở cuộc trò chuyện'}
+                              </small>
+                            </span>
+                            {item.unreadCount > 0 && (
+                              <span
+                                className={styles.badge}
+                                aria-label={`${item.unreadCount} tin chưa đọc`}
+                              >
+                                {item.unreadCount}
+                              </span>
+                            )}
+                          </Link>
+                        </li>
                       )
-                    return (
-                      <li key={item.conversationId}>
-                        <Link
-                          href={`/community/messages/${item.conversationId}`}
-                          onClick={() =>
-                            chat.selectConversation(item.conversationId)
-                          }
-                          aria-current={
-                            item.conversationId === chat.selectedConversationId
-                              ? 'page'
-                              : undefined
-                          }
-                        >
-                          {item.kind === 'GROUP' ? (
-                            <span
-                              className={styles.groupAvatar}
-                              aria-hidden="true"
-                            >
-                              {initials(item.groupName)}
-                            </span>
-                          ) : (
-                            <Avatar peer={peer} />
-                          )}
-                          <span className={styles.rowCopy}>
-                            <strong>
-                              {item.kind === 'GROUP'
-                                ? item.groupName
-                                : peerName(peer)}
-                            </strong>
-                            <small>
-                              {item.kind === 'GROUP'
-                                ? item.state === 'ARCHIVED'
-                                  ? 'Nhóm đã lưu trữ · Chỉ đọc'
-                                  : `${item.viewerRole === 'OWNER' ? 'Chủ nhóm' : item.viewerRole === 'ADMIN' ? 'Quản trị viên' : 'Thành viên'} · ${item.peers.length} người`
-                                : item.state === 'READ_ONLY'
-                                  ? 'Chỉ có thể xem'
-                                  : item.unreadCount
-                                    ? `${item.unreadCount} tin chưa đọc`
-                                    : 'Mở cuộc trò chuyện'}
-                            </small>
-                          </span>
-                          {item.unreadCount > 0 && (
-                            <span
-                              className={styles.badge}
-                              aria-label={`${item.unreadCount} tin chưa đọc`}
-                            >
-                              {item.unreadCount}
-                            </span>
-                          )}
-                        </Link>
-                      </li>
-                    )
-                  })}
-                </ul>
-                {(chat.conversationCursor || chat.conversationPageError) && (
-                  <div className={styles.pageActions}>
-                    {chat.conversationPageError && (
-                      <span role="alert">{chat.conversationPageError}</span>
+                    })}
+                  </ul>
+                  {(chat.conversationCursor || chat.conversationPageError) && (
+                    <div className={styles.pageActions}>
+                      {chat.conversationPageError && (
+                        <span role="alert">{chat.conversationPageError}</span>
+                      )}
+                      <button
+                        type="button"
+                        disabled={chat.conversationPageLoading}
+                        onClick={() => void chat.loadMoreConversations()}
+                      >
+                        {chat.conversationPageLoading
+                          ? 'Đang tải…'
+                          : chat.conversationPageError
+                            ? 'Thử lại'
+                            : 'Tải thêm cuộc trò chuyện'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className={styles.state}>
+                  <span className={styles.inboxEmptyIcon} aria-hidden="true">
+                    {conversationFilter === 'groups' ? (
+                      <Users size={23} />
+                    ) : (
+                      <MessageSquare size={23} />
                     )}
+                  </span>
+                  <strong>
+                    {query
+                      ? 'Chưa tìm thấy hội thoại phù hợp'
+                      : conversationFilter === 'groups'
+                        ? 'Chưa có nhóm riêng trong danh sách này'
+                        : conversationFilter === 'direct'
+                          ? 'Chưa có trò chuyện cá nhân trong danh sách này'
+                          : 'Chưa có cuộc trò chuyện'}
+                  </strong>
+                  <p>
+                    {query
+                      ? 'Thử một tên khác hoặc xóa từ khóa để xem lại danh sách.'
+                      : conversationFilter === 'groups'
+                        ? 'Tạo một nhóm nhỏ để trò chuyện với những người bạn đã kết nối.'
+                        : 'Bạn có thể nhắn từ một bài viết dùng danh tính cộng đồng.'}
+                  </p>
+                  {query && (
+                    <button type="button" onClick={() => setInboxSearch('')}>
+                      Xóa tìm kiếm
+                    </button>
+                  )}
+                  {chat.conversationCursor ? (
                     <button
                       type="button"
                       disabled={chat.conversationPageLoading}
@@ -457,115 +741,97 @@ export default function CommunityChatWorkspace({
                     >
                       {chat.conversationPageLoading
                         ? 'Đang tải…'
-                        : chat.conversationPageError
+                        : 'Tải thêm cuộc trò chuyện'}
+                    </button>
+                  ) : (
+                    <Link href="/community">Khám phá bảng tin</Link>
+                  )}
+                </div>
+              )
+            ) : chat.requests.length ||
+              groups.invitations.length ||
+              groups.invitationLoading ||
+              groups.invitationError ? (
+              <>
+                <GroupInvitations groups={groups} />
+                <ul className={styles.requests}>
+                  {chat.requests.map((request) => (
+                    <li key={request.requestId}>
+                      <div className={styles.requestIdentity}>
+                        <Avatar peer={request.requester} />
+                        <span>
+                          <strong>{peerName(request.requester)}</strong>
+                          <small>Hết hạn {day(request.expiresAt)}</small>
+                        </span>
+                      </div>
+                      <p>
+                        Lời mời không chứa nội dung tin nhắn. Chỉ chấp thuận nếu
+                        bạn thấy thoải mái.
+                      </p>
+                      <div className={styles.requestActions}>
+                        <button
+                          type="button"
+                          disabled={chat.busyKey === request.requestId}
+                          onClick={() => void chat.decide(request, 'ACCEPT')}
+                        >
+                          Chấp thuận
+                        </button>
+                        <button
+                          type="button"
+                          disabled={chat.busyKey === request.requestId}
+                          onClick={() => void chat.decide(request, 'DECLINE')}
+                        >
+                          Từ chối
+                        </button>
+                        <button
+                          type="button"
+                          disabled={chat.busyKey === request.requestId}
+                          onClick={() => void chat.decide(request, 'BLOCK')}
+                        >
+                          Chặn
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {(chat.requestCursor || chat.requestPageError) && (
+                  <div className={styles.pageActions}>
+                    {chat.requestPageError && (
+                      <span role="alert">{chat.requestPageError}</span>
+                    )}
+                    <button
+                      type="button"
+                      disabled={chat.requestPageLoading}
+                      onClick={() => void chat.loadMoreRequests()}
+                    >
+                      {chat.requestPageLoading
+                        ? 'Đang tải…'
+                        : chat.requestPageError
                           ? 'Thử lại'
-                          : 'Tải thêm cuộc trò chuyện'}
+                          : 'Tải thêm lời mời'}
                     </button>
                   </div>
                 )}
               </>
             ) : (
               <div className={styles.state}>
-                <strong>Chưa có cuộc trò chuyện</strong>
-                <p>Bạn có thể nhắn từ một bài viết dùng danh tính cộng đồng.</p>
-                {chat.conversationCursor ? (
-                  <button
-                    type="button"
-                    disabled={chat.conversationPageLoading}
-                    onClick={() => void chat.loadMoreConversations()}
-                  >
-                    {chat.conversationPageLoading
-                      ? 'Đang tải…'
-                      : 'Tải thêm cuộc trò chuyện'}
-                  </button>
-                ) : (
-                  <Link href="/community">Khám phá bảng tin</Link>
-                )}
-              </div>
-            )
-          ) : chat.requests.length ||
-            groups.invitations.length ||
-            groups.invitationLoading ||
-            groups.invitationError ? (
-            <>
-              <GroupInvitations groups={groups} />
-              <ul className={styles.requests}>
-                {chat.requests.map((request) => (
-                  <li key={request.requestId}>
-                    <div className={styles.requestIdentity}>
-                      <Avatar peer={request.requester} />
-                      <span>
-                        <strong>{peerName(request.requester)}</strong>
-                        <small>Hết hạn {day(request.expiresAt)}</small>
-                      </span>
-                    </div>
-                    <p>
-                      Lời mời không chứa nội dung tin nhắn. Chỉ chấp thuận nếu
-                      bạn thấy thoải mái.
-                    </p>
-                    <div className={styles.requestActions}>
-                      <button
-                        type="button"
-                        disabled={chat.busyKey === request.requestId}
-                        onClick={() => void chat.decide(request, 'ACCEPT')}
-                      >
-                        Chấp thuận
-                      </button>
-                      <button
-                        type="button"
-                        disabled={chat.busyKey === request.requestId}
-                        onClick={() => void chat.decide(request, 'DECLINE')}
-                      >
-                        Từ chối
-                      </button>
-                      <button
-                        type="button"
-                        disabled={chat.busyKey === request.requestId}
-                        onClick={() => void chat.decide(request, 'BLOCK')}
-                      >
-                        Chặn
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              {(chat.requestCursor || chat.requestPageError) && (
-                <div className={styles.pageActions}>
-                  {chat.requestPageError && (
-                    <span role="alert">{chat.requestPageError}</span>
-                  )}
+                <strong>Không có lời mời đang chờ</strong>
+                <p>Bạn luôn có quyền chấp thuận, từ chối hoặc chặn.</p>
+                {chat.requestCursor && (
                   <button
                     type="button"
                     disabled={chat.requestPageLoading}
                     onClick={() => void chat.loadMoreRequests()}
                   >
-                    {chat.requestPageLoading
-                      ? 'Đang tải…'
-                      : chat.requestPageError
-                        ? 'Thử lại'
-                        : 'Tải thêm lời mời'}
+                    {chat.requestPageLoading ? 'Đang tải…' : 'Tải thêm lời mời'}
                   </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className={styles.state}>
-              <strong>Không có lời mời đang chờ</strong>
-              <p>Bạn luôn có quyền chấp thuận, từ chối hoặc chặn.</p>
-              {chat.requestCursor && (
-                <button
-                  type="button"
-                  disabled={chat.requestPageLoading}
-                  onClick={() => void chat.loadMoreRequests()}
-                >
-                  {chat.requestPageLoading ? 'Đang tải…' : 'Tải thêm lời mời'}
-                </button>
-              )}
-            </div>
-          )}
-
+                )}
+              </div>
+            )}
+          </div>
           {chat.privacy && (
             <PrivacyPanel
+              friendsOnly={!friends.loading && !friends.error}
               key={chat.privacy.version}
               initial={chat.privacy.preferences}
               busy={chat.busyKey === 'privacy'}
@@ -580,7 +846,9 @@ export default function CommunityChatWorkspace({
               ← Hộp thư
             </Link>
           )}
-          {chat.threadLoading ? (
+          {chat.unavailable ? (
+            <ThreadWelcome unavailable />
+          ) : chat.threadLoading ? (
             <div className={styles.state} role="status" aria-busy="true">
               Đang tải cuộc trò chuyện…
             </div>
@@ -598,29 +866,48 @@ export default function CommunityChatWorkspace({
               <header className={styles.threadHeader}>
                 {activeConversation.kind === 'GROUP' ? (
                   <span className={styles.groupAvatar} aria-hidden="true">
-                    {initials(activeConversation.groupName)}
+                    <Users size={25} strokeWidth={1.7} />
                   </span>
                 ) : (
                   <Avatar peer={activePeer} />
                 )}
                 <span>
                   <strong>
-                    {activeConversation.kind === 'GROUP'
-                      ? activeConversation.groupName
-                      : peerName(activePeer)}
+                    {activeConversation.kind === 'GROUP' ? (
+                      activeConversation.groupName
+                    ) : activePeer?.state === 'AVAILABLE' ? (
+                      <Link
+                        href={`/community/members/${activePeer.communityProfileId}`}
+                      >
+                        {peerName(activePeer)}
+                      </Link>
+                    ) : (
+                      peerName(activePeer)
+                    )}
                   </strong>
                   <small>
                     {activeConversation.kind === 'GROUP'
                       ? activeConversation.state === 'ARCHIVED'
                         ? 'Nhóm riêng đã lưu trữ · Chỉ đọc'
-                        : `Nhóm riêng · ${activeConversation.peers.length} thành viên · Chỉ người đã chấp thuận mới có thể đọc và gửi tin`
+                        : `Nhóm chat · ${activeConversation.peers.length} thành viên`
                       : activeConversation.state === 'READ_ONLY'
                         ? 'Cuộc trò chuyện chỉ đọc'
                         : 'Tin nhắn riêng tư trong cộng đồng'}
                   </small>
+                  {activeConversation.kind === 'DIRECT' &&
+                    activePeer?.state === 'AVAILABLE' &&
+                    presence?.states[activePeer.communityProfileId] ===
+                      'ONLINE' && (
+                      <small className={styles.onlineLabel}>
+                        <i aria-hidden="true" /> Đang trực tuyến · Đã bật chia
+                        sẻ trạng thái
+                      </small>
+                    )}
                 </span>
                 <details className={styles.safetyMenu}>
-                  <summary aria-label="Mở thao tác an toàn">•••</summary>
+                  <summary aria-label="Mở thao tác an toàn">
+                    <MoreHorizontal size={22} />
+                  </summary>
                   <div>
                     <button
                       type="button"
@@ -654,12 +941,38 @@ export default function CommunityChatWorkspace({
                   groups={groups}
                   viewerProfileId={chat.viewerProfileId}
                   inviteCandidates={inviteCandidates}
+                  onLoadMoreCandidates={
+                    friends.cursor ? friends.loadMore : undefined
+                  }
+                  loadingCandidates={friends.loading || friends.loadingMore}
+                  candidateError={friends.error}
+                  onRetryCandidates={friends.refresh}
                 />
               )}
 
-              <div className={styles.messages} aria-live="polite">
+              <div
+                className={styles.messages}
+                ref={transcript}
+                role="log"
+                aria-label="Lịch sử trò chuyện"
+                aria-live="polite"
+                onScroll={() => {
+                  const element = transcript.current
+                  if (!element) return
+                  followLatest.current =
+                    element.scrollHeight -
+                      element.scrollTop -
+                      element.clientHeight <
+                    64
+                  if (followLatest.current) {
+                    setNewMessagesBelow(false)
+                    if (lastMessageId && document.hasFocus())
+                      void markMessagesViewed(lastMessageId)
+                  }
+                }}
+              >
                 {visibleMessages.length ? (
-                  visibleMessages.map((message) => {
+                  visibleMessages.map((message, index) => {
                     const mine =
                       message.sender.state === 'AVAILABLE' &&
                       message.sender.communityProfileId === chat.viewerProfileId
@@ -667,70 +980,126 @@ export default function CommunityChatWorkspace({
                       chat.retractBusyMessageId === message.messageId
                     const retractionFailed =
                       chat.failedRetraction?.messageId === message.messageId
+                    const previous = visibleMessages[index - 1]
+                    const grouped = sameMessageGroup(previous, message)
+                    const next = visibleMessages[index + 1]
+                    const continues = next && sameMessageGroup(message, next)
+                    const showDay =
+                      !previous ||
+                      new Date(previous.createdAt).toDateString() !==
+                        new Date(message.createdAt).toDateString()
                     return (
-                      <div
-                        key={message.messageId}
-                        className={[
-                          mine ? styles.mine : styles.theirs,
-                          message.state === 'RETRACTED' ? styles.retracted : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                      >
-                        <p>
-                          {message.state === 'ACTIVE'
-                            ? message.content
-                            : mine
-                              ? 'Bạn đã gỡ tin nhắn'
-                              : message.sender.state === 'AVAILABLE'
-                                ? `${message.sender.displayName} đã gỡ tin nhắn`
-                                : 'Tin nhắn đã được gỡ'}
-                        </p>
-                        <time dateTime={message.createdAt}>
-                          {time(message.createdAt)}
-                        </time>
-                        {message.state === 'ACTIVE' &&
-                          (mine ? (
-                            <button
-                              type="button"
-                              className={styles.messageAction}
-                              disabled={retracting}
-                              onClick={() => setRetractTarget(message)}
-                              aria-label="Gỡ tin nhắn này cho mọi người"
-                            >
-                              {retracting ? 'Đang gỡ…' : 'Gỡ tin nhắn'}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className={styles.messageAction}
-                              onClick={() => {
-                                setReportTarget(message)
-                                setReportReason('HARASSMENT')
-                                setReportDetails('')
-                                setReportBusy(false)
-                                setReportError('')
-                                setReportNotice('')
-                                reportAttempt.current = undefined
-                              }}
-                              aria-label={`Báo cáo tin nhắn: ${message.content}`}
-                            >
-                              Báo cáo tin nhắn
-                            </button>
-                          ))}
-                        {retractionFailed && (
-                          <span className={styles.retractFailure} role="alert">
-                            {chat.retractError}
-                            <button
-                              type="button"
-                              disabled={retracting}
-                              onClick={() => void chat.retryRetraction()}
-                            >
-                              Thử lại
-                            </button>
-                          </span>
+                      <Fragment key={message.messageId}>
+                        {showDay && (
+                          <div className={styles.dayDivider}>
+                            <span>{messageDay(message.createdAt)}</span>
+                          </div>
                         )}
-                      </div>
+                        <div
+                          className={`${styles.messageRow} ${mine ? styles.ownRow : ''} ${grouped ? styles.groupedRow : ''}`}
+                          data-continues={continues || undefined}
+                        >
+                          {!mine && (
+                            <span
+                              className={`${styles.messageAvatar} ${grouped ? styles.avatarSpacer : ''}`}
+                              aria-hidden="true"
+                            >
+                              <Avatar peer={message.sender} />
+                            </span>
+                          )}
+                          <div className={styles.messageContent}>
+                            <div
+                              className={[
+                                styles.messageBubble,
+                                mine ? styles.mine : styles.theirs,
+                                message.state === 'RETRACTED'
+                                  ? styles.retracted
+                                  : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ')}
+                              title={time(message.createdAt)}
+                            >
+                              {activeConversation.kind === 'GROUP' &&
+                                !mine &&
+                                !grouped &&
+                                message.sender.state === 'AVAILABLE' && (
+                                  <strong className={styles.senderName}>
+                                    {message.sender.displayName}
+                                  </strong>
+                                )}
+                              <p>
+                                {message.state === 'ACTIVE'
+                                  ? message.content
+                                  : mine
+                                    ? 'Bạn đã gỡ tin nhắn'
+                                    : message.sender.state === 'AVAILABLE'
+                                      ? `${message.sender.displayName} đã gỡ tin nhắn`
+                                      : 'Tin nhắn đã được gỡ'}
+                              </p>
+                              {message.state === 'ACTIVE' &&
+                                (mine ? (
+                                  <button
+                                    type="button"
+                                    className={styles.messageAction}
+                                    disabled={retracting}
+                                    onClick={() => setRetractTarget(message)}
+                                    aria-label="Gỡ tin nhắn này cho mọi người"
+                                    title="Gỡ tin nhắn"
+                                  >
+                                    <Undo2 size={15} />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className={styles.messageAction}
+                                    onClick={() => {
+                                      setReportTarget(message)
+                                      setReportReason('HARASSMENT')
+                                      setReportDetails('')
+                                      setReportBusy(false)
+                                      setReportError('')
+                                      setReportNotice('')
+                                      reportAttempt.current = undefined
+                                    }}
+                                    aria-label={`Báo cáo tin nhắn: ${message.content}`}
+                                    title="Báo cáo tin nhắn"
+                                  >
+                                    <Flag size={15} />
+                                  </button>
+                                ))}
+                            </div>
+                            <div className={styles.messageMeta}>
+                              <time dateTime={message.createdAt}>
+                                {time(message.createdAt)}
+                              </time>
+                              {mine && message.state === 'ACTIVE' && (
+                                <span
+                                  title="Đã lưu tin nhắn"
+                                  aria-label="Đã lưu tin nhắn"
+                                >
+                                  <Check size={12} />
+                                </span>
+                              )}
+                            </div>
+                            {retractionFailed && (
+                              <span
+                                className={styles.retractFailure}
+                                role="alert"
+                              >
+                                {chat.retractError}
+                                <button
+                                  type="button"
+                                  disabled={retracting}
+                                  onClick={() => void chat.retryRetraction()}
+                                >
+                                  Thử lại
+                                </button>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </Fragment>
                     )
                   })
                 ) : (
@@ -767,6 +1136,23 @@ export default function CommunityChatWorkspace({
                 )}
               </div>
 
+              {newMessagesBelow && (
+                <button
+                  type="button"
+                  className={styles.jumpLatest}
+                  onClick={() => {
+                    followLatest.current = true
+                    if (transcript.current)
+                      transcript.current.scrollTop =
+                        transcript.current.scrollHeight
+                    setNewMessagesBelow(false)
+                    if (lastMessageId) void markMessagesViewed(lastMessageId)
+                  }}
+                >
+                  <ChevronDown size={16} /> Tin nhắn mới
+                </button>
+              )}
+
               {chat.threadError && (
                 <div className={styles.sendError} role="alert">
                   <span>{chat.threadError}</span>
@@ -782,18 +1168,36 @@ export default function CommunityChatWorkspace({
                 className={styles.composer}
                 onSubmit={(event) => {
                   event.preventDefault()
+                  followLatest.current = true
                   chat.send()
                 }}
               >
                 <label htmlFor="community-chat-message">Tin nhắn</label>
                 <textarea
                   id="community-chat-message"
-                  rows={2}
+                  rows={1}
                   maxLength={4000}
                   value={chat.draft}
                   disabled={activeConversation.state !== 'ACTIVE'}
                   placeholder="Viết điều bạn muốn chia sẻ…"
                   onChange={(event) => chat.setDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === 'Enter' &&
+                      !event.shiftKey &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault()
+                      if (
+                        !chat.sendBusy &&
+                        chat.draft.trim() &&
+                        activeConversation.state === 'ACTIVE'
+                      ) {
+                        followLatest.current = true
+                        chat.send()
+                      }
+                    }
+                  }}
                 />
                 <button
                   type="submit"
@@ -804,6 +1208,7 @@ export default function CommunityChatWorkspace({
                   }
                 >
                   {chat.sendBusy ? 'Đang gửi…' : 'Gửi'}
+                  {!chat.sendBusy && <Send size={17} aria-hidden="true" />}
                 </button>
                 <small>
                   Tin đã lưu không đồng nghĩa người nhận đang trực tuyến hoặc đã
@@ -812,20 +1217,22 @@ export default function CommunityChatWorkspace({
               </form>
             </>
           ) : (
-            <div className={styles.state}>
-              <strong>Chọn một cuộc trò chuyện</strong>
-              <p>
-                Nội dung riêng tư chỉ xuất hiện khi bạn mở đúng cuộc trò chuyện.
-              </p>
-            </div>
+            <ThreadWelcome />
           )}
         </article>
       </div>
 
-      <CreateGroupDialog
+      <CommunityCreateGroup
         open={createGroupOpen}
         groups={groups}
+        friends={friends}
         onOpenChange={setCreateGroupOpen}
+      />
+      <CommunityNewConversation
+        open={newConversationOpen}
+        onOpenChange={setNewConversationOpen}
+        onCreateGroup={openCreateGroup}
+        friends={friends}
       />
 
       <Dialog
