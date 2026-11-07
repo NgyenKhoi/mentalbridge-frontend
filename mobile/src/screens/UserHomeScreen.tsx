@@ -219,6 +219,10 @@ export function UserHomeScreen({ api }: Readonly<{ api: HomeApi }>) {
             <SecondaryAction label="Cộng đồng" href="/(user)/community" />
             <SecondaryAction label="Nhật ký" href="/(user)/journal" />
             <SecondaryAction label="Ghi nhận cảm xúc" href="/(user)/emotion" />
+            <SecondaryAction
+              label="Bộ sưu tập và Bingo"
+              href="/(user)/rewards"
+            />
             <SecondaryAction label="Hồ sơ cá nhân" href="/(user)/profile" />
           </View>
         ) : null}
