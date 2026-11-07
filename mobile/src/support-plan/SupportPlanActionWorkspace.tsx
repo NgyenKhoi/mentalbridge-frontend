@@ -44,6 +44,7 @@ import type {
 import { SupportPlanPersonalizationCard } from './SupportPlanPersonalizationCard'
 import { SupportPlanScheduleEditor } from './SupportPlanScheduleEditor'
 import { SupportPlanScreen } from './SupportPlanScreen'
+import { AdaptiveReviewPanel } from './AdaptiveReviewPanel'
 import {
   isSupportedJournalAction,
   journalReconciliationMessage,
@@ -758,6 +759,22 @@ export function NativeSupportPlanScreen({
             ) : null
           })}
         </View>
+      ) : null}
+      {current?.representationMode === 'NATIVE_V3' &&
+      (current.status === 'ACTIVE' || current.status === 'PAUSED') ? (
+        <AdaptiveReviewPanel
+          key={`${current.supportPlanId}:${current.version}`}
+          api={api}
+          current={current}
+          draft={draft}
+          disabled={busy || dirty || confirmation !== null}
+          onChanged={async () => {
+            await onChanged()
+            await Promise.all([occurrences.refetch(), history.refetch()])
+          }}
+          onReassessment={() => router.push('/(user)/reassessment')}
+          onProfessionalSupport={() => router.push('/(user)/specialists')}
+        />
       ) : null}
       {draft?.representationMode === 'NATIVE_V3' ? (
         <View style={styles.panel}>

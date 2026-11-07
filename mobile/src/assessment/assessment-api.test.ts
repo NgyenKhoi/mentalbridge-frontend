@@ -67,6 +67,35 @@ const guide = {
 }
 
 describe('Care mobile assessment API contract', () => {
+  it('opens and starts the purpose-specific reassessment episode', async () => {
+    const requests: InternalAxiosRequestConfig[] = []
+    const episode = {
+      episodeId: '50000000-0000-4000-8000-000000000664',
+      purpose: 'REASSESSMENT',
+      status: 'IN_PROGRESS',
+      createdAt: '2026-10-06T08:00:00.000Z',
+      updatedAt: '2026-10-06T08:00:00.000Z',
+      version: 0,
+    }
+    const adapter: AxiosAdapter = async (request) => {
+      requests.push(request)
+      return {
+        config: request,
+        data: episode,
+        headers: {},
+        status: 200,
+        statusText: 'OK',
+      }
+    }
+    const api = createAssessmentApi(create({ adapter }), 'REASSESSMENT')
+    await api.getCurrentEpisode()
+    await api.startEpisode()
+    expect(requests[0]?.params).toEqual({ purpose: 'REASSESSMENT' })
+    expect(JSON.parse(requests[1]?.data)).toEqual({
+      purpose: 'REASSESSMENT',
+    })
+  })
+
   it('submits only the selected definition and answers to the owner-scoped episode', async () => {
     const requests: InternalAxiosRequestConfig[] = []
     const adapter: AxiosAdapter = async (request) => {

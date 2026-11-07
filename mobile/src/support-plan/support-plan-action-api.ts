@@ -24,6 +24,13 @@ import {
   type SupportPlanCompanionMessage,
   type SupportPlanActionHistory,
 } from './support-plan-action-contract'
+import {
+  adaptiveReviewConfirmationSchema,
+  adaptiveReviewSchema,
+  type AdaptiveReview,
+  type AdaptiveReviewConfirmation,
+  type AdaptiveReviewOption,
+} from './adaptive-review-contract'
 
 const replacementInput = z
   .object({
@@ -55,6 +62,15 @@ export interface SupportPlanActionApi {
   getReassessmentSummary(): Promise<
     z.infer<typeof reassessmentSummaryReferenceSchema>
   >
+  getAdaptiveReview(id: string, version: number): Promise<AdaptiveReview>
+  confirmAdaptiveReview(
+    id: string,
+    version: number,
+    reviewFingerprint: string,
+    option: AdaptiveReviewOption,
+    key: string,
+    proposed?: CanonicalSupportPlan,
+  ): Promise<AdaptiveReviewConfirmation>
   replaceSchedule(
     id: string,
     version: number,
@@ -147,6 +163,59 @@ export function createSupportPlanActionApi(
       return reassessmentSummaryReferenceSchema.parse(
         (await client.get('/api/v1/reassessment-summaries/current')).data,
       )
+    },
+    async getAdaptiveReview(id, version) {
+      const parsedId = idSchema.parse(id)
+      const review = adaptiveReviewSchema.parse(
+        (
+          await client.get(`${planPath(parsedId)}/adaptive-review`, {
+            headers: validator(version),
+          })
+        ).data,
+      )
+      if (review.supportPlanId !== parsedId || review.planVersion !== version)
+        throw new Error('Adaptive review authority mismatch.')
+      return review
+    },
+    async confirmAdaptiveReview(
+      id,
+      version,
+      reviewFingerprint,
+      option,
+      key,
+      proposed,
+    ) {
+      if (
+        proposed &&
+        (option.executionKind !== 'PREPARE_REPLACEMENT' ||
+          proposed.status !== 'DRAFT')
+      )
+        throw new Error(
+          'Only a compared DRAFT can confirm a replacement option.',
+        )
+      const body = {
+        reviewFingerprint: z.string().min(16).max(128).parse(reviewFingerprint),
+        optionId: z.string().min(1).max(128).parse(option.optionId),
+        ...(proposed
+          ? {
+              proposedPlanId: idSchema.parse(proposed.supportPlanId),
+              proposedVersion: versionSchema.parse(proposed.version),
+            }
+          : {}),
+      }
+      const result = adaptiveReviewConfirmationSchema.parse(
+        (
+          await client.post(`${planPath(id)}/adaptive-review/confirm`, body, {
+            headers: {
+              ...validator(version),
+              'Idempotency-Key': keySchema.parse(key),
+            },
+          })
+        ).data,
+      )
+      if (result.optionId !== option.optionId)
+        throw new Error('Adaptive review confirmation identity mismatch.')
+      return result
     },
     async replaceSchedule(id, version, actionId, request, key) {
       return ownedPlan(
