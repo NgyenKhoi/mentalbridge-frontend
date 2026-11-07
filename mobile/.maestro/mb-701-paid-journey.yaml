@@ -1,0 +1,54 @@
+appId: com.mentalbridge.mobile
+name: MB-701 authorized paid plan preview
+---
+# TEST_AUTHORED_NOT_RUN; NOT_EXECUTABLE_YET. Requires a disposable paid USER,
+# no episode/current/draft plan, verified entitlement, negative item 9 and
+# available Meaning, Guide and native plan proposal services. Provide existing
+# MAESTRO_MB_USER_EMAIL and MAESTRO_MB_USER_PASSWORD via protected fixture.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Bắt đầu sàng lọc'
+- tapOn: 'Bắt đầu sàng lọc'
+- assertVisible: 'Bài PHQ-9'
+- repeat:
+    times: 8
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Bài GAD-7'
+- repeat:
+    times: 6
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Ý nghĩa của kết quả'
+- tapOn: 'Tiếp tục'
+- assertVisible: 'Gợi ý hỗ trợ sau sàng lọc'
+- scrollUntilVisible:
+    element: 'Tiếp tục với kế hoạch hỗ trợ'
+    direction: DOWN
+- tapOn: 'Tiếp tục với kế hoạch hỗ trợ'
+- assertVisible: 'Kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element: 'Tạo phương án để xem lại'
+    direction: DOWN
+- tapOn: 'Tạo phương án để xem lại'
+- assertVisible: 'Phương án để bạn xem lại'

@@ -1,0 +1,48 @@
+appId: com.mentalbridge.mobile
+name: MB-701 Guide outage retains confirmed safety guidance
+---
+# TEST_AUTHORED_NOT_RUN; NOT_EXECUTABLE_YET. Requires a disposable USER with
+# a positive item 9, Care-confirmed exact Meaning and GUIDE_READY pointer; the
+# test environment must make only Guide read return 503 after it is persisted.
+# Supply MAESTRO_MB_USER_EMAIL, MAESTRO_MB_USER_PASSWORD and the exact approved
+# server-returned guidance as MAESTRO_MB_701_SAFETY_GUIDANCE.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Bắt đầu sàng lọc'
+- tapOn: 'Bắt đầu sàng lọc'
+- assertVisible: 'Bài PHQ-9'
+- repeat:
+    times: 8
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Vài ngày'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Bài GAD-7'
+- repeat:
+    times: 6
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Ý nghĩa của kết quả'
+- tapOn: 'Tiếp tục'
+- assertVisible: '${MAESTRO_MB_701_SAFETY_GUIDANCE}'
+- assertVisible: 'Dịch vụ gợi ý tạm thời không khả dụng. Hãy thử lại.'
+- assertVisible: 'Thử lại'
+- assertNotVisible: 'Gợi ý hỗ trợ sau sàng lọc'

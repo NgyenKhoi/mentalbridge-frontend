@@ -1,0 +1,48 @@
+appId: com.mentalbridge.mobile
+name: MB-701 authoritative safety precedence
+---
+# TEST_AUTHORED_NOT_RUN; NOT_EXECUTABLE_YET. Requires a disposable USER with
+# no open episode, positive item 9 accepted by Care, available Meaning/Guide,
+# and REVIEW_SAFETY_SUPPORT as Care nextAction. Supply MAESTRO_MB_USER_EMAIL
+# and MAESTRO_MB_USER_PASSWORD from the approved protected fixture.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Bắt đầu sàng lọc'
+- tapOn: 'Bắt đầu sàng lọc'
+- assertVisible: 'Bài PHQ-9'
+- repeat:
+    times: 8
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Vài ngày'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Bài GAD-7'
+- repeat:
+    times: 6
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Ý nghĩa của kết quả'
+- tapOn: 'Tiếp tục'
+- assertVisible: 'Hỗ trợ an toàn'
+- assertVisible: 'Tôi cần hỗ trợ ngay'
+- assertNotVisible: 'Tiếp tục với kế hoạch hỗ trợ'
+- assertNotVisible: 'Tìm chuyên gia phù hợp'
+- assertNotVisible: 'Bắt đầu với bài tập đầu tiên'
