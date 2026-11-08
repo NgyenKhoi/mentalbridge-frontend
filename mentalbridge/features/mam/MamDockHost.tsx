@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -33,7 +34,11 @@ import {
   type MamPerch,
   type MamTravelMode,
 } from './mam-travel'
-import { useMamIdle } from './use-mam-idle'
+import { MAM_INPUT_EVENTS, useMamIdle } from './use-mam-idle'
+import { IDLE_ACTIONS, useMamIdleActions } from './use-mam-idle-actions'
+import { useMamGaze } from './mam-gaze'
+import { NO_POKE, pokeClick } from './mam-poke'
+import { useMamShot } from './use-mam-shot'
 import { isMamCelebrationRoute, isMamStaticDockRoute } from './mam-routes'
 import {
   useMamCelebrationNote,
@@ -179,10 +184,14 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const [attention, setAttention] = useState(0)
   const [perch, setPerch] = useState<MamPerch | null>(null)
   const [asleep, setAsleep] = useState(false)
+  // The host's own one-shot channel: drowsy and wake (travel), pokes, idle actions.
+  const local = useMamShot()
+  const pokes = useRef(NO_POKE)
   const [travel] = useState(() =>
     createMamTravel({
       mode: setTravelMode,
       behavior: setTravelBehavior,
+      oneShot: (kind) => (kind ? local.play(kind) : local.cancel()),
       attention: setAttention,
       perch: setPerch,
       asleep: setAsleep,
@@ -230,6 +239,19 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const perched = travelMode === 'perch'
   const flying =
     travelMode === 'drag' || travelMode === 'fly' || travelMode === 'home'
+  // A drag or a throw must not select the page text it sweeps over.
+  const carried = travelMode === 'drag' || travelMode === 'fly'
+  useEffect(() => {
+    if (!carried) return
+    const style = document.documentElement.style
+    const { userSelect, webkitUserSelect } = style
+    style.userSelect = 'none'
+    style.webkitUserSelect = 'none'
+    return () => {
+      style.userSelect = userSelect
+      style.webkitUserSelect = webkitUserSelect
+    }
+  }, [carried])
 
   // ADR layering: page actions stay clickable; focused elements stay clear.
   const [yielding, setYielding] = useState<'none' | 'overlap' | 'focus'>('none')
@@ -263,7 +285,8 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       !flying &&
       !summon &&
       !notice &&
-      !menuOpen,
+      !menuOpen &&
+      yielding === 'none',
     pathname,
   )
   const dismissCelebration = useRef(celebration.dismiss)
@@ -280,6 +303,55 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   useEffect(() => {
     if (asleep && (shot || celebrating)) travel.wakeQuiet()
   }, [travel, asleep, shot, celebrating])
+  // MB-818: touch and idle motion share the celebrations' gates (`canTravel` is false for
+  // reduced motion, no-interrupt zones, hidden and a failed renderer) and never overlap a
+  // celebration, a save nod or the answer bubble. The menu and the tip may stay open.
+  const calm = canTravel && status === 'ready'
+  const touchOk =
+    calm &&
+    travelMode === 'dock' &&
+    yielding === 'none' &&
+    !dockBubble &&
+    !celebrating &&
+    !shot
+  // Autonomous life (gaze, idle actions): also not while muted, asleep or anything is open.
+  const autonomous =
+    touchOk && !muted && !asleep && !menuOpen && !summon && !notice
+  // Drowsy and wake belong to the travel controller and run wherever it runs them; an idle
+  // action stops with the autonomous gates, a poke only with the touch gates.
+  const localKind = local.shot?.kind
+  const localShot =
+    local.shot &&
+    (localKind === 'drowsy' || localKind === 'wake'
+      ? calm
+      : (IDLE_ACTIONS as readonly string[]).includes(localKind ?? '')
+        ? autonomous
+        : touchOk)
+      ? local.shot
+      : null
+  // Withdrawn eligibility drops the command for good, so it never resurfaces mid-way.
+  const dropShot = local.shot !== null && localShot === null
+  const cancelLocal = local.cancel
+  useEffect(() => {
+    if (dropShot) cancelLocal()
+  }, [dropShot, cancelLocal])
+  const lively = autonomous && !local.shot
+  // What the character is told to play now (also read by the E2E specs).
+  const playing = (asleep ? null : shot) ?? localShot
+  const gaze = useMamGaze(lively, dockRef)
+  useMamIdleActions(lively, local.play)
+  // Input during the yawn: Mầm perks up instead of falling asleep.
+  const drowsing = localKind === 'drowsy'
+  useEffect(() => {
+    if (!drowsing) return
+    const stir = () => travel.stir()
+    for (const type of MAM_INPUT_EVENTS)
+      window.addEventListener(type, stir, { capture: true, passive: true })
+    return () => {
+      for (const type of MAM_INPUT_EVENTS)
+        window.removeEventListener(type, stir, { capture: true })
+    }
+  }, [drowsing, travel])
   // Sleep (design §D): 60 s without input, docked, quiet and nothing open.
   useMamIdle(
     canTravel &&
@@ -462,6 +534,8 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     node.focus()
   }
 
+  // A drag is play: only where Mầm is ready and free to travel, never from an open bubble.
+  const dragOk = canTravel && status === 'ready' && !dockBubble
   // A tap (under 6 px of travel) keeps the button's job; a drag is play.
   const onDockPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (
@@ -469,7 +543,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       (event.pointerType === 'mouse' && event.button !== 0)
     )
       return
-    if (!canTravel || travelMode !== 'dock') return
+    if (!dragOk || travelMode !== 'dock') return
     // Capture at the press, not at the first move: a fast flick can jump off the
     // button before the first pointermove, and the drag would never start.
     event.currentTarget.setPointerCapture?.(event.pointerId)
@@ -490,8 +564,9 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         DRAG_SLOP_PX
       )
         return
+      // The press may have become ineligible since it began: then it never drags.
       // From where the press began, so the crossing move itself is a move.
-      if (!travel.dragStart(press.x, press.y, press.t)) {
+      if (!dragOk || !travel.dragStart(press.x, press.y, press.t)) {
         dragRef.current = null
         return
       }
@@ -515,8 +590,10 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       afterDrag.current = false
     }, 0)
   }
-  const onDockClick = () => {
+  const onDockClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
     if (afterDrag.current || travelMode !== 'dock') return
+    // A click (a screen reader sends no pointer events) during the yawn stirs Mầm.
+    if (drowsing) travel.stir()
     if (dizzy) {
       setNotice(notice ? null : { kind: 'dizzy', returnFocus: dockRef.current })
       if (!notice) setDizzyPlay((value) => value + 1)
@@ -526,9 +603,20 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       void travel.wake()
       return
     }
+    // Poke (MB-818): an open menu or bubble always closes on a click and never pokes.
+    // While the menu is closed, only the first click of a 1.5 s window opens it; the
+    // reactions follow `pokeClick`. Where Mầm cannot react, and for a keyboard or
+    // screen-reader activation (no pointer: `detail` is 0), every click toggles.
+    let toggle = true
+    if (touchOk && event.detail > 0 && !menuOpen && !dockBubble) {
+      const poke = pokeClick(pokes.current, performance.now())
+      pokes.current = poke.state
+      toggle = poke.toggleMenu
+      if (poke.play) local.play(poke.play)
+    }
     setNotice(null)
     if (dockBubble) close(false)
-    else setOpen((value) => !value)
+    else if (toggle) setOpen((value) => !value)
   }
 
   const toggleHidden = (next: boolean) => {
@@ -552,6 +640,8 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       data-focus-yield={yielding === 'focus'}
       data-mam-travel={travelMode}
       data-mam-sleep={asleep}
+      data-mam-shot={playing?.kind ?? ''}
+      data-mam-gaze={lively}
       data-mam-dizzy={dizzy}
       data-mam-suppressed={suppressed}
       data-front={flying}
@@ -643,6 +733,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                                   : 'idle'))
                         }
                         attention={attention}
+                        gaze={lively ? gaze : undefined}
                         reducedMotion={
                           motionOff ||
                           suppressed ||
@@ -650,7 +741,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                         }
                         // Held while asleep: the quiet wake must clear the sleep state
                         // first, or the renderer would cancel the command that woke Mầm.
-                        oneShot={asleep ? null : shot}
+                        oneShot={playing}
                         onStatusChange={setStatus}
                         onFallback={(reason) => {
                           if (reason !== 'error') return

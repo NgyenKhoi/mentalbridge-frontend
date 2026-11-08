@@ -2,7 +2,7 @@ import { expect, type Page } from '@playwright/test'
 
 import { seedOnboardingSeen, test } from './test-fixtures'
 import { homeWorld, installHomeMocks } from './home-next-step-mocks'
-import { box, character, travelling } from './mam-dock-helpers'
+import { box, character, dockRoot, travelling } from './mam-dock-helpers'
 
 // MB-769: Mầm targets, summon gestures and reviewed explanations. V1 answers
 // come from reviewed copy, so a summon never calls an AI endpoint. Gestures
@@ -184,6 +184,57 @@ test.describe('MB-769 Mầm summon', () => {
     // Shift+F10 on the focused link opens the starters for its card.
     await page.keyboard.press('Shift+F10')
     await expect(bubble(page)).toBeVisible()
+  })
+
+  // MB-818: the answer bubble and a summon own the dock; no touch or idle motion on top.
+  test('with the answer bubble open a click on Mầm only closes it: no menu, no reaction, no gaze', async ({
+    page,
+  }) => {
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/dashboard')
+    await expect(character(page)).toHaveAttribute('data-mam-status', 'ready', {
+      timeout: 15_000,
+    })
+    await dock(page).focus()
+    await page.keyboard.press('Enter')
+    await page.getByRole('button', { name: 'Hỏi Mầm về trang này' }).click()
+    await bubble(page)
+      .getByRole('button', { name: 'Nên bắt đầu từ đâu?' })
+      .click()
+    await expect(bubble(page)).toBeVisible()
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'false')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+
+    await dock(page).click()
+    await expect(bubble(page)).toHaveCount(0)
+    await expect(dock(page)).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.getByRole('group', { name: 'Mầm' })).toHaveCount(0)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+  })
+
+  test('a summon on a card keeps the gaze and touch motion off while Mầm is perched', async ({
+    page,
+  }) => {
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/dashboard')
+    await expect(character(page)).toHaveAttribute('data-mam-status', 'ready', {
+      timeout: 15_000,
+    })
+    await resources(page)
+      .getByRole('heading', { level: 2 })
+      .click({ button: 'right' })
+    await travelling(page, 'perch')
+    await expect(bubble(page)).toBeVisible()
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'false')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+    await page.keyboard.press('Escape')
+    await travelling(page, 'dock')
+    // Back home, the gaze waits until no page action sits under the dock.
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    await expect(dockRoot(page)).toHaveAttribute('data-yield', 'false')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'true')
   })
 
   test('a route change discards the bubble', async ({ page }) => {

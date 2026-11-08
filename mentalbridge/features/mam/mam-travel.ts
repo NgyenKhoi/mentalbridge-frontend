@@ -5,11 +5,12 @@
 // or starting another sequence cancels the old one. Nothing runs while idle.
 import { motionValue } from 'framer-motion'
 
-import type { MamLoopingBehavior } from './mam-contract'
+import type { MamLoopingBehavior, MamOneShot } from './mam-contract'
 import {
   climbRoom,
   ease,
   hopSteps,
+  isFastThrow,
   perchClip,
   perchLeft,
   sampleVelocity,
@@ -34,6 +35,8 @@ export type MamTravelHooks = Readonly<{
   mode: (mode: MamTravelMode) => void
   /** A behaviour of the travel itself; null hands it back to the host. */
   behavior: (behavior: MamLoopingBehavior | null) => void
+  /** A Rive one-shot of the travel itself (drowsy, wake); null cuts it short. */
+  oneShot: (kind: MamOneShot | null) => void
   attention: (direction: number) => void
   perch: (perch: MamPerch | null) => void
   asleep: (asleep: boolean) => void
@@ -42,6 +45,8 @@ export type MamTravelHooks = Readonly<{
 type Key = 'dockOff' | 'perchOff' | 'dy' | 'rot' | 'sx' | 'sy' | 'hands'
 
 const EDGE_SLACK = 8
+// The upright `drowsy` one-shot is 2.5 s long (asset v0.6); the lie-down follows it.
+const DROWSY_MS = 2500
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value))
 
@@ -115,6 +120,10 @@ export function createMamTravel(hooks: MamTravelHooks) {
   let ready = false
   let lostSent = false
   let asleep = false
+  // The upright yawn before the lie-down is playing.
+  let drowsing = false
+  // The throw that just ended was fast: land harder and shake off.
+  let thrownFast = false
   let drag: { ox: number; oy: number; samples: VelocitySample[] } | null = null
   let following = 0
   // A summon is diving or scrolling toward its card (not yet perched).
@@ -295,7 +304,9 @@ export function createMamTravel(hooks: MamTravelHooks) {
   }
 
   async function wakeSteps(t: number, quick: boolean) {
-    hooks.behavior('curious') // leaving `sleep` takes the blanket off
+    // Leaving `sleep` takes the blanket off; the one-shot rubs the eyes and stretches (1.2 s).
+    hooks.behavior(null)
+    hooks.oneShot('wake')
     await wait(180)
     if (!alive(t)) return
     asleep = false
@@ -320,6 +331,9 @@ export function createMamTravel(hooks: MamTravelHooks) {
     // zero displacement, and must be cancellable too.
     token += 1
     drag = null
+    drowsing = false
+    thrownFast = false
+    hooks.oneShot(null)
     climbing = false
     ready = false
     lostSent = false
@@ -436,13 +450,28 @@ export function createMamTravel(hooks: MamTravelHooks) {
   }
 
   async function sleep() {
-    if (asleep || st.mode !== 'dock' || st.dockOff !== 0) return
+    if (asleep || drowsing || st.mode !== 'dock' || st.dockOff !== 0) return
     const t = (token += 1)
+    drowsing = true
+    hooks.oneShot('drowsy')
+    await wait(DROWSY_MS)
+    if (!alive(t)) return
+    drowsing = false
     asleep = true
     hooks.asleep(true)
+    // `drowsy` ends on the sleep face; `sleep` (and its blanket) takes over as Mầm lies down.
+    hooks.behavior('sleep')
+    hooks.oneShot(null)
     void tween('dy', size * 0.2, 700, ease.inOut, t)
     await tween('rot', -78, 800, ease.inOut, t)
-    if (alive(t)) hooks.behavior('sleep') // the asset pulls the blanket up
+  }
+
+  /** Input during the yawn: Mầm perks up instead of falling asleep. */
+  function stir() {
+    if (!drowsing) return
+    token += 1
+    drowsing = false
+    hooks.oneShot(null)
   }
 
   async function wake(quick = false) {
@@ -456,6 +485,7 @@ export function createMamTravel(hooks: MamTravelHooks) {
     if (!asleep) return
     token += 1
     asleep = false
+    hooks.oneShot(null)
     hooks.asleep(false)
     hooks.behavior(null)
     Object.assign(st, { dy: 0, rot: 0 })
@@ -476,6 +506,8 @@ export function createMamTravel(hooks: MamTravelHooks) {
   function dragStart(x: number, y: number, at = performance.now()) {
     if (st.mode !== 'dock') return false
     token += 1
+    drowsing = false
+    hooks.oneShot(null)
     measure()
     wakeQuiet()
     st.x = origin.left
@@ -483,7 +515,7 @@ export function createMamTravel(hooks: MamTravelHooks) {
     st.dockOff = 0
     drag = { ox: x - st.x, oy: y - st.y, samples: [{ t: at, x, y }] }
     setMode('drag')
-    hooks.behavior('curious')
+    hooks.behavior('dangle') // held by the pointer: legs kick, arms up
     render()
     return true
   }
@@ -513,6 +545,7 @@ export function createMamTravel(hooks: MamTravelHooks) {
     ].filter((sample) => now - sample.t < 90)
     const { vx, vy } = sampleVelocity(samples)
     drag = null
+    thrownFast = isFastThrow(vx, vy)
     Object.assign(st, throwFrom(vx, vy))
     setMode('fly')
     hooks.behavior('happy')
@@ -530,7 +563,7 @@ export function createMamTravel(hooks: MamTravelHooks) {
       })
       Object.assign(st, flight)
       hooks.behavior(st.vy > 0 ? 'curious' : 'happy')
-      if (event === 'bounce') void squash(0.82, owner)
+      if (event === 'bounce') void squash(thrownFast ? 0.7 : 0.82, owner)
       render()
       if (event === 'land') void land()
       else raf(loop)
@@ -543,9 +576,23 @@ export function createMamTravel(hooks: MamTravelHooks) {
     setMode('home')
     Object.assign(st, { vx: 0, vy: 0, spin: 0 })
     hooks.behavior('gentle')
-    void squash(0.74, t)
-    void tween('rot', 0, 380, ease.back, t)
-    await wait(520)
+    if (thrownFast) {
+      // A hard landing: bigger squash, then a quick shake-off (transform only, never dizzy).
+      void squash(0.62, t)
+      for (const [deg, ms] of [
+        [9, 70],
+        [-8, 100],
+        [5, 90],
+        [0, 90],
+      ] as const)
+        await tween('rot', deg, ms, ease.out, t)
+      thrownFast = false
+      await wait(150)
+    } else {
+      void squash(0.74, t)
+      void tween('rot', 0, 380, ease.back, t)
+      await wait(520)
+    }
     if (!alive(t)) return
     hooks.behavior('happy')
     for (const step of hopSteps(st.x, origin.left)) {
@@ -597,6 +644,7 @@ export function createMamTravel(hooks: MamTravelHooks) {
     sleep,
     wake,
     wakeQuiet,
+    stir,
     tipHop,
     dragStart,
     dragMove,

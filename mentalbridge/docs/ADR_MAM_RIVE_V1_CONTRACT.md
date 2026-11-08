@@ -40,11 +40,12 @@ Owner direction (MB-766 discussion, 2026-10-26):
 
 ## Decision summary
 
-1. Freeze asset `mam-v05.riv` by SHA-256, and freeze its `MamControls` view
+1. Freeze asset `mam-v06.riv` by SHA-256, and freeze its `MamControls` view
    model exactly as built.
-2. The dock uses 11 of the 14 `behaviorState` values (`sleep` was appended in
-   v0.4, MB-814; `speaking` in v0.5, MB-815, for the AI voice call only).
-   `sad` and `rest` are reserved.
+2. The dock uses 20 of the 24 `behaviorState` values (`sleep` was appended in
+   v0.4, MB-814; `speaking` in v0.5, MB-815, for the AI voice call only; ten
+   idle and touch states in v0.6, MB-818, of which `point` is built for MB-819
+   and unused by the dock until then). `sad` and `rest` are reserved.
 3. Only the MB-767 adapter writes to Rive. Features emit typed Mầm events.
    They never touch the runtime or the DOM of other features.
 4. Mầm is summon-first. Automatic behaviour is limited to source-verified award
@@ -58,12 +59,12 @@ Owner direction (MB-766 discussion, 2026-10-26):
 
 | Field                                     | Value                                                                                            |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| File                                      | `mam-v05.riv`, 99,394 bytes (v0.3 art plus the looping `sleep` and `speaking` states)            |
-| SHA-256                                   | `6c1068eab4adedbca91a8db5670e02a47e8ec401805050eae90bdbc17588504a`                               |
+| File                                      | `mam-v06.riv`, 145,399 bytes (v0.3 art, `sleep`, `speaking` and the MB-818 idle and touch states)   |
+| SHA-256                                   | `6abc31b75f180fa58506e2ff1b48f9322818fe72652b20e8df9c03a0992ad644`                               |
 | Built by                                  | Rive CLI 1.7.0, `rive <rig> --once` (unsigned, no login)                                         |
-| Rebuild                                   | Deterministic: rebuilding on 2026-11-06 gave the same hash, with 0 errors and 0 warnings         |
+| Rebuild                                   | Deterministic: rebuilding on 2026-11-09 gave the same hash, with 0 errors and 0 warnings         |
 | Artboard                                  | `companion_main`, 512×512, no artboard fill (transparent)                                        |
-| State machine                             | `MamBehaviorController`, layers `Behavior`, `Face`, `Attention`                                  |
+| State machine                             | `MamBehaviorController`, layers `Behavior`, `Face`, `Attention`, `Blink`                         |
 | View model                                | `MamControls`, instance `Default`                                                                |
 | Scripts / embedded images / fonts / audio | none (0 `Script` elements), so no signing is needed                                              |
 
@@ -74,8 +75,9 @@ version and needs a new visual QA pass.
 
 MB-767 lands the asset in the web repository:
 
-- `public/mam/mam-v05.riv` holds the file with the hash above. Budget: at most
-  100 KB (v0.5 is 99,394 bytes).
+- `public/mam/mam-v06.riv` holds the file with the hash above. Budget: at most
+  160 KB (raised from 100 KB for MB-818; v0.6 is 145,399 bytes, v0.5 was 99,394).
+  The runtime and the asset still load lazily and share one load promise.
 - `design-source/mam-rive/` holds the generator inputs. Next.js does not serve
   this folder.
 - The static fallback is a transparent SVG of the v0.3 `idle` pose, generated
@@ -94,7 +96,7 @@ contract and stay unchanged.
 
 | Property             | Type                                                                                                                                                                               | Rule                                                                                         |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `behaviorState`      | enum `MamBehavior` (14 values, IDs fixed in this order: `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy, sleep, speaking`) | Looping poses blend in 260 ms (`sad` 600 ms). The face layer switches in 0 ms                |
+| `behaviorState`      | enum `MamBehavior` (24 values, IDs fixed in this order: `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy, sleep, speaking, drowsy, wake, giggle, tickled, dangle, nod, stretch, look_around, scratch, point`) | Looping poses blend in 260 ms (`sad` 600 ms). The face layer switches in 0 ms                |
 | `attentionDirection` | number −1…1, clamped                                                                                                                                                               | Moves only the pupils. Measured ±6 artboard px at the extremes                               |
 | `celebrationTier`    | enum `none, soft, hero`                                                                                                                                                            | Picks a celebration when `behaviorState` is not itself a one-shot                            |
 | `playOnce`           | trigger                                                                                                                                                                            | Required to start any one-shot. Setting a one-shot enum value alone plays nothing (verified) |
@@ -108,6 +110,30 @@ One-shots last 1.2 s (`light_success`), 0.9 s (`celebrate_soft`) and 1.5 s
 1.6 s respectively. The adapter must read those values back. It must not assume
 its last write is still current.
 
+The `Blink` layer (v0.6) blinks the eyes for 0.2 s while `behaviorState` is `idle`
+(visible, not reduced), then waits a random 3, 4, 5 or 6 s (state-machine
+`random`) before the next blink. The host does nothing for it. The asset writes
+`behaviorState=idle` when any one-shot ends, as for the three above.
+
+Only `dangle` is a new looping state (host-set for a whole drag). The nine other
+v0.6 states are one-shots started with `behaviorState` plus `playOnce` (tier
+`none`); none has a route to another one-shot, so a host cuts a running one with
+`returnToDock` before it starts the next (the adapter does this two frames
+apart). `reducedMotion` and `isVisible` block them like the others.
+
+| New state     | ID  | Class    | Length  | Pose (within the v0.3 sheet)                                                  |
+| ------------- | --- | -------- | ------- | ----------------------------------------------------------------------------- |
+| `drowsy`      | 14  | one-shot | 2.5 s   | Upright yawn, arms up, lids droop, ends on the `sleep` face                   |
+| `wake`        | 15  | one-shot | 1.2 s   | Blanket off, rubs both eyes, big stretch, eyes open                           |
+| `giggle`      | 16  | one-shot | 0.8 s   | Short wiggle, happy eyes, open mouth                                          |
+| `tickled`     | 17  | one-shot | 1.6 s   | Bigger wiggle, flapping arms, wide laugh                                      |
+| `dangle`      | 18  | loop     | 0.8 s   | Lifted, arms out and up, feet kicking, wide eyes                              |
+| `nod`         | 19  | one-shot | 0.7 s   | Two quick bows with happy eyes. No sparkle, no arms                           |
+| `stretch`     | 20  | one-shot | 1.8 s   | Arms wide, eyes squeezed, small shake-off                                     |
+| `look_around` | 21  | one-shot | 2.2 s   | Eyes and head sweep left, then right, then back                               |
+| `scratch`     | 22  | one-shot | 1.6 s   | Right hand scratches the head, puzzled brows                                  |
+| `point`       | 23  | one-shot | 1.6 s   | Right arm points sideways with small taps. Unused by the dock (MB-819)        |
+
 ### V1 behaviour vocabulary
 
 | `behaviorState`  | V1 meaning (a UI event, never the user's mood)                                               | Set by                                   |
@@ -119,7 +145,13 @@ its last write is still current.
 | `listening`      | Mầm offered an optional next step and waits for the user's choice                            | offer shown                              |
 | `gentle`         | Sensitive or failed-request context: calm template text                                      | request failed, sensitive review surface |
 | `happy`          | A verified-award bubble is open                                                              | celebration bubble                       |
-| `sleep`          | Host-set only after 60 s idle, never in reduced motion, never reflects user data             | idle timer                               |
+| `sleep`          | Host-set only after 60 s idle and the `drowsy` yawn, never in reduced motion, never reflects user data | idle timer                               |
+| `drowsy`, `wake` | One-shots of the sleep sequence: the upright yawn before lying down; the wake-up on a click   | travel controller (MB-818)               |
+| `giggle`, `tickled` | One-shots: reactions to the user's own pokes on the awake dock                              | dock click (MB-818)                      |
+| `dangle`          | Loop: held by the pointer for the whole drag                                                  | travel controller (MB-818)               |
+| `stretch`, `look_around`, `scratch` | One-shots: rare idle life while docked and calm                              | idle timer (MB-818)                      |
+| `nod`             | One-shot: a confirmed SupportPlan save. Same for every content, never a celebration         | confirmed save (MB-818)                  |
+| `point`           | One-shot, built for MB-819 (point to a card). Not set by MB-818                               | none yet                                 |
 | `speaking`       | Mầm's voice-call reply audio is playing (agent state `speaking`). Voice call only. Never reflects user data | AI voice call dialog (never the dock)    |
 | `light_success`  | One-shot: a confirmed save or a Content-verified Bingo item                                  | confirmed source event                   |
 | `celebrate_soft` | One-shot: a verified achievement (not the day's hero)                                        | celebration scheduler                    |
@@ -177,8 +209,16 @@ When inputs conflict, the first matching rule wins:
 6. A queued celebration, released only by the budget.
 7. `idle`.
 
-Gaze (`attentionDirection`) points toward the active anchor. It returns to 0
-when Mầm is in the dock. Gaze never follows the pointer continuously.
+Gaze (`attentionDirection`): an active anchor wins and the eyes point to it.
+Otherwise (MB-818) a mouse or pen within about 320 px of the dock eases the eyes
+sideways (horizontal only, clamped −1…1, 160 px to one side is full). The host
+writes at most once per animation frame, from one passive `pointermove` listener
+that exists only while the dock is eligible, and the eyes return to 0 after 2 s
+without pointer movement. There is no gaze tracking during a summon, a perch, a
+drag or throw, a no-interrupt zone, with the menu, a notice or an answer bubble
+open, while muted, asleep, dizzy or in reduced motion, nor for touch pointers or
+while a text field has focus. Eligible means the same conditions as the idle
+actions below.
 
 ## Ownership
 
@@ -203,7 +243,7 @@ when Mầm is in the dock. Gaze never follows the pointer continuously.
 | `mam.request.failed`                       | timeout, quota, policy or network failure                  | reason code                                                          | `gentle` plus approved template copy, never an invented answer                                 |
 | `mam.offer.accepted`                       | user                                                       | target surface                                                       | Shows the next step (see "Explanation sources in V1"). Mầm suggests only after the user agrees |
 | `mam.dismiss`                              | Esc, close, outside click, route change                    | —                                                                    | `returnToDock`. Focus returns to the target                                                    |
-| `mam.save.confirmed`                       | feature, after the authoritative response                  | source reference                                                     | `light_success` in place, no bubble                                                            |
+| `mam.save.confirmed`                       | feature, after the authoritative response                  | source reference                                                     | SupportPlan: `nod` in place (MB-818), no bubble. Other sources keep `light_success`            |
 | `mam.award.verified`                       | MB-774 reward watcher                                      | presentation key (see "Award keys"), kind, `unlockedAt`/`verifiedAt` | Enqueue in the celebration scheduler                                                           |
 | `mam.suppress.enter` / `mam.suppress.exit` | sensitive surfaces                                         | zone                                                                 | Start or end suppression                                                                       |
 | `mam.pref.changed`                         | user                                                       | `hidden`, `muted`, `motion`                                          | Apply immediately                                                                              |
@@ -295,14 +335,47 @@ Mầm's per-card button stays in the DOM with its name and action, but is
 visually hidden until `:focus-visible`; the dock button remains the touch path
 that always works.
 
+### Idle life and touch (MB-818)
+
+All of this is Rive motion plus transform and opacity in the host; no layout
+property animates. It runs only while Mầm is docked, visible, the renderer is
+ready and nothing blocks it: reduced motion (OS or the Mầm motion preference), a
+no-interrupt zone or hidden dock, a failed renderer, the answer bubble, a
+celebration or save nod, and a summon, throw or drag. The autonomous parts (gaze,
+idle actions) also need "Mầm tự lên tiếng" on, Mầm awake, the menu and notices
+closed and nothing playing. Any of these turning true drops what is pending; a
+pending timer is never queued to fire later.
+
+- **Blink** is in the asset (see "Control contract").
+- **Idle actions.** One of `stretch`, `look_around`, `scratch` (never the same
+  twice in a row) at a random 25–45 s interval, at most 2 per rolling minute,
+  never while a text field has focus. A skipped slot is not made up later.
+- **Poke.** A pointer click or tap on the awake dock plays `giggle`. Only the
+  first click of a 1.5 s window toggles the menu as before; further clicks in the
+  window are pokes only (`giggle` again), and the third plays `tickled` once and
+  starts a 10 s cool-down, in which clicks play nothing (the menu toggles once per
+  window as usual). The menu may be open for a giggle; the answer bubble never is.
+  A keyboard or screen-reader activation (no pointer) just toggles the menu, and
+  where Mầm cannot react (reduced motion and the gates above) every click toggles.
+  A click on a sleeping Mầm only wakes it.
+- **Drag and throw.** The looping `dangle` is held for the whole drag. A fast
+  throw (pointer 1,400 px/s or more) bounces and lands with a bigger squash and a
+  short shake-off. Nothing here ever uses the dizzy look.
+- **Acknowledgement.** The SupportPlan confirmed-save event plays `nod` (about
+  0.7 s) in place of `light_success`, for every content, under the same gates as
+  before. The emotion check-in save still has no Mầm reaction, and `light_success`
+  stays for the other sources.
+
 ### Sleep and dizzy (MB-814)
 
 - **Sleep** is a quiet exit, not an appearance. After 60 s without input, a
-  docked, visible, unsuppressed Mầm with nothing open lies down; the host sets
-  the looping `sleep` state, which draws the closed eyes, breathing and blanket,
-  and floats "z z Z". It never sleeps in reduced motion. Only an interaction
-  with Mầm (tap, drag, summon, a celebration) wakes it; other page input does
-  not.
+  docked, visible, unsuppressed Mầm with nothing open plays the upright
+  `drowsy` yawn (2.5 s; any input during it keeps Mầm awake), then lies down;
+  the host sets the looping `sleep` state as the lie-down starts, which draws the
+  closed eyes, breathing and blanket, and floats "z z Z". It never sleeps in
+  reduced motion. Only an interaction with Mầm (tap, drag, summon, a
+  celebration) wakes it; other page input does not. A tap plays `wake` (1.2 s)
+  in place of the old `curious` step; the hop, squash and `happy` beat stay.
 - **Dizzy** means only that Mầm itself is broken: a load error, a contract
   mismatch or a lost canvas context. It lasts until the page reloads, is drawn
   by the host (swirl eyes and orbiting stars, static in reduced motion) and
@@ -338,7 +411,7 @@ document keep the static, inert dock.
 | Surface                                                                                                                                                                                                                        | Dock                       | Summon                                                                                                         | Automatic                                                                  |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | `/dashboard` (outside the emotion check-in entry)                                                                                                                                                                              | yes                        | registered cards, deterministic copy; saved emotion check-in card button (MB-771, same copy for every emotion) | celebrations within budget; none on emotion check-in save                  |
-| `/support-plan` (Today, Plan, Progress, Adjust)                                                                                                                                                                                | yes                        | registered targets, per "Explanation sources in V1"                                                            | confirmed-save `light_success` only. No award celebrations under policy v1 |
+| `/support-plan` (Today, Plan, Progress, Adjust)                                                                                                                                                                                | yes                        | registered targets, per "Explanation sources in V1"                                                            | confirmed-save `nod` only (MB-818). No award celebrations under policy v1 |
 | `/resources`, `/resources/[resourceId]`                                                                                                                                                                                        | yes                        | reviewed Resource cards (MB-770), deterministic copy                                                           | Bingo `light_success`; celebrations within budget                          |
 | `/achievements`                                                                                                                                                                                                                | yes                        | none in V1                                                                                                     | celebrations within budget                                                 |
 | `/support-guides`, `/support-guides/[supportGuideId]`                                                                                                                                                                          | yes                        | none in V1                                                                                                     | none                                                                       |
@@ -460,8 +533,10 @@ Budget, per device and local day:
   It contains no "come back tomorrow" pressure.
 
 Explicit summons have no Mầm-side cap. Server quota and rate policy still apply.
-Confirmed-save `light_success` is direct feedback to the user's own action. It
-does not use the budget but obeys hidden, muted, motion and suppression.
+Confirmed-save feedback (the SupportPlan `nod`, a Bingo `light_success`) is direct
+feedback to the user's own action. It does not use the budget but obeys hidden,
+muted, motion and suppression. Idle actions, pokes and the drag pose are not
+celebrations and do not use it either.
 
 ## User controls
 

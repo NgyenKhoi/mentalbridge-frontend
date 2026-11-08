@@ -36,7 +36,20 @@ const runtime = vi.hoisted(() => {
       off: (cb) => (cb ? listeners.delete(cb) : listeners.clear()),
     }
   }
-  const oneShots = ['light_success', 'celebrate_soft', 'celebrate_hero']
+  const oneShots = [
+    'light_success',
+    'celebrate_soft',
+    'celebrate_hero',
+    'drowsy',
+    'wake',
+    'giggle',
+    'tickled',
+    'nod',
+    'stretch',
+    'look_around',
+    'scratch',
+    'point',
+  ]
 
   class Rive {
     cleanup = vi.fn()
@@ -204,6 +217,91 @@ describe('MamCharacter', () => {
     await waitFor(() => expect(instance.fired).toHaveLength(2))
   })
 
+  it('cuts a running one-shot and starts the next two frames later, once', async () => {
+    vi.useFakeTimers({
+      toFake: ['requestAnimationFrame', 'cancelAnimationFrame'],
+    })
+    const { rerender } = render(
+      <MamCharacter size={96} oneShot={{ kind: 'giggle', key: 'a' }} />,
+    )
+    const instance = await loaded()
+    expect(instance.fired).toEqual(['playOnce'])
+    expect(instance.values.behaviorState!.value).toBe('giggle')
+
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'tickled', key: 'b' }} />)
+    // The asset has no route from one one-shot to another: it is cut first.
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock'])
+    expect(instance.values.behaviorState!.value).toBe('idle')
+    act(() => void vi.advanceTimersByTime(16))
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock'])
+    act(() => void vi.advanceTimersByTime(16))
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock', 'playOnce'])
+    expect(instance.values.behaviorState!.value).toBe('tickled')
+    vi.useRealTimers()
+  })
+
+  it('drops a pending replay when the host withdraws the command or unmounts', async () => {
+    vi.useFakeTimers({
+      toFake: ['requestAnimationFrame', 'cancelAnimationFrame'],
+    })
+    const { rerender, unmount } = render(
+      <MamCharacter size={96} oneShot={{ kind: 'giggle', key: 'a' }} />,
+    )
+    const instance = await loaded()
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'tickled', key: 'b' }} />)
+    rerender(<MamCharacter size={96} oneShot={null} />)
+    act(() => void vi.advanceTimersByTime(64))
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock'])
+
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'nod', key: 'c' }} />)
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock', 'playOnce'])
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'giggle', key: 'd' }} />)
+    unmount()
+    act(() => void vi.advanceTimersByTime(64))
+    expect(instance.fired).toEqual([
+      'playOnce',
+      'returnToDock',
+      'playOnce',
+      'returnToDock',
+    ])
+    vi.useRealTimers()
+  })
+
+  it('follows the pointer gaze, but an active anchor wins and 0 returns to the gaze', async () => {
+    let value = 0.4
+    const listeners = new Set<() => void>()
+    const gaze = {
+      get: () => value,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener)
+        return () => void listeners.delete(listener)
+      },
+    }
+    const { rerender, unmount } = render(<MamCharacter size={96} gaze={gaze} />)
+    const instance = await loaded()
+    const attention = () => instance.values.attentionDirection!.value
+    expect(attention()).toBe(0.4)
+    value = -0.7
+    act(() => listeners.forEach((listener) => listener()))
+    expect(attention()).toBe(-0.7)
+
+    // The anchor owns the gaze while it is not 0, and the gaze listener is gone.
+    rerender(<MamCharacter size={96} gaze={gaze} attention={0.6} />)
+    expect(attention()).toBe(0.6)
+    expect(listeners.size).toBe(0)
+    value = 0.2
+    act(() => listeners.forEach((listener) => listener()))
+    expect(attention()).toBe(0.6)
+
+    rerender(<MamCharacter size={96} gaze={gaze} attention={0} />)
+    expect(attention()).toBe(0.2)
+    // Without a gaze source (ineligible host) the eyes return to the centre.
+    rerender(<MamCharacter size={96} />)
+    expect(attention()).toBe(0)
+    expect(listeners.size).toBe(0)
+    unmount()
+  })
+
   it('replays an older key that follows a different one (A, B, A)', async () => {
     const shot = (key: string) => ({ kind: 'light_success' as const, key })
     const { rerender } = render(<MamCharacter size={96} oneShot={shot('a')} />)
@@ -364,7 +462,7 @@ describe('MamCharacter', () => {
     const [first, second] = runtime.state.instances
     expect(first!.options.buffer).not.toBe(second!.options.buffer)
     expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch).toHaveBeenCalledWith('/mam/mam-v05.riv')
+    expect(fetch).toHaveBeenCalledWith('/mam/mam-v06.riv')
   })
 
   it('keeps the static pose when the asset download fails, and retries later', async () => {

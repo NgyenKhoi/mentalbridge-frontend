@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
 
@@ -32,10 +32,18 @@ export interface MamOneShotCommand {
   key: string | number
 }
 
+/** Pointer gaze (MB-818): written straight to the asset, so a moving pointer never re-renders React. */
+export interface MamGazeSource {
+  get(): number
+  subscribe(listener: () => void): () => void
+}
+
 export interface MamCharacterProps {
   size: number
   behavior?: MamLoopingBehavior
+  /** Gaze at an active anchor; while it is not 0 it wins over `gaze`. */
   attention?: number
+  gaze?: MamGazeSource
   visible?: boolean
   /** The user's Mầm motion preference; the OS setting forces it on. */
   reducedMotion?: boolean
@@ -92,6 +100,7 @@ export function MamCharacter({
   size,
   behavior = 'idle',
   attention = 0,
+  gaze,
   visible = true,
   reducedMotion = false,
   oneShot = null,
@@ -104,6 +113,12 @@ export function MamCharacter({
   const instanceRef = useRef<RiveInstance | null>(null)
   const firedKeyRef = useRef<MamOneShotCommand['key'] | null>(null)
   const appliedBehaviorRef = useRef<MamLoopingBehavior | null>(null)
+  // A replay waiting for the asset to leave the one-shot it was cut from.
+  const replayRef = useRef<number | null>(null)
+  const cancelReplay = useCallback(() => {
+    if (replayRef.current !== null) cancelAnimationFrame(replayRef.current)
+    replayRef.current = null
+  }, [])
   const [status, setStatus] = useState<MamRenderStatus>('loading')
   const osReducedMotion = useReactiveReducedMotion()
   const reduced = reducedMotion || osReducedMotion
@@ -220,7 +235,16 @@ export function MamCharacter({
     controls.setVisible(visible)
     controls.setReducedMotion(reduced)
     controls.setAttention(attention)
-  }, [status, visible, reduced, attention])
+  }, [status, visible, reduced, attention, gaze])
+
+  // The pointer's gaze, only while no anchor owns it and the host offers one.
+  useEffect(() => {
+    const controls = controlsRef.current
+    if (status !== 'ready' || !controls || !gaze || attention !== 0) return
+    const apply = () => controls.setAttention(gaze.get())
+    apply()
+    return gaze.subscribe(apply)
+  }, [status, gaze, attention])
 
   // A new looping state outranks a running one-shot (ADR arbitration); an
   // unchanged one leaves the one-shot alone.
@@ -241,13 +265,28 @@ export function MamCharacter({
     if (status !== 'ready' || !controls) return
     // The host withdrew the command (mute, route change): cut a running one-shot short.
     if (!oneShot) {
+      cancelReplay()
       if (isMamOneShot(controls.read().behavior)) controls.returnToDock()
       return
     }
     if (firedKeyRef.current === oneShot.key) return
     firedKeyRef.current = oneShot.key
-    controls.playOnce(oneShot.kind)
-  }, [status, oneShot])
+    cancelReplay()
+    // A running one-shot has no route to another one: cut it, then start the
+    // new one two frames later, once the asset is back on its dock state.
+    if (!isMamOneShot(controls.read().behavior)) {
+      controls.playOnce(oneShot.kind)
+      return
+    }
+    controls.returnToDock()
+    replayRef.current = requestAnimationFrame(() => {
+      replayRef.current = requestAnimationFrame(() => {
+        replayRef.current = null
+        controls.playOnce(oneShot.kind)
+      })
+    })
+  }, [status, oneShot, cancelReplay])
+  useEffect(() => cancelReplay, [cancelReplay])
 
   return (
     <span

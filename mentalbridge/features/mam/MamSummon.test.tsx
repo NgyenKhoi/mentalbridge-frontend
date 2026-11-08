@@ -38,6 +38,8 @@ vi.mock('next/navigation', () => ({
 
 const characterState = vi.hoisted(() => ({
   fallback: null as 'error' | 'unsupported' | null,
+  // Reports the renderer ready (MB-818 touch and idle motion need it).
+  ready: false,
   // Lets a test break the renderer after the summon opened.
   fail: null as ((reason: 'error' | 'unsupported') => void) | null,
 }))
@@ -47,17 +49,26 @@ vi.mock('./MamCharacter', async () => {
   return {
     MamCharacter: (props: {
       behavior: string
+      oneShot?: { kind: string } | null
+      onStatusChange?: (status: 'ready') => void
       onFallback?: (reason: 'error' | 'unsupported') => void
     }) => {
       useEffect(() => {
         characterState.fail = (reason) => props.onFallback?.(reason)
       })
       useEffect(() => {
+        if (characterState.ready) props.onStatusChange?.('ready')
         if (characterState.fallback) props.onFallback?.(characterState.fallback)
         // Mount only, as the real character reports its failure once.
         // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [])
-      return <span data-testid="mam-character" data-behavior={props.behavior} />
+      return (
+        <span
+          data-testid="mam-character"
+          data-behavior={props.behavior}
+          data-one-shot={props.oneShot?.kind ?? ''}
+        />
+      )
     },
   }
 })
@@ -206,6 +217,7 @@ describe('Mầm summon', () => {
 
   beforeEach(() => {
     navigation.pathname = '/dashboard'
+    characterState.ready = false
     resetMamRendererFailure()
     window.localStorage.clear()
     window.sessionStorage.clear()
@@ -330,6 +342,62 @@ describe('Mầm summon', () => {
     fireEvent.pointerUp(button, touch)
     fireEvent.click(button)
     expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it('never giggles while the answer bubble is open: a click only closes it', async () => {
+    stubMedia({ reduced: false })
+    characterState.ready = true
+    render(<App />)
+    const shot = () =>
+      screen.getByTestId('mam-character').getAttribute('data-one-shot')
+    fireEvent.click(screen.getByRole('button', { name: 'Mầm' }), { detail: 1 })
+    // The first click opened the menu and giggled.
+    expect(shot()).toBe('giggle')
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Hỏi Mầm về trang này' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Nên bắt đầu từ đâu?' }))
+    await screen.findByRole('button', { name: 'Đưa mình tới đó' })
+    // The answer bubble cuts the giggle and takes no new touch motion.
+    expect(shot()).toBe('')
+    fireEvent.click(screen.getByRole('button', { name: 'Mầm' }), { detail: 1 })
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Đưa mình tới đó' }),
+      ).toBeNull(),
+    )
+    expect(shot()).toBe('')
+    expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+  })
+
+  it('never starts a drag from the dock while the answer bubble is open', async () => {
+    stubMedia({ reduced: false })
+    characterState.ready = true
+    render(<App />)
+    const dock = screen.getByRole('button', { name: 'Mầm' })
+    fireEvent.click(dock)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Hỏi Mầm về trang này' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Nên bắt đầu từ đâu?' }))
+    await screen.findByRole('button', { name: 'Đưa mình tới đó' })
+    const at = (x: number, y: number) => ({
+      pointerId: 1,
+      pointerType: 'mouse',
+      isPrimary: true,
+      button: 0,
+      clientX: x,
+      clientY: y,
+    })
+    fireEvent.pointerDown(dock, at(50, 700))
+    fireEvent.pointerMove(dock, at(300, 500))
+    expect(document.querySelector('[data-mam-dock]')).toHaveAttribute(
+      'data-mam-travel',
+      'dock',
+    )
+    expect(
+      screen.getByRole('button', { name: 'Đưa mình tới đó' }),
+    ).toBeInTheDocument()
   })
 
   it('asks about the page from the dock and takes the user to the next step', async () => {

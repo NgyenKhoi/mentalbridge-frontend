@@ -390,8 +390,13 @@ test.describe('MB-814 living Mầm on the dock', () => {
     test.setTimeout(150_000)
     await open(page)
     await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'false')
-    await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'true', {
+    // MB-818: the upright yawn comes first, then the lie-down.
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', 'drowsy', {
       timeout: 80_000,
+    })
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'false')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'true', {
+      timeout: 10_000,
     })
     const sleeping = page.getByRole('button', {
       name: 'Mầm đang ngủ, bấm để đánh thức',
@@ -415,9 +420,14 @@ test.describe('MB-814 living Mầm on the dock', () => {
     await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'true')
 
     await sleeping.click()
+    // The Rive wake replaces the old curious step.
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', 'wake')
     await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'false')
     await expect(menu(page)).toHaveCount(0)
     await expect(dock(page)).toBeVisible()
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '', {
+      timeout: 5000,
+    })
   })
 
   test('never sleeps under reduced motion', async ({ page }) => {
@@ -426,12 +436,15 @@ test.describe('MB-814 living Mầm on the dock', () => {
     await open(page)
     await page.waitForTimeout(65_000)
     await expect(dockRoot(page)).toHaveAttribute('data-mam-sleep', 'false')
+    // No yawn, no idle action, no gaze: a static pose.
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'false')
   })
 
   test('is dizzy when the asset fails, and a tap or a summon says so', async ({
     page,
   }) => {
-    await page.route('**/mam/mam-v05.riv', (route) => route.abort('failed'))
+    await page.route('**/mam/mam-v06.riv', (route) => route.abort('failed'))
     await installHomeMocks(page, homeWorld('do-today'))
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/dashboard')
@@ -445,7 +458,10 @@ test.describe('MB-814 living Mầm on the dock', () => {
       page.locator('[data-mam-dock] [data-still="false"]'),
     ).toHaveCount(1)
 
+    // Dizzy is only the broken renderer: no touch reaction, no gaze.
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'false')
     await broken.click()
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
     const message = page.getByRole('dialog', { name: 'Mầm' })
     await expect(message).toContainText(
       'Mình đang bị choáng một chút nên tạm thời chưa giúp được.',
@@ -468,11 +484,197 @@ test.describe('MB-814 living Mầm on the dock', () => {
 
   test('static dizzy art under reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await page.route('**/mam/mam-v05.riv', (route) => route.abort('failed'))
+    await page.route('**/mam/mam-v06.riv', (route) => route.abort('failed'))
     await installHomeMocks(page, homeWorld('do-today'))
     await page.goto('/dashboard')
     await expect(
       page.locator('[data-mam-dock] [data-still="true"]'),
     ).toHaveCount(1)
+  })
+})
+
+// MB-818: idle life and touch. The renderer is the real v0.6 asset; the dock root
+// reports what the character was told to play (`data-mam-shot`) and whether the
+// pointer gaze is on (`data-mam-gaze`).
+test.describe('MB-818 Mầm idle life and touch', () => {
+  test.use({ timezoneId: 'Asia/Ho_Chi_Minh' })
+  test.skip(
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'The dock journey uses browser-owned fixtures only.',
+  )
+
+  const ready = async (page: Page) => {
+    await expect(character(page)).toHaveAttribute('data-mam-status', 'ready', {
+      timeout: 15_000,
+    })
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    await expect(dockRoot(page)).toHaveAttribute('data-yield', 'false')
+  }
+  const open = async (page: Page, width = 1440) => {
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/dashboard')
+    await expect(dock(page)).toBeVisible()
+    await ready(page)
+  }
+  const shot = (page: Page, kind: string) =>
+    expect(dockRoot(page)).toHaveAttribute('data-mam-shot', kind)
+
+  test('a poke giggles and opens the menu; an open menu closes on a click; then pokes tickle and Mầm cools down', async ({
+    page,
+  }) => {
+    await open(page)
+    await dock(page).click()
+    await expect(menu(page)).toBeVisible()
+    await shot(page, 'giggle')
+    // An open menu always closes on the next click, inside the window too.
+    await dock(page).click()
+    await expect(dock(page)).toHaveAttribute('aria-expanded', 'false')
+    // Closed, still inside 1.5 s of the first click: pokes only, the menu stays shut.
+    await dock(page).click()
+    await shot(page, 'giggle')
+    await expect(dock(page)).toHaveAttribute('aria-expanded', 'false')
+    await dock(page).click()
+    await shot(page, 'tickled')
+    await expect(dock(page)).toHaveAttribute('aria-expanded', 'false')
+
+    // A later window opens the menu; the 10 s cool-down keeps Mầm still.
+    await page.waitForTimeout(1700)
+    await dock(page).click()
+    await expect(menu(page)).toBeVisible()
+    await shot(page, '')
+    await expectPageActionsClickable(page)
+  })
+
+  test('a keyboard activation toggles every time and never pokes', async ({
+    page,
+  }) => {
+    await open(page)
+    await dock(page).focus()
+    for (const state of ['true', 'false', 'true', 'false']) {
+      await page.keyboard.press('Enter')
+      await expect(dock(page)).toHaveAttribute('aria-expanded', state)
+      await shot(page, '')
+    }
+  })
+
+  test('a tap on a coarse pointer pokes and opens the menu', async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      hasTouch: true,
+      isMobile: true,
+      viewport: { width: 375, height: 812 },
+      timezoneId: 'Asia/Ho_Chi_Minh',
+    })
+    const page = await context.newPage()
+    await seedOnboardingSeen(page)
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.goto('/dashboard')
+    await ready(page)
+    // No hover to look at: the pointer gaze never runs for touch.
+    await dock(page).tap()
+    await expect(menu(page)).toBeVisible()
+    await shot(page, 'giggle')
+    // A second tap straight away closes the open menu.
+    await dock(page).tap()
+    await expect(dock(page)).toHaveAttribute('aria-expanded', 'false')
+    await context.close()
+  })
+
+  test('under reduced motion every click toggles and nothing plays or gazes', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await open(page)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'false')
+    await dock(page).click()
+    await expect(menu(page)).toBeVisible()
+    await dock(page).click()
+    await expect(menu(page)).toHaveCount(0)
+    await shot(page, '')
+  })
+
+  test('the pointer gaze follows the mouse near the dock and gives way to the menu', async ({
+    page,
+  }) => {
+    await open(page)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'true')
+    const home = await box(dock(page))
+    const eyes = {
+      x: home.x + home.width * 0.2,
+      y: home.y + home.height * 0.3,
+      width: home.width * 0.6,
+      height: home.height * 0.3,
+    }
+    // The pupils move: left and right pointers draw different eyes (a blink is
+    // random, so retry until the two stills are both open-eyed).
+    await expect(async () => {
+      await page.mouse.move(home.x - 200, home.y + 40)
+      await page.waitForTimeout(700)
+      const left = await page.screenshot({ clip: eyes })
+      await page.mouse.move(home.x + home.width + 200, home.y + 40)
+      await page.waitForTimeout(700)
+      const right = await page.screenshot({ clip: eyes })
+      expect(left.equals(right)).toBe(false)
+    }).toPass()
+    // Two seconds without moves: back to the centre, and the menu stops the gaze.
+    await dock(page).click()
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'false')
+    await page.keyboard.press('Escape')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'true')
+  })
+
+  test('the gaze stays off in a no-interrupt zone', async ({ page }) => {
+    await open(page)
+    await crisis(page).click()
+    await expect(page.locator('[aria-modal="true"]')).toBeVisible()
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-dock', 'away')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'false')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+  })
+
+  test('a drag holds the gaze off, the throw ends back on the dock with no reaction left', async ({
+    page,
+  }) => {
+    await open(page)
+    const home = await box(dock(page))
+    await page.mouse.move(home.x + 48, home.y + 48)
+    await page.mouse.down()
+    await page.mouse.move(home.x + 200, home.y - 140, { steps: 40 })
+    await travelling(page, 'drag')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'false')
+    // The page text under the pointer is never selected while Mầm is carried.
+    const selectable = () =>
+      page.evaluate(() => ({
+        userSelect: getComputedStyle(document.documentElement).userSelect,
+        selected: window.getSelection()?.toString() ?? '',
+      }))
+    await expect.poll(selectable).toEqual({ userSelect: 'none', selected: '' })
+    await page.mouse.up()
+    await travelling(page, 'fly')
+    await expect.poll(selectable).toMatchObject({ userSelect: 'none' })
+    await travelling(page, 'dock', 20_000)
+    await expect
+      .poll(async () => (await selectable()).userSelect)
+      .not.toBe('none')
+    await shot(page, '')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'true')
+  })
+
+  test('input during an idle action never leaves the dock mid-pose', async ({
+    page,
+  }) => {
+    // The idle action fires 25–45 s after load; a click cuts to a poke at once.
+    test.setTimeout(90_000)
+    await open(page)
+    await expect(async () => {
+      expect(await dockRoot(page).getAttribute('data-mam-shot')).toMatch(
+        /^(stretch|look_around|scratch)$/,
+      )
+    }).toPass({ timeout: 50_000, intervals: [250] })
+    await dock(page).click()
+    await shot(page, 'giggle')
+    await expect(menu(page)).toBeVisible()
   })
 })

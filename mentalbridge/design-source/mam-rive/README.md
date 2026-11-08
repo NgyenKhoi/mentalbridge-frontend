@@ -1,8 +1,8 @@
-# Mầm v0.5 — Rive rig (v0.3 + trạng thái `sleep` và `speaking`)
+# Mầm v0.6 — Rive rig (v0.3 + `sleep`, `speaking` và các trạng thái sống động MB-818)
 
 > Nguồn sinh asset, đã đưa vào repo trong MB-767 (bản gốc ở
 > `creative/mam-rive/`, nằm ngoài Git). Thư mục này không được Next.js phục vụ.
-> Ứng dụng dùng `public/mam/mam-v05.riv` (v0.5, MB-815). Hash của file đó được khóa trong
+> Ứng dụng dùng `public/mam/mam-v06.riv` (v0.6, MB-818). Hash của file đó được khóa trong
 > `docs/ADR_MAM_RIVE_V1_CONTRACT.md`. Nếu đổi `build.mjs`, phải build lại, cập
 > nhật hash và làm lại QA hình ảnh. Các lệnh bên dưới chạy trong thư mục gốc
 > `creative/mam-rive/`.
@@ -19,7 +19,7 @@ Rig Rive dựng lại từ canvas **"Mầm — Character Sheet v0.3"** (file
 - `controls-sheet.png`: hero frame 4, rồi hero, soft và light_success sau khi
   tự về idle, light_success đang chạy, reducedMotion, chỉ đặt enum hero mà
   không fire, và isVisible=false (ô trống).
-- `rig/build/mam-v05.riv`: bản build unsigned để preview cục bộ.
+- `rig/build/mam-v06.riv`: bản build unsigned để preview cục bộ (145,399 byte).
 
 Preview trực tiếp (PowerShell, trong thư mục này):
 
@@ -49,7 +49,7 @@ State machine `MamBehaviorController`, View Model `MamControls`, instance `Defau
 
 | Property | Kiểu | Ý nghĩa |
 | --- | --- | --- |
-| `behaviorState` | enum `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy, sleep, speaking` | Hành vi |
+| `behaviorState` | enum `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy, sleep, speaking, drowsy, wake, giggle, tickled, dangle, nod, stretch, look_around, scratch, point` (24 giá trị, ID cố định theo thứ tự này) | Hành vi |
 | `attentionDirection` | number −1…1 | Hướng nhìn; đồng tử lệch tối đa 6 px |
 | `celebrationTier` | enum `none, soft, hero` | Chọn celebration theo tier |
 | `playOnce` | trigger | Phát one-shot đã chọn |
@@ -57,20 +57,41 @@ State machine `MamBehaviorController`, View Model `MamControls`, instance `Defau
 | `reducedMotion` | boolean | Giữ pose tĩnh, chặn celebration |
 | `isVisible` | boolean | Ẩn nhân vật và bóng |
 
-Ba layer:
+Bốn layer:
 
 - **Behavior** blend tư thế: 260 ms, riêng `sad` 600 ms theo motion spec.
 - **Face** đổi mắt, mày, miệng tức thì (0 ms), để không bị bóng mặt chồng
   khi chuyển state.
 - **Attention** điều khiển hướng nhìn.
+- **Blink** (v0.6) chớp mắt 0,2 s khi `behaviorState=idle`, rồi chờ ngẫu nhiên 3, 4, 5 hoặc 6 s
+  (`random` của state machine). Layer này chỉ key `scaleY` của hai mắt trong lúc chớp.
 
 One-shot (`light_success` 1.2 s, `celebrate_soft` 0.9 s, `celebrate_hero` 1.5 s)
 cần chọn behavior hoặc tier rồi fire `playOnce`. Khi xong, asset ghi lại
 `behaviorState=idle` và `celebrationTier=none`.
 
+v0.6 (MB-818) nối thêm 10 trạng thái, đúng thứ tự `drowsy, wake, giggle, tickled, dangle,
+nod, stretch, look_around, scratch, point`. Chỉ `dangle` là vòng lặp (host đặt suốt lúc kéo);
+9 trạng thái còn lại là one-shot, cũng chọn behavior rồi fire `playOnce`, và asset ghi lại
+`idle` khi xong. Một one-shot không có đường sang one-shot khác, nên host phải `returnToDock`
+trước khi phát cái kế tiếp. `point` chỉ dựng sẵn cho MB-819.
+
+| State | Độ dài | Tư thế (trong bảng nhân vật v0.3) |
+| --- | --- | --- |
+| `drowsy` | 2,5 s | Ngáp đứng, tay giơ, mí sụp, kết thúc ở mặt `sleep` |
+| `wake` | 1,2 s | Bỏ chăn, dụi hai mắt, vươn vai, mở mắt |
+| `giggle` | 0,8 s | Lắc nhẹ, mắt cười, miệng mở |
+| `tickled` | 1,6 s | Lắc mạnh, vẫy tay, cười lớn |
+| `dangle` | 0,8 s (lặp) | Bị nhấc lên, hai tay dang chếch lên, chân đá, mắt tròn |
+| `nod` | 0,7 s | Hai lần gật nhẹ, mắt cười; không lấp lánh, không giơ tay |
+| `stretch` | 1,8 s | Dang tay, nheo mắt, rũ nhẹ |
+| `look_around` | 2,2 s | Mắt và đầu quét trái, rồi phải, rồi về giữa |
+| `scratch` | 1,6 s | Tay phải gãi đầu, mày thắc mắc |
+| `point` | 1,6 s | Tay phải chỉ ngang, gõ nhẹ (chưa dùng ở MB-818) |
+
 Nhịp chuyển động theo bảng Motion spec của canvas:
 
-- Idle: thở 3.5 s, chớp mắt mỗi 3.5 s, lá đung đưa ±4°.
+- Idle: thở 3.5 s, lá đung đưa ±4°. Chớp mắt do layer Blink lo (3 đến 6 s, ngẫu nhiên).
 - Sleep (v0.4, lặp): mắt nhắm (`lidBlink`), mày `soft`, miệng `o` phồng nhẹ và thân
   thở cùng nhịp 3.4 s; layer `blanket` (chăn) chỉ hiện ở sleep. Host lo việc nằm
   xoay, "z z Z" và đưa vào sleep sau 60 s không thao tác (không bao giờ khi reduced
@@ -91,7 +112,7 @@ Không cần npm dependency để build:
 
 ```powershell
 node build.mjs                      # ghi rig/scene.rml + capture/scene.rml
-..\..\.artifacts\tools\rive\rive.exe .\rig --once   # rig/build/mam-v05.riv
+..\..\.artifacts\tools\rive\rive.exe .\rig --once   # rig/build/mam-v06.riv, unsigned, không đăng nhập
 node capture.mjs                    # previews/*.png từ project capture (nền kem)
 ```
 

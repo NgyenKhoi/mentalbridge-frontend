@@ -1,4 +1,4 @@
-import { act, render, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, waitFor } from '@testing-library/react'
 import {
   afterEach,
   beforeAll,
@@ -38,12 +38,26 @@ const rive = vi.hoisted(() => {
       off: (cb) => (cb ? listeners.delete(cb) : listeners.clear()),
     }
   }
-  const oneShots = ['light_success', 'celebrate_soft', 'celebrate_hero']
+  const oneShots = [
+    'light_success',
+    'celebrate_soft',
+    'celebrate_hero',
+    'drowsy',
+    'wake',
+    'giggle',
+    'tickled',
+    'nod',
+    'stretch',
+    'look_around',
+    'scratch',
+    'point',
+  ]
   const state = {
     instances: [] as Array<{
       load: () => void
       fired: string[]
       values: Record<string, Value>
+      complete: () => void
     }>,
   }
   class Rive {
@@ -84,6 +98,12 @@ const rive = vi.hoisted(() => {
         fired: this.fired,
         values: this.values,
         load: () => (options.onLoad as () => void)(),
+        // The asset writes idle when a one-shot ends.
+        complete: () => {
+          const behavior = this.values.behaviorState!
+          behavior.value = 'idle'
+          behavior.listeners.forEach((cb) => cb())
+        },
       })
     }
   }
@@ -178,18 +198,68 @@ describe('a one-shot that wakes a sleeping Mầm', () => {
       ).toBe('ready'),
     )
 
-    // 60 s idle; the lie-down itself runs on real frames.
+    // 60 s idle: the upright yawn (a Rive one-shot) comes first, then Mầm lies down.
     act(() => vi.advanceTimersByTime(60_000))
+    await waitFor(() =>
+      expect(instance.values.behaviorState!.value).toBe('drowsy'),
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2600)
+    })
     await waitFor(() =>
       expect(instance.values.behaviorState!.value).toBe('sleep'),
     )
-    expect(instance.fired).toEqual([])
+    // Idle actions and the yawn reached the asset on their own: count from here.
+    instance.fired.length = 0
 
     act(() => dispatchMamSaved())
     await waitFor(() => expect(instance.fired).toContain('playOnce'))
     // Give the wake and the next renders time to (wrongly) cancel it.
     await act(() => new Promise<void>((resolve) => realTimeout(resolve, 400)))
     expect(instance.fired).toEqual(['playOnce'])
-    expect(instance.values.behaviorState!.value).toBe('light_success')
+    // The SupportPlan save is a nod, and a sleeping Mầm is woken for it.
+    expect(instance.values.behaviorState!.value).toBe('nod')
+  }, 15_000)
+
+  it('a click on a sleeping Mầm plays the Rive wake once and lands back on the host state', async () => {
+    vi.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout', 'Date'],
+      shouldAdvanceTime: true,
+    })
+    const { getByRole } = render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    await waitFor(() => expect(rive.state.instances).toHaveLength(1))
+    const instance = rive.state.instances[0]!
+    act(() => instance.load())
+    await waitFor(() =>
+      expect(
+        document
+          .querySelector('[data-mam-dock] [data-mam-status]')
+          ?.getAttribute('data-mam-status'),
+      ).toBe('ready'),
+    )
+    act(() => vi.advanceTimersByTime(60_000))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2600)
+    })
+    await waitFor(() =>
+      expect(instance.values.behaviorState!.value).toBe('sleep'),
+    )
+    instance.fired.length = 0
+
+    fireEvent.click(getByRole('button', { name: /đang ngủ/ }))
+    await waitFor(() => expect(instance.fired).toEqual(['playOnce']))
+    expect(instance.values.behaviorState!.value).toBe('wake')
+    // The asset ends the wake on idle; the host's own loop state is not asleep any more.
+    act(() => instance.complete())
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+    expect(instance.values.behaviorState!.value).not.toBe('sleep')
+    expect(instance.fired.filter((kind) => kind === 'playOnce')).toHaveLength(1)
   }, 15_000)
 })

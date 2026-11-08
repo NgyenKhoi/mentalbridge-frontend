@@ -14,6 +14,7 @@ import { MamDock } from './MamDock'
 import { MamDockSlot } from './MamDockSlot'
 import { observeMamAwardRead, type MamAward } from './mam-celebrations'
 import { resetMamRendererFailure } from './mam-failure'
+import { setMamMotionOff, setMamMuted } from './mam-preferences'
 import { dispatchMamSaved } from './mam-saved'
 import { useMamSuppress } from './mam-suppression'
 import { loadMamDockHost } from './testing/load-mam-dock-host'
@@ -43,6 +44,7 @@ vi.mock('./MamCharacter', async () => {
       behavior: string
       reducedMotion: boolean
       oneShot?: { kind: string } | null
+      gaze?: unknown
       onStatusChange?: (status: 'ready') => void
       onFallback?: (reason: 'error' | 'unsupported') => void
     }) => {
@@ -65,6 +67,7 @@ vi.mock('./MamCharacter', async () => {
           data-behavior={props.behavior}
           data-reduced={props.reducedMotion}
           data-one-shot={props.oneShot?.kind ?? ''}
+          data-gaze={props.gaze ? 'on' : 'off'}
         />
       )
     },
@@ -602,12 +605,12 @@ describe('MamDock', () => {
       character.ready = true
     })
 
-    it('plays light_success once, then settles', async () => {
+    it('plays nod once, then settles', async () => {
       vi.useFakeTimers()
       render(shown())
       expect(oneShot()).toBe('')
       act(() => dispatchMamSaved())
-      expect(oneShot()).toBe('light_success')
+      expect(oneShot()).toBe('nod')
       act(() => {
         vi.advanceTimersByTime(1500)
       })
@@ -618,7 +621,7 @@ describe('MamDock', () => {
     it('clears playing save feedback on navigation without replaying on return', () => {
       const { rerender } = render(shown())
       act(() => dispatchMamSaved())
-      expect(oneShot()).toBe('light_success')
+      expect(oneShot()).toBe('nod')
 
       navigation.pathname = '/achievements'
       rerender(shown())
@@ -629,7 +632,7 @@ describe('MamDock', () => {
       expect(character.mounts).toBe(1)
 
       act(() => dispatchMamSaved())
-      expect(oneShot()).toBe('light_success')
+      expect(oneShot()).toBe('nod')
     })
 
     it('does not replay an interrupted save when Mầm returns before it ends', async () => {
@@ -645,7 +648,7 @@ describe('MamDock', () => {
       )
       const { rerender } = render(withZone(false))
       act(() => dispatchMamSaved())
-      expect(oneShot()).toBe('light_success')
+      expect(oneShot()).toBe('nod')
       expect(character.plays).toBe(1)
 
       rerender(withZone(true))
@@ -702,9 +705,11 @@ describe('MamDock', () => {
 
     it('stays still while the menu is open', () => {
       render(shown())
-      fireEvent.click(dockButton())
+      fireEvent.click(dockButton(), { detail: 1 })
+      // The poke that opened the menu giggles; the save never nods on top of it.
+      expect(oneShot()).toBe('giggle')
       act(() => dispatchMamSaved())
-      expect(oneShot()).toBe('')
+      expect(oneShot()).toBe('giggle')
     })
 
     it('stays still before the character is ready', () => {
@@ -1142,7 +1147,7 @@ describe('MamDock', () => {
     describe('sleep', () => {
       const sleep = async () => {
         await advance(60_000)
-        await advance(1500)
+        await advance(4000)
       }
 
       beforeEach(() => {
@@ -1155,14 +1160,21 @@ describe('MamDock', () => {
         await advance(59_000)
         expect(root()).toHaveAttribute('data-mam-sleep', 'false')
         await advance(1000)
+        // 60 s: the upright yawn plays first; Mầm is not lying down yet.
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+        expect(
+          screen.getByTestId('mam-character').getAttribute('data-one-shot'),
+        ).toBe('drowsy')
+        expect(behavior()).toBe('idle')
+        await advance(2500)
         expect(root()).toHaveAttribute('data-mam-sleep', 'true')
         expect(
           screen.getByRole('button', {
             name: 'Mầm đang ngủ, bấm để đánh thức',
           }),
         ).toBeInTheDocument()
-        // The asset sets the blanket once the lie-down rotation ends.
-        expect(behavior()).toBe('idle')
+        // The asset is on its sleep face as the lie-down starts.
+        expect(behavior()).toBe('sleep')
         await advance(1200)
         expect(behavior()).toBe('sleep')
 
@@ -1190,7 +1202,7 @@ describe('MamDock', () => {
         fireEvent.keyDown(document.body, { key: 'a' })
         await advance(50_000)
         expect(root()).toHaveAttribute('data-mam-sleep', 'false')
-        await advance(10_000)
+        await advance(13_000)
         expect(root()).toHaveAttribute('data-mam-sleep', 'true')
       })
 
@@ -1250,7 +1262,7 @@ describe('MamDock', () => {
         expect(root()).toHaveAttribute('data-mam-sleep', 'false')
         expect(
           screen.getByTestId('mam-character').getAttribute('data-one-shot'),
-        ).toBe('light_success')
+        ).toBe('nod')
       })
 
       it('a drag wakes a sleeping Mầm quietly', async () => {
@@ -1310,7 +1322,8 @@ describe('MamDock', () => {
         press('pointerMove', 90, 600)
         expect(root()).toHaveAttribute('data-mam-travel', 'drag')
         expect(root()).toHaveAttribute('data-front', 'true')
-        expect(behavior()).toBe('curious')
+        // Held by the pointer for the whole drag.
+        expect(behavior()).toBe('dangle')
         press('pointerMove', 120, 520)
         press('pointerUp', 120, 520)
         fireEvent.click(dockButton())
@@ -1450,7 +1463,7 @@ describe('MamDock', () => {
         vi.useFakeTimers()
         const { rerender } = render(quiet(false))
         await advance(60_000)
-        await advance(1500)
+        await advance(4000)
         expect(root()).toHaveAttribute('data-mam-sleep', 'true')
         expect(behavior()).toBe('sleep')
         rerender(quiet(true))
@@ -1467,13 +1480,570 @@ describe('MamDock', () => {
         vi.useFakeTimers()
         const { rerender } = render(quiet(false))
         await advance(60_000)
-        await advance(300)
-        expect(behavior()).toBe('idle')
+        await advance(2800)
+        expect(behavior()).toBe('sleep')
         rerender(quiet(true))
         await advance(2000)
         expect(root()).toHaveAttribute('data-mam-sleep', 'true')
         expect(behavior()).toBe('sleep')
         expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+      })
+    })
+
+    // MB-818: idle life and touch. The character is a stub that shows the command it got.
+    describe('idle life and touch', () => {
+      const shot = () =>
+        screen.getByTestId('mam-character').getAttribute('data-one-shot')
+      const gaze = () =>
+        screen.getByTestId('mam-character').getAttribute('data-gaze')
+      // The dock button reports the menu at once; the menu itself exits on real frames.
+      const isOpen = () => anyDock().getAttribute('aria-expanded') === 'true'
+      const IDLE = ['stretch', 'look_around', 'scratch']
+      // React flushes effects when an act ends: step the clock so each state change lands.
+      const steps = async (ms: number) => {
+        for (let t = 0; t < ms; t += 500) await advance(500)
+      }
+      // Motion's exit animation paints on real frames.
+      const settle = () =>
+        act(() => new Promise<void>((resolve) => realTimeout(resolve, 350)))
+
+      beforeEach(() => {
+        window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true')
+        vi.useFakeTimers()
+      })
+
+      describe('poke', () => {
+        it('opens the menu and giggles on the first click, never pokes while it is open, then pokes with it closed and cools down', async () => {
+          render(living())
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          expect(shot()).toBe('giggle')
+          await advance(300)
+          // An open menu closes on the next click at once, inside the window, with no poke.
+          const before = character.plays
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+          expect(character.plays).toBe(before)
+          await advance(300)
+          // Closed, still inside 1.5 s of the first click: pokes only, the menu stays shut.
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+          expect(character.plays).toBe(before + 1)
+          expect(shot()).toBe('giggle')
+          await advance(300)
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+          expect(shot()).toBe('tickled')
+          await advance(300)
+          // A fifth click in the same window neither toggles nor plays.
+          const afterTickle = character.plays
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+          expect(character.plays).toBe(afterTickle)
+
+          // A new window opens the menu again, but the cool-down keeps Mầm still.
+          await advance(2000)
+          expect(shot()).toBe('')
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          expect(shot()).toBe('')
+          fireEvent.click(dockButton(), { detail: 1 })
+          await settle()
+          expect(isOpen()).toBe(false)
+          // 10 s after the tickle the next window giggles again.
+          await advance(10_000)
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          expect(shot()).toBe('giggle')
+        })
+
+        it('closes an open menu right after opening it, and again after the window', async () => {
+          render(living())
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          await advance(200)
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+          // Past the window the next click opens it again, and the one after closes it.
+          await advance(1500)
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          await advance(100)
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+        })
+
+        it('works the same for coarse-pointer taps', async () => {
+          render(living())
+          const tap = () => {
+            fireEvent.pointerDown(dockButton(), {
+              pointerId: 7,
+              pointerType: 'touch',
+              isPrimary: true,
+              clientX: 40,
+              clientY: 700,
+            })
+            fireEvent.pointerUp(dockButton(), {
+              pointerId: 7,
+              pointerType: 'touch',
+              isPrimary: true,
+              clientX: 40,
+              clientY: 700,
+            })
+            fireEvent.click(dockButton(), { detail: 1 })
+          }
+          tap()
+          expect(isOpen()).toBe(true)
+          expect(shot()).toBe('giggle')
+          await advance(250)
+          const before = character.plays
+          tap()
+          expect(isOpen()).toBe(false)
+          expect(character.plays).toBe(before)
+          await advance(250)
+          tap()
+          expect(isOpen()).toBe(false)
+          expect(shot()).toBe('giggle')
+        })
+
+        it("keeps today's click under reduced motion: every click toggles, nothing plays", async () => {
+          motionStub(true)
+          render(living())
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          fireEvent.click(dockButton(), { detail: 1 })
+          await settle()
+          expect(isOpen()).toBe(false)
+          expect(shot()).toBe('')
+          expect(gaze()).toBe('off')
+        })
+
+        it('a keyboard activation (no pointer) toggles the menu every time and never pokes', async () => {
+          render(living())
+          fireEvent.click(dockButton())
+          expect(isOpen()).toBe(true)
+          fireEvent.click(dockButton())
+          expect(isOpen()).toBe(false)
+          fireEvent.click(dockButton())
+          expect(isOpen()).toBe(true)
+          expect(shot()).toBe('')
+        })
+
+        it('never pokes before the renderer is ready', async () => {
+          character.ready = false
+          const { unmount } = render(living())
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          fireEvent.click(dockButton(), { detail: 1 })
+          await settle()
+          expect(isOpen()).toBe(false)
+          expect(shot()).toBe('')
+          unmount()
+        })
+
+        it('a click on a sleeping Mầm only wakes it, with the Rive wake', async () => {
+          render(living())
+          await advance(60_000)
+          await advance(4000)
+          expect(root()).toHaveAttribute('data-mam-sleep', 'true')
+          fireEvent.click(screen.getByRole('button', { name: /đang ngủ/ }))
+          expect(isOpen()).toBe(false)
+          expect(shot()).toBe('wake')
+          expect(character.plays).toBeGreaterThan(0)
+          await advance(3500)
+          expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+          expect(isOpen()).toBe(false)
+          // Ends on the host's own looping state, with no giggle on top.
+          expect(shot()).toBe('')
+        })
+      })
+
+      describe('while the dock yields to a page action', () => {
+        it('stops gaze, idle actions and pokes, and drops a giggle in flight', async () => {
+          vi.spyOn(Math, 'random').mockReturnValue(0)
+          const setOverlap = stubOverlap()
+          setOverlap(false)
+          render(living())
+          await advance(100)
+          expect(root()).toHaveAttribute('data-yield', 'false')
+          expect(gaze()).toBe('on')
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(shot()).toBe('giggle')
+          fireEvent.click(dockButton(), { detail: 1 })
+
+          setOverlap(true)
+          fireEvent.scroll(window)
+          await advance(100)
+          expect(root()).toHaveAttribute('data-yield', 'true')
+          expect(shot()).toBe('')
+          expect(gaze()).toBe('off')
+          // No poke while yielding: a click only toggles the menu.
+          const before = character.plays
+          fireEvent.click(dockButton(), { detail: 1 })
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(character.plays).toBe(before)
+          // No idle action either (the 25 s timer would have fired).
+          await steps(40_000)
+          expect(IDLE).not.toContain(shot())
+
+          setOverlap(false)
+          fireEvent.scroll(window)
+          await advance(100)
+          expect(gaze()).toBe('on')
+        })
+      })
+
+      describe('pointer gaze', () => {
+        it('is on while Mầm is calm and docked, and one passive pointermove listener serves it', () => {
+          const add = vi.spyOn(window, 'addEventListener')
+          render(living())
+          expect(gaze()).toBe('on')
+          const own = add.mock.calls.filter(
+            ([type, , options]) =>
+              type === 'pointermove' &&
+              typeof options === 'object' &&
+              !(options as AddEventListenerOptions).capture,
+          )
+          expect(own).toHaveLength(1)
+          expect((own[0]![2] as AddEventListenerOptions).passive).toBe(true)
+        })
+
+        it.each([
+          [
+            'the menu is open',
+            () => fireEvent.click(dockButton(), { detail: 1 }),
+          ],
+          [
+            'muted',
+            () =>
+              act(() =>
+                window.sessionStorage.setItem(
+                  'mentalbridge_mam_session_muted',
+                  'true',
+                ),
+              ),
+          ],
+        ])('is off when %s', (name) => {
+          if (name === 'muted')
+            window.sessionStorage.setItem(
+              'mentalbridge_mam_session_muted',
+              'true',
+            )
+          render(living())
+          if (name !== 'muted') fireEvent.click(dockButton(), { detail: 1 })
+          expect(gaze()).toBe('off')
+        })
+
+        it('is off in a no-interrupt zone, on a still route and while dizzy', () => {
+          function Zone() {
+            useMamSuppress(true)
+            return null
+          }
+          const zone = render(
+            <>
+              <Zone />
+              {living()}
+            </>,
+          )
+          expect(gaze()).toBe('off')
+          zone.unmount()
+          character.fallback = 'error'
+          render(living())
+          expect(screen.getByTestId('mam-character')).toBeInTheDocument()
+        })
+
+        it('is off while a drag or a throw runs and back on at the dock', async () => {
+          render(living())
+          press('pointerDown', 50, 700)
+          press('pointerMove', 90, 600)
+          expect(gaze()).toBe('off')
+          press('pointerUp', 90, 600)
+          await advance(20_000)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+          expect(gaze()).toBe('on')
+        })
+      })
+
+      describe('idle actions', () => {
+        it('plays one stretch, look-around or scratch 25–45 s into the idle, never sooner', async () => {
+          vi.spyOn(Math, 'random').mockReturnValue(0.5) // 35 s
+          render(living())
+          await steps(34_500)
+          expect(shot()).toBe('')
+          await steps(1000)
+          expect(shot()).toBe('look_around')
+          // It ends with the asset; nothing else queued behind it.
+          await steps(2500)
+          expect(shot()).toBe('')
+        })
+
+        it('plays at most 2 in the first minute', async () => {
+          vi.spyOn(Math, 'random').mockReturnValue(0)
+          render(living())
+          await steps(58_000)
+          // 25 s, then 25 s after it ends (about 52 s); the yawn at 60 s is not an idle action.
+          expect(character.plays).toBe(2)
+        })
+
+        it('is cancelled by the menu, never queued, and starts afresh afterwards', async () => {
+          vi.spyOn(Math, 'random').mockReturnValue(0.5)
+          render(living())
+          await steps(20_000)
+          fireEvent.click(dockButton(), { detail: 1 }) // menu open: ineligible, the pending 35 s timer is dropped
+          const afterPoke = character.plays
+          await steps(120_000)
+          expect(character.plays).toBe(afterPoke)
+          fireEvent.click(dockButton(), { detail: 1 }) // a new window closes the menu and giggles
+          const afterClose = character.plays
+          await steps(32_000)
+          expect(character.plays).toBe(afterClose)
+          await steps(5000)
+          expect(IDLE).toContain(shot())
+        })
+
+        it('does not play while the user types in a field', async () => {
+          render(
+            <>
+              <input aria-label="Ghi chú" />
+              {living()}
+            </>,
+          )
+          screen.getByLabelText('Ghi chú').focus()
+          await steps(58_000)
+          expect(character.plays).toBe(0)
+        })
+
+        it.each([
+          ['reduced motion', () => motionStub(true)],
+          [
+            'motion off',
+            () =>
+              window.localStorage.setItem('mentalbridge_mam_motion', 'reduced'),
+          ],
+          [
+            'muted',
+            () =>
+              window.sessionStorage.setItem(
+                'mentalbridge_mam_session_muted',
+                'true',
+              ),
+          ],
+        ])('stays still under %s', async (_name, setup) => {
+          setup()
+          render(living())
+          await advance(120_000)
+          expect(character.plays).toBe(0)
+        })
+      })
+
+      describe('sleep sequence', () => {
+        it.each([
+          [
+            'pointer jitter',
+            () => fireEvent.pointerMove(window, { clientX: 5 }),
+          ],
+          ['a scroll', () => fireEvent.scroll(window)],
+        ])(
+          '%s during the yawn cancels it: Mầm stays up',
+          async (_name, input) => {
+            render(living())
+            await advance(60_000)
+            expect(shot()).toBe('drowsy')
+            input()
+            expect(shot()).toBe('')
+            await advance(5000)
+            expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+            expect(behavior()).not.toBe('sleep')
+          },
+        )
+
+        it('yawns first, and any input during the yawn keeps Mầm awake', async () => {
+          render(living())
+          await advance(60_000)
+          expect(shot()).toBe('drowsy')
+          fireEvent.keyDown(document.body, { key: 'a' })
+          expect(shot()).toBe('')
+          await advance(5000)
+          expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+          // The input restarted the 60 s wait: it yawns again after another minute.
+          await advance(55_000)
+          expect(shot()).toBe('drowsy')
+        })
+
+        it('suppression during the yawn cuts it and Mầm never lies down', async () => {
+          function Zone({ on }: Readonly<{ on: boolean }>) {
+            useMamSuppress(on)
+            return null
+          }
+          const view = (on: boolean) => (
+            <>
+              <Zone on={on} />
+              {living()}
+            </>
+          )
+          const { rerender } = render(view(false))
+          await advance(60_000)
+          expect(shot()).toBe('drowsy')
+          rerender(view(true))
+          await advance(5000)
+          expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+          expect(shot()).toBe('')
+        })
+      })
+
+      describe('drag', () => {
+        it('stops the page text from being selected during a drag and a throw, then restores it', async () => {
+          document.documentElement.style.userSelect = 'text'
+          render(living())
+          press('pointerDown', 50, 700)
+          press('pointerMove', 90, 600)
+          expect(document.documentElement.style.userSelect).toBe('none')
+          press('pointerUp', 90, 600)
+          expect(document.documentElement.style.userSelect).toBe('none')
+          await advance(20_000)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+          expect(document.documentElement.style.userSelect).toBe('text')
+          document.documentElement.style.userSelect = ''
+        })
+
+        it('holds dangle for the whole drag, then plays no one-shot on the throw', async () => {
+          render(living())
+          press('pointerDown', 50, 700)
+          press('pointerMove', 90, 600)
+          expect(behavior()).toBe('dangle')
+          press('pointerMove', 120, 520)
+          expect(behavior()).toBe('dangle')
+          press('pointerUp', 120, 520)
+          expect(behavior()).not.toBe('dangle')
+          expect(shot()).toBe('')
+          await advance(20_000)
+          expect(behavior()).toBe('idle')
+        })
+      })
+
+      // Codex review round 1.
+      describe('in-flight shots and presses after a gate closes', () => {
+        const yieldedDock = async (overlapping: boolean) => {
+          const setOverlap = stubOverlap()
+          setOverlap(false)
+          render(living())
+          await advance(100)
+          setOverlap(overlapping)
+          fireEvent.scroll(window)
+          await advance(100)
+          return setOverlap
+        }
+
+        it.each([
+          ['mute', () => act(() => setMamMuted(true))],
+          [
+            'the menu opening (keyboard activation)',
+            () => fireEvent.click(dockButton(), { detail: 0 }),
+          ],
+        ])(
+          'an idle action in flight stops at once on %s',
+          async (_n, close) => {
+            vi.spyOn(Math, 'random').mockReturnValue(0)
+            render(living())
+            await steps(26_000)
+            expect(IDLE).toContain(shot())
+            close()
+            expect(shot()).toBe('')
+            await advance(3000)
+            expect(shot()).toBe('')
+          },
+        )
+
+        it('an idle action in flight stops when a summon starts', async () => {
+          vi.spyOn(Math, 'random').mockReturnValue(0)
+          render(living())
+          await steps(26_000)
+          expect(IDLE).toContain(shot())
+          // Right-click on a card asks Mầm about it.
+          fireEvent.contextMenu(screen.getByLabelText('Bước tiếp theo'), {
+            clientX: 40,
+            clientY: 40,
+          })
+          expect(shot()).toBe('')
+        })
+
+        it('a poke in flight survives mute: only the autonomous motion stops', async () => {
+          render(living())
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(shot()).toBe('giggle')
+          act(() => setMamMuted(true))
+          expect(shot()).toBe('giggle')
+        })
+
+        it('a save does not nod while the dock yields to a page action', async () => {
+          navigation.pathname = '/support-plan'
+          await yieldedDock(true)
+          expect(root()).toHaveAttribute('data-yield', 'true')
+          const before = character.plays
+          act(() => dispatchMamSaved())
+          expect(shot()).toBe('')
+          expect(character.plays).toBe(before)
+        })
+
+        it('a nod in flight is cut when the dock starts to yield', async () => {
+          navigation.pathname = '/support-plan'
+          const setOverlap = await yieldedDock(false)
+          act(() => dispatchMamSaved())
+          expect(shot()).toBe('nod')
+          setOverlap(true)
+          fireEvent.scroll(window)
+          await advance(100)
+          expect(root()).toHaveAttribute('data-yield', 'true')
+          expect(shot()).toBe('')
+        })
+
+        it('a press does not drag after reduced motion turned on before the threshold', () => {
+          render(living())
+          press('pointerDown', 50, 700)
+          act(() => setMamMotionOff(true))
+          press('pointerMove', 300, 500)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+          press('pointerUp', 300, 500)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+        })
+
+        it('a press does not drag after a no-interrupt zone opened before the threshold', () => {
+          function Zone({ on }: Readonly<{ on: boolean }>) {
+            useMamSuppress(on)
+            return null
+          }
+          const view = (on: boolean) => (
+            <>
+              <Zone on={on} />
+              {living()}
+            </>
+          )
+          const { rerender } = render(view(false))
+          press('pointerDown', 50, 700)
+          rerender(view(true))
+          press('pointerMove', 300, 500)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+        })
+
+        it('never drags before the renderer is ready', () => {
+          character.ready = false
+          render(living())
+          press('pointerDown', 50, 700)
+          press('pointerMove', 300, 500)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+        })
+
+        it('a click without pointer events (screen reader) during the yawn stirs Mầm', async () => {
+          render(living())
+          await advance(60_000)
+          expect(shot()).toBe('drowsy')
+          fireEvent.click(anyDock(), { detail: 0 })
+          expect(shot()).toBe('')
+          expect(isOpen()).toBe(true)
+          await advance(5000)
+          expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+          expect(behavior()).not.toBe('sleep')
+        })
       })
     })
   })
