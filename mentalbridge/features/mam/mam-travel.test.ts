@@ -19,6 +19,7 @@ function setup() {
     behavior: vi.fn((behavior: string | null) =>
       calls.push(`behavior:${behavior}`),
     ),
+    oneShot: vi.fn((kind: string | null) => calls.push(`shot:${kind}`)),
     attention: vi.fn(),
     perch: vi.fn(),
     asleep: vi.fn((asleep: boolean) => calls.push(`asleep:${asleep}`)),
@@ -199,21 +200,33 @@ describe('Mầm travel', () => {
     expect(lost).toHaveBeenCalledTimes(1)
   })
 
-  it('lies down, sleeps in the asset once lying, and wakes with a happy beat', async () => {
+  it('yawns upright for 2.5 s, then lies down asleep, and wakes with a happy beat', async () => {
     const { travel, calls } = setup()
     void travel.sleep()
     await run(100)
-    expect(calls).toEqual(['asleep:true'])
-    // Not yet asleep in the asset while the lie-down runs.
+    // Drowsy plays upright: not asleep, not lying down.
+    expect(calls).toEqual(['shot:drowsy'])
+    await run(2300)
+    expect(calls).toEqual(['shot:drowsy'])
+    expect(travel.values.rotate.get()).toBe(0)
+    // Then the lie-down, with the asset already on its sleep face.
+    await run(200)
+    expect(calls).toEqual([
+      'shot:drowsy',
+      'asleep:true',
+      'behavior:sleep',
+      'shot:null',
+    ])
     await run(900)
     expect(travel.values.rotate.get()).toBeCloseTo(-78, 0)
-    expect(calls.at(-1)).toBe('behavior:sleep')
 
     calls.length = 0
     void travel.wake()
     await run(3000)
+    // The Rive wake replaces the old curious step; hop, squash and happy stay.
     expect(calls).toEqual([
-      'behavior:curious',
+      'behavior:null',
+      'shot:wake',
       'asleep:false',
       'behavior:happy',
       'behavior:null',
@@ -221,10 +234,51 @@ describe('Mầm travel', () => {
     expect(travel.values.rotate.get()).toBeCloseTo(0)
   })
 
+  it('input during the yawn stands Mầm back up instead of lying down', async () => {
+    const { travel, calls } = setup()
+    void travel.sleep()
+    await run(1000)
+    travel.stir()
+    expect(calls).toEqual(['shot:drowsy', 'shot:null'])
+    await run(4000)
+    expect(travel.isAsleep()).toBe(false)
+    expect(travel.values.rotate.get()).toBe(0)
+    expect(calls).toEqual(['shot:drowsy', 'shot:null'])
+    // Nothing to stir once it is not yawning.
+    travel.stir()
+    expect(calls).toHaveLength(2)
+  })
+
+  it.each([
+    ['a snap', (t: ReturnType<typeof setup>['travel']) => t.snap()],
+    ['a drag', (t: ReturnType<typeof setup>['travel']) => t.dragStart(70, 750)],
+  ])('%s during the yawn cuts it and never lies down', async (_name, cut) => {
+    const { travel, calls } = setup()
+    void travel.sleep()
+    await run(1000)
+    cut(travel)
+    expect(calls).toContain('shot:null')
+    await run(4000)
+    expect(travel.isAsleep()).toBe(false)
+    expect(calls).not.toContain('asleep:true')
+  })
+
+  it('a wake cut short by a snap clears its Rive one-shot too', async () => {
+    const { travel, calls } = setup()
+    void travel.sleep()
+    await run(3400)
+    calls.length = 0
+    void travel.wake()
+    await run(300)
+    travel.snap()
+    expect(calls.at(-1)).toBe('behavior:null')
+    expect(calls).toContain('shot:null')
+  })
+
   it('a quick wake skips the happy beat, and a quiet wake is instant', async () => {
     const quick = setup()
     void quick.travel.sleep()
-    await run(1000)
+    await run(3500)
     quick.calls.length = 0
     void quick.travel.wake(true)
     await run(2000)
@@ -232,7 +286,7 @@ describe('Mầm travel', () => {
 
     const quiet = setup()
     void quiet.travel.sleep()
-    await run(1000)
+    await run(3500)
     quiet.travel.wakeQuiet()
     expect(quiet.travel.isAsleep()).toBe(false)
     expect(quiet.travel.values.rotate.get()).toBe(0)
@@ -242,6 +296,8 @@ describe('Mầm travel', () => {
     const { travel, calls } = setup()
     expect(travel.dragStart(70, 750)).toBe(true)
     expect(travel.mode()).toBe('drag')
+    // Held by the pointer: the looping dangle, for the whole drag.
+    expect(calls.at(-1)).toBe('behavior:dangle')
     travel.dragMove(400, 300)
     expect(travel.values.x.get()).toBeCloseTo(400 - 70)
     expect(travel.values.y.get()).toBeCloseTo(300 - 750 + 0, 0)
@@ -256,6 +312,38 @@ describe('Mầm travel', () => {
     expect(travel.values.x.get()).toBeCloseTo(0, 0)
     expect(travel.values.y.get()).toBeCloseTo(0, 0)
     expect(calls.at(-1)).toBe('behavior:null')
+  })
+
+  it('a fast throw lands harder and shakes off, a slow one does not', async () => {
+    const fast = setup()
+    fast.travel.dragStart(70, 750, performance.now())
+    await run(16)
+    fast.travel.dragMove(500, 300)
+    fast.travel.dragEnd(500, 300)
+    let minSy = 1
+    fast.travel.values.scaleY.on('change', (v) => (minSy = Math.min(minSy, v)))
+    let swings = 0
+    fast.travel.values.rotate.on('change', (v) => v > 4 && (swings += 1))
+    await run(20_000)
+    expect(minSy).toBeLessThanOrEqual(0.7)
+    expect(swings).toBeGreaterThan(0)
+    // Dizzy is only the failed renderer: the host never asks for it.
+    expect(fast.calls.every((c) => !c.includes('dizzy'))).toBe(true)
+    expect(fast.travel.mode()).toBe('dock')
+
+    const slow = setup()
+    slow.travel.dragStart(70, 750, performance.now())
+    await run(300)
+    slow.travel.dragMove(80, 740)
+    await run(300)
+    slow.travel.dragEnd(80, 740)
+    let slowSy = 1
+    slow.travel.values.scaleY.on(
+      'change',
+      (v) => (slowSy = Math.min(slowSy, v)),
+    )
+    await run(20_000)
+    expect(slowSy).toBeGreaterThan(0.75)
   })
 
   it('cannot start a drag away from the dock', async () => {
@@ -309,7 +397,7 @@ describe('Mầm travel', () => {
     async (_part, at) => {
       const { travel, hooks } = setup()
       void travel.sleep()
-      await run(1500)
+      await run(3400)
       void travel.wake(false)
       await run(at)
       travel.snap()
@@ -325,7 +413,7 @@ describe('Mầm travel', () => {
   it('disposing during a wake stops every later write', async () => {
     const { travel } = setup()
     void travel.sleep()
-    await run(1500)
+    await run(3400)
     void travel.wake(false)
     await run(400)
     travel.dispose()
@@ -337,7 +425,7 @@ describe('Mầm travel', () => {
   it('a snap during the sleep transform lands in the settled sleep pose', async () => {
     const { travel, hooks } = setup()
     void travel.sleep()
-    await run(300)
+    await run(2800)
     travel.snap()
     expect(travel.isAsleep()).toBe(true)
     expect(travel.values.rotate.get()).toBe(-78)

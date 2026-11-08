@@ -1,7 +1,14 @@
 import { expect, type Page } from '@playwright/test'
 
 import { test } from './test-fixtures'
-import { box, character, crisis, dock, travelling } from './mam-dock-helpers'
+import {
+  box,
+  character,
+  crisis,
+  dock,
+  dockRoot,
+  travelling,
+} from './mam-dock-helpers'
 import { installSupportPlanMocks } from './support-plan-mam-mocks'
 
 // MB-772: the SupportPlan route with the global Mầm (MAM_WEB_ENABLED=true, the
@@ -225,6 +232,50 @@ test.describe('MB-772 SupportPlan with the global Mầm', () => {
     await page.getByRole('tab', { name: 'Tiến triển' }).click()
     await expect(bubble(page)).toHaveCount(0)
     await expect(cardButton(page)).toHaveCount(0)
+  })
+
+  // MB-818: a confirmed SupportPlan save is a quiet nod, never a celebration. The
+  // fixture has no completable action, so the page's own saved event is dispatched;
+  // the workspace wiring and the check-in's silence are unit-tested.
+  test('a confirmed save nods in place, once, and never while the menu is open', async ({
+    page,
+  }) => {
+    await installSupportPlanMocks(page)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/support-plan')
+    await expect(cta(page)).toBeVisible()
+    await expect(character(page)).toHaveAttribute('data-mam-status', 'ready', {
+      timeout: 15_000,
+    })
+    const save = () =>
+      page.evaluate(() => window.dispatchEvent(new Event('mam:saved')))
+
+    await save()
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', 'nod')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')
+    // No bubble, no flight: an acknowledgement, not a celebration.
+    await expect(bubble(page)).toHaveCount(0)
+    await expect(dockRoot(page)).toHaveAttribute('data-front', 'false')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '', {
+      timeout: 3000,
+    })
+
+    await dock(page).focus()
+    await page.keyboard.press('Enter')
+    await expect(dock(page)).toHaveAttribute('aria-expanded', 'true')
+    await save()
+    await page.waitForTimeout(300)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+  })
+
+  test('a save under reduced motion plays nothing', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await installSupportPlanMocks(page)
+    await page.goto('/support-plan')
+    await expect(cta(page)).toBeVisible()
+    await page.evaluate(() => window.dispatchEvent(new Event('mam:saved')))
+    await page.waitForTimeout(300)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
   })
 
   test('hidden Mầm leaves no card button and the original CTA', async ({

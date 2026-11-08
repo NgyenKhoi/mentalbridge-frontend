@@ -36,6 +36,11 @@ export function sampleVelocity(samples: readonly VelocitySample[]) {
   }
 }
 
+/** A pointer flick at or above this speed (px/s) lands harder and shakes off (MB-818). */
+export const FAST_THROW_SPEED = 1400
+export const isFastThrow = (pointerVx: number, pointerVy: number) =>
+  Math.hypot(pointerVx, pointerVy) >= FAST_THROW_SPEED
+
 /** Always tossed upward and damped ("less sensitive", owner). */
 export function throwFrom(pointerVx: number, pointerVy: number) {
   const vx = clamp(pointerVx * 0.35, -600, 600)

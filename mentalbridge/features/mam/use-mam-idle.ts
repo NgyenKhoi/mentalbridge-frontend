@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 
 // Design §D: input is a pointer move or press, a key, a wheel turn, a touch or a scroll.
 const IDLE_MS = 60_000
-const INPUT = [
+export const MAM_INPUT_EVENTS = [
   'pointermove',
   'pointerdown',
   'keydown',
@@ -29,11 +29,11 @@ export function useMamIdle(enabled: boolean, onIdle: () => void) {
       clearTimeout(timer)
       timer = setTimeout(() => latest.current(), IDLE_MS)
     }
-    for (const type of INPUT)
+    for (const type of MAM_INPUT_EVENTS)
       window.addEventListener(type, restart, { capture: true, passive: true })
     return () => {
       clearTimeout(timer)
-      for (const type of INPUT)
+      for (const type of MAM_INPUT_EVENTS)
         window.removeEventListener(type, restart, { capture: true })
     }
   }, [enabled])

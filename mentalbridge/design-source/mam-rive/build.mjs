@@ -1,4 +1,4 @@
-// Mầm v0.5 Rive rig (v0.3 art plus the looping `sleep` and `speaking` states): art from the "Mầm — Character Sheet v0.3" canvas
+// Mầm v0.6 Rive rig (v0.3 art plus `sleep`, `speaking` and the MB-818 idle/touch states): art from the "Mầm — Character Sheet v0.3" canvas
 // (mam_v03_rive_layers.svg), motion from its Motion spec board.
 // Control contract (view model, enum IDs, state graph) is unchanged from the
 // mam-companion v0.2 rig so a consumer can swap the .riv without code changes.
@@ -265,9 +265,15 @@ const nodes = new Map()
 
 // ---------- motion ----------
 // Keep this order: enum IDs are the v0.2 control contract; new values are appended only.
-const behaviors = ['idle', 'curious', 'listening', 'thinking', 'gentle', 'explaining', 'light_success', 'celebrate_soft', 'celebrate_hero', 'rest', 'sad', 'happy', 'sleep', 'speaking']
-const finite = new Set(['light_success', 'celebrate_soft', 'celebrate_hero'])
+// v0.6 (MB-818) appends, in this order: drowsy, wake, giggle, tickled, dangle, nod, stretch, look_around, scratch, point.
+const behaviors = ['idle', 'curious', 'listening', 'thinking', 'gentle', 'explaining', 'light_success', 'celebrate_soft', 'celebrate_hero', 'rest', 'sad', 'happy', 'sleep', 'speaking',
+  'drowsy', 'wake', 'giggle', 'tickled', 'dangle', 'nod', 'stretch', 'look_around', 'scratch', 'point']
+// One-shots start with `playOnce` and write `idle` when done. Only `dangle` is a host-set loop.
+const finite = new Set(['light_success', 'celebrate_soft', 'celebrate_hero', 'drowsy', 'wake', 'giggle', 'tickled', 'nod', 'stretch', 'look_around', 'scratch', 'point'])
+const tiered = new Set(['celebrate_soft', 'celebrate_hero'])
 const ids = { vm: 3000, instance: 3001, behavior: 3010, attention: 3011, tier: 3012, reduced: 3013, visible: 3014, play: 3015, dock: 3016, machine: 3100 }
+// Tier enum lives above the 24 behavior values (3401…3424); the v0.5 ids 3420…3423 would collide.
+const TIER_ENUM = 3460
 const id = (number) => `0:${number}`
 const enumValue = (name) => 3401 + behaviors.indexOf(name)
 const allStates = [...behaviors, 'hidden', 'return_to_dock']
@@ -284,7 +290,7 @@ function condition(property, type, key, literal, op = 'equal') {
 const bool = (property, value) => condition(property, 'Boolean', 634, value)
 const behavior = (name) => condition(ids.behavior, 'Enum', 637, id(enumValue(name)))
 const trigger = (property) => condition(property, 'Trigger', 686)
-const tier = (index) => condition(ids.tier, 'Enum', 637, id(3421 + index))
+const tier = (index) => condition(ids.tier, 'Enum', 637, id(TIER_ENUM + 1 + index))
 const permitted = () => bool(ids.visible, true) + bool(ids.reduced, false)
 const writeEnum = (property, value) => `<ListenerViewModelChange><BindablePropertyEnum propertyValue="${id(value)}"><DataBindContext sourcePathIds="${id(ids.vm)}-${id(property)}" propertyKey="637" direction="true"/></BindablePropertyEnum></ListenerViewModelChange>`
 
@@ -296,18 +302,17 @@ function outgoing(name, face = false) {
     result += route('rest', bool(ids.visible, true) + bool(ids.reduced, true), 0)
     result += route('rest', bool(ids.visible, true) + behavior('rest'), 200)
   }
+  // Transitions are tried in order and the hidden/rest routes above come first, so every later route may skip
+  // visible/reduced checks, except in hidden/rest themselves (they have no route to themselves).
+  const ok = name === 'hidden' || name === 'rest' ? permitted() : ''
   if (name !== 'return_to_dock') result += route('return_to_dock', permitted() + trigger(ids.dock), 220)
   if (finite.has(name)) return result + route('return_to_dock', '', 220, 'enableExitTime="true" exitTimeIsPercetange="true" exitTime="100"')
+  // Explicit one-shots first: transitions are tried in order, so a tier route below never needs to rule them out.
+  for (const target of finite) result += route(target, ok + behavior(target) + trigger(ids.play), 100)
   for (const target of behaviors) {
     if (target === name || target === 'rest') continue
-    if (finite.has(target)) {
-      const allowed = permitted() + condition(ids.behavior, 'Enum', 637, id(enumValue('rest')), 'notEqual')
-      result += route(target, allowed + behavior(target) + trigger(ids.play), 100)
-      if (target !== 'light_success') {
-        const noExplicitAction = [...finite].map((action) => condition(ids.behavior, 'Enum', 637, id(enumValue(action)), 'notEqual')).join('')
-        result += route(target, allowed + noExplicitAction + tier(target === 'celebrate_soft' ? 1 : 2) + trigger(ids.play), 100)
-      }
-    } else result += route(target, permitted() + behavior(target), blendInto(target))
+    if (!finite.has(target)) result += route(target, ok + behavior(target), blendInto(target))
+    else if (tiered.has(target)) result += route(target, ok + condition(ids.behavior, 'Enum', 637, id(enumValue('rest')), 'notEqual') + tier(target === 'celebrate_soft' ? 1 : 2) + trigger(ids.play), 100)
   }
   // A consumed one-shot cannot resume after hide/reduced motion: recover to idle.
   if (name === 'hidden' || name === 'rest') {
@@ -355,6 +360,23 @@ const speakMouth = Object.fromEntries([...new Set(SPEAK_MOUTH)].map((shape) => {
   return [`mouth_${shape}.op`, frames.map((f) => [f, at(Math.min(f, SPEAK_END - 1))])]
 }))
 const happyFace = face({ eye: 'happy', brow: 'raised', mouth: 'open' })
+// Face variants stepped over time: segs = [[startFrame, faceSpec], ...]; each switch flips over one frame.
+const faceSeq = (segs) => {
+  const poses = segs.map(([frame, spec]) => [frame, face(spec)])
+  return Object.fromEntries(Object.keys(poses[0][1]).map((channel) => [channel, poses.reduce((keys, [frame, pose]) => {
+    const value = pose[channel][0][1]
+    if (!keys.length) return [[frame, value]]
+    return value === keys.at(-1)[1] ? keys : [...keys, [frame - 1, keys.at(-1)[1]], [frame, value]]
+  }, [])]))
+}
+// Wiggle around `base`: rest -> base+amp, base-amp ... -> rest at `total`. Periods are multiples of 4 frames.
+const osc = (rest, base, amp, period, cycles, total, lead = 0) => {
+  const out = lead ? [[0, rest], [lead, rest]] : [[0, rest]]
+  for (let c = 0; c < cycles; c++) out.push([lead + c * period + period / 4, base + amp], [lead + c * period + (3 * period) / 4, base - amp])
+  out.push([total, rest])
+  return out
+}
+const hop = (peak, period, cycles, total) => osc(0, -peak / 2, peak / 2, period, cycles, total)
 const timelines = {
   idle: [420, true, {
     ...face({}),
@@ -363,8 +385,6 @@ const timelines = {
     ...lift('L', F([0, 0], [105, 4], [210, 0], [315, -4], [420, 0])),
     ...lift('R', F([0, 0], [105, -4], [210, 0], [315, 4], [420, 0])),
     'glow.op': F([0, glowOp(0.22)], [105, glowOp(0.3)], [210, glowOp(0.22)], [315, glowOp(0.3)], [420, glowOp(0.22)]),
-    'eyeL.sy': F([0, 1], [120, 1], [125, 0.1], [131, 1], [330, 1], [335, 0.1], [341, 1], [420, 1]),
-    'eyeR.sy': F([0, 1], [120, 1], [125, 0.1], [131, 1], [330, 1], [335, 0.1], [341, 1], [420, 1]),
   }],
   curious: [60, false, {
     ...face({ eye: 'wide', browR: 'high', mouth: 'o' }),
@@ -480,6 +500,116 @@ const timelines = {
     'fxSparkle.op': F([0, 0], [26, 1], [70, 1], [86, 0]), 'fxSparkle.s': F([0, 0.7], [32, 1.08], [86, 1.12]),
     'fxConfetti.op': F([0, 0], [26, 0], [32, 1], [70, 1], [86, 0]), 'fxConfetti.dy': F([0, 10], [26, 10], [86, 22]),
   }],
+  // ---- v0.6 (MB-818). One-shots return to the dock pose; `dangle` is the only loop. ----
+  // Upright yawn (2.5 s) that ends in the `sleep` pose (eyes closed, `o` mouth, leaves -10); the host then lies Mầm down.
+  drowsy: [150, false, {
+    ...faceSeq([[0, {}], [16, { eye: 'soft', lid: 'soft', brow: 'soft', mouth: 'gentle' }], [32, { eye: 'none', lid: 'blink', brow: 'raised', mouth: 'big' }], [88, { eye: 'soft', lid: 'soft', brow: 'soft', mouth: 'gentle' }], [114, { eye: 'none', lid: 'blink', brow: 'soft', mouth: 'o' }]]),
+    ...arms(F([0, 18], [32, 18], [58, 75], [80, 75], [100, 18], [150, 18]), F([0, -18], [32, -18], [58, -75], [80, -75], [100, -18], [150, -18])),
+    'body.sy': F([0, 1], [32, 1], [58, 1.04], [80, 1.04], [100, 1], [150, 1]),
+    'head.rot': F([0, 0], [32, 0], [58, -5], [80, -5], [100, 0], [114, 4], [124, 0], [134, 5], [144, 0], [150, 0]),
+    'head.dy': F([0, 0], [32, 0], [58, -2], [80, -2], [100, 0], [114, 3], [124, 0], [134, 4], [144, 0], [150, 0]),
+    ...leaves(F([0, 0], [32, 6], [64, 10], [104, -2], [150, -10])),
+    'glow.s': F([0, glowScale(20)], [150, glowScale(18)]), 'glow.op': F([0, glowOp(0.22)], [150, glowOp(0.18)]),
+    'cheeks.op': F([0, 0.75], [150, 0.85]),
+  }],
+  // 1.2 s: blanket off, rub both eyes, big yawn-stretch, eyes open. Starts from the sleep pose.
+  wake: [72, false, {
+    ...faceSeq([[0, { eye: 'none', lid: 'blink', brow: 'soft', mouth: 'o' }], [10, { eye: 'none', lid: 'blink', brow: 'soft', mouth: 'gentle' }], [40, { eye: 'none', lid: 'blink', brow: 'raised', mouth: 'big' }], [52, { eye: 'wide', brow: 'raised', mouth: 'open' }], [62, { eye: 'open', mouth: 'smile' }]]),
+    'blanket.op': F([0, 1], [12, 0]),
+    ...arms(
+      F([0, 18], [12, 210], [16, 200], [22, 218], [28, 200], [34, 218], [40, 210], [52, 125], [62, 125], [72, 18]),
+      F([0, -18], [12, -210], [16, -200], [22, -218], [28, -200], [34, -218], [40, -210], [52, -125], [62, -125], [72, -18])),
+    'armL.dx': F([0, 0], [12, 6], [40, 6], [52, 0], [72, 0]), 'armL.dy': F([0, 0], [12, -22], [40, -22], [52, 0], [72, 0]),
+    'armR.dx': F([0, 0], [12, -6], [40, -6], [52, 0], [72, 0]), 'armR.dy': F([0, 0], [12, -22], [40, -22], [52, 0], [72, 0]),
+    'body.sy': F([0, 1], [40, 1], [56, 1.05], [72, 1]),
+    'head.rot': F([0, 3], [40, 3], [56, -4], [72, 0]), 'head.dy': F([0, 0], [40, 0], [56, -2], [72, 0]),
+    ...leaves(F([0, -10], [40, -4], [56, 18], [72, 0])),
+    'glow.s': F([0, glowScale(18)], [56, glowScale(24)], [72, glowScale(20)]), 'glow.op': F([0, glowOp(0.18)], [56, glowOp(0.34)], [72, glowOp(0.22)]),
+    'cheeks.op': F([0, 0.85], [72, 0.75]),
+  }],
+  // ~0.8 s short wiggle.
+  giggle: [48, false, {
+    ...happyFace,
+    'mam.rot': osc(0, 0, 4, 12, 4, 48), 'mam.dy': hop(2, 12, 4, 48),
+    ...leaves(F([0, 0], [12, 9], [24, 3], [36, 9], [48, 0])),
+    ...arms(osc(18, 34, 14, 12, 4, 48), osc(-18, -34, -14, 12, 4, 48)),
+    'cheeks.op': hold(0.95),
+    'fxHappy.op': F([0, 0], [8, 1], [40, 1], [48, 0]),
+  }],
+  // ~1.6 s bigger wiggle, flapping arms, wide laugh.
+  tickled: [96, false, {
+    ...face({ eye: 'happy', brow: 'high', mouth: 'big' }),
+    'mam.rot': osc(0, 0, 7, 8, 10, 96), 'mam.dx': osc(0, 0, 2, 8, 10, 96), 'mam.dy': hop(3, 8, 10, 96),
+    ...leaves(osc(0, 14, 10, 8, 10, 96)),
+    ...arms(osc(18, 70, 36, 8, 10, 96), osc(-18, -70, -36, 8, 10, 96)),
+    'cheeks.op': hold(1), 'glow.op': hold(glowOp(0.36)),
+    'fxHappy.op': F([0, 0], [10, 1], [84, 1], [96, 0]), 'fxHappy.s': F([0, 0.6], [20, 1.1], [96, 1]),
+  }],
+  // Held by the pointer for the whole drag: lifted, arms up, feet kicking (loop 0.8 s).
+  dangle: [48, true, {
+    ...face({ eye: 'wide', brow: 'high', mouth: 'o' }),
+    'mam.dy': hold(-5), 'mam.rot': F([0, 0], [12, 3], [24, 0], [36, -3], [48, 0]),
+    'shadow.sx': hold(0.78), 'shadow.op': hold(0.5),
+    'body.sy': hold(1.04), 'head.dy': F([0, 0], [24, -1], [48, 0]),
+    'sprout.rot': F([0, 0], [12, 4], [24, 0], [36, -4], [48, 0]),
+    ...leaves(F([0, 16], [12, 24], [24, 16], [36, 24], [48, 16])),
+    ...arms(F([0, 116], [12, 126], [24, 116], [36, 126], [48, 116]), F([0, -116], [12, -126], [24, -116], [36, -126], [48, -116])),
+    'armL.sy': hold(1.12), 'armR.sy': hold(1.12),
+    'foot_left.dy': F([0, 0], [12, -5], [24, 0], [36, 4], [48, 0]), 'foot_right.dy': F([0, 0], [12, 4], [24, 0], [36, -5], [48, 0]),
+    'foot_left.dx': F([0, 0], [12, -2], [24, 0], [36, 2], [48, 0]), 'foot_right.dx': F([0, 0], [12, 2], [24, 0], [36, -2], [48, 0]),
+    'foot_left.rot': F([0, 0], [12, -12], [24, 0], [36, 10], [48, 0]), 'foot_right.rot': F([0, 0], [12, 10], [24, 0], [36, -12], [48, 0]),
+    'glow.s': hold(glowScale(22)),
+  }],
+  // ~0.7 s acknowledgement: two quick bows with happy eyes. Not a celebration: no sparkle, no arms.
+  nod: [42, false, {
+    ...faceSeq([[0, {}], [6, { eye: 'happy', brow: 'raised', mouth: 'smile' }], [34, {}]]),
+    'head.dy': F([0, 0], [8, 4], [16, 0], [24, 4], [34, 0], [42, 0]), 'head.sy': F([0, 1], [8, 0.96], [16, 1], [24, 0.96], [34, 1], [42, 1]),
+    'body.sy': F([0, 1], [8, 0.985], [16, 1], [24, 0.985], [34, 1], [42, 1]),
+    'sprout.rot': F([0, 0], [8, -4], [16, 3], [24, -4], [34, 0], [42, 0]),
+    ...leaves(F([0, 0], [8, -6], [16, 4], [24, -6], [34, 2], [42, 0])),
+    'cheeks.op': F([0, 0.75], [10, 0.95], [34, 0.95], [42, 0.75]),
+    'glow.op': F([0, glowOp(0.22)], [14, glowOp(0.32)], [42, glowOp(0.22)]),
+  }],
+  // ~1.8 s idle one-shot: arms wide, eyes squeezed, then a small shake-off.
+  stretch: [108, false, {
+    ...faceSeq([[0, {}], [18, { eye: 'happy', brow: 'raised', mouth: 'open' }], [84, {}]]),
+    ...arms(F([0, 18], [28, 140], [72, 140], [98, 18], [108, 18]), F([0, -18], [28, -140], [72, -140], [98, -18], [108, -18])),
+    'body.sy': F([0, 1], [28, 1.05], [72, 1.05], [98, 1], [108, 1]), 'body.sx': F([0, 1], [28, 0.97], [72, 0.97], [98, 1], [108, 1]),
+    'head.dy': F([0, 0], [28, -3], [72, -3], [98, 0], [108, 0]), 'head.rot': F([0, 0], [28, -3], [72, -3], [98, 0], [108, 0]),
+    'mam.rot': osc(0, 0, 2, 8, 2, 108, 80), 'shadow.sx': F([0, 1], [28, 0.96], [72, 0.96], [98, 1], [108, 1]),
+    ...leaves(F([0, 0], [28, 16], [72, 16], [84, 6], [98, 0], [108, 0])),
+    'glow.s': F([0, glowScale(20)], [28, glowScale(25)], [72, glowScale(25)], [108, glowScale(20)]),
+  }],
+  // ~2.2 s idle one-shot: eyes and head sweep left, then right, then back.
+  look_around: [132, false, {
+    ...faceSeq([[0, {}], [10, { eye: 'wide', brow: 'raised', mouth: 'gentle' }], [118, {}]]),
+    'eyeL.dx': F([0, 0], [10, 0], [24, -9], [52, -9], [64, 0], [72, 9], [100, 9], [114, 0], [132, 0]),
+    'eyeR.dx': F([0, 0], [10, 0], [24, -9], [52, -9], [64, 0], [72, 9], [100, 9], [114, 0], [132, 0]),
+    'head.rot': F([0, 0], [10, 0], [26, -8], [52, -8], [66, 0], [74, 8], [100, 8], [116, 0], [132, 0]),
+    'head.dx': F([0, 0], [10, 0], [26, -6], [52, -6], [66, 0], [74, 6], [100, 6], [114, 0], [132, 0]),
+    'sprout.rot': F([0, 0], [30, 6], [56, 6], [70, -6], [104, -6], [122, 0], [132, 0]),
+    ...leaves(F([0, 0], [30, 6], [56, 6], [80, -6], [106, -6], [124, 0], [132, 0])),
+    'mam.rot': F([0, 0], [26, -2], [52, -2], [74, 2], [100, 2], [116, 0], [132, 0]),
+  }],
+  // ~1.6 s idle one-shot: right hand scratches the head, puzzled brows.
+  scratch: [96, false, {
+    ...faceSeq([[0, {}], [12, { eye: 'soft', browL: 'raised', browR: 'low', mouth: 'side' }], [82, {}]]),
+    'armR.rot': F([0, -18], [14, -150], ...Array.from({ length: 10 }, (_, i) => [18 + 4 * i, i % 2 ? -160 : -140]), [58, -150], [78, -150], [92, -18], [96, -18]),
+    'armR.dx': F([0, 0], [14, 6], [78, 6], [92, 0], [96, 0]), 'armR.dy': F([0, 0], [14, -40], [78, -40], [92, 0], [96, 0]), 'armR.sy': F([0, 1], [14, 1.2], [78, 1.2], [92, 1], [96, 1]),
+    'head.rot': F([0, 0], [14, 4], [30, 6], [46, 3], [62, 6], [78, 4], [92, 0], [96, 0]),
+    'sprout.rot': F([0, 0], [18, 3], [58, 5], [78, 3], [96, 0]),
+    ...leaves(F([0, 0], [14, 6], [58, 6], [96, 0])),
+  }],
+  // ~1.6 s one-shot for MB-819: right arm points sideways with small taps. Unused by the host in MB-818.
+  point: [96, false, {
+    ...faceSeq([[0, {}], [8, { eye: 'open', brow: 'raised', mouth: 'smile' }], [84, {}]]),
+    'armR.rot': F([0, -18], [16, -92], [76, -92], [92, -18], [96, -18]),
+    'armR.dy': F([0, 0], [16, -10], [76, -10], [92, 0], [96, 0]), 'armR.sy': F([0, 1], [16, 1.18], [76, 1.18], [92, 1], [96, 1]),
+    'armR.dx': F([0, 0], [16, 2], [32, 5], [44, 2], [56, 5], [68, 2], [76, 2], [92, 0], [96, 0]),
+    'mam.rot': F([0, 0], [16, 5], [76, 5], [92, 0], [96, 0]), 'head.rot': F([0, 0], [16, 3], [76, 3], [92, 0], [96, 0]),
+    ...leaves(F([0, 0], [16, 10], [76, 10], [96, 0])),
+    'fxExplain.op': F([0, 0], [16, 1], [76, 1], [92, 0], [96, 0]), 'cheeks.op': hold(0.85),
+  }],
   rest: [1, false, face({})],
   hidden: [1, false, { ...face({}), 'mam.op': hold(0), 'shadow.op': hold(0) }],
   return_to_dock: [1, false, face({})],
@@ -528,12 +658,12 @@ function animation(name, face = false) {
 
 function buildMotion() {
   const rootMarkup = `<DataEnumCustom name="MamBehavior" id="0:3400">${behaviors.map((name) => `<DataEnumValue key="${name}" value="${name}" id="${id(enumValue(name))}"/>`).join('')}</DataEnumCustom>
-<DataEnumCustom name="MamCelebrationTier" id="0:3420">${['none', 'soft', 'hero'].map((name, index) => `<DataEnumValue key="${name}" value="${name}" id="${id(3421 + index)}"/>`).join('')}</DataEnumCustom>
+<DataEnumCustom name="MamCelebrationTier" id="${id(TIER_ENUM)}">${['none', 'soft', 'hero'].map((name, index) => `<DataEnumValue key="${name}" value="${name}" id="${id(TIER_ENUM + 1 + index)}"/>`).join('')}</DataEnumCustom>
 <DataConverterRangeMapper minInput="-1" maxInput="1" minOutput="0" maxOutput="100" clampLower="true" clampUpper="true" name="AttentionRange" id="0:3450"/>
 <ViewModel name="MamControls" id="0:3000" defaultInstanceId="0:3001">
 <ViewModelPropertyEnumCustom name="behaviorState" id="0:3010" enumId="0:3400"/>
 <ViewModelPropertyNumber name="attentionDirection" id="0:3011"/>
-<ViewModelPropertyEnumCustom name="celebrationTier" id="0:3012" enumId="0:3420"/>
+<ViewModelPropertyEnumCustom name="celebrationTier" id="0:3012" enumId="${id(TIER_ENUM)}"/>
 <ViewModelPropertyBoolean name="reducedMotion" id="0:3013"/>
 <ViewModelPropertyBoolean name="isVisible" id="0:3014"/>
 <ViewModelPropertyTrigger name="playOnce" id="0:3015"/>
@@ -541,19 +671,29 @@ function buildMotion() {
 <ViewModelInstance exports="true" name="Default" id="0:3001">
 <ViewModelInstanceEnum viewModelPropertyId="0:3010" propertyValue="0:3401"/>
 <ViewModelInstanceNumber viewModelPropertyId="0:3011" propertyValue="0"/>
-<ViewModelInstanceEnum viewModelPropertyId="0:3012" propertyValue="0:3421"/>
+<ViewModelInstanceEnum viewModelPropertyId="0:3012" propertyValue="${id(TIER_ENUM + 1)}"/>
 <ViewModelInstanceBoolean viewModelPropertyId="0:3013" propertyValue="false"/>
 <ViewModelInstanceBoolean viewModelPropertyId="0:3014" propertyValue="true"/>
 <ViewModelInstanceTrigger viewModelPropertyId="0:3015"/>
 <ViewModelInstanceTrigger viewModelPropertyId="0:3016"/>
 </ViewModelInstance></ViewModel>`
   // Only the Behavior layer writes back to the view model on return_to_dock.
-  const states = (face) => allStates.map((name, index) => `<AnimationState stateName="${name}" stateCaption="${name}" x="${160 + (index % 4) * 240}" y="${120 + Math.floor(index / 4) * 220}" reset="true" animationId="${id(animationId(name, face))}" id="${id(stateId(name, face))}">${name === 'return_to_dock' && !face ? writeEnum(ids.behavior, enumValue('idle')) + writeEnum(ids.tier, 3421) : ''}${outgoing(name, face)}</AnimationState>`).join('')
+  const states = (face) => allStates.map((name, index) => `<AnimationState stateName="${name}" stateCaption="${name}" x="${160 + (index % 4) * 240}" y="${120 + Math.floor(index / 4) * 220}" reset="true" animationId="${id(animationId(name, face))}" id="${id(stateId(name, face))}">${name === 'return_to_dock' && !face ? writeEnum(ids.behavior, enumValue('idle')) + writeEnum(ids.tier, TIER_ENUM + 1) : ''}${outgoing(name, face)}</AnimationState>`).join('')
   const layer = (label, layerId, face) => `<StateMachineLayer name="${label}" id="${layerId}"><AnyState x="0" y="-120"/><ExitState x="1080" y="-120"/><EntryState x="0" y="120"><StateTransition stateToId="${id(stateId('idle', face))}"/></EntryState>${states(face)}</StateMachineLayer>`
-  const machine = `<StateMachine name="MamBehaviorController" id="0:3100">${layer('Behavior', '0:3101', false)}${layer('Face', '0:3103', true)}<StateMachineLayer name="Attention" id="0:3102"><AnyState x="0" y="-120"/><ExitState x="400" y="-120"/><EntryState x="0" y="0"><StateTransition stateToId="0:3250"/></EntryState><BlendState1DViewModel stateName="attention" x="200" y="0" id="0:3250"><BindablePropertyNumber><DataBindContext sourcePathIds="0:3000-0:3011" propertyKey="636" converterId="0:3450"/></BindablePropertyNumber><BlendAnimation1D animationId="0:3350" value="0"/><BlendAnimation1D animationId="0:3351" value="50"/><BlendAnimation1D animationId="0:3352" value="100"/></BlendState1DViewModel></StateMachineLayer></StateMachine>`
+  // Blink (v0.6): a 12-frame blink in idle, then a random 3/4/5/6 s gap (state-machine `random`), so the host pays nothing.
+  // The layer keys only eyeL/eyeR scaleY during the blink; the gap animations key a no-op channel.
+  const gapSeconds = [3, 4, 5, 6]
+  const gapState = (k) => 3260 + k, blinkState = 3264
+  const idleOnly = permitted() + behavior('idle')
+  const exitAt100 = 'enableExitTime="true" exitTimeIsPercetange="true" exitTime="100"'
+  const blinkLayer = `<StateMachineLayer name="Blink" id="0:3104"><AnyState x="0" y="-120"/><ExitState x="1080" y="-120"/><EntryState x="0" y="120"><StateTransition stateToId="${id(gapState(0))}"/></EntryState>${gapSeconds.map((s, k) => `<AnimationState stateName="blink_gap_${s}s" stateCaption="blink_gap_${s}s" x="${160 + k * 240}" y="120" reset="true" animationId="${id(3361 + k)}" id="${id(gapState(k))}"><StateTransition stateToId="${id(blinkState)}" duration="0" ${exitAt100}>${idleOnly}</StateTransition></AnimationState>`).join('')}<AnimationState stateName="blink" stateCaption="blink" x="560" y="340" reset="true" random="true" animationId="${id(3360)}" id="${id(blinkState)}">${gapSeconds.map((_, k) => `<StateTransition stateToId="${id(gapState(k))}" duration="0" ${exitAt100} randomWeight="1"/>`).join('')}</AnimationState></StateMachineLayer>`
+  const blinkKey = (property, values) => ['eyeL', 'eyeR'].map((key) => `<KeyedObject objectId="${idOf(key)}"><KeyedProperty property="${property}">${keys(values)}</KeyedProperty></KeyedObject>`).join('')
+  const blinkAnimations = `<LinearAnimation name="blink_close" id="${id(3360)}" fps="60" duration="12" loopValue="oneShot">${blinkKey('scaleY', [[0, 1], [6, 0.1], [12, 1]])}</LinearAnimation>` +
+    gapSeconds.map((s, k) => `<LinearAnimation name="blink_gap_${s}s" id="${id(3361 + k)}" fps="60" duration="${s * 60}" loopValue="oneShot"><KeyedObject objectId="${idOf('shadow')}"><KeyedProperty property="x">${keys([[0, n(nodes.get('shadow').x)]])}</KeyedProperty></KeyedObject></LinearAnimation>`).join('')
+  const machine = `<StateMachine name="MamBehaviorController" id="0:3100">${layer('Behavior', '0:3101', false)}${layer('Face', '0:3103', true)}<StateMachineLayer name="Attention" id="0:3102"><AnyState x="0" y="-120"/><ExitState x="400" y="-120"/><EntryState x="0" y="0"><StateTransition stateToId="0:3250"/></EntryState><BlendState1DViewModel stateName="attention" x="200" y="0" id="0:3250"><BindablePropertyNumber><DataBindContext sourcePathIds="0:3000-0:3011" propertyKey="636" converterId="0:3450"/></BindablePropertyNumber><BlendAnimation1D animationId="0:3350" value="0"/><BlendAnimation1D animationId="0:3351" value="50"/><BlendAnimation1D animationId="0:3352" value="100"/></BlendState1DViewModel></StateMachineLayer>${blinkLayer}</StateMachine>`
   // Gaze: pupils shift up to 4 canvas units (6 px) left/right; behavior layer never keys gaze.
   const gaze = ['left', 'center', 'right'].map((name, index) => `<LinearAnimation name="attention_${name}" id="${id(3350 + index)}" duration="1">${['gazeL', 'gazeR'].map((key) => `<KeyedObject objectId="${idOf(key)}"><KeyedProperty property="x">${keys([[0, n(nodes.get(key).x + (index - 1) * 4 * S)]])}</KeyedProperty></KeyedObject>`).join('')}</LinearAnimation>`).join('')
-  return { rootMarkup, artboardMarkup: machine + allStates.map((name) => animation(name) + animation(name, true)).join('') + gaze }
+  return { rootMarkup, artboardMarkup: machine + allStates.map((name) => animation(name) + animation(name, true)).join('') + gaze + blinkAnimations }
 }
 
 function buildScene(background) {
@@ -569,7 +709,7 @@ if (nodeIds.size + 10 >= 1000) throw Error('Node IDs overlap shape IDs')
 await mkdir(join(directory, 'rig'), { recursive: true })
 await mkdir(join(directory, 'capture'), { recursive: true })
 await writeFile(join(directory, 'rig', 'scene.rml'), buildScene())
-await writeFile(join(directory, 'rig', 'rive.yaml'), 'name: mam-v05\nmain: companion_main\nlogs:\n  file: build/rive.log\n  problems: build/problems.log\n')
+await writeFile(join(directory, 'rig', 'rive.yaml'), 'name: mam-v06\nmain: companion_main\nlogs:\n  file: build/rive.log\n  problems: build/problems.log\n')
 await writeFile(join(directory, 'capture', 'scene.rml'), buildScene('#F1F4EB'))
-await writeFile(join(directory, 'capture', 'rive.yaml'), 'name: mam-v05-capture\nmain: companion_main\n')
+await writeFile(join(directory, 'capture', 'rive.yaml'), 'name: mam-v06-capture\nmain: companion_main\n')
 console.log(JSON.stringify({ artboard: 'companion_main', nodes: nodeIds.size, shapes: shapeId - 1000, states: allStates.length }))
