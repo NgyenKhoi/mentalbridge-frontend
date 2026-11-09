@@ -22,6 +22,7 @@ import { MamDockSlot } from './MamDockSlot'
 import * as mamRequests from './mam-requests'
 import { MamCardButton } from './MamCardButton'
 import { resetMamRendererFailure } from './mam-failure'
+import { setMamMotionOff } from './mam-preferences'
 import { useMamSuppress } from './mam-suppression'
 import {
   useMamPageTarget,
@@ -1152,6 +1153,612 @@ describe('Mầm summon', () => {
       rerender(<PlanApp resolver={resolver} dirty />)
       expect(mode()).toBe('dock')
       expect(active('Việc tiếp theo')).toBe(false)
+    })
+
+    // MB-819: drop Mầm on a card to ask about it; a page answer points at its card.
+    describe('drag to ask and point to a card', () => {
+      const drag = (
+        type: 'pointerDown' | 'pointerMove' | 'pointerUp' | 'pointerCancel',
+        x = 60,
+        y = 700,
+      ) =>
+        fireEvent[type](dockButton(), {
+          pointerId: 1,
+          pointerType: 'mouse',
+          isPrimary: true,
+          button: 0,
+          clientX: x,
+          clientY: y,
+        })
+      const dockButton = () =>
+        document.querySelector<HTMLElement>('[data-mam-dock] button')!
+      // The stacking jsdom does not have: the dock first, then what lies under it.
+      const under = (...elements: Element[]) => {
+        document.elementsFromPoint = vi.fn(() => [dockButton(), ...elements])
+      }
+      const card = () => screen.getByRole('region', { name: 'Bước tiếp theo' })
+      const ringed = () => document.querySelectorAll('[data-mam-drop]').length
+      const shot = () =>
+        screen.getByTestId('mam-character').getAttribute('data-one-shot')
+      const carried = async (target: Element[] = [card()]) => {
+        drag('pointerDown')
+        drag('pointerMove', 300, 450)
+        under(...target)
+        drag('pointerMove', 320, 450)
+        await advance(40)
+      }
+
+      beforeEach(() => {
+        characterState.ready = true
+      })
+      afterEach(() => {
+        characterState.ready = false
+        delete (document as { elementsFromPoint?: unknown }).elementsFromPoint
+      })
+
+      it('rings only the registered card under the pointer, and clears it on leaving', async () => {
+        render(<App />)
+        await carried()
+        expect(mode()).toBe('drag')
+        expect(card()).toHaveAttribute('data-mam-drop')
+        expect(card()).not.toHaveAttribute('data-mam-active')
+        expect(ringed()).toBe(1)
+
+        under(screen.getByRole('region', { name: 'Khác' }))
+        drag('pointerMove', 330, 450)
+        await advance(40)
+        expect(ringed(), 'an unregistered area').toBe(0)
+
+        under(screen.getByRole('link', { name: 'Kế hoạch' }))
+        drag('pointerMove', 340, 450)
+        await advance(40)
+        expect(ringed(), 'a native control').toBe(0)
+
+        under(card())
+        drag('pointerMove', 350, 450)
+        await advance(40)
+        expect(ringed()).toBe(1)
+        under()
+        drag('pointerMove', 360, 450)
+        await advance(40)
+        expect(ringed(), 'nothing under the pointer').toBe(0)
+      })
+
+      it('rings only a registered card, never the page itself or the dock', async () => {
+        render(<App />)
+        await carried([document.body])
+        expect(ringed()).toBe(0)
+        under(document.querySelector('[data-mam-dock]')!)
+        drag('pointerMove', 330, 450)
+        await advance(40)
+        expect(ringed()).toBe(0)
+      })
+
+      it('drops on the card: no throw, no ring, then the same starters beside Mầm on the card', async () => {
+        const request = vi.spyOn(mamRequests, 'runMamRequest')
+        render(<App />)
+        await carried()
+        drag('pointerUp', 320, 450)
+        fireEvent.click(dockButton())
+        expect(mode()).toBe('home')
+        expect(ringed()).toBe(0)
+        expect(card()).toHaveAttribute('data-mam-active')
+        // The click that ends the drag asks nothing and opens no dock menu.
+        expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+        expect(dialog()).toBeNull()
+
+        await advance(2400)
+        expect(mode()).toBe('perch')
+        expect(dialog()).toHaveAttribute('data-perch', 'left')
+        expect(
+          screen.getByRole('button', { name: 'Mầm giải thích' }),
+        ).toHaveFocus()
+        expect(request).not.toHaveBeenCalled()
+
+        // Same as right-click: the starter asks, the answer is the reviewed copy.
+        fireEvent.click(screen.getByRole('button', { name: 'Mầm giải thích' }))
+        await advance(1000)
+        expect(screen.getByText(/hành trình/)).toBeInTheDocument()
+      })
+
+      it("closing a dropped Mầm's starters returns focus to the dock, as a right-click does", async () => {
+        render(<App />)
+        await carried()
+        drag('pointerUp', 320, 450)
+        fireEvent.click(dockButton())
+        await advance(2400)
+        expect(dialog()).toBeInTheDocument()
+        fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+        expect(document.activeElement).toBe(dockButton())
+      })
+
+      it('a dropped Mầm leaves focus where the user moved it, while climbing and on Escape', async () => {
+        render(<App />)
+        await carried()
+        drag('pointerUp', 320, 450)
+        fireEvent.click(dockButton())
+        await advance(300)
+        const elsewhere = screen.getByRole('button', { name: 'Không đăng ký' })
+        elsewhere.focus()
+        await advance(2100)
+        expect(mode()).toBe('perch')
+        expect(dialog()).toBeInTheDocument()
+        expect(elsewhere).toHaveFocus()
+        fireEvent.keyDown(elsewhere, { key: 'Escape' })
+        expect(card()).not.toHaveAttribute('data-mam-active')
+        expect(elsewhere).toHaveFocus()
+      })
+
+      it('Escape after the user moved away from a perched dropped Mầm keeps their focus', async () => {
+        render(<App />)
+        await carried()
+        drag('pointerUp', 320, 450)
+        fireEvent.click(dockButton())
+        await advance(2400)
+        expect(
+          screen.getByRole('button', { name: 'Mầm giải thích' }),
+        ).toHaveFocus()
+        const elsewhere = screen.getByRole('button', { name: 'Không đăng ký' })
+        elsewhere.focus()
+        fireEvent.keyDown(elsewhere, { key: 'Escape' })
+        expect(card()).not.toHaveAttribute('data-mam-active')
+        expect(elsewhere).toHaveFocus()
+      })
+
+      it('a touch drag drops on the card the same way, and the press does not long-press first', async () => {
+        render(<App />)
+        const touch = (
+          type: 'pointerDown' | 'pointerMove' | 'pointerUp',
+          x: number,
+          y: number,
+        ) =>
+          fireEvent[type](dockButton(), {
+            pointerId: 1,
+            pointerType: 'touch',
+            isPrimary: true,
+            clientX: x,
+            clientY: y,
+          })
+        touch('pointerDown', 60, 700)
+        touch('pointerMove', 300, 450)
+        under(card())
+        touch('pointerMove', 320, 450)
+        await advance(40)
+        expect(card()).toHaveAttribute('data-mam-drop')
+        touch('pointerUp', 320, 450)
+        expect(mode()).toBe('home')
+        expect(card()).toHaveAttribute('data-mam-active')
+        await advance(2400)
+        expect(mode()).toBe('perch')
+        expect(
+          screen.getByRole('button', { name: 'Mầm giải thích' }),
+        ).toBeInTheDocument()
+      })
+
+      it.each([
+        ['nothing under the pointer', () => []],
+        [
+          'a native control',
+          () => [screen.getByRole('link', { name: 'Kế hoạch' })],
+        ],
+        [
+          'an unregistered area',
+          () => [screen.getByRole('region', { name: 'Khác' })],
+        ],
+      ])('releasing over %s is the throw as before', async (_name, target) => {
+        render(<App />)
+        await carried(target())
+        drag('pointerUp', 320, 450)
+        expect(mode()).toBe('fly')
+        expect(dialog()).toBeNull()
+        expect(card()).not.toHaveAttribute('data-mam-active')
+        await advance(20_000)
+        expect(mode()).toBe('dock')
+      })
+
+      it('releasing over selected text in the card is a throw', async () => {
+        render(<App />)
+        const text = screen.getByText('Bước tiếp theo', { selector: 'p' })
+        await carried([text])
+        vi.spyOn(window, 'getSelection').mockReturnValue(
+          selectionOf(text, text),
+        )
+        drag('pointerUp', 320, 450)
+        expect(mode()).toBe('fly')
+        expect(dialog()).toBeNull()
+      })
+
+      it('a cancelled pointer throws and rings nothing, and summons nothing', async () => {
+        render(<App />)
+        await carried()
+        drag('pointerCancel', 320, 450)
+        expect(mode()).toBe('fly')
+        expect(ringed()).toBe(0)
+        expect(card()).not.toHaveAttribute('data-mam-active')
+      })
+
+      it('Escape snaps Mầm home and takes the ring away', async () => {
+        render(<App />)
+        await carried()
+        expect(ringed()).toBe(1)
+        fireEvent.keyDown(document, { key: 'Escape' })
+        await advance(40)
+        expect(mode()).toBe('dock')
+        expect(ringed()).toBe(0)
+      })
+
+      it('Escape ends the drag for good: a later release over the ringed card summons and clicks nothing', async () => {
+        render(<App />)
+        await carried()
+        expect(ringed()).toBe(1)
+        fireEvent.keyDown(document, { key: 'Escape' })
+        await advance(40)
+        drag('pointerMove', 330, 450)
+        await advance(40)
+        expect(ringed()).toBe(0)
+        drag('pointerUp', 330, 450)
+        fireEvent.click(dockButton())
+        await advance(2400)
+        expect(mode()).toBe('dock')
+        expect(dialog()).toBeNull()
+        expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+        expect(card()).not.toHaveAttribute('data-mam-active')
+        expect(shot()).toBe('')
+      })
+
+      it('a no-interrupt zone opening mid-drag takes the ring away, and the release summons nothing', async () => {
+        navigation.pathname = '/support-plan'
+        const resolver = vi.fn<MamResolver>(async () => ({
+          text: 'Giải thích.',
+        }))
+        const { rerender } = render(<PlanApp resolver={resolver} />)
+        const plan = screen.getByRole('region', { name: 'Việc tiếp theo' })
+        await carried([plan])
+        expect(plan).toHaveAttribute('data-mam-drop')
+        rerender(<PlanApp resolver={resolver} dirty />)
+        await advance(40)
+        expect(ringed()).toBe(0)
+        expect(mode()).toBe('dock')
+        drag('pointerUp', 320, 450)
+        expect(dialog()).toBeNull()
+        expect(plan).not.toHaveAttribute('data-mam-active')
+      })
+
+      it('removes the ring when the host unmounts mid-drag', async () => {
+        const { unmount } = render(<App />)
+        await carried()
+        expect(ringed()).toBe(1)
+        unmount()
+        expect(ringed()).toBe(0)
+      })
+
+      it('never rings or drops under reduced motion, or before the renderer is ready', async () => {
+        stubMedia({ reduced: true })
+        const { unmount } = render(<App />)
+        under(card())
+        drag('pointerDown')
+        drag('pointerMove', 300, 450)
+        await advance(40)
+        expect(mode()).toBe('dock')
+        expect(ringed()).toBe(0)
+        unmount()
+
+        stubMedia({ reduced: false })
+        characterState.ready = false
+        render(<App />)
+        under(card())
+        drag('pointerDown')
+        drag('pointerMove', 300, 450)
+        await advance(40)
+        expect(mode()).toBe('dock')
+        expect(ringed()).toBe(0)
+      })
+
+      it('lets the keyboard path summon exactly as before', async () => {
+        render(<App />)
+        const action = screen.getByRole('button', { name: 'Làm ngay' })
+        action.focus()
+        fireEvent.keyDown(action, { key: 'ContextMenu' })
+        await advance(1700)
+        expect(
+          screen.getByRole('button', { name: 'Mầm giải thích' }),
+        ).toBeInTheDocument()
+        expect(mode()).toBe('perch')
+      })
+
+      describe('the page answer points at its card', () => {
+        const ask = async () => {
+          fireEvent.click(screen.getByRole('button', { name: 'Mầm' }))
+          fireEvent.click(
+            screen.getByRole('button', { name: 'Hỏi Mầm về trang này' }),
+          )
+          fireEvent.click(
+            screen.getByRole('button', { name: 'Nên bắt đầu từ đâu?' }),
+          )
+          await advance(100)
+        }
+        const answer = /Bắt đầu từ thẻ “Bước tiếp theo”/
+        // By anchor: the dock bubble that asked may still be leaving.
+        const bubble = (anchor: 'dock' | 'point') =>
+          document.querySelector(
+            `[role="dialog"][data-anchor="${anchor}"]:not([data-mam-bubble="pending"])`,
+          )
+
+        it('climbs the card, plays point once beside the same answer, and keeps the action', async () => {
+          render(<App />)
+          await ask()
+          // The dock bubble gave way; Mầm is on its way to the card.
+          expect(shot()).toBe('')
+          expect(card()).toHaveAttribute('data-mam-active')
+          // The asking button is gone: focus waits on the dock, not on <body>.
+          expect(document.activeElement).toBe(dockButton())
+          await advance(1700)
+          expect(mode()).toBe('perch')
+          const point = bubble('point')!
+          expect(point).toHaveAttribute('data-perch', 'left')
+          expect(point).toHaveTextContent(answer)
+          expect(point).not.toHaveTextContent('hành trình')
+          expect(shot()).toBe('point')
+          // Then it moves to the card bubble's action.
+          expect(document.activeElement).toBe(
+            screen.getByRole('button', { name: 'Đưa mình tới đó' }),
+          )
+          expect(point.contains(document.activeElement)).toBe(true)
+          // One-shot: it ends and is not played again while the answer stays open.
+          await advance(3000)
+          expect(shot()).toBe('')
+          expect(bubble('point')).toBeInTheDocument()
+          expect(fetchSpy).not.toHaveBeenCalled()
+        })
+
+        it('leaves focus on a page control the user reached during the climb, after perch and after close', async () => {
+          render(<App />)
+          await ask()
+          await advance(300)
+          const elsewhere = screen.getByRole('button', {
+            name: 'Không đăng ký',
+          })
+          elsewhere.focus()
+          await advance(1500)
+          expect(mode()).toBe('perch')
+          expect(bubble('point')).toHaveTextContent(answer)
+          expect(elsewhere).toHaveFocus()
+          fireEvent.keyDown(elsewhere, { key: 'Escape' })
+          expect(card()).not.toHaveAttribute('data-mam-active')
+          expect(elsewhere).toHaveFocus()
+        })
+
+        it('does not reopen the old page answer when a route change closes its card lead', async () => {
+          const { rerender } = render(<App />)
+          await ask()
+          expect(card()).toHaveAttribute('data-mam-active')
+          navigation.pathname = '/achievements'
+          rerender(<App />)
+          await advance(500)
+          expect(card()).not.toHaveAttribute('data-mam-active')
+          navigation.pathname = '/dashboard'
+          rerender(<App />)
+          await advance(2400)
+          expect(
+            screen.queryByRole('button', { name: 'Đưa mình tới đó' }),
+          ).toBeNull()
+          expect(card()).not.toHaveAttribute('data-mam-active')
+          expect(mode()).toBe('dock')
+        })
+
+        describe('reduced motion turning on while the answer is open', () => {
+          afterEach(() => {
+            act(() => setMamMotionOff(false))
+          })
+
+          it.each([
+            ['during', 300],
+            ['after', 1700],
+          ])(
+            'retires the card lead %s the climb: same answer and action at the dock, and no new climb when it is off again',
+            async (_when, elapsed) => {
+              render(<App />)
+              await ask()
+              await advance(elapsed)
+              act(() => setMamMotionOff(true))
+              await advance(300)
+              expect(mode()).toBe('dock')
+              expect(shot()).toBe('')
+              expect(card()).not.toHaveAttribute('data-mam-active')
+              expect(bubble('dock')).toHaveTextContent(answer)
+              expect(
+                within(bubble('dock') as HTMLElement).getByRole('button', {
+                  name: 'Đưa mình tới đó',
+                }),
+              ).toBeInTheDocument()
+
+              act(() => setMamMotionOff(false))
+              await advance(2400)
+              expect(mode()).toBe('dock')
+              expect(shot()).toBe('')
+              expect(card()).not.toHaveAttribute('data-mam-active')
+              expect(bubble('dock')).toHaveTextContent(answer)
+              expect(fetchSpy).not.toHaveBeenCalled()
+            },
+          )
+        })
+
+        it('keeps the go-to-card action working from the card', async () => {
+          render(<App />)
+          await ask()
+          await advance(1700)
+          fireEvent.click(
+            screen.getByRole('button', { name: 'Đưa mình tới đó' }),
+          )
+          expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+          expect(card()).not.toHaveAttribute('data-mam-active')
+          expect(screen.getByRole('button', { name: 'Làm ngay' })).toHaveFocus()
+        })
+
+        it('closing the answer retires point and sends Mầm home', async () => {
+          render(<App />)
+          await ask()
+          await advance(1700)
+          expect(shot()).toBe('point')
+          fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+          expect(shot()).toBe('')
+          expect(card()).not.toHaveAttribute('data-mam-active')
+          await advance(2400)
+          expect(mode()).toBe('dock')
+        })
+
+        it('the card scrolled out of reach closes the answer and cancels point', async () => {
+          render(<App />)
+          await ask()
+          await advance(1700)
+          expect(shot()).toBe('point')
+          rects.scroll = 200
+          rects.top = 110
+          fireEvent.scroll(window)
+          await advance(60)
+          expect(shot()).toBe('')
+          expect(card()).not.toHaveAttribute('data-mam-active')
+          await advance(2000)
+          expect(mode()).toBe('dock')
+        })
+
+        it('the card leaving the page closes the answer and cancels point', async () => {
+          const { rerender } = render(<App />)
+          await ask()
+          await advance(1700)
+          expect(shot()).toBe('point')
+          rerender(<App card={false} />)
+          await advance(60)
+          expect(shot()).toBe('')
+          await advance(2000)
+          expect(mode()).toBe('dock')
+        })
+
+        it('asking another starter afterwards leaves the card and answers at the dock', async () => {
+          render(<App />)
+          await ask()
+          await advance(1700)
+          fireEvent.click(
+            screen.getByRole('button', { name: 'Mầm giải thích' }),
+          )
+          await advance(2600)
+          expect(mode()).toBe('dock')
+          expect(bubble('dock')).toHaveTextContent('Đây là trang chính của bạn')
+          expect(shot()).toBe('')
+        })
+
+        it.each([
+          ['an off-screen card', () => (rects.top = 900)],
+          ['a card behind the header', () => (rects.top = 20)],
+        ])(
+          'answers at the dock for %s, with no point and no scroll',
+          async (_n, arrange) => {
+            const scrollBy = vi.fn()
+            window.scrollBy = scrollBy as unknown as typeof window.scrollBy
+            render(<App />)
+            arrange()
+            await ask()
+            await advance(2000)
+            expect(mode()).toBe('dock')
+            expect(bubble('dock')).toHaveTextContent(answer)
+            expect(
+              screen.getByRole('button', { name: 'Đưa mình tới đó' }),
+            ).toBeInTheDocument()
+            expect(shot()).toBe('')
+            expect(scrollBy).not.toHaveBeenCalled()
+          },
+        )
+
+        it('answers at the dock when the bubble would not fit beside Mầm (narrow screen)', async () => {
+          const width = window.innerWidth
+          Object.defineProperty(window, 'innerWidth', {
+            value: 375,
+            configurable: true,
+          })
+          try {
+            render(<App />)
+            await ask()
+            await advance(2000)
+            expect(mode()).toBe('dock')
+            expect(bubble('dock')).toHaveTextContent(answer)
+            expect(shot()).toBe('')
+            expect(card()).not.toHaveAttribute('data-mam-active')
+          } finally {
+            Object.defineProperty(window, 'innerWidth', {
+              value: width,
+              configurable: true,
+            })
+          }
+        })
+
+        it('answers at the dock when the card is not on the page', async () => {
+          render(<App card={false} />)
+          await ask()
+          await advance(2000)
+          expect(mode()).toBe('dock')
+          expect(bubble('dock')).toHaveTextContent('Mầm chưa gợi ý được')
+          expect(shot()).toBe('')
+        })
+
+        it('answers at the dock before the renderer is ready, with no point', async () => {
+          characterState.ready = false
+          render(<App />)
+          await ask()
+          await advance(2000)
+          expect(mode()).toBe('dock')
+          expect(dialog()).toHaveAttribute('data-anchor', 'dock')
+          expect(shot()).toBe('')
+        })
+
+        it('answers at the dock under reduced motion', async () => {
+          stubMedia({ reduced: true })
+          render(<App />)
+          await ask()
+          await advance(2000)
+          expect(mode()).toBe('dock')
+          expect(dialog()).toHaveAttribute('data-anchor', 'dock')
+          expect(shot()).toBe('')
+        })
+
+        it('does not point for the page explanation: only the start answer has a card', async () => {
+          render(<App />)
+          fireEvent.click(screen.getByRole('button', { name: 'Mầm' }))
+          fireEvent.click(
+            screen.getByRole('button', { name: 'Hỏi Mầm về trang này' }),
+          )
+          fireEvent.click(
+            screen.getByRole('button', { name: 'Mầm giải thích' }),
+          )
+          await advance(2000)
+          expect(mode()).toBe('dock')
+          expect(shot()).toBe('')
+        })
+
+        it('points on the SupportPlan page at the mounted Today card', async () => {
+          navigation.pathname = '/support-plan'
+          render(<PlanApp resolver={async () => null} />)
+          await ask()
+          await advance(1700)
+          expect(mode()).toBe('perch')
+          expect(bubble('point')).toHaveTextContent(
+            'Việc nên làm tiếp: “Viết vài dòng”.',
+          )
+          expect(shot()).toBe('point')
+          expect(
+            screen.getByRole('region', { name: 'Việc tiếp theo' }),
+          ).toHaveAttribute('data-mam-active')
+        })
+
+        it('answers at the dock on SupportPlan without the focus card', async () => {
+          navigation.pathname = '/support-plan'
+          render(<PlanApp resolver={async () => null} card={false} />)
+          await ask()
+          await advance(2000)
+          expect(mode()).toBe('dock')
+          expect(dialog()).toHaveAttribute('data-anchor', 'dock')
+          expect(shot()).toBe('')
+        })
+      })
     })
 
     describe('while dizzy', () => {

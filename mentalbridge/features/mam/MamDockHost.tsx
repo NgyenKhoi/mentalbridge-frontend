@@ -45,6 +45,7 @@ import {
   useMamCelebrations,
 } from './use-mam-celebrations'
 import { useMamSaved } from './mam-saved'
+import { useMamDropRing } from './use-mam-drop-ring'
 import { useMamSummon } from './use-mam-summon'
 import { useMamAway, useMamSuppressed } from './use-mam-suppressed'
 import { useHasMamElementTarget, useMamPageTargetValue } from './use-mam-target'
@@ -124,25 +125,30 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   // A renderer failure (not an unsupported device) leaves Mầm dizzy until reload.
   const [dizzy, setDizzy] = useState(hasMamRendererFailed)
   const pageTarget = useMamPageTargetValue()
-  const { summon, summonPage, choose, go, close, behavior } = useMamSummon({
-    pathname,
-    enabled: !hidden && !suppressed,
-    reducedMotion: reduced,
-    dockRef,
-    bubbleRef,
-    onBlocked: dizzy
-      ? (returnFocus) => {
-          setNotice({
-            kind: 'dizzy',
-            returnFocus: returnFocus ?? dockRef.current,
-          })
-          setDizzyPlay((value) => value + 1)
-        }
-      : undefined,
-  })
+  const [status, setStatus] = useState<MamRenderStatus>('loading')
+  // Travel (MB-814): a reduced-motion setting or a still route keeps Mầm put.
+  const still = reduced || isMamStaticDockRoute(pathname)
+  const canTravel = !hidden && !away && !suppressed && !still && !dizzy
+  const { summon, summonPage, summonOn, choose, go, close, behavior } =
+    useMamSummon({
+      pathname,
+      enabled: !hidden && !suppressed,
+      reducedMotion: reduced,
+      dockRef,
+      bubbleRef,
+      canPoint: canTravel && status === 'ready',
+      onBlocked: dizzy
+        ? (returnFocus) => {
+            setNotice({
+              kind: 'dizzy',
+              returnFocus: returnFocus ?? dockRef.current,
+            })
+            setDizzyPlay((value) => value + 1)
+          }
+        : undefined,
+    })
   const dockBubble = summon?.anchor.kind === 'dock'
   const accountId = useMamAccountId()
-  const [status, setStatus] = useState<MamRenderStatus>('loading')
   if (notice && (summon || menuOpen)) setNotice(null)
   // A renderer failure retires what is open: the menu, the summon and its request.
   if (dizzy && open) setOpen(false)
@@ -164,10 +170,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       dockRef.current?.focus({ preventScroll: true })
   }, [dizzy, summon, close])
 
-  // Travel (MB-814): the controller drives the character; React only learns
-  // what it must render. A reduced-motion setting or a still route keeps Mầm put.
-  const still = reduced || isMamStaticDockRoute(pathname)
-  const canTravel = !hidden && !away && !suppressed && !still && !dizzy
+  // The controller drives the character; React only learns what it must render.
   const size = compact ? 72 : 96
   const thanksRef = useRef(false)
   const dragRef = useRef<{
@@ -307,6 +310,14 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   // reduced motion, no-interrupt zones, hidden and a failed renderer) and never overlap a
   // celebration, a save nod or the answer bubble. The menu and the tip may stay open.
   const calm = canTravel && status === 'ready'
+  // MB-819: a page answer's card is on screen and Mầm is perched there with the bubble open.
+  const lead = summon?.lead
+  const pointReady =
+    calm &&
+    lead !== undefined &&
+    summon?.phase === 'answer' &&
+    perched &&
+    perch !== null
   const touchOk =
     calm &&
     travelMode === 'dock' &&
@@ -324,9 +335,11 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     local.shot &&
     (localKind === 'drowsy' || localKind === 'wake'
       ? calm
-      : (IDLE_ACTIONS as readonly string[]).includes(localKind ?? '')
-        ? autonomous
-        : touchOk)
+      : localKind === 'point'
+        ? pointReady
+        : (IDLE_ACTIONS as readonly string[]).includes(localKind ?? '')
+          ? autonomous
+          : touchOk)
       ? local.shot
       : null
   // Withdrawn eligibility drops the command for good, so it never resurfaces mid-way.
@@ -335,6 +348,26 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   useEffect(() => {
     if (dropShot) cancelLocal()
   }, [dropShot, cancelLocal])
+  // `point` plays once per answer: a later answer is another lead.
+  const pointedAt = useRef<typeof lead>(undefined)
+  const playLocal = local.play
+  useEffect(() => {
+    if (!pointReady || pointedAt.current === lead) return
+    pointedAt.current = lead
+    playLocal('point')
+  }, [pointReady, lead, playLocal])
+  // The dock bubble that asked leaves for the card's: until Mầm is perched and the card's
+  // bubble takes focus, it waits on the dock, never on <body> (the asking button is gone).
+  useEffect(() => {
+    if (!lead || perch) return
+    const active = document.activeElement
+    if (
+      !active ||
+      active === document.body ||
+      bubbleRef.current?.contains(active)
+    )
+      dockRef.current?.focus({ preventScroll: true })
+  }, [lead, perch])
   const lively = autonomous && !local.shot
   // What the character is told to play now (also read by the E2E specs).
   const playing = (asleep ? null : shot) ?? localShot
@@ -536,6 +569,8 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
 
   // A drag is play: only where Mầm is ready and free to travel, never from an open bubble.
   const dragOk = canTravel && status === 'ready' && !dockBubble
+  // The card under the pointer wears a ring while Mầm is carried over it (MB-819).
+  const ring = useMamDropRing(travelMode === 'drag' && dragOk, rootRef)
   // A tap (under 6 px of travel) keeps the button's job; a drag is play.
   const onDockPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (
@@ -577,13 +612,26 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       celebration.dismiss()
     }
     travel.dragMove(event.clientX, event.clientY)
+    // Escape or a fallen gate ended the drag while the pointer is still held.
+    if (dragOk && travelMode === 'drag')
+      ring.track(event.clientX, event.clientY)
   }
   const onDockPointerEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const press = dragRef.current
     if (!press || press.id !== event.pointerId) return
     dragRef.current = null
     if (!press.on) return
-    travel.dragEnd(event.clientX, event.clientY)
+    ring.clear()
+    // Let go over a card: ask about it as a right-click would. A cancel, or any other
+    // spot, ends as a throw.
+    if (
+      event.type === 'pointerup' &&
+      dragOk &&
+      travelMode === 'drag' &&
+      summonOn(event.clientX, event.clientY, rootRef.current)
+    )
+      travel.dragDrop()
+    else travel.dragEnd(event.clientX, event.clientY)
     // The click that ends a drag is not a tap.
     afterDrag.current = true
     setTimeout(() => {
