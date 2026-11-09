@@ -118,7 +118,7 @@ type Props = Readonly<{
 }>
 
 export function SmallStepsResourceDetail({
-  resource: _resource,
+  resource,
   backHref = '/resources',
   status = 'IN_PROGRESS',
   saving = false,
@@ -367,7 +367,7 @@ export function SmallStepsResourceDetail({
   const ActionIcon = currentAction.icon
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-resource-id={resource?.id}>
       <div className={styles.container}>
         {/* Top Navigation & Breadcrumb */}
         <header className={styles.topNav}>
@@ -399,7 +399,7 @@ export function SmallStepsResourceDetail({
             <span>Phục hồi năng lượng chậm rãi</span>
           </div>
           <h1 className={styles.mainTitle}>
-            {_resource?.title || 'Bắt đầu bằng một cử chỉ thật nhỏ.'}
+            Bắt đầu bằng một cử chỉ thật nhỏ.
           </h1>
           <p className={styles.quoteText}>
             “Hôm nay chỉ cần 3 phút — không cần cố gắng quá sức, không phán xét
