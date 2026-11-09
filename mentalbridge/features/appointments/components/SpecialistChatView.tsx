@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
+  AlertCircle,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -86,11 +87,11 @@ export interface EmrSessionData {
     isEncrypted: boolean
   }
   clinicalAssessment: {
-    tool: string
-    preScore: number
-    postScore: number
-    maxScore: number
-    summaryText: string
+    tool: string | null
+    preScore: number | null
+    postScore: number | null
+    maxScore: number | null
+    summaryText: string | null
   }
   treatmentPlan: {
     week: number
@@ -100,7 +101,7 @@ export interface EmrSessionData {
       description?: string
       isDone?: boolean
     }>
-  }
+  } | null
   creditsUsed: number
   invoiceId: string
 }
@@ -194,200 +195,6 @@ function getSpecialistSpecialty(name: string) {
 }
 
 // Helper to construct dynamic clinical consultation dialogue bound to real appointment, brief and session summary data
-function buildDynamicConsultationMessages(
-  apt: Appointment,
-  sessionSummary: SessionSummary | null,
-  consultationBrief: ConsultationBrief | null,
-): ChatMessageItem[] {
-  const docName = apt.specialistDisplayName || 'Chuyên gia Tâm lý'
-  const timezone = apt.timezone || 'Asia/Ho_Chi_Minh'
-
-  let time1 = '19:30'
-  let time2 = '19:35'
-  let time3 = '19:50'
-  let time4 = '20:15'
-  let time5 = '20:28'
-
-  try {
-    const s = new Date(apt.scheduledStartAt).getTime()
-    const fmt = (offsetMin: number) => {
-      const d = new Date(s + offsetMin * 60000)
-      return new Intl.DateTimeFormat('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-        timeZone: timezone,
-      }).format(d)
-    }
-    time1 = fmt(0)
-    time2 = fmt(3)
-    time3 = fmt(18)
-    time4 = fmt(42)
-    time5 = fmt(55)
-  } catch {
-    // Keep fallback times
-  }
-
-  // Doctor domain classification
-  const isQuocBao = docName.includes('Quốc Bảo')
-  const isThuHa = docName.includes('Thu Hà')
-  const isDucLong = docName.includes('Đức Long')
-  const isMinhAnh = docName.includes('Minh Anh')
-
-  // Real agreed steps from DB
-  const rawSteps =
-    sessionSummary?.agreedNextSteps?.map((s) => s.title).filter(Boolean) || []
-
-  // Real patient situation from consultation_brief DB
-  const userSituation = consultationBrief?.currentSituation
-    ? consultationBrief.currentSituation.trim()
-    : isQuocBao
-      ? 'Dạo này em hay bị trằn trọc 2-3 tiếng mỗi đêm, sáng dậy người uể oải và cảm giác kiệt sức không tập trung làm việc được ạ.'
-      : isThuHa
-        ? 'Dạo này em hay bị mất bình tĩnh khi giao tiếp và mâu thuẫn với đồng nghiệp, cảm xúc dồn nén khiến em rất mệt mỏi ạ.'
-        : isDucLong
-          ? 'Em đang rất căng thẳng vì áp lực thi cử và hoàn thành đồ án tốt nghiệp, tim hay đập nhanh và vai gáy bị căng cứng ạ.'
-          : 'Em thấy đỡ căng cứng ở vùng vai gáy hơn một chút, nhưng các buổi tối em vẫn hay trằn trọc khoảng hơn 1 tiếng mới vào giấc được ạ. Cứ nhắm mắt là công việc lại ùa về.'
-
-  // Real clinical progress notes from session_summary DB
-  const clinicalNote =
-    sessionSummary?.progressSummary ||
-    sessionSummary?.specialistNoteForUser ||
-    (isQuocBao
-      ? 'Tôi đã phân tích nhật ký thức - ngủ của bạn. Tình trạng này xuất phát từ việc chu kỳ melatonin bị ức chế do ánh sáng xanh và thói quen nằm cố ngủ trên giường. Chúng ta sẽ áp dụng liệu pháp kiểm soát kích thích CBT-I để thiết lập lại đồng hồ sinh học.'
-      : isThuHa
-        ? 'Cảm xúc giận dữ hay thất vọng là phản ứng tự nhiên khi ranh giới cá nhân bị xâm phạm. Trong buổi hôm nay, chúng ta đã cùng thực hành kỹ thuật STOPP để bạn có khoảng dừng 5 phút giúp hạ nhịp tim và lấy lại sự bình tĩnh trước khi phản hồi.'
-        : isDucLong
-          ? 'Căng thẳng trước các cột mốc quan trọng là phản xạ tự nhiên của cơ thể. Vừa rồi chúng ta đã tập kỹ thuật thở hộp Box Breathing 4-4-4-4, bạn đã thấy các cơ vùng ngực và vai gáy giãn ra rõ rệt. Hãy duy trì nhịp thở này khi bắt đầu ngồi vào bàn học.'
-          : 'Điều này hoàn toàn dễ hiểu đối với giai đoạn áp lực dự án cao điểm. Trong buổi hôm nay, chúng ta vừa thực hành kỹ thuật "Ghi chú xả não (Brain-dump) trước 21:00" kết hợp nhịp thở 4-7-8.')
-
-  // Distinct recommendation card title and items
-  let recTitle = 'Khuyến nghị can thiệp lâm sàng:'
-  let recItems = rawSteps
-
-  if (isQuocBao) {
-    recTitle = 'Lộ trình can thiệp giấc ngủ & nhịp sinh học (CBT-I):'
-    if (recItems.length === 0) {
-      recItems = [
-        'Rời giường sau 20 phút nếu chưa ngủ được, đọc sách giấy dưới đèn vàng.',
-        'Ghi nhật ký giấc ngủ CBT-I mỗi sáng khi thức dậy.',
-        'Ngừng sử dụng caffein và trà đậm sau 14:00 chiều.',
-      ]
-    }
-  } else if (isThuHa) {
-    recTitle = 'Kế hoạch điều hòa cảm xúc & giao tiếp lành mạnh:'
-    if (recItems.length === 0) {
-      recItems = [
-        'Thực hành quy tắc STOPP khi có dấu hiệu căng thẳng hoặc bực tức.',
-        'Viết nhật ký xả cảm xúc tự do 10 phút trước khi đi ngủ.',
-        'Thiết lập ranh giới giao tiếp và rèn luyện kỹ thuật khẳng định bản thân.',
-      ]
-    }
-  } else if (isDucLong) {
-    recTitle = 'Bài tập giải tỏa áp lực thi cử & thư giãn cơ thể:'
-    if (recItems.length === 0) {
-      recItems = [
-        'Thực hành thở hộp Box Breathing 4-4-4-4 mỗi khi cảm thấy choáng ngợp.',
-        'Áp dụng khung giờ học 45 phút học - 10 phút vận động thả lỏng nhẹ.',
-        'Kéo giãn cơ cổ vai gáy và uống 1 cốc nước ấm trước khi đi ngủ.',
-      ]
-    }
-  } else {
-    recTitle = 'Toa hướng dẫn can thiệp nhận thức & hành vi (CBT):'
-    if (recItems.length === 0) {
-      recItems = [
-        'Hạn chế tiếp xúc màn hình ánh sáng xanh sau 22:30.',
-        'Uống 1 cốc nước ấm và thực hành nhịp thở 4–7–8 (4 chu kỳ).',
-        'Nếu sau 20 phút không ngủ được, rời giường đọc sách giấy với ánh sáng dịu.',
-      ]
-    }
-  }
-
-  // Doctor Opening Greeting
-  let openingMsg = `Chào bạn Ngọc Quyên, tôi đã đọc qua kết quả sàng lọc nhanh và hồ sơ của bạn. Hôm nay bạn cảm thấy cơ thể và tâm trạng như thế nào sau bài tập giãn cơ?`
-  if (isQuocBao) {
-    openingMsg = `Chào bạn Ngọc Quyên, tôi là TS. Quốc Bảo. Tôi đã xem qua bảng nhật ký giấc ngủ và chỉ số kiệt sức của bạn. Hôm nay bạn cảm thấy đồng hồ sinh học và mức năng lượng trong người thế nào rồi?`
-  } else if (isThuHa) {
-    openingMsg = `Chào Ngọc Quyên, cô là Thu Hà đây. Cô đã đọc kỹ phần chia sẻ về những căng thẳng trong các mối quan hệ gần đây của em. Em cảm thấy tâm trạng mình hôm nay thế nào, có thoải mái hơn chút nào chưa?`
-  } else if (isDucLong) {
-    openingMsg = `Chào Ngọc Quyên, bác sĩ Đức Long chào em. Bác sĩ đã nhận được phiếu thông tin về áp lực đồ án và kỳ thi tốt nghiệp của em. Hiện tại em còn cảm thấy tim đập nhanh hay căng tức cơ vai gáy không?`
-  } else if (isMinhAnh) {
-    openingMsg = `Chào bạn Ngọc Quyên, tôi là BS. Minh Anh. Tôi đã đọc qua kết quả sàng lọc thang đo PHQ-9 và hồ sơ theo dõi tâm trạng của bạn. Hôm nay cơ thể và suy nghĩ của bạn thế nào rồi?`
-  }
-
-  // Patient User Response acknowledging advice
-  let userAckMsg = `Dạ vâng ${docName}, em sẽ làm đúng theo hướng dẫn này trong 7 ngày tới và ghi vào nhật ký ứng dụng MentalBridge ạ!`
-  if (isQuocBao) {
-    userAckMsg = `Dạ vâng Thầy Bảo, em hiểu rồi ạ. Em sẽ nghiêm túc thực hiện quy tắc 20 phút rời giường và ghi chép nhật ký giấc ngủ CBT-I mỗi sáng để thiết lập lại nhịp sinh học ạ!`
-  } else if (isThuHa) {
-    userAckMsg = `Dạ em cảm ơn cô Hà rất nhiều ạ. Em sẽ tập dừng lại 5 phút theo kỹ thuật STOPP và viết nhật ký xả cảm xúc mỗi tối để giải tỏa, không giữ trong lòng nữa ạ.`
-  } else if (isDucLong) {
-    userAckMsg = `Dạ vâng BS. Đức Long, nãy tập thở hộp Box Breathing cùng bác sĩ em thấy lồng ngực nhẹ nhõm hơn hẳn. Em sẽ phân bổ lại thời gian học 45 phút và tập giãn cơ đều đặn ạ!`
-  } else if (isMinhAnh) {
-    userAckMsg = `Dạ vâng Bác sĩ Minh Anh, em sẽ ghi lại 3 điều tích cực mỗi ngày và thực hành bài tập tự trắc ẩn để không tự trách bản thân nữa ạ!`
-  }
-
-  // Doctor Closing Message
-  const aptCode = (apt.id || '383').slice(-3).toUpperCase()
-  let closingMsg = `Rất tốt Quyên nhé. Tôi đã đóng biên bản phiên #MB-${aptCode} và gửi toa hướng dẫn kèm lộ trình sang cột Hồ sơ bên phải màn hình. Chúc bạn có một giấc ngủ thật ngon đêm nay!`
-  if (isQuocBao) {
-    closingMsg = `Rất tốt Quyên nhé. Tôi đã đóng biên bản phiên #MB-${aptCode} và đồng bộ toàn bộ lộ trình vệ sinh giấc ngủ sang hồ sơ EMR bên phải màn hình. Chúc bạn sớm lấy lại những giấc ngủ sâu và nguồn năng lượng dồi dào!`
-  } else if (isThuHa) {
-    closingMsg = `Tốt lắm Quyên. Hãy luôn dịu dàng và kiên nhẫn với chính mình nhé. Cô đã cập nhật biên bản phiên #MB-${aptCode} sang EMR bên phải màn hình. Chúc em luôn giữ được sự an yên trong lòng!`
-  } else if (isDucLong) {
-    closingMsg = `Rất tốt Quyên nhé. Bác sĩ đã đóng biên bản phiên #MB-${aptCode} và chuyển bài tập thư giãn cơ sang cột EMR bên phải. Chúc em tự tin và vượt qua kỳ thi thật xuất sắc nhé!`
-  } else if (isMinhAnh) {
-    closingMsg = `Rất tốt Quyên nhé. Tôi đã đóng biên bản phiên #MB-${aptCode} và cập nhật toa dặn dò nhận thức hành vi sang hồ sơ EMR cá nhân của bạn. Chúc bạn có những ngày sắp tới thật nhẹ nhàng và an vui!`
-  }
-
-  return [
-    {
-      id: `${apt.id}-msg-1`,
-      senderType: 'specialist',
-      senderName: docName,
-      timestamp: time1,
-      content: openingMsg,
-    },
-    {
-      id: `${apt.id}-msg-2`,
-      senderType: 'user',
-      senderName: 'Ngọc Quyên (Bạn)',
-      timestamp: time2,
-      content: `Dạ chào ${docName}. ${userSituation}`,
-    },
-    {
-      id: `${apt.id}-msg-3`,
-      senderType: 'specialist',
-      senderName: docName,
-      timestamp: time3,
-      content: clinicalNote,
-      recommendations: {
-        id: `rec-${apt.id.slice(-4)}`,
-        title: recTitle,
-        items: recItems.slice(0, 4),
-      },
-    },
-    {
-      id: `${apt.id}-msg-4`,
-      senderType: 'user',
-      senderName: 'Ngọc Quyên (Bạn)',
-      timestamp: time4,
-      content: userAckMsg,
-    },
-    {
-      id: `${apt.id}-msg-5`,
-      senderType: 'specialist',
-      senderName: docName,
-      timestamp: time5,
-      content: closingMsg,
-    },
-  ]
-}
-
-// ==========================================
-// 3. SpecialistChatView Component
-// ==========================================
-
 export default function SpecialistChatView({
   initialAppointmentId,
   viewerRole = 'USER',
@@ -423,10 +230,17 @@ export default function SpecialistChatView({
   const [savingRating, setSavingRating] = useState(false)
   const [isEmrModalOpen, setIsEmrModalOpen] = useState(false)
 
-  // Chat message feed & composer
+  // Chat message feed & truthful status
   const [chatMessages, setChatMessages] = useState<ChatMessageItem[]>([])
+  const [chatStatus, setChatStatus] = useState<
+    'loading' | 'ready' | 'empty' | 'forbidden' | 'error'
+  >('loading')
+  const [canSend, setCanSend] = useState(false)
+  const [composerDisabledReason, setComposerDisabledReason] = useState(
+    'Phiên tư vấn đã kết thúc • Khung chat chỉ đọc',
+  )
   const [inputMessage, setInputMessage] = useState('')
-  const [sendingMessage, setSendingMessage] = useState(false)
+  const [sendingMessage] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
@@ -485,9 +299,6 @@ export default function SpecialistChatView({
     const aptId = selectedAppointment.id
 
     async function loadSessionDetails() {
-      let summaryData: SessionSummary | null = null
-      let briefData: ConsultationBrief | null = null
-
       // 1) Session summary
       try {
         const summaries = await sessionSummaryBrowserClient.list(
@@ -495,8 +306,7 @@ export default function SpecialistChatView({
           viewerRole,
         )
         if (!cancelled && summaries.items?.length > 0) {
-          summaryData = summaries.items[0]
-          setSessionSummary(summaryData)
+          setSessionSummary(summaries.items[0])
         } else if (!cancelled) {
           setSessionSummary(null)
         }
@@ -508,7 +318,6 @@ export default function SpecialistChatView({
       try {
         const brief = await consultationBriefBrowserClient.get(aptId)
         if (!cancelled) {
-          briefData = brief
           setConsultationBrief(brief)
         }
       } catch {
@@ -524,6 +333,7 @@ export default function SpecialistChatView({
       }
 
       // 4) Chat history
+      setChatStatus('loading')
       try {
         const eligibility = await chatEligibility(aptId, 'history')
         if (
@@ -532,47 +342,77 @@ export default function SpecialistChatView({
           eligibility.conversationId
         ) {
           const hist = await chatHistory(eligibility.conversationId)
-          if (!cancelled && hist.items?.length > 0) {
-            // Map real raw messages to ChatMessageItem
-            const mapped: ChatMessageItem[] = hist.items.map(
-              (m: ChatMessage) => {
-                const isUser =
-                  m.senderId === selectedAppointment.heldCreditId ||
-                  m.senderId !== selectedAppointment.specialistAccountId
-                return {
-                  id: m.messageId,
-                  senderType: isUser ? 'user' : 'specialist',
-                  senderName: isUser
-                    ? 'Ngọc Quyên (Bạn)'
-                    : selectedAppointment.specialistDisplayName ||
-                      'Chuyên gia Tâm lý',
-                  timestamp: new Intl.DateTimeFormat('vi-VN', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                    timeZone:
-                      selectedAppointment.timezone || 'Asia/Ho_Chi_Minh',
-                  }).format(new Date(m.sentAt)),
-                  content: m.content,
-                }
-              },
+          if (!cancelled) {
+            if (hist.items && hist.items.length > 0) {
+              const mapped: ChatMessageItem[] = hist.items.map(
+                (m: ChatMessage) => {
+                  const isUser =
+                    m.senderId === selectedAppointment.heldCreditId ||
+                    m.senderId !== selectedAppointment.specialistAccountId
+                  return {
+                    id: m.messageId,
+                    senderType: isUser ? 'user' : 'specialist',
+                    senderName: isUser
+                      ? viewerRole === 'SPECIALIST'
+                        ? 'Khách hàng'
+                        : 'Bạn'
+                      : selectedAppointment.specialistDisplayName ||
+                        'Chuyên gia Tâm lý',
+                    timestamp: new Intl.DateTimeFormat('vi-VN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                      timeZone:
+                        selectedAppointment.timezone || 'Asia/Ho_Chi_Minh',
+                    }).format(new Date(m.sentAt)),
+                    content: m.content,
+                  }
+                },
+              )
+              setChatMessages(mapped)
+              setChatStatus('ready')
+            } else {
+              setChatMessages([])
+              setChatStatus('empty')
+            }
+          }
+        } else if (!cancelled) {
+          setChatMessages([])
+          setChatStatus(eligibility?.historyAllowed ? 'empty' : 'forbidden')
+        }
+      } catch {
+        if (!cancelled) {
+          setChatMessages([])
+          setChatStatus('error')
+        }
+      }
+
+      // 5) Check send eligibility
+      try {
+        const sendElig = await chatEligibility(aptId, 'send')
+        if (!cancelled) {
+          const isEnded =
+            !selectedAppointment ||
+            ['COMPLETED', 'SESSION_ENDED', 'CANCELLED'].includes(
+              selectedAppointment.status,
             )
-            setChatMessages(mapped)
-            return
+          if (sendElig.sendAllowed && !isEnded) {
+            setCanSend(true)
+            setComposerDisabledReason('')
+          } else {
+            setCanSend(false)
+            setComposerDisabledReason(
+              isEnded
+                ? 'Phiên tư vấn đã kết thúc • Khung chat chỉ đọc'
+                : 'Khung chat hiện không khả dụng cho phiên này',
+            )
           }
         }
       } catch {
-        // Fallback to dynamic clinical briefing messages
-      }
-
-      if (!cancelled) {
-        setChatMessages(
-          buildDynamicConsultationMessages(
-            selectedAppointment,
-            summaryData,
-            briefData,
-          ),
-        )
+        if (!cancelled) {
+          setCanSend(false)
+          setComposerDisabledReason('Không thể kiểm tra quyền gửi tin nhắn')
+        }
       }
     }
 
@@ -594,36 +434,8 @@ export default function SpecialistChatView({
   // Handle send message
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!inputMessage.trim() || sendingMessage) return
-
-    setSendingMessage(true)
-    try {
-      const now = new Date()
-      const timeStr = new Intl.DateTimeFormat('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }).format(now)
-
-      const newMsg: ChatMessageItem = {
-        id: `local-${Date.now()}`,
-        senderType: viewerRole === 'SPECIALIST' ? 'specialist' : 'user',
-        senderName:
-          viewerRole === 'SPECIALIST'
-            ? selectedAppointment?.specialistDisplayName || 'Chuyên gia'
-            : 'Ngọc Quyên (Bạn)',
-        timestamp: timeStr,
-        content: inputMessage.trim(),
-      }
-
-      setChatMessages((prev) => [...prev, newMsg])
-      setInputMessage('')
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-      }, 50)
-    } finally {
-      setSendingMessage(false)
-    }
+    if (!canSend || !inputMessage.trim() || sendingMessage) return
+    // Realtime message sending requires active socket connection; disabled for ended/ineligible sessions
   }
 
   // Handle save rating
@@ -731,85 +543,62 @@ export default function SpecialistChatView({
   }, [selectedAppointment])
 
   // EMR session data for current appointment
-  const emrData: EmrSessionData = useMemo(() => {
+  const emrData: EmrSessionData | null = useMemo(() => {
+    if (!selectedAppointment) return null
+
     const apt = selectedAppointment
-    const startIso = apt?.scheduledStartAt || '2026-10-01T15:55:00.000Z'
-    const endIso = apt?.scheduledEndAt || '2026-10-01T16:55:00.000Z'
-    const tz = apt?.timezone || 'Asia/Ho_Chi_Minh'
-    const docName = apt?.specialistDisplayName || ''
+    const startIso = apt.scheduledStartAt || ''
+    const endIso = apt.scheduledEndAt || ''
+    const tz = apt.timezone || 'Asia/Ho_Chi_Minh'
 
-    const isQuocBao = docName.includes('Quốc Bảo')
-    const isThuHa = docName.includes('Thu Hà')
-    const isDucLong = docName.includes('Đức Long')
-
-    const assessmentTool = isQuocBao
-      ? 'Thang đo Mất ngủ & Kiệt sức (CBT-I / PSQI)'
-      : isThuHa
-        ? 'Thang đo Căng thẳng & Cảm xúc (DASS-21)'
-        : isDucLong
-          ? 'Thang đo Lo âu & Căng thẳng (GAD-7)'
-          : 'Thang đo Sức khỏe Tâm thần (PHQ-9)'
-
-    // Tasks from agreed next steps or brief goals
-    let tasks = [
-      {
-        step: 1,
-        title: 'Thực hành "Xả não (Brain-dump)" 15 phút trước khi ngủ.',
-      },
-      { step: 2, title: 'Tham gia buổi Thiền thở cộng đồng Thứ Bảy (9:00).' },
-      { step: 3, title: 'Ghi chép nhật ký cảm xúc 1 lần/ngày trên app.' },
-    ]
-
-    if (
+    // Real agreed steps from sessionSummary
+    const rawSteps =
       sessionSummary?.agreedNextSteps &&
       sessionSummary.agreedNextSteps.length > 0
-    ) {
-      tasks = sessionSummary.agreedNextSteps.map((step, idx) => ({
-        step: idx + 1,
-        title: step.title,
-        description: step.details || undefined,
-        isDone: step.state === 'COMPLETED',
-      }))
-    } else if (
-      consultationBrief?.userGoals &&
-      consultationBrief.userGoals.length > 0
-    ) {
-      tasks = consultationBrief.userGoals.map((goal, idx) => ({
-        step: idx + 1,
-        title: goal,
-      }))
-    }
+        ? sessionSummary.agreedNextSteps.map((step, idx) => ({
+            step: idx + 1,
+            title: step.title,
+            description: step.details || undefined,
+            isDone: step.state === 'COMPLETED',
+          }))
+        : null
+
+    const assessmentSummary =
+      sessionSummary?.specialistNoteForUser ||
+      sessionSummary?.progressSummary ||
+      null
 
     return {
-      appointmentId: apt?.id || '40b3dce0-1d5d-44a2-81dd-b8e0dd9fb377',
+      appointmentId: apt.id,
       consultationTime: {
-        date: formatFullDate(startIso, tz),
-        timeRange: formatTimeRange(startIso, endIso, tz),
-        durationLabel: `${calculateDurationMinutes(startIso, endIso)} phút`,
-        isEncrypted: true,
+        date: startIso ? formatFullDate(startIso, tz) : 'Chưa xác định',
+        timeRange:
+          startIso && endIso
+            ? formatTimeRange(startIso, endIso, tz)
+            : 'Chưa xác định',
+        durationLabel:
+          startIso && endIso
+            ? `${calculateDurationMinutes(startIso, endIso)} phút`
+            : '—',
+        isEncrypted: false,
       },
       clinicalAssessment: {
-        tool: assessmentTool,
-        preScore: 4,
-        postScore: 2,
-        maxScore: 5,
-        summaryText:
-          sessionSummary?.specialistNoteForUser ||
-          sessionSummary?.progressSummary ||
-          (isQuocBao
-            ? 'Khách hàng đáp ứng tích cực với liệu pháp kiểm soát kích thích CBT-I, nhận thức rõ nguyên nhân gây mất ngủ.'
-            : isThuHa
-              ? 'Khách hàng phản hồi rất tốt với kỹ thuật STOPP, tâm lý nhẹ nhõm hơn sau khi được lắng nghe thấu cảm.'
-              : isDucLong
-                ? 'Khách hàng phản hồi rất tích cực với bài tập thở hộp Box Breathing, cảm giác căng tức ngực giảm rõ rệt.'
-                : 'Khách hàng phản hồi rất tích cực với bài tập nhịp thở 4-7-8, cảm giác căng tức đã giảm rõ rệt.'),
+        tool: consultationBrief?.screeningContext?.[0]?.instrument
+          ? `Thang đo: ${consultationBrief.screeningContext[0].instrument}`
+          : null,
+        preScore: null,
+        postScore: null,
+        maxScore: null,
+        summaryText: assessmentSummary,
       },
-      treatmentPlan: {
-        week: 1,
-        tasks,
-      },
-      creditsUsed: 1,
-      invoiceId: `INV-MB-${(apt?.id || '383').slice(-3).toUpperCase()}`,
+      treatmentPlan: rawSteps
+        ? {
+            week: 1,
+            tasks: rawSteps,
+          }
+        : null,
+      creditsUsed: apt.creditState === 'CONSUMED' || apt.heldCreditId ? 1 : 0,
+      invoiceId: `INV-MB-${apt.id.slice(-6).toUpperCase()}`,
     }
   }, [selectedAppointment, sessionSummary, consultationBrief])
 
@@ -1010,7 +799,9 @@ export default function SpecialistChatView({
         {/* Security Note Footer */}
         <div className={styles.securityNote}>
           <Lock size={14} className="text-brand-600 shrink-0" />
-          <span className="truncate">Mã hóa hai đầu (E2EE) chuẩn HIPAA</span>
+          <span className="truncate">
+            Lưu trữ an toàn theo tiêu chuẩn lâm sàng
+          </span>
         </div>
       </section>
 
@@ -1097,35 +888,43 @@ export default function SpecialistChatView({
         </header>
 
         {/* Bento Metric Strip over Conversation */}
-        <div
-          className={styles.bentoMetricStrip}
-          data-purpose="chat-session-bento-strip"
-        >
-          <div className={styles.metricStripContent}>
-            <div className={styles.metricLeft}>
-              <span>
-                <span className={styles.metricDot} />
-                Thời lượng:{' '}
-                <strong className="text-slate-800 font-semibold">
-                  {emrData.consultationTime.durationLabel} (Đủ chuẩn)
-                </strong>
-              </span>
-              <span className="text-slate-300">•</span>
-              <span>
-                Báo cáo lâm sàng:{' '}
-                <strong className="text-emerald-800 font-semibold">
-                  Đã cập nhật toa
-                </strong>
+        {emrData && (
+          <div
+            className={styles.bentoMetricStrip}
+            data-purpose="chat-session-bento-strip"
+          >
+            <div className={styles.metricStripContent}>
+              <div className={styles.metricLeft}>
+                <span>
+                  <span className={styles.metricDot} />
+                  Thời lượng:{' '}
+                  <strong className="text-slate-800 font-semibold">
+                    {emrData.consultationTime.durationLabel}
+                  </strong>
+                </span>
+                <span className="text-slate-300">•</span>
+                <span>
+                  Báo cáo lâm sàng:{' '}
+                  <strong className="text-emerald-800 font-semibold">
+                    {sessionSummary ? 'Đã có tóm tắt phiên' : 'Chưa có tóm tắt'}
+                  </strong>
+                </span>
+              </div>
+              <span className="text-slate-500 text-[11px]">
+                {emrData.creditsUsed > 0 ? (
+                  <span>
+                    Đã trừ:{' '}
+                    <strong className="text-slate-700 font-semibold">
+                      {emrData.creditsUsed} Credit
+                    </strong>
+                  </span>
+                ) : (
+                  <span>Chưa trừ Credit</span>
+                )}
               </span>
             </div>
-            <span className="text-slate-500 text-[11px]">
-              Đã trừ:{' '}
-              <strong className="text-slate-700 font-semibold">
-                {emrData.creditsUsed} Credit (Gói Plus)
-              </strong>
-            </span>
           </div>
-        </div>
+        )}
 
         {/* Dialogue Message Stream Area */}
         <div
@@ -1133,76 +932,140 @@ export default function SpecialistChatView({
           data-purpose="chat-messages-container"
         >
           {/* Timeline Date Pill */}
-          <div className={styles.timelinePill}>
-            <span className={styles.timelineText}>
-              Phiên tham vấn trực tiếp lúc{' '}
-              {emrData.consultationTime.timeRange.split('–')[0].trim()} •{' '}
-              {emrData.consultationTime.date}
-            </span>
-          </div>
+          {emrData && (
+            <div className={styles.timelinePill}>
+              <span className={styles.timelineText}>
+                Phiên tham vấn lúc {emrData.consultationTime.timeRange} •{' '}
+                {emrData.consultationTime.date}
+              </span>
+            </div>
+          )}
 
-          {/* Message Stream */}
-          {chatMessages.map((msg) => {
-            const isDoctor = msg.senderType === 'specialist'
+          {/* Message Stream with Truthful Status Handling */}
+          {chatStatus === 'loading' && (
+            <div
+              className="py-12 text-center text-sm text-slate-500"
+              data-testid="chat-loading-state"
+            >
+              Đang tải lịch sử hội thoại...
+            </div>
+          )}
 
-            if (isDoctor) {
-              return (
-                <div key={msg.id} className={styles.messageRowDoctor}>
-                  <div className={styles.msgAvatarDoctor}>
-                    {getInitials(msg.senderName)}
+          {chatStatus === 'forbidden' && (
+            <div
+              className="py-12 text-center px-4"
+              data-testid="chat-forbidden-state"
+            >
+              <div className="inline-flex p-3 rounded-full bg-amber-50 text-amber-700 mb-2">
+                <Lock size={20} />
+              </div>
+              <p className="text-sm font-semibold text-slate-800">
+                Không có quyền truy cập
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Bạn không có quyền truy cập lịch sử hội thoại của phiên này
+                (403).
+              </p>
+            </div>
+          )}
+
+          {chatStatus === 'error' && (
+            <div
+              className="py-12 text-center px-4"
+              data-testid="chat-error-state"
+            >
+              <div className="inline-flex p-3 rounded-full bg-rose-50 text-rose-700 mb-2">
+                <AlertCircle size={20} />
+              </div>
+              <p className="text-sm font-semibold text-slate-800">
+                Không thể tải lịch sử trò chuyện
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Đã xảy ra lỗi kết nối khi tải lịch sử phiên. Vui lòng thử lại
+                sau.
+              </p>
+            </div>
+          )}
+
+          {chatStatus === 'empty' && (
+            <div
+              className="py-12 text-center px-4"
+              data-testid="chat-empty-state"
+            >
+              <div className="inline-flex p-3 rounded-full bg-slate-100 text-slate-500 mb-2">
+                <MessageSquare size={20} />
+              </div>
+              <p className="text-sm font-semibold text-slate-700">
+                Chưa có tin nhắn trong phiên này
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Phiên tư vấn này chưa có lịch sử tin nhắn nào được lưu trữ.
+              </p>
+            </div>
+          )}
+
+          {chatStatus === 'ready' &&
+            chatMessages.map((msg) => {
+              const isDoctor = msg.senderType === 'specialist'
+
+              if (isDoctor) {
+                return (
+                  <div key={msg.id} className={styles.messageRowDoctor}>
+                    <div className={styles.msgAvatarDoctor}>
+                      {getInitials(msg.senderName)}
+                    </div>
+                    <div className={styles.msgBodyDoctor}>
+                      <div className={styles.msgHeaderDoctor}>
+                        <span className={styles.msgAuthorDoctor}>
+                          {msg.senderName}
+                        </span>
+                        <span className={styles.msgTime}>{msg.timestamp}</span>
+                      </div>
+                      <div className={styles.bubbleDoctor}>
+                        <p className="m-0 leading-relaxed">{msg.content}</p>
+                        {msg.recommendations && (
+                          <div className={styles.recommendationCard}>
+                            <p className={styles.recommendationTitle}>
+                              {msg.recommendations.title}
+                            </p>
+                            <ul className={styles.recommendationList}>
+                              {msg.recommendations.items.map((item, idx) => (
+                                <li key={idx}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className={styles.msgBodyDoctor}>
-                    <div className={styles.msgHeaderDoctor}>
-                      <span className={styles.msgAuthorDoctor}>
+                )
+              }
+
+              // Patient Message
+              return (
+                <div key={msg.id} className={styles.messageRowPatient}>
+                  <div className={styles.msgBodyPatient}>
+                    <div className={styles.msgHeaderPatient}>
+                      <span className={styles.msgTime}>{msg.timestamp}</span>
+                      <span className={styles.msgAuthorPatient}>
                         {msg.senderName}
                       </span>
-                      <span className={styles.msgTime}>{msg.timestamp}</span>
                     </div>
-                    <div className={styles.bubbleDoctor}>
-                      <p className="m-0 leading-relaxed">{msg.content}</p>
-                      {msg.recommendations && (
-                        <div className={styles.recommendationCard}>
-                          <p className={styles.recommendationTitle}>
-                            {msg.recommendations.title}
-                          </p>
-                          <ul className={styles.recommendationList}>
-                            {msg.recommendations.items.map((item, idx) => (
-                              <li key={idx}>{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                    <div className={styles.bubblePatient}>
+                      <p className="m-0 leading-relaxed text-white font-medium">
+                        {msg.content}
+                      </p>
                     </div>
+                  </div>
+                  <div className={styles.msgAvatarPatient}>
+                    {getInitials(msg.senderName)}
                   </div>
                 </div>
               )
-            }
-
-            // Patient Message
-            return (
-              <div key={msg.id} className={styles.messageRowPatient}>
-                <div className={styles.msgBodyPatient}>
-                  <div className={styles.msgHeaderPatient}>
-                    <span className={styles.msgTime}>{msg.timestamp}</span>
-                    <span className={styles.msgAuthorPatient}>
-                      {msg.senderName}
-                    </span>
-                  </div>
-                  <div className={styles.bubblePatient}>
-                    <p className="m-0 leading-relaxed text-white font-medium">
-                      {msg.content}
-                    </p>
-                  </div>
-                </div>
-                <div className={styles.msgAvatarPatient}>
-                  {getInitials(msg.senderName)}
-                </div>
-              </div>
-            )
-          })}
+            })}
 
           {/* Completion Badge */}
-          {isSessionEnded && (
+          {isSessionEnded && emrData && (
             <div className={styles.completionBadge}>
               <p className={styles.completionTitle}>
                 Phiên hoàn thành lúc{' '}
@@ -1210,7 +1073,7 @@ export default function SpecialistChatView({
                   '23:55'}
               </p>
               <p className={styles.completionSub}>
-                Đã tự động đồng bộ vào EMR cá nhân của bạn.
+                Hồ sơ phiên đã được lưu trữ an toàn trong hệ thống lâm sàng.
               </p>
             </div>
           )}
@@ -1259,19 +1122,20 @@ export default function SpecialistChatView({
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
+                disabled={!canSend}
                 placeholder={
-                  isSessionEnded
-                    ? 'Nhập tin nhắn phản hồi hoặc câu hỏi thêm cho bác sĩ...'
-                    : 'Nhập tin nhắn tư vấn với bác sĩ...'
+                  canSend
+                    ? 'Nhập tin nhắn tư vấn với bác sĩ...'
+                    : composerDisabledReason
                 }
                 className={styles.composerTextarea}
               />
               <button
                 type="submit"
-                disabled={!inputMessage.trim() || sendingMessage}
+                disabled={!canSend || !inputMessage.trim() || sendingMessage}
                 className={styles.sendBtn}
                 aria-label="Gửi tin nhắn"
-                title="Gửi tin nhắn"
+                title={canSend ? 'Gửi tin nhắn' : composerDisabledReason}
               >
                 <Send size={15} />
               </button>
@@ -1312,138 +1176,180 @@ export default function SpecialistChatView({
           </button>
         </div>
 
-        {/* Card 1: Thời gian tư vấn */}
-        <div className={styles.bentoCard}>
-          <div className={styles.cardTopLabelRow}>
-            <span className={styles.cardSectionLabel}>Thời gian tư vấn</span>
-            <span
-              className={`${styles.statusPill} ${styles.statusPillCompleted}`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block mr-1" />
-              Đã hoàn thành
-            </span>
+        {!emrData ? (
+          <div className="p-6 text-center text-slate-500 text-xs">
+            Chưa có thông tin hồ sơ cho phiên này.
           </div>
-          <div>
-            <div className={styles.timeLarge}>
-              {emrData.consultationTime.timeRange}
+        ) : (
+          <>
+            {/* Card 1: Thời gian tư vấn */}
+            <div className={styles.bentoCard}>
+              <div className={styles.cardTopLabelRow}>
+                <span className={styles.cardSectionLabel}>
+                  Thời gian tư vấn
+                </span>
+                <span
+                  className={`${styles.statusPill} ${styles.statusPillCompleted}`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block mr-1" />
+                  {selectedAppointment?.status === 'COMPLETED'
+                    ? 'Đã hoàn thành'
+                    : selectedAppointment?.status || 'Đang cập nhật'}
+                </span>
+              </div>
+              <div>
+                <div className={styles.timeLarge}>
+                  {emrData.consultationTime.timeRange}
+                </div>
+                <div className={styles.timeDateSub}>
+                  {emrData.consultationTime.date} (
+                  {emrData.consultationTime.durationLabel})
+                </div>
+              </div>
+              <div className={styles.timeDividerRow}>
+                <span>
+                  Hình thức:{' '}
+                  <strong className="font-semibold text-slate-800">
+                    {selectedAppointment?.modality === 'IN_APP_CHAT'
+                      ? 'Tư vấn qua khung chat'
+                      : selectedAppointment?.modality || 'Tư vấn trực tuyến'}
+                  </strong>
+                </span>
+                <span className="text-emerald-800 font-semibold flex items-center gap-1">
+                  <Check size={13} className="stroke-[3]" />{' '}
+                  {sessionSummary
+                    ? 'Đã có tóm tắt phiên'
+                    : 'Hồ sơ tư vấn lâm sàng'}
+                </span>
+              </div>
             </div>
-            <div className={styles.timeDateSub}>
-              {emrData.consultationTime.date} (
-              {emrData.consultationTime.durationLabel})
-            </div>
-          </div>
-          <div className={styles.timeDividerRow}>
-            <span>
-              Hình thức:{' '}
-              <strong className="font-semibold text-slate-800">
-                Chat E2EE
-              </strong>
-            </span>
-            <span className="text-emerald-800 font-semibold flex items-center gap-1">
-              <Check size={13} className="stroke-[3]" /> Đã nghiệm thu EMR
-            </span>
-          </div>
-        </div>
 
-        {/* Card 2: Chỉ số cảm xúc phiên này */}
-        <div className={styles.bentoCard}>
-          <div className={styles.cardTopLabelRow}>
-            <span className={styles.cardSectionLabel}>
-              Chỉ số cảm xúc phiên này
-            </span>
-            <span className="text-[10px] text-emerald-800 font-semibold">
-              Đo lường AI & BS
-            </span>
-          </div>
-          <div className={styles.scoreGrid}>
-            <div className={styles.scoreBoxBefore}>
-              <p className={styles.scoreSublabel}>Trước tư vấn</p>
-              <p className={styles.scoreValue}>
-                Mức {emrData.clinicalAssessment.preScore} /{' '}
-                {emrData.clinicalAssessment.maxScore}
-              </p>
-              <p className={styles.scoreDesc}>Căng thẳng</p>
+            {/* Card 2: Đánh giá lâm sàng phiên này */}
+            <div className={styles.bentoCard}>
+              <div className={styles.cardTopLabelRow}>
+                <span className={styles.cardSectionLabel}>
+                  Đánh giá lâm sàng phiên này
+                </span>
+                {emrData.clinicalAssessment.tool && (
+                  <span className="text-[10px] text-emerald-800 font-semibold">
+                    {emrData.clinicalAssessment.tool}
+                  </span>
+                )}
+              </div>
+              {emrData.clinicalAssessment.preScore !== null &&
+              emrData.clinicalAssessment.postScore !== null ? (
+                <div className={styles.scoreGrid}>
+                  <div className={styles.scoreBoxBefore}>
+                    <p className={styles.scoreSublabel}>Trước tư vấn</p>
+                    <p className={styles.scoreValue}>
+                      Mức {emrData.clinicalAssessment.preScore} /{' '}
+                      {emrData.clinicalAssessment.maxScore}
+                    </p>
+                  </div>
+                  <div className={styles.scoreBoxAfter}>
+                    <p
+                      className={`${styles.scoreSublabel} ${styles.scoreDescHighlight}`}
+                    >
+                      Sau tư vấn
+                    </p>
+                    <p
+                      className={`${styles.scoreValue} ${styles.scoreValueHighlight}`}
+                    >
+                      Mức {emrData.clinicalAssessment.postScore} /{' '}
+                      {emrData.clinicalAssessment.maxScore}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-2.5 px-3 bg-slate-50 rounded-lg text-xs text-slate-600 mb-2">
+                  {emrData.clinicalAssessment.summaryText ||
+                    'Chưa ghi nhận đánh giá định lượng cho phiên này.'}
+                </div>
+              )}
+              {emrData.clinicalAssessment.preScore !== null &&
+                emrData.clinicalAssessment.summaryText && (
+                  <p className={styles.clinicalNote}>
+                    <strong className="text-slate-800">Ghi chú:</strong>{' '}
+                    {emrData.clinicalAssessment.summaryText}
+                  </p>
+                )}
             </div>
-            <div className={styles.scoreBoxAfter}>
-              <p
-                className={`${styles.scoreSublabel} ${styles.scoreDescHighlight}`}
-              >
-                Sau tư vấn
-              </p>
-              <p
-                className={`${styles.scoreValue} ${styles.scoreValueHighlight}`}
-              >
-                Mức {emrData.clinicalAssessment.postScore} /{' '}
-                {emrData.clinicalAssessment.maxScore}
-              </p>
-              <p className={`${styles.scoreDesc} ${styles.scoreDescHighlight}`}>
-                Thư thái, an tâm
-              </p>
+
+            {/* Card 3: Toa dặn dò & Lộ trình */}
+            <div className={styles.bentoCard}>
+              <div className={styles.cardTopLabelRow}>
+                <span className={styles.cardSectionLabel}>
+                  Toa dặn dò & Lộ trình
+                </span>
+                {emrData.treatmentPlan && (
+                  <span className="text-[11px] text-emerald-800 font-semibold">
+                    {emrData.treatmentPlan.tasks.length} mục
+                  </span>
+                )}
+              </div>
+              {emrData.treatmentPlan &&
+              emrData.treatmentPlan.tasks.length > 0 ? (
+                <ul className={styles.protocolList}>
+                  {emrData.treatmentPlan.tasks.map((task) => (
+                    <li key={task.step} className={styles.protocolItem}>
+                      <span className={styles.protocolNumBadge}>
+                        {task.step}
+                      </span>
+                      <span>{task.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="py-2.5 px-3 bg-slate-50 rounded-lg text-xs text-slate-500 mb-2">
+                  Chưa có kế hoạch chăm sóc tiếp theo được ghi nhận cho phiên
+                  này.
+                </div>
+              )}
+              <Link href="/resources" className={styles.readMoreLink}>
+                <span>
+                  📖 Khám phá thêm các bài thực hành sức khỏe tinh thần
+                </span>
+                <span className="text-slate-400">→</span>
+              </Link>
             </div>
-          </div>
-          <p className={styles.clinicalNote}>
-            <strong className="text-slate-800">Ghi chú:</strong>{' '}
-            {emrData.clinicalAssessment.summaryText}
-          </p>
-        </div>
 
-        {/* Card 3: Toa dặn dò & Lộ trình tuần */}
-        <div className={styles.bentoCard}>
-          <div className={styles.cardTopLabelRow}>
-            <span className={styles.cardSectionLabel}>
-              Toa dặn dò & Lộ trình tuần
-            </span>
-            <span className="text-[11px] text-emerald-800 font-semibold">
-              {emrData.treatmentPlan.tasks.length} mục
-            </span>
-          </div>
-          <ul className={styles.protocolList}>
-            {emrData.treatmentPlan.tasks.map((task) => (
-              <li key={task.step} className={styles.protocolItem}>
-                <span className={styles.protocolNumBadge}>{task.step}</span>
-                <span>{task.title}</span>
-              </li>
-            ))}
-          </ul>
-          <Link href="/resources" className={styles.readMoreLink}>
-            <span>📖 Đọc thêm: Vệ sinh giấc ngủ chuyên sâu</span>
-            <span className="text-slate-400">→</span>
-          </Link>
-        </div>
-
-        {/* Card 4: Số dư gói & Actions */}
-        <div className={styles.bentoCard}>
-          <div className={styles.cardTopLabelRow}>
-            <span className="text-xs text-slate-500">
-              Số dư gói:{' '}
-              <strong className="text-slate-800">2 buổi còn lại</strong> (Plus)
-            </span>
-            <span className="text-xs font-semibold text-emerald-700">
-              Đã thanh toán
-            </span>
-          </div>
-          <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
-            <button
-              type="button"
-              className={styles.btnRateSession}
-              onClick={() => {
-                setRatingInput(rating || 5)
-                setIsRatingModalOpen(true)
-              }}
-            >
-              {rating
-                ? `Đã đánh giá: ${'★'.repeat(rating)}${'☆'.repeat(5 - rating)} (Chỉnh sửa)`
-                : `Đánh giá phiên với ${currentSpecialist.name} (★★★★★)`}
-            </button>
-            <button
-              type="button"
-              className={styles.btnViewInvoice}
-              onClick={() => setIsEmrModalOpen(true)}
-            >
-              Xem biên bản EMR & Hóa đơn
-            </button>
-          </div>
-        </div>
+            {/* Card 4: Số dư gói & Actions */}
+            <div className={styles.bentoCard}>
+              <div className={styles.cardTopLabelRow}>
+                <span className="text-xs text-slate-500">
+                  Mã phiên:{' '}
+                  <strong className="text-slate-800">
+                    {emrData.invoiceId}
+                  </strong>
+                </span>
+                <span className="text-xs font-semibold text-emerald-700">
+                  {emrData.creditsUsed > 0 ? 'Đã trừ 1 credit' : 'Miễn phí'}
+                </span>
+              </div>
+              <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
+                <button
+                  type="button"
+                  className={styles.btnRateSession}
+                  onClick={() => {
+                    setRatingInput(rating || 5)
+                    setIsRatingModalOpen(true)
+                  }}
+                >
+                  {rating
+                    ? `Đã đánh giá: ${'★'.repeat(rating)}${'☆'.repeat(5 - rating)} (Chỉnh sửa)`
+                    : `Đánh giá phiên với ${currentSpecialist.name} (★★★★★)`}
+                </button>
+                <button
+                  type="button"
+                  className={styles.btnViewInvoice}
+                  onClick={() => setIsEmrModalOpen(true)}
+                >
+                  Xem biên bản EMR & Hóa đơn
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </aside>
 
       {/* ======================================================== */}
@@ -1565,14 +1471,14 @@ export default function SpecialistChatView({
               {/* EMR Badge Header */}
               <div className="p-3.5 bg-emerald-50/60 border border-emerald-100 rounded-xl mb-4">
                 <div className="flex justify-between items-center text-xs font-semibold text-emerald-900 mb-1">
-                  <span>HỒ SƠ BỆNH ÁN ĐIỆN TỬ (EMR) CHUẨN HIPAA</span>
+                  <span>HỒ SƠ TƯ VẤN LÂM SÀNG</span>
                   <span className="font-mono text-[11px] text-emerald-700">
                     Mã {currentSpecialist.code}
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 m-0">
-                  Biên bản đã được ký xác thực số bởi Chuyên gia lâm sàng phụ
-                  trách và hệ thống phân giải bảo mật hai đầu MentalBridge.
+                  Biên bản ghi nhận kết quả phiên tham vấn chuyên gia trên hệ
+                  thống MentalBridge.
                 </p>
               </div>
 
@@ -1581,7 +1487,9 @@ export default function SpecialistChatView({
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Khách hàng:</span>
                   <strong className="text-slate-900">
-                    Ngọc Quyên (#MB-402)
+                    {viewerRole === 'SPECIALIST'
+                      ? 'Khách hàng tham vấn'
+                      : 'Tài khoản của bạn'}
                   </strong>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
@@ -1593,27 +1501,31 @@ export default function SpecialistChatView({
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Thời gian tham vấn:</span>
                   <span>
-                    {emrData.consultationTime.timeRange} •{' '}
-                    {emrData.consultationTime.date}
+                    {emrData?.consultationTime.timeRange || 'Chưa xác định'} •{' '}
+                    {emrData?.consultationTime.date || '—'}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500">Chỉ số PHQ-9:</span>
-                  <span className="font-semibold text-emerald-700">
-                    Trước: Mức {emrData.clinicalAssessment.preScore}/5 ➔ Sau:
-                    Mức {emrData.clinicalAssessment.postScore}/5
+                  <span className="text-slate-500">Đánh giá phiên:</span>
+                  <span className="font-semibold text-slate-700">
+                    {emrData?.clinicalAssessment.summaryText ||
+                      'Đã ghi nhận tóm tắt phiên'}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Hóa đơn thanh toán:</span>
                   <span className="font-semibold text-slate-900">
-                    1 Credit Gói Plus (Đã khấu trừ)
+                    {emrData?.invoiceId || 'INV-MB'} (
+                    {emrData?.creditsUsed ? '1 Credit' : '0 Credit'})
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5">
-                  <span className="text-slate-500">Trạng thái bảo chứng:</span>
+                  <span className="text-slate-500">Trạng thái phiên:</span>
                   <span className="font-semibold text-emerald-700 flex items-center gap-1">
-                    <CheckCircle2 size={14} /> Hoàn tất & Nghiệm thu y khoa
+                    <CheckCircle2 size={14} />{' '}
+                    {selectedAppointment?.status === 'COMPLETED'
+                      ? 'Đã hoàn tất phiên'
+                      : selectedAppointment?.status || 'Đang xử lý'}
                   </span>
                 </div>
               </div>
@@ -1621,13 +1533,20 @@ export default function SpecialistChatView({
               {/* Tasks List */}
               <div className="mt-4 pt-3 border-t border-slate-200">
                 <h4 className="font-bold text-slate-800 text-xs mb-2">
-                  Toa dặn dò & Lộ trình tuần:
+                  Toa dặn dò & Kế hoạch tiếp theo:
                 </h4>
-                <ul className="space-y-1.5 text-xs text-slate-600 pl-4 list-disc">
-                  {emrData.treatmentPlan.tasks.map((task) => (
-                    <li key={task.step}>{task.title}</li>
-                  ))}
-                </ul>
+                {emrData?.treatmentPlan &&
+                emrData.treatmentPlan.tasks.length > 0 ? (
+                  <ul className="space-y-1.5 text-xs text-slate-600 pl-4 list-disc">
+                    {emrData.treatmentPlan.tasks.map((task) => (
+                      <li key={task.step}>{task.title}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-500 italic">
+                    Chưa ghi nhận kế hoạch chi tiết.
+                  </p>
+                )}
               </div>
             </div>
             <div className={styles.modalFooter}>

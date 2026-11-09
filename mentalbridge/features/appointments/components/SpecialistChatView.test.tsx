@@ -122,6 +122,13 @@ describe('SpecialistChatView', () => {
           createdAt: '2026-10-01T17:00:00Z',
           updatedAt: '2026-10-01T17:00:00Z',
           publishedToUserAt: '2026-10-01T17:00:00Z',
+          agreedNextSteps: [
+            {
+              stepId: 'step-1',
+              title: 'Thực hành tập thở 4-7-8',
+              state: 'COMPLETED',
+            },
+          ],
         },
       ],
       count: 1,
@@ -135,11 +142,22 @@ describe('SpecialistChatView', () => {
       createdAt: '2026-10-01T10:00:00Z',
     })
     chatApi.chatEligibility.mockResolvedValue({
-      allowed: false,
-      reason: 'SESSION_COMPLETED',
+      historyAllowed: true,
+      sendAllowed: false,
+      conversationId: 'conv-123',
     })
     chatApi.chatHistory.mockResolvedValue({
-      messages: [],
+      items: [
+        {
+          messageId: 'msg-1',
+          conversationId: 'conv-123',
+          senderId: testAppointment.specialistAccountId,
+          recipientId: 'user-1',
+          content: 'Chào bạn, tôi là BS. Minh Anh',
+          sentAt: '2026-10-01T16:00:00Z',
+          deliveryState: 'SENT',
+        },
+      ],
     })
     assessmentApi.getAssessmentHistory.mockResolvedValue([])
   })
@@ -175,8 +193,8 @@ describe('SpecialistChatView', () => {
 
     // Col 3: EMR Drawer is initially open
     expect(screen.getByText('Thông tin buổi hẹn & EMR')).toBeVisible()
-    expect(screen.getByText('Chỉ số cảm xúc phiên này')).toBeVisible()
-    expect(screen.getByText('Toa dặn dò & Lộ trình tuần')).toBeVisible()
+    expect(screen.getByText('Đánh giá lâm sàng phiên này')).toBeVisible()
+    expect(screen.getByText('Toa dặn dò & Lộ trình')).toBeVisible()
   })
 
   it('allows toggling the EMR drawer open and closed', async () => {
@@ -224,7 +242,7 @@ describe('SpecialistChatView', () => {
     expect(
       await screen.findByText('Biên bản EMR & Hóa đơn lâm sàng'),
     ).toBeVisible()
-    expect(screen.getByText(/HỒ SƠ BỆNH ÁN ĐIỆN TỬ/i)).toBeVisible()
+    expect(screen.getByText(/HỒ SƠ TƯ VẤN LÂM SÀNG/i)).toBeVisible()
 
     // Close modal via footer button "Đóng"
     const closeBtn = screen.getByRole('button', { name: /^Đóng$/i })
@@ -260,5 +278,93 @@ describe('SpecialistChatView', () => {
       testAppointment.id,
       5,
     )
+  })
+
+  it('renders truthful empty state when chat history has no messages', async () => {
+    chatApi.chatHistory.mockResolvedValueOnce({ items: [] })
+
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    expect(
+      await screen.findByText('Chưa có tin nhắn trong phiên này'),
+    ).toBeVisible()
+  })
+
+  it('renders forbidden state when chat history is not allowed (403)', async () => {
+    chatApi.chatEligibility.mockResolvedValueOnce({
+      historyAllowed: false,
+      sendAllowed: false,
+      reason: 'FORBIDDEN',
+    })
+
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    expect(await screen.findByText('Không có quyền truy cập')).toBeVisible()
+    expect(
+      screen.getByText(/Bạn không có quyền truy cập lịch sử hội thoại/i),
+    ).toBeVisible()
+  })
+
+  it('renders error state when chat history request fails', async () => {
+    chatApi.chatEligibility.mockRejectedValueOnce(
+      new Error('Network connection failed'),
+    )
+
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    expect(
+      await screen.findByText('Không thể tải lịch sử trò chuyện'),
+    ).toBeVisible()
+  })
+
+  it('disables composer input and send button for ended session', async () => {
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    await screen.findByText('ThS. BS. Minh Anh')
+
+    const input = screen.getByPlaceholderText(
+      'Phiên tư vấn đã kết thúc • Khung chat chỉ đọc',
+    )
+    expect(input).toBeDisabled()
+
+    const sendBtn = screen.getByRole('button', { name: 'Gửi tin nhắn' })
+    expect(sendBtn).toBeDisabled()
+  })
+
+  it('handles session with no summary gracefully without crashing', async () => {
+    sessionSummaryApi.list.mockResolvedValueOnce({ items: [], count: 0 })
+
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    expect(
+      await screen.findByText(
+        'Chưa có kế hoạch chăm sóc tiếp theo được ghi nhận cho phiên này.',
+      ),
+    ).toBeVisible()
   })
 })

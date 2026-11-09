@@ -89,6 +89,7 @@ export const discoveryItemSchema = z
     explanation: discoveryExplanationSchema,
     selectableSlots: z
       .array(discoverySlotSchema)
+      .min(1)
       .max(20)
       .refine((slots) => unique(slots.map((slot) => slot.id))),
   })
@@ -96,12 +97,6 @@ export const discoveryItemSchema = z
     item.selectableSlots.every(
       (slot) => slot.specialistAccountId === item.specialistAccountId,
     ),
-  )
-  .refine(
-    (item) =>
-      item.explanation.hasSelectableSlot === item.selectableSlots.length > 0 &&
-      (item.explanation.earliestSelectableStartAt !== null) ===
-        item.selectableSlots.length > 0,
   )
 export const discoveryPageSchema = z
   .strictObject({

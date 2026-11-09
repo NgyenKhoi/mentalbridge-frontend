@@ -25,20 +25,22 @@ describe('SmallStepsResourceDetail', () => {
 
     expect(screen.getByText('Studio Vi Mô Thực Hành')).toBeInTheDocument()
     expect(
-      screen.getByText('Bắt đầu bằng một cử chỉ thật nhỏ.'),
+      screen.getByText('Bắt đầu bằng một hoạt động nhỏ'),
     ).toBeInTheDocument()
     expect(screen.getByText(/Hôm nay chỉ cần 3 phút/i)).toBeInTheDocument()
     expect(screen.getByText('3 Phút Nhẹ Nhàng')).toBeInTheDocument()
   })
 
-  it('renders audio player with Thuy Dung narrator and 432Hz subtitle', () => {
+  it('renders audio player with Thuy Dung narrator and soothing subtitle', () => {
     render(<SmallStepsResourceDetail resource={mockResource} />)
 
     expect(
       screen.getByText('Giọng dẫn thiền • Chuyên viên Thuỳ Dung'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('Tần số nhẹ 432Hz hạ áp lực hệ thần kinh'),
+      screen.getByText(
+        'Giai điệu thư giãn nhẹ nhàng, hỗ trợ điều hòa nhịp thở',
+      ),
     ).toBeInTheDocument()
     expect(screen.getAllByText('03:12').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Audiobook • Giọng trầm ấm')).toBeInTheDocument()

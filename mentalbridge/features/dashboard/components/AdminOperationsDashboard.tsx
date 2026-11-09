@@ -465,7 +465,7 @@ export function AdminOperationsDashboard({
             <div className={styles.kpiCard}>
               <div className={styles.kpiCardHeader}>
                 <span className={styles.kpiCardEyebrow}>
-                  AN TOÀN &amp; THÔNG BÁO
+                  THÔNG BÁO VẬN HÀNH
                 </span>
                 <div className={styles.kpiCardIcon} aria-hidden="true">
                   <ShieldCheck size={16} />
@@ -474,8 +474,10 @@ export function AdminOperationsDashboard({
 
               <div className={styles.kpiMainRow}>
                 <div className={styles.kpiBigNumber}>
-                  <span className={styles.kpiBigText}>100%</span>
-                  <span className={styles.kpiUnit}>An toàn tuyệt đối</span>
+                  <span className={styles.kpiBigText}>
+                    {inAppNotifications}
+                  </span>
+                  <span className={styles.kpiUnit}>Bản tin phát hành</span>
                 </div>
               </div>
 
@@ -519,19 +521,18 @@ export function AdminOperationsDashboard({
 
               <div className={styles.notifyStatsRow}>
                 <div className={styles.notifyStatCol}>
-                  <span className={styles.notifyLabel}>Thông báo phát:</span>
+                  <span className={styles.notifyLabel}>Nguồn ghi nhận:</span>
                   <span className={styles.notifyValue}>
-                    {inAppNotifications} bản tin
+                    In-App Notification Stream
                   </span>
-                </div>
-                <div className={styles.notifyStatColRight}>
-                  <span className={styles.notifyAlertPill}>0 cảnh báo sai</span>
                 </div>
               </div>
 
               <div className={styles.kpiCardFooter}>
-                <span>Email hệ thống: Trạng thái Audit</span>
-                <span className={styles.kpiAuditOk}>Đã giao 100% (0 trễ)</span>
+                <span>Nhật ký thông báo</span>
+                <span className={styles.kpiAuditOk}>
+                  Dữ liệu thời gian thực
+                </span>
               </div>
             </div>
 
@@ -600,115 +601,6 @@ export function AdminOperationsDashboard({
 
           {/* Children Slot (Renders Middle Funnel & Task Sidebar when composed) */}
           {children}
-
-          {/* 4) Bottom Section: Technical Indices & EMR Integrations */}
-          <section className={styles.technicalSection}>
-            <div className={styles.technicalHeader}>
-              <div>
-                <h3 className={styles.technicalTitle}>
-                  Chỉ số kỹ thuật &amp; Xác thực hạ tầng lâm sàng
-                </h3>
-                <p className={styles.technicalSubtitle}>
-                  Báo cáo trục quan trung thái liên thông điều vị dịch vụ
-                  (Microservices Integrations &amp; Telemetry)
-                </p>
-              </div>
-              <span className={styles.technicalRef}>
-                Quy chuẩn SecOps &amp; EMR tương vi 2.4
-              </span>
-            </div>
-
-            <div className={styles.technicalGrid}>
-              {/* Technical Card 1: Uptime SLA */}
-              <div className={styles.technicalCard}>
-                <div className={styles.technicalCardTop}>
-                  <div>
-                    <h4 className={styles.technicalCardTitle}>
-                      Tỷ lệ Sẵn sàng (Uptime SLA)
-                    </h4>
-                    <span className={styles.technicalSub}>
-                      Prometheus &amp; Grafana Engine
-                    </span>
-                  </div>
-                  <span className={styles.badgeSla}>99.98%</span>
-                </div>
-                <div className={styles.technicalMetricsRow}>
-                  <span>Đã 141 ngày liên tục</span>
-                  <span className={styles.latencyTag}>42ms (On-Grid)</span>
-                </div>
-                <p className={styles.technicalDesc}>
-                  5 node máy chủ Singapore &amp; Tokyo đồng bộ real-time. Hệ
-                  thống toàn vẹn băng thông an toàn đang duy trì ở tỉ lệ cao
-                  42ms.
-                </p>
-              </div>
-
-              {/* Technical Card 2: SecOps */}
-              <div className={styles.technicalCard}>
-                <div className={styles.technicalCardTop}>
-                  <div>
-                    <h4 className={styles.technicalCardTitle}>
-                      Chỉ số An ninh SecOps
-                    </h4>
-                    <span className={styles.technicalSub}>
-                      Tiêu chuẩn AES-256 GCM
-                    </span>
-                  </div>
-                  <span className={styles.badgeSecOps}>A+ Tối đa</span>
-                </div>
-                <div className={styles.technicalMetricsRow}>
-                  <span className={styles.textGreenBold}>
-                    Kiểm toán Audit Log: 100% Chữ ký số hợp lệ
-                  </span>
-                </div>
-                <p className={styles.technicalDesc}>
-                  Những kiểm toán truy cập Audit Log được ký điện tử bất biến.
-                  Không ghi nhận bất kỳ nỗ lực truy cập vượt quyền nào trong 72
-                  giờ qua.
-                </p>
-              </div>
-
-              {/* Technical Card 3: PayOS Gateway */}
-              <div className={styles.technicalCard}>
-                <div className={styles.technicalCardTop}>
-                  <div>
-                    <h4 className={styles.technicalCardTitle}>
-                      Cổng thanh toán &amp; PayOS
-                    </h4>
-                    <span className={styles.technicalSub}>
-                      VietQR Pro &amp; Visa Gateway
-                    </span>
-                  </div>
-                  <span className={styles.badgePayOS}>Hoạt động tốt</span>
-                </div>
-                <div className={styles.technicalMetricsRow}>
-                  <span className={styles.textGreenBold}>
-                    Tổng kết Webhook 8/8 (100% Khớp lệnh tức thì)
-                  </span>
-                </div>
-                <p className={styles.technicalDesc}>
-                  Dòng tiền thanh toán gói hỗ trợ và tiền tip chuyên gia được
-                  webhook truy xuất xác thực ngay lập tức. Số lỗi phiên bảo
-                  chính xác: 100%.
-                </p>
-              </div>
-            </div>
-
-            {/* Bottom Telemetry Strip */}
-            <div className={styles.telemetryFooterStrip}>
-              <div className={styles.stripLeft}>
-                <span>● Mã giám định: 4945-8101</span>
-                <span>● 5/5 Hệ thống suốt</span>
-                <span>P99 Latency: 42ms</span>
-              </div>
-              <div className={styles.stripRight}>
-                <span>Chính sách: Zero-Trust</span>
-                <span>Zero-Breach (0 vi phạm)</span>
-                <span>Webhook Sync: 100%</span>
-                <span>Độ soát tiền tệ: 00</span>
-              </div>
-            </div>
-          </section>
 
           {/* 5) Authoritative Provenance & Unintegrated Audit Details */}
           <details className={styles.auditDetailsWrapper}>

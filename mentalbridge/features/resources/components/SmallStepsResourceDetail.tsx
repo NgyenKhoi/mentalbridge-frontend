@@ -137,8 +137,8 @@ export function SmallStepsResourceDetail({
 
   // Audio / Narration State
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
-  const [currentTime, setCurrentTime] = useState(74) // 01:14 default as in image
-  const totalAudioDuration = 192 // 03:12
+  const [currentTime, setCurrentTime] = useState(0)
+  const [audioDuration, setAudioDuration] = useState(192) // 03:12 default estimated duration
   const [ambientSound, setAmbientSound] = useState<'bell' | 'stream' | 'rain'>(
     'bell',
   )
@@ -271,24 +271,35 @@ export function SmallStepsResourceDetail({
     }
   }
 
-  // Audio Progress Timer effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null
-    if (isPlayingAudio) {
-      interval = setInterval(() => {
-        setCurrentTime((prev) => {
-          if (prev >= totalAudioDuration) {
-            setIsPlayingAudio(false)
-            return 0
-          }
-          return prev + 1
-        })
-      }, 1000)
+  // Seek audio to given seconds
+  const seekAudio = useCallback(
+    (newTime: number) => {
+      const bounded = Math.max(0, Math.min(newTime, audioDuration))
+      setCurrentTime(bounded)
+      if (audioRef.current) {
+        audioRef.current.currentTime = bounded
+      }
+    },
+    [audioDuration],
+  )
+
+  // Real media time update
+  const handleTimeUpdate = useCallback(() => {
+    if (audioRef.current) {
+      setCurrentTime(Math.floor(audioRef.current.currentTime))
     }
-    return () => {
-      if (interval) clearInterval(interval)
+  }, [])
+
+  // Real media metadata loaded
+  const handleLoadedMetadata = useCallback(() => {
+    if (
+      audioRef.current &&
+      Number.isFinite(audioRef.current.duration) &&
+      audioRef.current.duration > 0
+    ) {
+      setAudioDuration(Math.floor(audioRef.current.duration))
     }
-  }, [isPlayingAudio, totalAudioDuration])
+  }, [])
 
   // Handle completion
   const handleFinishExercise = useCallback(async () => {
@@ -361,7 +372,7 @@ export function SmallStepsResourceDetail({
     const rect = e.currentTarget.getBoundingClientRect()
     const clickX = e.clientX - rect.left
     const percent = Math.max(0, Math.min(1, clickX / rect.width))
-    setCurrentTime(Math.round(percent * totalAudioDuration))
+    seekAudio(Math.round(percent * audioDuration))
   }
 
   const ActionIcon = currentAction.icon
@@ -399,7 +410,7 @@ export function SmallStepsResourceDetail({
             <span>Phục hồi năng lượng chậm rãi</span>
           </div>
           <h1 className={styles.mainTitle}>
-            Bắt đầu bằng một cử chỉ thật nhỏ.
+            {resource?.title || 'Bắt đầu bằng một hoạt động nhỏ'}
           </h1>
           <p className={styles.quoteText}>
             “Hôm nay chỉ cần 3 phút — không cần cố gắng quá sức, không phán xét
@@ -484,7 +495,9 @@ export function SmallStepsResourceDetail({
                   </div>
                   <div className={styles.narratorText}>
                     <h4>Giọng dẫn thiền • Chuyên viên Thuỳ Dung</h4>
-                    <p>Tần số nhẹ 432Hz hạ áp lực hệ thần kinh</p>
+                    <p>
+                      Giai điệu thư giãn nhẹ nhàng, hỗ trợ điều hòa nhịp thở
+                    </p>
                   </div>
                 </div>
 
@@ -492,7 +505,7 @@ export function SmallStepsResourceDetail({
                   <button
                     type="button"
                     className={styles.navIconBtn}
-                    onClick={() => setCurrentTime((t) => Math.max(0, t - 10))}
+                    onClick={() => seekAudio(currentTime - 10)}
                     title="Lùi 10 giây"
                     aria-label="Lùi 10 giây"
                   >
@@ -513,11 +526,7 @@ export function SmallStepsResourceDetail({
                   <button
                     type="button"
                     className={styles.navIconBtn}
-                    onClick={() =>
-                      setCurrentTime((t) =>
-                        Math.min(totalAudioDuration, t + 10),
-                      )
-                    }
+                    onClick={() => seekAudio(currentTime + 10)}
                     title="Tua tới 10 giây"
                     aria-label="Tua tới 10 giây"
                   >
@@ -535,19 +544,19 @@ export function SmallStepsResourceDetail({
                   tabIndex={0}
                   aria-label="Thanh thời gian âm thanh"
                   aria-valuemin={0}
-                  aria-valuemax={totalAudioDuration}
+                  aria-valuemax={audioDuration}
                   aria-valuenow={currentTime}
                 >
                   <div
                     className={styles.timelineFill}
                     style={{
-                      width: `${(currentTime / totalAudioDuration) * 100}%`,
+                      width: `${(currentTime / audioDuration) * 100}%`,
                     }}
                   />
                 </div>
                 <div className={styles.timeNumbers}>
                   <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(totalAudioDuration)}</span>
+                  <span>{formatTime(audioDuration)}</span>
                 </div>
               </div>
 
@@ -606,13 +615,21 @@ export function SmallStepsResourceDetail({
                 </div>
               </div>
 
-              {/* Hidden audio element */}
+              {/* Audio element connected to real media events */}
               <audio
                 ref={audioRef}
                 src="/audio/nhac-thien.mp3"
-                preload="none"
+                preload="metadata"
                 loop
                 style={{ display: 'none' }}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
+                onPlay={() => setIsPlayingAudio(true)}
+                onPause={() => setIsPlayingAudio(false)}
+                onEnded={() => {
+                  setIsPlayingAudio(false)
+                  seekAudio(0)
+                }}
               />
             </div>
 
@@ -640,10 +657,9 @@ export function SmallStepsResourceDetail({
                     Liệu pháp Kích hoạt Hành vi (Behavioral Activation):
                   </strong>{' '}
                   Khi bạn chia nhỏ hành động xuống mức siêu nhỏ chỉ cần 3 phút,
-                  não bộ không còn kích hoạt phản ứng né tránh
-                  (Fight-or-Flight). Ngay khi bạn hoàn thành một cử chỉ nhỏ, một
-                  lượng Dopamine vừa đủ sẽ được tiết ra, giúp cơ thể thoát khỏi
-                  trạng thái ì trệ.
+                  rào cản tâm lý bắt đầu hành động sẽ giảm bớt rõ rệt. Mỗi hành
+                  động nhỏ hoàn thành giúp bạn từng bước khôi phục cảm giác tự
+                  chủ và tiếp thêm động lực tự nhiên cho cơ thể.
                 </div>
 
                 <p>
