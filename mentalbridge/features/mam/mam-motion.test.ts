@@ -5,8 +5,10 @@ import {
   ease,
   hopSteps,
   perchBubble,
+  perchBubbleBeside,
   perchClip,
   perchLeft,
+  perchSpot,
   sampleVelocity,
   scrollNeeded,
   stepFlight,
@@ -162,6 +164,45 @@ describe('perch geometry', () => {
     expect(perchLeft(800, 96, 1200)).toBe(676)
     expect(perchLeft(60, 96, 1200)).toBe(8)
     expect(perchLeft(1400, 96, 1200)).toBe(1096)
+  })
+
+  describe('the perch spot along the card edge', () => {
+    // Card 300..1300 in a 1440 viewport with a 232 px sidebar: the right end is 1148.
+    const card = {
+      cardLeft: 300,
+      cardRight: 1300,
+      size: 96,
+      viewport: 1440,
+      viewportLeft: 232,
+    }
+
+    it('stays at the right end when nothing is there', () => {
+      expect(perchSpot({ ...card, blocked: () => false })).toBe(1176)
+    })
+
+    it('steps left past text, 48 px at a time, to the first clear spot', () => {
+      expect(perchSpot({ ...card, blocked: (left) => left > 1100 })).toBe(1080)
+    })
+
+    it('stays at the right end when the bubble would lose its room, or nothing is clear', () => {
+      // The bubble needs 310 + 12 px left of Mầm and the 232 + 16 px gutter: not before 570.
+      const left: number[] = []
+      expect(
+        perchSpot({
+          ...card,
+          blocked: (at) => {
+            left.push(at)
+            return true
+          },
+        }),
+      ).toBe(1176)
+      expect(Math.min(...left)).toBeGreaterThanOrEqual(570)
+    })
+  })
+
+  it('has the bubble beside Mầm on a wide card, and above on a narrow screen', () => {
+    expect(perchBubbleBeside(1300, 96, 1440, 232)).toBe(true)
+    expect(perchBubbleBeside(359, 96, 375, 0)).toBe(false)
   })
 
   it('clips below the card top and above the header, in layer coordinates', () => {

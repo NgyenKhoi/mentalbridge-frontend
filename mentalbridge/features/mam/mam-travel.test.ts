@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createMamTravel } from './mam-travel'
+import { createMamTravel, isMamCardOnScreen } from './mam-travel'
 
 const SIZE = 96
 const DOCK = new DOMRect(24, 700, SIZE, SIZE)
@@ -504,5 +504,84 @@ describe('Mầm travel', () => {
     await run(100)
     // No sideways speed left over from the old flick.
     expect(Math.abs(travel.values.x.get() - held)).toBeLessThan(1)
+  })
+
+  describe('drop on a card (MB-819)', () => {
+    it('lets go without a throw, drops out of sight and climbs the card from where it was dropped', async () => {
+      const { travel, hooks, calls } = setup()
+      const card = box(new DOMRect(300, 400, 600, 120))
+      travel.dragStart(70, 750)
+      travel.dragMove(500, 450)
+      travel.dragDrop()
+      expect(travel.mode()).toBe('home')
+      expect(calls).not.toContain('behavior:happy')
+      const dropped = travel.values.y.get()
+      void travel.climb(card)
+      await run(240)
+      // Falling from the drop point, not snapped back to the dock first.
+      expect(travel.mode()).toBe('home')
+      expect(travel.values.y.get()).toBeGreaterThan(dropped)
+      await run(2400)
+      expect(travel.mode()).toBe('perch')
+      expect(hooks.perch).toHaveBeenLastCalledWith(
+        expect.objectContaining({ cardTop: 400 }),
+      )
+    })
+
+    it('goes straight home when the summon closed before the climb began', () => {
+      const { travel } = setup()
+      travel.dragStart(70, 750)
+      travel.dragMove(500, 450)
+      travel.dragDrop()
+      void travel.home(false)
+      expect(travel.mode()).toBe('dock')
+      expect(travel.values.y.get()).toBeCloseTo(0)
+    })
+
+    it('does nothing without a drag', () => {
+      const { travel } = setup()
+      travel.dragDrop()
+      expect(travel.mode()).toBe('dock')
+    })
+  })
+
+  describe('a card Mầm may point at (MB-819)', () => {
+    beforeEach(() => {
+      Object.defineProperty(window, 'innerHeight', {
+        value: 800,
+        configurable: true,
+      })
+      Object.defineProperty(window, 'innerWidth', {
+        value: 1024,
+        configurable: true,
+      })
+      box(new DOMRect(0, 0, 1024, 76)).className = 'ref-topbar'
+    })
+
+    it.each([
+      ['below the header', new DOMRect(100, 300, 600, 120), true],
+      ['its top edge under the header', new DOMRect(100, 40, 600, 120), false],
+      ['below the viewport', new DOMRect(100, 900, 600, 120), false],
+      ['no box', new DOMRect(), false],
+    ])('%s', (_name, rect, expected) => {
+      expect(isMamCardOnScreen(box(rect))).toBe(expected)
+    })
+
+    it('needs the card on the page and painted', () => {
+      const card = box(new DOMRect(100, 300, 600, 120))
+      card.style.visibility = 'hidden'
+      expect(isMamCardOnScreen(card)).toBe(false)
+      card.style.visibility = ''
+      card.remove()
+      expect(isMamCardOnScreen(card)).toBe(false)
+    })
+
+    it('reads the marked inner surface as the top edge', () => {
+      const section = box(new DOMRect(100, 20, 600, 500))
+      const inner = box(new DOMRect(100, 300, 600, 120))
+      inner.setAttribute('data-mam-perch', '')
+      section.appendChild(inner)
+      expect(isMamCardOnScreen(section)).toBe(true)
+    })
   })
 })

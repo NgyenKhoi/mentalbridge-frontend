@@ -357,7 +357,8 @@ test.describe('MB-775 Mầm web gate', () => {
     )
     await openHome(page)
     await page.goto('/dashboard')
-    await expect.poll(() => attempts.length).toBe(1)
+    // The loader may make its permitted second request before this poll observes the first.
+    await expect.poll(() => attempts.length).toBeGreaterThanOrEqual(1)
     await page.waitForTimeout(2000)
     await expect(page.locator('[data-mam-dock]')).toHaveCount(0)
     await expect(page.getByText(/This page couldn.t load/)).toHaveCount(0)
@@ -700,7 +701,7 @@ test.describe('MB-775 Mầm web gate', () => {
     await expect(dock(page)).toBeVisible()
 
     // View, edit and delete all render inside the dialog.
-    await page.getByRole('button', { name: 'Xem chi tiết' }).click()
+    await page.getByRole('button', { name: 'Xem chi tiết' }).first().click()
     await expect(page.getByRole('dialog')).toBeVisible()
     await expect(root).toHaveAttribute('data-mam-dock', 'away')
     await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
@@ -709,7 +710,7 @@ test.describe('MB-775 Mầm web gate', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(root).toHaveAttribute('data-mam-dock', 'shown')
 
-    await page.getByRole('button', { name: 'Xem chi tiết' }).click()
+    await page.getByRole('button', { name: 'Xem chi tiết' }).first().click()
     await page.getByRole('button', { name: 'Xóa', exact: true }).click()
     await expect(
       page.getByRole('heading', { name: 'Xác nhận xóa' }),
