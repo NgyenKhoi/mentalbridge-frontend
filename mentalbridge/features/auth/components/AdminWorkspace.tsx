@@ -108,7 +108,7 @@ import {
   isAdminSection,
   type AdminSection,
 } from '../model/admin-sections'
-export { isAdminSection, type AdminSection }
+export { ADMIN_SECTIONS, isAdminSection, type AdminSection }
 
 function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
   switch (section) {
@@ -172,7 +172,10 @@ export default function AdminWorkspace({
   const toggleSidebar = () => {
     setSidebarCollapsed((value) => {
       const nextValue = !value
-      localStorage.setItem('mentalbridge_admin_sidebar_collapsed', String(nextValue))
+      localStorage.setItem(
+        'mentalbridge_admin_sidebar_collapsed',
+        String(nextValue),
+      )
       return nextValue
     })
   }
@@ -205,7 +208,8 @@ export default function AdminWorkspace({
     wasMobileOpen.current = true
     sidebarRef.current?.querySelector<HTMLElement>('nav a')?.focus()
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !event.defaultPrevented) setMobileOpen(false)
+      if (event.key === 'Escape' && !event.defaultPrevented)
+        setMobileOpen(false)
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
@@ -240,7 +244,9 @@ export default function AdminWorkspace({
         <button
           className="role-collapse"
           onClick={toggleSidebar}
-          aria-label={sidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
+          aria-label={
+            sidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'
+          }
           title={sidebarCollapsed ? 'Mở rộng' : 'Thu gọn'}
         >
           <motion.span animate={{ rotate: sidebarCollapsed ? 180 : 0 }}>
@@ -264,7 +270,11 @@ export default function AdminWorkspace({
                     <motion.span
                       layoutId="role-active-admin"
                       className="role-active-pill"
-                      transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 380,
+                        damping: 32,
+                      }}
                     />
                   )}
                   <span className="role-nav-icon" aria-hidden="true">
@@ -308,10 +318,19 @@ export default function AdminWorkspace({
             >
               ☰
             </button>
-            <div className="clinical-breadcrumb" aria-label="Đường dẫn điều hướng">
-              <span className="clinical-breadcrumb-parent">Không gian quản trị</span>
-              <span className="clinical-breadcrumb-sep" aria-hidden="true">›</span>
-              <span className="clinical-breadcrumb-current">{currentSectionLabel}</span>
+            <div
+              className="clinical-breadcrumb"
+              aria-label="Đường dẫn điều hướng"
+            >
+              <span className="clinical-breadcrumb-parent">
+                Không gian quản trị
+              </span>
+              <span className="clinical-breadcrumb-sep" aria-hidden="true">
+                ›
+              </span>
+              <span className="clinical-breadcrumb-current">
+                {currentSectionLabel}
+              </span>
             </div>
             <div className="clinical-topbar-status-pill">
               <span className="clinical-topbar-status-dot" aria-hidden="true" />
@@ -321,7 +340,11 @@ export default function AdminWorkspace({
 
           <div className="clinical-topbar-right">
             <div className="clinical-search-wrapper">
-              <Search size={15} strokeWidth={1.75} className="clinical-search-icon" />
+              <Search
+                size={15}
+                strokeWidth={1.75}
+                className="clinical-search-icon"
+              />
               <input
                 ref={searchInputRef}
                 type="text"

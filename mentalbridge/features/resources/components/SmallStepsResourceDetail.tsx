@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -9,17 +9,13 @@ import {
   Clock,
   Coffee,
   Headphones,
-  Heart,
   Leaf,
-  Maximize2,
-  Minimize2,
   Pause,
   Play,
   RotateCcw,
   RotateCw,
   Sparkles,
   Volume2,
-  VolumeX,
   Wind,
   Bell,
   Droplets,
@@ -49,7 +45,8 @@ export const MICRO_ACTIONS: Record<MicroActionKey, MicroActionItem> = {
   window: {
     id: 'window',
     title: 'Mở cửa sổ đón gió',
-    subtitle: 'Hít thở 3 hơi sâu với không khí tự nhiên, cảm nhận làn gió mát chạm vào da.',
+    subtitle:
+      'Hít thở 3 hơi sâu với không khí tự nhiên, cảm nhận làn gió mát chạm vào da.',
     detail: 'Hít thở 3 hơi sâu với không khí trong lành ngoài trời',
     icon: Wind,
     heroTitle: 'MỞ CỬA SỔ ĐÓN GIÓ',
@@ -57,12 +54,14 @@ export const MICRO_ACTIONS: Record<MicroActionKey, MicroActionItem> = {
     image: '/images/small-steps/small_steps_open_window.jpg',
     dialogue:
       'Hãy bước chậm rãi về phía cửa sổ và mở rộng cánh cửa. Đón lấy luồng gió mát lành tự nhiên chạm vào gò má. Hít một hơi thật sâu qua mũi, giữ lại một giây và thở ra nhẹ nhàng. Nhịp thở tự nhiên đang đưa dưỡng khí mới nuôi dưỡng từng tế bào của bạn.',
-    quote: 'Chỉ một làn gió mát trong lành cũng đủ đánh thức các giác quan đang mỏi mệt.',
+    quote:
+      'Chỉ một làn gió mát trong lành cũng đủ đánh thức các giác quan đang mỏi mệt.',
   },
   water: {
     id: 'water',
     title: 'Uống một ngụm nước ấm',
-    subtitle: 'Cảm nhận dòng nước lan tỏa ấm áp xuống lồng ngực, chậm rãi nuốt từng ngụm.',
+    subtitle:
+      'Cảm nhận dòng nước lan tỏa ấm áp xuống lồng ngực, chậm rãi nuốt từng ngụm.',
     detail: 'Cảm nhận hơi ấm truyền qua các đầu ngón tay và xuống lồng ngực',
     icon: Coffee,
     heroTitle: 'UỐNG MỘT NGỤM NƯỚC ẤM',
@@ -70,12 +69,14 @@ export const MICRO_ACTIONS: Record<MicroActionKey, MicroActionItem> = {
     image: '/images/small-steps/small_steps_warm_water.jpg',
     dialogue:
       'Nâng cốc nước ấm bằng cả hai bàn tay. Cảm nhận hơi ấm dịu dàng truyền qua các đầu ngón tay. Nhấp một ngụm nhỏ, giữ lại trên vòm họng vài giây trước khi nuốt. Cảm nhận dòng nước ấm chảy êm đềm xuống lồng ngực, làm dịu mọi căng thẳng đang tích tụ.',
-    quote: 'Một ngụm nước ấm chậm rãi gửi tín hiệu an toàn và thư giãn đến hệ thần kinh phó giao cảm.',
+    quote:
+      'Một ngụm nước ấm chậm rãi gửi tín hiệu an toàn và thư giãn đến hệ thần kinh phó giao cảm.',
   },
   melody: {
     id: 'melody',
     title: 'Nghe một giai điệu dịu',
-    subtitle: 'Khép hờ mắt và không suy nghĩ, thả lỏng toàn bộ cơ thể theo từng nốt nhạc.',
+    subtitle:
+      'Khép hờ mắt và không suy nghĩ, thả lỏng toàn bộ cơ thể theo từng nốt nhạc.',
     detail: 'Thả lỏng toàn bộ cơ thể theo tần số 432Hz êm dịu',
     icon: Headphones,
     heroTitle: 'NGHE MỘT GIAI ĐIỆU DỊU',
@@ -83,7 +84,8 @@ export const MICRO_ACTIONS: Record<MicroActionKey, MicroActionItem> = {
     image: '/images/small-steps/small_steps_listen_melody.jpg',
     dialogue:
       'Hãy tựa lưng vào ghế thật thoải mái và khép nhẹ mi mắt. Lắng nghe từng rung động âm thanh 432Hz đang bao bọc lấy không gian của bạn. Lúc này, không có mục tiêu nào cần phải đạt được. Bạn chỉ cần hiện diện và để âm nhạc xoa dịu tâm trí.',
-    quote: 'Âm nhạc tần số thấp giúp sóng não alpha kích hoạt, đưa tâm trí về trạng thái tĩnh tại sâu sắc.',
+    quote:
+      'Âm nhạc tần số thấp giúp sóng não alpha kích hoạt, đưa tâm trí về trạng thái tĩnh tại sâu sắc.',
   },
 }
 
@@ -97,7 +99,8 @@ export const INTRO_ACTION: Omit<MicroActionItem, 'id'> = {
   image: '/images/small-steps/small_steps_intro.jpg',
   dialogue:
     'Chào bạn, hôm nay bạn không cần phải cố gắng quá sức. Chỉ cần dành ra đúng 3 phút cho một cử chỉ thật nhỏ bé và tử tế với chính mình. Chọn một hành động bạn cảm thấy dễ chịu nhất bên phải để bắt đầu.',
-  quote: 'Hôm nay chỉ cần 3 phút — không cần cố gắng quá sức, không phán xét bất kỳ điều gì.',
+  quote:
+    'Hôm nay chỉ cần 3 phút — không cần cố gắng quá sức, không phán xét bất kỳ điều gì.',
 }
 
 type Props = Readonly<{
@@ -115,7 +118,7 @@ type Props = Readonly<{
 }>
 
 export function SmallStepsResourceDetail({
-  resource,
+  resource: _resource,
   backHref = '/resources',
   status = 'IN_PROGRESS',
   saving = false,
@@ -136,7 +139,9 @@ export function SmallStepsResourceDetail({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
   const [currentTime, setCurrentTime] = useState(74) // 01:14 default as in image
   const totalAudioDuration = 192 // 03:12
-  const [ambientSound, setAmbientSound] = useState<'bell' | 'stream' | 'rain'>('bell')
+  const [ambientSound, setAmbientSound] = useState<'bell' | 'stream' | 'rain'>(
+    'bell',
+  )
 
   // Mindful Timer State (3 minutes = 180s)
   const TIMER_TOTAL = 180
@@ -147,7 +152,6 @@ export function SmallStepsResourceDetail({
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
-  const ambientOscillatorRef = useRef<OscillatorNode | null>(null)
 
   // Format seconds to mm:ss
   const formatTime = (sec: number) => {
@@ -169,9 +173,15 @@ export function SmallStepsResourceDetail({
     }
 
     // Optional voice narration speak if audio is playing
-    if (isPlayingAudio && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    if (
+      isPlayingAudio &&
+      typeof window !== 'undefined' &&
+      'speechSynthesis' in window
+    ) {
       window.speechSynthesis.cancel()
-      const utterance = new SpeechSynthesisUtterance(MICRO_ACTIONS[key].dialogue)
+      const utterance = new SpeechSynthesisUtterance(
+        MICRO_ACTIONS[key].dialogue,
+      )
       utterance.lang = 'vi-VN'
       utterance.rate = 0.9
       window.speechSynthesis.speak(utterance)
@@ -182,7 +192,10 @@ export function SmallStepsResourceDetail({
   const playAmbientSound = useCallback((type: 'bell' | 'stream' | 'rain') => {
     try {
       if (typeof window === 'undefined') return
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext
       if (!AudioCtx) return
 
       if (!audioContextRef.current) {
@@ -277,6 +290,21 @@ export function SmallStepsResourceDetail({
     }
   }, [isPlayingAudio, totalAudioDuration])
 
+  // Handle completion
+  const handleFinishExercise = useCallback(async () => {
+    setIsCompleted(true)
+    playAmbientSound('bell')
+    if (onRecord) {
+      await onRecord(
+        180,
+        `Đã thực hành vi mô 3 phút: ${MICRO_ACTIONS[selectedAction].title}`,
+      )
+    }
+    if (onConfirmCompletion) {
+      await onConfirmCompletion()
+    }
+  }, [onRecord, onConfirmCompletion, selectedAction, playAmbientSound])
+
   // Mindful Timer Countdown effect
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null
@@ -285,7 +313,7 @@ export function SmallStepsResourceDetail({
         setTimerSeconds((prev) => {
           if (prev <= 1) {
             setIsTimerRunning(false)
-            handleFinishExercise()
+            void handleFinishExercise()
             return 0
           }
           return prev - 1
@@ -295,19 +323,7 @@ export function SmallStepsResourceDetail({
     return () => {
       if (timer) clearInterval(timer)
     }
-  }, [isTimerRunning, timerSeconds])
-
-  // Handle completion
-  const handleFinishExercise = async () => {
-    setIsCompleted(true)
-    playAmbientSound('bell')
-    if (onRecord) {
-      await onRecord(180, `Đã thực hành vi mô 3 phút: ${MICRO_ACTIONS[selectedAction].title}`)
-    }
-    if (onConfirmCompletion) {
-      await onConfirmCompletion()
-    }
-  }
+  }, [isTimerRunning, timerSeconds, handleFinishExercise])
 
   // Timer start/pause
   const toggleTimer = () => {
@@ -367,7 +383,9 @@ export function SmallStepsResourceDetail({
 
           <div className={styles.durationBadge}>
             <Clock size={14} />
-            <span>Thời lượng khuyến nghị: <strong>3 Phút Nhẹ Nhàng</strong></span>
+            <span>
+              Thời lượng khuyến nghị: <strong>3 Phút Nhẹ Nhàng</strong>
+            </span>
           </div>
         </header>
 
@@ -380,9 +398,12 @@ export function SmallStepsResourceDetail({
             <Sparkles size={14} />
             <span>Phục hồi năng lượng chậm rãi</span>
           </div>
-          <h1 className={styles.mainTitle}>Bắt đầu bằng một cử chỉ thật nhỏ.</h1>
+          <h1 className={styles.mainTitle}>
+            {_resource?.title || 'Bắt đầu bằng một cử chỉ thật nhỏ.'}
+          </h1>
           <p className={styles.quoteText}>
-            “Hôm nay chỉ cần 3 phút — không cần cố gắng quá sức, không phán xét bất kỳ điều gì.”
+            “Hôm nay chỉ cần 3 phút — không cần cố gắng quá sức, không phán xét
+            bất kỳ điều gì.”
           </p>
         </section>
 
@@ -415,14 +436,24 @@ export function SmallStepsResourceDetail({
                   type="button"
                   className={styles.heroCenterPlay}
                   onClick={togglePlayAudio}
-                  aria-label={isPlayingAudio ? 'Tạm dừng lời thoại' : 'Phát lời thoại'}
+                  aria-label={
+                    isPlayingAudio ? 'Tạm dừng lời thoại' : 'Phát lời thoại'
+                  }
                 >
-                  {isPlayingAudio ? <Pause size={24} /> : <Play size={24} style={{ marginLeft: 3 }} />}
+                  {isPlayingAudio ? (
+                    <Pause size={24} />
+                  ) : (
+                    <Play size={24} style={{ marginLeft: 3 }} />
+                  )}
                 </button>
 
                 <div className={styles.heroBottomContent}>
-                  <h2 className={styles.heroStepTitle}>{currentAction.heroTitle}</h2>
-                  <p className={styles.heroStepSubtitle}>{currentAction.heroSubtitle}</p>
+                  <h2 className={styles.heroStepTitle}>
+                    {currentAction.heroTitle}
+                  </h2>
+                  <p className={styles.heroStepSubtitle}>
+                    {currentAction.heroSubtitle}
+                  </p>
                 </div>
               </div>
             </div>
@@ -433,10 +464,22 @@ export function SmallStepsResourceDetail({
                 <div className={styles.narratorInfo}>
                   <div className={styles.waveformIcon}>
                     <div className={styles.equalizerBars}>
-                      <span className={`${styles.equalizerBar} ${isPlayingAudio ? styles.animating : ''}`} style={{ height: isPlayingAudio ? 12 : 6 }} />
-                      <span className={`${styles.equalizerBar} ${isPlayingAudio ? styles.animating : ''}`} style={{ height: isPlayingAudio ? 16 : 10 }} />
-                      <span className={`${styles.equalizerBar} ${isPlayingAudio ? styles.animating : ''}`} style={{ height: isPlayingAudio ? 8 : 4 }} />
-                      <span className={`${styles.equalizerBar} ${isPlayingAudio ? styles.animating : ''}`} style={{ height: isPlayingAudio ? 14 : 7 }} />
+                      <span
+                        className={`${styles.equalizerBar} ${isPlayingAudio ? styles.animating : ''}`}
+                        style={{ height: isPlayingAudio ? 12 : 6 }}
+                      />
+                      <span
+                        className={`${styles.equalizerBar} ${isPlayingAudio ? styles.animating : ''}`}
+                        style={{ height: isPlayingAudio ? 16 : 10 }}
+                      />
+                      <span
+                        className={`${styles.equalizerBar} ${isPlayingAudio ? styles.animating : ''}`}
+                        style={{ height: isPlayingAudio ? 8 : 4 }}
+                      />
+                      <span
+                        className={`${styles.equalizerBar} ${isPlayingAudio ? styles.animating : ''}`}
+                        style={{ height: isPlayingAudio ? 14 : 7 }}
+                      />
                     </div>
                   </div>
                   <div className={styles.narratorText}>
@@ -461,12 +504,20 @@ export function SmallStepsResourceDetail({
                     onClick={togglePlayAudio}
                     aria-label={isPlayingAudio ? 'Tạm dừng' : 'Phát'}
                   >
-                    {isPlayingAudio ? <Pause size={18} /> : <Play size={18} style={{ marginLeft: 2 }} />}
+                    {isPlayingAudio ? (
+                      <Pause size={18} />
+                    ) : (
+                      <Play size={18} style={{ marginLeft: 2 }} />
+                    )}
                   </button>
                   <button
                     type="button"
                     className={styles.navIconBtn}
-                    onClick={() => setCurrentTime((t) => Math.min(totalAudioDuration, t + 10))}
+                    onClick={() =>
+                      setCurrentTime((t) =>
+                        Math.min(totalAudioDuration, t + 10),
+                      )
+                    }
                     title="Tua tới 10 giây"
                     aria-label="Tua tới 10 giây"
                   >
@@ -489,7 +540,9 @@ export function SmallStepsResourceDetail({
                 >
                   <div
                     className={styles.timelineFill}
-                    style={{ width: `${(currentTime / totalAudioDuration) * 100}%` }}
+                    style={{
+                      width: `${(currentTime / totalAudioDuration) * 100}%`,
+                    }}
                   />
                 </div>
                 <div className={styles.timeNumbers}>
@@ -511,7 +564,9 @@ export function SmallStepsResourceDetail({
 
               {/* Ambient Sound Harmonic Mixer (Âm thanh nền hoà tấu) */}
               <div className={styles.ambientSection}>
-                <h5 className={styles.ambientTitle}>Âm thanh nền hoà tấu kèm theo</h5>
+                <h5 className={styles.ambientTitle}>
+                  Âm thanh nền hoà tấu kèm theo
+                </h5>
                 <div className={styles.ambientPills}>
                   <button
                     type="button"
@@ -572,20 +627,33 @@ export function SmallStepsResourceDetail({
 
               <div className={styles.readingBody}>
                 <p>
-                  Khi rơi vào tình trạng quá tải (Burnout), kiệt sức nhận thức hoặc trầm cảm nhẹ, não bộ thường gặp
-                  hiện tượng <strong>tê liệt hành động (Executive Dysfunction)</strong>. Vỏ não trước trán đánh giá
-                  mọi nhiệm vụ — dù là dọn dẹp, học tập hay trả lời email — đều như một ngọn núi khổng lồ khó vượt qua.
+                  Khi rơi vào tình trạng quá tải (Burnout), kiệt sức nhận thức
+                  hoặc trầm cảm nhẹ, não bộ thường gặp hiện tượng{' '}
+                  <strong>tê liệt hành động (Executive Dysfunction)</strong>. Vỏ
+                  não trước trán đánh giá mọi nhiệm vụ — dù là dọn dẹp, học tập
+                  hay trả lời email — đều như một ngọn núi khổng lồ khó vượt
+                  qua.
                 </p>
 
                 <div className={styles.readingHighlight}>
-                  <strong>Liệu pháp Kích hoạt Hành vi (Behavioral Activation):</strong> Khi bạn chia nhỏ hành động xuống mức
-                  siêu nhỏ chỉ cần 3 phút, não bộ không còn kích hoạt phản ứng né tránh (Fight-or-Flight). Ngay khi bạn
-                  hoàn thành một cử chỉ nhỏ, một lượng Dopamine vừa đủ sẽ được tiết ra, giúp cơ thể thoát khỏi trạng thái ì trệ.
+                  <strong>
+                    Liệu pháp Kích hoạt Hành vi (Behavioral Activation):
+                  </strong>{' '}
+                  Khi bạn chia nhỏ hành động xuống mức siêu nhỏ chỉ cần 3 phút,
+                  não bộ không còn kích hoạt phản ứng né tránh
+                  (Fight-or-Flight). Ngay khi bạn hoàn thành một cử chỉ nhỏ, một
+                  lượng Dopamine vừa đủ sẽ được tiết ra, giúp cơ thể thoát khỏi
+                  trạng thái ì trệ.
                 </div>
 
                 <p>
-                  Đừng đợi đến khi có động lực mới bắt đầu. Trong tâm lý học trị liệu hành vi nhận thức (CBT),
-                  <strong> hành động nhỏ luôn đi trước cảm xúc và động lực</strong>. Bạn chỉ cần làm duy nhất một bước hôm nay.
+                  Đừng đợi đến khi có động lực mới bắt đầu. Trong tâm lý học trị
+                  liệu hành vi nhận thức (CBT),
+                  <strong>
+                    {' '}
+                    hành động nhỏ luôn đi trước cảm xúc và động lực
+                  </strong>
+                  . Bạn chỉ cần làm duy nhất một bước hôm nay.
                 </p>
               </div>
             </article>
@@ -604,7 +672,8 @@ export function SmallStepsResourceDetail({
               </div>
 
               <p className={styles.selectorDesc}>
-                Chọn duy nhất một hành động bạn cảm thấy dễ chịu nhất ngay lúc này:
+                Chọn duy nhất một hành động bạn cảm thấy dễ chịu nhất ngay lúc
+                này:
               </p>
 
               <div className={styles.actionList}>
@@ -644,7 +713,9 @@ export function SmallStepsResourceDetail({
                   <Clock size={15} />
                   <span>MINDFUL TIMER</span>
                 </div>
-                <div className={`${styles.timerStateBadge} ${isTimerRunning ? styles.running : ''}`}>
+                <div
+                  className={`${styles.timerStateBadge} ${isTimerRunning ? styles.running : ''}`}
+                >
                   {isCompleted
                     ? 'Đã hoàn thành'
                     : isTimerRunning
@@ -659,7 +730,8 @@ export function SmallStepsResourceDetail({
                     {formatTime(timerSeconds)}
                   </div>
                   <p className={styles.currentPracticeLabel}>
-                    Thực hành: <strong>{MICRO_ACTIONS[selectedAction].title}</strong>
+                    Thực hành:{' '}
+                    <strong>{MICRO_ACTIONS[selectedAction].title}</strong>
                   </p>
                 </div>
 

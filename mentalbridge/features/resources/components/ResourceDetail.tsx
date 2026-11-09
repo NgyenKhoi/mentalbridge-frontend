@@ -383,8 +383,14 @@ export default function ResourceDetail({
     resource?.id === '00000000-0000-4000-8000-000000000104' ||
     resourceId === 'small-steps' ||
     Boolean(
-      resource?.title.trim().toLocaleLowerCase('vi-VN').includes('hành động nhỏ') ||
-        resource?.title.trim().toLocaleLowerCase('vi-VN').includes('hoạt động nhỏ')
+      resource?.title
+        .trim()
+        .toLocaleLowerCase('vi-VN')
+        .includes('hành động nhỏ') ||
+      resource?.title
+        .trim()
+        .toLocaleLowerCase('vi-VN')
+        .includes('hoạt động nhỏ'),
     )
   const totalPracticeSeconds = isFeaturedBreathing
     ? 300

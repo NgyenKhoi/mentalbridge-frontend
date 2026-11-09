@@ -236,10 +236,7 @@ export default function CommunityShell({
       </header>
       <div className={styles.frame}>
         <aside className={styles.leftRail} aria-label="Không gian cộng đồng">
-          <Link
-            className={styles.sideDashboardLink}
-            href="/dashboard"
-          >
+          <Link className={styles.sideDashboardLink} href="/dashboard">
             <ArrowLeft size={16} />
             <span>Về trang Tổng quan</span>
           </Link>

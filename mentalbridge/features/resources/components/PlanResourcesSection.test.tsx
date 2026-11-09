@@ -381,16 +381,24 @@ describe('My Plan resources boundary', () => {
   it('opens and closes the Bingo modal popup via banner button and close controls', async () => {
     const user = userEvent.setup()
     render(<PlanResourcesSection />)
-    expect(await screen.findByRole('button', { name: /Mở bảng Bingo/ })).toBeVisible()
+    expect(
+      await screen.findByRole('button', { name: /Mở bảng Bingo/ }),
+    ).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Đóng bảng Bingo' })).toBeNull()
 
     await user.click(screen.getByRole('button', { name: /Mở bảng Bingo/ }))
-    expect(await screen.findByRole('button', { name: 'Đóng bảng Bingo' })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Tự đánh dấu Thở chậm' })).toBeVisible()
+    expect(
+      await screen.findByRole('button', { name: 'Đóng bảng Bingo' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Tự đánh dấu Thở chậm' }),
+    ).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: 'Đóng bảng Bingo' }))
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Đóng bảng Bingo' })).toBeNull()
+      expect(
+        screen.queryByRole('button', { name: 'Đóng bảng Bingo' }),
+      ).toBeNull()
     })
   })
 })

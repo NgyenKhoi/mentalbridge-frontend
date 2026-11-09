@@ -57,7 +57,8 @@ vi.mock('../api/chat-browser-client', () => ({
 }))
 
 vi.mock('@/features/assessment/api/browser-care', () => ({
-  getAssessmentHistory: (...args: unknown[]) => assessmentApi.getAssessmentHistory(...args),
+  getAssessmentHistory: (...args: unknown[]) =>
+    assessmentApi.getAssessmentHistory(...args),
 }))
 
 const testAppointment: Appointment = {
@@ -144,18 +145,33 @@ describe('SpecialistChatView', () => {
   })
 
   it('renders the 3-column layout with appointments and specialist info', async () => {
-    render(<SpecialistChatView initialAppointmentId={testAppointment.id} viewerRole="USER" />)
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
 
     // Col 1: Appointments List
-    expect(await screen.findByRole('heading', { name: /Lịch hẹn chat/i })).toBeVisible()
+    expect(
+      await screen.findByRole('heading', { name: /Lịch hẹn chat/i }),
+    ).toBeVisible()
     expect(await screen.findByText('Đã xong')).toBeVisible()
-    expect(screen.getAllByText('ThS. BS. Minh Anh').length).toBeGreaterThanOrEqual(1)
+    expect(
+      screen.getAllByText('ThS. BS. Minh Anh').length,
+    ).toBeGreaterThanOrEqual(1)
 
     // Col 2: Chat Main Area
     expect(await screen.findByText('Đã hoàn thành')).toBeVisible()
-    expect(screen.getAllByText(/Khoa Sức khỏe Tâm thần/i).length).toBeGreaterThanOrEqual(1)
+    expect(
+      screen.getAllByText(/Khoa Sức khỏe Tâm thần/i).length,
+    ).toBeGreaterThanOrEqual(1)
     expect(screen.getByText(/Thời lượng:/i)).toBeVisible()
-    expect(screen.getByText(/Phiên đã kết thúc và được lưu trữ an toàn trong hồ sơ bệnh án EMR/i)).toBeVisible()
+    expect(
+      screen.getByText(
+        /Phiên đã kết thúc và được lưu trữ an toàn trong hồ sơ bệnh án EMR/i,
+      ),
+    ).toBeVisible()
 
     // Col 3: EMR Drawer is initially open
     expect(screen.getByText('Thông tin buổi hẹn & EMR')).toBeVisible()
@@ -164,7 +180,12 @@ describe('SpecialistChatView', () => {
   })
 
   it('allows toggling the EMR drawer open and closed', async () => {
-    render(<SpecialistChatView initialAppointmentId={testAppointment.id} viewerRole="USER" />)
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
 
     expect(await screen.findByText('Thông tin buổi hẹn & EMR')).toBeVisible()
     const drawer = document.getElementById('emr-drawer')
@@ -178,7 +199,9 @@ describe('SpecialistChatView', () => {
     expect(drawer?.className).toContain('emrDrawerHidden')
 
     // Click split button in chat header to reopen
-    const openBtn = screen.getByRole('button', { name: 'Đóng / Mở Ngăn kéo EMR' })
+    const openBtn = screen.getByRole('button', {
+      name: 'Đóng / Mở Ngăn kéo EMR',
+    })
     fireEvent.click(openBtn)
 
     // EMR drawer is reopened
@@ -186,14 +209,21 @@ describe('SpecialistChatView', () => {
   })
 
   it('opens the full EMR modal when clicking Xem biên bản EMR & Hóa đơn', async () => {
-    render(<SpecialistChatView initialAppointmentId={testAppointment.id} viewerRole="USER" />)
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
 
     expect(await screen.findByText('Xem biên bản EMR & Hóa đơn')).toBeVisible()
     const invoiceBtn = screen.getByText('Xem biên bản EMR & Hóa đơn')
     fireEvent.click(invoiceBtn)
 
     // Full modal should open
-    expect(await screen.findByText('Biên bản EMR & Hóa đơn lâm sàng')).toBeVisible()
+    expect(
+      await screen.findByText('Biên bản EMR & Hóa đơn lâm sàng'),
+    ).toBeVisible()
     expect(screen.getByText(/HỒ SƠ BỆNH ÁN ĐIỆN TỬ/i)).toBeVisible()
 
     // Close modal via footer button "Đóng"
@@ -201,14 +231,23 @@ describe('SpecialistChatView', () => {
     fireEvent.click(closeBtn)
 
     await waitFor(() => {
-      expect(screen.queryByText('Biên bản EMR & Hóa đơn lâm sàng')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('Biên bản EMR & Hóa đơn lâm sàng'),
+      ).not.toBeInTheDocument()
     })
   })
 
   it('opens and submits rating modal', async () => {
-    render(<SpecialistChatView initialAppointmentId={testAppointment.id} viewerRole="USER" />)
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
 
-    const rateBtn = await screen.findByRole('button', { name: /Đã đánh giá|Đánh giá phiên/i })
+    const rateBtn = await screen.findByRole('button', {
+      name: /Đã đánh giá|Đánh giá phiên/i,
+    })
     expect(rateBtn).toBeVisible()
     fireEvent.click(rateBtn)
 
@@ -217,6 +256,9 @@ describe('SpecialistChatView', () => {
     const submitBtn = screen.getByRole('button', { name: /Gửi đánh giá/i })
     fireEvent.click(submitBtn)
 
-    expect(appointmentApi.saveRating).toHaveBeenCalledWith(testAppointment.id, 5)
+    expect(appointmentApi.saveRating).toHaveBeenCalledWith(
+      testAppointment.id,
+      5,
+    )
   })
 })

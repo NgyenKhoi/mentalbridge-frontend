@@ -27,7 +27,11 @@ import type { ConsultationBrief } from '../api/consultation-brief-contract'
 import { appointmentBrowserClient } from '../api/browser-client'
 import { sessionSummaryBrowserClient } from '../api/session-summary-browser-client'
 import { consultationBriefBrowserClient } from '../api/consultation-brief-browser-client'
-import { chatEligibility, chatHistory, type ChatMessage } from '../api/chat-browser-client'
+import {
+  chatEligibility,
+  chatHistory,
+  type ChatMessage,
+} from '../api/chat-browser-client'
 import styles from './SpecialistChatView.module.css'
 
 // ==========================================
@@ -146,7 +150,11 @@ function formatFullDate(isoString: string, timezone = 'Asia/Ho_Chi_Minh') {
   }
 }
 
-function formatTimeRange(startIso: string, endIso: string, timezone = 'Asia/Ho_Chi_Minh') {
+function formatTimeRange(
+  startIso: string,
+  endIso: string,
+  timezone = 'Asia/Ho_Chi_Minh',
+) {
   try {
     const s = new Date(startIso)
     const e = new Date(endIso)
@@ -227,7 +235,8 @@ function buildDynamicConsultationMessages(
   const isMinhAnh = docName.includes('Minh Anh')
 
   // Real agreed steps from DB
-  const rawSteps = sessionSummary?.agreedNextSteps?.map((s) => s.title).filter(Boolean) || []
+  const rawSteps =
+    sessionSummary?.agreedNextSteps?.map((s) => s.title).filter(Boolean) || []
 
   // Real patient situation from consultation_brief DB
   const userSituation = consultationBrief?.currentSituation
@@ -388,20 +397,26 @@ export default function SpecialistChatView({
 
   // State
   const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [selectedId, setSelectedId] = useState<string>(initialAppointmentId || '')
+  const [selectedId, setSelectedId] = useState<string>(
+    initialAppointmentId || '',
+  )
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'recent' | 'specialist'>('recent')
-  const [selectedDoctorFilter, setSelectedDoctorFilter] = useState<string>('ALL')
+  const [selectedDoctorFilter, setSelectedDoctorFilter] =
+    useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
 
   // EMR Drawer state: default OPEN as specified in Stitch spec
   const [isEmrDrawerOpen, setIsEmrDrawerOpen] = useState(true)
 
   // Real data details for selected session
-  const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null)
-  const [consultationBrief, setConsultationBrief] = useState<ConsultationBrief | null>(null)
+  const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(
+    null,
+  )
+  const [consultationBrief, setConsultationBrief] =
+    useState<ConsultationBrief | null>(null)
   const [rating, setRating] = useState<number | null>(null)
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false)
   const [ratingInput, setRatingInput] = useState(5)
@@ -432,7 +447,9 @@ export default function SpecialistChatView({
         // Find first completed or confirmed appointment
         const match =
           items.find((a) => a.id === initialAppointmentId) ||
-          items.find((a) => a.status === 'COMPLETED' || a.status === 'SESSION_ENDED') ||
+          items.find(
+            (a) => a.status === 'COMPLETED' || a.status === 'SESSION_ENDED',
+          ) ||
           items[0]
         if (match) setSelectedId(match.id)
       }
@@ -473,7 +490,10 @@ export default function SpecialistChatView({
 
       // 1) Session summary
       try {
-        const summaries = await sessionSummaryBrowserClient.list(aptId, viewerRole)
+        const summaries = await sessionSummaryBrowserClient.list(
+          aptId,
+          viewerRole,
+        )
         if (!cancelled && summaries.items?.length > 0) {
           summaryData = summaries.items[0]
           setSessionSummary(summaryData)
@@ -506,29 +526,37 @@ export default function SpecialistChatView({
       // 4) Chat history
       try {
         const eligibility = await chatEligibility(aptId, 'history')
-        if (!cancelled && eligibility.historyAllowed && eligibility.conversationId) {
+        if (
+          !cancelled &&
+          eligibility.historyAllowed &&
+          eligibility.conversationId
+        ) {
           const hist = await chatHistory(eligibility.conversationId)
           if (!cancelled && hist.items?.length > 0) {
             // Map real raw messages to ChatMessageItem
-            const mapped: ChatMessageItem[] = hist.items.map((m: ChatMessage) => {
-              const isUser =
-                m.senderId === selectedAppointment.heldCreditId ||
-                m.senderId !== selectedAppointment.specialistAccountId
-              return {
-                id: m.messageId,
-                senderType: isUser ? 'user' : 'specialist',
-                senderName: isUser
-                  ? 'Ngọc Quyên (Bạn)'
-                  : selectedAppointment.specialistDisplayName || 'Chuyên gia Tâm lý',
-                timestamp: new Intl.DateTimeFormat('vi-VN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false,
-                  timeZone: selectedAppointment.timezone || 'Asia/Ho_Chi_Minh',
-                }).format(new Date(m.sentAt)),
-                content: m.content,
-              }
-            })
+            const mapped: ChatMessageItem[] = hist.items.map(
+              (m: ChatMessage) => {
+                const isUser =
+                  m.senderId === selectedAppointment.heldCreditId ||
+                  m.senderId !== selectedAppointment.specialistAccountId
+                return {
+                  id: m.messageId,
+                  senderType: isUser ? 'user' : 'specialist',
+                  senderName: isUser
+                    ? 'Ngọc Quyên (Bạn)'
+                    : selectedAppointment.specialistDisplayName ||
+                      'Chuyên gia Tâm lý',
+                  timestamp: new Intl.DateTimeFormat('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                    timeZone:
+                      selectedAppointment.timezone || 'Asia/Ho_Chi_Minh',
+                  }).format(new Date(m.sentAt)),
+                  content: m.content,
+                }
+              },
+            )
             setChatMessages(mapped)
             return
           }
@@ -538,7 +566,13 @@ export default function SpecialistChatView({
       }
 
       if (!cancelled) {
-        setChatMessages(buildDynamicConsultationMessages(selectedAppointment, summaryData, briefData))
+        setChatMessages(
+          buildDynamicConsultationMessages(
+            selectedAppointment,
+            summaryData,
+            briefData,
+          ),
+        )
       }
     }
 
@@ -574,7 +608,10 @@ export default function SpecialistChatView({
       const newMsg: ChatMessageItem = {
         id: `local-${Date.now()}`,
         senderType: viewerRole === 'SPECIALIST' ? 'specialist' : 'user',
-        senderName: viewerRole === 'SPECIALIST' ? selectedAppointment?.specialistDisplayName || 'Chuyên gia' : 'Ngọc Quyên (Bạn)',
+        senderName:
+          viewerRole === 'SPECIALIST'
+            ? selectedAppointment?.specialistDisplayName || 'Chuyên gia'
+            : 'Ngọc Quyên (Bạn)',
         timestamp: timeStr,
         content: inputMessage.trim(),
       }
@@ -594,7 +631,10 @@ export default function SpecialistChatView({
     if (!selectedAppointment?.id || savingRating) return
     setSavingRating(true)
     try {
-      await appointmentBrowserClient.saveRating(selectedAppointment.id, ratingInput)
+      await appointmentBrowserClient.saveRating(
+        selectedAppointment.id,
+        ratingInput,
+      )
       setRating(ratingInput)
       setIsRatingModalOpen(false)
     } catch {
@@ -635,7 +675,10 @@ export default function SpecialistChatView({
         },
         date: formatSessionDate(apt.scheduledStartAt, apt.timezone),
         timeSlot: `${formatTimeRange(apt.scheduledStartAt, apt.scheduledEndAt, apt.timezone)} (${calculateDurationMinutes(apt.scheduledStartAt, apt.scheduledEndAt)} ph)`,
-        durationMinutes: calculateDurationMinutes(apt.scheduledStartAt, apt.scheduledEndAt),
+        durationMinutes: calculateDurationMinutes(
+          apt.scheduledStartAt,
+          apt.scheduledEndAt,
+        ),
         status,
         isActive: isCurrentActive,
         rawAppointment: apt,
@@ -666,7 +709,8 @@ export default function SpecialistChatView({
   // Active specialist data
   const currentSpecialist: SpecialistProfile = useMemo(() => {
     if (selectedAppointment) {
-      const name = selectedAppointment.specialistDisplayName || 'ThS. BS. Minh Anh'
+      const name =
+        selectedAppointment.specialistDisplayName || 'ThS. BS. Minh Anh'
       return {
         id: selectedAppointment.specialistAccountId,
         name,
@@ -708,19 +752,28 @@ export default function SpecialistChatView({
 
     // Tasks from agreed next steps or brief goals
     let tasks = [
-      { step: 1, title: 'Thực hành "Xả não (Brain-dump)" 15 phút trước khi ngủ.' },
+      {
+        step: 1,
+        title: 'Thực hành "Xả não (Brain-dump)" 15 phút trước khi ngủ.',
+      },
       { step: 2, title: 'Tham gia buổi Thiền thở cộng đồng Thứ Bảy (9:00).' },
       { step: 3, title: 'Ghi chép nhật ký cảm xúc 1 lần/ngày trên app.' },
     ]
 
-    if (sessionSummary?.agreedNextSteps && sessionSummary.agreedNextSteps.length > 0) {
+    if (
+      sessionSummary?.agreedNextSteps &&
+      sessionSummary.agreedNextSteps.length > 0
+    ) {
       tasks = sessionSummary.agreedNextSteps.map((step, idx) => ({
         step: idx + 1,
         title: step.title,
         description: step.details || undefined,
         isDone: step.state === 'COMPLETED',
       }))
-    } else if (consultationBrief?.userGoals && consultationBrief.userGoals.length > 0) {
+    } else if (
+      consultationBrief?.userGoals &&
+      consultationBrief.userGoals.length > 0
+    ) {
       tasks = consultationBrief.userGoals.map((goal, idx) => ({
         step: idx + 1,
         title: goal,
@@ -762,7 +815,9 @@ export default function SpecialistChatView({
 
   const isSessionEnded =
     !selectedAppointment ||
-    ['COMPLETED', 'SESSION_ENDED', 'CANCELLED'].includes(selectedAppointment.status)
+    ['COMPLETED', 'SESSION_ENDED', 'CANCELLED'].includes(
+      selectedAppointment.status,
+    )
 
   return (
     <div
@@ -782,7 +837,9 @@ export default function SpecialistChatView({
           <div className={styles.sessionHeaderTop}>
             <h2 className={styles.sessionHeaderTitle}>
               Lịch hẹn chat{' '}
-              <span className={styles.sessionHeaderCount}>({filteredAppointments.length})</span>
+              <span className={styles.sessionHeaderCount}>
+                ({filteredAppointments.length})
+              </span>
             </h2>
             <button
               className={styles.iconBtn}
@@ -794,13 +851,19 @@ export default function SpecialistChatView({
               disabled={refreshing}
               aria-label="Làm mới danh sách"
             >
-              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+              <RefreshCw
+                size={14}
+                className={refreshing ? 'animate-spin' : ''}
+              />
             </button>
           </div>
 
           {/* Search Filter */}
           <div className="relative mt-2 mb-1">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <Search
+              size={13}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            />
             <input
               type="text"
               value={searchQuery}
@@ -867,10 +930,15 @@ export default function SpecialistChatView({
         {/* Appointment Cards Stream */}
         <div className={`${styles.sessionStream} ${styles.customScroll}`}>
           {loading && appointments.length === 0 ? (
-            <div className="p-4 text-center text-xs text-slate-400">Đang tải cuộc trò chuyện…</div>
+            <div className="p-4 text-center text-xs text-slate-400">
+              Đang tải cuộc trò chuyện…
+            </div>
           ) : filteredAppointments.length === 0 ? (
             <div className="p-6 text-center text-xs text-slate-500">
-              <MessageSquare size={28} className="mx-auto mb-2 text-slate-300" />
+              <MessageSquare
+                size={28}
+                className="mx-auto mb-2 text-slate-300"
+              />
               Chưa có cuộc trò chuyện nào phù hợp.
             </div>
           ) : (
@@ -885,7 +953,8 @@ export default function SpecialistChatView({
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') handleSelectAppointment(item.id)
+                    if (e.key === 'Enter' || e.key === ' ')
+                      handleSelectAppointment(item.id)
                   }}
                 >
                   <div className={styles.cardInner}>
@@ -902,22 +971,30 @@ export default function SpecialistChatView({
                           {item.specialist.name}
                         </h3>
                         {item.status === 'completed' && (
-                          <span className={`${styles.statusPill} ${styles.statusPillCompleted}`}>
+                          <span
+                            className={`${styles.statusPill} ${styles.statusPillCompleted}`}
+                          >
                             Đã xong
                           </span>
                         )}
                         {item.status === 'upcoming' && (
-                          <span className={`${styles.statusPill} ${styles.statusPillUpcoming}`}>
+                          <span
+                            className={`${styles.statusPill} ${styles.statusPillUpcoming}`}
+                          >
                             Sắp tới
                           </span>
                         )}
                         {item.status === 'cancelled' && (
-                          <span className={`${styles.statusPill} ${styles.statusPillUpcoming}`}>
+                          <span
+                            className={`${styles.statusPill} ${styles.statusPillUpcoming}`}
+                          >
                             Đã hủy
                           </span>
                         )}
                       </div>
-                      <p className={styles.cardSpecialty}>{item.specialist.specialty}</p>
+                      <p className={styles.cardSpecialty}>
+                        {item.specialist.specialty}
+                      </p>
                       <p className={styles.cardTime}>
                         <Clock size={12} className="text-slate-400" />
                         {item.date} • {item.timeSlot}
@@ -953,13 +1030,17 @@ export default function SpecialistChatView({
             <div className={styles.headerIdentity}>
               <div className={styles.headerNameRow}>
                 <h1 className={styles.headerName}>{currentSpecialist.name}</h1>
-                <span className={`${styles.statusPill} ${styles.statusPillCompleted}`}>
+                <span
+                  className={`${styles.statusPill} ${styles.statusPillCompleted}`}
+                >
                   {isSessionEnded ? 'Đã hoàn thành phiên' : 'Đang trực tuyến'}
                 </span>
               </div>
               <p className={styles.headerMeta}>
                 {currentSpecialist.specialty} •{' '}
-                <span className="font-mono text-slate-400">{currentSpecialist.code}</span>
+                <span className="font-mono text-slate-400">
+                  {currentSpecialist.code}
+                </span>
               </p>
             </div>
           </div>
@@ -989,10 +1070,26 @@ export default function SpecialistChatView({
               title="Hồ sơ & EMR"
               className={styles.drawerToggleBtn}
             >
-              <svg className="w-4 h-4 text-brand-600" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8" />
+              <svg
+                className="w-4 h-4 text-brand-600"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <rect
+                  x="3"
+                  y="4"
+                  width="18"
+                  height="16"
+                  rx="2"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                />
                 <path d="M15 4.5v15" stroke="currentColor" strokeWidth="1.8" />
-                <path d="M15 5h5a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-5V5z" fill="currentColor" opacity="0.85" />
+                <path
+                  d="M15 5h5a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-5V5z"
+                  fill="currentColor"
+                  opacity="0.85"
+                />
               </svg>
               <span className={styles.toggleDot} />
             </button>
@@ -1000,30 +1097,47 @@ export default function SpecialistChatView({
         </header>
 
         {/* Bento Metric Strip over Conversation */}
-        <div className={styles.bentoMetricStrip} data-purpose="chat-session-bento-strip">
+        <div
+          className={styles.bentoMetricStrip}
+          data-purpose="chat-session-bento-strip"
+        >
           <div className={styles.metricStripContent}>
             <div className={styles.metricLeft}>
               <span>
                 <span className={styles.metricDot} />
-                Thời lượng: <strong className="text-slate-800 font-semibold">{emrData.consultationTime.durationLabel} (Đủ chuẩn)</strong>
+                Thời lượng:{' '}
+                <strong className="text-slate-800 font-semibold">
+                  {emrData.consultationTime.durationLabel} (Đủ chuẩn)
+                </strong>
               </span>
               <span className="text-slate-300">•</span>
               <span>
-                Báo cáo lâm sàng: <strong className="text-emerald-800 font-semibold">Đã cập nhật toa</strong>
+                Báo cáo lâm sàng:{' '}
+                <strong className="text-emerald-800 font-semibold">
+                  Đã cập nhật toa
+                </strong>
               </span>
             </div>
             <span className="text-slate-500 text-[11px]">
-              Đã trừ: <strong className="text-slate-700 font-semibold">{emrData.creditsUsed} Credit (Gói Plus)</strong>
+              Đã trừ:{' '}
+              <strong className="text-slate-700 font-semibold">
+                {emrData.creditsUsed} Credit (Gói Plus)
+              </strong>
             </span>
           </div>
         </div>
 
         {/* Dialogue Message Stream Area */}
-        <div className={`${styles.messagesContainer} ${styles.customScroll}`} data-purpose="chat-messages-container">
+        <div
+          className={`${styles.messagesContainer} ${styles.customScroll}`}
+          data-purpose="chat-messages-container"
+        >
           {/* Timeline Date Pill */}
           <div className={styles.timelinePill}>
             <span className={styles.timelineText}>
-              Phiên tham vấn trực tiếp lúc {emrData.consultationTime.timeRange.split('–')[0].trim()} • {emrData.consultationTime.date}
+              Phiên tham vấn trực tiếp lúc{' '}
+              {emrData.consultationTime.timeRange.split('–')[0].trim()} •{' '}
+              {emrData.consultationTime.date}
             </span>
           </div>
 
@@ -1039,7 +1153,9 @@ export default function SpecialistChatView({
                   </div>
                   <div className={styles.msgBodyDoctor}>
                     <div className={styles.msgHeaderDoctor}>
-                      <span className={styles.msgAuthorDoctor}>{msg.senderName}</span>
+                      <span className={styles.msgAuthorDoctor}>
+                        {msg.senderName}
+                      </span>
                       <span className={styles.msgTime}>{msg.timestamp}</span>
                     </div>
                     <div className={styles.bubbleDoctor}>
@@ -1068,10 +1184,14 @@ export default function SpecialistChatView({
                 <div className={styles.msgBodyPatient}>
                   <div className={styles.msgHeaderPatient}>
                     <span className={styles.msgTime}>{msg.timestamp}</span>
-                    <span className={styles.msgAuthorPatient}>{msg.senderName}</span>
+                    <span className={styles.msgAuthorPatient}>
+                      {msg.senderName}
+                    </span>
                   </div>
                   <div className={styles.bubblePatient}>
-                    <p className="m-0 leading-relaxed text-white font-medium">{msg.content}</p>
+                    <p className="m-0 leading-relaxed text-white font-medium">
+                      {msg.content}
+                    </p>
                   </div>
                 </div>
                 <div className={styles.msgAvatarPatient}>
@@ -1085,7 +1205,9 @@ export default function SpecialistChatView({
           {isSessionEnded && (
             <div className={styles.completionBadge}>
               <p className={styles.completionTitle}>
-                Phiên hoàn thành lúc {emrData.consultationTime.timeRange.split('–')[1]?.trim() || '23:55'}
+                Phiên hoàn thành lúc{' '}
+                {emrData.consultationTime.timeRange.split('–')[1]?.trim() ||
+                  '23:55'}
               </p>
               <p className={styles.completionSub}>
                 Đã tự động đồng bộ vào EMR cá nhân của bạn.
@@ -1097,12 +1219,18 @@ export default function SpecialistChatView({
         </div>
 
         {/* Bottom Read-Only Status Banner / Active Input Bar (Zalo / Messenger Style) */}
-        <footer className={styles.chatFooter} data-purpose="chat-input-and-status-area">
+        <footer
+          className={styles.chatFooter}
+          data-purpose="chat-input-and-status-area"
+        >
           {isSessionEnded && (
             <div className={styles.readOnlyBanner}>
               <div className={styles.bannerText}>
                 <Lock size={15} className="text-slate-400 shrink-0" />
-                <span className="truncate">Phiên đã kết thúc và được lưu trữ an toàn trong hồ sơ bệnh án EMR.</span>
+                <span className="truncate">
+                  Phiên đã kết thúc và được lưu trữ an toàn trong hồ sơ bệnh án
+                  EMR.
+                </span>
               </div>
               <div className={styles.bannerActions}>
                 <button
@@ -1168,7 +1296,9 @@ export default function SpecialistChatView({
             </div>
             <div>
               <h2 className={styles.drawerTitle}>Thông tin buổi hẹn & EMR</h2>
-              <span className={styles.drawerCode}>Mã {currentSpecialist.code}</span>
+              <span className={styles.drawerCode}>
+                Mã {currentSpecialist.code}
+              </span>
             </div>
           </div>
           <button
@@ -1186,20 +1316,28 @@ export default function SpecialistChatView({
         <div className={styles.bentoCard}>
           <div className={styles.cardTopLabelRow}>
             <span className={styles.cardSectionLabel}>Thời gian tư vấn</span>
-            <span className={`${styles.statusPill} ${styles.statusPillCompleted}`}>
+            <span
+              className={`${styles.statusPill} ${styles.statusPillCompleted}`}
+            >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block mr-1" />
               Đã hoàn thành
             </span>
           </div>
           <div>
-            <div className={styles.timeLarge}>{emrData.consultationTime.timeRange}</div>
+            <div className={styles.timeLarge}>
+              {emrData.consultationTime.timeRange}
+            </div>
             <div className={styles.timeDateSub}>
-              {emrData.consultationTime.date} ({emrData.consultationTime.durationLabel})
+              {emrData.consultationTime.date} (
+              {emrData.consultationTime.durationLabel})
             </div>
           </div>
           <div className={styles.timeDividerRow}>
             <span>
-              Hình thức: <strong className="font-semibold text-slate-800">Chat E2EE</strong>
+              Hình thức:{' '}
+              <strong className="font-semibold text-slate-800">
+                Chat E2EE
+              </strong>
             </span>
             <span className="text-emerald-800 font-semibold flex items-center gap-1">
               <Check size={13} className="stroke-[3]" /> Đã nghiệm thu EMR
@@ -1210,32 +1348,51 @@ export default function SpecialistChatView({
         {/* Card 2: Chỉ số cảm xúc phiên này */}
         <div className={styles.bentoCard}>
           <div className={styles.cardTopLabelRow}>
-            <span className={styles.cardSectionLabel}>Chỉ số cảm xúc phiên này</span>
-            <span className="text-[10px] text-emerald-800 font-semibold">Đo lường AI & BS</span>
+            <span className={styles.cardSectionLabel}>
+              Chỉ số cảm xúc phiên này
+            </span>
+            <span className="text-[10px] text-emerald-800 font-semibold">
+              Đo lường AI & BS
+            </span>
           </div>
           <div className={styles.scoreGrid}>
             <div className={styles.scoreBoxBefore}>
               <p className={styles.scoreSublabel}>Trước tư vấn</p>
-              <p className={styles.scoreValue}>Mức {emrData.clinicalAssessment.preScore} / {emrData.clinicalAssessment.maxScore}</p>
+              <p className={styles.scoreValue}>
+                Mức {emrData.clinicalAssessment.preScore} /{' '}
+                {emrData.clinicalAssessment.maxScore}
+              </p>
               <p className={styles.scoreDesc}>Căng thẳng</p>
             </div>
             <div className={styles.scoreBoxAfter}>
-              <p className={`${styles.scoreSublabel} ${styles.scoreDescHighlight}`}>Sau tư vấn</p>
-              <p className={`${styles.scoreValue} ${styles.scoreValueHighlight}`}>
-                Mức {emrData.clinicalAssessment.postScore} / {emrData.clinicalAssessment.maxScore}
+              <p
+                className={`${styles.scoreSublabel} ${styles.scoreDescHighlight}`}
+              >
+                Sau tư vấn
               </p>
-              <p className={`${styles.scoreDesc} ${styles.scoreDescHighlight}`}>Thư thái, an tâm</p>
+              <p
+                className={`${styles.scoreValue} ${styles.scoreValueHighlight}`}
+              >
+                Mức {emrData.clinicalAssessment.postScore} /{' '}
+                {emrData.clinicalAssessment.maxScore}
+              </p>
+              <p className={`${styles.scoreDesc} ${styles.scoreDescHighlight}`}>
+                Thư thái, an tâm
+              </p>
             </div>
           </div>
           <p className={styles.clinicalNote}>
-            <strong className="text-slate-800">Ghi chú:</strong> {emrData.clinicalAssessment.summaryText}
+            <strong className="text-slate-800">Ghi chú:</strong>{' '}
+            {emrData.clinicalAssessment.summaryText}
           </p>
         </div>
 
         {/* Card 3: Toa dặn dò & Lộ trình tuần */}
         <div className={styles.bentoCard}>
           <div className={styles.cardTopLabelRow}>
-            <span className={styles.cardSectionLabel}>Toa dặn dò & Lộ trình tuần</span>
+            <span className={styles.cardSectionLabel}>
+              Toa dặn dò & Lộ trình tuần
+            </span>
             <span className="text-[11px] text-emerald-800 font-semibold">
               {emrData.treatmentPlan.tasks.length} mục
             </span>
@@ -1258,9 +1415,12 @@ export default function SpecialistChatView({
         <div className={styles.bentoCard}>
           <div className={styles.cardTopLabelRow}>
             <span className="text-xs text-slate-500">
-              Số dư gói: <strong className="text-slate-800">2 buổi còn lại</strong> (Plus)
+              Số dư gói:{' '}
+              <strong className="text-slate-800">2 buổi còn lại</strong> (Plus)
             </span>
-            <span className="text-xs font-semibold text-emerald-700">Đã thanh toán</span>
+            <span className="text-xs font-semibold text-emerald-700">
+              Đã thanh toán
+            </span>
           </div>
           <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
             <button
@@ -1289,8 +1449,15 @@ export default function SpecialistChatView({
       {/* ======================================================== */}
       {/* Floating Quick Support Trigger (AI Companion)            */}
       {/* ======================================================== */}
-      <aside className={styles.floatingTrigger} data-purpose="floating-quick-support">
-        <Link href="/ai-companion" className={styles.floatingBtn} title="Tâm sự 24/7 với AI">
+      <aside
+        className={styles.floatingTrigger}
+        data-purpose="floating-quick-support"
+      >
+        <Link
+          href="/ai-companion"
+          className={styles.floatingBtn}
+          title="Tâm sự 24/7 với AI"
+        >
           <div className={styles.pingDotWrapper}>
             <div className={styles.pingWave} />
             <div className={styles.pingDot} />
@@ -1304,7 +1471,10 @@ export default function SpecialistChatView({
       {/* MODAL 1: Rating Dialog (Đánh giá phiên tư vấn)           */}
       {/* ======================================================== */}
       {isRatingModalOpen && (
-        <div className={styles.modalOverlay} onClick={() => setIsRatingModalOpen(false)}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setIsRatingModalOpen(false)}
+        >
           <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>Đánh giá phiên tham vấn</h3>
@@ -1318,8 +1488,9 @@ export default function SpecialistChatView({
             </div>
             <div className={styles.modalBody}>
               <p className="text-sm text-slate-600 mb-2">
-                Trải nghiệm của bạn cùng <strong>{currentSpecialist.name}</strong> như thế nào?
-                Đánh giá của bạn giúp duy trì chất lượng chăm sóc lâm sàng chuẩn y khoa.
+                Trải nghiệm của bạn cùng{' '}
+                <strong>{currentSpecialist.name}</strong> như thế nào? Đánh giá
+                của bạn giúp duy trì chất lượng chăm sóc lâm sàng chuẩn y khoa.
               </p>
               <div className="flex justify-center">
                 <div className={styles.starRow}>
@@ -1370,12 +1541,17 @@ export default function SpecialistChatView({
       {/* MODAL 2: EMR Summary & Invoice Dialog                     */}
       {/* ======================================================== */}
       {isEmrModalOpen && (
-        <div className={styles.modalOverlay} onClick={() => setIsEmrModalOpen(false)}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setIsEmrModalOpen(false)}
+        >
           <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div className="flex items-center gap-2">
                 <ShieldCheck size={20} className="text-emerald-700" />
-                <h3 className={styles.modalTitle}>Biên bản EMR & Hóa đơn lâm sàng</h3>
+                <h3 className={styles.modalTitle}>
+                  Biên bản EMR & Hóa đơn lâm sàng
+                </h3>
               </div>
               <button
                 type="button"
@@ -1390,10 +1566,13 @@ export default function SpecialistChatView({
               <div className="p-3.5 bg-emerald-50/60 border border-emerald-100 rounded-xl mb-4">
                 <div className="flex justify-between items-center text-xs font-semibold text-emerald-900 mb-1">
                   <span>HỒ SƠ BỆNH ÁN ĐIỆN TỬ (EMR) CHUẨN HIPAA</span>
-                  <span className="font-mono text-[11px] text-emerald-700">Mã {currentSpecialist.code}</span>
+                  <span className="font-mono text-[11px] text-emerald-700">
+                    Mã {currentSpecialist.code}
+                  </span>
                 </div>
                 <p className="text-xs text-slate-600 m-0">
-                  Biên bản đã được ký xác thực số bởi Chuyên gia lâm sàng phụ trách và hệ thống phân giải bảo mật hai đầu MentalBridge.
+                  Biên bản đã được ký xác thực số bởi Chuyên gia lâm sàng phụ
+                  trách và hệ thống phân giải bảo mật hai đầu MentalBridge.
                 </p>
               </div>
 
@@ -1401,25 +1580,35 @@ export default function SpecialistChatView({
               <div className="space-y-3 text-xs text-slate-700">
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Khách hàng:</span>
-                  <strong className="text-slate-900">Ngọc Quyên (#MB-402)</strong>
+                  <strong className="text-slate-900">
+                    Ngọc Quyên (#MB-402)
+                  </strong>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Chuyên gia phụ trách:</span>
-                  <strong className="text-slate-900">{currentSpecialist.name} ({currentSpecialist.specialty})</strong>
+                  <strong className="text-slate-900">
+                    {currentSpecialist.name} ({currentSpecialist.specialty})
+                  </strong>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Thời gian tham vấn:</span>
-                  <span>{emrData.consultationTime.timeRange} • {emrData.consultationTime.date}</span>
+                  <span>
+                    {emrData.consultationTime.timeRange} •{' '}
+                    {emrData.consultationTime.date}
+                  </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Chỉ số PHQ-9:</span>
                   <span className="font-semibold text-emerald-700">
-                    Trước: Mức {emrData.clinicalAssessment.preScore}/5 ➔ Sau: Mức {emrData.clinicalAssessment.postScore}/5
+                    Trước: Mức {emrData.clinicalAssessment.preScore}/5 ➔ Sau:
+                    Mức {emrData.clinicalAssessment.postScore}/5
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Hóa đơn thanh toán:</span>
-                  <span className="font-semibold text-slate-900">1 Credit Gói Plus (Đã khấu trừ)</span>
+                  <span className="font-semibold text-slate-900">
+                    1 Credit Gói Plus (Đã khấu trừ)
+                  </span>
                 </div>
                 <div className="flex justify-between py-1.5">
                   <span className="text-slate-500">Trạng thái bảo chứng:</span>
@@ -1431,7 +1620,9 @@ export default function SpecialistChatView({
 
               {/* Tasks List */}
               <div className="mt-4 pt-3 border-t border-slate-200">
-                <h4 className="font-bold text-slate-800 text-xs mb-2">Toa dặn dò & Lộ trình tuần:</h4>
+                <h4 className="font-bold text-slate-800 text-xs mb-2">
+                  Toa dặn dò & Lộ trình tuần:
+                </h4>
                 <ul className="space-y-1.5 text-xs text-slate-600 pl-4 list-disc">
                   {emrData.treatmentPlan.tasks.map((task) => (
                     <li key={task.step}>{task.title}</li>
