@@ -114,10 +114,10 @@ function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
   switch (section) {
     case 'dashboard':
       return (
-        <>
+        <div className="admin-unified-dashboard-grid">
           <AdminOperationsDashboard />
           <ProductJourneyMetricsPanel />
-        </>
+        </div>
       )
     case 'retention':
       return <AdminRetentionGovernance />
@@ -322,19 +322,19 @@ export default function AdminWorkspace({
               className="clinical-breadcrumb"
               aria-label="Đường dẫn điều hướng"
             >
-              <span className="clinical-breadcrumb-parent">
-                Không gian quản trị
-              </span>
+              <span className="clinical-breadcrumb-parent">MentalBridge</span>
               <span className="clinical-breadcrumb-sep" aria-hidden="true">
-                ›
+                /
               </span>
               <span className="clinical-breadcrumb-current">
-                {currentSectionLabel}
+                {section === 'dashboard'
+                  ? 'Tổng quan hệ thống'
+                  : currentSectionLabel}
               </span>
             </div>
             <div className="clinical-topbar-status-pill">
               <span className="clinical-topbar-status-dot" aria-hidden="true" />
-              <span>Đặc quyền Quản trị viên</span>
+              <span>Hệ thống ổn định • live 102.52s</span>
             </div>
           </div>
 
@@ -349,7 +349,7 @@ export default function AdminWorkspace({
                 ref={searchInputRef}
                 type="text"
                 className="clinical-search-input"
-                placeholder="Tìm kiếm tài khoản, hồ sơ, dữ liệu..."
+                placeholder="Tìm kiếm hồ sơ, bệnh án, giao dịch..."
                 aria-label="Tìm kiếm trong hệ thống quản trị"
               />
               <kbd className="clinical-search-kbd">⌘K</kbd>
@@ -373,11 +373,22 @@ export default function AdminWorkspace({
             </Link>
             <Link
               href="/admin/accounts"
-              className="clinical-topbar-avatar"
+              className="clinical-topbar-profile-badge"
               aria-label="Hồ sơ quản trị"
               title="Tài khoản quản trị"
             >
-              <User size={18} strokeWidth={1.75} />
+              <div className="clinical-profile-avatar">HK</div>
+              <div className="clinical-profile-info">
+                <span className="clinical-profile-name">BS. Hoàng Khang</span>
+                <span className="clinical-profile-role">
+                  Admin / Quyền tối cao
+                </span>
+              </div>
+              <User
+                size={16}
+                strokeWidth={1.75}
+                className="clinical-profile-icon"
+              />
             </Link>
           </div>
         </header>
