@@ -773,16 +773,10 @@ function InitialProfileReview() {
                 {/* State-specific Decision Actions */}
                 {selected.approvalStatus === 'PENDING' && (
                   <div className={styles.decisionActionsRow}>
-                    <label
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      Lý do từ chối
+                    <div className={styles.rejectionFieldGroup}>
+                      <span className={styles.actionLabel}>Lý do từ chối:</span>
                       <select
+                        className={styles.rejectionSelect}
                         aria-label="Lý do từ chối"
                         value={rejectionReason}
                         onChange={(event) =>
@@ -799,52 +793,51 @@ function InitialProfileReview() {
                             </option>
                           ))}
                       </select>
-                    </label>
-                    <button
-                      type="button"
-                      className={styles.btnDanger}
-                      disabled={busy}
-                      onClick={() => void decide('REJECT')}
-                    >
-                      Từ chối hồ sơ
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.btnWarning}
-                      disabled={busy}
-                      onClick={() => {
-                        showActionToast({
-                          title: 'Đã gửi yêu cầu bổ sung hồ sơ tới chuyên gia.',
-                          tone: 'info',
-                        })
-                      }}
-                    >
-                      Yêu cầu bổ sung tài liệu
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.btnApprove}
-                      disabled={busy}
-                      aria-label="Phê duyệt hồ sơ"
-                      onClick={() => void decide('APPROVE')}
-                    >
-                      Phê duyệt & Kích hoạt
-                    </button>
+                    </div>
+                    <div className={styles.actionButtonsGroup}>
+                      <button
+                        type="button"
+                        className={styles.btnDanger}
+                        disabled={busy}
+                        onClick={() => void decide('REJECT')}
+                      >
+                        Từ chối hồ sơ
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.btnWarning}
+                        disabled={busy}
+                        onClick={() => {
+                          showActionToast({
+                            title:
+                              'Đã gửi yêu cầu bổ sung hồ sơ tới chuyên gia.',
+                            tone: 'info',
+                          })
+                        }}
+                      >
+                        Yêu cầu bổ sung tài liệu
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.btnApprove}
+                        disabled={busy}
+                        aria-label="Phê duyệt hồ sơ"
+                        onClick={() => void decide('APPROVE')}
+                      >
+                        Phê duyệt & Kích hoạt
+                      </button>
+                    </div>
                   </div>
                 )}
 
                 {selected.approvalStatus === 'APPROVED' && (
                   <div className={styles.decisionActionsRow}>
-                    <label
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      Lý do tạm ngưng
+                    <div className={styles.rejectionFieldGroup}>
+                      <span className={styles.actionLabel}>
+                        Lý do tạm ngưng:
+                      </span>
                       <select
+                        className={styles.rejectionSelect}
                         aria-label="Lý do tạm ngưng"
                         value={suspensionReason}
                         onChange={(event) =>
@@ -861,15 +854,17 @@ function InitialProfileReview() {
                             </option>
                           ))}
                       </select>
-                    </label>
-                    <button
-                      type="button"
-                      className={styles.btnDanger}
-                      disabled={busy}
-                      onClick={() => void decide('SUSPEND')}
-                    >
-                      Tạm ngưng chuyên gia
-                    </button>
+                    </div>
+                    <div className={styles.actionButtonsGroup}>
+                      <button
+                        type="button"
+                        className={styles.btnDanger}
+                        disabled={busy}
+                        onClick={() => void decide('SUSPEND')}
+                      >
+                        Tạm ngưng chuyên gia
+                      </button>
+                    </div>
                   </div>
                 )}
 
