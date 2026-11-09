@@ -15,8 +15,6 @@ import './theme-sync.css'
 
 const fraunces = Fraunces({
   subsets: ['latin', 'vietnamese'],
-  weight: ['300', '400', '500', '600', '700'],
-  style: ['normal', 'italic'],
   variable: '--font-fraunces-variable',
   display: 'swap',
 })
