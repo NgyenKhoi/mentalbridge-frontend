@@ -378,7 +378,9 @@ export default function SpecialistDiscovery({
                 <strong className={styles.statNumber}>
                   {loading ? '—' : `${items.length} chuyên gia`}
                 </strong>
-                <span className={styles.statLabel}>Đang có lịch trống</span>
+                <span className={styles.statLabel}>
+                  Hồ sơ đã được phê duyệt
+                </span>
               </div>
             </div>
 
@@ -636,7 +638,7 @@ export default function SpecialistDiscovery({
       ) : !error && visibleItems.length === 0 ? (
         <section className={styles.state}>
           <h2>Chưa có chuyên gia phù hợp</h2>
-          <p>Hãy đổi bộ lọc hoặc quay lại sau khi có lịch mới.</p>
+          <p>Hãy đổi bộ lọc hoặc quay lại sau khi có hồ sơ được phê duyệt.</p>
           <button type="button" onClick={resetFilters}>
             Xóa bộ lọc
           </button>

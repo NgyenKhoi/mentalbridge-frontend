@@ -43,8 +43,10 @@ export function Dialog({
       if (!dialog.open) {
         try {
           if (typeof dialog.showModal === 'function') dialog.showModal()
-          else dialog.setAttribute('open', '')
         } catch {
+          // Test DOMs may expose dialog without implementing showModal().
+        }
+        if (!dialog.open) {
           dialog.setAttribute('open', '')
         }
       }

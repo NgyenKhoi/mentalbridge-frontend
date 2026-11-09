@@ -144,7 +144,7 @@ describe('My Plan resources boundary', () => {
   })
   it('keeps paused cards openable and Bingo read only', async () => {
     api.get.mockResolvedValue({ ...plan, planState: 'PAUSED' })
-    render(<PlanResourcesSection />)
+    render(<PlanResourcesSection initialBingoOpen={true} />)
     expect(
       await screen.findByText(/Kế hoạch đang tạm dừng/, {
         ignore: '[role="status"]',
@@ -221,7 +221,7 @@ describe('My Plan resources boundary', () => {
       .mockRejectedValueOnce(
         new ApiError({ message: 'stale', code: 'STALE_VERSION', status: 412 }),
       )
-    render(<PlanResourcesSection />)
+    render(<PlanResourcesSection initialBingoOpen={true} />)
     await user.click(
       await screen.findByRole('button', { name: 'Tự đánh dấu Thở chậm' }),
     )
@@ -260,7 +260,7 @@ describe('My Plan resources boundary', () => {
         },
         etag: '"1"',
       })
-    render(<PlanResourcesSection />)
+    render(<PlanResourcesSection initialBingoOpen={true} />)
     const toggle = await screen.findByRole('button', {
       name: 'Tự đánh dấu Thở chậm',
     })
@@ -270,7 +270,8 @@ describe('My Plan resources boundary', () => {
     expect(error).toHaveTextContent('Chưa lưu được đánh dấu của bạn.')
     expect(retry).toHaveFocus()
     expect(toggle).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('listitem')).toContainElement(toggle)
+    expect(screen.getAllByRole('listitem')).toHaveLength(9)
+    expect(toggle.closest('[role="listitem"]')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Mở tài nguyên' })).toBeVisible()
     expect(
       screen.queryByText(
@@ -292,7 +293,7 @@ describe('My Plan resources boundary', () => {
         finish = resolve
       }),
     )
-    render(<PlanResourcesSection />)
+    render(<PlanResourcesSection initialBingoOpen={true} />)
     const liveRegion = screen.getByRole('status')
     const toggle = await screen.findByRole('button', {
       name: 'Tự đánh dấu Thở chậm',
@@ -362,7 +363,7 @@ describe('My Plan resources boundary', () => {
       board: { ...board, items: [{ ...tile, retired: true }] },
       etag: '"0"',
     })
-    render(<PlanResourcesSection />)
+    render(<PlanResourcesSection initialBingoOpen={true} />)
     await screen.findByText('Hoạt động 0')
     expect(screen.queryByText('Hoạt động 3')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Xem tất cả \(5\)/ }))
@@ -376,5 +377,20 @@ describe('My Plan resources boundary', () => {
     expect(
       screen.queryByRole('button', { name: /Tự đánh dấu/ }),
     ).not.toBeInTheDocument()
+  })
+  it('opens and closes the Bingo modal popup via banner button and close controls', async () => {
+    const user = userEvent.setup()
+    render(<PlanResourcesSection />)
+    expect(await screen.findByRole('button', { name: /Mở bảng Bingo/ })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Đóng bảng Bingo' })).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: /Mở bảng Bingo/ }))
+    expect(await screen.findByRole('button', { name: 'Đóng bảng Bingo' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Tự đánh dấu Thở chậm' })).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'Đóng bảng Bingo' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Đóng bảng Bingo' })).toBeNull()
+    })
   })
 })

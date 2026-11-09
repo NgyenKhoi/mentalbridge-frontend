@@ -786,7 +786,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns only current APPROVED profiles and their unexpired selectable exact 60-minute online slots, including currently active windows without advance booking delay. FREE, PLUS, and PREMIUM may browse. Optional personalization reads one exact owned Care SupportEvaluation server-to-server; its health content is never returned or persisted, and unavailable context degrades to a neutral explained rank. */
+        /** @description Returns only current APPROVED profiles and their unexpired selectable exact 60-minute online slots, including currently active windows without advance booking delay. Approved profiles remain listed when no selectable slot exists; their selectableSlots array is empty. FREE, PLUS, and PREMIUM may browse. Optional personalization reads one exact owned Care SupportEvaluation server-to-server; its health content is never returned or persisted, and unavailable context degrades to a neutral explained rank. */
         get: operations["discoverApprovedSpecialists"];
         put?: never;
         post?: never;
@@ -803,7 +803,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Rechecks current approval and slot selectability and returns one approved public profile only when at least one selectable slot remains. A profile that is suspended, rejected, pending, missing, or has no selectable slot is indistinguishable as SPECIALIST_NOT_DISCOVERABLE. */
+        /** @description Rechecks current approval and returns one approved public profile, including when no selectable slot remains. In that case selectableSlots is empty and hasSelectableSlot is false. Suspended, rejected, pending and missing profiles are indistinguishable as SPECIALIST_NOT_DISCOVERABLE. Booking still requires a currently selectable slot. */
         get: operations["getApprovedSpecialistDetail"];
         put?: never;
         post?: never;
@@ -4043,6 +4043,7 @@ export interface components {
             timezone: string;
             ratingAggregate: components["schemas"]["SpecialistRatingAggregate"] | null;
             explanation: components["schemas"]["DiscoveryExplanation"];
+            /** @description Currently selectable slots; empty when the approved specialist has not published a selectable schedule. The public profile remains browsable. */
             selectableSlots: components["schemas"]["DiscoverySlot"][];
         };
         SpecialistDiscoveryPage: {

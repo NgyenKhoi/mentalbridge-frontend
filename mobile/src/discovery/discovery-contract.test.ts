@@ -56,6 +56,22 @@ describe('Consultation v1.12.0 public discovery boundary', () => {
       }).success,
     ).toBe(false)
   })
+  it('accepts an approved public profile with no selectable schedule', () => {
+    expect(
+      discoveryItemSchema.safeParse({
+        ...fixtureSpecialist,
+        selectableSlots: [],
+        explanation: {
+          ...fixtureSpecialist.explanation,
+          hasSelectableSlot: false,
+          earliestSelectableStartAt: null,
+          codes: fixtureSpecialist.explanation.codes.map((code) =>
+            code === 'SELECTABLE_SLOT_AVAILABLE' ? 'NO_SELECTABLE_SLOT' : code,
+          ),
+        },
+      }).success,
+    ).toBe(true)
+  })
   it('accepts capability-enabled video, rejects unsupported or disabled modalities', () => {
     const video = {
       ...fixtureSpecialist,

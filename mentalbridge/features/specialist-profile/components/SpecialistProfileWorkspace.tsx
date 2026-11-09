@@ -227,6 +227,41 @@ export default function SpecialistProfileWorkspace() {
     form.supportAreas.length > 0 &&
     form.languages.length > 0
 
+  const missingFields = [
+    !form.displayName.trim() && 'tên hiển thị',
+    !form.bio.trim() && 'phần giới thiệu',
+    !form.supportAreas.length && 'lĩnh vực hỗ trợ',
+    !form.languages.length && 'ngôn ngữ',
+  ].filter(Boolean)
+  const saveDisabledReason = canSave
+    ? undefined
+    : busy
+      ? 'Đang xử lý thay đổi. Vui lòng đợi hoàn tất.'
+      : locked
+        ? 'Hồ sơ đang tạm ngưng nên chưa thể chỉnh sửa.'
+        : missingFields.length
+          ? `Cần bổ sung ${missingFields.join(', ')} trước khi lưu.`
+          : 'Chưa có thay đổi mới để lưu.'
+  const submitDisabledReason = busy
+    ? 'Đang xử lý thay đổi. Vui lòng đợi hoàn tất.'
+    : dirty
+      ? 'Hãy lưu thay đổi trước khi gửi xét duyệt.'
+      : status === 'APPROVED'
+        ? !amendment
+          ? 'Hồ sơ đã được duyệt. Chỉnh sửa và lưu thông tin để tạo bản cập nhật mới.'
+          : amendment.status === 'PENDING_REVIEW'
+            ? 'Bản chỉnh sửa đang chờ xét duyệt; chưa thể gửi lại.'
+            : !amendmentEtag
+              ? 'Chưa tải đủ thông tin bản chỉnh sửa. Hãy tải lại hồ sơ.'
+              : undefined
+        : status === 'NEW'
+          ? 'Hoàn thiện và lưu hồ sơ trước khi gửi xét duyệt.'
+          : status === 'PENDING_REVIEW'
+            ? 'Hồ sơ đang chờ xét duyệt; chưa thể gửi lại.'
+            : !etag
+              ? 'Chưa tải đủ thông tin hồ sơ. Hãy tải lại trang.'
+              : undefined
+
   function toggleArea(area: SupportArea) {
     setForm((current) => ({
       ...current,
@@ -453,6 +488,10 @@ export default function SpecialistProfileWorkspace() {
               type="submit"
               form="specialist-profile-form"
               disabled={!canSave}
+              title={saveDisabledReason}
+              aria-describedby={
+                saveDisabledReason ? 'profile-save-reason' : undefined
+              }
             >
               <Save aria-hidden="true" />
               {busy ? 'Đang lưu…' : 'Lưu thay đổi'}
@@ -845,21 +884,25 @@ export default function SpecialistProfileWorkspace() {
                     Hủy bản chỉnh sửa
                   </button>
                 )}
-              <button data-profile-ui type="submit" disabled={!canSave}>
+              <button
+                data-profile-ui
+                type="submit"
+                disabled={!canSave}
+                title={saveDisabledReason}
+                aria-describedby={
+                  saveDisabledReason ? 'profile-save-reason' : undefined
+                }
+              >
                 {busy ? 'Đang xử lý…' : 'Lưu thay đổi'}
               </button>
               <button
                 type="button"
                 className={styles.primary}
                 data-profile-ui
-                disabled={
-                  busy ||
-                  dirty ||
-                  (status === 'APPROVED'
-                    ? !amendment ||
-                      !amendmentEtag ||
-                      amendment.status === 'PENDING_REVIEW'
-                    : !etag || status === 'PENDING_REVIEW' || status === 'NEW')
+                disabled={Boolean(submitDisabledReason)}
+                title={submitDisabledReason}
+                aria-describedby={
+                  submitDisabledReason ? 'profile-submit-reason' : undefined
                 }
                 onClick={() => void submit()}
               >
@@ -867,6 +910,20 @@ export default function SpecialistProfileWorkspace() {
                   ? 'Gửi lại để xét duyệt'
                   : 'Gửi xét duyệt'}
               </button>
+              {(saveDisabledReason || submitDisabledReason) && (
+                <div className={styles.actionReasons} aria-live="polite">
+                  {saveDisabledReason && (
+                    <p id="profile-save-reason">
+                      <strong>Lưu thay đổi:</strong> {saveDisabledReason}
+                    </p>
+                  )}
+                  {submitDisabledReason && (
+                    <p id="profile-submit-reason">
+                      <strong>Gửi xét duyệt:</strong> {submitDisabledReason}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </form>

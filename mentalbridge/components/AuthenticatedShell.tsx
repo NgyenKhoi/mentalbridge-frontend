@@ -498,11 +498,18 @@ export default function AuthenticatedShell({
                 <span className="ref-context-separator" aria-hidden="true">
                   ›
                 </span>
-                <span aria-current="page">
-                  {pathname === '/appointments'
-                    ? 'Lịch hẹn tư vấn'
-                    : resolveContextLabel(pathname)}
-                </span>
+                {pathname === '/messages' ? (
+                  <span aria-current="page" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#174e3e', fontWeight: 600 }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '9999px', backgroundColor: '#10b981', display: 'inline-block' }} />
+                    Phòng tư vấn #MB-383
+                  </span>
+                ) : (
+                  <span aria-current="page">
+                    {pathname === '/appointments'
+                      ? 'Lịch hẹn tư vấn'
+                      : resolveContextLabel(pathname)}
+                  </span>
+                )}
               </nav>
             )}
             {!isProgressiveRelaxation && (

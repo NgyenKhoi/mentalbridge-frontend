@@ -204,11 +204,12 @@ export default function CommunityShell({
         </nav>
         <div className={styles.headerActions}>
           <Link
-            className={styles.mobileDashboard}
+            className={styles.dashboardReturn}
             href="/dashboard"
             aria-label="Về không gian của bạn"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} />
+            <span className={styles.dashboardReturnLabel}>Về Tổng quan</span>
           </Link>
           <Link className={styles.help} href="/safety-directory">
             <span /> Cần hỗ trợ ngay
@@ -235,6 +236,13 @@ export default function CommunityShell({
       </header>
       <div className={styles.frame}>
         <aside className={styles.leftRail} aria-label="Không gian cộng đồng">
+          <Link
+            className={styles.sideDashboardLink}
+            href="/dashboard"
+          >
+            <ArrowLeft size={16} />
+            <span>Về trang Tổng quan</span>
+          </Link>
           <Link
             className={styles.identity}
             href={

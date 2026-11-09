@@ -21,6 +21,7 @@ import {
   planResourceSchedule,
   planResourceStatus,
 } from '../model/plan-resources'
+import { Dialog } from '@/components/ui/Dialog'
 import { ResourceBingoPanel } from './ResourceBingoPanel'
 import styles from './plan-resources.module.css'
 
@@ -34,14 +35,17 @@ type State = 'loading' | 'ready' | 'error' | 'stale'
 
 export function PlanResourcesSection({
   onPlanChange,
+  initialBingoOpen = false,
 }: {
   onPlanChange?: (plan: PlanResourceActionsV1 | null) => void
+  initialBingoOpen?: boolean
 }) {
   const { access, retry: retryAccess } = usePlanAccess()
   const reducedMotion = useReducedMotion()
   const [state, setState] = useState<State>('loading')
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [expanded, setExpanded] = useState(false)
+  const [bingoModalOpen, setBingoModalOpen] = useState(initialBingoOpen)
   const [pendingPosition, setPendingPosition] = useState<number | null>(null)
   const [saveError, setSaveError] = useState<{
     position: number
@@ -321,21 +325,126 @@ export function PlanResourcesSection({
               <span aria-hidden="true">{expanded ? '↑' : '↓'}</span>
             </button>
           )}
-          {!!loaded?.board?.items.length && (
-            <ResourceBingoPanel
-              board={loaded.board}
-              state="ready"
-              readOnly={paused}
-              pendingPosition={pendingPosition}
-              saveError={saveError}
-              onRetrySave={() => {
-                if (saveError)
-                  void toggle(saveError.position, saveError.selfConfirmed)
-              }}
-              onToggle={(position, value) => void toggle(position, value)}
-              onRetry={() => void load()}
-            />
-          )}
+          {!!loaded?.board?.items.length && (() => {
+            const completedCount =
+              loaded.board.items.filter(
+                (item) =>
+                  !item.retired &&
+                  (item.evidence === 'CONTENT_VERIFIED' ||
+                    Boolean(item.selfConfirmedAt) ||
+                    item.evidence === 'SELF_CONFIRMED'),
+              ).length
+            const formattedWeek = loaded.board.weekStart
+              ? new Intl.DateTimeFormat('vi-VN', {
+                  day: 'numeric',
+                  month: 'numeric',
+                  timeZone: 'UTC',
+                }).format(new Date(`${loaded.board.weekStart}T00:00:00Z`))
+              : null
+
+            return (
+              <>
+                <div className={styles.bingoBanner}>
+                  <div className={styles.bingoBannerLeft}>
+                    <div className={styles.bingoBannerIcon} aria-hidden="true">
+                      🎯
+                    </div>
+                    <div className={styles.bingoBannerInfo}>
+                      <div className={styles.bingoBannerTitleRow}>
+                        <h3 className={styles.bingoBannerTitle}>
+                          Bingo hoạt động trong kế hoạch
+                        </h3>
+                        {formattedWeek && (
+                          <span className={styles.bingoWeekBadge}>
+                            Tuần {formattedWeek}
+                          </span>
+                        )}
+                        <span className={styles.bingoProgressBadge}>
+                          {completedCount}/9 ô hoàn thành
+                        </span>
+                      </div>
+                      <p className={styles.bingoBannerDesc}>
+                        {completedCount === 0
+                          ? 'Tự đánh dấu các hoạt động bạn đã hoàn thành để theo dõi sự tiến bộ.'
+                          : `Bạn đã hoàn thành ${completedCount}/9 hoạt động tuần này. Nhấn để mở bảng chi tiết.`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.bingoTriggerButton}
+                    onClick={() => setBingoModalOpen(true)}
+                    aria-haspopup="dialog"
+                  >
+                    <span>Mở bảng Bingo</span>
+                    <span aria-hidden="true">🎯</span>
+                  </button>
+                </div>
+
+                <Dialog
+                  open={bingoModalOpen}
+                  onOpenChange={setBingoModalOpen}
+                  labelledBy="plan-bingo-dialog-title"
+                  className={styles.bingoDialog}
+                >
+                  <div className={styles.bingoModalHeader}>
+                    <div className={styles.bingoModalHeaderTitle}>
+                      <span className={styles.bingoModalIcon} aria-hidden="true">
+                        🎯
+                      </span>
+                      <div>
+                        <h2
+                          id="plan-bingo-dialog-title"
+                          className={styles.bingoModalTitle}
+                        >
+                          Bingo hoạt động trong kế hoạch
+                        </h2>
+                        <span className={styles.bingoModalSubtitle}>
+                          {formattedWeek ? `Tuần ${formattedWeek} · ` : ''}
+                          {completedCount}/9 ô đã hoàn thành
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.bingoModalClose}
+                      onClick={() => setBingoModalOpen(false)}
+                      aria-label="Đóng bảng Bingo"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className={styles.bingoModalBody}>
+                    <ResourceBingoPanel
+                      board={loaded.board}
+                      state="ready"
+                      readOnly={paused}
+                      pendingPosition={pendingPosition}
+                      saveError={saveError}
+                      onRetrySave={() => {
+                        if (saveError)
+                          void toggle(saveError.position, saveError.selfConfirmed)
+                      }}
+                      onToggle={(position, value) => void toggle(position, value)}
+                      onRetry={() => void load()}
+                    />
+                  </div>
+                  <div className={styles.bingoModalFooter}>
+                    <span className={styles.bingoFooterNote}>
+                      Đánh dấu của bạn sẽ tự động được lưu lại.
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.bingoModalDoneBtn}
+                      onClick={() => setBingoModalOpen(false)}
+                    >
+                      Hoàn tất
+                    </button>
+                  </div>
+                </Dialog>
+              </>
+            )
+          })()}
         </>
       ) : null}
     </section>

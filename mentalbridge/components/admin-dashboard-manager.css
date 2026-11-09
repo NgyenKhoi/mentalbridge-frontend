@@ -67,9 +67,11 @@
 .adm-journey-panel h2 {
   margin: 4px 0;
   color: var(--ink);
-  font:
-    600 28px/1.2 var(--font-fraunces),
-    serif;
+  font-family: var(--clinical-font-serif), Georgia, serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #174e3e;
 }
 .adm-journey-panel header p {
   max-width: 72ch;
@@ -116,17 +118,19 @@
 }
 .adm-journey-flow article > span {
   color: var(--teal-deep);
-  font:
-    600 12px var(--font-fraunces),
-    serif;
+  font-family: var(--clinical-font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f5c3f;
 }
 .adm-journey-flow article > strong {
   display: block;
   margin: var(--space-3) 0 6px;
   color: var(--ink);
-  font:
-    600 32px/1 var(--font-fraunces),
-    serif;
+  font-family: var(--clinical-font-sans);
+  font-size: 28px;
+  font-weight: 700;
+  color: #174e3e;
   font-variant-numeric: tabular-nums;
 }
 .adm-journey-flow h3 {

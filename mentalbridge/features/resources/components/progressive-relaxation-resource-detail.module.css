@@ -840,7 +840,12 @@
 }
 
 .dialog {
-  width: min(540px, calc(100vw - 32px));
+  width: min(640px, calc(100vw - 32px));
+  font-family: var(--font-be-vietnam), sans-serif;
+}
+
+.dialog > div {
+  padding: clamp(20px, 4vw, 28px);
 }
 
 .dialogHeader {
@@ -848,13 +853,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
 }
 
 .dialogHeader h2 {
   margin: 0;
   color: #183d30;
-  font: 650 25px var(--font-fraunces), Georgia, serif;
+  font: 650 20px/1.4 var(--font-be-vietnam), sans-serif;
 }
 
 .dialogHeader button {
@@ -872,17 +879,27 @@
 .dialog p,
 .dialog li {
   color: #40564b;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.dialog p {
+  margin: 14px 0;
 }
 
 .dialog ol {
+  margin: 18px 0;
   padding-left: 23px;
+}
+
+.dialog li + li {
+  margin-top: 6px;
 }
 
 .dialogSource {
   border-top: 1px solid #e5ebe5;
   padding-top: 12px;
+  font-size: 12px !important;
 }
 
 .dialog fieldset {
