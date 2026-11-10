@@ -353,7 +353,7 @@ test('MB-512 retries an unchanged draft with a fresh key after provider failure'
   await expect(
     page.getByRole('link', { name: 'Cần trợ giúp ngay' }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Gửi' }).click()
+  await page.getByRole('button', { name: 'Gửi', exact: true }).click()
   await expect(
     page
       .getByRole('region', { name: 'AI Companion' })

@@ -83,6 +83,43 @@ describe('AI Companion server-only client', () => {
     })
   })
 
+  it('passes the optional MB-810 title fields through send', async () => {
+    configure()
+    const result = {
+      conversationId,
+      title: 'Áp lực công việc',
+      titleVersion: 'B'.repeat(43),
+      userMessageId: '22222222-2222-4222-8222-222222222222',
+      assistantMessageId: '33333333-3333-4333-8333-333333333333',
+      assistant: 'Mình nghe nè.',
+      createdAt: timestamp,
+      contextKinds: [],
+      quota: {
+        plan: 'FREE',
+        policyVersion: 'companion-quota-v2',
+        remaining: 4,
+        resetAt: '2026-09-20T17:00:00Z',
+        limitDisplayed: true,
+      },
+    }
+    mockServer.use(
+      http.post(
+        `${baseUrl}/api/v1/ai-companion/conversations/${conversationId}/messages`,
+        () => HttpResponse.json(result, { status: 201 }),
+      ),
+    )
+
+    await expect(
+      companionClient.send(
+        'access-token',
+        conversationId,
+        { message: 'Kể chuyện công việc' },
+        'companion-command-0003',
+        'correlation-id',
+      ),
+    ).resolves.toEqual(result)
+  })
+
   it('passes a server-resolved suggestion and quota v2 through send', async () => {
     configure()
     const result = {

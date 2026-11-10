@@ -157,6 +157,44 @@ describe('Care runtime validation', () => {
     ).toBeNull()
   })
 
+  it('accepts the L2 AI_CONTEXT_PROCESSING consent as the third decision', () => {
+    const decision = (consentType: string, policyVersion: string) => ({
+      decisionId: '30000000-0000-4000-8000-000000000001',
+      consentType,
+      policyVersion,
+      granted: true,
+      decidedAt: '2026-11-06T00:01:00Z',
+    })
+    const decisions = [
+      decision('PRIVACY_POLICY', 'privacy-capstone-v3'),
+      decision('AI_PROCESSING', 'ai-processing-capstone-v2'),
+      decision('AI_CONTEXT_PROCESSING', 'ai-context-processing-capstone-v1'),
+    ]
+    expect(parseConsentCollection({ decisions })).not.toBeNull()
+    expect(
+      parseConsentCollection({ decisions: [...decisions, decisions[0]] }),
+    ).toBeNull()
+    expect(
+      parseConsentCollection({
+        decisions: [decision('SOMETHING_ELSE', 'v1')],
+      }),
+    ).toBeNull()
+    expect(
+      parseConsentRequest({
+        consentType: 'AI_CONTEXT_PROCESSING',
+        policyVersion: 'ai-context-processing-capstone-v1',
+        granted: false,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseConsentRequest({
+        consentType: 'AI_CONTEXT_PROCESSING',
+        policyVersion: 'ai-processing-capstone-v2',
+        granted: true,
+      }),
+    ).toBeNull()
+  })
+
   it('accepts a contract-shaped published questionnaire', () => {
     expect(parseQuestionnaire(phq9Questionnaire())).toMatchObject({
       definitionId,

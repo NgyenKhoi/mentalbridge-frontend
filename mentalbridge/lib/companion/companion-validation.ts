@@ -18,6 +18,11 @@ const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 const exact = (value: Record<string, unknown>, keys: string[]) =>
   Object.keys(value).every((key) => keys.includes(key))
+// MB-810 title fields are optional so pre-title responses still parse.
+const validTitle = (value: unknown) =>
+  typeof value === 'string' && value.length >= 1 && value.length <= 80
+const validTitleVersion = (value: unknown) =>
+  typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value)
 const dateTime = (value: unknown): value is string =>
   typeof value === 'string' &&
   rfc3339.test(value) &&
@@ -111,6 +116,7 @@ export const parseConversation = (
     !exact(value, [
       'conversationId',
       'title',
+      'titleVersion',
       'context',
       'messages',
       'createdAt',
@@ -119,9 +125,9 @@ export const parseConversation = (
     ]) ||
     typeof value.conversationId !== 'string' ||
     !uuid.test(value.conversationId) ||
-    typeof value.title !== 'string' ||
-    value.title.length < 1 ||
-    value.title.length > 80 ||
+    !validTitle(value.title) ||
+    (value.titleVersion !== undefined &&
+      !validTitleVersion(value.titleVersion)) ||
     !object(value.context) ||
     !exact(value.context, ['sources', 'updatedAt']) ||
     !parseContextSources(value.context.sources) ||
@@ -181,15 +187,16 @@ export const parseConversationList = (
       !exact(item, [
         'conversationId',
         'title',
+        'titleVersion',
         'createdAt',
         'updatedAt',
         'expiresAt',
       ]) ||
       typeof item.conversationId !== 'string' ||
       !uuid.test(item.conversationId) ||
-      typeof item.title !== 'string' ||
-      item.title.length < 1 ||
-      item.title.length > 80 ||
+      !validTitle(item.title) ||
+      (item.titleVersion !== undefined &&
+        !validTitleVersion(item.titleVersion)) ||
       !dateTime(item.createdAt) ||
       !dateTime(item.updatedAt) ||
       !dateTime(item.expiresAt)
@@ -206,6 +213,8 @@ export const parseSend = (value: unknown): CompanionSend | null => {
     !object(value) ||
     !exact(value, [
       'conversationId',
+      'title',
+      'titleVersion',
       'userMessageId',
       'assistantMessageId',
       'assistant',
@@ -216,6 +225,9 @@ export const parseSend = (value: unknown): CompanionSend | null => {
     ]) ||
     typeof value.conversationId !== 'string' ||
     !uuid.test(value.conversationId) ||
+    (value.title !== undefined && !validTitle(value.title)) ||
+    (value.titleVersion !== undefined &&
+      !validTitleVersion(value.titleVersion)) ||
     typeof value.userMessageId !== 'string' ||
     !uuid.test(value.userMessageId) ||
     typeof value.assistantMessageId !== 'string' ||
