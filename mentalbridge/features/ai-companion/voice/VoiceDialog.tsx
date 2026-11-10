@@ -303,6 +303,7 @@ export default function VoiceDialog({
             {mam && open ? (
               <VoiceMam
                 behavior={mamBehavior}
+                expression={view.expression}
                 dimmed={view.phase === 'reconnecting'}
                 muted={view.muted}
               />

@@ -20,8 +20,11 @@ export type Hint =
   | 'thinking'
   | 'speaking'
   | 'unavailable'
+// MB-820: decorative voice expression; `warm`/`encourage` stay unpublished until a Care-owned safety source exists.
+export type Expression = 'neutral' | 'comfort'
+const EXPRESSION_ATTRIBUTE = 'mb.mam.expression'
 export type MediaEvents = {
-  hint: (hint: Hint) => void
+  hint: (hint: Hint, expression?: Expression) => void
   reconnecting: () => void
   reconnected: () => void
   disconnected: () => void
@@ -59,6 +62,10 @@ export function freshHint(
     ? hint
     : 'unavailable'
 }
+// Only `comfort`, only while the fresh state is `speaking`; everything else is neutral.
+export function freshExpression(value: unknown, hint: Hint): Expression {
+  return hint === 'speaking' && value === 'comfort' ? 'comfort' : 'neutral'
+}
 
 export class LiveKitVoiceMedia implements Media {
   private room: Room | undefined
@@ -69,6 +76,10 @@ export class LiveKitVoiceMedia implements Media {
   private suspended = false
   private closed = false
   private hintTimer: ReturnType<typeof setTimeout> | undefined
+  private stateAt: number | undefined
+  // Expression attribute last seen from the admitted Agent, and the value live when the last speaking turn ended or was reset.
+  private seenExpression: unknown
+  private spentExpression: unknown
   private readonly outputs = new Map<RemoteTrack, HTMLMediaElement>()
   async permission() {
     setLogLevel(LogLevel.silent)
@@ -89,24 +100,47 @@ export class LiveKitVoiceMedia implements Media {
     this.room = room
     this.binding = connection
     this.events = events
-    const hint = (participant: Participant) => {
-      if (
-        !admittedAgent(connection, room.name, participant) ||
-        this.closed ||
-        this.suspended
-      )
-        return
+    const expire = () => {
       clearTimeout(this.hintTimer)
-      const observedAt = Date.now()
+      this.stateAt = undefined
+      this.spentExpression = this.seenExpression
+    }
+    // An expression-only change reuses the last state observation: it never renews freshness.
+    const hint = (participant: Participant, stateChanged = true) => {
+      if (!admittedAgent(connection, room.name, participant) || this.closed)
+        return
+      const written = participant.attributes[EXPRESSION_ATTRIBUTE]
+      this.seenExpression = written
+      if (this.suspended || (!stateChanged && this.stateAt === undefined)) {
+        this.spentExpression = written
+        return
+      }
+      const now = Date.now()
+      if (stateChanged) {
+        clearTimeout(this.hintTimer)
+        this.stateAt = now
+      }
+      const state = freshHint(
+        participant.attributes['lk.agent.state'],
+        this.stateAt ?? now,
+        now,
+        room.state === 'connected',
+      )
+      if (state !== 'speaking') this.spentExpression = written
+      // The Agent's clear is best effort: an unchanged value left by an earlier turn is stale, only a new write counts.
       events.hint(
-        freshHint(
-          participant.attributes['lk.agent.state'],
-          observedAt,
-          observedAt,
-          room.state === 'connected',
+        state,
+        freshExpression(
+          written === this.spentExpression ? undefined : written,
+          state,
         ),
       )
-      this.hintTimer = setTimeout(() => events.hint('unavailable'), 30_000)
+      if (stateChanged)
+        this.hintTimer = setTimeout(() => {
+          this.stateAt = undefined
+          this.spentExpression = this.seenExpression
+          events.hint('unavailable', 'neutral')
+        }, 30_000)
     }
     const attach = (track: RemoteTrack, participant: Participant) => {
       if (
@@ -149,24 +183,25 @@ export class LiveKitVoiceMedia implements Media {
     })
     room.on(RoomEvent.ParticipantAttributesChanged, (changed, participant) => {
       if ('lk.agent.state' in changed) hint(participant)
+      else if (EXPRESSION_ATTRIBUTE in changed) hint(participant, false)
     })
     room.on(RoomEvent.ParticipantConnected, (participant) => hint(participant))
     room.on(RoomEvent.ParticipantDisconnected, (participant) => {
       if (admittedAgent(connection, room.name, participant)) {
-        clearTimeout(this.hintTimer)
-        events.hint('unavailable')
+        expire()
+        events.hint('unavailable', 'neutral')
       }
     })
     room.on(RoomEvent.Reconnecting, () => {
       this.suspended = true
       for (const element of this.outputs.values()) element.pause()
-      clearTimeout(this.hintTimer)
-      events.hint('unavailable')
+      expire()
+      events.hint('unavailable', 'neutral')
       void this.microphone?.mute().catch(events.disconnected)
       events.reconnecting()
     })
     room.on(RoomEvent.Reconnected, () => {
-      events.hint('unavailable')
+      events.hint('unavailable', 'neutral')
       events.reconnected()
     })
     room.on(RoomEvent.Disconnected, () => {

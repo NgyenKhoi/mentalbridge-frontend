@@ -5,6 +5,7 @@ import { MicOff } from 'lucide-react'
 import { MamCharacter } from '@/features/mam/MamCharacter'
 import { useMamPreferences } from '@/features/mam/mam-preferences'
 import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
+import type { Expression } from './media'
 import styles from './Voice.module.css'
 
 export type VoiceMamBehavior = 'idle' | 'thinking' | 'speaking'
@@ -26,9 +27,18 @@ const isCompact = () =>
  */
 export function VoiceMam({
   behavior,
+  expression = 'neutral',
   dimmed,
   muted,
-}: Readonly<{ behavior: VoiceMamBehavior; dimmed: boolean; muted: boolean }>) {
+}: Readonly<{
+  behavior: VoiceMamBehavior
+  /** MB-820: decorative; only the Rive pose changes, never the stage state, halo or copy. */
+  expression?: Expression
+  dimmed: boolean
+  muted: boolean
+}>) {
+  const pose =
+    behavior === 'speaking' && expression === 'comfort' ? 'gentle' : behavior
   const { motionOff } = useMamPreferences()
   const reduced = useReactiveReducedMotion() || motionOff
   const compact = useSyncExternalStore(subscribeCompact, isCompact, () => false)
@@ -36,7 +46,7 @@ export function VoiceMam({
     <div
       className={styles.stage}
       data-state={behavior}
-      data-mam-behavior={behavior}
+      data-mam-behavior={pose}
       data-dim={dimmed}
       data-reduced={reduced}
     >
@@ -45,7 +55,7 @@ export function VoiceMam({
       <div className={styles.mam} aria-hidden="true">
         <MamCharacter
           size={compact ? 116 : 164}
-          behavior={behavior}
+          behavior={pose}
           reducedMotion={reduced}
         />
       </div>
