@@ -57,29 +57,61 @@ describe('AI Companion server-only client', () => {
     ).resolves.toMatchObject({ conversationId, messages: { length: 400 } })
   })
 
-  it('classifies a timed-out send as an ambiguous outcome', async () => {
-    configure('100')
-    mockServer.use(
-      http.post(
-        `${baseUrl}/api/v1/ai-companion/conversations/${conversationId}/messages`,
-        async () => {
-          await delay(250)
-          return HttpResponse.json({})
-        },
-      ),
-    )
-
-    await expect(
+  describe('timeouts (MB-829)', () => {
+    const sendUrl = `${baseUrl}/api/v1/ai-companion/conversations/${conversationId}/messages`
+    const send = () =>
       companionClient.send(
         'access-token',
         conversationId,
         { message: 'Xin hỗ trợ' },
-        'companion-command-0001',
+        'companion-command-0004',
         'correlation-id',
-      ),
-    ).rejects.toMatchObject({
-      code: 'COMPANION_OUTCOME_UNKNOWN',
-      status: 503,
+      )
+
+    afterEach(() => vi.restoreAllMocks())
+
+    it('arms send with a fixed 28 s timer regardless of the shared timeout', async () => {
+      configure('100')
+      const timers = vi.spyOn(globalThis, 'setTimeout')
+      mockServer.use(http.post(sendUrl, () => HttpResponse.json({})))
+      await send().catch(() => undefined)
+      expect(timers.mock.calls.map(([, ms]) => ms)).toContain(28_000)
+      expect(timers.mock.calls.map(([, ms]) => ms)).not.toContain(100)
+    })
+
+    it('keeps the shared timeout for other calls', async () => {
+      configure('4321')
+      const timers = vi.spyOn(globalThis, 'setTimeout')
+      mockServer.use(
+        http.get(`${baseUrl}/api/v1/ai-companion/conversations`, () =>
+          HttpResponse.json({ items: [] }),
+        ),
+      )
+      await companionClient.list('access-token', 'correlation-id')
+      const delays = timers.mock.calls.map(([, ms]) => ms)
+      expect(delays).toContain(4321)
+      expect(delays).not.toContain(28_000)
+    })
+
+    it('maps an abort at the send timer to COMPANION_OUTCOME_UNKNOWN', async () => {
+      configure('100')
+      vi.useFakeTimers()
+      try {
+        mockServer.use(
+          http.post(sendUrl, async () => {
+            await delay('infinite')
+            return HttpResponse.json({})
+          }),
+        )
+        const outcome = expect(send()).rejects.toMatchObject({
+          code: 'COMPANION_OUTCOME_UNKNOWN',
+          status: 503,
+        })
+        await vi.advanceTimersByTimeAsync(28_001)
+        await outcome
+      } finally {
+        vi.useRealTimers()
+      }
     })
   })
 

@@ -37,16 +37,25 @@ const problem = (value: unknown) =>
 async function parsed<T>(
   response: Response,
   parser: (value: unknown) => T | null,
+  // Code for a body that is not a problem document (send: the outcome is unknown).
+  // A definite 4xx stays a failure; 409 (a request in progress) is still ambiguous.
+  unreadableCode = 'COMPANION_UNAVAILABLE',
 ): Promise<T> {
   const value = await read(response)
   const result = response.ok ? parser(value) : null
   if (result) return result
   const issue = problem(value)
+  const ambiguous =
+    response.status < 400 || response.status >= 500 || response.status === 409
   throw new CompanionBrowserError(
     typeof issue?.title === 'string'
       ? issue.title
       : 'AI Companion tạm thời không khả dụng.',
-    typeof issue?.code === 'string' ? issue.code : 'COMPANION_UNAVAILABLE',
+    typeof issue?.code === 'string'
+      ? issue.code
+      : ambiguous
+        ? unreadableCode
+        : 'COMPANION_UNAVAILABLE',
     response.status || 503,
   )
 }
@@ -93,6 +102,7 @@ export const companionBrowserClient = {
         signal,
       }),
       parseSend,
+      'COMPANION_OUTCOME_UNKNOWN',
     )
   },
   async updateContext(
