@@ -175,6 +175,13 @@ fails closed during stale recovery. See
 [`docs/MB-633_SPECIALIST_PROFILE_AVAILABILITY.md`](docs/MB-633_SPECIALIST_PROFILE_AVAILABILITY.md)
 for the contract, state, test and Android real-contract evidence.
 
+MB-666 composes the reviewed mobile journeys into the protected Persona A/B
+capstone milestone. It adds a deterministic synthetic fixture/reset manifest,
+one-build Maestro batch, per-scene timings and a sanitized exact-revision
+evidence index. Source may merge to `dev` as `TEST_AUTHORED_NOT_RUN`; only the
+approved staging milestone can produce `STAGING_PASS`. See
+[`docs/MB-666_CAPSTONE_ANDROID_EVIDENCE.md`](docs/MB-666_CAPSTONE_ANDROID_EVIDENCE.md).
+
 ## Quality commands
 
 ```powershell
