@@ -10,6 +10,8 @@ import {
 
 const shaPattern = /^[0-9a-f]{40}$/i
 const safeIdentifier = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}$/
+const runIdentifier = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}$/
+const subjectHashPattern = /^[0-9a-f]{64}$/i
 
 function required(environment, name, pattern = /\S/) {
   const value = environment[name] ?? ''
@@ -17,7 +19,7 @@ function required(environment, name, pattern = /\S/) {
   return value
 }
 
-function fixtureControlUrl(environment) {
+export function fixtureControlUrl(environment) {
   const raw = required(environment, 'MB666_FIXTURE_CONTROL_URL')
   const url = new URL(raw)
   const loopback = ['127.0.0.1', 'localhost', '::1'].includes(url.hostname)
@@ -57,6 +59,21 @@ export async function prepareFixtureScene(
     'BACKEND_COMMIT_SHA',
     shaPattern,
   )
+  const backendContractTree = required(
+    environment,
+    'BACKEND_CONTRACT_TREE',
+    shaPattern,
+  )
+  const stagingDeploymentId = required(
+    environment,
+    'STAGING_DEPLOYMENT_ID',
+    safeIdentifier,
+  )
+  const evidenceRunId = required(
+    environment,
+    'MB666_EVIDENCE_RUN_ID',
+    runIdentifier,
+  )
   const token = required(environment, manifest.fixtureControl.tokenEnvironment)
   const response = await fetchImpl(fixtureControlUrl(environment), {
     method: 'POST',
@@ -68,12 +85,16 @@ export async function prepareFixtureScene(
     },
     body: JSON.stringify({
       schemaVersion: 'mb-666-fixture-control-request-v1',
+      action: 'RESET_SCENE',
       datasetVersion,
       personaId: persona.id,
       sceneId: scene.id,
       resetProfile: scene.resetProfile,
       frontendCommitSha,
       backendCommitSha,
+      backendContractTree,
+      stagingDeploymentId,
+      evidenceRunId,
     }),
   })
   if (!response.ok) {
@@ -90,10 +111,24 @@ export async function prepareFixtureScene(
     result?.sceneId !== scene.id ||
     result?.resetProfile !== scene.resetProfile ||
     result?.preseededHistoryDays !== scene.preseededHistoryDays ||
+    result?.frontendCommitSha !== frontendCommitSha ||
+    result?.backendCommitSha !== backendCommitSha ||
+    result?.backendContractTree !== backendContractTree ||
+    result?.stagingDeploymentId !== stagingDeploymentId ||
+    result?.evidenceRunId !== evidenceRunId ||
     !safeIdentifier.test(result?.snapshotId ?? '')
   ) {
     throw new Error(
       `Fixture control returned a mismatched receipt for ${scene.id}.`,
+    )
+  }
+  if (
+    scene.executionMode === 'continuous' &&
+    (!safeIdentifier.test(result?.journeyId ?? '') ||
+      !subjectHashPattern.test(result?.subjectBindingHash ?? ''))
+  ) {
+    throw new Error(
+      `Fixture control omitted the continuous identity binding for ${scene.id}.`,
     )
   }
 
@@ -104,15 +139,20 @@ export async function prepareFixtureScene(
     sceneId: scene.id,
     resetProfile: scene.resetProfile,
     snapshotId: result.snapshotId,
+    journeyId: result.journeyId ?? null,
+    subjectBindingHash: result.subjectBindingHash ?? null,
     preseededHistoryDays: scene.preseededHistoryDays,
     frontendCommitSha,
     backendCommitSha,
+    backendContractTree,
+    stagingDeploymentId,
+    evidenceRunId,
     state: 'READY',
   }
   if (writeReceipt) {
     const evidenceDirectory = resolve(
       process.cwd(),
-      environment.NATIVE_EVIDENCE_DIR ?? 'native-evidence',
+      environment.MB666_EVIDENCE_RUN_DIR ?? 'native-evidence',
     )
     mkdirSync(evidenceDirectory, { recursive: true })
     writeFileSync(

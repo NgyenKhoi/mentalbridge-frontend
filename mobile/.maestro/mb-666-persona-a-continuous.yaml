@@ -1,0 +1,102 @@
+appId: com.mentalbridge.mobile
+name: MB-666 Persona A uninterrupted core business loop
+---
+# AUTHOR_ONLY / TEST_AUTHORED_NOT_RUN. The protected fixture is reset exactly
+# once before this flow. The same synthetic identity must remain bound through
+# screening, Guide, active Plan, source action return, reassessment and the
+# explicit keep/change decision. The fixture controller verifies the ordered
+# authority transitions after Maestro completes.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB666_PERSONA_A_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB666_PERSONA_A_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+
+# Initial paired screening -> immutable Guide decision.
+- tapOn: 'Bắt đầu sàng lọc'
+- tapOn: 'Bắt đầu hoặc tiếp tục'
+- assertVisible: 'Bài PHQ-9'
+- repeat:
+    times: 8
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Bài GAD-7'
+- repeat:
+    times: 6
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Kết quả → Gợi ý hỗ trợ → Bước tiếp theo'
+- scrollUntilVisible:
+    element: 'Tiếp tục hành trình'
+    direction: DOWN
+- tapOn: 'Bắt đầu với bài tập đầu tiên'
+- assertNotVisible: 'Tiếp tục hành trình'
+
+# The same signed-in identity opens and personally confirms the active Plan.
+- openLink: 'mentalbridge://support-plan'
+- assertVisible: 'Kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element:
+      text: 'Điều gì giúp kế hoạch dễ thực hiện hơn?'
+    direction: DOWN
+- tapOn: 'Nhẹ nhàng'
+- tapOn: '10 phút'
+- tapOn: 'Lưu lựa chọn'
+- assertVisible: 'Đã lưu cách bạn muốn kế hoạch đồng hành.'
+
+# Complete one source-owned action and reconcile the return to this Plan.
+- scrollUntilVisible:
+    element:
+      text: 'Ghi nhận cảm xúc: Dành một phút nhìn lại cảm xúc'
+    direction: DOWN
+- tapOn: 'Ghi nhận cảm xúc: Dành một phút nhìn lại cảm xúc'
+- assertVisible: 'Đang ghi nhận cho hoạt động trong kế hoạch'
+- tapOn: 'Tốt'
+- tapOn: 'Mức cảm nhận 3'
+- tapOn: 'Lưu ghi nhận'
+- tapOn:
+    id: 'emotion-return-to-plan'
+- scrollUntilVisible:
+    element:
+      text: 'Bạn vừa quay lại từ ghi nhận cảm xúc'
+    direction: DOWN
+- tapOn: 'Kiểm tra ghi nhận cho hoạt động vừa mở'
+- assertVisible: 'Đã ghi nhận hoàn thành'
+
+# Reassessment and an explicit owner choice finish the uninterrupted loop.
+- openLink: 'mentalbridge://reassessment'
+- assertVisible: 'Điều gì đã thay đổi với bạn?'
+- tapOn: 'Tôi chưa chắc'
+- tapOn:
+    id: 'reassessment-submit'
+- extendedWaitUntil:
+    visible: 'Bốn góc nhìn riêng biệt'
+    timeout: 60000
+- tapOn: 'Xem lựa chọn giữ hoặc đổi kế hoạch'
+- scrollUntilVisible:
+    element:
+      text: 'Tiến độ và điều chỉnh'
+    direction: DOWN
+- tapOn:
+    id: 'adaptive-review-open'
+- tapOn: 'Giữ nhịp này thêm 14 ngày'
+- tapOn:
+    id: 'adaptive-review-confirm'
+- assertVisible: 'Bạn đã chọn giữ kế hoạch.*'

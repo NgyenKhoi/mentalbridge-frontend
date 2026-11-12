@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "mb-666-persona-fixtures-v1",
+  "schemaVersion": "mb-666-persona-fixtures-v2",
   "datasetVersionEnvironment": "FIXTURE_DATASET_VERSION",
   "fixtureControl": {
     "urlEnvironment": "MB666_FIXTURE_CONTROL_URL",
@@ -13,104 +13,226 @@
       "credentialPrefix": "MAESTRO_MB666_PERSONA_A",
       "scenes": [
         {
+          "id": "persona-a-continuous-core-loop",
+          "flow": ".maestro/mb-666-persona-a-continuous.yaml",
+          "resetProfile": "persona-a-continuous-core-loop-v1",
+          "resetPolicy": "ONCE_BEFORE_FLOW",
+          "executionMode": "continuous",
+          "required": true,
+          "preseededHistoryDays": 14,
+          "stories": [
+            "MB-638",
+            "MB-641",
+            "MB-645",
+            "MB-664",
+            "MB-667",
+            "MB-668"
+          ],
+          "expectedAuthorityTransitions": [
+            "INITIAL_CHECK_COMPLETED",
+            "GUIDE_NEXT_STEP_OPENED",
+            "ACTIVE_PLAN_CONFIRMED",
+            "PLAN_ACTION_COMPLETED",
+            "RETURN_TO_PLAN_RECONCILED",
+            "REASSESSMENT_SELF_REPORT_SUBMITTED",
+            "KEEP_OR_CHANGE_CONFIRMED"
+          ],
+          "evidence": [
+            {
+              "screen": "CONTINUOUS_PERSONA_A",
+              "step": "keep-change-confirmed",
+              "checkpoint": "Bạn đã chọn giữ kế hoạch",
+              "file": "mb-666-persona-a-continuous-core-loop.png"
+            }
+          ]
+        },
+        {
           "id": "persona-a-screening-guide",
           "flow": ".maestro/mb-668-guided-journey.yaml",
           "resetProfile": "persona-a-screening-guide-v1",
+          "executionMode": "isolated",
           "required": true,
           "preseededHistoryDays": 0,
-          "evidenceFile": "mb-666-persona-a-screening-guide.png",
           "stories": ["MB-667", "MB-668"],
-          "screens": ["SCREENING_GUIDE"]
+          "evidence": [
+            {
+              "screen": "SCREENING_GUIDE",
+              "step": "guide-next-action",
+              "checkpoint": "Bắt đầu với bài tập đầu tiên",
+              "file": "mb-666-persona-a-screening-guide.png"
+            }
+          ]
         },
         {
           "id": "persona-a-home-plan",
           "flow": ".maestro/mb-663-home-next-step.yaml",
           "resetProfile": "persona-a-active-plan-home-v1",
+          "executionMode": "isolated",
           "required": true,
           "preseededHistoryDays": 0,
-          "evidenceFile": "mb-666-persona-a-home-plan.png",
           "stories": ["MB-663"],
-          "screens": ["HOME", "TODAY", "ACTION_DETAIL"]
+          "evidence": [
+            {
+              "screen": "HOME",
+              "step": "return-from-current-plan",
+              "checkpoint": "${MAESTRO_MB_HOME_NEXT_STEP_TITLE}",
+              "file": "mb-666-persona-a-home-plan.png"
+            }
+          ]
         },
         {
           "id": "persona-a-plan-personalization",
           "flow": ".maestro/mb-638-support-plan-personalization.yaml",
           "resetProfile": "persona-a-plan-personalization-v1",
+          "executionMode": "isolated",
           "required": true,
           "preseededHistoryDays": 0,
-          "evidenceFile": "mb-666-persona-a-plan-personalization.png",
           "stories": ["MB-638", "MB-669"],
-          "screens": ["TODAY", "ACTION_DETAIL"]
+          "evidence": [
+            {
+              "screen": "TODAY_PLAN",
+              "step": "personalization-persisted",
+              "checkpoint": "Kế hoạch hiện tại vẫn được giữ nguyên",
+              "file": "mb-666-persona-a-plan-personalization.png"
+            }
+          ]
         },
         {
           "id": "persona-a-emotion-plan",
           "flow": ".maestro/mb-641-emotion-plan.yaml",
           "resetProfile": "persona-a-emotion-action-v1",
+          "executionMode": "isolated",
           "required": true,
           "preseededHistoryDays": 0,
-          "evidenceFile": "mb-666-persona-a-emotion.png",
           "stories": ["MB-641"],
-          "screens": ["EMOTION_JOURNAL"]
+          "evidence": [
+            {
+              "screen": "EMOTION_RETURN",
+              "step": "emotion-completion-reconciled",
+              "checkpoint": "Đã ghi nhận hoàn thành",
+              "file": "mb-666-persona-a-emotion.png"
+            }
+          ]
         },
         {
           "id": "persona-a-journal-plan",
           "flow": ".maestro/mb-642-journal-plan.yaml",
           "resetProfile": "persona-a-journal-action-v1",
+          "executionMode": "isolated",
           "required": true,
           "preseededHistoryDays": 0,
-          "evidenceFile": "mb-666-persona-a-journal.png",
           "stories": ["MB-642"],
-          "screens": ["EMOTION_JOURNAL"]
+          "evidence": [
+            {
+              "screen": "JOURNAL_RETURN",
+              "step": "journal-completion-reconciled",
+              "checkpoint": "Đã ghi nhận hoàn thành",
+              "file": "mb-666-persona-a-journal.png"
+            }
+          ]
         },
         {
           "id": "persona-a-resource-progress",
           "flow": ".maestro/mb-626-resources.yaml",
           "resetProfile": "persona-a-resource-progress-v1",
+          "executionMode": "isolated",
           "required": true,
           "preseededHistoryDays": 0,
-          "evidenceFile": "mb-666-persona-a-resource.png",
           "stories": ["MB-626", "MB-640"],
-          "screens": ["ACTION_DETAIL", "PROGRESS"]
+          "evidence": [
+            {
+              "screen": "RESOURCE_ACTION_DETAIL",
+              "step": "resource-completion-persisted",
+              "checkpoint": "Đã hoàn thành",
+              "file": "mb-666-persona-a-resource.png"
+            }
+          ]
         },
         {
           "id": "persona-a-reassessment-resume",
           "flow": ".maestro/mb-664-reassessment-screening-resume.yaml",
           "resetProfile": "persona-a-reassessment-incomplete-v1",
+          "executionMode": "isolated",
           "required": true,
           "preseededHistoryDays": 14,
-          "evidenceFile": "mb-666-persona-a-reassessment-resume.png",
           "stories": ["MB-645", "MB-664"],
-          "screens": ["PROGRESS", "REVIEW_ADJUST"]
+          "evidence": [
+            {
+              "screen": "REASSESSMENT_SUMMARY",
+              "step": "screening-resume-summary",
+              "checkpoint": "Bốn góc nhìn riêng biệt",
+              "file": "mb-666-persona-a-reassessment-resume.png"
+            }
+          ]
         },
         {
           "id": "persona-a-reassessment-keep",
           "flow": ".maestro/mb-664-reassessment-keep.yaml",
           "resetProfile": "persona-a-reassessment-ready-keep-v1",
+          "executionMode": "isolated",
           "required": true,
           "preseededHistoryDays": 14,
-          "evidenceFile": "mb-666-persona-a-reassessment-keep.png",
           "stories": ["MB-645", "MB-664"],
-          "screens": ["REVIEW_ADJUST"]
+          "evidence": [
+            {
+              "screen": "REVIEW_KEEP",
+              "step": "keep-current-confirmed",
+              "checkpoint": "Bạn đã chọn giữ kế hoạch",
+              "file": "mb-666-persona-a-reassessment-keep.png"
+            }
+          ]
         },
         {
           "id": "persona-a-reassessment-change",
           "flow": ".maestro/mb-664-reassessment-change.yaml",
           "resetProfile": "persona-a-reassessment-ready-change-v1",
+          "executionMode": "isolated",
           "required": true,
           "preseededHistoryDays": 14,
-          "evidenceFile": "mb-666-persona-a-reassessment-change.png",
           "stories": ["MB-645", "MB-664"],
-          "screens": ["REVIEW_ADJUST"]
+          "evidence": [
+            {
+              "screen": "REVIEW_CHANGE",
+              "step": "replacement-confirmed",
+              "checkpoint": "${MAESTRO_MB664_CHANGE_RESULT}",
+              "file": "mb-666-persona-a-reassessment-change.png"
+            }
+          ]
+        },
+        {
+          "id": "persona-a-bingo-progress",
+          "flow": ".maestro/mb-666-bingo-core.yaml",
+          "resetProfile": "persona-a-bingo-progress-v1",
+          "executionMode": "isolated",
+          "required": true,
+          "preseededHistoryDays": 14,
+          "stories": ["MB-640", "MB-665"],
+          "evidence": [
+            {
+              "screen": "BINGO_PROGRESS",
+              "step": "owner-bingo-persisted",
+              "checkpoint": "Bạn đã tự đánh dấu",
+              "file": "mb-666-persona-a-bingo-progress.png"
+            }
+          ]
         },
         {
           "id": "persona-a-owner-rewards",
           "flow": ".maestro/mb-665-owner-rewards.yaml",
           "resetProfile": "persona-a-owner-rewards-v1",
-          "required": true,
+          "executionMode": "isolated",
+          "required": false,
+          "optionalReason": "Rewards and Companion are non-blocking polish outside the primary business-value loop.",
           "preseededHistoryDays": 14,
-          "evidenceFile": "mb-666-persona-a-owner-rewards.png",
           "stories": ["MB-665", "MB-670"],
-          "screens": ["PROGRESS"]
+          "evidence": [
+            {
+              "screen": "OPTIONAL_REWARDS",
+              "step": "reward-collection-persisted",
+              "checkpoint": "Bạn đã tự đánh dấu",
+              "file": "mb-666-persona-a-owner-rewards.png"
+            }
+          ]
         }
       ]
     },
@@ -124,21 +246,36 @@
           "id": "persona-b-professional-support",
           "flow": ".maestro/mb-643-professional-support.yaml",
           "resetProfile": "persona-b-professional-support-v1",
+          "executionMode": "isolated",
           "required": true,
           "preseededHistoryDays": 0,
-          "evidenceFile": "mb-666-persona-b-professional-support.png",
           "stories": ["MB-643"],
-          "screens": ["SPECIALIST_PATH"]
+          "evidence": [
+            {
+              "screen": "SPECIALIST_PATH",
+              "step": "appointment-return-persisted",
+              "checkpoint": "Trạng thái lịch hẹn:",
+              "file": "mb-666-persona-b-professional-support.png"
+            }
+          ]
         },
         {
           "id": "persona-b-authorized-chat",
           "flow": ".maestro/mb-631-chat.yaml",
           "resetProfile": "persona-b-authorized-chat-v1",
+          "executionMode": "isolated",
           "required": false,
+          "optionalReason": "Chat requires an eligible appointment and remote peer and is provider-conditional.",
           "preseededHistoryDays": 0,
-          "evidenceFile": "mb-666-persona-b-chat.png",
           "stories": ["MB-631"],
-          "screens": ["SPECIALIST_PATH"]
+          "evidence": [
+            {
+              "screen": "OPTIONAL_AUTHORIZED_CHAT",
+              "step": "authorized-chat-reconnected",
+              "checkpoint": "MB631 synthetic user message",
+              "file": "mb-666-persona-b-chat.png"
+            }
+          ]
         }
       ]
     }
@@ -146,11 +283,15 @@
   "requiredScreens": [
     "HOME",
     "SCREENING_GUIDE",
-    "TODAY",
-    "ACTION_DETAIL",
-    "EMOTION_JOURNAL",
-    "PROGRESS",
-    "REVIEW_ADJUST",
+    "TODAY_PLAN",
+    "RESOURCE_ACTION_DETAIL",
+    "EMOTION_RETURN",
+    "JOURNAL_RETURN",
+    "BINGO_PROGRESS",
+    "REASSESSMENT_SUMMARY",
+    "REVIEW_KEEP",
+    "REVIEW_CHANGE",
+    "CONTINUOUS_PERSONA_A",
     "SPECIALIST_PATH"
   ]
 }

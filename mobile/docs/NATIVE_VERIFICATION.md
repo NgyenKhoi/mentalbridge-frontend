@@ -23,10 +23,10 @@ prove that Gradle or Xcode can compile, install, and launch the native app.
 
 Promotions from `dev` to `staging` run two required smoke jobs:
 
-| Job                                | Agreed path exercised                                                                                           | Passing evidence                                                                                                                                                                                                                                                                           |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Android native boot and journeys` | Release native boot, baseline journeys, then the MB-666 Persona A/B batch against the approved staging API edge | CNG prebuild, Gradle compile, one APK install, live foreground app, baseline persisted journeys, reset receipts before every capstone scene, Home/Guide/Today/action/Emotion/Journal/progress/review/specialist screenshots, per-scene timings and sanitized exact-revision evidence index |
-| `iOS native boot`                  | `expo run:ios --configuration Release --no-bundler`                                                             | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                                                                                                                                                                             |
+| Job                                | Agreed path exercised                                                                                           | Passing evidence                                                                                                                                                                                                                                                          |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Android native boot and journeys` | Release native boot, baseline journeys, then the MB-666 Persona A/B batch against the approved staging API edge | CNG prebuild, Gradle compile, one APK install, live foreground app, baseline persisted journeys, one uninterrupted Persona A authority loop, isolated regression scenes, validated per-screen PNGs, per-scene timings and an exact-revision `STAGING_PASS_EMULATOR` index |
+| `iOS native boot`                  | `expo run:ios --configuration Release --no-bundler`                                                             | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                                                                                                                                                            |
 
 Both jobs embed only the public environment configuration from the workflow.
 The Android job is attached to the protected `staging-mobile-e2e` Environment;
@@ -93,8 +93,11 @@ it does not rebuild between scenes. The capstone portion requires the protected
 fixture controller, Persona A/B credentials and synthetic expected-value
 variables documented in
 [`MB-666_CAPSTONE_ANDROID_EVIDENCE.md`](MB-666_CAPSTONE_ANDROID_EVIDENCE.md).
-Feature branches must keep the status `TEST_AUTHORED_NOT_RUN`; use only an
-authorized exact-revision staging run for `STAGING_PASS` evidence.
+Feature branches must keep the status `TEST_AUTHORED_NOT_RUN`. The protected CI
+emulator is automated evidence only (`STAGING_PASS_EMULATOR`); it cannot close
+the physical Android or UX acceptance boundary. `STAGING_PASS_PHYSICAL` requires
+a non-emulator device receipt, 5–8 de-identified physical-device observations
+and a matching sanitization attestation in a new run-specific directory.
 
 The native phase writes `native-evidence/mentalbridge-<revision>.apk`. Install
 that exact artifact again with `adb install -r <apk-path>`; no dedicated EC2

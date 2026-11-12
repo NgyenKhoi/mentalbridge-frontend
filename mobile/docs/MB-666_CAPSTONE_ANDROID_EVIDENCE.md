@@ -9,7 +9,7 @@ Source: [Jira MB-666](https://vunguyenkhoi47.atlassian.net/browse/MB-666)
 This `dev` delivery authors the protected fixture manifest, reset handshake,
 Persona A/B Maestro batch, provenance and evidence index. It does **not** claim
 native execution. Under MB-662, only an exact `dev -> staging` promotion or an
-approved manual run on `dev`/`staging` may create `STAGING_PASS` evidence. A
+approved manual run on `dev`/`staging` may create milestone evidence. A
 feature branch, unit test, browser screenshot, Android boot screenshot, or
 authored YAML is not milestone proof.
 
@@ -50,13 +50,15 @@ score alone as diagnosis, emergency state, recovery, or specialist matching.
 | Today / plan                 | `persona-a-home-plan`, `persona-a-plan-personalization` | MB-638, MB-669; Care SupportPlan       | Practical preferences and current plan remain separate, explicit authorities | Automatic activation or hidden plan mutation                              |
 | Action detail                | personalization/resource scenes                         | MB-626, MB-638, MB-640                 | The selected action opens the source-owned destination                       | Completion inferred from navigation                                       |
 | Emotion / Journal            | `persona-a-emotion-plan`, `persona-a-journal-plan`      | MB-641, MB-642                         | Private source action saves, returns and reconciles by owner ID              | Raw Journal text in Care/evidence; mood outcome inference                 |
-| Progress / Bingo             | resource/rewards scenes                                 | MB-626, MB-665, MB-670                 | Persisted owner progress and verified versus self-marked facts               | Local XP rules, shame language or cross-owner data                        |
+| Progress / Bingo             | required Bingo core scene; optional Rewards appendix    | MB-626, MB-640, MB-665                 | Persisted owner Bingo and verified versus self-marked facts                  | Treating Rewards/Companion polish as a core-loop blocker                  |
 | Review / adjust              | three reassessment scenes                               | MB-645, MB-664                         | Resume, source-backed summary, explicit keep and comparison-before-change    | Pretending seeded history elapsed live or auto-replacing a plan           |
 | Specialist path              | `persona-b-professional-support`                        | MB-643; Consultation discovery/booking | Approved specialist, slot, request and persisted return state                | Local eligibility, real payment or confirmed appointment before authority |
 
 The executable mapping is versioned in
-`fixtures/mb-666-personas.json`. Every required screen must be mapped or the
-manifest validator fails.
+`fixtures/mb-666-personas.json`. Each scene maps a terminal step to its own
+expected PNG filename. Empty required screens, duplicate/missing mappings and
+filename drift fail validation; one screenshot can no longer claim several
+screens that were not captured.
 
 ## Protected fixture/reset contract
 
@@ -67,15 +69,19 @@ control URL/token are never committed, printed or uploaded.
 Before **every** scene,
 `scripts/prepare-mb666-fixture.mjs` sends an authenticated reset command with:
 
-- exact frontend and backend commit SHAs;
+- exact frontend/backend commit SHAs, backend contract tree and deployment ID;
 - immutable fixture dataset version;
 - persona, scene and reset-profile IDs from the reviewed manifest.
 
 The controller must return `READY` with the same dataset/persona/scene/profile,
-the declared `0` or `14` pre-seeded history days and a safe immutable snapshot
-ID. Any mismatch, redirect, non-HTTPS remote URL or failed reset closes the
-gate. Only the sanitized receipt is stored. The fixture controller is staging
-test infrastructure, not a public product endpoint.
+run ID, frontend/backend commits, backend contract tree, deployment ID, the
+declared `0` or `14` pre-seeded history days and a safe immutable snapshot ID.
+The continuous Persona A reset also returns an opaque subject-binding hash and
+journey ID. After Maestro, a second controller assertion must prove that the
+same identity completed the ordered screening → Guide → active Plan → action →
+return → reassessment → explicit keep/change authority transitions, with one
+backend reset and no web handoff. Any mismatch fails closed. Receipts copy only
+controller-confirmed bindings; they never synthesize provenance from local env.
 
 Required protected secrets:
 
@@ -95,23 +101,37 @@ existing baseline journeys, then calls:
 npm run e2e:android:capstone
 ```
 
-The capstone runner resets each independent snapshot, aliases only the two
-protected synthetic credentials to the already reviewed feature flows, runs
-Maestro on the already installed app, and captures one task-focused screenshot
-per scene. It never invokes Gradle or `expo run:android`.
+The capstone first runs the continuous Persona A scene with one reset at its
+start. Independent deterministic scenes remain regression coverage and reset
+before their own flow, but they do not substitute for the uninterrupted loop.
+The runner aliases only the two protected synthetic credentials, runs Maestro
+on the already installed app, and captures one task-focused terminal screenshot
+per declared screen/step. It never invokes Gradle or `expo run:android`.
 
 `npm run milestone:android` records build and batch timings in
 `android-milestone-timings.txt`. The MB-666 batch additionally writes:
 
-- `mb-666-journey-status.tsv` — per-scene `STAGING_PASS`, `STAGING_FAIL` or
-  `DEFERRED` plus duration;
+- `mb-666-runs/<run-id>/` — a newly created directory; an existing directory
+  is never cleaned or reused;
+- `mb-666-journey-status.tsv` — per-scene internal `PASS`, `FAIL` or `DEFERRED`
+  plus duration and the exact manifest filenames;
 - `mb-666-fixture-<scene>.json` — sanitized reset receipt;
 - `mb-666-persona-*.png` — Android task screenshots;
 - `mb-666-evidence-index.json` — exact revisions, fixture provenance,
   seeded-history disclosure, Jira traceability and final result.
 
-Every required scene and screenshot must pass for the index to report
-`STAGING_PASS`. The staging quality gate fails if Android fails or is skipped.
+`adb screencap` must exit successfully and each new file must have a valid PNG
+signature, chunk layout, dimensions and CRC before it is written. The index
+revalidates every PNG, receipt, filename and exact provenance binding. Missing,
+empty, corrupt, stale or mismatched artifacts fail the gate.
+
+The protected CI job explicitly runs `automated-emulator` and can report only
+`STAGING_PASS_EMULATOR`; privacy sanitization, usability cohort and physical
+acceptance remain `NOT_VERIFIED`. `STAGING_PASS_PHYSICAL` is reserved for an
+explicit `physical-acceptance` run whose device properties prove a real device
+and whose matching run includes 5–8 de-identified, non-clinical observation
+records plus an attestation covering every accepted screenshot. An emulator is
+rejected in that mode.
 
 ## Physical-device rehearsal on Windows
 
@@ -132,11 +152,27 @@ fixture controller and synthetic environment inputs used by CI, then run
 `npm run milestone:android`. Generated native projects, APKs, raw Maestro
 debug dumps, credentials, tokens, request bodies and private text stay ignored.
 
+For the separate final physical/UX milestone set
+`MB666_EVIDENCE_MODE=physical-acceptance` and supply:
+
+- `MB666_USABILITY_RECORD`: JSON schema `mb-666-usability-record-v1`, bound to
+  the run ID and hashed device serial, with 5–8 unique physical-device sessions,
+  de-identified non-clinical tasks, observations and evidence references;
+- `MB666_SANITIZATION_ATTESTATION`: JSON schema
+  `mb-666-sanitization-attestation-v1`, bound to the same run ID and listing
+  every accepted screenshot filename after human privacy review.
+
+The automated GitHub job sets `MB666_EVIDENCE_MODE=automated-emulator`. Changing
+that label cannot spoof a physical run because device properties are read from
+ADB and an emulator is rejected by physical-acceptance mode.
+
 ## Usability cohort record
 
-The capstone packet requires 5–8 task-focused sessions or a documented
-practical cohort. Record only non-clinical observations; participants never
-need to disclose health information.
+The capstone packet requires 5–8 task-focused sessions on the same hashed
+physical device/run binding. Record only non-clinical observations;
+participants never need to disclose health information. Until a valid record
+is supplied, the index says `NOT_VERIFIED` rather than asserting that a cohort
+was recorded.
 
 | Session | Device/viewport | Assigned task | Completed without help | Confusion point | Recovery/action | Evidence reference |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -151,8 +187,9 @@ record before Jira completion.
 - [x] Persona/interaction storyboard and source mapping are versioned.
 - [x] Deterministic synthetic fixture manifest and fail-closed reset handshake
       are versioned.
-- [x] Maestro batch, per-scene duration/status and sanitized evidence index are
-      versioned.
+- [x] Continuous Persona A flow plus isolated regression batch are versioned.
+- [x] Run-isolated capture, PNG integrity, exact provenance and device-class
+      validators are versioned.
 - [x] Physical-device and protected staging instructions are versioned.
 - [ ] Exact frontend/backend pair has run in the approved staging milestone.
 - [ ] Required Android screenshots/video are attached to the milestone record.
