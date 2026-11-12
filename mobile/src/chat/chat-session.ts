@@ -52,6 +52,7 @@ export class ChatSession {
   private listeners = new Set<() => void>()
   private events = new Map<string, string>()
   private waits = new Map<string, () => void>()
+  private moderationKeys = new Map<string, string>()
   constructor(
     private readonly options: Readonly<{
       api: ChatApi
@@ -594,11 +595,15 @@ export class ChatSession {
       target.state !== 'VISIBLE'
     )
       return false
+    const generation = this.generation
+    const fingerprint = `DELETE_MESSAGE:${messageId}`
+    const idempotencyKey =
+      this.moderationKeys.get(fingerprint) ?? this.options.uuid()
+    this.moderationKeys.set(fingerprint, idempotencyKey)
     try {
-      const result = await this.options.api.remove(
-        messageId,
-        this.options.uuid(),
-      )
+      const result = await this.options.api.remove(messageId, idempotencyKey)
+      if (!this.alive(generation)) return false
+      if (result.messageId !== messageId) contractMismatch()
       this.merge([
         {
           ...target,
@@ -607,8 +612,10 @@ export class ChatSession {
           deletedAt: result.deletedAt,
         },
       ])
+      this.moderationKeys.delete(fingerprint)
       return true
     } catch (error) {
+      if (!this.alive(generation)) return false
       this.patch({
         issue:
           error instanceof ApiError ? error.code : 'CHAT_CONTRACT_MISMATCH',
@@ -621,10 +628,18 @@ export class ChatSession {
       (item) => item.messageId === messageId,
     )
     if (!target || target.state !== 'VISIBLE') return false
+    const generation = this.generation
+    const fingerprint = `REPORT_MESSAGE:${messageId}:${reason}`
+    const idempotencyKey =
+      this.moderationKeys.get(fingerprint) ?? this.options.uuid()
+    this.moderationKeys.set(fingerprint, idempotencyKey)
     try {
-      await this.options.api.report(messageId, this.options.uuid(), reason)
+      await this.options.api.report(messageId, idempotencyKey, reason)
+      if (!this.alive(generation)) return false
+      this.moderationKeys.delete(fingerprint)
       return true
     } catch (error) {
+      if (!this.alive(generation)) return false
       this.patch({
         issue:
           error instanceof ApiError ? error.code : 'CHAT_CONTRACT_MISMATCH',

@@ -177,7 +177,7 @@ export const tombstoneSchema = z.strictObject({
 })
 export const reportReceiptSchema = z.strictObject({
   reportId: id,
-  state: z.literal('OPEN'),
+  state: z.enum(['OPEN', 'RESOLVED']),
   duplicate: z.boolean(),
 })
 export type ChatReportReason = z.infer<typeof reportReasonSchema>

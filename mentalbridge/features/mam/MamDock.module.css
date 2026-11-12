@@ -297,6 +297,17 @@
   }
 }
 
+/*
+ * The card Mầm is carried over: "drop here" (MB-819). The host sets the marker only on the
+ * registered card under the pointer while dragging. A dashed outline (no alpha, 3 px) in the
+ * brand teal, never moves layout and adds no animation, so it
+ * cannot replay the card's own entrance. 3 px + 1 px offset stays inside a 4 px page gutter.
+ */
+:global([data-mam-drop]) {
+  outline: 3px dashed var(--teal);
+  outline-offset: 1px;
+}
+
 /* MB-773: the hero's short rise and settle (ADR "Visual and layout rules"). */
 .flight {
   line-height: 0;

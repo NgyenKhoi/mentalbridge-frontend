@@ -87,7 +87,7 @@ export async function reportChatMessage(
   return (
     await browserApiClient.post<{
       reportId: string
-      state: 'OPEN'
+      state: 'OPEN' | 'RESOLVED'
       duplicate: boolean
     }>(
       `/realtime/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reports`,

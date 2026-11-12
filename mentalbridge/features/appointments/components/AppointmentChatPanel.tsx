@@ -72,6 +72,21 @@ const phaseLabel: Record<AppointmentChatEligibility['phase'], string> = {
   RESCHEDULED: 'Đã đổi lịch',
 }
 
+export function mergeAppointmentChatMessages(
+  current: readonly ChatMessage[],
+  incoming: readonly ChatMessage[],
+): ChatMessage[] {
+  const byId = new Map(current.map((message) => [message.messageId, message]))
+  for (const message of incoming) {
+    const previous = byId.get(message.messageId)
+    if (previous?.state === 'DELETED' && message.state !== 'DELETED') continue
+    byId.set(message.messageId, message)
+  }
+  return [...byId.values()].sort(
+    (left, right) => Date.parse(left.sentAt) - Date.parse(right.sentAt),
+  )
+}
+
 function sessionPresentation(
   eligibility: AppointmentChatEligibility,
   timezone: string,
@@ -149,6 +164,7 @@ export default function AppointmentChatPanel({
   const refreshSequence = useRef(0)
   const decisionRef = useRef<AppointmentChatEligibility | undefined>(undefined)
   const commandBusy = useRef({ send: false, checkIn: false })
+  const moderationKeys = useRef(new Map<string, string>())
   const followMessages = useRef(true)
   const composingRef = useRef(false)
   const checkInCommandId = useRef<string | undefined>(undefined)
@@ -216,15 +232,7 @@ export default function AppointmentChatPanel({
   }, [])
 
   const mergeMessages = useCallback((incoming: readonly ChatMessage[]) => {
-    setMessages((current) => {
-      const byId = new Map(
-        current.map((message) => [message.messageId, message]),
-      )
-      for (const message of incoming) byId.set(message.messageId, message)
-      return [...byId.values()].sort(
-        (left, right) => Date.parse(left.sentAt) - Date.parse(right.sentAt),
-      )
-    })
+    setMessages((current) => mergeAppointmentChatMessages(current, incoming))
   }, [])
 
   const refresh = useCallback(async () => {
@@ -483,12 +491,18 @@ export default function AppointmentChatPanel({
     if (!eligibility || moderatingMessageId) return
     setModeratingMessageId(message.messageId)
     setModerationNotice('')
+    const fingerprint = `DELETE_MESSAGE:${message.messageId}`
+    const idempotencyKey =
+      moderationKeys.current.get(fingerprint) ?? crypto.randomUUID()
+    moderationKeys.current.set(fingerprint, idempotencyKey)
     try {
       const result = await removeChatMessage(
         eligibility.conversationId,
         message.messageId,
-        crypto.randomUUID(),
+        idempotencyKey,
       )
+      if (result.messageId !== message.messageId)
+        throw new Error('Delete receipt identity mismatch')
       setMessages((current) =>
         current.map((item) =>
           item.messageId === result.messageId
@@ -501,6 +515,7 @@ export default function AppointmentChatPanel({
             : item,
         ),
       )
+      moderationKeys.current.delete(fingerprint)
       setModerationNotice('Tin nhắn của bạn đã được xóa.')
     } catch {
       setError('Chưa thể xóa tin nhắn. Nội dung hiện tại vẫn được giữ nguyên.')
@@ -514,13 +529,18 @@ export default function AppointmentChatPanel({
     if (!eligibility || moderatingMessageId) return
     setModeratingMessageId(message.messageId)
     setModerationNotice('')
+    const fingerprint = `REPORT_MESSAGE:${message.messageId}:${reason}`
+    const idempotencyKey =
+      moderationKeys.current.get(fingerprint) ?? crypto.randomUUID()
+    moderationKeys.current.set(fingerprint, idempotencyKey)
     try {
       await reportChatMessage(
         eligibility.conversationId,
         message.messageId,
-        crypto.randomUUID(),
+        idempotencyKey,
         reason,
       )
+      moderationKeys.current.delete(fingerprint)
       setModerationNotice('Báo cáo đã được gửi để xem xét.')
     } catch {
       setError('Chưa thể gửi báo cáo. Tin nhắn chưa bị thay đổi.')
