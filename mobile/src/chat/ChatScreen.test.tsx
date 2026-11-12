@@ -106,7 +106,7 @@ it('preserves unsent draft across background, recovers accepted history without 
   expect(await screen.findByLabelText('Tin nhắn tư vấn')).toHaveDisplayValue(
     'volatile draft',
   )
-  expect(screen.getAllByText(item.content)).toHaveLength(1)
+  expect(screen.getAllByText(item.content ?? '')).toHaveLength(1)
   await value.view.unmount()
 })
 it.each([

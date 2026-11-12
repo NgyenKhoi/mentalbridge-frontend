@@ -10,8 +10,10 @@ export type ChatMessage = Readonly<{
   senderId: string
   clientMessageId: string
   type: 'TEXT'
-  content: string
+  content: string | null
   sentAt: string
+  state: 'VISIBLE' | 'DELETED'
+  deletedAt: string | null
   schemaVersion: 1
 }>
 
@@ -48,4 +50,49 @@ export async function chatHistory(conversationId: string) {
     params: { limit: 100 },
   })
   return response.data
+}
+
+export async function removeChatMessage(
+  conversationId: string,
+  messageId: string,
+  idempotencyKey: string,
+) {
+  return (
+    await browserApiClient.delete<{
+      messageId: string
+      state: 'DELETED'
+      deletedAt: string
+      duplicate: boolean
+    }>(
+      `/realtime/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
+      { headers: { 'Idempotency-Key': idempotencyKey } },
+    )
+  ).data
+}
+
+export type ChatReportReason =
+  | 'HARASSMENT'
+  | 'PRIVACY_CONCERN'
+  | 'SELF_HARM_OR_CRISIS_CONCERN'
+  | 'SPAM'
+  | 'SEXUAL_OR_VIOLENT_CONTENT'
+  | 'OTHER'
+
+export async function reportChatMessage(
+  conversationId: string,
+  messageId: string,
+  idempotencyKey: string,
+  reason: ChatReportReason,
+) {
+  return (
+    await browserApiClient.post<{
+      reportId: string
+      state: 'OPEN'
+      duplicate: boolean
+    }>(
+      `/realtime/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reports`,
+      { reason },
+      { headers: { 'Idempotency-Key': idempotencyKey } },
+    )
+  ).data
 }

@@ -106,6 +106,42 @@ it('validates strict credential, history identities and bounded opaque paginatio
       .success,
   ).toBe(false)
 })
+it('sends idempotent delete and report commands to the appointment message boundary', async () => {
+  const messageId = uuid()
+  const commandKey = uuid()
+  const removed = client({
+    messageId,
+    state: 'DELETED',
+    deletedAt: eligibility.serverTime,
+    duplicate: false,
+  })
+  await createChatApi(removed.client, user, 'USER', appointmentId).remove(
+    messageId,
+    commandKey,
+  )
+  expect(removed.requests[0]?.method).toBe('delete')
+  expect(removed.requests[0]?.url).toBe(
+    `/api/v1/conversations/${appointmentId}/messages/${messageId}`,
+  )
+  expect(removed.requests[0]?.headers?.['Idempotency-Key']).toBe(commandKey)
+
+  const reported = client({
+    reportId: uuid(),
+    state: 'OPEN',
+    duplicate: false,
+  })
+  await createChatApi(reported.client, user, 'USER', appointmentId).report(
+    messageId,
+    commandKey,
+    'HARASSMENT',
+  )
+  expect(reported.requests[0]?.method).toBe('post')
+  expect(reported.requests[0]?.url).toBe(
+    `/api/v1/conversations/${appointmentId}/messages/${messageId}/reports`,
+  )
+  expect(reported.requests[0]?.data).toBe('{"reason":"HARASSMENT"}')
+  expect(reported.requests[0]?.headers?.['Idempotency-Key']).toBe(commandKey)
+})
 it('parses published ack/errors/events only; no fabricated delivery/read/completion events', () => {
   expect(
     acknowledgementSchema.safeParse({

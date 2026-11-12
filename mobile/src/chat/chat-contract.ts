@@ -64,16 +64,24 @@ export const eligibilitySchema = z
     (value) =>
       Date.parse(value.scheduledStartAt) < Date.parse(value.scheduledEndAt),
   )
-export const messageSchema = z.strictObject({
-  messageId: id,
-  conversationId: id,
-  senderId: id,
-  clientMessageId: id,
-  type: z.literal('TEXT'),
-  content: z.string().min(1).max(4000),
-  sentAt: instant,
-  schemaVersion: z.literal(1),
-})
+export const messageSchema = z
+  .strictObject({
+    messageId: id,
+    conversationId: id,
+    senderId: id,
+    clientMessageId: id,
+    type: z.literal('TEXT'),
+    content: z.string().min(1).max(4000).nullable(),
+    sentAt: instant,
+    state: z.enum(['VISIBLE', 'DELETED']),
+    deletedAt: instant.nullable(),
+    schemaVersion: z.literal(1),
+  })
+  .refine((message) =>
+    message.state === 'DELETED'
+      ? message.content === null && message.deletedAt !== null
+      : message.content !== null && message.deletedAt === null,
+  )
 export const historySchema = z
   .strictObject({
     items: z.array(messageSchema).max(100),
@@ -153,6 +161,26 @@ export type Eligibility = z.infer<typeof eligibilitySchema>
 export type ChatMessage = z.infer<typeof messageSchema>
 export type ChatOperation = 'SUBSCRIBE' | 'SEND' | 'HISTORY' | 'CHECK_IN'
 export type ChatRole = 'USER' | 'SPECIALIST'
+export const reportReasonSchema = z.enum([
+  'HARASSMENT',
+  'PRIVACY_CONCERN',
+  'SELF_HARM_OR_CRISIS_CONCERN',
+  'SPAM',
+  'SEXUAL_OR_VIOLENT_CONTENT',
+  'OTHER',
+])
+export const tombstoneSchema = z.strictObject({
+  messageId: id,
+  state: z.literal('DELETED'),
+  deletedAt: instant,
+  duplicate: z.boolean(),
+})
+export const reportReceiptSchema = z.strictObject({
+  reportId: id,
+  state: z.literal('OPEN'),
+  duplicate: z.boolean(),
+})
+export type ChatReportReason = z.infer<typeof reportReasonSchema>
 export type ChatCommand = Readonly<{
   schemaVersion: 1
   commandId: string

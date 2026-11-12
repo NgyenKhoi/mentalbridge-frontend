@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/api/api-error'
 import { Dialog } from '@/components/ui/Dialog'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ArrowLeft, CalendarDays, LockKeyhole, X } from 'lucide-react'
 import type { AppointmentChatEligibility } from '@/lib/consultation/consultation-validation'
@@ -20,7 +21,10 @@ import {
 import {
   chatEligibility,
   chatHistory,
+  removeChatMessage,
+  reportChatMessage,
   socketCredential,
+  type ChatReportReason,
   type ChatMessage,
 } from '../api/chat-browser-client'
 import styles from './AppointmentChatPanel.module.css'
@@ -134,6 +138,11 @@ export default function AppointmentChatPanel({
   const [sending, setSending] = useState(false)
   const [checkingIn, setCheckingIn] = useState(false)
   const [followingLive, setFollowingLive] = useState(true)
+  const [messageToDelete, setMessageToDelete] = useState<ChatMessage | null>(
+    null,
+  )
+  const [moderatingMessageId, setModeratingMessageId] = useState<string>()
+  const [moderationNotice, setModerationNotice] = useState('')
   const transportRef = useRef<RealtimeTransport | undefined>(undefined)
   const messagesRef = useRef<HTMLElement | null>(null)
   const detailsButtonRef = useRef<HTMLButtonElement>(null)
@@ -470,6 +479,56 @@ export default function AppointmentChatPanel({
     }
   }
 
+  async function deleteMessage(message: ChatMessage) {
+    if (!eligibility || moderatingMessageId) return
+    setModeratingMessageId(message.messageId)
+    setModerationNotice('')
+    try {
+      const result = await removeChatMessage(
+        eligibility.conversationId,
+        message.messageId,
+        crypto.randomUUID(),
+      )
+      setMessages((current) =>
+        current.map((item) =>
+          item.messageId === result.messageId
+            ? {
+                ...item,
+                content: null,
+                state: 'DELETED',
+                deletedAt: result.deletedAt,
+              }
+            : item,
+        ),
+      )
+      setModerationNotice('Tin nhắn của bạn đã được xóa.')
+    } catch {
+      setError('Chưa thể xóa tin nhắn. Nội dung hiện tại vẫn được giữ nguyên.')
+    } finally {
+      setModeratingMessageId(undefined)
+      setMessageToDelete(null)
+    }
+  }
+
+  async function reportMessage(message: ChatMessage, reason: ChatReportReason) {
+    if (!eligibility || moderatingMessageId) return
+    setModeratingMessageId(message.messageId)
+    setModerationNotice('')
+    try {
+      await reportChatMessage(
+        eligibility.conversationId,
+        message.messageId,
+        crypto.randomUUID(),
+        reason,
+      )
+      setModerationNotice('Báo cáo đã được gửi để xem xét.')
+    } catch {
+      setError('Chưa thể gửi báo cáo. Tin nhắn chưa bị thay đổi.')
+    } finally {
+      setModeratingMessageId(undefined)
+    }
+  }
+
   useEffect(() => {
     if (
       !eligibility?.subscribeAllowed ||
@@ -766,6 +825,11 @@ export default function AppointmentChatPanel({
               </div>
             </div>
           )}
+          {moderationNotice && (
+            <div className={styles.notice} role="status">
+              {moderationNotice}
+            </div>
+          )}
 
           {eligibility?.checkInAllowed && (
             <section
@@ -876,7 +940,11 @@ export default function AppointmentChatPanel({
                         : `Tin nhắn từ ${counterpartLabel}`
                     }
                   >
-                    <p>{message.content}</p>
+                    <p>
+                      {message.state === 'DELETED'
+                        ? 'Tin nhắn này đã được xóa.'
+                        : message.content}
+                    </p>
                     <time dateTime={message.sentAt}>
                       {new Intl.DateTimeFormat('vi-VN', {
                         hour: '2-digit',
@@ -885,6 +953,52 @@ export default function AppointmentChatPanel({
                         timeZone: timezone,
                       }).format(new Date(message.sentAt))}
                     </time>
+                    {message.state === 'VISIBLE' && (
+                      <div className={styles.messageActions}>
+                        {own ? (
+                          <button
+                            type="button"
+                            disabled={moderatingMessageId === message.messageId}
+                            onClick={() => setMessageToDelete(message)}
+                          >
+                            Xóa tin nhắn
+                          </button>
+                        ) : (
+                          <label>
+                            <span className="sr-only">Báo cáo tin nhắn</span>
+                            <select
+                              aria-label="Lý do báo cáo tin nhắn"
+                              defaultValue=""
+                              disabled={
+                                moderatingMessageId === message.messageId
+                              }
+                              onChange={(event) => {
+                                const reason = event.target
+                                  .value as ChatReportReason
+                                if (reason) void reportMessage(message, reason)
+                                event.currentTarget.value = ''
+                              }}
+                            >
+                              <option value="" disabled>
+                                Báo cáo…
+                              </option>
+                              <option value="HARASSMENT">Quấy rối</option>
+                              <option value="PRIVACY_CONCERN">
+                                Lo ngại quyền riêng tư
+                              </option>
+                              <option value="SELF_HARM_OR_CRISIS_CONCERN">
+                                Lo ngại an toàn
+                              </option>
+                              <option value="SPAM">Tin rác</option>
+                              <option value="SEXUAL_OR_VIOLENT_CONTENT">
+                                Nội dung bạo lực hoặc tình dục
+                              </option>
+                              <option value="OTHER">Lý do khác</option>
+                            </select>
+                          </label>
+                        )}
+                      </div>
+                    )}
                   </article>
                 )
               })
@@ -1040,6 +1154,25 @@ export default function AppointmentChatPanel({
           </section>
         </Dialog>
       )}
+      <ConfirmDialog
+        request={
+          messageToDelete
+            ? {
+                title: 'Xóa tin nhắn này?',
+                description:
+                  'Nội dung sẽ được thay bằng thông báo đã xóa và không thể khôi phục trong cuộc trò chuyện.',
+                confirmLabel: 'Xóa tin nhắn',
+                cancelLabel: 'Giữ lại',
+                tone: 'danger',
+              }
+            : null
+        }
+        onResolve={(confirmed) => {
+          const target = messageToDelete
+          if (confirmed && target) void deleteMessage(target)
+          else setMessageToDelete(null)
+        }}
+      />
     </div>
   )
 }

@@ -126,6 +126,47 @@ it('missing authoritative ready frame triggers bounded reconnect rather than ena
   expect(await value.session.send('unready')).toBe(false)
   value.session.stop()
 })
+it('renders an authoritative tombstone only after the owner delete succeeds', async () => {
+  const value = setup()
+  const own = message({ senderId: user })
+  jest.mocked(value.api.history).mockResolvedValue({
+    items: [own],
+    nextCursor: null,
+    hasMore: false,
+  })
+  jest.mocked(value.api.remove).mockResolvedValue({
+    messageId: own.messageId,
+    state: 'DELETED',
+    deletedAt: '2026-10-11T10:04:00Z',
+    duplicate: false,
+  })
+  await ready(value)
+  expect(await value.session.remove(own.messageId)).toBe(true)
+  expect(value.session.snapshot().messages[0]).toMatchObject({
+    content: null,
+    state: 'DELETED',
+    deletedAt: '2026-10-11T10:04:00Z',
+  })
+  value.session.stop()
+})
+it('reports a visible peer message without inferring a local moderation result', async () => {
+  const value = setup()
+  const peer = message({ senderId: specialist })
+  jest.mocked(value.api.history).mockResolvedValue({
+    items: [peer],
+    nextCursor: null,
+    hasMore: false,
+  })
+  await ready(value)
+  expect(await value.session.report(peer.messageId, 'HARASSMENT')).toBe(true)
+  expect(value.api.report).toHaveBeenCalledWith(
+    peer.messageId,
+    expect.any(String),
+    'HARASSMENT',
+  )
+  expect(value.session.snapshot().messages[0]).toEqual(peer)
+  value.session.stop()
+})
 it.each(['USER', 'SPECIALIST'] as const)(
   'authorizes %s and subscribes before send; never fabricates receipts',
   async (role) => {
@@ -349,7 +390,7 @@ it('rejects foreign ready identity, wrong appointment message and conflicting du
           eventType: 'message.created',
           payload: { ...item, content },
         })
-      emit(item.content)
+      emit(item.content ?? '')
       if (scenario === 'duplicate') emit('conflicting content')
     }
     await flush()

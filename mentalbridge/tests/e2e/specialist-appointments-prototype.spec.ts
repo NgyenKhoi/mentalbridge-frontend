@@ -352,6 +352,8 @@ test('messages: API phases, acknowledged realtime send, check-in, responsive inb
               type: 'TEXT',
               content: `Tin nhắn thử nghiệm cho phiên ${index + 1} có tiếng Việt rõ ràng.`,
               sentAt: generatedAt,
+              state: 'VISIBLE',
+              deletedAt: null,
               schemaVersion: 1,
             },
           ],
@@ -478,6 +480,8 @@ test('messages: API phases, acknowledged realtime send, check-in, responsive inb
             type: 'TEXT',
             content: command.payload.content,
             sentAt: generatedAt,
+            state: 'VISIBLE',
+            deletedAt: null,
             schemaVersion: 1,
           }
           histories.get(message.conversationId)?.push(message)

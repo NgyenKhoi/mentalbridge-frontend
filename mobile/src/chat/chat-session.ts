@@ -7,6 +7,7 @@ import {
   eventSchema,
   type ChatCommand,
   type ChatMessage,
+  type ChatReportReason,
   type ChatRole,
   type Eligibility,
 } from './chat-contract'
@@ -494,14 +495,21 @@ export class ChatSession {
           (value.senderId === item.senderId &&
             value.clientMessageId === item.clientMessageId),
       )
-      if (
-        previous &&
-        (Object.keys(previous) as (keyof ChatMessage)[]).some(
-          (key) => previous[key] !== item[key],
+      if (previous) {
+        if (
+          previous.conversationId !== item.conversationId ||
+          previous.senderId !== item.senderId ||
+          previous.clientMessageId !== item.clientMessageId ||
+          previous.type !== item.type ||
+          previous.sentAt !== item.sentAt ||
+          (previous.state === 'VISIBLE' &&
+            item.state === 'VISIBLE' &&
+            previous.content !== item.content) ||
+          (previous.state === 'DELETED' && item.state !== 'DELETED')
         )
-      )
-        contractMismatch()
-      if (!previous) messages.push(item)
+          contractMismatch()
+        messages[messages.indexOf(previous)] = item
+      } else messages.push(item)
     }
     messages.sort(
       (a, b) =>
@@ -574,6 +582,54 @@ export class ChatSession {
       if (this.alive(generation)) this.failure(error)
     } finally {
       this.commandBusy = false
+    }
+  }
+  async remove(messageId: string) {
+    const target = this.state.messages.find(
+      (item) => item.messageId === messageId,
+    )
+    if (
+      !target ||
+      target.senderId !== this.options.subject ||
+      target.state !== 'VISIBLE'
+    )
+      return false
+    try {
+      const result = await this.options.api.remove(
+        messageId,
+        this.options.uuid(),
+      )
+      this.merge([
+        {
+          ...target,
+          content: null,
+          state: 'DELETED',
+          deletedAt: result.deletedAt,
+        },
+      ])
+      return true
+    } catch (error) {
+      this.patch({
+        issue:
+          error instanceof ApiError ? error.code : 'CHAT_CONTRACT_MISMATCH',
+      })
+      return false
+    }
+  }
+  async report(messageId: string, reason: ChatReportReason) {
+    const target = this.state.messages.find(
+      (item) => item.messageId === messageId,
+    )
+    if (!target || target.state !== 'VISIBLE') return false
+    try {
+      await this.options.api.report(messageId, this.options.uuid(), reason)
+      return true
+    } catch (error) {
+      this.patch({
+        issue:
+          error instanceof ApiError ? error.code : 'CHAT_CONTRACT_MISMATCH',
+      })
+      return false
     }
   }
   async send(content: string, replay?: ChatCommand) {
