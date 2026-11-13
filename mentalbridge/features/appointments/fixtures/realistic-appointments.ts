@@ -1,10 +1,4 @@
-import type {
-  AdminAppointmentItem,
-  AppointmentCancellationCreditOutcome,
-  AppointmentModality,
-  AppointmentStatus,
-  ChatSessionOutcome,
-} from '@/lib/consultation/consultation-validation'
+import type { AdminAppointmentItem } from '@/lib/consultation/consultation-validation'
 
 export type RealisticAppointmentStep = {
   step: number

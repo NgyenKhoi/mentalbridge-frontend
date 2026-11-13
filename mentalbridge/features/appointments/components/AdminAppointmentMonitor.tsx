@@ -1,13 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react'
 import {
   AlertCircle,
   Calendar,
   CheckCircle2,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   FileText,
   Filter,
   Maximize2,
@@ -90,7 +95,6 @@ function toExtendedAppointment(
   )
   if (matched && !isApiSource) return matched
 
-  const shortId = item.appointmentId.slice(0, 8)
   const clientShort = item.userAccountId.slice(0, 8)
   const specShort = item.specialistAccountId.slice(0, 8)
 
@@ -410,8 +414,9 @@ export default function AdminAppointmentMonitor() {
       ).length
     : 17
   const countExpired = isApiSource
-    ? items.filter((i) => ['EXPIRED', 'CANCELLED', 'REJECTED'].includes(i.status))
-        .length
+    ? items.filter((i) =>
+        ['EXPIRED', 'CANCELLED', 'REJECTED'].includes(i.status),
+      ).length
     : 5
 
   const totalPages = Math.max(
@@ -728,7 +733,8 @@ export default function AdminAppointmentMonitor() {
 
           <div className={styles.queueList}>
             {displayedAppointments.map((app) => {
-              const isSelected = selectedItem?.appointmentId === app.appointmentId
+              const isSelected =
+                selectedItem?.appointmentId === app.appointmentId
               const isChat = app.modality === 'IN_APP_CHAT'
               const isExpired =
                 app.status === 'EXPIRED' ||
@@ -758,8 +764,8 @@ export default function AdminAppointmentMonitor() {
                           isExpired
                             ? styles.iconBoxExpired
                             : isChat
-                            ? styles.iconBoxChat
-                            : styles.iconBoxVideo
+                              ? styles.iconBoxChat
+                              : styles.iconBoxVideo
                         }`}
                       >
                         {isExpired ? (
@@ -790,10 +796,10 @@ export default function AdminAppointmentMonitor() {
                           app.statusVariant === 'success'
                             ? styles.statusPillSuccess
                             : app.statusVariant === 'warning'
-                            ? styles.statusPillWarning
-                            : app.statusVariant === 'danger'
-                            ? styles.statusPillDanger
-                            : styles.statusPillInfo
+                              ? styles.statusPillWarning
+                              : app.statusVariant === 'danger'
+                                ? styles.statusPillDanger
+                                : styles.statusPillInfo
                         }`}
                       >
                         {/* If from real API test mock, keep raw status text for unit test assertions */}
@@ -807,8 +813,8 @@ export default function AdminAppointmentMonitor() {
                           app.settlementStateStyle === 'consumed'
                             ? styles.settlementConsumed
                             : app.settlementStateStyle === 'held'
-                            ? styles.settlementHeld
-                            : styles.settlementForfeited
+                              ? styles.settlementHeld
+                              : styles.settlementForfeited
                         }`}
                       >
                         {/* For unit test assertion getByText('HELD') */}
@@ -1069,8 +1075,8 @@ export default function AdminAppointmentMonitor() {
                         step.completed
                           ? styles.timelineIconCompleted
                           : step.active
-                          ? styles.timelineIconActive
-                          : styles.timelineIconPending
+                            ? styles.timelineIconActive
+                            : styles.timelineIconPending
                       }`}
                     >
                       {step.completed ? (
@@ -1157,7 +1163,8 @@ export default function AdminAppointmentMonitor() {
           >
             <div className={styles.modalHead}>
               <h3 className={styles.modalTitle}>
-                Tóm tắt ca hẹn lâm sàng #{selectedItem.appointmentId.slice(0, 8)}
+                Tóm tắt ca hẹn lâm sàng #
+                {selectedItem.appointmentId.slice(0, 8)}
               </h3>
               <button
                 type="button"
@@ -1172,21 +1179,29 @@ export default function AdminAppointmentMonitor() {
               <div>
                 <strong>Thông tin định danh phiên:</strong>
                 <p style={{ margin: '4px 0', color: '#64748b' }}>
-                  Thân chủ: {selectedItem.clientName} (Mã: {selectedItem.clientShortId}) · Chuyên gia: {selectedItem.specialistName}
+                  Thân chủ: {selectedItem.clientName} (Mã:{' '}
+                  {selectedItem.clientShortId}) · Chuyên gia:{' '}
+                  {selectedItem.specialistName}
                   <br />
-                  Thời gian: {selectedItem.timeDisplay} · Gói: {selectedItem.packageTitle}
+                  Thời gian: {selectedItem.timeDisplay} · Gói:{' '}
+                  {selectedItem.packageTitle}
                 </p>
               </div>
               <div>
                 <strong>Vấn đề lâm sàng sơ bộ:</strong>
                 <p style={{ margin: '4px 0', color: '#334155' }}>
-                  {selectedItem.chiefComplaint}. Khách hàng đã hoàn tất bảng sàng lọc tự đánh giá sức khỏe tinh thần theo chuẩn PHQ-9 và GAD-7.
+                  {selectedItem.chiefComplaint}. Khách hàng đã hoàn tất bảng
+                  sàng lọc tự đánh giá sức khỏe tinh thần theo chuẩn PHQ-9 và
+                  GAD-7.
                 </p>
               </div>
               <div>
                 <strong>Tiến trình tham vấn & Khuyến nghị:</strong>
                 <p style={{ margin: '4px 0', color: '#334155' }}>
-                  Phiên tham vấn đã hoàn thành an toàn qua kênh bảo mật E2EE. Thân chủ tiếp nhận liệu pháp nhận thức hành vi (CBT), thực hiện các bài tập điều hòa nhịp thở 4-7-8 và cam kết tham gia phiên định kỳ tiếp theo.
+                  Phiên tham vấn đã hoàn thành an toàn qua kênh bảo mật E2EE.
+                  Thân chủ tiếp nhận liệu pháp nhận thức hành vi (CBT), thực
+                  hiện các bài tập điều hòa nhịp thở 4-7-8 và cam kết tham gia
+                  phiên định kỳ tiếp theo.
                 </p>
               </div>
               <div
@@ -1199,7 +1214,9 @@ export default function AdminAppointmentMonitor() {
                   fontSize: '12px',
                 }}
               >
-                🛡 Hồ sơ bệnh án đã được mã hóa theo tiêu chuẩn HIPAA & ISO 27001. Biên bản kiểm toán mã số AUD-SEC-{selectedItem.appointmentId.slice(0, 8)}.
+                🛡 Hồ sơ bệnh án đã được mã hóa theo tiêu chuẩn HIPAA & ISO
+                27001. Biên bản kiểm toán mã số AUD-SEC-
+                {selectedItem.appointmentId.slice(0, 8)}.
               </div>
             </div>
             <div className={styles.modalFoot}>
@@ -1215,7 +1232,9 @@ export default function AdminAppointmentMonitor() {
                 className={styles.btnPrimary}
                 onClick={() => {
                   setSummaryModalOpen(false)
-                  setNotice('Đã xuất biên bản EMR PDF có chữ ký số của Chuyên gia.')
+                  setNotice(
+                    'Đã xuất biên bản EMR PDF có chữ ký số của Chuyên gia.',
+                  )
                   setTimeout(() => setNotice(''), 5000)
                 }}
               >
@@ -1268,7 +1287,9 @@ export default function AdminAppointmentMonitor() {
               >
                 <AlertCircle size={20} style={{ flexShrink: 0 }} />
                 <span>
-                  Kích hoạt điều phối y tế khẩn cấp: Hệ thống sẽ chuyển thông tin ca hẹn tới Ban Giám sát Y khoa và kết nối đường dây nóng can thiệp khủng hoảng tâm lý 24/7.
+                  Kích hoạt điều phối y tế khẩn cấp: Hệ thống sẽ chuyển thông
+                  tin ca hẹn tới Ban Giám sát Y khoa và kết nối đường dây nóng
+                  can thiệp khủng hoảng tâm lý 24/7.
                 </span>
               </div>
               <div>
@@ -1281,13 +1302,16 @@ export default function AdminAppointmentMonitor() {
                   }}
                 >
                   <li>
-                    <strong>Hotline Cấp cứu Tâm thần 24/7:</strong> 1900-8888 (Nhánh 1)
+                    <strong>Hotline Cấp cứu Tâm thần 24/7:</strong> 1900-8888
+                    (Nhánh 1)
                   </li>
                   <li>
-                    <strong>Bác sĩ phụ trách:</strong> {selectedItem.specialistName}
+                    <strong>Bác sĩ phụ trách:</strong>{' '}
+                    {selectedItem.specialistName}
                   </li>
                   <li>
-                    <strong>Người liên hệ khẩn cấp thân chủ:</strong> 098****321 (Gia đình)
+                    <strong>Người liên hệ khẩn cấp thân chủ:</strong> 098****321
+                    (Gia đình)
                   </li>
                 </ul>
               </div>
@@ -1305,7 +1329,9 @@ export default function AdminAppointmentMonitor() {
                 className={styles.btnEmergency}
                 onClick={() => {
                   setEmergencyModalOpen(false)
-                  setNotice('Đã gửi thông báo khẩn cấp tới Ban Giám đốc Y khoa!')
+                  setNotice(
+                    'Đã gửi thông báo khẩn cấp tới Ban Giám đốc Y khoa!',
+                  )
                   setTimeout(() => setNotice(''), 5000)
                 }}
               >

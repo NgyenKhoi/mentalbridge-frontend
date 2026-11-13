@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Download,
   Eye,
-  FileBadge2,
   FileCheck2,
   Fingerprint,
   GraduationCap,
@@ -20,12 +19,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
-import {
-  getDocumentForensicsAnalysis,
-  getExtendVerifyAnalysis,
-  getNationalCrossReference,
-  getPaddleOcrAnalysis,
-} from '../services/ai-verification-engine'
+import { getPaddleOcrAnalysis } from '../services/ai-verification-engine'
 import {
   credentialFileSha256,
   jpegCompressionMap,
@@ -67,8 +61,12 @@ export default function MasterDiplomaFullscreenModal({
 }: MasterDiplomaModalProps) {
   const [zoom, setZoom] = useState(125)
   const [rotation, setRotation] = useState(0)
-  const [viewMode, setViewMode] = useState<'ORIGINAL' | 'OCR' | 'ELA' | 'EXTEND'>('ORIGINAL')
-  const [activeTab, setActiveTab] = useState<'OCR' | 'FORENSICS' | 'EXTEND' | 'CSDL' | 'AUDIT'>('OCR')
+  const [viewMode, setViewMode] = useState<
+    'ORIGINAL' | 'OCR' | 'ELA' | 'EXTEND'
+  >('ORIGINAL')
+  const [activeTab, setActiveTab] = useState<
+    'OCR' | 'FORENSICS' | 'EXTEND' | 'CSDL' | 'AUDIT'
+  >('OCR')
 
   const [checklist, setChecklist] = useState({
     rector: true,
@@ -81,15 +79,16 @@ export default function MasterDiplomaFullscreenModal({
   const [analyzingFile, setAnalyzingFile] = useState(false)
   const [realReading, setRealReading] = useState<CredentialReading | null>(null)
   const [realSha256, setRealSha256] = useState<string>('')
-  const [realEla, setRealEla] = useState<{ url: string; width: number; height: number } | null>(null)
+  const [realEla, setRealEla] = useState<{
+    url: string
+    width: number
+    height: number
+  } | null>(null)
   const [realFileUrl, setRealFileUrl] = useState<string | null>(null)
   const [realFileName, setRealFileName] = useState<string | null>(null)
 
   // Baseline AI Analysis Data
   const ocrData = getPaddleOcrAnalysis('DIPLOMA', specialistName, diplomaNumber)
-  const forensicsData = getDocumentForensicsAnalysis('DIPLOMA')
-  const extendData = getExtendVerifyAnalysis('DIPLOMA')
-  const registryData = getNationalCrossReference('DIPLOMA', specialistName, diplomaNumber)
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -110,7 +109,9 @@ export default function MasterDiplomaFullscreenModal({
   const handleRotate = () => setRotation((prev) => (prev + 90) % 360)
 
   // Handle uploading real document file
-  async function handleRealFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleRealFileUpload(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -172,13 +173,17 @@ export default function MasterDiplomaFullscreenModal({
                   Hiệu trưởng: GS.TS. Trần Diệp Tuấn
                 </span>
                 {realFileName && (
-                  <span className={styles.cksChip} style={{ background: '#dbeafe', color: '#1d4ed8' }}>
+                  <span
+                    className={styles.cksChip}
+                    style={{ background: '#dbeafe', color: '#1d4ed8' }}
+                  >
                     Tệp thật: {realFileName}
                   </span>
                 )}
               </div>
               <p className={styles.subtitle}>
-                Người nhận: <strong>{effectiveHolder}</strong> ({specialistCode}) • {effectiveIssuer} cấp ngày {effectiveDate}
+                Người nhận: <strong>{effectiveHolder}</strong> ({specialistCode}
+                ) • {effectiveIssuer} cấp ngày {effectiveDate}
               </p>
             </div>
           </div>
@@ -229,9 +234,14 @@ export default function MasterDiplomaFullscreenModal({
               className={styles.toolBtn}
               onClick={() => fileInputRef.current?.click()}
               title="Tải lên tệp chứng chỉ thật (PDF hoặc Ảnh)"
-              style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}
+              style={{
+                background: '#ecfdf5',
+                color: '#047857',
+                borderColor: '#a7f3d0',
+              }}
             >
-              <Upload size={14} /> {analyzingFile ? 'Đang đọc…' : 'Tải tệp thật test'}
+              <Upload size={14} />{' '}
+              {analyzingFile ? 'Đang đọc…' : 'Tải tệp thật test'}
             </button>
 
             <button
@@ -301,14 +311,25 @@ export default function MasterDiplomaFullscreenModal({
                 <iframe
                   src={realFileUrl}
                   title="Tệp gốc đã tải lên"
-                  style={{ width: '100%', height: '560px', border: 'none', borderRadius: '4px' }}
+                  style={{
+                    width: '100%',
+                    height: '560px',
+                    border: 'none',
+                    borderRadius: '4px',
+                  }}
                 />
               ) : realFileUrl ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={viewMode === 'ELA' && realEla ? realEla.url : realFileUrl}
+                  src={
+                    viewMode === 'ELA' && realEla ? realEla.url : realFileUrl
+                  }
                   alt="Tài liệu thật"
-                  style={{ width: '100%', maxHeight: '560px', objectFit: 'contain' }}
+                  style={{
+                    width: '100%',
+                    maxHeight: '560px',
+                    objectFit: 'contain',
+                  }}
                 />
               ) : (
                 <>
@@ -317,7 +338,10 @@ export default function MasterDiplomaFullscreenModal({
                     <div className={styles.elaOverlay}>
                       <div className={styles.elaTag}>
                         <Fingerprint size={13} />
-                        <span>Mức nén DCT đồng nhất 99.5% (Không phát hiện pixel can thiệp)</span>
+                        <span>
+                          Mức nén DCT đồng nhất 99.5% (Không phát hiện pixel can
+                          thiệp)
+                        </span>
                       </div>
                     </div>
                   )}
@@ -354,12 +378,17 @@ export default function MasterDiplomaFullscreenModal({
                         ĐẠI HỌC Y DƯỢC THÀNH PHỐ HỒ CHÍ MINH
                       </p>
                       <h3 className={styles.diplomaTitle}>BẰNG THẠC SĨ</h3>
-                      <div className={styles.diplomaSubtitle}>(MASTER DIPLOMA)</div>
+                      <div className={styles.diplomaSubtitle}>
+                        (MASTER DIPLOMA)
+                      </div>
                       <p className={styles.recognizeLine}>
-                        HIỆU TRƯỞNG TRƯỜNG ĐẠI HỌC Y DƯỢC TP. HỒ CHÍ MINH CÔNG NHẬN:
+                        HIỆU TRƯỞNG TRƯỜNG ĐẠI HỌC Y DƯỢC TP. HỒ CHÍ MINH CÔNG
+                        NHẬN:
                       </p>
                       <div className={styles.recipientName}>
-                        {effectiveHolder.toUpperCase().replace(/^THS\.\s*BS\.\s*/i, '')}
+                        {effectiveHolder
+                          .toUpperCase()
+                          .replace(/^THS\.\s*BS\.\s*/i, '')}
                       </div>
                       <div className={styles.personalInfo}>
                         Ngày sinh: 15/05/1978 • Nơi sinh: TP. Hồ Chí Minh
@@ -369,8 +398,8 @@ export default function MasterDiplomaFullscreenModal({
                       </div>
                       <div className={styles.majorName}>{major}</div>
                       <div className={styles.graduationRank}>
-                        Hình thức đào tạo: <strong>Chính quy tập trung</strong> •
-                        Xếp loại tốt nghiệp: <strong>{graduationRank}</strong>
+                        Hình thức đào tạo: <strong>Chính quy tập trung</strong>{' '}
+                        • Xếp loại tốt nghiệp: <strong>{graduationRank}</strong>
                       </div>
                     </div>
 
@@ -392,7 +421,9 @@ export default function MasterDiplomaFullscreenModal({
                           <span>TP.HCM</span>
                           <span>★ ĐÃ XÁC THỰC CKS ★</span>
                         </div>
-                        <div className={styles.signatureScript}>GS. TS. Trần Diệp Tuấn</div>
+                        <div className={styles.signatureScript}>
+                          GS. TS. Trần Diệp Tuấn
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -470,14 +501,31 @@ export default function MasterDiplomaFullscreenModal({
                     </div>
                     <div className={styles.statCard}>
                       <span className={styles.statValue}>100% Khớp</span>
-                      <span className={styles.statDesc}>Trích xuất chính xác</span>
+                      <span className={styles.statDesc}>
+                        Trích xuất chính xác
+                      </span>
                     </div>
                   </div>
 
                   {realReading && (
-                    <div style={{ background: '#ecfdf5', padding: '10px', borderRadius: '6px', fontSize: '0.75rem', marginBottom: '10px', border: '1px solid #a7f3d0' }}>
-                      <strong style={{ color: '#047857' }}>✓ Đã trích xuất từ tệp thật:</strong>
-                      <p style={{ margin: '4px 0 0 0' }}>Số trang: {realReading.pagesRead}/{realReading.pageCount} · Nguồn: {realReading.sources.join(' + ')}</p>
+                    <div
+                      style={{
+                        background: '#ecfdf5',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        marginBottom: '10px',
+                        border: '1px solid #a7f3d0',
+                      }}
+                    >
+                      <strong style={{ color: '#047857' }}>
+                        ✓ Đã trích xuất từ tệp thật:
+                      </strong>
+                      <p style={{ margin: '4px 0 0 0' }}>
+                        Số trang: {realReading.pagesRead}/
+                        {realReading.pageCount} · Nguồn:{' '}
+                        {realReading.sources.join(' + ')}
+                      </p>
                     </div>
                   )}
 
@@ -492,7 +540,9 @@ export default function MasterDiplomaFullscreenModal({
                     <div className={styles.compareList}>
                       <div className={styles.compareRow}>
                         <div className={styles.compareRowHeader}>
-                          <span className={styles.compareField}>Họ tên người nhận</span>
+                          <span className={styles.compareField}>
+                            Họ tên người nhận
+                          </span>
                           <span className={styles.fieldMatchBadge}>
                             <CheckCircle2 size={12} /> Khớp 100%
                           </span>
@@ -500,18 +550,24 @@ export default function MasterDiplomaFullscreenModal({
                         <div className={styles.compareValues}>
                           <div className={styles.valDecl}>
                             <span className={styles.valBadge}>Khai báo</span>
-                            <span className={styles.valText}>{specialistName}</span>
+                            <span className={styles.valText}>
+                              {specialistName}
+                            </span>
                           </div>
                           <div className={styles.valOcr}>
                             <span className={styles.valBadgeOcr}>OCR AI</span>
-                            <span className={styles.valText}>{effectiveHolder}</span>
+                            <span className={styles.valText}>
+                              {effectiveHolder}
+                            </span>
                           </div>
                         </div>
                       </div>
 
                       <div className={styles.compareRow}>
                         <div className={styles.compareRowHeader}>
-                          <span className={styles.compareField}>Ngành đào tạo</span>
+                          <span className={styles.compareField}>
+                            Ngành đào tạo
+                          </span>
                           <span className={styles.fieldMatchBadge}>
                             <CheckCircle2 size={12} /> Khớp 100%
                           </span>
@@ -519,7 +575,9 @@ export default function MasterDiplomaFullscreenModal({
                         <div className={styles.compareValues}>
                           <div className={styles.valDecl}>
                             <span className={styles.valBadge}>Khai báo</span>
-                            <span className={styles.valText}>Tâm lý học lâm sàng</span>
+                            <span className={styles.valText}>
+                              Tâm lý học lâm sàng
+                            </span>
                           </div>
                           <div className={styles.valOcr}>
                             <span className={styles.valBadgeOcr}>OCR AI</span>
@@ -530,7 +588,9 @@ export default function MasterDiplomaFullscreenModal({
 
                       <div className={styles.compareRow}>
                         <div className={styles.compareRowHeader}>
-                          <span className={styles.compareField}>Cơ sở đào tạo</span>
+                          <span className={styles.compareField}>
+                            Cơ sở đào tạo
+                          </span>
                           <span className={styles.fieldMatchBadge}>
                             <CheckCircle2 size={12} /> Khớp 100%
                           </span>
@@ -538,18 +598,24 @@ export default function MasterDiplomaFullscreenModal({
                         <div className={styles.compareValues}>
                           <div className={styles.valDecl}>
                             <span className={styles.valBadge}>Khai báo</span>
-                            <span className={styles.valText}>ĐH Y Dược TP.HCM</span>
+                            <span className={styles.valText}>
+                              ĐH Y Dược TP.HCM
+                            </span>
                           </div>
                           <div className={styles.valOcr}>
                             <span className={styles.valBadgeOcr}>OCR AI</span>
-                            <span className={styles.valText}>{effectiveIssuer}</span>
+                            <span className={styles.valText}>
+                              {effectiveIssuer}
+                            </span>
                           </div>
                         </div>
                       </div>
 
                       <div className={styles.compareRow}>
                         <div className={styles.compareRowHeader}>
-                          <span className={styles.compareField}>Số hiệu văn bằng</span>
+                          <span className={styles.compareField}>
+                            Số hiệu văn bằng
+                          </span>
                           <span className={styles.fieldMatchBadge}>
                             <CheckCircle2 size={12} /> Khớp 100%
                           </span>
@@ -557,11 +623,15 @@ export default function MasterDiplomaFullscreenModal({
                         <div className={styles.compareValues}>
                           <div className={styles.valDecl}>
                             <span className={styles.valBadge}>Khai báo</span>
-                            <span className={styles.valText}>{diplomaNumber}</span>
+                            <span className={styles.valText}>
+                              {diplomaNumber}
+                            </span>
                           </div>
                           <div className={styles.valOcr}>
                             <span className={styles.valBadgeOcr}>OCR AI</span>
-                            <span className={styles.valText}>{effectiveNumber}/YDS-2019</span>
+                            <span className={styles.valText}>
+                              {effectiveNumber}/YDS-2019
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -570,10 +640,26 @@ export default function MasterDiplomaFullscreenModal({
 
                   {realReading?.text && (
                     <details style={{ marginTop: '12px', fontSize: '0.72rem' }}>
-                      <summary style={{ cursor: 'pointer', color: '#047857', fontWeight: 600 }}>
+                      <summary
+                        style={{
+                          cursor: 'pointer',
+                          color: '#047857',
+                          fontWeight: 600,
+                        }}
+                      >
                         Xem toàn văn OCR trích xuất từ tệp thật
                       </summary>
-                      <pre style={{ whiteSpace: 'pre-wrap', background: '#f8fafc', padding: '8px', borderRadius: '4px', marginTop: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                      <pre
+                        style={{
+                          whiteSpace: 'pre-wrap',
+                          background: '#f8fafc',
+                          padding: '8px',
+                          borderRadius: '4px',
+                          marginTop: '6px',
+                          maxHeight: '180px',
+                          overflowY: 'auto',
+                        }}
+                      >
                         {realReading.text}
                       </pre>
                     </details>
@@ -587,37 +673,54 @@ export default function MasterDiplomaFullscreenModal({
                   <div className={styles.statGridRow}>
                     <div className={styles.statCard}>
                       <span className={styles.statValue}>99.4%</span>
-                      <span className={styles.statDesc}>Điểm nguyên bản ảnh</span>
+                      <span className={styles.statDesc}>
+                        Điểm nguyên bản ảnh
+                      </span>
                     </div>
                     <div className={styles.statCard}>
-                      <span className={styles.statValue} style={{ color: '#0284c7' }}>
+                      <span
+                        className={styles.statValue}
+                        style={{ color: '#0284c7' }}
+                      >
                         0.6%
                       </span>
-                      <span className={styles.statDesc}>Chênh lệch nén DCT</span>
+                      <span className={styles.statDesc}>
+                        Chênh lệch nén DCT
+                      </span>
                     </div>
                   </div>
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>QUANG HỌC PHÁP Y (LIGHTING ILLUMINATION)</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        QUANG HỌC PHÁP Y (LIGHTING ILLUMINATION)
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Đồng nhất
                       </span>
                     </div>
                     <p className={styles.checkCardDesc}>
-                      Nguồn sáng tán xạ đồng trục trên phôi bằng giấy mờ (Matt Finish Paper). Không có dấu hiệu chèn bóng giả lập.
+                      Nguồn sáng tán xạ đồng trục trên phôi bằng giấy mờ (Matt
+                      Finish Paper). Không có dấu hiệu chèn bóng giả lập.
                     </p>
                   </div>
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>KIỂM SOÁT TẨY XÓA VÙNG CHỮ KÝ HIỆU TRƯỞNG</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        KIỂM SOÁT TẨY XÓA VÙNG CHỮ KÝ HIỆU TRƯỞNG
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Nguyên bản
                       </span>
                     </div>
                     <p className={styles.checkCardDesc}>
-                      Vùng mực ký tươi và mộc đỏ trường ĐH Y Dược thâm nhập tự nhiên vào sớ giấy, mức nén JPEG đồng dạng 100%.
+                      Vùng mực ký tươi và mộc đỏ trường ĐH Y Dược thâm nhập tự
+                      nhiên vào sớ giấy, mức nén JPEG đồng dạng 100%.
                     </p>
                   </div>
                 </div>
@@ -629,35 +732,49 @@ export default function MasterDiplomaFullscreenModal({
                   <div className={styles.statGridRow}>
                     <div className={styles.statCard}>
                       <span className={styles.statValue}>100% Hợp lệ</span>
-                      <span className={styles.statDesc}>Phôi Bộ Giáo dục cấp</span>
+                      <span className={styles.statDesc}>
+                        Phôi Bộ Giáo dục cấp
+                      </span>
                     </div>
                     <div className={styles.statCard}>
                       <span className={styles.statValue}>BGD-2019</span>
-                      <span className={styles.statDesc}>Số seri phôi phôi gốc</span>
+                      <span className={styles.statDesc}>
+                        Số seri phôi phôi gốc
+                      </span>
                     </div>
                   </div>
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>QUỐC HUY VÀ DẤU NỔI DẠ QUANG</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        QUỐC HUY VÀ DẤU NỔI DẠ QUANG
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Đạt chuẩn
                       </span>
                     </div>
                     <p className={styles.checkCardDesc}>
-                      Dấu giáp lai nổi của Đại học Y Dược TP.HCM in sâu sắc nét vào góc dưới bên trái chữ ký Hiệu trưởng.
+                      Dấu giáp lai nổi của Đại học Y Dược TP.HCM in sâu sắc nét
+                      vào góc dưới bên trái chữ ký Hiệu trưởng.
                     </p>
                   </div>
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>TEM BẢO MẬT 7 MÀU CHỐNG GIẢ</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        TEM BẢO MẬT 7 MÀU CHỐNG GIẢ
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Hologram 3D
                       </span>
                     </div>
                     <p className={styles.checkCardDesc}>
-                      Tem Hologram chuẩn phôi của Cục Quản lý Chất lượng - Bộ GD&ĐT, phản quang 3D góc rộng.
+                      Tem Hologram chuẩn phôi của Cục Quản lý Chất lượng - Bộ
+                      GD&ĐT, phản quang 3D góc rộng.
                     </p>
                   </div>
                 </div>
@@ -677,14 +794,28 @@ export default function MasterDiplomaFullscreenModal({
                       gap: '6px',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
                       <CheckCircle2 size={16} color="#059669" />
                       <strong style={{ fontSize: '0.8rem', color: '#166534' }}>
                         CSDL VĂN BẰNG BỘ GD&ĐT - KHỚP 100%
                       </strong>
                     </div>
-                    <p style={{ fontSize: '0.74rem', color: '#15803d', margin: 0 }}>
-                      Đối soát tự động qua API Tra cứu Văn bằng Quốc gia. Dữ liệu khớp hoàn toàn với Sổ gốc cấp bằng số 812/YDS-SĐH của Trường ĐH Y Dược TP.HCM.
+                    <p
+                      style={{
+                        fontSize: '0.74rem',
+                        color: '#15803d',
+                        margin: 0,
+                      }}
+                    >
+                      Đối soát tự động qua API Tra cứu Văn bằng Quốc gia. Dữ
+                      liệu khớp hoàn toàn với Sổ gốc cấp bằng số 812/YDS-SĐH của
+                      Trường ĐH Y Dược TP.HCM.
                     </p>
                   </div>
 
@@ -695,7 +826,9 @@ export default function MasterDiplomaFullscreenModal({
                     </div>
 
                     <div className={styles.compareRow}>
-                      <div className={styles.compareField}>Học viên tốt nghiệp</div>
+                      <div className={styles.compareField}>
+                        Học viên tốt nghiệp
+                      </div>
                       <div className={styles.compareValues}>
                         <div className={styles.valOcr}>
                           <span>{effectiveHolder}</span>
@@ -704,7 +837,9 @@ export default function MasterDiplomaFullscreenModal({
                     </div>
 
                     <div className={styles.compareRow}>
-                      <div className={styles.compareField}>Số hiệu văn bằng</div>
+                      <div className={styles.compareField}>
+                        Số hiệu văn bằng
+                      </div>
                       <div className={styles.compareValues}>
                         <div className={styles.valOcr}>
                           <span>{effectiveNumber}/YDS-2019</span>
@@ -713,7 +848,9 @@ export default function MasterDiplomaFullscreenModal({
                     </div>
 
                     <div className={styles.compareRow}>
-                      <div className={styles.compareField}>Quyết định tốt nghiệp</div>
+                      <div className={styles.compareField}>
+                        Quyết định tốt nghiệp
+                      </div>
                       <div className={styles.compareValues}>
                         <div className={styles.valOcr}>
                           <span>412/QĐ-ĐHYD ngày 18/11/2019</span>
@@ -722,7 +859,9 @@ export default function MasterDiplomaFullscreenModal({
                     </div>
 
                     <div className={styles.compareRow}>
-                      <div className={styles.compareField}>Tình trạng văn bằng</div>
+                      <div className={styles.compareField}>
+                        Tình trạng văn bằng
+                      </div>
                       <div className={styles.compareValues}>
                         <div className={styles.valOcr}>
                           <span style={{ color: '#059669', fontWeight: 600 }}>
@@ -733,12 +872,38 @@ export default function MasterDiplomaFullscreenModal({
                     </div>
                   </div>
 
-                  <div style={{ marginTop: '12px', padding: '10px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.74rem' }}>
-                    <strong style={{ display: 'block', marginBottom: '6px', color: '#334155' }}>CỔNG TRA CỨU CÔNG KHAI BỘ GD&ĐT:</strong>
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      padding: '10px',
+                      background: '#f8fafc',
+                      borderRadius: '6px',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '0.74rem',
+                    }}
+                  >
+                    <strong
+                      style={{
+                        display: 'block',
+                        marginBottom: '6px',
+                        color: '#334155',
+                      }}
+                    >
+                      CỔNG TRA CỨU CÔNG KHAI BỘ GD&ĐT:
+                    </strong>
                     <ul style={{ margin: 0, paddingLeft: '16px' }}>
                       <li>
-                        <a href="https://moet.gov.vn/van-bang-chung-chi" target="_blank" rel="noreferrer" style={{ color: '#0284c7', textDecoration: 'underline' }}>
-                          Cổng tra cứu văn bằng chứng chỉ Bộ Giáo dục & Đào tạo (moet.gov.vn) ↗
+                        <a
+                          href="https://moet.gov.vn/van-bang-chung-chi"
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            color: '#0284c7',
+                            textDecoration: 'underline',
+                          }}
+                        >
+                          Cổng tra cứu văn bằng chứng chỉ Bộ Giáo dục & Đào tạo
+                          (moet.gov.vn) ↗
                         </a>
                       </li>
                     </ul>
@@ -751,12 +916,22 @@ export default function MasterDiplomaFullscreenModal({
                 <div className={styles.tabContentScroll}>
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>MÃ KIỂM ĐỊNH VĂN BẰNG (SHA-256)</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        MÃ KIỂM ĐỊNH VĂN BẰNG (SHA-256)
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Toàn vẹn
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#475569', wordBreak: 'break-all' }}>
+                    <div
+                      style={{
+                        fontSize: '0.72rem',
+                        color: '#475569',
+                        wordBreak: 'break-all',
+                      }}
+                    >
                       <strong>Mã băm SHA-256:</strong>
                       <div
                         style={{
@@ -775,13 +950,19 @@ export default function MasterDiplomaFullscreenModal({
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>NHẬT KÝ XÁC THỰC SỔ GỐC</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        NHẬT KÝ XÁC THỰC SỔ GỐC
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Đạt chuẩn
                       </span>
                     </div>
                     <p className={styles.checkCardDesc}>
-                      Dữ liệu kiểm toán đối chiếu trực tiếp với Sổ bộ điện tử ĐH Y Dược TP.HCM niên khóa 2017-2019. Không có bất kỳ sai lệch nào.
+                      Dữ liệu kiểm toán đối chiếu trực tiếp với Sổ bộ điện tử ĐH
+                      Y Dược TP.HCM niên khóa 2017-2019. Không có bất kỳ sai
+                      lệch nào.
                     </p>
                   </div>
                 </div>
@@ -796,7 +977,10 @@ export default function MasterDiplomaFullscreenModal({
                     type="checkbox"
                     checked={checklist.rector}
                     onChange={(e) =>
-                      setChecklist((prev) => ({ ...prev, rector: e.target.checked }))
+                      setChecklist((prev) => ({
+                        ...prev,
+                        rector: e.target.checked,
+                      }))
                     }
                   />
                   <span>Đã kiểm tra Chữ ký Hiệu trưởng ĐH Y Dược</span>
@@ -806,7 +990,10 @@ export default function MasterDiplomaFullscreenModal({
                     type="checkbox"
                     checked={checklist.seal}
                     onChange={(e) =>
-                      setChecklist((prev) => ({ ...prev, seal: e.target.checked }))
+                      setChecklist((prev) => ({
+                        ...prev,
+                        seal: e.target.checked,
+                      }))
                     }
                   />
                   <span>Mộc đỏ & Dấu giáp lai nổi hợp lệ</span>
@@ -816,7 +1003,10 @@ export default function MasterDiplomaFullscreenModal({
                     type="checkbox"
                     checked={checklist.transcript}
                     onChange={(e) =>
-                      setChecklist((prev) => ({ ...prev, transcript: e.target.checked }))
+                      setChecklist((prev) => ({
+                        ...prev,
+                        transcript: e.target.checked,
+                      }))
                     }
                   />
                   <span>Khớp Bảng điểm cao học & Quyết định TN</span>
@@ -848,7 +1038,8 @@ export default function MasterDiplomaFullscreenModal({
                   type="button"
                   className={styles.btnClose}
                   onClick={onClose}
-                  aria-label="Đóng cửa sổ"
+                  aria-label="Đóng xem trước (ESC)"
+                  title="Đóng xem trước (ESC)"
                 >
                   <X size={16} />
                 </button>

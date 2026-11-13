@@ -1,9 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 declare module 'pg' {
-  export interface QueryResultRow {
-    [column: string]: any
-  }
+  export type QueryResultRow = any
 
-  export interface QueryResult<R extends QueryResultRow = any> {
+  export interface QueryResult<R = any> {
     rows: R[]
     rowCount: number | null
     command: string
@@ -24,14 +23,14 @@ declare module 'pg' {
   }
 
   export class PoolClient {
-    query<R extends QueryResultRow = any>(queryText: string, values?: any[]): Promise<QueryResult<R>>
+    query<R = any>(queryText: string, values?: any[]): Promise<QueryResult<R>>
     release(err?: Error | boolean): void
   }
 
   export class Pool {
     constructor(config?: PoolConfig)
     connect(): Promise<PoolClient>
-    query<R extends QueryResultRow = any>(queryText: string, values?: any[]): Promise<QueryResult<R>>
+    query<R = any>(queryText: string, values?: any[]): Promise<QueryResult<R>>
     end(): Promise<void>
   }
 }

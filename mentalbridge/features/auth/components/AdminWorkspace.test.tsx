@@ -179,7 +179,9 @@ describe('AdminWorkspace', () => {
     expect(profileBadge).toBeInTheDocument()
     expect(within(profileBadge).getByText('AD')).toBeInTheDocument()
     expect(within(profileBadge).getByText('Quản trị viên')).toBeInTheDocument()
-    expect(within(profileBadge).getByText(/admin \/ quyền tối cao/i)).toBeInTheDocument()
+    expect(
+      within(profileBadge).getByText(/admin \/ quyền tối cao/i),
+    ).toBeInTheDocument()
     expect(screen.queryByText(/BS\. Hoàng Khang/i)).not.toBeInTheDocument()
   })
 })

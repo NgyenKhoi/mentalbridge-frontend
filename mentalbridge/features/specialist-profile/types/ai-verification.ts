@@ -108,7 +108,8 @@ export type CompleteAiVerificationReport = {
   sha256Checksum: string
   overallConfidenceScore: number
   overallRiskLevel: 'LOW' | 'MEDIUM' | 'HIGH'
-  verdictRecommendation: 'APPROVE_CLINICAL' | 'REQUEST_ORIGINAL' | 'REJECT_FRAUD'
+  verdictRecommendation:
+    'APPROVE_CLINICAL' | 'REQUEST_ORIGINAL' | 'REJECT_FRAUD'
   paddleOcr: PaddleOcrResult
   forensics: DocumentForensicsResult
   extendVerify: ExtendVerifyResult

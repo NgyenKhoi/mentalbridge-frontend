@@ -22,7 +22,6 @@ import {
   Lock,
   Clock,
   CheckCircle2,
-  AlertCircle,
   MoreVertical,
   ChevronLeft,
   ChevronRight,
@@ -45,10 +44,7 @@ import type {
   AccountStatus,
   IdentityRole,
 } from '../api/identity-contract'
-import {
-  browserAdminAccounts,
-  type AccountSearch,
-} from '../api/browser-admin-accounts'
+import { browserAdminAccounts } from '../api/browser-admin-accounts'
 import styles from './AdminAccountManager.module.css'
 
 // --------------------------------------------------------------------------
@@ -61,12 +57,6 @@ const statusLabels: Record<AccountStatus, string> = {
   DISABLED: 'Đã tạm ngưng',
   DELETION_PENDING: 'Chờ xóa',
   DELETED: 'Đã xóa',
-}
-
-const roleLabels: Record<IdentityRole, string> = {
-  USER: 'Người dùng',
-  SPECIALIST: 'Bác sĩ & Chuyên gia',
-  ADMIN: 'Quản trị viên',
 }
 
 const suspensionReasons = {
@@ -107,7 +97,6 @@ function getAccountMetadata(account: AccountDetail) {
 
   if (account.roles.includes('SPECIALIST')) {
     let monoTag = `CCHN: BS-${account.accountId.slice(0, 4).toUpperCase()}`
-    let actionType: 'SUSPEND' | 'ACTIVATE' | 'RESEND' = 'SUSPEND'
     let lastActive = '2 giờ trước'
     let joinedDate = 'Tham gia: 15/07/2026'
     let initials = 'BS'
@@ -119,7 +108,6 @@ function getAccountMetadata(account: AccountDetail) {
       initials = 'NH'
     } else if (email.includes('quyenptnde180559')) {
       monoTag = 'Liên kết: FPT & Học viện'
-      actionType = 'RESEND'
       lastActive = 'Chưa đăng nhập'
       joinedDate = 'Đăng ký: 22/09/2026'
       initials = 'QP'
@@ -143,7 +131,9 @@ function getAccountMetadata(account: AccountDetail) {
     const isPending = account.status === 'PENDING_EMAIL_VERIFICATION'
 
     return {
-      roleBadge: email.includes('quyenptnde180559') ? 'Chuyên gia' : 'Bác sĩ lâm sàng',
+      roleBadge: email.includes('quyenptnde180559')
+        ? 'Chuyên gia'
+        : 'Bác sĩ lâm sàng',
       roleBadgeType: 'SPECIALIST' as const,
       monoTag,
       securityStatus: isPending ? 'Chưa kích hoạt' : '2FA Bắt buộc',
@@ -231,17 +221,19 @@ function getAccountMetadata(account: AccountDetail) {
 // --------------------------------------------------------------------------
 
 export default function AdminAccountManager() {
-  const { confirm, showActionToast } = useFeedback()
+  const { showActionToast } = useFeedback()
 
   // Data & Loading state
   const [items, setItems] = useState<AccountDetail[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState('')
+  const [, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
   // Filters & State
-  const [activeTab, setActiveTab] = useState<'ALL' | 'SPECIALIST' | 'USER' | 'ADMIN'>('ALL')
+  const [activeTab, setActiveTab] = useState<
+    'ALL' | 'SPECIALIST' | 'USER' | 'ADMIN'
+  >('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [roleFilter, setRoleFilter] = useState<string>('ALL')
@@ -252,16 +244,23 @@ export default function AdminAccountManager() {
   const [currentPage, setCurrentPage] = useState<number>(1)
 
   // Modals & Menu
-  const [selectedAccountForSuspend, setSelectedAccountForSuspend] = useState<AccountDetail | null>(null)
-  const [suspendReason, setSuspendReason] = useState<SuspensionReason>('SAFETY_CONCERN')
+  const [selectedAccountForSuspend, setSelectedAccountForSuspend] =
+    useState<AccountDetail | null>(null)
+  const [suspendReason, setSuspendReason] =
+    useState<SuspensionReason>('SAFETY_CONCERN')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newAccountEmail, setNewAccountEmail] = useState('')
-  const [newAccountRole, setNewAccountRole] = useState<IdentityRole>('SPECIALIST')
+  const [newAccountRole, setNewAccountRole] =
+    useState<IdentityRole>('SPECIALIST')
   const [newAccountName, setNewAccountName] = useState('')
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
-  const [auditLogAccount, setAuditLogAccount] = useState<AccountDetail | null>(null)
+  const [auditLogAccount, setAuditLogAccount] = useState<AccountDetail | null>(
+    null,
+  )
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
-  const [accountToDelete, setAccountToDelete] = useState<AccountDetail | null>(null)
+  const [accountToDelete, setAccountToDelete] = useState<AccountDetail | null>(
+    null,
+  )
 
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -286,7 +285,10 @@ export default function AdminAccountManager() {
   }, [])
 
   useEffect(() => {
-    loadAccounts()
+    const timer = setTimeout(() => {
+      loadAccounts()
+    }, 0)
+    return () => clearTimeout(timer)
   }, [loadAccounts])
 
   // ⌘K Keyboard shortcut
@@ -315,18 +317,37 @@ export default function AdminAccountManager() {
   const filteredItems = useMemo(() => {
     return items.filter((account) => {
       // Role Tab Filter
-      if (activeTab === 'SPECIALIST' && !account.roles.includes('SPECIALIST')) return false
-      if (activeTab === 'USER' && (account.roles.includes('SPECIALIST') || account.roles.includes('ADMIN'))) return false
-      if (activeTab === 'ADMIN' && !account.roles.includes('ADMIN')) return false
+      if (activeTab === 'SPECIALIST' && !account.roles.includes('SPECIALIST'))
+        return false
+      if (
+        activeTab === 'USER' &&
+        (account.roles.includes('SPECIALIST') ||
+          account.roles.includes('ADMIN'))
+      )
+        return false
+      if (activeTab === 'ADMIN' && !account.roles.includes('ADMIN'))
+        return false
 
       // Dropdown Status Filter
-      if (statusFilter !== 'ALL' && account.status !== statusFilter) return false
+      if (statusFilter !== 'ALL' && account.status !== statusFilter)
+        return false
 
       // Dropdown Role Filter
       if (roleFilter !== 'ALL') {
-        if (roleFilter === 'SPECIALIST' && !account.roles.includes('SPECIALIST')) return false
-        if (roleFilter === 'USER' && (!account.roles.includes('USER') || account.roles.includes('SPECIALIST') || account.roles.includes('ADMIN'))) return false
-        if (roleFilter === 'ADMIN' && !account.roles.includes('ADMIN')) return false
+        if (
+          roleFilter === 'SPECIALIST' &&
+          !account.roles.includes('SPECIALIST')
+        )
+          return false
+        if (
+          roleFilter === 'USER' &&
+          (!account.roles.includes('USER') ||
+            account.roles.includes('SPECIALIST') ||
+            account.roles.includes('ADMIN'))
+        )
+          return false
+        if (roleFilter === 'ADMIN' && !account.roles.includes('ADMIN'))
+          return false
       }
 
       // Search Query
@@ -348,10 +369,17 @@ export default function AdminAccountManager() {
   const kpis = useMemo(() => {
     const total = items.length || 15
     const active = items.filter((a) => a.status === 'ACTIVE').length
-    const pending = items.filter((a) => a.status === 'PENDING_EMAIL_VERIFICATION').length
-    const specialists = items.filter((a) => a.roles.includes('SPECIALIST')).length
+    const pending = items.filter(
+      (a) => a.status === 'PENDING_EMAIL_VERIFICATION',
+    ).length
+    const specialists = items.filter((a) =>
+      a.roles.includes('SPECIALIST'),
+    ).length
     const users = items.filter(
-      (a) => a.roles.includes('USER') && !a.roles.includes('SPECIALIST') && !a.roles.includes('ADMIN')
+      (a) =>
+        a.roles.includes('USER') &&
+        !a.roles.includes('SPECIALIST') &&
+        !a.roles.includes('ADMIN'),
     ).length
     const admins = items.filter((a) => a.roles.includes('ADMIN')).length
 
@@ -392,13 +420,17 @@ export default function AdminAccountManager() {
 
   const handleToggleSelectRow = (accountId: string) => {
     setSelectedIds((curr) =>
-      curr.includes(accountId) ? curr.filter((id) => id !== accountId) : [...curr, accountId]
+      curr.includes(accountId)
+        ? curr.filter((id) => id !== accountId)
+        : [...curr, accountId],
     )
   }
 
   const handleConfirmBulkDelete = () => {
     const count = selectedIds.length
-    setItems((curr) => curr.filter((item) => !selectedIds.includes(item.accountId)))
+    setItems((curr) =>
+      curr.filter((item) => !selectedIds.includes(item.accountId)),
+    )
     setSelectedIds([])
     setShowBulkDeleteModal(false)
     showActionToast({
@@ -414,8 +446,8 @@ export default function AdminAccountManager() {
       curr.map((item) =>
         selectedIds.includes(item.accountId)
           ? { ...item, status: 'DISABLED' }
-          : item
-      )
+          : item,
+      ),
     )
     setSelectedIds([])
     showActionToast({
@@ -431,8 +463,8 @@ export default function AdminAccountManager() {
       curr.map((item) =>
         selectedIds.includes(item.accountId)
           ? { ...item, status: 'ACTIVE', emailVerified: true }
-          : item
-      )
+          : item,
+      ),
     )
     setSelectedIds([])
     showActionToast({
@@ -452,7 +484,9 @@ export default function AdminAccountManager() {
 
   const handleBulkExportCsv = () => {
     if (selectedIds.length === 0) return
-    const selectedAccounts = items.filter((acc) => selectedIds.includes(acc.accountId))
+    const selectedAccounts = items.filter((acc) =>
+      selectedIds.includes(acc.accountId),
+    )
     const headers = [
       'ID Tài khoản',
       'Email',
@@ -479,13 +513,17 @@ export default function AdminAccountManager() {
     })
 
     const csvContent =
-      '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
+      '\uFEFF' +
+      [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `MentalBridge_Selected_Accounts_${new Date().toISOString().slice(0, 10)}.csv`)
+    link.setAttribute(
+      'download',
+      `MentalBridge_Selected_Accounts_${new Date().toISOString().slice(0, 10)}.csv`,
+    )
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -528,13 +566,17 @@ export default function AdminAccountManager() {
     })
 
     const csvContent =
-      '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
+      '\uFEFF' +
+      [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `MentalBridge_Accounts_${new Date().toISOString().slice(0, 10)}.csv`)
+    link.setAttribute(
+      'download',
+      `MentalBridge_Accounts_${new Date().toISOString().slice(0, 10)}.csv`,
+    )
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -571,8 +613,8 @@ export default function AdminAccountManager() {
       curr.map((item) =>
         item.accountId === account.accountId
           ? { ...item, status: 'ACTIVE', emailVerified: true }
-          : item
-      )
+          : item,
+      ),
     )
     showActionToast({
       title: `Đã kích hoạt thủ công tài khoản ${account.email}. Đã ký số Audit Log.`,
@@ -591,8 +633,8 @@ export default function AdminAccountManager() {
         curr.map((item) =>
           item.accountId === target.accountId
             ? { ...item, status: restoring ? 'ACTIVE' : 'DISABLED' }
-            : item
-        )
+            : item,
+        ),
       )
       showActionToast({
         title: restoring
@@ -601,7 +643,7 @@ export default function AdminAccountManager() {
         tone: 'success',
       })
       setSelectedAccountForSuspend(null)
-    } catch (e) {
+    } catch {
       showActionToast({
         title: 'Lỗi thực thi thay đổi trạng thái tài khoản.',
         tone: 'error',
@@ -655,7 +697,9 @@ export default function AdminAccountManager() {
             Quản trị trạng thái &amp; Thống kê tài khoản
           </h1>
           <p className={styles.pageDescription}>
-            Theo dõi cơ cấu người dùng, kiểm soát trạng thái đăng nhập, xác thực danh tính lâm sàng và giám sát 2FA. Tuân thủ tuyệt đối quy tắc phân lập dữ liệu y tế HIPAA.
+            Theo dõi cơ cấu người dùng, kiểm soát trạng thái đăng nhập, xác thực
+            danh tính lâm sàng và giám sát 2FA. Tuân thủ tuyệt đối quy tắc phân
+            lập dữ liệu y tế HIPAA.
           </p>
         </div>
 
@@ -684,7 +728,10 @@ export default function AdminAccountManager() {
       {/* --------------------------------------------------------------------
          2. 4 KPI Cards
          -------------------------------------------------------------------- */}
-      <section className={styles.kpiGrid} aria-label="Các chỉ số tài khoản then chốt">
+      <section
+        className={styles.kpiGrid}
+        aria-label="Các chỉ số tài khoản then chốt"
+      >
         {/* KPI 1: Tổng số tài khoản */}
         <article className={styles.kpiCard}>
           <div className={styles.kpiTop}>
@@ -703,7 +750,10 @@ export default function AdminAccountManager() {
           <div className={styles.kpiBottom}>
             <div className={styles.kpiBottomRow}>
               <span className={styles.kpiBottomLabel}>
-                Tỷ lệ hoạt động <strong>{kpis.active}/{kpis.total} ({kpis.activePercent}%)</strong>
+                Tỷ lệ hoạt động{' '}
+                <strong>
+                  {kpis.active}/{kpis.total} ({kpis.activePercent}%)
+                </strong>
               </span>
             </div>
             <div className={styles.progressBarContainer}>
@@ -726,14 +776,20 @@ export default function AdminAccountManager() {
           <div className={styles.kpiValueRow}>
             <span className={styles.kpiNumber}>{kpis.pending}</span>
             <span className={styles.kpiBadgeOrange}>
-              <span className={styles.auditDot} style={{ background: '#f97316' }} />
+              <span
+                className={styles.auditDot}
+                style={{ background: '#f97316' }}
+              />
               Chờ kích hoạt
             </span>
           </div>
           <div className={styles.kpiBottom}>
             <div className={styles.kpiBottomRow}>
               <span className={styles.kpiBottomLabel}>
-                Tỷ lệ tồn đọng <strong>{kpis.pending}/{kpis.total} ({kpis.pendingPercent}%)</strong>
+                Tỷ lệ tồn đọng{' '}
+                <strong>
+                  {kpis.pending}/{kpis.total} ({kpis.pendingPercent}%)
+                </strong>
               </span>
             </div>
             <div className={styles.progressBarContainer}>
@@ -804,7 +860,11 @@ export default function AdminAccountManager() {
       <section className={styles.mainCard} aria-label="Bảng quản trị tài khoản">
         {/* Tab Row (Segmented Control + Actions) */}
         <div className={styles.tabBarRow}>
-          <div className={styles.segmentedControl} role="tablist" aria-label="Phân loại vai trò tài khoản">
+          <div
+            className={styles.segmentedControl}
+            role="tablist"
+            aria-label="Phân loại vai trò tài khoản"
+          >
             <button
               type="button"
               role="tab"
@@ -900,7 +960,11 @@ export default function AdminAccountManager() {
         {/* Filter Row */}
         <div className={styles.filterRow}>
           <div className={styles.searchBoxWrapper}>
-            <Search size={15} strokeWidth={2} className={styles.searchBoxIcon} />
+            <Search
+              size={15}
+              strokeWidth={2}
+              className={styles.searchBoxIcon}
+            />
             <input
               ref={searchInputRef}
               type="text"
@@ -927,7 +991,9 @@ export default function AdminAccountManager() {
           >
             <option value="ALL">Tất cả trạng thái</option>
             <option value="ACTIVE">Đang hoạt động</option>
-            <option value="PENDING_EMAIL_VERIFICATION">Chờ xác minh email</option>
+            <option value="PENDING_EMAIL_VERIFICATION">
+              Chờ xác minh email
+            </option>
             <option value="DISABLED">Đã tạm ngưng</option>
           </select>
 
@@ -974,7 +1040,11 @@ export default function AdminAccountManager() {
 
         {/* Bulk Actions Bar */}
         {selectedIds.length > 0 && (
-          <div className={styles.bulkActionBar} role="region" aria-label="Thao tác hàng loạt">
+          <div
+            className={styles.bulkActionBar}
+            role="region"
+            aria-label="Thao tác hàng loạt"
+          >
             <div className={styles.bulkActionLeft}>
               <div className={styles.bulkCountBadge}>
                 <CheckSquare size={16} />
@@ -1051,13 +1121,21 @@ export default function AdminAccountManager() {
             <thead>
               <tr>
                 <th className={styles.colAccount}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.65rem',
+                    }}
+                  >
                     <input
                       type="checkbox"
                       className={styles.rowCheckbox}
                       checked={
                         paginatedItems.length > 0 &&
-                        paginatedItems.every((item) => selectedIds.includes(item.accountId))
+                        paginatedItems.every((item) =>
+                          selectedIds.includes(item.accountId),
+                        )
                       }
                       onChange={handleSelectAll}
                       aria-label="Chọn tất cả các dòng hiện tại"
@@ -1066,21 +1144,41 @@ export default function AdminAccountManager() {
                   </div>
                 </th>
                 <th className={styles.colStatus}>TRẠNG THÁI &amp; BẢO MẬT</th>
-                <th className={styles.colActivity}>HOẠT ĐỘNG &amp; THỜI GIAN</th>
+                <th className={styles.colActivity}>
+                  HOẠT ĐỘNG &amp; THỜI GIAN
+                </th>
                 <th className={styles.colActions}>THAO TÁC</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
-                    <RotateCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem' }} />
+                  <td
+                    colSpan={4}
+                    style={{
+                      textAlign: 'center',
+                      padding: '3rem',
+                      color: '#64748b',
+                    }}
+                  >
+                    <RotateCw
+                      size={24}
+                      className="animate-spin"
+                      style={{ margin: '0 auto 0.5rem' }}
+                    />
                     <p>Đang tải danh sách tài khoản lâm sàng…</p>
                   </td>
                 </tr>
               ) : paginatedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                  <td
+                    colSpan={4}
+                    style={{
+                      textAlign: 'center',
+                      padding: '3rem',
+                      color: '#64748b',
+                    }}
+                  >
                     <p>Không tìm thấy tài khoản phù hợp với tiêu chí lọc.</p>
                   </td>
                 </tr>
@@ -1088,7 +1186,8 @@ export default function AdminAccountManager() {
                 paginatedItems.map((account) => {
                   const meta = getAccountMetadata(account)
                   const isSelected = selectedIds.includes(account.accountId)
-                  const isPending = account.status === 'PENDING_EMAIL_VERIFICATION'
+                  const isPending =
+                    account.status === 'PENDING_EMAIL_VERIFICATION'
                   const isDisabled = account.status === 'DISABLED'
 
                   return (
@@ -1103,7 +1202,9 @@ export default function AdminAccountManager() {
                             type="checkbox"
                             className={styles.rowCheckbox}
                             checked={isSelected}
-                            onChange={() => handleToggleSelectRow(account.accountId)}
+                            onChange={() =>
+                              handleToggleSelectRow(account.accountId)
+                            }
                             aria-label={`Chọn tài khoản ${account.email}`}
                           />
                           <div
@@ -1111,14 +1212,17 @@ export default function AdminAccountManager() {
                               meta.roleBadgeType === 'ADMIN'
                                 ? styles.avatarAdmin
                                 : meta.roleBadgeType === 'SPECIALIST'
-                                ? styles.avatarSpecialist
-                                : styles.avatarUser
+                                  ? styles.avatarSpecialist
+                                  : styles.avatarUser
                             }`}
                           >
                             {meta.initials}
                           </div>
                           <div className={styles.accountInfoCol}>
-                            <span className={styles.accountEmailRow} title={account.email}>
+                            <span
+                              className={styles.accountEmailRow}
+                              title={account.email}
+                            >
                               {account.email}
                             </span>
                             <div className={styles.accountMetaRow}>
@@ -1127,13 +1231,16 @@ export default function AdminAccountManager() {
                                   meta.roleBadgeType === 'ADMIN'
                                     ? styles.badgeRoleAdmin
                                     : meta.roleBadgeType === 'SPECIALIST'
-                                    ? styles.badgeRoleSpecialist
-                                    : styles.badgeRoleUser
+                                      ? styles.badgeRoleSpecialist
+                                      : styles.badgeRoleUser
                                 }
                               >
                                 {meta.roleBadge}
                               </span>
-                              <span className={styles.monoTag} title={meta.monoTag}>
+                              <span
+                                className={styles.monoTag}
+                                title={meta.monoTag}
+                              >
                                 {meta.monoTag}
                               </span>
                             </div>
@@ -1152,7 +1259,10 @@ export default function AdminAccountManager() {
                           )}
                           {isPending && (
                             <span className={styles.badgeStatusPending}>
-                              <span className={styles.auditDot} style={{ background: '#f97316' }} />
+                              <span
+                                className={styles.auditDot}
+                                style={{ background: '#f97316' }}
+                              />
                               Chờ xác minh email
                             </span>
                           )}
@@ -1165,13 +1275,25 @@ export default function AdminAccountManager() {
 
                           <div className={styles.securitySubline}>
                             {meta.securityIcon === 'ON' && (
-                              <ShieldCheck size={13} strokeWidth={2} style={{ color: '#10b981' }} />
+                              <ShieldCheck
+                                size={13}
+                                strokeWidth={2}
+                                style={{ color: '#10b981' }}
+                              />
                             )}
                             {meta.securityIcon === 'ENFORCED' && (
-                              <Lock size={13} strokeWidth={2} style={{ color: '#0E4A37' }} />
+                              <Lock
+                                size={13}
+                                strokeWidth={2}
+                                style={{ color: '#0E4A37' }}
+                              />
                             )}
                             {meta.securityIcon === 'NONE' && (
-                              <ShieldOff size={13} strokeWidth={2} style={{ color: '#94a3b8' }} />
+                              <ShieldOff
+                                size={13}
+                                strokeWidth={2}
+                                style={{ color: '#94a3b8' }}
+                              />
                             )}
                             <span>{meta.securityStatus}</span>
                           </div>
@@ -1194,7 +1316,9 @@ export default function AdminAccountManager() {
                             )}
                             {meta.lastActive}
                           </span>
-                          <span className={styles.joinDateRow}>{meta.joinedDate}</span>
+                          <span className={styles.joinDateRow}>
+                            {meta.joinedDate}
+                          </span>
                         </div>
                       </td>
 
@@ -1216,7 +1340,9 @@ export default function AdminAccountManager() {
                             <button
                               type="button"
                               className={styles.btnActionItem}
-                              onClick={() => setSelectedAccountForSuspend(account)}
+                              onClick={() =>
+                                setSelectedAccountForSuspend(account)
+                              }
                               aria-label={`Tạm ngưng tài khoản ${account.email}`}
                             >
                               <Ban size={14} strokeWidth={1.8} />
@@ -1253,7 +1379,9 @@ export default function AdminAccountManager() {
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setActiveMenuId(
-                                  activeMenuId === account.accountId ? null : account.accountId
+                                  activeMenuId === account.accountId
+                                    ? null
+                                    : account.accountId,
                                 )
                               }}
                               aria-label={`Tùy chọn khác cho ${account.email}`}
@@ -1319,7 +1447,9 @@ export default function AdminAccountManager() {
                                     gap: 8,
                                   }}
                                   onClick={() => {
-                                    navigator.clipboard.writeText(account.accountId)
+                                    navigator.clipboard.writeText(
+                                      account.accountId,
+                                    )
                                     showActionToast({
                                       title: 'Đã sao chép mã tài khoản.',
                                       tone: 'success',
@@ -1423,7 +1553,10 @@ export default function AdminAccountManager() {
             </select>
           </div>
 
-          <div className={styles.paginationButtonsGroup} aria-label="Điều hướng trang">
+          <div
+            className={styles.paginationButtonsGroup}
+            aria-label="Điều hướng trang"
+          >
             <button
               type="button"
               className={styles.btnPaginationNav}
@@ -1435,19 +1568,25 @@ export default function AdminAccountManager() {
               <span>Trước</span>
             </button>
 
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-              <button
-                key={pageNum}
-                type="button"
-                className={`${styles.btnPaginationNumber} ${
-                  pageNum === validCurrentPage ? styles.btnPaginationActive : ''
-                }`}
-                onClick={() => setCurrentPage(pageNum)}
-                aria-current={pageNum === validCurrentPage ? 'page' : undefined}
-              >
-                {pageNum}
-              </button>
-            ))}
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+              (pageNum) => (
+                <button
+                  key={pageNum}
+                  type="button"
+                  className={`${styles.btnPaginationNumber} ${
+                    pageNum === validCurrentPage
+                      ? styles.btnPaginationActive
+                      : ''
+                  }`}
+                  onClick={() => setCurrentPage(pageNum)}
+                  aria-current={
+                    pageNum === validCurrentPage ? 'page' : undefined
+                  }
+                >
+                  {pageNum}
+                </button>
+              ),
+            )}
 
             <button
               type="button"
@@ -1466,14 +1605,19 @@ export default function AdminAccountManager() {
       {/* --------------------------------------------------------------------
          4. Three Bottom Info Cards
          -------------------------------------------------------------------- */}
-      <section className={styles.bottomInfoGrid} aria-label="Quy tắc an toàn và kiểm toán y tế">
+      <section
+        className={styles.bottomInfoGrid}
+        aria-label="Quy tắc an toàn và kiểm toán y tế"
+      >
         <article className={styles.bottomInfoCard}>
           <div className={`${styles.bottomInfoIconBox} ${styles.iconMint}`}>
             <Database size={20} strokeWidth={2} />
           </div>
           <h3 className={styles.bottomInfoTitle}>Tách biệt Dữ liệu Hồ sơ</h3>
           <p className={styles.bottomInfoDescription}>
-            Quản trị viên chỉ có quyền kiểm soát trạng thái đăng nhập, hoàn toàn không có quyền truy xuất lịch sử chat, đơn thuốc hoặc kết quả trắc nghiệm tâm lý của thân chủ.
+            Quản trị viên chỉ có quyền kiểm soát trạng thái đăng nhập, hoàn toàn
+            không có quyền truy xuất lịch sử chat, đơn thuốc hoặc kết quả trắc
+            nghiệm tâm lý của thân chủ.
           </p>
         </article>
 
@@ -1483,7 +1627,9 @@ export default function AdminAccountManager() {
           </div>
           <h3 className={styles.bottomInfoTitle}>Ghi vết Kiểm toán Tức thì</h3>
           <p className={styles.bottomInfoDescription}>
-            Mọi thao tác khóa tài khoản, kích hoạt thủ công hoặc cấp lại mã xác minh đều được ký số lưu trữ vĩnh viễn trên sổ cái Audit Log phục vụ thanh tra y tế.
+            Mọi thao tác khóa tài khoản, kích hoạt thủ công hoặc cấp lại mã xác
+            minh đều được ký số lưu trữ vĩnh viễn trên sổ cái Audit Log phục vụ
+            thanh tra y tế.
           </p>
         </article>
 
@@ -1493,7 +1639,8 @@ export default function AdminAccountManager() {
           </div>
           <h3 className={styles.bottomInfoTitle}>Hỗ trợ Phục hồi Khẩn cấp</h3>
           <p className={styles.bottomInfoDescription}>
-            Chuyên gia lâm sàng bị mất quyền truy cập 2FA có thể yêu cầu mở khóa trực tiếp qua quy trình xác minh song song từ Ban Giám đốc Y khoa.
+            Chuyên gia lâm sàng bị mất quyền truy cập 2FA có thể yêu cầu mở khóa
+            trực tiếp qua quy trình xác minh song song từ Ban Giám đốc Y khoa.
           </p>
         </article>
       </section>
@@ -1502,7 +1649,12 @@ export default function AdminAccountManager() {
          5. Modal: Tạo tài khoản mới
          -------------------------------------------------------------------- */}
       {showCreateModal && (
-        <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-labelledby="create-modal-title">
+        <div
+          className={styles.modalBackdrop}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-modal-title"
+        >
           <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
               <h2 id="create-modal-title" className={styles.modalTitle}>
@@ -1518,7 +1670,10 @@ export default function AdminAccountManager() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateAccountSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form
+              onSubmit={handleCreateAccountSubmit}
+              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
               <div className={styles.modalFormGroup}>
                 <label className={styles.modalLabel}>Email đăng nhập *</label>
                 <input
@@ -1532,7 +1687,9 @@ export default function AdminAccountManager() {
               </div>
 
               <div className={styles.modalFormGroup}>
-                <label className={styles.modalLabel}>Họ và tên chuyên gia / thân chủ</label>
+                <label className={styles.modalLabel}>
+                  Họ và tên chuyên gia / thân chủ
+                </label>
                 <input
                   type="text"
                   placeholder="ThS. BS. Nguyễn Văn A"
@@ -1546,10 +1703,14 @@ export default function AdminAccountManager() {
                 <label className={styles.modalLabel}>Phân quyền vai trò</label>
                 <select
                   value={newAccountRole}
-                  onChange={(e) => setNewAccountRole(e.target.value as IdentityRole)}
+                  onChange={(e) =>
+                    setNewAccountRole(e.target.value as IdentityRole)
+                  }
                   className={styles.modalSelect}
                 >
-                  <option value="SPECIALIST">Bác sĩ &amp; Chuyên gia y tế</option>
+                  <option value="SPECIALIST">
+                    Bác sĩ &amp; Chuyên gia y tế
+                  </option>
                   <option value="USER">Người dùng thân chủ</option>
                   <option value="ADMIN">Quản trị viên hệ thống</option>
                 </select>
@@ -1576,7 +1737,12 @@ export default function AdminAccountManager() {
          6. Modal: Tạm ngưng / Khôi phục tài khoản
          -------------------------------------------------------------------- */}
       {selectedAccountForSuspend && (
-        <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-labelledby="suspend-modal-title">
+        <div
+          className={styles.modalBackdrop}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="suspend-modal-title"
+        >
           <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
               <h2 id="suspend-modal-title" className={styles.modalTitle}>
@@ -1594,7 +1760,14 @@ export default function AdminAccountManager() {
               </button>
             </div>
 
-            <p style={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.5, margin: 0 }}>
+            <p
+              style={{
+                fontSize: '0.875rem',
+                color: '#475569',
+                lineHeight: 1.5,
+                margin: 0,
+              }}
+            >
               Tài khoản: <strong>{selectedAccountForSuspend.email}</strong>
               <br />
               {selectedAccountForSuspend.status === 'DISABLED'
@@ -1604,10 +1777,14 @@ export default function AdminAccountManager() {
 
             {selectedAccountForSuspend.status !== 'DISABLED' && (
               <div className={styles.modalFormGroup}>
-                <label className={styles.modalLabel}>Lý do tạm ngưng (Ký sổ Audit)</label>
+                <label className={styles.modalLabel}>
+                  Lý do tạm ngưng (Ký sổ Audit)
+                </label>
                 <select
                   value={suspendReason}
-                  onChange={(e) => setSuspendReason(e.target.value as SuspensionReason)}
+                  onChange={(e) =>
+                    setSuspendReason(e.target.value as SuspensionReason)
+                  }
                   className={styles.modalSelect}
                 >
                   {Object.entries(suspensionReasons).map(([code, label]) => (
@@ -1631,7 +1808,9 @@ export default function AdminAccountManager() {
               <button
                 type="button"
                 className={`${styles.btnModalSubmit} ${
-                  selectedAccountForSuspend.status !== 'DISABLED' ? styles.btnModalDanger : ''
+                  selectedAccountForSuspend.status !== 'DISABLED'
+                    ? styles.btnModalDanger
+                    : ''
                 }`}
                 onClick={handleConfirmSuspend}
                 disabled={busy}
@@ -1639,8 +1818,8 @@ export default function AdminAccountManager() {
                 {busy
                   ? 'Đang cập nhật…'
                   : selectedAccountForSuspend.status === 'DISABLED'
-                  ? 'Khôi phục tài khoản'
-                  : 'Tạm ngưng ngay'}
+                    ? 'Khôi phục tài khoản'
+                    : 'Tạm ngưng ngay'}
               </button>
             </div>
           </div>
@@ -1651,7 +1830,12 @@ export default function AdminAccountManager() {
          7. Modal: Nhật ký kiểm toán tài khoản
          -------------------------------------------------------------------- */}
       {auditLogAccount && (
-        <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-labelledby="audit-modal-title">
+        <div
+          className={styles.modalBackdrop}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="audit-modal-title"
+        >
           <div className={styles.modalContent} style={{ maxWidth: 600 }}>
             <div className={styles.modalHeader}>
               <h2 id="audit-modal-title" className={styles.modalTitle}>
@@ -1667,31 +1851,104 @@ export default function AdminAccountManager() {
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8125rem' }}>
-              <div style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#0f172a' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                fontSize: '0.8125rem',
+              }}
+            >
+              <div
+                style={{
+                  padding: '0.75rem',
+                  background: '#f8fafc',
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                <p
+                  style={{
+                    margin: '0 0 4px',
+                    fontWeight: 700,
+                    color: '#0f172a',
+                  }}
+                >
                   {auditLogAccount.email}
                 </p>
-                <span className={styles.monoTag}>ID: {auditLogAccount.accountId}</span>
+                <span className={styles.monoTag}>
+                  ID: {auditLogAccount.accountId}
+                </span>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: 240, overflowY: 'auto' }}>
-                <div style={{ padding: '8px 12px', background: '#ecfdf5', borderRadius: 6, borderLeft: '3px solid #10b981' }}>
-                  <strong>AUTH_VERIFIED</strong> — Đăng nhập thành công qua 2FA xác thực y tế.
-                  <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: 2 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  maxHeight: 240,
+                  overflowY: 'auto',
+                }}
+              >
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    background: '#ecfdf5',
+                    borderRadius: 6,
+                    borderLeft: '3px solid #10b981',
+                  }}
+                >
+                  <strong>AUTH_VERIFIED</strong> — Đăng nhập thành công qua 2FA
+                  xác thực y tế.
+                  <div
+                    style={{
+                      color: '#64748b',
+                      fontSize: '0.75rem',
+                      marginTop: 2,
+                    }}
+                  >
                     Vừa xong • IP: 127.0.0.1 • Ký số SHA-256
                   </div>
                 </div>
-                <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 6, borderLeft: '3px solid #cbd5e1' }}>
-                  <strong>SESSION_ESTABLISHED</strong> — Cấp JWT Access Token phân hệ Quản trị.
-                  <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: 2 }}>
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    background: '#f8fafc',
+                    borderRadius: 6,
+                    borderLeft: '3px solid #cbd5e1',
+                  }}
+                >
+                  <strong>SESSION_ESTABLISHED</strong> — Cấp JWT Access Token
+                  phân hệ Quản trị.
+                  <div
+                    style={{
+                      color: '#64748b',
+                      fontSize: '0.75rem',
+                      marginTop: 2,
+                    }}
+                  >
                     10 phút trước • Hash: #mb-audit-88a2
                   </div>
                 </div>
-                <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 6, borderLeft: '3px solid #cbd5e1' }}>
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    background: '#f8fafc',
+                    borderRadius: 6,
+                    borderLeft: '3px solid #cbd5e1',
+                  }}
+                >
                   <strong>ACCOUNT_CREATED</strong> — Khởi tạo tài khoản ban đầu.
-                  <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: 2 }}>
-                    {new Date(auditLogAccount.createdAt).toLocaleString('vi-VN')}
+                  <div
+                    style={{
+                      color: '#64748b',
+                      fontSize: '0.75rem',
+                      marginTop: 2,
+                    }}
+                  >
+                    {new Date(auditLogAccount.createdAt).toLocaleString(
+                      'vi-VN',
+                    )}
                   </div>
                 </div>
               </div>
@@ -1756,7 +2013,16 @@ export default function AdminAccountManager() {
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13.5, color: '#475569', lineHeight: 1.55 }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                fontSize: 13.5,
+                color: '#475569',
+                lineHeight: 1.55,
+              }}
+            >
               <div
                 style={{
                   padding: '12px 14px',
@@ -1769,14 +2035,23 @@ export default function AdminAccountManager() {
                   gap: 10,
                 }}
               >
-                <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
+                <AlertTriangle
+                  size={18}
+                  style={{ flexShrink: 0, marginTop: 1 }}
+                />
                 <span>
-                  <strong>Cảnh báo xóa vĩnh viễn:</strong> Thao tác này sẽ xóa hoàn toàn các tài khoản đã chọn khỏi hệ thống MentalBridge, thu hồi token xác thực và hủy mọi phiên hoạt động. Dữ liệu bệnh án EMR liên quan sẽ được đóng băng theo chuẩn bảo mật HIPAA &amp; ISO 27001.
+                  <strong>Cảnh báo xóa vĩnh viễn:</strong> Thao tác này sẽ xóa
+                  hoàn toàn các tài khoản đã chọn khỏi hệ thống MentalBridge,
+                  thu hồi token xác thực và hủy mọi phiên hoạt động. Dữ liệu
+                  bệnh án EMR liên quan sẽ được đóng băng theo chuẩn bảo mật
+                  HIPAA &amp; ISO 27001.
                 </span>
               </div>
 
               <div>
-                <strong>Danh sách tài khoản sẽ bị xóa ({selectedIds.length}):</strong>
+                <strong>
+                  Danh sách tài khoản sẽ bị xóa ({selectedIds.length}):
+                </strong>
                 <ul
                   style={{
                     margin: '6px 0 0 0',
@@ -1789,14 +2064,18 @@ export default function AdminAccountManager() {
                     listStyle: 'disc inside',
                     fontSize: 12.5,
                     color: '#334155',
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    fontFamily:
+                      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                   }}
                 >
                   {items
                     .filter((acc) => selectedIds.includes(acc.accountId))
                     .map((acc) => (
                       <li key={acc.accountId}>
-                        {acc.email} <span style={{ color: '#94a3b8' }}>({acc.accountId.slice(0, 8)})</span>
+                        {acc.email}{' '}
+                        <span style={{ color: '#94a3b8' }}>
+                          ({acc.accountId.slice(0, 8)})
+                        </span>
                       </li>
                     ))}
                 </ul>
@@ -1870,7 +2149,9 @@ export default function AdminAccountManager() {
             </div>
 
             <div style={{ fontSize: 13.5, color: '#475569', lineHeight: 1.55 }}>
-              Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản <strong>{accountToDelete.email}</strong> khỏi hệ thống MentalBridge? Thao tác này không thể hoàn tác.
+              Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản{' '}
+              <strong>{accountToDelete.email}</strong> khỏi hệ thống
+              MentalBridge? Thao tác này không thể hoàn tác.
             </div>
 
             <div className={styles.modalActions}>
@@ -1887,8 +2168,14 @@ export default function AdminAccountManager() {
                 style={{ padding: '0.6rem 1.25rem', fontSize: '0.875rem' }}
                 onClick={() => {
                   const targetEmail = accountToDelete.email
-                  setItems((curr) => curr.filter((a) => a.accountId !== accountToDelete.accountId))
-                  setSelectedIds((curr) => curr.filter((id) => id !== accountToDelete.accountId))
+                  setItems((curr) =>
+                    curr.filter(
+                      (a) => a.accountId !== accountToDelete.accountId,
+                    ),
+                  )
+                  setSelectedIds((curr) =>
+                    curr.filter((id) => id !== accountToDelete.accountId),
+                  )
                   setAccountToDelete(null)
                   showActionToast({
                     title: `Đã xóa tài khoản ${targetEmail} khỏi hệ thống.`,

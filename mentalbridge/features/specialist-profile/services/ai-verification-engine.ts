@@ -84,7 +84,8 @@ export function getPaddleOcrAnalysis(
       issueDate: '12/04/2021',
       issueYear: 2021,
       expiryDate: '15/04/2029',
-      majorOrScope: 'Khám bệnh, chữa bệnh chuyên khoa Tâm thần - Tâm lý lâm sàng',
+      majorOrScope:
+        'Khám bệnh, chữa bệnh chuyên khoa Tâm thần - Tâm lý lâm sàng',
       signatoryName: 'TS. BS. Nguyễn Tấn Bỉnh',
       signatoryTitle: 'Giám đốc Sở Y tế TP.HCM',
     },
@@ -138,43 +139,49 @@ export function getPaddleOcrAnalysis(
 export function getDocumentForensicsAnalysis(
   docType: DocumentAiType = 'CCHN',
 ): DocumentForensicsResult {
+  const isDiploma = docType === 'DIPLOMA'
   return {
     status: 'GENUINE',
-    authenticityScore: 99.2,
-    tamperingRisk: 0.8,
+    authenticityScore: isDiploma ? 99.4 : 99.2,
+    tamperingRisk: isDiploma ? 0.6 : 0.8,
     compressionUniformity: 99.5,
     fontConsistencyScore: 98.9,
     edgeSharpnessScore: 99.1,
-    verdictSummary:
-      'Ảnh quét có mức nén DCT đồng nhất 99.5%, phông chữ căn lề baseline chuẩn Nghị định 30/2020/NĐ-CP, không có dấu hiệu tẩy xóa hay chắp vá pixel.',
+    verdictSummary: isDiploma
+      ? 'Ảnh quét văn bằng có mức nén DCT đồng nhất 99.5%, phông chữ căn lề baseline chuẩn Bộ GD&ĐT, không có dấu hiệu tẩy xóa.'
+      : 'Ảnh quét có mức nén DCT đồng nhất 99.5%, phông chữ căn lề baseline chuẩn Nghị định 30/2020/NĐ-CP, không có dấu hiệu tẩy xóa hay chắp vá pixel.',
     checks: [
       {
         name: 'Phân tích mức nén ELA (Error Level Analysis)',
         description: 'Đánh giá ma trận nén JPEG DCT toàn trang',
         status: 'PASS',
         score: 99.5,
-        detail: 'Độ đồng nhất nén DCT đạt 99.5%. Vùng văn bản và số CCHN không có biến thiên lượng tử hóa.',
+        detail:
+          'Độ đồng nhất nén DCT đạt 99.5%. Vùng văn bản và số CCHN không có biến thiên lượng tử hóa.',
       },
       {
         name: 'Quét bản sao chép vùng điểm ảnh (Copy-Move)',
         description: 'Tìm kiếm vùng lặp lại giả mạo',
         status: 'PASS',
         score: 99.8,
-        detail: 'Không phát hiện cụm pixel trùng lặp trên nền phôi bảo an và con dấu mộc đỏ.',
+        detail:
+          'Không phát hiện cụm pixel trùng lặp trên nền phôi bảo an và con dấu mộc đỏ.',
       },
       {
         name: 'Căn chỉnh phông chữ & Khoảng cách Kerning',
         description: 'Kiểm tra độ đều ký tự chuẩn văn bản hành chính',
         status: 'PASS',
         score: 98.9,
-        detail: 'Văn bản tuân thủ lưới baseline chuẩn quốc gia, không phát hiện phông chữ lạ bị chèn thêm.',
+        detail:
+          'Văn bản tuân thủ lưới baseline chuẩn quốc gia, không phát hiện phông chữ lạ bị chèn thêm.',
       },
       {
         name: 'Hướng chiếu sáng & Đổ bóng quang học',
         description: 'Kiểm tra độ phản xạ tự nhiên của mực',
         status: 'PASS',
         score: 99.1,
-        detail: 'Mực in và mộc dấu chìm tự nhiên vào sợi giấy, phản xạ góc 45 độ chuẩn máy scan phẳng.',
+        detail:
+          'Mực in và mộc dấu chìm tự nhiên vào sợi giấy, phản xạ góc 45 độ chuẩn máy scan phẳng.',
       },
     ],
   }
@@ -183,27 +190,33 @@ export function getDocumentForensicsAnalysis(
 export function getExtendVerifyAnalysis(
   docType: DocumentAiType = 'CCHN',
 ): ExtendVerifyResult {
+  const isDiploma = docType === 'DIPLOMA'
   return {
     status: 'VERIFIED',
-    fraudRiskScore: 1.1,
-    antiFraudConclusion:
-      'Văn bằng đạt chuẩn 5/5 lớp phòng vệ chống giả mạo quốc gia. Chữ ký số và mộc đỏ hợp lệ.',
+    fraudRiskScore: isDiploma ? 0.9 : 1.1,
+    antiFraudConclusion: isDiploma
+      ? 'Văn bằng thạc sĩ đạt chuẩn 5/5 lớp phòng vệ chống giả mạo quốc gia. Chữ ký số và mộc đỏ của Hiệu trưởng hợp lệ.'
+      : 'Văn bằng đạt chuẩn 5/5 lớp phòng vệ chống giả mạo quốc gia. Chữ ký số và mộc đỏ hợp lệ.',
     securityFeatures: {
       nationalEmblemWatermark: {
         status: 'VERIFIED',
-        detail: 'Quốc huy in chìm sắc nét, hoa văn dạ quang phản xạ đồng đều dưới bước sóng UV.',
+        detail:
+          'Quốc huy in chìm sắc nét, hoa văn dạ quang phản xạ đồng đều dưới bước sóng UV.',
       },
       guillochePattern: {
         status: 'VERIFIED',
-        detail: 'Hoa văn hình học vi mô Guilloche 0.05mm sắc nét, liên tục không đứt đoạn.',
+        detail:
+          'Hoa văn hình học vi mô Guilloche 0.05mm sắc nét, liên tục không đứt đoạn.',
       },
       hologramSeal: {
         status: 'VERIFIED',
-        detail: 'Tem chống giả Hologram 3D đổi màu góc rộng theo tiêu chuẩn Cục Quản lý Khám chữa bệnh.',
+        detail:
+          'Tem chống giả Hologram 3D đổi màu góc rộng theo tiêu chuẩn Cục Quản lý Khám chữa bệnh.',
       },
       redStampAuthenticity: {
         status: 'VERIFIED',
-        detail: 'Mộc đỏ Sở Y tế TP.HCM tươi màu, vết mực thẩm thấu tự nhiên vào thớ giấy bảo an.',
+        detail:
+          'Mộc đỏ Sở Y tế TP.HCM tươi màu, vết mực thẩm thấu tự nhiên vào thớ giấy bảo an.',
       },
       pkiDigitalSignature: {
         status: 'VERIFIED',
@@ -228,7 +241,8 @@ export function getNationalCrossReference(
   if (docType === 'DIPLOMA') {
     return {
       status: 'MATCHED',
-      registryName: 'Hệ thống Quản lý Văn bằng Quốc gia - Cục Quản lý Chất lượng (Bộ GD&ĐT)',
+      registryName:
+        'Hệ thống Quản lý Văn bằng Quốc gia - Cục Quản lý Chất lượng (Bộ GD&ĐT)',
       queryReferenceCode: `MOET-VB-2019-${docNumber.replace(/[^0-9]/g, '') || '8812'}`,
       matchPercentage: 100,
       syncedAt: '2026-11-09T04:16:32Z',
@@ -256,7 +270,8 @@ export function getNationalCrossReference(
       regBookNumber: '1842/QĐ-SYT',
       issueDate: '12/04/2021',
       issuingAuthority: 'Sở Y tế Thành phố Hồ Chí Minh',
-      specialtyOrScope: 'Khám bệnh, chữa bệnh chuyên khoa Tâm thần - Tâm lý lâm sàng',
+      specialtyOrScope:
+        'Khám bệnh, chữa bệnh chuyên khoa Tâm thần - Tâm lý lâm sàng',
       legalStatus: 'ĐANG HOẠT ĐỘNG - ĐƯỢC PHÉP HÀNH NGHỀ TOÀN QUỐC',
     },
   }
@@ -278,11 +293,16 @@ export function generateCompleteVerificationReport(
     paddleOcr: getPaddleOcrAnalysis(docType, specialistName, docNumber),
     forensics: getDocumentForensicsAnalysis(docType),
     extendVerify: getExtendVerifyAnalysis(docType),
-    crossReference: getNationalCrossReference(docType, specialistName, docNumber),
+    crossReference: getNationalCrossReference(
+      docType,
+      specialistName,
+      docNumber,
+    ),
     auditTrail: {
       scannedAt: new Date().toISOString(),
       engineVersion: 'MentalBridge AI Pipeline v2.4 (PaddleOCR + Forensics)',
-      operatorNote: 'Tài liệu đã được đối soát 5 lớp: OCR, ELA, Phôi bảo mật, CSDL Quốc gia và Băm SHA-256.',
+      operatorNote:
+        'Tài liệu đã được đối soát 5 lớp: OCR, ELA, Phôi bảo mật, CSDL Quốc gia và Băm SHA-256.',
     },
   }
 }

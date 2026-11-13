@@ -205,7 +205,9 @@ describe('AchievementGallery', () => {
     render(<AchievementGallery />)
     await screen.findByRole('heading', { name: 'Bộ sưu tập hành trình' })
 
-    const celebrateBtn = screen.getByRole('button', { name: /xem đóa hoa vừa nở/i })
+    const celebrateBtn = screen.getByRole('button', {
+      name: /xem đóa hoa vừa nở/i,
+    })
     await user.click(celebrateBtn)
 
     expect(

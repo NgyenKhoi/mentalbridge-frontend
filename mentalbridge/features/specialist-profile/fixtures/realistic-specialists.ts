@@ -154,7 +154,8 @@ export const REALISTIC_SPECIALISTS: RealisticSpecialistExtended[] = [
         time: '04:15',
         title: 'Khởi tạo hồ sơ chuyên gia',
         actor: 'Chuyên gia nộp hồ sơ qua Portal',
-        detail: 'Đã tải lên 4 tài liệu gốc scan CKS & khai báo thông tin lâm sàng.',
+        detail:
+          'Đã tải lên 4 tài liệu gốc scan CKS & khai báo thông tin lâm sàng.',
       },
       {
         id: 't-hh-2',
@@ -169,7 +170,8 @@ export const REALISTIC_SPECIALISTS: RealisticSpecialistExtended[] = [
         time: '04:20',
         title: 'Ghi nhật ký phân bổ thẩm định',
         actor: 'Hệ thống Quản trị',
-        detail: 'Hồ sơ được chỉ định cho BS. Hoàng Khang (Hội đồng Thẩm định Lâm sàng).',
+        detail:
+          'Hồ sơ được chỉ định cho BS. Hoàng Khang (Hội đồng Thẩm định Lâm sàng).',
       },
     ],
   },
@@ -196,8 +198,10 @@ export const REALISTIC_SPECIALISTS: RealisticSpecialistExtended[] = [
     isUrgentSla: false,
     quotaDefault: 'Tiêu chuẩn: 12 đến 20 phiên',
     clinicalVerdictDefault: 'Phê duyệt chuẩn y khoa - 1',
-    internalNoteDefault: 'Hồ sơ đầy đủ, CCHN kiểm tra hợp lệ trên cổng CSDL Sở Y tế TP.HCM.',
-    notificationDraftDefault: 'Hồ sơ đã được phê duyệt. Chào mừng chuyên gia tham gia MentalBridge.',
+    internalNoteDefault:
+      'Hồ sơ đầy đủ, CCHN kiểm tra hợp lệ trên cổng CSDL Sở Y tế TP.HCM.',
+    notificationDraftDefault:
+      'Hồ sơ đã được phê duyệt. Chào mừng chuyên gia tham gia MentalBridge.',
     documentsList: [
       {
         id: 'doc-cchn-024190',
@@ -293,7 +297,8 @@ export const REALISTIC_SPECIALISTS: RealisticSpecialistExtended[] = [
     createdAt: '2026-11-04T11:00:00Z',
     updatedAt: '2026-11-09T04:10:00Z',
     version: 1,
-    hospitalOrAffiliation: 'Viện Sức khỏe Tâm thần • Tham vấn Trẻ vị thành niên',
+    hospitalOrAffiliation:
+      'Viện Sức khỏe Tâm thần • Tham vấn Trẻ vị thành niên',
     initials: 'MC',
     specialistCode: '#MB-734',
     slaRemaining: 'SLA còn: 8h30m',

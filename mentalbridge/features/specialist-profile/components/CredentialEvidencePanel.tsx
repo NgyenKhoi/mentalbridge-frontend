@@ -99,8 +99,8 @@ export default function CredentialEvidencePanel({
         {reading ? (
           <>
             <p>
-              {reading.sources.map(sourceLabel).join(' + ')}{' '}
-              · {reading.pagesRead}/{reading.pageCount} trang
+              {reading.sources.map(sourceLabel).join(' + ')} ·{' '}
+              {reading.pagesRead}/{reading.pageCount} trang
             </p>
             {reading.fields.holder && (
               <p>Người được cấp · {reading.fields.holder}</p>

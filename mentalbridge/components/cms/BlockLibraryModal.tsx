@@ -9,15 +9,6 @@ import {
   Sparkles,
   Layers,
   Lock,
-  Compass,
-  Volume2,
-  Video,
-  ListChecks,
-  Quote,
-  ShieldAlert,
-  FileCheck2,
-  Sliders,
-  Wind,
 } from 'lucide-react'
 import {
   BLOCK_LIBRARY_ITEMS,

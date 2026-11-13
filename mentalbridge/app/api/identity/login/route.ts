@@ -30,15 +30,17 @@ export async function POST(request: NextRequest) {
 
     let tokenPair
     try {
-      tokenPair = await identityClient.login(
-        validation.value,
-        correlationId,
-      )
+      tokenPair = await identityClient.login(validation.value, correlationId)
     } catch (err) {
-      if (validation.value.email.toLowerCase() === 'admin@mentalbridge.online') {
+      if (
+        validation.value.email.toLowerCase() === 'admin@mentalbridge.online'
+      ) {
         try {
           tokenPair = await identityClient.login(
-            { email: 'admin@mentalbridge.online', password: 'Admin@MentalBridge2026!' },
+            {
+              email: 'admin@mentalbridge.online',
+              password: 'Admin@MentalBridge2026!',
+            },
             correlationId,
           )
         } catch {

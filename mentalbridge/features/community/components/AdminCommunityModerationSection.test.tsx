@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminCommunityModerationSection from './AdminCommunityModerationSection'
 
@@ -73,36 +79,38 @@ describe('AdminCommunityModerationSection', () => {
     vi.clearAllMocks()
 
     // Mock global fetch
-    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
-      if (url === '/api/admin/community/moderation') {
-        if (!init || init.method === 'GET' || !init.method) {
+    global.fetch = vi
+      .fn()
+      .mockImplementation((url: string, init?: RequestInit) => {
+        if (url === '/api/admin/community/moderation') {
+          if (!init || init.method === 'GET' || !init.method) {
+            return Promise.resolve({
+              ok: true,
+              json: () =>
+                Promise.resolve({
+                  success: true,
+                  summary: mockSummary,
+                  posts: mockPosts,
+                  comments: [],
+                  cases: [],
+                }),
+            })
+          }
+
+          // POST action
+          const body = JSON.parse(init.body as string)
           return Promise.resolve({
             ok: true,
             json: () =>
               Promise.resolve({
                 success: true,
-                summary: mockSummary,
-                posts: mockPosts,
-                comments: [],
-                cases: [],
+                message: `Thao tác ${body.action} thành công.`,
               }),
           })
         }
 
-        // POST action
-        const body = JSON.parse(init.body as string)
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              success: true,
-              message: `Thao tác ${body.action} thành công.`,
-            }),
-        })
-      }
-
-      return Promise.reject(new Error(`Unhandled request: ${url}`))
-    }) as any
+        return Promise.reject(new Error(`Unhandled request: ${url}`))
+      }) as unknown as typeof global.fetch
   })
 
   it('renders the compact list view of posts with media badges and author info', async () => {
@@ -115,7 +123,9 @@ describe('AdminCommunityModerationSection', () => {
 
     // Check post rows
     expect(screen.getByText('Khôi')).toBeInTheDocument()
-    expect(screen.getByText(/For when the thoughts won’t stop/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/For when the thoughts won’t stop/i),
+    ).toBeInTheDocument()
     expect(screen.getByText(/Video \(1\)/i)).toBeInTheDocument()
 
     expect(screen.getByText('Ngọc Quyên')).toBeInTheDocument()
@@ -137,7 +147,9 @@ describe('AdminCommunityModerationSection', () => {
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toBeInTheDocument()
     expect(
-      within(dialog).getByText(/Chi tiết bài viết & Bảng điều phối kiểm duyệt/i),
+      within(dialog).getByText(
+        /Chi tiết bài viết & Bảng điều phối kiểm duyệt/i,
+      ),
     ).toBeInTheDocument()
     expect(within(dialog).getByText(/Mã bài viết:/i)).toBeInTheDocument()
 
@@ -181,7 +193,9 @@ describe('AdminCommunityModerationSection', () => {
     const dialog = await screen.findByRole('dialog')
 
     // Click "Tạm ẩn bài viết" inside modal
-    const hideBtn = within(dialog).getByRole('button', { name: /Tạm ẩn bài viết/i })
+    const hideBtn = within(dialog).getByRole('button', {
+      name: /Tạm ẩn bài viết/i,
+    })
     fireEvent.click(hideBtn)
 
     await waitFor(() => {
@@ -215,7 +229,9 @@ describe('AdminCommunityModerationSection', () => {
 
     // In card view, table is not rendered
     expect(screen.queryByText('TÁC GIẢ')).not.toBeInTheDocument()
-    expect(screen.getByText(/For when the thoughts won’t stop/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/For when the thoughts won’t stop/i),
+    ).toBeInTheDocument()
 
     // Switch back to List view
     const listViewBtn = screen.getByRole('button', { name: /Danh sách/i })

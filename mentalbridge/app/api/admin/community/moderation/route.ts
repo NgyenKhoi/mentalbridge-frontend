@@ -108,8 +108,8 @@ export async function GET(request: NextRequest) {
     const activePosts = posts.filter((p) => p.state === 'ACTIVE').length
     const hiddenPosts = posts.filter((p) => p.state === 'HIDDEN').length
     const removedPosts = posts.filter((p) => p.state === 'REMOVED').length
-    const sensitivePosts = posts.filter(
-      (p) => Boolean(p.sensitive_content_warning),
+    const sensitivePosts = posts.filter((p) =>
+      Boolean(p.sensitive_content_warning),
     ).length
     const totalComments = comments.length
     const totalReactions = posts.reduce(
@@ -171,7 +171,16 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { action, postId, commentId, profileId, caseId, state, warning, priority, reason } = body
+  const {
+    action,
+    postId,
+    commentId,
+    profileId,
+    caseId,
+    state,
+    warning,
+    priority,
+  } = body
 
   const client = await communityPool.connect()
   try {
@@ -181,7 +190,10 @@ export async function POST(request: NextRequest) {
         [state, postId],
       )
       return carryConsultationSession(
-        NextResponse.json({ success: true, message: `Đã cập nhật trạng thái bài viết thành ${state}.` }),
+        NextResponse.json({
+          success: true,
+          message: `Đã cập nhật trạng thái bài viết thành ${state}.`,
+        }),
         actor,
       )
     }
@@ -194,7 +206,9 @@ export async function POST(request: NextRequest) {
       return carryConsultationSession(
         NextResponse.json({
           success: true,
-          message: warning ? 'Đã bật cảnh báo nội dung nhạy cảm.' : 'Đã gỡ cảnh báo nhạy cảm.',
+          message: warning
+            ? 'Đã bật cảnh báo nội dung nhạy cảm.'
+            : 'Đã gỡ cảnh báo nhạy cảm.',
         }),
         actor,
       )
@@ -206,7 +220,10 @@ export async function POST(request: NextRequest) {
         [state, commentId],
       )
       return carryConsultationSession(
-        NextResponse.json({ success: true, message: `Đã cập nhật trạng thái bình luận thành ${state}.` }),
+        NextResponse.json({
+          success: true,
+          message: `Đã cập nhật trạng thái bình luận thành ${state}.`,
+        }),
         actor,
       )
     }
@@ -217,7 +234,10 @@ export async function POST(request: NextRequest) {
         [state, profileId],
       )
       return carryConsultationSession(
-        NextResponse.json({ success: true, message: `Đã cập nhật quyền hạn người dùng thành ${state}.` }),
+        NextResponse.json({
+          success: true,
+          message: `Đã cập nhật quyền hạn người dùng thành ${state}.`,
+        }),
         actor,
       )
     }
@@ -237,7 +257,10 @@ export async function POST(request: NextRequest) {
         )
       }
       return carryConsultationSession(
-        NextResponse.json({ success: true, message: 'Đã đưa bài viết vào hàng đợi kiểm duyệt.' }),
+        NextResponse.json({
+          success: true,
+          message: 'Đã đưa bài viết vào hàng đợi kiểm duyệt.',
+        }),
         actor,
       )
     }
@@ -248,19 +271,28 @@ export async function POST(request: NextRequest) {
         [caseId],
       )
       return carryConsultationSession(
-        NextResponse.json({ success: true, message: 'Đã giải quyết và lưu vết ca kiểm duyệt.' }),
+        NextResponse.json({
+          success: true,
+          message: 'Đã giải quyết và lưu vết ca kiểm duyệt.',
+        }),
         actor,
       )
     }
 
     return carryConsultationSession(
-      NextResponse.json({ success: false, error: 'Hành động không hợp lệ.' }, { status: 400 }),
+      NextResponse.json(
+        { success: false, error: 'Hành động không hợp lệ.' },
+        { status: 400 },
+      ),
       actor,
     )
   } catch (err) {
     console.error('Community moderation action error:', err)
     return carryConsultationSession(
-      NextResponse.json({ success: false, error: 'Không thể thực thi thao tác kiểm duyệt.' }, { status: 500 }),
+      NextResponse.json(
+        { success: false, error: 'Không thể thực thi thao tác kiểm duyệt.' },
+        { status: 500 },
+      ),
       actor,
     )
   } finally {

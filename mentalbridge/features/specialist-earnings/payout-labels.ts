@@ -165,7 +165,10 @@ export function getSpecialistInitials(nameOrId: string): string {
   if (name.includes('Thu Hà')) return 'TH'
   if (name.includes('Đức Long')) return 'ĐL'
   if (name.includes('Hồ Thị Hồng') || name.includes('Ho Thi Hong')) return 'HH'
-  const words = name.replace(/^(ThS\.|BS\.|TS\.|CKI\.)\s*/gi, '').trim().split(/\s+/)
+  const words = name
+    .replace(/^(ThS\.|BS\.|TS\.|CKI\.)\s*/gi, '')
+    .trim()
+    .split(/\s+/)
   if (words.length >= 2) {
     return (words[0][0] + words[words.length - 1][0]).toUpperCase()
   }
@@ -188,7 +191,8 @@ export function resolveClientPaidInfo(
     }
   }
   // Standard clinical share is 70% for specialist, so client paid ~ amount / 0.7
-  const estimatedPaid = specialistAmountVnd > 0 ? Math.round(specialistAmountVnd / 0.7) : 0
+  const estimatedPaid =
+    specialistAmountVnd > 0 ? Math.round(specialistAmountVnd / 0.7) : 0
   return {
     clientName: 'Thân chủ ca khám',
     clientPaid: estimatedPaid,

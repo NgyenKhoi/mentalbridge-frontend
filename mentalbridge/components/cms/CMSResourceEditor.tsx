@@ -6,16 +6,13 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
-  Layers,
   Lock,
   Plus,
   Save,
   Send,
   Trash2,
-  Sparkles,
   Info,
   ExternalLink,
-  ShieldAlert,
   CheckCircle2,
 } from 'lucide-react'
 import type {
@@ -501,18 +498,23 @@ export default function CMSResourceEditor({
     else onUpdate?.(data)
   }
 
+  const handleSaveRef = useRef(handleSave)
+  useEffect(() => {
+    handleSaveRef.current = handleSave
+  })
+
   // Keyboard shortcut Ctrl+S
   useEffect(() => {
     if (creating) return
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault()
-        handleSave()
+        handleSaveRef.current()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [creating, handleSave])
+  }, [creating])
 
   // Add block handler
   const handleAddBlock = (blockType: CmsBlockType) => {

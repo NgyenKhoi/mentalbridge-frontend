@@ -72,7 +72,8 @@ export async function GET(request: NextRequest) {
 
     const totalRatings = Number(aggResult.rows[0]?.total_count || 0)
     const totalSum = Number(aggResult.rows[0]?.total_sum || 0)
-    const avgCsat = totalRatings > 0 ? (totalSum / totalRatings).toFixed(2) : '5.00'
+    const avgCsat =
+      totalRatings > 0 ? (totalSum / totalRatings).toFixed(2) : '5.00'
 
     // 2. Fetch specialist breakdown
     const specResult = await client.query<SpecialistRow>(`
@@ -129,11 +130,20 @@ export async function GET(request: NextRequest) {
       internalNotes: row.internal_notes,
     }))
 
-    const clientCount = items.filter((i: typeof items[0]) => i.category === 'CLIENT').length
-    const specialistCount = items.filter((i: typeof items[0]) => i.category === 'SPECIALIST').length
-    const pendingCount = items.filter((i: typeof items[0]) => i.status !== 'RESOLVED').length
-    const resolvedCount = items.filter((i: typeof items[0]) => i.status === 'RESOLVED').length
-    const resolutionRate = items.length > 0 ? Math.round((resolvedCount / items.length) * 100) : 100
+    const clientCount = items.filter(
+      (i: (typeof items)[0]) => i.category === 'CLIENT',
+    ).length
+    const specialistCount = items.filter(
+      (i: (typeof items)[0]) => i.category === 'SPECIALIST',
+    ).length
+    const pendingCount = items.filter(
+      (i: (typeof items)[0]) => i.status !== 'RESOLVED',
+    ).length
+    const resolvedCount = items.filter(
+      (i: (typeof items)[0]) => i.status === 'RESOLVED',
+    ).length
+    const resolutionRate =
+      items.length > 0 ? Math.round((resolvedCount / items.length) * 100) : 100
 
     return carryConsultationSession(
       NextResponse.json({
@@ -189,7 +199,10 @@ export async function PATCH(request: NextRequest) {
 
     if (!body?.id) {
       return carryConsultationSession(
-        NextResponse.json({ error: 'Mã phản hồi không hợp lệ.' }, { status: 400 }),
+        NextResponse.json(
+          { error: 'Mã phản hồi không hợp lệ.' },
+          { status: 400 },
+        ),
         actor,
       )
     }

@@ -1,9 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
 import {
-  Check,
   CheckCircle2,
   Download,
   Eye,
@@ -22,7 +20,6 @@ import {
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import type {
   SpecialistApprovalStatus,
-  SpecialistProfile,
   SpecialistRejectionReason,
   SpecialistSuspensionReason,
 } from '@/lib/consultation/consultation-validation'
@@ -67,7 +64,9 @@ export default function AdminSpecialistReviewSection() {
   const [filter, setFilter] = useState<SpecialistFilterTab>('PENDING')
   const [searchQuery, setSearchQuery] = useState('')
   const [items, setItems] = useState<RealisticSpecialistExtended[]>([])
-  const [selected, setSelected] = useState<RealisticSpecialistExtended | null>(null)
+  const [selected, setSelected] = useState<RealisticSpecialistExtended | null>(
+    null,
+  )
   const [selectedAmendment, setSelectedAmendment] =
     useState<RealisticAmendmentItem | null>(null)
   const [etag, setEtag] = useState<string | null>(null)
@@ -107,7 +106,12 @@ export default function AdminSpecialistReviewSection() {
         const mergedList: RealisticSpecialistExtended[] = [
           ...realisticByStatus,
           ...apiItems
-            .filter((apiItem) => !realisticByStatus.some((r) => r.accountId === apiItem.accountId))
+            .filter(
+              (apiItem) =>
+                !realisticByStatus.some(
+                  (r) => r.accountId === apiItem.accountId,
+                ),
+            )
             .map((apiItem) => ({
               ...apiItem,
               hospitalOrAffiliation: 'Chuyên gia Tâm lý MentalBridge',
@@ -167,7 +171,9 @@ export default function AdminSpecialistReviewSection() {
       })
       .catch(() => {
         if (!active) return
-        const fallback = REALISTIC_SPECIALISTS.filter((sp) => sp.approvalStatus === filter)
+        const fallback = REALISTIC_SPECIALISTS.filter(
+          (sp) => sp.approvalStatus === filter,
+        )
         setItems(fallback)
         setSelected(fallback[0] ?? null)
       })
@@ -648,10 +654,15 @@ export default function AdminSpecialistReviewSection() {
                         </span>
                         <p className={styles.diffText}>
                           <strong>Nơi công tác:</strong>{' '}
-                          {selectedAmendment.approvedProfile.hospitalOrAffiliation}
+                          {
+                            selectedAmendment.approvedProfile
+                              .hospitalOrAffiliation
+                          }
                           <br />
                           <strong>Ngôn ngữ:</strong>{' '}
-                          {selectedAmendment.approvedProfile.languages.join(', ').toUpperCase()}
+                          {selectedAmendment.approvedProfile.languages
+                            .join(', ')
+                            .toUpperCase()}
                         </p>
                       </div>
                       <div className={styles.diffColNew}>
@@ -662,10 +673,15 @@ export default function AdminSpecialistReviewSection() {
                         </span>
                         <p className={styles.diffText}>
                           <strong>Nơi công tác:</strong>{' '}
-                          {selectedAmendment.proposedProfile.hospitalOrAffiliation}
+                          {
+                            selectedAmendment.proposedProfile
+                              .hospitalOrAffiliation
+                          }
                           <br />
                           <strong>Ngôn ngữ:</strong>{' '}
-                          {selectedAmendment.proposedProfile.languages.join(', ').toUpperCase()}
+                          {selectedAmendment.proposedProfile.languages
+                            .join(', ')
+                            .toUpperCase()}
                         </p>
                       </div>
                     </div>
@@ -802,8 +818,10 @@ export default function AdminSpecialistReviewSection() {
                         <div className={styles.cardHeaderInfo}>
                           <strong>{item.displayName}</strong>
                           <span className={styles.affiliationText}>
-                            Mã: {item.specialistCode || `#MB-${item.accountId.slice(0, 5)}`} •{' '}
-                            {item.hospitalOrAffiliation || 'BV FV Sài Gòn'}
+                            Mã:{' '}
+                            {item.specialistCode ||
+                              `#MB-${item.accountId.slice(0, 5)}`}{' '}
+                            • {item.hospitalOrAffiliation || 'BV FV Sài Gòn'}
                           </span>
                         </div>
                         <span
@@ -850,10 +868,13 @@ export default function AdminSpecialistReviewSection() {
                 <div className={styles.detailHead}>
                   <div className={styles.headTitles}>
                     <small>
-                      {selected.specialistCode || `#MB-${selected.accountId.slice(0, 8)}`}
+                      {selected.specialistCode ||
+                        `#MB-${selected.accountId.slice(0, 8)}`}
                     </small>
                     <h2>{selected.displayName}</h2>
-                    <p>{selected.hospitalOrAffiliation || 'Khoa Tâm lý Lâm sàng'}</p>
+                    <p>
+                      {selected.hospitalOrAffiliation || 'Khoa Tâm lý Lâm sàng'}
+                    </p>
                   </div>
                   <span
                     className={`${styles.statusPill} ${getStatusBadgeClass(
@@ -951,7 +972,9 @@ export default function AdminSpecialistReviewSection() {
                         Độ tin cậy OCR
                       </span>
                       <strong className={styles.metricScore}>99.8%</strong>
-                      <span className={styles.metricSub}>Khớp 100% khai báo</span>
+                      <span className={styles.metricSub}>
+                        Khớp 100% khai báo
+                      </span>
                     </div>
 
                     <div className={styles.aiMetricPill}>
@@ -959,10 +982,15 @@ export default function AdminSpecialistReviewSection() {
                         <Fingerprint size={13} color="#0284c7" />
                         Pháp y ảnh số ELA
                       </span>
-                      <strong className={styles.metricScore} style={{ color: '#0284c7' }}>
+                      <strong
+                        className={styles.metricScore}
+                        style={{ color: '#0284c7' }}
+                      >
                         99.2%
                       </strong>
-                      <span className={styles.metricSub}>Không can thiệp pixel</span>
+                      <span className={styles.metricSub}>
+                        Không can thiệp pixel
+                      </span>
                     </div>
 
                     <div className={styles.aiMetricPill}>
@@ -970,10 +998,15 @@ export default function AdminSpecialistReviewSection() {
                         <ShieldCheck size={13} color="#7c3aed" />
                         Extend Verify
                       </span>
-                      <strong className={styles.metricScore} style={{ color: '#7c3aed' }}>
+                      <strong
+                        className={styles.metricScore}
+                        style={{ color: '#7c3aed' }}
+                      >
                         5/5 Lớp
                       </strong>
-                      <span className={styles.metricSub}>Phôi & Tem bảo mật</span>
+                      <span className={styles.metricSub}>
+                        Phôi & Tem bảo mật
+                      </span>
                     </div>
 
                     <div className={styles.aiMetricPill}>
@@ -981,10 +1014,15 @@ export default function AdminSpecialistReviewSection() {
                         <CheckCircle2 size={13} color="#059669" />
                         CSDL Quốc gia
                       </span>
-                      <strong className={styles.metricScore} style={{ color: '#059669' }}>
+                      <strong
+                        className={styles.metricScore}
+                        style={{ color: '#059669' }}
+                      >
                         Khớp 100%
                       </strong>
-                      <span className={styles.metricSub}>Sở Y Tế & Bộ GD&ĐT</span>
+                      <span className={styles.metricSub}>
+                        Sở Y Tế & Bộ GD&ĐT
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -996,7 +1034,8 @@ export default function AdminSpecialistReviewSection() {
                   <div className={styles.docSectionHeader}>
                     <h3>HỒ SƠ GIẤY TỜ CHUYÊN GIA ({activeDocs.length})</h3>
                     <span className={styles.docSectionHint}>
-                      Nhấp nút con mắt để mở bộ soi AI đa chế độ (Scan gốc, Lớp OCR, Pháp y ELA, Phôi & Tem)
+                      Nhấp nút con mắt để mở bộ soi AI đa chế độ (Scan gốc, Lớp
+                      OCR, Pháp y ELA, Phôi & Tem)
                     </span>
                   </div>
 
@@ -1007,18 +1046,29 @@ export default function AdminSpecialistReviewSection() {
                         className={styles.docItemCard}
                         onClick={() => {
                           if (doc.type === 'CCHN') setCchnModalOpen(true)
-                          else if (doc.type === 'DIPLOMA') setDiplomaModalOpen(true)
+                          else if (doc.type === 'DIPLOMA')
+                            setDiplomaModalOpen(true)
                           else setCchnModalOpen(true)
                         }}
                         style={{ cursor: 'pointer' }}
                       >
                         <div className={styles.docItemLeft}>
-                          <span className={styles.docNumberIndex}>{idx + 1}.</span>
+                          <span className={styles.docNumberIndex}>
+                            {idx + 1}.
+                          </span>
                           <div className={styles.docIconWrapper}>
-                            {doc.type === 'CCHN' && <FileBadge2 size={18} color="#059669" />}
-                            {doc.type === 'DIPLOMA' && <GraduationCap size={18} color="#2563eb" />}
-                            {doc.type === 'PRACTICE' && <FileCheck2 size={18} color="#0891b2" />}
-                            {doc.type === 'CRIMINAL_RECORD' && <ShieldCheck size={18} color="#475569" />}
+                            {doc.type === 'CCHN' && (
+                              <FileBadge2 size={18} color="#059669" />
+                            )}
+                            {doc.type === 'DIPLOMA' && (
+                              <GraduationCap size={18} color="#2563eb" />
+                            )}
+                            {doc.type === 'PRACTICE' && (
+                              <FileCheck2 size={18} color="#0891b2" />
+                            )}
+                            {doc.type === 'CRIMINAL_RECORD' && (
+                              <ShieldCheck size={18} color="#475569" />
+                            )}
                           </div>
                           <div className={styles.docItemInfo}>
                             <h4 className={styles.docItemTitle}>{doc.title}</h4>
@@ -1026,14 +1076,23 @@ export default function AdminSpecialistReviewSection() {
                               <span>{doc.issuer}</span>
                               {doc.expiryDate && (
                                 <>
-                                  <span className={styles.metaSeparator}>•</span>
-                                  <span>Hạn CCHN: {doc.expiryDate} ({doc.remainingText})</span>
-                                  <span className={styles.safeStatusTag}>{doc.safeStatus || 'An toàn'}</span>
+                                  <span className={styles.metaSeparator}>
+                                    •
+                                  </span>
+                                  <span>
+                                    Hạn CCHN: {doc.expiryDate} (
+                                    {doc.remainingText})
+                                  </span>
+                                  <span className={styles.safeStatusTag}>
+                                    {doc.safeStatus || 'An toàn'}
+                                  </span>
                                 </>
                               )}
                               {doc.issueDate && (
                                 <>
-                                  <span className={styles.metaSeparator}>•</span>
+                                  <span className={styles.metaSeparator}>
+                                    •
+                                  </span>
                                   <span>Cấp ngày: {doc.issueDate}</span>
                                 </>
                               )}
@@ -1042,7 +1101,9 @@ export default function AdminSpecialistReviewSection() {
                         </div>
 
                         <div className={styles.docItemRight}>
-                          <span className={`${styles.badgePill} ${styles.badgeGreen}`}>
+                          <span
+                            className={`${styles.badgePill} ${styles.badgeGreen}`}
+                          >
                             <CheckCircle2 size={13} />
                             {doc.statusBadge}
                           </span>
@@ -1054,7 +1115,8 @@ export default function AdminSpecialistReviewSection() {
                             onClick={(e) => {
                               e.stopPropagation()
                               if (doc.type === 'CCHN') setCchnModalOpen(true)
-                              else if (doc.type === 'DIPLOMA') setDiplomaModalOpen(true)
+                              else if (doc.type === 'DIPLOMA')
+                                setDiplomaModalOpen(true)
                               else setCchnModalOpen(true)
                             }}
                           >
@@ -1071,7 +1133,8 @@ export default function AdminSpecialistReviewSection() {
                   <div className={styles.previewHeader}>
                     <span className={styles.previewTitle}>
                       <FileBadge2 size={14} color="#059669" />
-                      Xem trước CCHN #{activeDocs[0]?.code || '019283/BYT'} | SHA-256: d9f824b…7b1a8
+                      Xem trước CCHN #{activeDocs[0]?.code || '019283/BYT'} |
+                      SHA-256: d9f824b…7b1a8
                     </span>
                     <div className={styles.previewActions}>
                       <button
@@ -1105,13 +1168,20 @@ export default function AdminSpecialistReviewSection() {
                       </span>
                       <h4>CHỨNG CHỈ HÀNH NGHỀ KHÁM BỆNH, CHỮA BỆNH</h4>
                       <p>
-                        Cấp cho: <strong>{selected.displayName.toUpperCase()}</strong> • Số: {activeDocs[0]?.code || '019283/BYT'}
+                        Cấp cho:{' '}
+                        <strong>{selected.displayName.toUpperCase()}</strong> •
+                        Số: {activeDocs[0]?.code || '019283/BYT'}
                       </p>
                       <p>
-                        Cơ quan cấp: <strong>Sở Y tế TP. Hồ Chí Minh</strong> • Quyết định: 1842/QĐ-SYT
+                        Cơ quan cấp: <strong>Sở Y tế TP. Hồ Chí Minh</strong> •
+                        Quyết định: 1842/QĐ-SYT
                       </p>
                       <p>
-                        Phạm vi chuyên môn: <em>Khám bệnh, chữa bệnh chuyên khoa Tâm thần - Tâm lý lâm sàng</em>
+                        Phạm vi chuyên môn:{' '}
+                        <em>
+                          Khám bệnh, chữa bệnh chuyên khoa Tâm thần - Tâm lý lâm
+                          sàng
+                        </em>
                       </p>
                       <div className={styles.miniSign}>
                         <span>Đã ký số: TS.BS. Nguyễn Tấn Bỉnh</span>
@@ -1128,7 +1198,8 @@ export default function AdminSpecialistReviewSection() {
                   </div>
 
                   <p>
-                    Quyết định hồ sơ dựa trên kết quả thẩm định AI và đối soát CSDL cơ quan cấp phép y tế.
+                    Quyết định hồ sơ dựa trên kết quả thẩm định AI và đối soát
+                    CSDL cơ quan cấp phép y tế.
                   </p>
 
                   {/* State-specific Decision Actions */}
@@ -1172,7 +1243,8 @@ export default function AdminSpecialistReviewSection() {
                           disabled={busy}
                           onClick={() => {
                             showActionToast({
-                              title: 'Đã gửi thông báo yêu cầu chuyên gia bổ sung văn bằng.',
+                              title:
+                                'Đã gửi thông báo yêu cầu chuyên gia bổ sung văn bằng.',
                               tone: 'info',
                             })
                           }}

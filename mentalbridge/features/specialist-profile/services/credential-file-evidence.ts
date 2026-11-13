@@ -117,13 +117,21 @@ async function ocrImage(
 
   // Use CDN paths for worker & language data to avoid bundler issues
   const worker = await createWorker('vie+eng', 1, {
-    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/worker.min.js',
+    workerPath:
+      'https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/worker.min.js',
     langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+    corePath:
+      'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
     logger: () => undefined,
   })
 
-  signal.addEventListener('abort', () => { void worker.terminate() }, { once: true })
+  signal.addEventListener(
+    'abort',
+    () => {
+      void worker.terminate()
+    },
+    { once: true },
+  )
 
   try {
     signal.throwIfAborted()
@@ -177,7 +185,9 @@ export async function readCredentialFile(
       enableXfa: false,
       maxImageSize: 16_000_000,
     })
-    const stop = () => { void task.destroy().catch(() => undefined) }
+    const stop = () => {
+      void task.destroy().catch(() => undefined)
+    }
     signal.addEventListener('abort', stop, { once: true })
 
     try {

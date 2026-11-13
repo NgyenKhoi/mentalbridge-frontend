@@ -18,12 +18,12 @@ describe('MasterDiplomaFullscreenModal', () => {
     expect(
       screen.getByText('Bằng Thạc sĩ Tâm lý học lâm sàng #MS-8812'),
     ).toBeInTheDocument()
-    expect(screen.getByText(/Đã xác thực văn bằng gốc/)).toBeInTheDocument()
+    expect(screen.getByText(/Bộ GD&ĐT - Khớp 100%/)).toBeInTheDocument()
     expect(
-      screen.getByText(/ĐẠI HỌC Y DƯỢC THÀNH PHỐ HỒ CHÍ MINH/),
+      screen.getByText('ĐẠI HỌC Y DƯỢC THÀNH PHỐ HỒ CHÍ MINH'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('TIÊU CHÍ KIỂM ĐỊNH HỌC THUẬT (FOUR-EYES CHECKLIST)'),
+      screen.getByText('Đã kiểm tra Chữ ký Hiệu trưởng ĐH Y Dược'),
     ).toBeInTheDocument()
   })
 

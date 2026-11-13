@@ -18,14 +18,10 @@ describe('CchnFullscreenModal', () => {
     expect(
       screen.getByText('Chứng chỉ hành nghề KCB #019283/BYT'),
     ).toBeInTheDocument()
+    expect(screen.getByText(/CSDL Quốc gia - Khớp 100%/)).toBeInTheDocument()
+    expect(screen.getByText(/Tâm thần - Tâm lý lâm sàng/)).toBeInTheDocument()
     expect(
-      screen.getByText(/Đối chiếu CSDL Quốc gia - Khớp 100%/),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText(/VÙNG KHỚP DỮ LIỆU: BÁC SĨ TÂM LÝ LÂM SÀNG/),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('TIÊU CHÍ KIỂM ĐỊNH PHÁP LÝ (FOUR-EYES CHECKLIST)'),
+      screen.getByText('Đã kiểm tra Chữ ký số GĐ Sở Y tế'),
     ).toBeInTheDocument()
   })
 

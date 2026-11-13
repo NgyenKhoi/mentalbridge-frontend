@@ -22,7 +22,6 @@ import {
   Clock,
   ExternalLink,
   Shield,
-  HelpCircle,
   Flag,
   RotateCcw,
   LayoutList,
@@ -121,30 +120,57 @@ const PROHIBITED_KEYWORDS = [
     category: 'Nguy cấp - Khủng hoảng & Tự hại',
     level: 'CRITICAL',
     action: 'Cảnh báo Hotline bảo vệ sinh mệnh 1900-xxxx + Chuyển chuyên gia',
-    keywords: ['tự tử', 'muốn chết', 'tự hại', 'cắt tay', 'kết thúc cuộc sống', 'không muốn sống nữa', 'tự vẫn'],
+    keywords: [
+      'tự tử',
+      'muốn chết',
+      'tự hại',
+      'cắt tay',
+      'kết thúc cuộc sống',
+      'không muốn sống nữa',
+      'tự vẫn',
+    ],
   },
   {
     category: 'Xúc phạm - Bạo lực ngôn từ',
     level: 'HIGH',
     action: 'Ẩn nội dung + Gửi cảnh cáo vi phạm quy tắc cộng đồng',
-    keywords: ['chó', 'đồ điên', 'tâm thần phân liệt', 'biến đi', 'đồ ngu', 'phế vật', 'vô dụng'],
+    keywords: [
+      'chó',
+      'đồ điên',
+      'tâm thần phân liệt',
+      'biến đi',
+      'đồ ngu',
+      'phế vật',
+      'vô dụng',
+    ],
   },
   {
     category: 'Quảng cáo - Kê đơn thuốc trái phép',
     level: 'MEDIUM',
     action: 'Gỡ bài viết + Yêu cầu xác minh chứng chỉ hành nghề Y',
-    keywords: ['thuốc an thần lậu', 'thuốc ngủ liều cao', 'mua thuốc không kê đơn', 'bán thuốc trầm cảm xách tay'],
+    keywords: [
+      'thuốc an thần lậu',
+      'thuốc ngủ liều cao',
+      'mua thuốc không kê đơn',
+      'bán thuốc trầm cảm xách tay',
+    ],
   },
   {
     category: 'Lừa đảo - Khóa tài khoản',
     level: 'MEDIUM',
     action: 'Ẩn ngay lập tức + Khóa quyền đăng bài',
-    keywords: ['chữa trầm cảm 100% khỏi', 'thầy bùa tâm linh', 'chữa lành năng lượng gốc đóng tiền triệu'],
+    keywords: [
+      'chữa trầm cảm 100% khỏi',
+      'thầy bùa tâm linh',
+      'chữa lành năng lượng gốc đóng tiền triệu',
+    ],
   },
 ]
 
 export default function AdminCommunityModerationSection() {
-  const [activeTab, setActiveTab] = useState<'posts' | 'queue' | 'comments' | 'policies' | 'audit'>('posts')
+  const [activeTab, setActiveTab] = useState<
+    'posts' | 'queue' | 'comments' | 'policies' | 'audit'
+  >('posts')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [summary, setSummary] = useState<ModerationSummary | null>(null)
@@ -152,7 +178,10 @@ export default function AdminCommunityModerationSection() {
   const [comments, setComments] = useState<CommunityCommentItem[]>([])
   const [cases, setCases] = useState<ModerationCaseItem[]>([])
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [toast, setToast] = useState<{
+    type: 'success' | 'error'
+    text: string
+  } | null>(null)
 
   // Filters for Posts
   const [searchQuery, setSearchQuery] = useState('')
@@ -168,7 +197,9 @@ export default function AdminCommunityModerationSection() {
 
   // View Mode ('list' is default for compact clean UI) & Detail Modal
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list')
-  const [selectedPost, setSelectedPost] = useState<CommunityPostItem | null>(null)
+  const [selectedPost, setSelectedPost] = useState<CommunityPostItem | null>(
+    null,
+  )
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [mediaErrors, setMediaErrors] = useState<Record<string, boolean>>({})
 
@@ -203,7 +234,11 @@ export default function AdminCommunityModerationSection() {
   const addAuditLog = (action: string, target: string, detail: string) => {
     const entry: AuditLogEntry = {
       id: crypto.randomUUID(),
-      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      time: new Date().toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }),
       action,
       target,
       actor: 'Quản trị viên',
@@ -236,7 +271,10 @@ export default function AdminCommunityModerationSection() {
   }, [])
 
   useEffect(() => {
-    fetchData()
+    const timer = setTimeout(() => {
+      fetchData()
+    }, 0)
+    return () => clearTimeout(timer)
   }, [fetchData])
 
   useEffect(() => {
@@ -251,12 +289,19 @@ export default function AdminCommunityModerationSection() {
   }, [previewImage, selectedPost])
 
   // Post Actions
-  const handlePostState = async (postId: string, newState: 'ACTIVE' | 'HIDDEN' | 'REMOVED') => {
+  const handlePostState = async (
+    postId: string,
+    newState: 'ACTIVE' | 'HIDDEN' | 'REMOVED',
+  ) => {
     try {
       const res = await fetch('/api/admin/community/moderation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'UPDATE_POST_STATE', postId, state: newState }),
+        body: JSON.stringify({
+          action: 'UPDATE_POST_STATE',
+          postId,
+          state: newState,
+        }),
       })
       const data = await res.json()
       if (data.success) {
@@ -268,7 +313,11 @@ export default function AdminCommunityModerationSection() {
         )
         showToast(data.message)
         addAuditLog(
-          newState === 'ACTIVE' ? 'Khôi phục bài viết' : newState === 'HIDDEN' ? 'Ẩn bài viết' : 'Gỡ bỏ bài viết',
+          newState === 'ACTIVE'
+            ? 'Khôi phục bài viết'
+            : newState === 'HIDDEN'
+              ? 'Ẩn bài viết'
+              : 'Gỡ bỏ bài viết',
           `Bài viết #${postId.slice(0, 8)}`,
           `Chuyển trạng thái sang ${newState}`,
         )
@@ -280,27 +329,44 @@ export default function AdminCommunityModerationSection() {
     }
   }
 
-  const handleToggleSensitive = async (postId: string, currentWarning: string | null) => {
-    const newWarning = currentWarning ? null : 'Cảnh báo nội dung nhạy cảm / Trigger Warning'
+  const handleToggleSensitive = async (
+    postId: string,
+    currentWarning: string | null,
+  ) => {
+    const newWarning = currentWarning
+      ? null
+      : 'Cảnh báo nội dung nhạy cảm / Trigger Warning'
     try {
       const res = await fetch('/api/admin/community/moderation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'TOGGLE_POST_SENSITIVE', postId, warning: newWarning }),
+        body: JSON.stringify({
+          action: 'TOGGLE_POST_SENSITIVE',
+          postId,
+          warning: newWarning,
+        }),
       })
       const data = await res.json()
       if (data.success) {
         setPosts((prev) =>
-          prev.map((p) => (p.id === postId ? { ...p, sensitive_content_warning: newWarning } : p)),
+          prev.map((p) =>
+            p.id === postId
+              ? { ...p, sensitive_content_warning: newWarning }
+              : p,
+          ),
         )
         setSelectedPost((prev) =>
-          prev && prev.id === postId ? { ...prev, sensitive_content_warning: newWarning } : prev,
+          prev && prev.id === postId
+            ? { ...prev, sensitive_content_warning: newWarning }
+            : prev,
         )
         showToast(data.message)
         addAuditLog(
           newWarning ? 'Bật cảnh báo nhạy cảm' : 'Gỡ cảnh báo nhạy cảm',
           `Bài viết #${postId.slice(0, 8)}`,
-          newWarning ? 'Đã bật lớp phủ cảnh báo 18+ / Trigger Warning' : 'Đã đưa về chế độ bình thường',
+          newWarning
+            ? 'Đã bật lớp phủ cảnh báo 18+ / Trigger Warning'
+            : 'Đã đưa về chế độ bình thường',
         )
       } else {
         showToast(data.error, 'error')
@@ -311,12 +377,19 @@ export default function AdminCommunityModerationSection() {
   }
 
   // Comment Actions
-  const handleCommentState = async (commentId: string, newState: 'ACTIVE' | 'HIDDEN' | 'REMOVED') => {
+  const handleCommentState = async (
+    commentId: string,
+    newState: 'ACTIVE' | 'HIDDEN' | 'REMOVED',
+  ) => {
     try {
       const res = await fetch('/api/admin/community/moderation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'UPDATE_COMMENT_STATE', commentId, state: newState }),
+        body: JSON.stringify({
+          action: 'UPDATE_COMMENT_STATE',
+          commentId,
+          state: newState,
+        }),
       })
       const data = await res.json()
       if (data.success) {
@@ -325,7 +398,11 @@ export default function AdminCommunityModerationSection() {
         )
         showToast(data.message)
         addAuditLog(
-          newState === 'ACTIVE' ? 'Khôi phục bình luận' : newState === 'HIDDEN' ? 'Ẩn bình luận' : 'Gỡ bỏ bình luận',
+          newState === 'ACTIVE'
+            ? 'Khôi phục bình luận'
+            : newState === 'HIDDEN'
+              ? 'Ẩn bình luận'
+              : 'Gỡ bỏ bình luận',
           `Bình luận #${commentId.slice(0, 8)}`,
           `Chuyển trạng thái sang ${newState}`,
         )
@@ -348,7 +425,11 @@ export default function AdminCommunityModerationSection() {
       const data = await res.json()
       if (data.success) {
         showToast('Đã đưa bài viết vào Hàng đợi kiểm duyệt ưu tiên cao!')
-        addAuditLog('Gắn cờ kiểm duyệt', `Bài viết #${postId.slice(0, 8)}`, 'Đưa vào hàng đợi cần rà soát')
+        addAuditLog(
+          'Gắn cờ kiểm duyệt',
+          `Bài viết #${postId.slice(0, 8)}`,
+          'Đưa vào hàng đợi cần rà soát',
+        )
         fetchData(true)
       }
     } catch {
@@ -367,10 +448,16 @@ export default function AdminCommunityModerationSection() {
       const data = await res.json()
       if (data.success) {
         setCases((prev) =>
-          prev.map((c) => (c.case_id === caseId ? { ...c, state: 'RESOLVED' } : c)),
+          prev.map((c) =>
+            c.case_id === caseId ? { ...c, state: 'RESOLVED' } : c,
+          ),
         )
         showToast('Đã đánh dấu giải quyết ca kiểm duyệt.')
-        addAuditLog('Xử lý ca kiểm duyệt', `Hồ sơ #${caseId.slice(0, 8)}`, 'Đã xác minh và hoàn tất')
+        addAuditLog(
+          'Xử lý ca kiểm duyệt',
+          `Hồ sơ #${caseId.slice(0, 8)}`,
+          'Đã xác minh và hoàn tất',
+        )
       }
     } catch {
       showToast('Lỗi khi giải quyết ca kiểm duyệt.', 'error')
@@ -382,25 +469,50 @@ export default function AdminCommunityModerationSection() {
     let flaggedCount = 0
     posts.forEach((p) => {
       const lower = p.content.toLowerCase()
-      const isCrisis = PROHIBITED_KEYWORDS[0].keywords.some((k) => lower.includes(k))
-      const isHarassment = PROHIBITED_KEYWORDS[1].keywords.some((k) => lower.includes(k))
+      const isCrisis = PROHIBITED_KEYWORDS[0].keywords.some((k) =>
+        lower.includes(k),
+      )
+      const isHarassment = PROHIBITED_KEYWORDS[1].keywords.some((k) =>
+        lower.includes(k),
+      )
       if (isCrisis || isHarassment) {
         flaggedCount++
       }
     })
 
     if (flaggedCount === 0) {
-      showToast('Quét AI hoàn tất: 100% nội dung bài viết tuân thủ Tiêu chuẩn Cộng đồng y tế.')
-      addAuditLog('Quét AI An toàn', 'Toàn bộ 25 bài viết', '0 phát hiện vi phạm nguy cấp')
+      showToast(
+        'Quét AI hoàn tất: 100% nội dung bài viết tuân thủ Tiêu chuẩn Cộng đồng y tế.',
+      )
+      addAuditLog(
+        'Quét AI An toàn',
+        'Toàn bộ 25 bài viết',
+        '0 phát hiện vi phạm nguy cấp',
+      )
     } else {
-      showToast(`Quét AI hoàn tất: Phát hiện ${flaggedCount} bài viết có từ khóa cần lưu ý!`, 'error')
-      addAuditLog('Quét AI An toàn', 'Toàn bộ bài viết', `Phát hiện ${flaggedCount} nội dung cần rà soát`)
+      showToast(
+        `Quét AI hoàn tất: Phát hiện ${flaggedCount} bài viết có từ khóa cần lưu ý!`,
+        'error',
+      )
+      addAuditLog(
+        'Quét AI An toàn',
+        'Toàn bộ bài viết',
+        `Phát hiện ${flaggedCount} nội dung cần rà soát`,
+      )
     }
   }
 
   // Export CSV
   const handleExportCSV = () => {
-    const headers = ['Mã bài viết', 'Tác giả', 'Trạng thái', 'Nội dung', 'Lượt thích', 'Bình luận', 'Ngày đăng']
+    const headers = [
+      'Mã bài viết',
+      'Tác giả',
+      'Trạng thái',
+      'Nội dung',
+      'Lượt thích',
+      'Bình luận',
+      'Ngày đăng',
+    ]
     const rows = posts.map((p) => [
       p.id,
       p.author_display_name,
@@ -410,7 +522,8 @@ export default function AdminCommunityModerationSection() {
       p.comment_count,
       new Date(p.published_at).toLocaleString('vi-VN'),
     ])
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+    const csvContent =
+      '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -419,7 +532,11 @@ export default function AdminCommunityModerationSection() {
     link.click()
     URL.revokeObjectURL(url)
     showToast('Đã xuất báo cáo kiểm duyệt cộng đồng CSV thành công.')
-    addAuditLog('Xuất báo cáo', 'Danh sách bài viết & kiểm duyệt', 'Tải tệp CSV')
+    addAuditLog(
+      'Xuất báo cáo',
+      'Danh sách bài viết & kiểm duyệt',
+      'Tải tệp CSV',
+    )
   }
 
   // Filtered Posts
@@ -432,13 +549,16 @@ export default function AdminCommunityModerationSection() {
 
       const matchStatus =
         statusFilter === 'ALL' ||
-        (statusFilter === 'ACTIVE' && p.state === 'ACTIVE' && !p.sensitive_content_warning) ||
+        (statusFilter === 'ACTIVE' &&
+          p.state === 'ACTIVE' &&
+          !p.sensitive_content_warning) ||
         (statusFilter === 'HIDDEN' && p.state === 'HIDDEN') ||
         (statusFilter === 'REMOVED' && p.state === 'REMOVED') ||
         (statusFilter === 'SENSITIVE' && Boolean(p.sensitive_content_warning))
 
       const matchTopic =
-        topicFilter === 'ALL' || (p.topic_list && p.topic_list.includes(topicFilter))
+        topicFilter === 'ALL' ||
+        (p.topic_list && p.topic_list.includes(topicFilter))
 
       return matchSearch && matchStatus && matchTopic
     })
@@ -450,8 +570,11 @@ export default function AdminCommunityModerationSection() {
       const matchSearch =
         commentSearch === '' ||
         c.content.toLowerCase().includes(commentSearch.toLowerCase()) ||
-        c.author_display_name.toLowerCase().includes(commentSearch.toLowerCase())
-      const matchStatus = commentStatusFilter === 'ALL' || c.state === commentStatusFilter
+        c.author_display_name
+          .toLowerCase()
+          .includes(commentSearch.toLowerCase())
+      const matchStatus =
+        commentStatusFilter === 'ALL' || c.state === commentStatusFilter
       return matchSearch && matchStatus
     })
   }, [comments, commentSearch, commentStatusFilter])
@@ -460,8 +583,14 @@ export default function AdminCommunityModerationSection() {
     <div className={styles.container}>
       {/* Toast Notification */}
       {toast && (
-        <div className={`${styles.toastMessage} ${toast.type === 'error' ? styles.error : ''}`}>
-          {toast.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+        <div
+          className={`${styles.toastMessage} ${toast.type === 'error' ? styles.error : ''}`}
+        >
+          {toast.type === 'error' ? (
+            <AlertTriangle size={18} />
+          ) : (
+            <CheckCircle2 size={18} />
+          )}
           <span>{toast.text}</span>
         </div>
       )}
@@ -475,7 +604,9 @@ export default function AdminCommunityModerationSection() {
           </span>
           <h1 className={styles.title}>Kiểm duyệt &amp; Giám sát Cộng đồng</h1>
           <p className={styles.subtitle}>
-            Điều phối nội dung, theo dõi tương tác người dùng, xử lý vi phạm thời gian thực và áp dụng bộ quy tắc bảo vệ sức khỏe tâm thần theo chuẩn Facebook/Zalo Community Standards.
+            Điều phối nội dung, theo dõi tương tác người dùng, xử lý vi phạm
+            thời gian thực và áp dụng bộ quy tắc bảo vệ sức khỏe tâm thần theo
+            chuẩn Facebook/Zalo Community Standards.
           </p>
         </div>
 
@@ -528,7 +659,8 @@ export default function AdminCommunityModerationSection() {
             </span>
           </div>
           <p className={styles.kpiSubtext}>
-            {summary?.hiddenPosts || 0} bài đã ẩn · {summary?.sensitivePosts || 0} có cảnh báo
+            {summary?.hiddenPosts || 0} bài đã ẩn ·{' '}
+            {summary?.sensitivePosts || 0} có cảnh báo
           </p>
           <div className={styles.kpiDivider} />
           <div className={styles.kpiFooter}>
@@ -553,7 +685,9 @@ export default function AdminCommunityModerationSection() {
             </div>
           </div>
           <div className={styles.kpiValueRow}>
-            <span className={styles.kpiValue}>{summary?.totalComments ?? 28}</span>
+            <span className={styles.kpiValue}>
+              {summary?.totalComments ?? 28}
+            </span>
             <span className={styles.kpiPill}>
               +{summary?.totalReactions ?? 33} phản ứng
             </span>
@@ -570,13 +704,17 @@ export default function AdminCommunityModerationSection() {
         <article className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>HÀNG ĐỢI KIỂM DUYỆT</span>
-            <div className={`${styles.kpiIconBox} ${summary?.openCases ? styles.amber : styles.teal}`}>
+            <div
+              className={`${styles.kpiIconBox} ${summary?.openCases ? styles.amber : styles.teal}`}
+            >
               <ShieldAlert size={17} />
             </div>
           </div>
           <div className={styles.kpiValueRow}>
             <span className={styles.kpiValue}>{summary?.openCases ?? 0}</span>
-            <span className={`${styles.kpiPill} ${summary?.openCases ? styles.amber : styles.green}`}>
+            <span
+              className={`${styles.kpiPill} ${summary?.openCases ? styles.amber : styles.green}`}
+            >
               {summary?.openCases ? 'Cần xử lý' : 'Đã sạch hàng đợi'}
             </span>
           </div>
@@ -597,14 +735,20 @@ export default function AdminCommunityModerationSection() {
             </div>
           </div>
           <div className={styles.kpiValueRow}>
-            <span className={styles.kpiValue}>{summary?.aiSafetyScore ?? '99.4%'}</span>
-            <span className={`${styles.kpiPill} ${styles.green}`}>Đạt chuẩn EMR</span>
+            <span className={styles.kpiValue}>
+              {summary?.aiSafetyScore ?? '99.4%'}
+            </span>
+            <span className={`${styles.kpiPill} ${styles.green}`}>
+              Đạt chuẩn EMR
+            </span>
           </div>
           <p className={styles.kpiSubtext}>Bộ lọc từ khóa AI hoạt động 24/7</p>
           <div className={styles.kpiDivider} />
           <div className={styles.kpiFooter}>
             <span>Trạng thái bảo vệ</span>
-            <span style={{ color: '#137333', fontWeight: 700 }}>● Trực tuyến</span>
+            <span style={{ color: '#137333', fontWeight: 700 }}>
+              ● Trực tuyến
+            </span>
           </div>
         </article>
       </section>
@@ -631,7 +775,9 @@ export default function AdminCommunityModerationSection() {
             >
               <ShieldAlert size={15} />
               Hàng đợi Báo cáo
-              <span className={`${styles.tabBadge} ${cases.filter((c) => c.state === 'OPEN').length > 0 ? styles.warning : ''}`}>
+              <span
+                className={`${styles.tabBadge} ${cases.filter((c) => c.state === 'OPEN').length > 0 ? styles.warning : ''}`}
+              >
                 {cases.filter((c) => c.state === 'OPEN').length}
               </span>
             </button>
@@ -662,7 +808,9 @@ export default function AdminCommunityModerationSection() {
             >
               <FileText size={15} />
               Nhật ký kiểm duyệt
-              {auditLogs.length > 0 && <span className={styles.tabBadge}>{auditLogs.length}</span>}
+              {auditLogs.length > 0 && (
+                <span className={styles.tabBadge}>{auditLogs.length}</span>
+              )}
             </button>
           </div>
         </div>
@@ -734,14 +882,24 @@ export default function AdminCommunityModerationSection() {
             {/* Posts Stream */}
             {loading ? (
               <div className={styles.emptyState}>
-                <Clock size={32} style={{ color: '#0E4A37' }} className="animate-spin" />
-                <span className={styles.emptyStateTitle}>Đang tải danh sách bài viết cộng đồng…</span>
+                <Clock
+                  size={32}
+                  style={{ color: '#0E4A37' }}
+                  className="animate-spin"
+                />
+                <span className={styles.emptyStateTitle}>
+                  Đang tải danh sách bài viết cộng đồng…
+                </span>
               </div>
             ) : filteredPosts.length === 0 ? (
               <div className={styles.emptyState}>
                 <Info size={32} style={{ color: '#9CA3AF' }} />
-                <span className={styles.emptyStateTitle}>Không tìm thấy bài viết nào phù hợp bộ lọc</span>
-                <p className={styles.emptyStateDesc}>Thử thay đổi từ khóa tìm kiếm hoặc làm mới lại trang.</p>
+                <span className={styles.emptyStateTitle}>
+                  Không tìm thấy bài viết nào phù hợp bộ lọc
+                </span>
+                <p className={styles.emptyStateDesc}>
+                  Thử thay đổi từ khóa tìm kiếm hoặc làm mới lại trang.
+                </p>
               </div>
             ) : viewMode === 'list' ? (
               /* Compact Table List View */
@@ -754,17 +912,25 @@ export default function AdminCommunityModerationSection() {
                       <th style={{ width: '140px' }}>TRẠNG THÁI</th>
                       <th style={{ width: '110px' }}>TƯƠNG TÁC</th>
                       <th style={{ width: '130px' }}>THỜI GIAN</th>
-                      <th style={{ width: '190px', textAlign: 'right' }}>QUYỀN QUẢN TRỊ</th>
+                      <th style={{ width: '190px', textAlign: 'right' }}>
+                        QUYỀN QUẢN TRỊ
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPosts.map((post) => {
-                      const isSensitive = Boolean(post.sensitive_content_warning)
+                      const isSensitive = Boolean(
+                        post.sensitive_content_warning,
+                      )
                       const isHidden = post.state === 'HIDDEN'
                       const isRemoved = post.state === 'REMOVED'
-                      const initial = post.author_display_name ? post.author_display_name.slice(0, 2).toUpperCase() : 'MB'
+                      const initial = post.author_display_name
+                        ? post.author_display_name.slice(0, 2).toUpperCase()
+                        : 'MB'
                       const hasVideo = post.media_list?.some(isMediaVideo)
-                      const hasImage = post.media_list?.some((m) => !isMediaVideo(m))
+                      const hasImage = post.media_list?.some(
+                        (m) => !isMediaVideo(m),
+                      )
 
                       return (
                         <tr
@@ -782,19 +948,26 @@ export default function AdminCommunityModerationSection() {
                                   background:
                                     post.author_display_name === 'Khôi'
                                       ? '#0E4A37'
-                                      : post.author_display_name === 'Ngọc Quyên'
-                                      ? '#C2410C'
-                                      : post.author_display_name === 'monglung'
-                                      ? '#4338CA'
-                                      : '#047857',
+                                      : post.author_display_name ===
+                                          'Ngọc Quyên'
+                                        ? '#C2410C'
+                                        : post.author_display_name ===
+                                            'monglung'
+                                          ? '#4338CA'
+                                          : '#047857',
                                 }}
                               >
                                 {initial}
                               </div>
                               <div className={styles.authorColInfo}>
-                                <span className={styles.authorColName}>{post.author_display_name}</span>
+                                <span className={styles.authorColName}>
+                                  {post.author_display_name}
+                                </span>
                                 <span className={styles.authorColSub}>
-                                  {post.author_mode === 'ANONYMOUS' ? 'Ẩn danh' : 'Xác thực'} · #{post.id.slice(0, 6)}
+                                  {post.author_mode === 'ANONYMOUS'
+                                    ? 'Ẩn danh'
+                                    : 'Xác thực'}{' '}
+                                  · #{post.id.slice(0, 6)}
                                 </span>
                               </div>
                             </div>
@@ -803,23 +976,43 @@ export default function AdminCommunityModerationSection() {
                           {/* 2. Nội dung & Đính kèm */}
                           <td>
                             <div className={styles.contentCol}>
-                              <div className={styles.contentLine}>{post.content}</div>
+                              <div className={styles.contentLine}>
+                                {post.content}
+                              </div>
                               <div className={styles.contentMetaRow}>
-                                {post.topic_list && post.topic_list.length > 0 && (
-                                  <span className={styles.topicTag}>
-                                    #{TOPIC_LABELS[post.topic_list[0]] || post.topic_list[0]}
-                                  </span>
-                                )}
+                                {post.topic_list &&
+                                  post.topic_list.length > 0 && (
+                                    <span className={styles.topicTag}>
+                                      #
+                                      {TOPIC_LABELS[post.topic_list[0]] ||
+                                        post.topic_list[0]}
+                                    </span>
+                                  )}
 
                                 {hasVideo && (
-                                  <span className={`${styles.mediaBadge} ${styles.video}`}>
-                                    <Film size={11} /> Video ({post.media_list?.filter(isMediaVideo).length})
+                                  <span
+                                    className={`${styles.mediaBadge} ${styles.video}`}
+                                  >
+                                    <Film size={11} /> Video (
+                                    {
+                                      post.media_list?.filter(isMediaVideo)
+                                        .length
+                                    }
+                                    )
                                   </span>
                                 )}
 
                                 {hasImage && (
-                                  <span className={`${styles.mediaBadge} ${styles.image}`}>
-                                    <ImageIcon size={11} /> Ảnh ({post.media_list?.filter((m) => !isMediaVideo(m)).length})
+                                  <span
+                                    className={`${styles.mediaBadge} ${styles.image}`}
+                                  >
+                                    <ImageIcon size={11} /> Ảnh (
+                                    {
+                                      post.media_list?.filter(
+                                        (m) => !isMediaVideo(m),
+                                      ).length
+                                    }
+                                    )
                                   </span>
                                 )}
                               </div>
@@ -828,23 +1021,38 @@ export default function AdminCommunityModerationSection() {
 
                           {/* 3. Trạng thái */}
                           <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '4px',
+                                alignItems: 'flex-start',
+                              }}
+                            >
                               {isRemoved ? (
-                                <span className={`${styles.statusBadge} ${styles.removed}`}>
+                                <span
+                                  className={`${styles.statusBadge} ${styles.removed}`}
+                                >
                                   <Trash2 size={11} /> Đã gỡ bỏ
                                 </span>
                               ) : isHidden ? (
-                                <span className={`${styles.statusBadge} ${styles.hidden}`}>
+                                <span
+                                  className={`${styles.statusBadge} ${styles.hidden}`}
+                                >
                                   <EyeOff size={11} /> Đang ẩn
                                 </span>
                               ) : (
-                                <span className={`${styles.statusBadge} ${styles.active}`}>
+                                <span
+                                  className={`${styles.statusBadge} ${styles.active}`}
+                                >
                                   <CheckCircle2 size={11} /> Hiển thị
                                 </span>
                               )}
 
                               {isSensitive && (
-                                <span className={`${styles.statusBadge} ${styles.sensitive}`}>
+                                <span
+                                  className={`${styles.statusBadge} ${styles.sensitive}`}
+                                >
                                   <AlertTriangle size={11} /> Nhạy cảm
                                 </span>
                               )}
@@ -854,11 +1062,22 @@ export default function AdminCommunityModerationSection() {
                           {/* 4. Tương tác */}
                           <td>
                             <div className={styles.interactionsCol}>
-                              <span className={styles.interactionItem} title={`${post.reaction_count} lượt cảm xúc`}>
-                                <Heart size={13} style={{ color: '#EF4444' }} /> {post.reaction_count}
+                              <span
+                                className={styles.interactionItem}
+                                title={`${post.reaction_count} lượt cảm xúc`}
+                              >
+                                <Heart size={13} style={{ color: '#EF4444' }} />{' '}
+                                {post.reaction_count}
                               </span>
-                              <span className={styles.interactionItem} title={`${post.comment_count} bình luận`}>
-                                <MessageSquare size={13} style={{ color: '#3B82F6' }} /> {post.comment_count}
+                              <span
+                                className={styles.interactionItem}
+                                title={`${post.comment_count} bình luận`}
+                              >
+                                <MessageSquare
+                                  size={13}
+                                  style={{ color: '#3B82F6' }}
+                                />{' '}
+                                {post.comment_count}
                               </span>
                             </div>
                           </td>
@@ -866,16 +1085,28 @@ export default function AdminCommunityModerationSection() {
                           {/* 5. Thời gian */}
                           <td>
                             <div className={styles.timeCol}>
-                              <div>{new Date(post.published_at).toLocaleDateString('vi-VN')}</div>
-                              <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-                                {new Date(post.published_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                              <div>
+                                {new Date(post.published_at).toLocaleDateString(
+                                  'vi-VN',
+                                )}
+                              </div>
+                              <div
+                                style={{ fontSize: '11px', color: '#9CA3AF' }}
+                              >
+                                {new Date(post.published_at).toLocaleTimeString(
+                                  'vi-VN',
+                                  { hour: '2-digit', minute: '2-digit' },
+                                )}
                               </div>
                             </div>
                           </td>
 
                           {/* 6. Quyền quản trị / Thao tác */}
                           <td>
-                            <div className={styles.actionsCol} onClick={(e) => e.stopPropagation()}>
+                            <div
+                              className={styles.actionsCol}
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <button
                                 type="button"
                                 className={styles.viewDetailBtn}
@@ -889,8 +1120,17 @@ export default function AdminCommunityModerationSection() {
                               <button
                                 type="button"
                                 className={`${styles.quickActionBtn} ${isSensitive ? styles.warning : ''}`}
-                                onClick={() => handleToggleSensitive(post.id, post.sensitive_content_warning)}
-                                title={isSensitive ? 'Gỡ cảnh báo nhạy cảm' : 'Gắn cảnh báo nhạy cảm'}
+                                onClick={() =>
+                                  handleToggleSensitive(
+                                    post.id,
+                                    post.sensitive_content_warning,
+                                  )
+                                }
+                                title={
+                                  isSensitive
+                                    ? 'Gỡ cảnh báo nhạy cảm'
+                                    : 'Gắn cảnh báo nhạy cảm'
+                                }
                               >
                                 <AlertTriangle size={13} />
                               </button>
@@ -898,17 +1138,32 @@ export default function AdminCommunityModerationSection() {
                               <button
                                 type="button"
                                 className={styles.quickActionBtn}
-                                onClick={() => handlePostState(post.id, isHidden ? 'ACTIVE' : 'HIDDEN')}
-                                title={isHidden ? 'Hiển thị lại bài viết' : 'Tạm ẩn bài viết'}
+                                onClick={() =>
+                                  handlePostState(
+                                    post.id,
+                                    isHidden ? 'ACTIVE' : 'HIDDEN',
+                                  )
+                                }
+                                title={
+                                  isHidden
+                                    ? 'Hiển thị lại bài viết'
+                                    : 'Tạm ẩn bài viết'
+                                }
                               >
-                                {isHidden ? <Eye size={13} /> : <EyeOff size={13} />}
+                                {isHidden ? (
+                                  <Eye size={13} />
+                                ) : (
+                                  <EyeOff size={13} />
+                                )}
                               </button>
 
                               {!isRemoved ? (
                                 <button
                                   type="button"
                                   className={`${styles.quickActionBtn} ${styles.danger}`}
-                                  onClick={() => handlePostState(post.id, 'REMOVED')}
+                                  onClick={() =>
+                                    handlePostState(post.id, 'REMOVED')
+                                  }
                                   title="Gỡ bỏ bài viết"
                                 >
                                   <Trash2 size={13} />
@@ -917,7 +1172,9 @@ export default function AdminCommunityModerationSection() {
                                 <button
                                   type="button"
                                   className={`${styles.quickActionBtn} ${styles.success}`}
-                                  onClick={() => handlePostState(post.id, 'ACTIVE')}
+                                  onClick={() =>
+                                    handlePostState(post.id, 'ACTIVE')
+                                  }
                                   title="Khôi phục bài viết"
                                 >
                                   <RotateCcw size={13} />
@@ -938,7 +1195,9 @@ export default function AdminCommunityModerationSection() {
                   const isSensitive = Boolean(post.sensitive_content_warning)
                   const isHidden = post.state === 'HIDDEN'
                   const isRemoved = post.state === 'REMOVED'
-                  const initial = post.author_display_name ? post.author_display_name.slice(0, 2).toUpperCase() : 'MB'
+                  const initial = post.author_display_name
+                    ? post.author_display_name.slice(0, 2).toUpperCase()
+                    : 'MB'
 
                   return (
                     <article
@@ -957,47 +1216,62 @@ export default function AdminCommunityModerationSection() {
                                 post.author_display_name === 'Khôi'
                                   ? '#0E4A37'
                                   : post.author_display_name === 'Ngọc Quyên'
-                                  ? '#C2410C'
-                                  : post.author_display_name === 'monglung'
-                                  ? '#4338CA'
-                                  : '#047857',
+                                    ? '#C2410C'
+                                    : post.author_display_name === 'monglung'
+                                      ? '#4338CA'
+                                      : '#047857',
                             }}
                           >
                             {initial}
                           </div>
                           <div className={styles.authorDetails}>
                             <div className={styles.authorNameRow}>
-                              <span className={styles.authorName}>{post.author_display_name}</span>
+                              <span className={styles.authorName}>
+                                {post.author_display_name}
+                              </span>
                               <span className={styles.authorModeBadge}>
-                                {post.author_mode === 'ANONYMOUS' ? 'Ẩn danh' : 'Thành viên xác thực'}
+                                {post.author_mode === 'ANONYMOUS'
+                                  ? 'Ẩn danh'
+                                  : 'Thành viên xác thực'}
                               </span>
                             </div>
                             <time className={styles.postTime}>
-                              {new Date(post.published_at).toLocaleString('vi-VN')} · ID: #{post.id.slice(0, 8)}
+                              {new Date(post.published_at).toLocaleString(
+                                'vi-VN',
+                              )}{' '}
+                              · ID: #{post.id.slice(0, 8)}
                             </time>
                           </div>
                         </div>
 
                         <div className={styles.statusBadgeGroup}>
                           {isRemoved ? (
-                            <span className={`${styles.statusBadge} ${styles.removed}`}>
+                            <span
+                              className={`${styles.statusBadge} ${styles.removed}`}
+                            >
                               <Trash2 size={12} />
                               Đã gỡ bỏ
                             </span>
                           ) : isHidden ? (
-                            <span className={`${styles.statusBadge} ${styles.hidden}`}>
+                            <span
+                              className={`${styles.statusBadge} ${styles.hidden}`}
+                            >
                               <EyeOff size={12} />
                               Đang ẩn
                             </span>
                           ) : (
-                            <span className={`${styles.statusBadge} ${styles.active}`}>
+                            <span
+                              className={`${styles.statusBadge} ${styles.active}`}
+                            >
                               <CheckCircle2 size={12} />
                               Đang hiển thị
                             </span>
                           )}
 
                           {isSensitive && (
-                            <span className={`${styles.statusBadge} ${styles.sensitive}`}>
+                            <span
+                              className={`${styles.statusBadge} ${styles.sensitive}`}
+                            >
                               <AlertTriangle size={12} />
                               Cảnh báo nhạy cảm
                             </span>
@@ -1029,7 +1303,10 @@ export default function AdminCommunityModerationSection() {
 
                         {/* Media preview: Handle VIDEO vs IMAGE cleanly! */}
                         {post.media_list && post.media_list.length > 0 && (
-                          <div className={styles.mediaRow} onClick={(e) => e.stopPropagation()}>
+                          <div
+                            className={styles.mediaRow}
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {post.media_list.map((m) => {
                               const isVideo = isMediaVideo(m)
                               const isError = mediaErrors[m.id]
@@ -1052,7 +1329,10 @@ export default function AdminCommunityModerationSection() {
                                   onClick={() => setSelectedPost(post)}
                                   title="Nhấp để xem video trong popup chi tiết"
                                 >
-                                  <Film size={28} style={{ color: '#F59E0B' }} />
+                                  <Film
+                                    size={28}
+                                    style={{ color: '#F59E0B' }}
+                                  />
                                   <span
                                     style={{
                                       position: 'absolute',
@@ -1089,12 +1369,18 @@ export default function AdminCommunityModerationSection() {
                                   <span>Không tải được ảnh</span>
                                 </div>
                               ) : (
+                                /* eslint-disable-next-line @next/next/no-img-element */
                                 <img
                                   key={m.id}
                                   src={m.url}
                                   alt={m.altText || 'Ảnh đính kèm bài viết'}
                                   className={styles.mediaThumb}
-                                  onError={() => setMediaErrors((prev) => ({ ...prev, [m.id]: true }))}
+                                  onError={() =>
+                                    setMediaErrors((prev) => ({
+                                      ...prev,
+                                      [m.id]: true,
+                                    }))
+                                  }
                                   onClick={() => setPreviewImage(m.url)}
                                   title="Nhấp để xem phóng to"
                                 />
@@ -1105,14 +1391,20 @@ export default function AdminCommunityModerationSection() {
                       </div>
 
                       {/* Post Footer & Quick Moderation Actions */}
-                      <div className={styles.postFooter} onClick={(e) => e.stopPropagation()}>
+                      <div
+                        className={styles.postFooter}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className={styles.engagementStats}>
                           <span className={styles.engagementItem}>
                             <Heart size={14} style={{ color: '#EF4444' }} />
                             <b>{post.reaction_count}</b> cảm xúc
                           </span>
                           <span className={styles.engagementItem}>
-                            <MessageSquare size={14} style={{ color: '#3B82F6' }} />
+                            <MessageSquare
+                              size={14}
+                              style={{ color: '#3B82F6' }}
+                            />
                             <b>{post.comment_count}</b> bình luận
                           </span>
                         </div>
@@ -1129,8 +1421,17 @@ export default function AdminCommunityModerationSection() {
                           <button
                             type="button"
                             className={`${styles.actionBtn} ${styles.warning}`}
-                            onClick={() => handleToggleSensitive(post.id, post.sensitive_content_warning)}
-                            title={isSensitive ? 'Gỡ lớp cảnh báo nhạy cảm' : 'Bật cảnh báo nhạy cảm (Trigger Warning)'}
+                            onClick={() =>
+                              handleToggleSensitive(
+                                post.id,
+                                post.sensitive_content_warning,
+                              )
+                            }
+                            title={
+                              isSensitive
+                                ? 'Gỡ lớp cảnh báo nhạy cảm'
+                                : 'Bật cảnh báo nhạy cảm (Trigger Warning)'
+                            }
                           >
                             <AlertTriangle size={13} />
                             {isSensitive ? 'Gỡ nhạy cảm' : 'Gắn nhạy cảm'}
@@ -1139,10 +1440,23 @@ export default function AdminCommunityModerationSection() {
                           <button
                             type="button"
                             className={styles.actionBtn}
-                            onClick={() => handlePostState(post.id, isHidden ? 'ACTIVE' : 'HIDDEN')}
-                            title={isHidden ? 'Hiển thị lại bài viết' : 'Tạm ẩn bài viết khỏi bảng tin'}
+                            onClick={() =>
+                              handlePostState(
+                                post.id,
+                                isHidden ? 'ACTIVE' : 'HIDDEN',
+                              )
+                            }
+                            title={
+                              isHidden
+                                ? 'Hiển thị lại bài viết'
+                                : 'Tạm ẩn bài viết khỏi bảng tin'
+                            }
                           >
-                            {isHidden ? <Eye size={13} /> : <EyeOff size={13} />}
+                            {isHidden ? (
+                              <Eye size={13} />
+                            ) : (
+                              <EyeOff size={13} />
+                            )}
                             {isHidden ? 'Hiện bài' : 'Ẩn bài'}
                           </button>
 
@@ -1150,7 +1464,9 @@ export default function AdminCommunityModerationSection() {
                             <button
                               type="button"
                               className={`${styles.actionBtn} ${styles.danger}`}
-                              onClick={() => handlePostState(post.id, 'REMOVED')}
+                              onClick={() =>
+                                handlePostState(post.id, 'REMOVED')
+                              }
                               title="Gỡ bỏ bài viết do vi phạm tiêu chuẩn"
                             >
                               <Trash2 size={13} />
@@ -1189,13 +1505,20 @@ export default function AdminCommunityModerationSection() {
 
         {/* TAB 2: HÀNG ĐỢI BÁO CÁO & CA KIỂM DUYỆT (MODERATION QUEUE) */}
         {activeTab === 'queue' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+          >
             {cases.length === 0 ? (
               <div className={styles.emptyState}>
                 <ShieldCheck size={48} style={{ color: '#10B981' }} />
-                <span className={styles.emptyStateTitle}>Hàng đợi kiểm duyệt an toàn (0 trường hợp tồn đọng)</span>
+                <span className={styles.emptyStateTitle}>
+                  Hàng đợi kiểm duyệt an toàn (0 trường hợp tồn đọng)
+                </span>
                 <p className={styles.emptyStateDesc}>
-                  Hệ thống AI và người dùng chưa ghi nhận báo cáo vi phạm mới. Khi có người dùng bấm báo cáo hoặc AI phát hiện từ ngữ kích động, các ca kiểm duyệt sẽ tự động xếp vào đây theo độ ưu tiên khủng hoảng.
+                  Hệ thống AI và người dùng chưa ghi nhận báo cáo vi phạm mới.
+                  Khi có người dùng bấm báo cáo hoặc AI phát hiện từ ngữ kích
+                  động, các ca kiểm duyệt sẽ tự động xếp vào đây theo độ ưu tiên
+                  khủng hoảng.
                 </p>
                 {posts.length > 0 && (
                   <button
@@ -1215,18 +1538,30 @@ export default function AdminCommunityModerationSection() {
                   <article key={c.case_id} className={styles.postCard}>
                     <div className={styles.postHeader}>
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}
+                        >
                           <span style={{ fontWeight: 700, fontSize: '15px' }}>
-                            Ca kiểm duyệt #{c.case_id.slice(0, 8)} · {c.target_type === 'POST' ? 'Bài viết' : 'Bình luận'}
+                            Ca kiểm duyệt #{c.case_id.slice(0, 8)} ·{' '}
+                            {c.target_type === 'POST'
+                              ? 'Bài viết'
+                              : 'Bình luận'}
                           </span>
                           <span
                             className={`${styles.statusBadge} ${c.priority === 'HIGH' ? styles.removed : styles.hidden}`}
                           >
-                            {c.priority === 'HIGH' ? 'ƯU TIÊN CAO (KHỦNG HOẢNG)' : 'ƯU TIÊN THƯỜNG'}
+                            {c.priority === 'HIGH'
+                              ? 'ƯU TIÊN CAO (KHỦNG HOẢNG)'
+                              : 'ƯU TIÊN THƯỜNG'}
                           </span>
                         </div>
                         <time className={styles.postTime}>
-                          Tác giả: <b>{c.target_author_name}</b> · Ghi nhận: {new Date(c.created_at).toLocaleString('vi-VN')}
+                          Tác giả: <b>{c.target_author_name}</b> · Ghi nhận:{' '}
+                          {new Date(c.created_at).toLocaleString('vi-VN')}
                         </time>
                       </div>
 
@@ -1249,7 +1584,8 @@ export default function AdminCommunityModerationSection() {
                           lineHeight: 1.5,
                         }}
                       >
-                        <b>Bằng chứng nội dung:</b> &quot;{c.evidence_content}&quot;
+                        <b>Bằng chứng nội dung:</b> &quot;{c.evidence_content}
+                        &quot;
                       </blockquote>
                     </div>
 
@@ -1280,7 +1616,13 @@ export default function AdminCommunityModerationSection() {
                           </button>
                         </div>
                       ) : (
-                        <span style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            color: '#059669',
+                            fontWeight: 600,
+                          }}
+                        >
                           ✓ Ca này đã được lưu vào nhật ký kiểm toán EMR.
                         </span>
                       )}
@@ -1294,7 +1636,9 @@ export default function AdminCommunityModerationSection() {
 
         {/* TAB 3: GIÁM SÁT BÌNH LUẬN (COMMENTS MODERATION) */}
         {activeTab === 'comments' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+          >
             <div className={styles.filterRow}>
               <div className={styles.searchWrapper}>
                 <Search size={16} className={styles.searchIcon} />
@@ -1340,7 +1684,13 @@ export default function AdminCommunityModerationSection() {
                       >
                         {comment.author_display_name.slice(0, 2).toUpperCase()}
                       </div>
-                      <span style={{ fontWeight: 700, fontSize: '13px', color: '#111827' }}>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          fontSize: '13px',
+                          color: '#111827',
+                        }}
+                      >
                         {comment.author_display_name}
                       </span>
                       <time style={{ fontSize: '12px', color: '#6B7280' }}>
@@ -1353,15 +1703,15 @@ export default function AdminCommunityModerationSection() {
                         comment.state === 'REMOVED'
                           ? styles.removed
                           : comment.state === 'HIDDEN'
-                          ? styles.hidden
-                          : styles.active
+                            ? styles.hidden
+                            : styles.active
                       }`}
                     >
                       {comment.state === 'REMOVED'
                         ? 'Đã gỡ'
                         : comment.state === 'HIDDEN'
-                        ? 'Đã ẩn'
-                        : 'Đang hiển thị'}
+                          ? 'Đã ẩn'
+                          : 'Đang hiển thị'}
                     </span>
                   </div>
 
@@ -1373,26 +1723,50 @@ export default function AdminCommunityModerationSection() {
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      gap: '8px',
+                    }}
+                  >
                     <button
                       type="button"
                       className={styles.actionBtn}
                       onClick={() =>
-                        handleCommentState(comment.id, comment.state === 'HIDDEN' ? 'ACTIVE' : 'HIDDEN')
+                        handleCommentState(
+                          comment.id,
+                          comment.state === 'HIDDEN' ? 'ACTIVE' : 'HIDDEN',
+                        )
                       }
                     >
-                      {comment.state === 'HIDDEN' ? <Eye size={12} /> : <EyeOff size={12} />}
-                      {comment.state === 'HIDDEN' ? 'Hiện bình luận' : 'Ẩn bình luận'}
+                      {comment.state === 'HIDDEN' ? (
+                        <Eye size={12} />
+                      ) : (
+                        <EyeOff size={12} />
+                      )}
+                      {comment.state === 'HIDDEN'
+                        ? 'Hiện bình luận'
+                        : 'Ẩn bình luận'}
                     </button>
                     <button
                       type="button"
                       className={`${styles.actionBtn} ${comment.state === 'REMOVED' ? styles.success : styles.danger}`}
                       onClick={() =>
-                        handleCommentState(comment.id, comment.state === 'REMOVED' ? 'ACTIVE' : 'REMOVED')
+                        handleCommentState(
+                          comment.id,
+                          comment.state === 'REMOVED' ? 'ACTIVE' : 'REMOVED',
+                        )
                       }
                     >
-                      {comment.state === 'REMOVED' ? <RotateCcw size={12} /> : <Trash2 size={12} />}
-                      {comment.state === 'REMOVED' ? 'Khôi phục' : 'Gỡ bình luận'}
+                      {comment.state === 'REMOVED' ? (
+                        <RotateCcw size={12} />
+                      ) : (
+                        <Trash2 size={12} />
+                      )}
+                      {comment.state === 'REMOVED'
+                        ? 'Khôi phục'
+                        : 'Gỡ bình luận'}
                     </button>
                   </div>
                 </div>
@@ -1403,61 +1777,104 @@ export default function AdminCommunityModerationSection() {
 
         {/* TAB 4: TIÊU CHUẨN CỘNG ĐỒNG & BỘ LỌC TỪ KHÓA AI */}
         {activeTab === 'policies' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
+          >
             <div className={styles.policyGrid}>
               <div className={styles.policyCard}>
                 <div className={styles.policyCardHeader}>
                   <ShieldAlert size={20} style={{ color: '#DC2626' }} />
-                  <span className={styles.policyTitle}>1. Phòng ngừa Khủng hoảng &amp; Hành vi tự hại</span>
+                  <span className={styles.policyTitle}>
+                    1. Phòng ngừa Khủng hoảng &amp; Hành vi tự hại
+                  </span>
                 </div>
                 <p className={styles.policyDesc}>
-                  Tuyệt đối nghiêm cấm các bài viết miêu tả chi tiết phương thức tự làm đau, khuyến khích kết thúc sinh mệnh. Hệ thống tự động kích hoạt Hotline cứu trợ 1900-xxxx và ghim thông tin hỗ trợ y tế khẩn cấp ngay trên màn hình người dùng.
+                  Tuyệt đối nghiêm cấm các bài viết miêu tả chi tiết phương thức
+                  tự làm đau, khuyến khích kết thúc sinh mệnh. Hệ thống tự động
+                  kích hoạt Hotline cứu trợ 1900-xxxx và ghim thông tin hỗ trợ y
+                  tế khẩn cấp ngay trên màn hình người dùng.
                 </p>
               </div>
 
               <div className={styles.policyCard}>
                 <div className={styles.policyCardHeader}>
                   <AlertTriangle size={20} style={{ color: '#D97706' }} />
-                  <span className={styles.policyTitle}>2. Chống Công kích cá nhân &amp; Bắt nạt tâm lý</span>
+                  <span className={styles.policyTitle}>
+                    2. Chống Công kích cá nhân &amp; Bắt nạt tâm lý
+                  </span>
                 </div>
                 <p className={styles.policyDesc}>
-                  Không dung thứ cho hành vi công kích hoặc miệt thị tình trạng sức khỏe tâm thần của người khác. Các bình luận có xu hướng chỉ trích tiêu cực sẽ bị AI gắn cờ và ẩn tự động.
+                  Không dung thứ cho hành vi công kích hoặc miệt thị tình trạng
+                  sức khỏe tâm thần của người khác. Các bình luận có xu hướng
+                  chỉ trích tiêu cực sẽ bị AI gắn cờ và ẩn tự động.
                 </p>
               </div>
 
               <div className={styles.policyCard}>
                 <div className={styles.policyCardHeader}>
                   <Lock size={20} style={{ color: '#2563EB' }} />
-                  <span className={styles.policyTitle}>3. Bảo mật Thông tin cá nhân &amp; HIPAA</span>
+                  <span className={styles.policyTitle}>
+                    3. Bảo mật Thông tin cá nhân &amp; HIPAA
+                  </span>
                 </div>
                 <p className={styles.policyDesc}>
-                  Nghiêm cấm chia sẻ số CMND/CCCD, số điện thoại, đơn thuốc có mã bệnh nhân hoặc danh tính thực của thân chủ nếu chưa được đồng thuận y tế rõ ràng.
+                  Nghiêm cấm chia sẻ số CMND/CCCD, số điện thoại, đơn thuốc có
+                  mã bệnh nhân hoặc danh tính thực của thân chủ nếu chưa được
+                  đồng thuận y tế rõ ràng.
                 </p>
               </div>
 
               <div className={styles.policyCard}>
                 <div className={styles.policyCardHeader}>
                   <ShieldCheck size={20} style={{ color: '#059669' }} />
-                  <span className={styles.policyTitle}>4. Cấm Kê đơn &amp; Tư vấn y khoa chưa thẩm định</span>
+                  <span className={styles.policyTitle}>
+                    4. Cấm Kê đơn &amp; Tư vấn y khoa chưa thẩm định
+                  </span>
                 </div>
                 <p className={styles.policyDesc}>
-                  Chỉ các Bác sĩ chuyên khoa và Chuyên gia lâm sàng đã qua xác thực CCHN mới được phép đưa ra lời khuyên chuyên môn. Mọi hành vi bán thuốc không kê đơn đều bị gỡ ngay lập tức.
+                  Chỉ các Bác sĩ chuyên khoa và Chuyên gia lâm sàng đã qua xác
+                  thực CCHN mới được phép đưa ra lời khuyên chuyên môn. Mọi hành
+                  vi bán thuốc không kê đơn đều bị gỡ ngay lập tức.
                 </p>
               </div>
             </div>
 
             {/* Keyword Filter Blacklist */}
             <div className={styles.keywordSection}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#111827' }}>
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: '16px',
+                      fontWeight: 700,
+                      color: '#111827',
+                    }}
+                  >
                     Danh mục Từ khóa AI Tự động Rà soát
                   </h3>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#6B7280' }}>
-                    Bộ từ điển quy chuẩn được MentalBridge AI áp dụng để quét tự động nội dung theo thời gian thực.
+                  <p
+                    style={{
+                      margin: '4px 0 0 0',
+                      fontSize: '13px',
+                      color: '#6B7280',
+                    }}
+                  >
+                    Bộ từ điển quy chuẩn được MentalBridge AI áp dụng để quét tự
+                    động nội dung theo thời gian thực.
                   </p>
                 </div>
-                <button type="button" className={styles.primaryBtn} onClick={handleRunAIScan}>
+                <button
+                  type="button"
+                  className={styles.primaryBtn}
+                  onClick={handleRunAIScan}
+                >
                   <Sparkles size={14} />
                   Quét toàn bộ bài viết ngay
                 </button>
@@ -1468,16 +1885,23 @@ export default function AdminCommunityModerationSection() {
                   <div key={idx} className={styles.keywordCard}>
                     <div className={styles.keywordHeader}>
                       <span>{item.category}</span>
-                      <span className={`${styles.statusBadge} ${item.level === 'CRITICAL' ? styles.removed : styles.sensitive}`}>
+                      <span
+                        className={`${styles.statusBadge} ${item.level === 'CRITICAL' ? styles.removed : styles.sensitive}`}
+                      >
                         {item.level}
                       </span>
                     </div>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#6B7280' }}>
+                    <p
+                      style={{ margin: 0, fontSize: '12px', color: '#6B7280' }}
+                    >
                       <b>Hành động:</b> {item.action}
                     </p>
                     <div className={styles.keywordTags}>
                       {item.keywords.map((k, kidx) => (
-                        <span key={kidx} className={`${styles.keywordBadge} ${item.level === 'CRITICAL' ? styles.danger : ''}`}>
+                        <span
+                          key={kidx}
+                          className={`${styles.keywordBadge} ${item.level === 'CRITICAL' ? styles.danger : ''}`}
+                        >
                           {k}
                         </span>
                       ))}
@@ -1491,17 +1915,29 @@ export default function AdminCommunityModerationSection() {
 
         {/* TAB 5: NHẬT KÝ THAO TÁC KIỂM DUYỆT (AUDIT LOG) */}
         {activeTab === 'audit' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+          >
             {auditLogs.length === 0 ? (
               <div className={styles.emptyState}>
                 <FileText size={36} style={{ color: '#9CA3AF' }} />
-                <span className={styles.emptyStateTitle}>Chưa có thao tác kiểm duyệt nào trong phiên này</span>
+                <span className={styles.emptyStateTitle}>
+                  Chưa có thao tác kiểm duyệt nào trong phiên này
+                </span>
                 <p className={styles.emptyStateDesc}>
-                  Khi bạn thực hiện các thao tác như ẩn bài viết, gỡ bỏ, bật cảnh báo nhạy cảm hoặc giải quyết ca kiểm duyệt, lịch sử sẽ được ghi nhận tại đây theo chuẩn kiểm toán EMR.
+                  Khi bạn thực hiện các thao tác như ẩn bài viết, gỡ bỏ, bật
+                  cảnh báo nhạy cảm hoặc giải quyết ca kiểm duyệt, lịch sử sẽ
+                  được ghi nhận tại đây theo chuẩn kiểm toán EMR.
                 </p>
               </div>
             ) : (
-              <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '12px' }}>
+              <div
+                style={{
+                  overflowX: 'auto',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '12px',
+                }}
+              >
                 <table className={styles.auditTable}>
                   <thead>
                     <tr>
@@ -1517,7 +1953,11 @@ export default function AdminCommunityModerationSection() {
                       <tr key={log.id}>
                         <td style={{ fontWeight: 600 }}>{log.time}</td>
                         <td>
-                          <span className={`${styles.statusBadge} ${styles.active}`}>{log.action}</span>
+                          <span
+                            className={`${styles.statusBadge} ${styles.active}`}
+                          >
+                            {log.action}
+                          </span>
                         </td>
                         <td>
                           <code>{log.target}</code>
@@ -1555,7 +1995,9 @@ export default function AdminCommunityModerationSection() {
                   Chi tiết bài viết &amp; Bảng điều phối kiểm duyệt
                 </h2>
                 <div className={styles.modalSubtitle}>
-                  <span>Mã bài viết: <code>#{selectedPost.id.slice(0, 8)}</code></span>
+                  <span>
+                    Mã bài viết: <code>#{selectedPost.id.slice(0, 8)}</code>
+                  </span>
                   <button
                     type="button"
                     className={styles.copyIdBtn}
@@ -1620,8 +2062,12 @@ export default function AdminCommunityModerationSection() {
                 <div className={styles.warningBox}>
                   <AlertTriangle size={18} />
                   <div>
-                    <div style={{ fontWeight: 700 }}>Đã kích hoạt cảnh báo nhạy cảm</div>
-                    <div style={{ fontSize: '13px' }}>{selectedPost.sensitive_content_warning}</div>
+                    <div style={{ fontWeight: 700 }}>
+                      Đã kích hoạt cảnh báo nhạy cảm
+                    </div>
+                    <div style={{ fontSize: '13px' }}>
+                      {selectedPost.sensitive_content_warning}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1636,49 +2082,89 @@ export default function AdminCommunityModerationSection() {
                         selectedPost.author_display_name === 'Khôi'
                           ? '#0E4A37'
                           : selectedPost.author_display_name === 'Ngọc Quyên'
-                          ? '#C2410C'
-                          : selectedPost.author_display_name === 'monglung'
-                          ? '#4338CA'
-                          : '#047857',
+                            ? '#C2410C'
+                            : selectedPost.author_display_name === 'monglung'
+                              ? '#4338CA'
+                              : '#047857',
                     }}
                   >
-                    {selectedPost.author_display_name ? selectedPost.author_display_name.slice(0, 2).toUpperCase() : 'MB'}
+                    {selectedPost.author_display_name
+                      ? selectedPost.author_display_name
+                          .slice(0, 2)
+                          .toUpperCase()
+                      : 'MB'}
                   </div>
                   <div className={styles.modalAuthorMeta}>
                     <div className={styles.modalAuthorName}>
                       {selectedPost.author_display_name}
                       <span className={styles.authorModeBadge}>
-                        {selectedPost.author_mode === 'ANONYMOUS' ? 'Đăng ẩn danh' : 'Thành viên xác thực'}
+                        {selectedPost.author_mode === 'ANONYMOUS'
+                          ? 'Đăng ẩn danh'
+                          : 'Thành viên xác thực'}
                       </span>
                     </div>
                     <div className={styles.modalAuthorDetails}>
-                      Hồ sơ: <code>{selectedPost.author_profile_id || 'ID chưa tạo'}</code> · Trạng thái: {selectedPost.author_status || 'ACTIVE'}
+                      Hồ sơ:{' '}
+                      <code>
+                        {selectedPost.author_profile_id || 'ID chưa tạo'}
+                      </code>{' '}
+                      · Trạng thái: {selectedPost.author_status || 'ACTIVE'}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ fontSize: '12px', color: '#6B7280', textAlign: 'right' }}>
-                  <div>Đăng lúc: <b>{new Date(selectedPost.published_at).toLocaleString('vi-VN')}</b></div>
-                  <div>Cập nhật: {new Date(selectedPost.updated_at).toLocaleString('vi-VN')}</div>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: '#6B7280',
+                    textAlign: 'right',
+                  }}
+                >
+                  <div>
+                    Đăng lúc:{' '}
+                    <b>
+                      {new Date(selectedPost.published_at).toLocaleString(
+                        'vi-VN',
+                      )}
+                    </b>
+                  </div>
+                  <div>
+                    Cập nhật:{' '}
+                    {new Date(selectedPost.updated_at).toLocaleString('vi-VN')}
+                  </div>
                 </div>
               </div>
 
               {/* Post Full Content */}
               <div className={styles.modalPostCard}>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: '#6B7280',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
                   Nội dung bài viết
                 </div>
-                <div className={styles.modalPostText}>{selectedPost.content}</div>
+                <div className={styles.modalPostText}>
+                  {selectedPost.content}
+                </div>
 
-                {selectedPost.topic_list && selectedPost.topic_list.length > 0 && (
-                  <div className={styles.topicsList} style={{ marginTop: '8px' }}>
-                    {selectedPost.topic_list.map((t) => (
-                      <span key={t} className={styles.topicTag}>
-                        #{TOPIC_LABELS[t] || t}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {selectedPost.topic_list &&
+                  selectedPost.topic_list.length > 0 && (
+                    <div
+                      className={styles.topicsList}
+                      style={{ marginTop: '8px' }}
+                    >
+                      {selectedPost.topic_list.map((t) => (
+                        <span key={t} className={styles.topicTag}>
+                          #{TOPIC_LABELS[t] || t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
               </div>
 
               {/* Attached Media Section */}
@@ -1686,14 +2172,22 @@ export default function AdminCommunityModerationSection() {
                 <div className={styles.mediaSectionHeader}>
                   <span>TỆP ĐA PHƯƠNG TIỆN ĐÍNH KÈM</span>
                   <span style={{ fontSize: '12px', color: '#6B7280' }}>
-                    {selectedPost.media_list && selectedPost.media_list.length > 0
+                    {selectedPost.media_list &&
+                    selectedPost.media_list.length > 0
                       ? `${selectedPost.media_list.length} tệp đã tải lên`
                       : 'Không có tệp đính kèm'}
                   </span>
                 </div>
 
-                {selectedPost.media_list && selectedPost.media_list.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {selectedPost.media_list &&
+                selectedPost.media_list.length > 0 ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '14px',
+                    }}
+                  >
                     {selectedPost.media_list.map((m) => {
                       const isVideo = isMediaVideo(m)
                       const isError = mediaErrors[m.id]
@@ -1712,9 +2206,20 @@ export default function AdminCommunityModerationSection() {
                                 Trình duyệt không hỗ trợ xem video trực tiếp.
                               </video>
                               <div className={styles.mediaCaption}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <Film size={14} style={{ color: '#D97706' }} />
-                                  <span>Video người dùng đăng tải (Cloudinary MP4)</span>
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                  }}
+                                >
+                                  <Film
+                                    size={14}
+                                    style={{ color: '#D97706' }}
+                                  />
+                                  <span>
+                                    Video người dùng đăng tải (Cloudinary MP4)
+                                  </span>
                                 </div>
                                 <a
                                   href={m.url}
@@ -1722,15 +2227,28 @@ export default function AdminCommunityModerationSection() {
                                   rel="noopener noreferrer"
                                   className={styles.mediaDirectLink}
                                 >
-                                  Mở video tab mới <ExternalLink size={12} style={{ display: 'inline' }} />
+                                  Mở video tab mới{' '}
+                                  <ExternalLink
+                                    size={12}
+                                    style={{ display: 'inline' }}
+                                  />
                                 </a>
                               </div>
                             </div>
                           ) : isError ? (
                             <div className={styles.mediaErrorFallback}>
-                              <ImageOff size={32} style={{ color: '#EF4444' }} />
-                              <div style={{ fontWeight: 600 }}>Không thể tải trước hình ảnh từ CDN</div>
-                              <div style={{ fontSize: '12px', color: '#9CA3AF' }}>Liên kết ảnh có thể cần chữ ký xác thực bảo mật.</div>
+                              <ImageOff
+                                size={32}
+                                style={{ color: '#EF4444' }}
+                              />
+                              <div style={{ fontWeight: 600 }}>
+                                Không thể tải trước hình ảnh từ CDN
+                              </div>
+                              <div
+                                style={{ fontSize: '12px', color: '#9CA3AF' }}
+                              >
+                                Liên kết ảnh có thể cần chữ ký xác thực bảo mật.
+                              </div>
                               <a
                                 href={m.url}
                                 target="_blank"
@@ -1742,18 +2260,35 @@ export default function AdminCommunityModerationSection() {
                             </div>
                           ) : (
                             <div>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={m.url}
                                 alt={m.altText || 'Ảnh đính kèm'}
                                 className={styles.imageElement}
-                                onError={() => setMediaErrors((prev) => ({ ...prev, [m.id]: true }))}
+                                onError={() =>
+                                  setMediaErrors((prev) => ({
+                                    ...prev,
+                                    [m.id]: true,
+                                  }))
+                                }
                                 onClick={() => setPreviewImage(m.url)}
                                 title="Bấm để xem ảnh phóng to"
                               />
                               <div className={styles.mediaCaption}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <ImageIcon size={14} style={{ color: '#0284C7' }} />
-                                  <span>Hình ảnh đính kèm (Nhấp để phóng to)</span>
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                  }}
+                                >
+                                  <ImageIcon
+                                    size={14}
+                                    style={{ color: '#0284C7' }}
+                                  />
+                                  <span>
+                                    Hình ảnh đính kèm (Nhấp để phóng to)
+                                  </span>
                                 </div>
                                 <a
                                   href={m.url}
@@ -1761,7 +2296,11 @@ export default function AdminCommunityModerationSection() {
                                   rel="noopener noreferrer"
                                   className={styles.mediaDirectLink}
                                 >
-                                  Mở ảnh tab mới <ExternalLink size={12} style={{ display: 'inline' }} />
+                                  Mở ảnh tab mới{' '}
+                                  <ExternalLink
+                                    size={12}
+                                    style={{ display: 'inline' }}
+                                  />
                                 </a>
                               </div>
                             </div>
@@ -1771,8 +2310,18 @@ export default function AdminCommunityModerationSection() {
                     })}
                   </div>
                 ) : (
-                  <div style={{ padding: '14px', background: '#F9FAFB', borderRadius: '10px', fontSize: '13px', color: '#6B7280', textAlign: 'center' }}>
-                    Bài viết này là dạng văn bản thuần túy, không có ảnh hoặc video đính kèm.
+                  <div
+                    style={{
+                      padding: '14px',
+                      background: '#F9FAFB',
+                      borderRadius: '10px',
+                      fontSize: '13px',
+                      color: '#6B7280',
+                      textAlign: 'center',
+                    }}
+                  >
+                    Bài viết này là dạng văn bản thuần túy, không có ảnh hoặc
+                    video đính kèm.
                   </div>
                 )}
               </div>
@@ -1780,23 +2329,45 @@ export default function AdminCommunityModerationSection() {
               {/* Engagement Metrics Stats */}
               <div className={styles.modalStatsRow}>
                 <div className={styles.modalStatCard}>
-                  <span className={styles.modalStatLabel}>LƯỢT THẢ TIM &amp; CẢM XÚC</span>
-                  <span className={styles.modalStatValue} style={{ color: '#EF4444' }}>
+                  <span className={styles.modalStatLabel}>
+                    LƯỢT THẢ TIM &amp; CẢM XÚC
+                  </span>
+                  <span
+                    className={styles.modalStatValue}
+                    style={{ color: '#EF4444' }}
+                  >
                     <Heart size={18} />
                     {selectedPost.reaction_count}
                   </span>
                 </div>
                 <div className={styles.modalStatCard}>
-                  <span className={styles.modalStatLabel}>SỐ BÌNH LUẬN CỘNG ĐỒNG</span>
-                  <span className={styles.modalStatValue} style={{ color: '#3B82F6' }}>
+                  <span className={styles.modalStatLabel}>
+                    SỐ BÌNH LUẬN CỘNG ĐỒNG
+                  </span>
+                  <span
+                    className={styles.modalStatValue}
+                    style={{ color: '#3B82F6' }}
+                  >
                     <MessageSquare size={18} />
                     {selectedPost.comment_count}
                   </span>
                 </div>
                 <div className={styles.modalStatCard}>
-                  <span className={styles.modalStatLabel}>ĐỘ ƯU TIÊN KIỂM DUYỆT</span>
-                  <span className={styles.modalStatValue} style={{ color: selectedPost.sensitive_content_warning ? '#D97706' : '#059669', fontSize: '14px' }}>
-                    {selectedPost.sensitive_content_warning ? '⚠️ Cần lưu ý' : '✓ An toàn'}
+                  <span className={styles.modalStatLabel}>
+                    ĐỘ ƯU TIÊN KIỂM DUYỆT
+                  </span>
+                  <span
+                    className={styles.modalStatValue}
+                    style={{
+                      color: selectedPost.sensitive_content_warning
+                        ? '#D97706'
+                        : '#059669',
+                      fontSize: '14px',
+                    }}
+                  >
+                    {selectedPost.sensitive_content_warning
+                      ? '⚠️ Cần lưu ý'
+                      : '✓ An toàn'}
                   </span>
                 </div>
               </div>
@@ -1809,21 +2380,43 @@ export default function AdminCommunityModerationSection() {
                 <button
                   type="button"
                   className={`${styles.actionBtn} ${selectedPost.sensitive_content_warning ? styles.warning : ''}`}
-                  onClick={() => handleToggleSensitive(selectedPost.id, selectedPost.sensitive_content_warning)}
-                  title={selectedPost.sensitive_content_warning ? 'Gỡ lớp cảnh báo nhạy cảm' : 'Bật cảnh báo nhạy cảm (Trigger Warning)'}
+                  onClick={() =>
+                    handleToggleSensitive(
+                      selectedPost.id,
+                      selectedPost.sensitive_content_warning,
+                    )
+                  }
+                  title={
+                    selectedPost.sensitive_content_warning
+                      ? 'Gỡ lớp cảnh báo nhạy cảm'
+                      : 'Bật cảnh báo nhạy cảm (Trigger Warning)'
+                  }
                 >
                   <AlertTriangle size={14} />
-                  {selectedPost.sensitive_content_warning ? 'Gỡ cảnh báo nhạy cảm' : 'Gắn cảnh báo nhạy cảm'}
+                  {selectedPost.sensitive_content_warning
+                    ? 'Gỡ cảnh báo nhạy cảm'
+                    : 'Gắn cảnh báo nhạy cảm'}
                 </button>
 
                 {/* 2. Hide / Unhide */}
                 <button
                   type="button"
                   className={styles.actionBtn}
-                  onClick={() => handlePostState(selectedPost.id, selectedPost.state === 'HIDDEN' ? 'ACTIVE' : 'HIDDEN')}
+                  onClick={() =>
+                    handlePostState(
+                      selectedPost.id,
+                      selectedPost.state === 'HIDDEN' ? 'ACTIVE' : 'HIDDEN',
+                    )
+                  }
                 >
-                  {selectedPost.state === 'HIDDEN' ? <Eye size={14} /> : <EyeOff size={14} />}
-                  {selectedPost.state === 'HIDDEN' ? 'Hiển thị lại bài' : 'Tạm ẩn bài viết'}
+                  {selectedPost.state === 'HIDDEN' ? (
+                    <Eye size={14} />
+                  ) : (
+                    <EyeOff size={14} />
+                  )}
+                  {selectedPost.state === 'HIDDEN'
+                    ? 'Hiển thị lại bài'
+                    : 'Tạm ẩn bài viết'}
                 </button>
 
                 {/* 3. Remove / Restore */}
@@ -1898,6 +2491,7 @@ export default function AdminCommunityModerationSection() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={previewImage}
               alt="Xem ảnh kích thước đầy đủ"
@@ -1908,7 +2502,14 @@ export default function AdminCommunityModerationSection() {
                 objectFit: 'contain',
               }}
             />
-            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', background: '#F9FAFB' }}>
+            <div
+              style={{
+                padding: '12px 16px',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                background: '#F9FAFB',
+              }}
+            >
               <button
                 type="button"
                 className={styles.primaryBtn}

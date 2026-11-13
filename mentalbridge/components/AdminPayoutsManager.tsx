@@ -39,7 +39,6 @@ type StatusFilter = 'ALL' | 'NEEDS_REVIEW' | Item['status']
 
 const TABS: readonly Tab[] = ['queue', 'ledger', 'history']
 const PAGE_SIZE = 6
-const PROVIDERS: Item['provider'][] = ['MOMO', 'PAYOS', 'FAKE']
 
 function money(value: number) {
   return new Intl.NumberFormat('vi-VN', {

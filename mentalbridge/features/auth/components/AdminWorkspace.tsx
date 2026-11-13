@@ -20,7 +20,6 @@ import {
   MessageSquareQuote,
   Search,
   Bell,
-  Headphones,
   HelpCircle,
   User,
 } from 'lucide-react'
@@ -270,38 +269,38 @@ export default function AdminWorkspace({
         </button>
         <nav aria-label="Điều hướng quản trị">
           {Object.entries(SECTIONS)
-            .filter(([_, item]) => !(item as { hidden?: boolean }).hidden)
+            .filter(([, item]) => !(item as { hidden?: boolean }).hidden)
             .map(([key, item]) => {
-            const Icon = item.icon
-            const isActive = key === section
-            return (
-              <div key={key} className="role-nav-item">
-                <Link
-                  href={`/admin/${key}`}
-                  className={isActive ? 'active' : ''}
-                  aria-current={isActive ? 'page' : undefined}
-                  onClick={() => setMobileOpen(false)}
-                  title={sidebarCollapsed ? item.label : undefined}
-                >
-                  {isActive && (
-                    <motion.span
-                      layoutId="role-active-admin"
-                      className="role-active-pill"
-                      transition={{
-                        type: 'spring',
-                        stiffness: 380,
-                        damping: 32,
-                      }}
-                    />
-                  )}
-                  <span className="role-nav-icon" aria-hidden="true">
-                    <Icon size={16} strokeWidth={1.8} />
-                  </span>
-                  <span className="role-nav-label">{item.label}</span>
-                </Link>
-              </div>
-            )
-          })}
+              const Icon = item.icon
+              const isActive = key === section
+              return (
+                <div key={key} className="role-nav-item">
+                  <Link
+                    href={`/admin/${key}`}
+                    className={isActive ? 'active' : ''}
+                    aria-current={isActive ? 'page' : undefined}
+                    onClick={() => setMobileOpen(false)}
+                    title={sidebarCollapsed ? item.label : undefined}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="role-active-admin"
+                        className="role-active-pill"
+                        transition={{
+                          type: 'spring',
+                          stiffness: 380,
+                          damping: 32,
+                        }}
+                      />
+                    )}
+                    <span className="role-nav-icon" aria-hidden="true">
+                      <Icon size={16} strokeWidth={1.8} />
+                    </span>
+                    <span className="role-nav-label">{item.label}</span>
+                  </Link>
+                </div>
+              )
+            })}
         </nav>
         <WorkspaceSwitcher workspaces={workspaces} currentRole="ADMIN" />
         <div className="role-sidebar-foot">
@@ -347,10 +346,10 @@ export default function AdminWorkspace({
                 {section === 'accounts'
                   ? 'Quản lý tài khoản'
                   : section === 'dashboard'
-                  ? 'Tổng quan hệ thống'
-                  : section === 'appointments'
-                  ? 'Giám sát vòng đời lịch hẹn'
-                  : currentSectionLabel}
+                    ? 'Tổng quan hệ thống'
+                    : section === 'appointments'
+                      ? 'Giám sát vòng đời lịch hẹn'
+                      : currentSectionLabel}
               </span>
             </div>
             <div className="clinical-topbar-status-pill">
@@ -374,8 +373,8 @@ export default function AdminWorkspace({
                   section === 'accounts'
                     ? 'Tìm kiếm tài khoản, email…'
                     : section === 'specialists'
-                    ? 'Tìm kiếm chuyên gia, hồ sơ…'
-                    : 'Tìm kiếm hồ sơ, bệnh án…'
+                      ? 'Tìm kiếm chuyên gia, hồ sơ…'
+                      : 'Tìm kiếm hồ sơ, bệnh án…'
                 }
                 aria-label="Tìm kiếm trong hệ thống quản trị"
               />

@@ -12,7 +12,6 @@ import {
   Sparkles,
   Stethoscope,
   User,
-  HeartHandshake,
   MessageCircle,
   FileCheck2,
   X,
@@ -24,8 +23,6 @@ import {
   ChevronRight,
   Copy,
   Check,
-  ShieldCheck,
-  ExternalLink,
 } from 'lucide-react'
 import './admin-feedback-manager.css'
 
@@ -110,16 +107,22 @@ export default function AdminFeedbackManager() {
   const [asOf, setAsOf] = useState<string>('')
 
   // Filters & State
-  const [activeTab, setActiveTab] = useState<'ALL' | 'CLIENT' | 'SPECIALIST' | 'PENDING'>('ALL')
+  const [activeTab, setActiveTab] = useState<
+    'ALL' | 'CLIENT' | 'SPECIALIST' | 'PENDING'
+  >('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTopic, setSelectedTopic] = useState<string>('ALL')
   const [selectedRating, setSelectedRating] = useState<number | 'ALL'>('ALL')
-  const [selectedStatus, setSelectedStatus] = useState<FeedbackStatus | 'ALL'>('ALL')
+  const [selectedStatus, setSelectedStatus] = useState<FeedbackStatus | 'ALL'>(
+    'ALL',
+  )
 
   // Modal State for Full Detail & Processing Popup
-  const [selectedFeedback, setSelectedFeedback] = useState<RealFeedbackItem | null>(null)
+  const [selectedFeedback, setSelectedFeedback] =
+    useState<RealFeedbackItem | null>(null)
   const [responseText, setResponseText] = useState('')
-  const [responseStatus, setResponseStatus] = useState<FeedbackStatus>('RESOLVED')
+  const [responseStatus, setResponseStatus] =
+    useState<FeedbackStatus>('RESOLVED')
   const [internalNoteText, setInternalNoteText] = useState('')
   const [savingResponse, setSavingResponse] = useState(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
@@ -153,7 +156,9 @@ export default function AdminFeedbackManager() {
       }
     } catch (err: unknown) {
       console.error('[AdminFeedbackManager] Failed to fetch:', err)
-      setError(err instanceof Error ? err.message : 'Không thể tải dữ liệu phản hồi.')
+      setError(
+        err instanceof Error ? err.message : 'Không thể tải dữ liệu phản hồi.',
+      )
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -161,7 +166,10 @@ export default function AdminFeedbackManager() {
   }, [])
 
   useEffect(() => {
-    fetchFeedbackData()
+    const timer = setTimeout(() => {
+      fetchFeedbackData()
+    }, 0)
+    return () => clearTimeout(timer)
   }, [fetchFeedbackData])
 
   // Close modal on Escape key
@@ -198,7 +206,8 @@ export default function AdminFeedbackManager() {
     return feedbacks.filter((item) => {
       // Tab filter
       if (activeTab === 'CLIENT' && item.category !== 'CLIENT') return false
-      if (activeTab === 'SPECIALIST' && item.category !== 'SPECIALIST') return false
+      if (activeTab === 'SPECIALIST' && item.category !== 'SPECIALIST')
+        return false
       if (activeTab === 'PENDING' && item.status === 'RESOLVED') return false
 
       // Topic filter
@@ -213,7 +222,8 @@ export default function AdminFeedbackManager() {
       }
 
       // Status filter
-      if (selectedStatus !== 'ALL' && item.status !== selectedStatus) return false
+      if (selectedStatus !== 'ALL' && item.status !== selectedStatus)
+        return false
 
       // Search query
       if (searchQuery.trim()) {
@@ -221,7 +231,9 @@ export default function AdminFeedbackManager() {
         const matchesContent = item.content.toLowerCase().includes(q)
         const matchesTitle = item.title.toLowerCase().includes(q)
         const matchesAuthor = item.authorName.toLowerCase().includes(q)
-        const matchesEmail = item.authorEmail ? item.authorEmail.toLowerCase().includes(q) : false
+        const matchesEmail = item.authorEmail
+          ? item.authorEmail.toLowerCase().includes(q)
+          : false
         const matchesSpecialist = item.targetSpecialist
           ? item.targetSpecialist.toLowerCase().includes(q)
           : false
@@ -242,7 +254,14 @@ export default function AdminFeedbackManager() {
 
       return true
     })
-  }, [feedbacks, activeTab, selectedTopic, selectedRating, selectedStatus, searchQuery])
+  }, [
+    feedbacks,
+    activeTab,
+    selectedTopic,
+    selectedRating,
+    selectedStatus,
+    searchQuery,
+  ])
 
   // Handle open detail popup
   const handleOpenDetailModal = (item: RealFeedbackItem) => {
@@ -254,7 +273,10 @@ export default function AdminFeedbackManager() {
   }
 
   // Handle apply quick template
-  const handleApplyTemplate = (tmplText: string, tmplStatus: FeedbackStatus) => {
+  const handleApplyTemplate = (
+    tmplText: string,
+    tmplStatus: FeedbackStatus,
+  ) => {
     setResponseText(tmplText)
     setResponseStatus(tmplStatus)
   }
@@ -370,10 +392,17 @@ export default function AdminFeedbackManager() {
         <div className="feedback-telemetry-left">
           <Database size={15} className="telemetry-icon-pulse" />
           <span className="telemetry-badge-dot">●</span>
-          <span className="telemetry-strong">DỮ LIỆU ĐỐI SOÁT AUTHORITATIVE TỪ POSTGRESQL RDS</span>
+          <span className="telemetry-strong">
+            DỮ LIỆU ĐỐI SOÁT AUTHORITATIVE TỪ POSTGRESQL RDS
+          </span>
           <span className="telemetry-divider">|</span>
-          <span>{kpis.totalRatingsCount} lượt đánh giá lâm sàng tích lũy ({specialists.length} chuyên gia)</span>
-          {asOf && <span className="telemetry-asof">• Cập nhật lúc {asOf}</span>}
+          <span>
+            {kpis.totalRatingsCount} lượt đánh giá lâm sàng tích lũy (
+            {specialists.length} chuyên gia)
+          </span>
+          {asOf && (
+            <span className="telemetry-asof">• Cập nhật lúc {asOf}</span>
+          )}
         </div>
         <div className="feedback-telemetry-right">
           <button
@@ -391,10 +420,16 @@ export default function AdminFeedbackManager() {
       {/* Header */}
       <div className="admin-feedback-header">
         <div className="feedback-header-titles">
-          <div className="feedback-header-pre">QUẢN TRỊ TRẢI NGHIỆM & CHẤT LƯỢNG Y TẾ</div>
-          <h1 className="feedback-header-title">Ý kiến & Phản hồi Người dùng</h1>
+          <div className="feedback-header-pre">
+            QUẢN TRỊ TRẢI NGHIỆM & CHẤT LƯỢNG Y TẾ
+          </div>
+          <h1 className="feedback-header-title">
+            Ý kiến & Phản hồi Người dùng
+          </h1>
           <p className="feedback-header-desc">
-            Giám sát chỉ số hài lòng thực tế (CSAT), phản hồi dịch vụ từ Khách hàng và chuyên gia y tế, điều phối xử lý theo tiêu chuẩn an toàn lâm sàng.
+            Giám sát chỉ số hài lòng thực tế (CSAT), phản hồi dịch vụ từ Khách
+            hàng và chuyên gia y tế, điều phối xử lý theo tiêu chuẩn an toàn lâm
+            sàng.
           </p>
         </div>
         <div className="feedback-header-actions">
@@ -422,17 +457,24 @@ export default function AdminFeedbackManager() {
             <span className="kpi-number">{kpis.overallCsat.toFixed(2)}</span>
             <span className="kpi-max">/ 5.0</span>
           </div>
-          <div className="kpi-stars" aria-label={`Đánh giá ${kpis.overallCsat} sao`}>
+          <div
+            className="kpi-stars"
+            aria-label={`Đánh giá ${kpis.overallCsat} sao`}
+          >
             {[1, 2, 3, 4, 5].map((i) => (
               <Star
                 key={i}
                 size={16}
                 fill={i <= Math.round(kpis.overallCsat) ? '#f59e0b' : 'none'}
-                stroke={i <= Math.round(kpis.overallCsat) ? '#f59e0b' : '#cbd5e1'}
+                stroke={
+                  i <= Math.round(kpis.overallCsat) ? '#f59e0b' : '#cbd5e1'
+                }
               />
             ))}
           </div>
-          <div className="kpi-subtext">Dựa trên {kpis.totalRatingsCount} lượt đánh giá thực tế</div>
+          <div className="kpi-subtext">
+            Dựa trên {kpis.totalRatingsCount} lượt đánh giá thực tế
+          </div>
         </div>
 
         <div className="feedback-kpi-card client-card">
@@ -476,7 +518,9 @@ export default function AdminFeedbackManager() {
               }}
             />
           </div>
-          <div className="kpi-subtext">Đóng góp về EMR, Payout & ca lâm sàng</div>
+          <div className="kpi-subtext">
+            Đóng góp về EMR, Payout & ca lâm sàng
+          </div>
         </div>
 
         <div className="feedback-kpi-card progress-card">
@@ -489,7 +533,9 @@ export default function AdminFeedbackManager() {
           <div className="kpi-value-row">
             <span className="kpi-number">{kpis.resolutionRate}%</span>
             <span className="kpi-status-badge">
-              {kpis.pendingActionCount === 0 ? 'Hoàn tất 100%' : `${kpis.pendingActionCount} cần xử lý`}
+              {kpis.pendingActionCount === 0
+                ? 'Hoàn tất 100%'
+                : `${kpis.pendingActionCount} cần xử lý`}
             </span>
           </div>
           <div className="kpi-progress-bar">
@@ -511,7 +557,10 @@ export default function AdminFeedbackManager() {
         <div className="specialists-csat-bar">
           <div className="specialists-csat-title">
             <Award size={16} className="text-emerald-700" />
-            <span>Chỉ số CSAT thực tế theo từng Bác sĩ & Chuyên gia (PostgreSQL Aggregates):</span>
+            <span>
+              Chỉ số CSAT thực tế theo từng Bác sĩ & Chuyên gia (PostgreSQL
+              Aggregates):
+            </span>
           </div>
           <div className="specialists-csat-cards">
             {specialists.map((s) => (
@@ -557,7 +606,9 @@ export default function AdminFeedbackManager() {
           >
             <Stethoscope size={15} />
             <span>Bác sĩ & Chuyên gia</span>
-            <span className="tab-badge specialist">{kpis.specialistFeedbackCount}</span>
+            <span className="tab-badge specialist">
+              {kpis.specialistFeedbackCount}
+            </span>
           </button>
           <button
             role="tab"
@@ -568,7 +619,9 @@ export default function AdminFeedbackManager() {
             <Clock size={15} />
             <span>Cần phản hồi & Xử lý</span>
             {kpis.pendingActionCount > 0 && (
-              <span className="tab-badge pending">{kpis.pendingActionCount}</span>
+              <span className="tab-badge pending">
+                {kpis.pendingActionCount}
+              </span>
             )}
           </button>
         </div>
@@ -663,7 +716,8 @@ export default function AdminFeedbackManager() {
       <div className="feedback-list-section">
         <div className="feedback-list-head">
           <div className="list-count-text">
-            Hiển thị <strong>{filteredFeedbacks.length}</strong> / {feedbacks.length} phản hồi từ cơ sở dữ liệu
+            Hiển thị <strong>{filteredFeedbacks.length}</strong> /{' '}
+            {feedbacks.length} phản hồi từ cơ sở dữ liệu
           </div>
           {(searchQuery ||
             selectedTopic !== 'ALL' ||
@@ -688,7 +742,10 @@ export default function AdminFeedbackManager() {
           <div className="feedback-error-banner">
             <AlertCircle size={18} />
             <span>{error}</span>
-            <button onClick={() => fetchFeedbackData(true)} className="btn-retry">
+            <button
+              onClick={() => fetchFeedbackData(true)}
+              className="btn-retry"
+            >
               Thử lại
             </button>
           </div>
@@ -733,7 +790,9 @@ export default function AdminFeedbackManager() {
                     </div>
                     <div className="compact-author-details">
                       <div className="compact-name-line">
-                        <strong className="compact-author-name">{item.authorName}</strong>
+                        <strong className="compact-author-name">
+                          {item.authorName}
+                        </strong>
                         <span
                           className={`compact-role-pill ${item.category === 'CLIENT' ? 'role-client' : 'role-specialist'}`}
                         >
@@ -749,33 +808,47 @@ export default function AdminFeedbackManager() {
                         </span>
                         <span className="compact-dot">•</span>
                         <span className="compact-time">
-                          {new Date(item.createdAt).toLocaleDateString('vi-VN', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                          })}
+                          {new Date(item.createdAt).toLocaleDateString(
+                            'vi-VN',
+                            {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            },
+                          )}
                         </span>
                       </div>
                       {item.authorEmail && (
-                        <div className="compact-email-sub">{item.authorEmail}</div>
+                        <div className="compact-email-sub">
+                          {item.authorEmail}
+                        </div>
                       )}
                     </div>
                   </div>
 
                   <div className="compact-badges-group">
                     {/* Star Rating Badge */}
-                    <div className="compact-star-chip" aria-label={`Đánh giá: ${item.rating}/5 sao`}>
+                    <div
+                      className="compact-star-chip"
+                      aria-label={`Đánh giá: ${item.rating}/5 sao`}
+                    >
                       <span className="star-num">{item.rating}</span>
                       <Star size={12} fill="#f59e0b" stroke="#f59e0b" />
                     </div>
 
                     {/* Admin response badge */}
                     {item.adminResponse ? (
-                      <span className="compact-reply-badge replied" title="Đã có phản hồi chính thức từ Admin">
+                      <span
+                        className="compact-reply-badge replied"
+                        title="Đã có phản hồi chính thức từ Admin"
+                      >
                         <CheckCircle2 size={11} /> Đã phản hồi
                       </span>
                     ) : (
-                      <span className="compact-reply-badge unreplied" title="Chưa có phản hồi từ Admin">
+                      <span
+                        className="compact-reply-badge unreplied"
+                        title="Chưa có phản hồi từ Admin"
+                      >
                         <Clock size={11} /> Chưa phản hồi
                       </span>
                     )}
@@ -790,13 +863,11 @@ export default function AdminFeedbackManager() {
                             : 'chip-pending'
                       }`}
                     >
-                      {item.status === 'RESOLVED' ? (
-                        'Đã giải quyết'
-                      ) : item.status === 'IN_PROGRESS' ? (
-                        'Đang xử lý'
-                      ) : (
-                        'Chờ xử lý'
-                      )}
+                      {item.status === 'RESOLVED'
+                        ? 'Đã giải quyết'
+                        : item.status === 'IN_PROGRESS'
+                          ? 'Đang xử lý'
+                          : 'Chờ xử lý'}
                     </span>
                   </div>
                 </div>
@@ -825,7 +896,8 @@ export default function AdminFeedbackManager() {
                     )}
                     {item.tags.length > 0 && (
                       <span className="compact-tag-preview">
-                        #{item.tags[0]} {item.tags.length > 1 ? `+${item.tags.length - 1}` : ''}
+                        #{item.tags[0]}{' '}
+                        {item.tags.length > 1 ? `+${item.tags.length - 1}` : ''}
                       </span>
                     )}
                   </div>
@@ -843,7 +915,10 @@ export default function AdminFeedbackManager() {
 
       {/* POPUP CHI TIẾT & ĐẦY ĐỦ CÁC THAO TÁC XỬ LÝ (Detail & Processing Modal) */}
       {selectedFeedback && (
-        <div className="feedback-modal-backdrop" onClick={() => setSelectedFeedback(null)}>
+        <div
+          className="feedback-modal-backdrop"
+          onClick={() => setSelectedFeedback(null)}
+        >
           <div
             className="feedback-modal-window feedback-detail-modal"
             onClick={(e) => e.stopPropagation()}
@@ -855,8 +930,12 @@ export default function AdminFeedbackManager() {
             <div className="modal-header">
               <div className="modal-title-group">
                 <div className="modal-pre-line">
-                  <span className="modal-pre-badge">QUẢN TRỊ TRẢI NGHIỆM LÂM SÀNG</span>
-                  <span className="modal-id-badge">ID: {selectedFeedback.id}</span>
+                  <span className="modal-pre-badge">
+                    QUẢN TRỊ TRẢI NGHIỆM LÂM SÀNG
+                  </span>
+                  <span className="modal-id-badge">
+                    ID: {selectedFeedback.id}
+                  </span>
                   <span className="modal-rds-badge">● Authoritative RDS</span>
                 </div>
                 <h3 id="feedback-detail-title" className="modal-title">
@@ -885,7 +964,9 @@ export default function AdminFeedbackManager() {
                   </div>
                   <div className="profile-info-col">
                     <div className="profile-name-row">
-                      <h4 className="profile-full-name">{selectedFeedback.authorName}</h4>
+                      <h4 className="profile-full-name">
+                        {selectedFeedback.authorName}
+                      </h4>
                       <span
                         className={`compact-role-pill ${selectedFeedback.category === 'CLIENT' ? 'role-client' : 'role-specialist'}`}
                       >
@@ -905,11 +986,18 @@ export default function AdminFeedbackManager() {
                       {selectedFeedback.authorEmail && (
                         <>
                           <span className="dot-sep">•</span>
-                          <span className="author-email-link">{selectedFeedback.authorEmail}</span>
+                          <span className="author-email-link">
+                            {selectedFeedback.authorEmail}
+                          </span>
                         </>
                       )}
                       <span className="dot-sep">•</span>
-                      <span>Gửi lúc: {new Date(selectedFeedback.createdAt).toLocaleString('vi-VN')}</span>
+                      <span>
+                        Gửi lúc:{' '}
+                        {new Date(selectedFeedback.createdAt).toLocaleString(
+                          'vi-VN',
+                        )}
+                      </span>
                     </div>
                   </div>
 
@@ -922,8 +1010,14 @@ export default function AdminFeedbackManager() {
                         <Star
                           key={star}
                           size={14}
-                          fill={star <= selectedFeedback.rating ? '#f59e0b' : 'none'}
-                          stroke={star <= selectedFeedback.rating ? '#f59e0b' : '#cbd5e1'}
+                          fill={
+                            star <= selectedFeedback.rating ? '#f59e0b' : 'none'
+                          }
+                          stroke={
+                            star <= selectedFeedback.rating
+                              ? '#f59e0b'
+                              : '#cbd5e1'
+                          }
                         />
                       ))}
                     </div>
@@ -949,7 +1043,9 @@ export default function AdminFeedbackManager() {
                   </div>
                   {selectedFeedback.targetSpecialist && (
                     <div className="context-meta-item">
-                      <span className="meta-item-label">Chuyên gia phụ trách:</span>
+                      <span className="meta-item-label">
+                        Chuyên gia phụ trách:
+                      </span>
                       <span className="meta-item-value font-medium text-slate-800">
                         {selectedFeedback.targetSpecialist}
                       </span>
@@ -962,11 +1058,20 @@ export default function AdminFeedbackManager() {
                         <code>{selectedFeedback.sessionCode}</code>
                         <button
                           type="button"
-                          onClick={() => handleCopyText(selectedFeedback.sessionCode || '', 'sessionCode')}
+                          onClick={() =>
+                            handleCopyText(
+                              selectedFeedback.sessionCode || '',
+                              'sessionCode',
+                            )
+                          }
                           className="btn-copy-mini"
                           title="Sao chép mã ca khám"
                         >
-                          {copiedField === 'sessionCode' ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
+                          {copiedField === 'sessionCode' ? (
+                            <Check size={11} className="text-emerald-600" />
+                          ) : (
+                            <Copy size={11} />
+                          )}
                         </button>
                       </span>
                     </div>
@@ -983,14 +1088,18 @@ export default function AdminFeedbackManager() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleCopyText(selectedFeedback.content, 'content')}
+                    onClick={() =>
+                      handleCopyText(selectedFeedback.content, 'content')
+                    }
                     className="btn-copy-text"
                     title="Sao chép nội dung"
                   >
                     {copiedField === 'content' ? (
                       <>
                         <Check size={12} className="text-emerald-600" />
-                        <span className="text-emerald-700 font-semibold">Đã sao chép!</span>
+                        <span className="text-emerald-700 font-semibold">
+                          Đã sao chép!
+                        </span>
                       </>
                     ) : (
                       <>
@@ -1001,7 +1110,9 @@ export default function AdminFeedbackManager() {
                   </button>
                 </div>
                 <div className="feedback-full-quote">
-                  <p className="full-content-text">{selectedFeedback.content}</p>
+                  <p className="full-content-text">
+                    {selectedFeedback.content}
+                  </p>
                 </div>
 
                 {selectedFeedback.tags.length > 0 && (
@@ -1024,7 +1135,9 @@ export default function AdminFeedbackManager() {
 
                 {/* Thao tác 1: Chọn trạng thái xử lý */}
                 <div className="action-status-selector">
-                  <label className="action-sub-label">Trạng thái điều phối:</label>
+                  <label className="action-sub-label">
+                    Trạng thái điều phối:
+                  </label>
                   <div className="status-toggle-options">
                     <button
                       type="button"
@@ -1060,7 +1173,9 @@ export default function AdminFeedbackManager() {
                       <Sparkles size={13} className="text-amber-500" />
                       <span>Mẫu phản hồi nhanh 1-Click:</span>
                     </span>
-                    <span className="templates-hint">Bấm vào mẫu để tự động điền nội dung</span>
+                    <span className="templates-hint">
+                      Bấm vào mẫu để tự động điền nội dung
+                    </span>
                   </div>
                   <div className="templates-chip-group">
                     {QUICK_TEMPLATES.map((tmpl, idx) => (
@@ -1068,7 +1183,9 @@ export default function AdminFeedbackManager() {
                         key={idx}
                         type="button"
                         className="template-chip-btn"
-                        onClick={() => handleApplyTemplate(tmpl.text, tmpl.status)}
+                        onClick={() =>
+                          handleApplyTemplate(tmpl.text, tmpl.status)
+                        }
                         title="Bấm để tự động điền mẫu này"
                       >
                         <span>{tmpl.label}</span>
@@ -1080,10 +1197,15 @@ export default function AdminFeedbackManager() {
                 {/* Thao tác 3: Ô nhập Phản hồi chính thức */}
                 <div className="form-field-group">
                   <div className="field-label-row">
-                    <label htmlFor="admin-response-input" className="field-label-strong">
+                    <label
+                      htmlFor="admin-response-input"
+                      className="field-label-strong"
+                    >
                       Phản hồi chính thức từ Ban Quản trị:
                     </label>
-                    <span className="field-badge-public">Hiển thị công khai tới người dùng</span>
+                    <span className="field-badge-public">
+                      Hiển thị công khai tới người dùng
+                    </span>
                   </div>
                   <textarea
                     id="admin-response-input"
@@ -1097,7 +1219,10 @@ export default function AdminFeedbackManager() {
                     <div className="previous-response-notice">
                       <FileCheck2 size={12} className="text-emerald-600" />
                       <span>
-                        Lần phản hồi gần nhất: {new Date(selectedFeedback.adminRespondedAt).toLocaleString('vi-VN')}
+                        Lần phản hồi gần nhất:{' '}
+                        {new Date(
+                          selectedFeedback.adminRespondedAt,
+                        ).toLocaleString('vi-VN')}
                       </span>
                     </div>
                   )}
@@ -1106,10 +1231,15 @@ export default function AdminFeedbackManager() {
                 {/* Thao tác 4: Ghi chú nội bộ lâm sàng */}
                 <div className="form-field-group">
                   <div className="field-label-row">
-                    <label htmlFor="internal-note-input" className="field-label-strong">
+                    <label
+                      htmlFor="internal-note-input"
+                      className="field-label-strong"
+                    >
                       Ghi chú nội bộ lâm sàng & kiểm toán (Bảo mật HIPAA):
                     </label>
-                    <span className="field-badge-private">Chỉ lưu hành nội bộ</span>
+                    <span className="field-badge-private">
+                      Chỉ lưu hành nội bộ
+                    </span>
                   </div>
                   <textarea
                     id="internal-note-input"
@@ -1127,7 +1257,14 @@ export default function AdminFeedbackManager() {
             <div className="modal-footer-enhanced">
               <div className="modal-footer-left">
                 <span className="footer-status-summary">
-                  Trạng thái sẽ lưu: <strong>{responseStatus === 'RESOLVED' ? 'Đã giải quyết' : responseStatus === 'IN_PROGRESS' ? 'Đang xử lý' : 'Chờ xử lý'}</strong>
+                  Trạng thái sẽ lưu:{' '}
+                  <strong>
+                    {responseStatus === 'RESOLVED'
+                      ? 'Đã giải quyết'
+                      : responseStatus === 'IN_PROGRESS'
+                        ? 'Đang xử lý'
+                        : 'Chờ xử lý'}
+                  </strong>
                 </span>
               </div>
 
@@ -1147,7 +1284,9 @@ export default function AdminFeedbackManager() {
                     onClick={() => {
                       setResponseStatus('RESOLVED')
                       if (!responseText.trim()) {
-                        setResponseText('Phòng Quản lý Chất lượng EMR & Telehealth MentalBridge đã rà soát và ghi nhận ý kiến.')
+                        setResponseText(
+                          'Phòng Quản lý Chất lượng EMR & Telehealth MentalBridge đã rà soát và ghi nhận ý kiến.',
+                        )
                       }
                     }}
                     className="btn-modal-quick-resolve"

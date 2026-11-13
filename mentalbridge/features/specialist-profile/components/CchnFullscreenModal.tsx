@@ -19,12 +19,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
-import {
-  getDocumentForensicsAnalysis,
-  getExtendVerifyAnalysis,
-  getNationalCrossReference,
-  getPaddleOcrAnalysis,
-} from '../services/ai-verification-engine'
+import { getPaddleOcrAnalysis } from '../services/ai-verification-engine'
 import {
   credentialFileSha256,
   jpegCompressionMap,
@@ -58,16 +53,18 @@ export default function CchnFullscreenModal({
   specialistCode = '#MB-482',
   cchnNumber = '019283/BYT',
   issueDate = '12/04/2021',
-  expiryDate = '15/04/2029',
-  remainingText = 'Còn 4 năm 8 tháng',
   issuer = 'Sở Y Tế TP.HCM',
   scope = 'Khám bệnh, chữa bệnh chuyên khoa Tâm thần',
   sha256 = 'd9f824b7a12e84c9034fbe7193bca9810f27b1a8',
 }: CchnModalProps) {
   const [zoom, setZoom] = useState(125)
   const [rotation, setRotation] = useState(0)
-  const [viewMode, setViewMode] = useState<'ORIGINAL' | 'OCR' | 'ELA' | 'EXTEND'>('ORIGINAL')
-  const [activeTab, setActiveTab] = useState<'OCR' | 'FORENSICS' | 'EXTEND' | 'CSDL' | 'AUDIT'>('OCR')
+  const [viewMode, setViewMode] = useState<
+    'ORIGINAL' | 'OCR' | 'ELA' | 'EXTEND'
+  >('ORIGINAL')
+  const [activeTab, setActiveTab] = useState<
+    'OCR' | 'FORENSICS' | 'EXTEND' | 'CSDL' | 'AUDIT'
+  >('OCR')
 
   const [checklist, setChecklist] = useState({
     cks: true,
@@ -80,15 +77,16 @@ export default function CchnFullscreenModal({
   const [analyzingFile, setAnalyzingFile] = useState(false)
   const [realReading, setRealReading] = useState<CredentialReading | null>(null)
   const [realSha256, setRealSha256] = useState<string>('')
-  const [realEla, setRealEla] = useState<{ url: string; width: number; height: number } | null>(null)
+  const [realEla, setRealEla] = useState<{
+    url: string
+    width: number
+    height: number
+  } | null>(null)
   const [realFileUrl, setRealFileUrl] = useState<string | null>(null)
   const [realFileName, setRealFileName] = useState<string | null>(null)
 
   // Baseline AI Analysis Data
   const ocrData = getPaddleOcrAnalysis('CCHN', specialistName, cchnNumber)
-  const forensicsData = getDocumentForensicsAnalysis('CCHN')
-  const extendData = getExtendVerifyAnalysis('CCHN')
-  const registryData = getNationalCrossReference('CCHN', specialistName, cchnNumber)
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -109,7 +107,9 @@ export default function CchnFullscreenModal({
   const handleRotate = () => setRotation((prev) => (prev + 90) % 360)
 
   // Handle uploading real document file
-  async function handleRealFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleRealFileUpload(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -171,13 +171,17 @@ export default function CchnFullscreenModal({
                   CKS: TS.BS. Nguyễn Tấn Bỉnh (GĐ Sở Y Tế)
                 </span>
                 {realFileName && (
-                  <span className={styles.cksChip} style={{ background: '#dbeafe', color: '#1d4ed8' }}>
+                  <span
+                    className={styles.cksChip}
+                    style={{ background: '#dbeafe', color: '#1d4ed8' }}
+                  >
                     Tệp thật: {realFileName}
                   </span>
                 )}
               </div>
               <p className={styles.subtitle}>
-                Bác sĩ sở hữu: <strong>{effectiveHolder}</strong> ({specialistCode}) • {effectiveIssuer} cấp ngày {effectiveDate}
+                Bác sĩ sở hữu: <strong>{effectiveHolder}</strong> (
+                {specialistCode}) • {effectiveIssuer} cấp ngày {effectiveDate}
               </p>
             </div>
           </div>
@@ -228,9 +232,14 @@ export default function CchnFullscreenModal({
               className={styles.toolBtn}
               onClick={() => fileInputRef.current?.click()}
               title="Tải lên tệp chứng chỉ thật (PDF hoặc Ảnh)"
-              style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}
+              style={{
+                background: '#ecfdf5',
+                color: '#047857',
+                borderColor: '#a7f3d0',
+              }}
             >
-              <Upload size={14} /> {analyzingFile ? 'Đang đọc…' : 'Tải tệp thật test'}
+              <Upload size={14} />{' '}
+              {analyzingFile ? 'Đang đọc…' : 'Tải tệp thật test'}
             </button>
 
             <button
@@ -300,14 +309,25 @@ export default function CchnFullscreenModal({
                 <iframe
                   src={realFileUrl}
                   title="Tệp gốc đã tải lên"
-                  style={{ width: '100%', height: '560px', border: 'none', borderRadius: '4px' }}
+                  style={{
+                    width: '100%',
+                    height: '560px',
+                    border: 'none',
+                    borderRadius: '4px',
+                  }}
                 />
               ) : realFileUrl ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={viewMode === 'ELA' && realEla ? realEla.url : realFileUrl}
+                  src={
+                    viewMode === 'ELA' && realEla ? realEla.url : realFileUrl
+                  }
                   alt="Tài liệu thật"
-                  style={{ width: '100%', maxHeight: '560px', objectFit: 'contain' }}
+                  style={{
+                    width: '100%',
+                    maxHeight: '560px',
+                    objectFit: 'contain',
+                  }}
                 />
               ) : (
                 <>
@@ -316,7 +336,10 @@ export default function CchnFullscreenModal({
                     <div className={styles.elaOverlay}>
                       <div className={styles.elaTag}>
                         <Fingerprint size={13} />
-                        <span>Mức nén DCT đồng nhất 99.5% (Không phát hiện pixel can thiệp)</span>
+                        <span>
+                          Mức nén DCT đồng nhất 99.5% (Không phát hiện pixel can
+                          thiệp)
+                        </span>
                       </div>
                     </div>
                   )}
@@ -349,7 +372,9 @@ export default function CchnFullscreenModal({
                       <p className={styles.docNation}>
                         CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
                       </p>
-                      <p className={styles.docMotto}>Độc lập - Tự do - Hạnh phúc</p>
+                      <p className={styles.docMotto}>
+                        Độc lập - Tự do - Hạnh phúc
+                      </p>
                       <div className={styles.emblemBox}>
                         <div className={styles.emblemCircle}>★</div>
                       </div>
@@ -362,7 +387,9 @@ export default function CchnFullscreenModal({
                       <div className={styles.docRow}>
                         <span className={styles.docLabel}>Họ và tên:</span>
                         <span className={styles.docValue}>
-                          {effectiveHolder.toUpperCase().replace(/^THS\.\s*BS\.\s*/i, '')}
+                          {effectiveHolder
+                            .toUpperCase()
+                            .replace(/^THS\.\s*BS\.\s*/i, '')}
                         </span>
                       </div>
                       <div className={styles.docRow}>
@@ -406,7 +433,9 @@ export default function CchnFullscreenModal({
                           <span>TP. HỒ CHÍ MINH</span>
                           <span>ĐÃ XÁC THỰC CKS</span>
                         </div>
-                        <div className={styles.signatureLine}>TS. BS. Nguyễn Tấn Bỉnh</div>
+                        <div className={styles.signatureLine}>
+                          TS. BS. Nguyễn Tấn Bỉnh
+                        </div>
                         <div className={styles.signerTitle}>
                           Giám đốc Sở Y Tế (Đã ký số VNPT-CA)
                         </div>
@@ -487,14 +516,31 @@ export default function CchnFullscreenModal({
                     </div>
                     <div className={styles.statCard}>
                       <span className={styles.statValue}>100% Khớp</span>
-                      <span className={styles.statDesc}>Đối soát với khai báo</span>
+                      <span className={styles.statDesc}>
+                        Đối soát với khai báo
+                      </span>
                     </div>
                   </div>
 
                   {realReading && (
-                    <div style={{ background: '#ecfdf5', padding: '10px', borderRadius: '6px', fontSize: '0.75rem', marginBottom: '10px', border: '1px solid #a7f3d0' }}>
-                      <strong style={{ color: '#047857' }}>✓ Đã trích xuất từ tệp thật:</strong>
-                      <p style={{ margin: '4px 0 0 0' }}>Số trang: {realReading.pagesRead}/{realReading.pageCount} · Nguồn: {realReading.sources.join(' + ')}</p>
+                    <div
+                      style={{
+                        background: '#ecfdf5',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        marginBottom: '10px',
+                        border: '1px solid #a7f3d0',
+                      }}
+                    >
+                      <strong style={{ color: '#047857' }}>
+                        ✓ Đã trích xuất từ tệp thật:
+                      </strong>
+                      <p style={{ margin: '4px 0 0 0' }}>
+                        Số trang: {realReading.pagesRead}/
+                        {realReading.pageCount} · Nguồn:{' '}
+                        {realReading.sources.join(' + ')}
+                      </p>
                     </div>
                   )}
 
@@ -509,7 +555,9 @@ export default function CchnFullscreenModal({
                     <div className={styles.compareList}>
                       <div className={styles.compareRow}>
                         <div className={styles.compareRowHeader}>
-                          <span className={styles.compareField}>Họ tên người cấp</span>
+                          <span className={styles.compareField}>
+                            Họ tên người cấp
+                          </span>
                           <span className={styles.fieldMatchBadge}>
                             <CheckCircle2 size={12} /> Khớp 100%
                           </span>
@@ -517,11 +565,15 @@ export default function CchnFullscreenModal({
                         <div className={styles.compareValues}>
                           <div className={styles.valDecl}>
                             <span className={styles.valBadge}>Khai báo</span>
-                            <span className={styles.valText}>{specialistName}</span>
+                            <span className={styles.valText}>
+                              {specialistName}
+                            </span>
                           </div>
                           <div className={styles.valOcr}>
                             <span className={styles.valBadgeOcr}>OCR AI</span>
-                            <span className={styles.valText}>{effectiveHolder}</span>
+                            <span className={styles.valText}>
+                              {effectiveHolder}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -540,14 +592,18 @@ export default function CchnFullscreenModal({
                           </div>
                           <div className={styles.valOcr}>
                             <span className={styles.valBadgeOcr}>OCR AI</span>
-                            <span className={styles.valText}>{effectiveNumber}</span>
+                            <span className={styles.valText}>
+                              {effectiveNumber}
+                            </span>
                           </div>
                         </div>
                       </div>
 
                       <div className={styles.compareRow}>
                         <div className={styles.compareRowHeader}>
-                          <span className={styles.compareField}>Cơ quan cấp</span>
+                          <span className={styles.compareField}>
+                            Cơ quan cấp
+                          </span>
                           <span className={styles.fieldMatchBadge}>
                             <CheckCircle2 size={12} /> Khớp 100%
                           </span>
@@ -555,18 +611,24 @@ export default function CchnFullscreenModal({
                         <div className={styles.compareValues}>
                           <div className={styles.valDecl}>
                             <span className={styles.valBadge}>Khai báo</span>
-                            <span className={styles.valText}>Sở Y Tế TP.HCM</span>
+                            <span className={styles.valText}>
+                              Sở Y Tế TP.HCM
+                            </span>
                           </div>
                           <div className={styles.valOcr}>
                             <span className={styles.valBadgeOcr}>OCR AI</span>
-                            <span className={styles.valText}>{effectiveIssuer}</span>
+                            <span className={styles.valText}>
+                              {effectiveIssuer}
+                            </span>
                           </div>
                         </div>
                       </div>
 
                       <div className={styles.compareRow}>
                         <div className={styles.compareRowHeader}>
-                          <span className={styles.compareField}>Phạm vi chuyên môn</span>
+                          <span className={styles.compareField}>
+                            Phạm vi chuyên môn
+                          </span>
                           <span className={styles.fieldMatchBadge}>
                             <CheckCircle2 size={12} /> Tương thích y khoa
                           </span>
@@ -574,7 +636,9 @@ export default function CchnFullscreenModal({
                         <div className={styles.compareValues}>
                           <div className={styles.valDecl}>
                             <span className={styles.valBadge}>Khai báo</span>
-                            <span className={styles.valText}>Tâm thần - Tâm lý lâm sàng</span>
+                            <span className={styles.valText}>
+                              Tâm thần - Tâm lý lâm sàng
+                            </span>
                           </div>
                           <div className={styles.valOcr}>
                             <span className={styles.valBadgeOcr}>OCR AI</span>
@@ -587,10 +651,26 @@ export default function CchnFullscreenModal({
 
                   {realReading?.text && (
                     <details style={{ marginTop: '12px', fontSize: '0.72rem' }}>
-                      <summary style={{ cursor: 'pointer', color: '#047857', fontWeight: 600 }}>
+                      <summary
+                        style={{
+                          cursor: 'pointer',
+                          color: '#047857',
+                          fontWeight: 600,
+                        }}
+                      >
                         Xem toàn văn OCR trích xuất từ tệp thật
                       </summary>
-                      <pre style={{ whiteSpace: 'pre-wrap', background: '#f8fafc', padding: '8px', borderRadius: '4px', marginTop: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                      <pre
+                        style={{
+                          whiteSpace: 'pre-wrap',
+                          background: '#f8fafc',
+                          padding: '8px',
+                          borderRadius: '4px',
+                          marginTop: '6px',
+                          maxHeight: '180px',
+                          overflowY: 'auto',
+                        }}
+                      >
                         {realReading.text}
                       </pre>
                     </details>
@@ -604,10 +684,15 @@ export default function CchnFullscreenModal({
                   <div className={styles.statGridRow}>
                     <div className={styles.statCard}>
                       <span className={styles.statValue}>99.2%</span>
-                      <span className={styles.statDesc}>Điểm nguyên bản ảnh</span>
+                      <span className={styles.statDesc}>
+                        Điểm nguyên bản ảnh
+                      </span>
                     </div>
                     <div className={styles.statCard}>
-                      <span className={styles.statValue} style={{ color: '#0284c7' }}>
+                      <span
+                        className={styles.statValue}
+                        style={{ color: '#0284c7' }}
+                      >
                         0.8%
                       </span>
                       <span className={styles.statDesc}>Sai khác nén ELA</span>
@@ -616,37 +701,54 @@ export default function CchnFullscreenModal({
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>MỨC NÉN DCT (ERROR LEVEL ANALYSIS)</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        MỨC NÉN DCT (ERROR LEVEL ANALYSIS)
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Đồng nhất 99.5%
                       </span>
                     </div>
                     <p className={styles.checkCardDesc}>
-                      Bản đồ ELA quét toàn bộ dải tần DCT ở chất lượng 90%. Vùng văn bản và con dấu có mức suy hao nén đồng đều, không có dấu vết chèn ghép pixel Photoshop.
+                      Bản đồ ELA quét toàn bộ dải tần DCT ở chất lượng 90%. Vùng
+                      văn bản và con dấu có mức suy hao nén đồng đều, không có
+                      dấu vết chèn ghép pixel Photoshop.
                     </p>
                   </div>
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>KERNING & CĂN CHỈNH PHÔNG CHỮ</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        KERNING & CĂN CHỈNH PHÔNG CHỮ
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Đạt chuẩn
                       </span>
                     </div>
                     <p className={styles.checkCardDesc}>
-                      Lưới baseline đồng trục theo tiêu chuẩn Nghị định 30/2020/NĐ-CP. Không phát hiện ký tự sai phông hay độ đậm bất thường.
+                      Lưới baseline đồng trục theo tiêu chuẩn Nghị định
+                      30/2020/NĐ-CP. Không phát hiện ký tự sai phông hay độ đậm
+                      bất thường.
                     </p>
                   </div>
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>KHÔNG GIAN MÀU & ĐỘ PHÂN GIẢI</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        KHÔNG GIAN MÀU & ĐỘ PHÂN GIẢI
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         sRGB 300 DPI
                       </span>
                     </div>
                     <p className={styles.checkCardDesc}>
-                      Độ phân giải scan 300 DPI đạt chuẩn lưu trữ y tế quốc gia. Lượng tử hóa JPEG gốc 98%.
+                      Độ phân giải scan 300 DPI đạt chuẩn lưu trữ y tế quốc gia.
+                      Lượng tử hóa JPEG gốc 98%.
                     </p>
                   </div>
                 </div>
@@ -658,47 +760,66 @@ export default function CchnFullscreenModal({
                   <div className={styles.statGridRow}>
                     <div className={styles.statCard}>
                       <span className={styles.statValue}>1.1%</span>
-                      <span className={styles.statDesc}>Rủi ro phôi giả (An toàn)</span>
+                      <span className={styles.statDesc}>
+                        Rủi ro phôi giả (An toàn)
+                      </span>
                     </div>
                     <div className={styles.statCard}>
                       <span className={styles.statValue}>5/5 Lớp</span>
-                      <span className={styles.statDesc}>Tiêu chuẩn phòng vệ</span>
+                      <span className={styles.statDesc}>
+                        Tiêu chuẩn phòng vệ
+                      </span>
                     </div>
                   </div>
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>HOA VĂN GUILLOCHE VI MÔ</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        HOA VĂN GUILLOCHE VI MÔ
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Khớp 99.8%
                       </span>
                     </div>
                     <p className={styles.checkCardDesc}>
-                      Đường vân Guilloche 0.05mm sắc nét, liên tục không đứt đoạn, đúng chuẩn phôi Bộ Y Tế.
+                      Đường vân Guilloche 0.05mm sắc nét, liên tục không đứt
+                      đoạn, đúng chuẩn phôi Bộ Y Tế.
                     </p>
                   </div>
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>VI CHỮ BẢO AN (MICROTEXT 0.2PT)</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        VI CHỮ BẢO AN (MICROTEXT 0.2PT)
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Hiện diện
                       </span>
                     </div>
                     <p className={styles.checkCardDesc}>
-                      Dòng vi chữ &ldquo;BỘ Y TẾ VIỆT NAM&rdquo; chạy dọc viền chứng chỉ được AI đọc nhận dạng rõ nét.
+                      Dòng vi chữ &ldquo;BỘ Y TẾ VIỆT NAM&rdquo; chạy dọc viền
+                      chứng chỉ được AI đọc nhận dạng rõ nét.
                     </p>
                   </div>
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>CHỮ KÝ SỐ PKI CỦA GIÁM ĐỐC SỞ</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        CHỮ KÝ SỐ PKI CỦA GIÁM ĐỐC SỞ
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Hợp chuẩn Ban Cơ Yếu
                       </span>
                     </div>
                     <p className={styles.checkCardDesc}>
-                      Chứng thư số Giám đốc Sở Y tế TP.HCM hợp lệ. Dấu thời gian TSA (Time Stamp Authority) toàn vẹn.
+                      Chứng thư số Giám đốc Sở Y tế TP.HCM hợp lệ. Dấu thời gian
+                      TSA (Time Stamp Authority) toàn vẹn.
                     </p>
                   </div>
                 </div>
@@ -718,14 +839,28 @@ export default function CchnFullscreenModal({
                       gap: '6px',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
                       <CheckCircle2 size={16} color="#059669" />
                       <strong style={{ fontSize: '0.8rem', color: '#166534' }}>
                         CSDL NGƯỜI HÀNH NGHỀ BỘ Y TẾ - KHỚP 100%
                       </strong>
                     </div>
-                    <p style={{ fontSize: '0.74rem', color: '#15803d', margin: 0 }}>
-                      Đối chiếu theo thời gian thực với CSDL Sở Y tế TP.HCM (Cổng tra cứu Medinet). Bản ghi xác nhận bác sĩ đang có hiệu lực hành nghề khám chữa bệnh.
+                    <p
+                      style={{
+                        fontSize: '0.74rem',
+                        color: '#15803d',
+                        margin: 0,
+                      }}
+                    >
+                      Đối chiếu theo thời gian thực với CSDL Sở Y tế TP.HCM
+                      (Cổng tra cứu Medinet). Bản ghi xác nhận bác sĩ đang có
+                      hiệu lực hành nghề khám chữa bệnh.
                     </p>
                   </div>
 
@@ -736,7 +871,9 @@ export default function CchnFullscreenModal({
                     </div>
 
                     <div className={styles.compareRow}>
-                      <div className={styles.compareField}>Họ tên người hành nghề</div>
+                      <div className={styles.compareField}>
+                        Họ tên người hành nghề
+                      </div>
                       <div className={styles.compareValues}>
                         <div className={styles.valOcr}>
                           <span>{effectiveHolder}</span>
@@ -745,7 +882,9 @@ export default function CchnFullscreenModal({
                     </div>
 
                     <div className={styles.compareRow}>
-                      <div className={styles.compareField}>Số CCHN / Giấy phép</div>
+                      <div className={styles.compareField}>
+                        Số CCHN / Giấy phép
+                      </div>
                       <div className={styles.compareValues}>
                         <div className={styles.valOcr}>
                           <span>{effectiveNumber}</span>
@@ -763,7 +902,9 @@ export default function CchnFullscreenModal({
                     </div>
 
                     <div className={styles.compareRow}>
-                      <div className={styles.compareField}>Tình trạng giấy phép</div>
+                      <div className={styles.compareField}>
+                        Tình trạng giấy phép
+                      </div>
                       <div className={styles.compareValues}>
                         <div className={styles.valOcr}>
                           <span style={{ color: '#059669', fontWeight: 600 }}>
@@ -774,21 +915,70 @@ export default function CchnFullscreenModal({
                     </div>
                   </div>
 
-                  <div style={{ marginTop: '12px', padding: '10px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.74rem' }}>
-                    <strong style={{ display: 'block', marginBottom: '6px', color: '#334155' }}>CỔNG TRA CỨU CÔNG KHAI CỦA SỞ Y TẾ:</strong>
-                    <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      padding: '10px',
+                      background: '#f8fafc',
+                      borderRadius: '6px',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '0.74rem',
+                    }}
+                  >
+                    <strong
+                      style={{
+                        display: 'block',
+                        marginBottom: '6px',
+                        color: '#334155',
+                      }}
+                    >
+                      CỔNG TRA CỨU CÔNG KHAI CỦA SỞ Y TẾ:
+                    </strong>
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                      }}
+                    >
                       <li>
-                        <a href="https://tracuu.medinet.org.vn/" target="_blank" rel="noreferrer" style={{ color: '#0284c7', textDecoration: 'underline' }}>
+                        <a
+                          href="https://tracuu.medinet.org.vn/"
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            color: '#0284c7',
+                            textDecoration: 'underline',
+                          }}
+                        >
                           Tra cứu CCHN Sở Y tế TP.HCM (medinet.org.vn) ↗
                         </a>
                       </li>
                       <li>
-                        <a href="https://yteso.nghean.gov.vn/thongtin-canhan" target="_blank" rel="noreferrer" style={{ color: '#0284c7', textDecoration: 'underline' }}>
+                        <a
+                          href="https://yteso.nghean.gov.vn/thongtin-canhan"
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            color: '#0284c7',
+                            textDecoration: 'underline',
+                          }}
+                        >
                           Tra cứu Sở Y tế Nghệ An (yteso.nghean.gov.vn) ↗
                         </a>
                       </li>
                       <li>
-                        <a href="https://suckhoethudo.vn/" target="_blank" rel="noreferrer" style={{ color: '#0284c7', textDecoration: 'underline' }}>
+                        <a
+                          href="https://suckhoethudo.vn/"
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            color: '#0284c7',
+                            textDecoration: 'underline',
+                          }}
+                        >
                           Tra cứu Sở Y tế Hà Nội (suckhoethudo.vn) ↗
                         </a>
                       </li>
@@ -802,12 +992,22 @@ export default function CchnFullscreenModal({
                 <div className={styles.tabContentScroll}>
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>MÃ KIỂM ĐỊNH VÀ BĂM TỆP</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        MÃ KIỂM ĐỊNH VÀ BĂM TỆP
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         Toàn vẹn
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#475569', wordBreak: 'break-all' }}>
+                    <div
+                      style={{
+                        fontSize: '0.72rem',
+                        color: '#475569',
+                        wordBreak: 'break-all',
+                      }}
+                    >
                       <strong>Mã băm SHA-256:</strong>
                       <div
                         style={{
@@ -826,17 +1026,46 @@ export default function CchnFullscreenModal({
 
                   <div className={styles.checkCard}>
                     <div className={styles.checkCardHeader}>
-                      <span className={styles.checkCardTitle}>NHẬT KÝ KIỂM TOÁN TỰ ĐỘNG</span>
-                      <span className={`${styles.statusTag} ${styles.statusTagGreen}`}>
+                      <span className={styles.checkCardTitle}>
+                        NHẬT KÝ KIỂM TOÁN TỰ ĐỘNG
+                      </span>
+                      <span
+                        className={`${styles.statusTag} ${styles.statusTagGreen}`}
+                      >
                         5/5 Bước Đạt
                       </span>
                     </div>
-                    <ol style={{ fontSize: '0.73rem', margin: '8px 0 0 0', paddingLeft: '16px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <li>04:15:20 • Tải tệp gốc CCHN qua cổng Chuyên gia MentalBridge</li>
-                      <li>04:15:22 • Tính mã SHA-256 niêm phong chuỗi khối kiểm toán</li>
-                      <li>04:15:25 • Trích xuất lớp văn bản OCR (Độ chính xác 99.8%)</li>
-                      <li>04:15:28 • Kiểm định cấu trúc phôi & tem bảo mật Extend Verify</li>
-                      <li>04:15:32 • Truy vấn CSDL Quốc gia Bộ Y Tế: Phản hồi khớp 100%</li>
+                    <ol
+                      style={{
+                        fontSize: '0.73rem',
+                        margin: '8px 0 0 0',
+                        paddingLeft: '16px',
+                        color: '#334155',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                      }}
+                    >
+                      <li>
+                        04:15:20 • Tải tệp gốc CCHN qua cổng Chuyên gia
+                        MentalBridge
+                      </li>
+                      <li>
+                        04:15:22 • Tính mã SHA-256 niêm phong chuỗi khối kiểm
+                        toán
+                      </li>
+                      <li>
+                        04:15:25 • Trích xuất lớp văn bản OCR (Độ chính xác
+                        99.8%)
+                      </li>
+                      <li>
+                        04:15:28 • Kiểm định cấu trúc phôi & tem bảo mật Extend
+                        Verify
+                      </li>
+                      <li>
+                        04:15:32 • Truy vấn CSDL Quốc gia Bộ Y Tế: Phản hồi khớp
+                        100%
+                      </li>
                     </ol>
                   </div>
                 </div>
@@ -851,7 +1080,10 @@ export default function CchnFullscreenModal({
                     type="checkbox"
                     checked={checklist.cks}
                     onChange={(e) =>
-                      setChecklist((prev) => ({ ...prev, cks: e.target.checked }))
+                      setChecklist((prev) => ({
+                        ...prev,
+                        cks: e.target.checked,
+                      }))
                     }
                   />
                   <span>Đã kiểm tra Chữ ký số GĐ Sở Y tế</span>
@@ -861,7 +1093,10 @@ export default function CchnFullscreenModal({
                     type="checkbox"
                     checked={checklist.noAi}
                     onChange={(e) =>
-                      setChecklist((prev) => ({ ...prev, noAi: e.target.checked }))
+                      setChecklist((prev) => ({
+                        ...prev,
+                        noAi: e.target.checked,
+                      }))
                     }
                   />
                   <span>Bản scan sắc nét, không có can thiệp AI</span>
@@ -871,7 +1106,10 @@ export default function CchnFullscreenModal({
                     type="checkbox"
                     checked={checklist.vneid}
                     onChange={(e) =>
-                      setChecklist((prev) => ({ ...prev, vneid: e.target.checked }))
+                      setChecklist((prev) => ({
+                        ...prev,
+                        vneid: e.target.checked,
+                      }))
                     }
                   />
                   <span>Khớp số CCCD/VNeID mức 2</span>
@@ -903,7 +1141,8 @@ export default function CchnFullscreenModal({
                   type="button"
                   className={styles.btnClose}
                   onClick={onClose}
-                  aria-label="Đóng cửa sổ"
+                  aria-label="Đóng xem trước (ESC)"
+                  title="Đóng xem trước (ESC)"
                 >
                   <X size={16} />
                 </button>

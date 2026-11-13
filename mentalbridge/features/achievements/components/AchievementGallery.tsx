@@ -153,7 +153,7 @@ function generatePetals(count = 42): FallingPetal[] {
   ]
 
   return Array.from({ length: count }, (_, i) => {
-    const isPollen = (i % 4) === 0
+    const isPollen = i % 4 === 0
     const size = isPollen ? (i % 3) + 4 : (i % 8) + 12
     const leftPercent = (i * 2.37) % 100
     const duration = 4.5 + ((i * 0.17) % 3.5)
@@ -233,7 +233,10 @@ function AchievementCard({
       <p>{item.description}</p>
 
       {item.status === 'UNEARNED' && progress ? (
-        <div className={styles.progressDotsRow} aria-label={`Tiến độ ${progress.current} trên ${progress.target}`}>
+        <div
+          className={styles.progressDotsRow}
+          aria-label={`Tiến độ ${progress.current} trên ${progress.target}`}
+        >
           {Array.from({ length: Math.min(progress.target, 12) }, (_, idx) => (
             <span
               key={idx}
@@ -394,8 +397,9 @@ function CelebrationModal({
         <div className={styles.modalMilestoneTitle}>“{item.title}”</div>
 
         <p id={descId} className={styles.modalQuote}>
-          Bạn đã làm được điều này hoàn toàn theo nhịp điệu của riêng mình. Không
-          cần vội vã, mỗi khoảnh khắc lắng lại đều là một hạt mầm bình yên.
+          Bạn đã làm được điều này hoàn toàn theo nhịp điệu của riêng mình.
+          Không cần vội vã, mỗi khoảnh khắc lắng lại đều là một hạt mầm bình
+          yên.
         </p>
 
         {item.unlockedAt && (
@@ -446,7 +450,22 @@ export default function AchievementGallery() {
   const [filter, setFilter] = useState<AchievementFilter>('ALL')
 
   // Seen achievements state
-  const [seenKeys, setSeenKeys] = useState<Set<string>>(() => new Set())
+  const [seenKeys, setSeenKeys] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(LOCAL_STORAGE_SEEN_KEY)
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (Array.isArray(parsed)) {
+            return new Set(parsed)
+          }
+        }
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
+    return new Set()
+  })
   const [activeCelebration, setActiveCelebration] =
     useState<AchievementItem | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -460,21 +479,6 @@ export default function AchievementGallery() {
       Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh',
     [],
   )
-
-  // Initialize seen achievements from localStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_SEEN_KEY)
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed)) {
-          setSeenKeys(new Set(parsed))
-        }
-      }
-    } catch {
-      // Ignore localStorage errors
-    }
-  }, [])
 
   const markSeen = useCallback((itemKey: string) => {
     setSeenKeys((prev) => {
@@ -564,23 +568,20 @@ export default function AchievementGallery() {
     }, 3200)
   }, [])
 
-  const scrollToMilestone = useCallback(
-    (definitionId: string) => {
-      setFilter('ALL')
-      setTimeout(() => {
-        const el = document.getElementById(`achievement-card-${definitionId}`)
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          setHighlightedId(definitionId)
-          if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current)
-          highlightTimerRef.current = setTimeout(() => {
-            setHighlightedId(null)
-          }, 2400)
-        }
-      }, 100)
-    },
-    [],
-  )
+  const scrollToMilestone = useCallback((definitionId: string) => {
+    setFilter('ALL')
+    setTimeout(() => {
+      const el = document.getElementById(`achievement-card-${definitionId}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setHighlightedId(definitionId)
+        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current)
+        highlightTimerRef.current = setTimeout(() => {
+          setHighlightedId(null)
+        }, 2400)
+      }
+    }, 100)
+  }, [])
 
   const handleCardClick = useCallback(
     (item: AchievementItem) => {
@@ -863,7 +864,6 @@ export default function AchievementGallery() {
               id={`tab-${option.value}`}
               aria-controls={`panel-${option.value}`}
               aria-selected={filter === option.value}
-              aria-pressed={filter === option.value}
               className={styles.filterButton}
               onClick={() => setFilter(option.value)}
             >
@@ -963,9 +963,7 @@ export default function AchievementGallery() {
                     const isNew =
                       isEarned(item) &&
                       Boolean(item.unlockedAt) &&
-                      !seenKeys.has(
-                        `${item.definitionId}:${item.unlockedAt}`,
-                      )
+                      !seenKeys.has(`${item.definitionId}:${item.unlockedAt}`)
 
                     return (
                       <AchievementCard
@@ -979,9 +977,7 @@ export default function AchievementGallery() {
                   })}
                 </div>
 
-                {items.some(
-                  ({ status }) => status === 'SOURCE_UNAVAILABLE',
-                ) ? (
+                {items.some(({ status }) => status === 'SOURCE_UNAVAILABLE') ? (
                   <button
                     className={styles.retryBtn}
                     type="button"

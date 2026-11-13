@@ -1,18 +1,18 @@
 import 'server-only'
 import type { Pool as PgPool, PoolClient } from 'pg'
 
+type NodeRequireFn = (id: string) => { Pool: new (config: unknown) => PgPool }
+
 declare global {
-  // eslint-disable-next-line no-var
   var __consultationPool: PgPool | undefined
-  // eslint-disable-next-line no-var
-  var __non_webpack_require__: any
+  var __non_webpack_require__: NodeRequireFn | undefined
 }
 
 function getPgPoolClass() {
   const nodeRequire =
     typeof __non_webpack_require__ !== 'undefined'
       ? __non_webpack_require__
-      : eval('require')
+      : (eval('require') as NodeRequireFn)
   const pg = nodeRequire('pg')
   return pg.Pool
 }
