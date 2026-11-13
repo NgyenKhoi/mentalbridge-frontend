@@ -63,6 +63,39 @@ describe('MB-670 minimized plan resource boundary', () => {
       parsePlanResourceActions({ ...projection, planState: 'NONE' }),
     ).toBeNull()
   })
+  it('accepts journey fields only for ACTIVE or PAUSED and validates them', () => {
+    const journey = {
+      targetDomains: ['DEPRESSIVE_SYMPTOMS', 'ANXIETY_SYMPTOMS'],
+      activatedAt: '2026-10-01T00:00:00Z',
+    }
+    for (const planState of ['ACTIVE', 'PAUSED'])
+      expect(
+        parsePlanResourceActions({ ...projection, planState, ...journey }),
+      ).toMatchObject(journey)
+    for (const bad of [
+      { targetDomains: ['STRESS'] },
+      { targetDomains: [] },
+      { targetDomains: ['ANXIETY_SYMPTOMS', 'ANXIETY_SYMPTOMS'] },
+      { targetDomains: 'ANXIETY_SYMPTOMS' },
+      { activatedAt: 'yesterday' },
+      { activatedAt: null },
+    ])
+      expect(
+        parsePlanResourceActions({ ...projection, ...journey, ...bad }),
+      ).toBeNull()
+    for (const extra of [
+      { targetDomains: ['ANXIETY_SYMPTOMS'] },
+      { activatedAt: '2026-10-01T00:00:00Z' },
+    ])
+      expect(
+        parsePlanResourceActions({
+          planState: 'NONE',
+          localDate: '2026-10-21',
+          actions: [],
+          ...extra,
+        }),
+      ).toBeNull()
+  })
   it('preserves an occurrence zone separately from the plan week zone', () => {
     const today = {
       occurrenceId: '50000000-0000-4000-8000-000000000670',
