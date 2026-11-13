@@ -120,7 +120,10 @@ export interface paths {
         /**
          * Read the latest explicit platform consent decisions
          * @description This lookup does not require a Care profile. A new account with no profile
-         *     and no decision receives 200 with decisions: []. A missing consent type
+         *     and no decision receives 200 with decisions: []. Returns the latest actual
+         *     PRIVACY_POLICY, AI_PROCESSING and AI_CONTEXT_PROCESSING decisions, omitting
+         *     never-decided streams. A raw granted decision is not effective authority.
+         *     A missing consent type
          *     means no decision has been recorded; it is not silently treated as a grant.
          */
         get: operations["getOwnCurrentConsents"];
@@ -141,12 +144,37 @@ export interface paths {
         };
         /**
          * Resolve the authenticated user's current AI-processing consent
-         * @description Returns a minimal current decision for exact-revision or bounded
-         *     longitudinal journal analysis. Journal/AI forwards the verified end-user
-         *     bearer credential for both request-time and pre-attempt checks. Missing,
-         *     revoked, or outdated consent fails closed.
+         * @description Returns effective L1 (AI trò chuyện) only. Existing current v2 grants stay
+         *     valid without reconsent. This endpoint does not authorize personal context
+         *     or Journal analysis; those consumers must use the effective L2 snapshot.
+         *     Missing, revoked or outdated L1 fails closed.
          */
         get: operations["authorizeOwnAiProcessing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consents/ai-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve effective L1 and dependent L2 in one current snapshot
+         * @description USER subject only; no profile is required. Both levels are read in one
+         *     repeatable-read transaction. context.authorized implies chat.authorized.
+         *     Own MISSING, REVOKED or POLICY_OUTDATED takes precedence; DEPENDENCY_REQUIRED
+         *     applies only to a current true L2 blocked by ineffective L1. Regranting L1
+         *     restores a suspended current L2 decision, without selecting new sources.
+         *     Clients must not cache this response or derive authority from raw history.
+         */
+        get: operations["authorizeOwnAiPurposes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -169,7 +197,11 @@ export interface paths {
          * @description Repeating the same user-scoped idempotency key and identical request returns
          *     the original decision. Reusing the key for a different request returns a
          *     conflict. Specialist access is a separate scoped grant workflow and is not
-         *     represented by a broad platform-consent toggle.
+         *     represented by a broad platform-consent toggle. Replay lookup precedes
+         *     current-version and dependency validation; exact replay returns the original
+         *     201 decision without restoring authority. New L2 true requires current L1
+         *     under the shared profile lock; L2 false is always allowed. Historical
+         *     AI_PROCESSING v1 is parsed only for exact replay; new commands require v2.
          */
         post: operations["recordOwnConsentDecision"];
         delete?: never;
@@ -207,12 +239,33 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read the backend-owned disclosure for journal AI processing
-         * @description Covers only explicit exact-revision and bounded longitudinal journal
-         *     analysis. It excludes research, marketing, specialist sharing, and safety
-         *     decisions. Story 6203 or a dedicated frontend follow-up renders this text.
+         * Read the immutable current L1 AI-processing disclosure
+         * @description Returns the unchanged ai-processing-capstone-v2 notice. ADR 0050 narrows
+         *     its current authority to L1 AI trò chuyện; existing current grants remain
+         *     valid without reconsent. Personal context and Journal analysis require the
+         *     separate L2 grant. Clients render backend text without independent copies.
          */
         get: operations["getCurrentAiProcessingDisclosure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-context-processing-disclosures/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the backend-owned current L2 notice
+         * @description Public immutable vi-VN notice; neither checkbox is preselected. New L2 grants require effective L1.
+         */
+        get: operations["getCurrentAiContextDisclosure"];
         put?: never;
         post?: never;
         delete?: never;
@@ -522,9 +575,34 @@ export interface paths {
         put?: never;
         /**
          * Record explicit current-period reassessment experience
-         * @description Creates one owner-authored, non-diagnostic self-report for a bounded current comparison period. Optional context is private Care-owned evidence and is never inferred from Journal or SupportPlan activity.
+         * @description Creates one owner-authored, non-diagnostic self-report for a bounded current
+         *     comparison period. Optional context and checklist are private Care evidence,
+         *     never inferred from Journal, screening or activity. Omitted symptomChecklist
+         *     preserves the legacy request identity; explicit selectedCodes [] records an
+         *     empty selection and never means no symptoms. Reordered code sets replay
+         *     identically. Exact recorded replay precedes current-catalog validation.
          */
         post: operations["createOwnReassessmentSelfReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-self-reports/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the approved optional reassessment symptom checklist
+         * @description USER-only local immutable catalog. Mapping references are candidates, never an assertion of current Content eligibility or a clinical assessment.
+         */
+        get: operations["getReassessmentSymptomCatalog"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -561,12 +639,15 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Replace the mutable response for one owned self-report */
+        /**
+         * Replace the mutable response for one owned self-report
+         * @description Omitted symptomChecklist preserves the existing checklist for older clients. A present checklist replaces it atomically with the experience and contexts; selectedCodes [] explicitly clears selections under the submitted catalog revision. Unsupported revisions return REASSESSMENT_SYMPTOM_CATALOG_UNSUPPORTED.
+         */
         put: operations["replaceOwnReassessmentSelfReport"];
         post?: never;
         /**
          * Delete mutable self-report content
-         * @description Clears the categorical response and optional contexts while retaining a minimal owner/version/period tombstone. Existing immutable summary snapshots remain unchanged; the deleted source is unavailable to future composition.
+         * @description Clears the categorical response, optional contexts, checklist codes and catalog revision while retaining a minimal owner/version/period tombstone. Existing immutable summary snapshots remain unchanged; the deleted source is unavailable to future composition and cannot be resurrected.
          */
         delete: operations["deleteOwnReassessmentSelfReport"];
         options?: never;
@@ -711,7 +792,7 @@ export interface paths {
         put?: never;
         /**
          * Request an optional AI suggestion for the exact current private draft
-         * @description Care resolves the exact saved draft and minimized screening context. Journal/AI rechecks current AI_PROCESSING consent and the approved provider route. The job cannot save, approve, share, or change the ConsultationBrief.
+         * @description Care verifies effective L2 AI_CONTEXT_PROCESSING before resolving the exact saved draft and minimized screening context and before each worker attempt. Journal/AI rechecks L2 immediately before its provider attempt. A missing effective L2 returns 409 AI_CONTEXT_CONSENT_REQUIRED; current L1 alone is insufficient. The job cannot save, approve, share, or change the ConsultationBrief.
          */
         post: operations["createConsultationBriefAiDraftJob"];
         delete?: never;
@@ -1444,6 +1525,8 @@ export interface paths {
          *     locks. The owner transaction rechecks the draft version and preferences,
          *     activates the plan/actions and cadence atomically, and records retry
          *     identity in the existing command ledger. No second current plan is allowed.
+         *     A checklist-bound draft requires adaptive-review/confirm and returns 409
+         *     ADAPTIVE_REVIEW_CONFIRM_REQUIRED here after exact recorded ledger replay.
          */
         post: operations["activateNativeSupportPlan"];
         delete?: never;
@@ -1545,6 +1628,8 @@ export interface paths {
          *     Old v2 rows/identities/history are retained, not converted or dual-written.
          *     An unchanged action intent cannot replace the current valid plan. Identical
          *     command retries do not create another activation or completion fact.
+         *     A checklist-bound draft requires adaptive-review/confirm and returns 409
+         *     ADAPTIVE_REVIEW_CONFIRM_REQUIRED here after exact recorded ledger replay.
          */
         post: operations["replaceWithNativeSupportPlan"];
         delete?: never;
@@ -2101,6 +2186,7 @@ export interface components {
             voiceSessionId: string;
             /** @constant */
             purpose: "AI_COMPANION_VOICE";
+            /** @description Effective L1 AI_PROCESSING only; L2 is not required and cannot broaden Voice context. */
             aiProcessingGranted: boolean;
             voiceProcessingGranted: boolean;
             /** @constant */
@@ -2326,14 +2412,76 @@ export interface components {
          * @enum {string}
          */
         ReassessmentCurrentExperience: "BETTER" | "ABOUT_THE_SAME" | "MORE_DIFFICULT" | "UNSURE";
+        /** @enum {string} */
+        ReassessmentSymptomCode: "SLEEP_DIFFICULTY" | "LOW_ENERGY" | "PERSISTENT_WORRY" | "LOW_MOOD" | "CONCENTRATION_DIFFICULTY" | "APPETITE_CHANGE" | "SOCIAL_WITHDRAWAL" | "STRESS_OVERLOAD";
+        ReassessmentSymptomCatalogItem: {
+            code: components["schemas"]["ReassessmentSymptomCode"];
+            label: string;
+        };
+        /** @description Immutable eight-item bundle approved 2026-11-06. This local catalog makes no resource eligibility or diagnostic claim. */
+        ReassessmentSymptomCatalog: {
+            catalogRevision: string;
+            mappingRevision: string;
+            /** @constant */
+            maxSelections: 8;
+            items: components["schemas"]["ReassessmentSymptomCatalogItem"][];
+        };
+        /** @description Explicit optional self-report evidence. Empty selections never imply absence of symptoms. The released reassessment-symptoms-v1 bundle pins reassessment-symptom-resource-map-v1; unsupported submitted revisions return 409 rather than schema rejection. Codes are exact and case sensitive; duplicates, unknown or null elements and more than eight selections fail validation before sorting. */
+        ReassessmentSymptomChecklist: {
+            catalogRevision: string;
+            /** @description Care-authored pinned mapping revision, retained even for explicit empty selections. Clients submit only catalogRevision and selectedCodes. */
+            readonly mappingRevision?: string;
+            selectedCodes: components["schemas"]["ReassessmentSymptomCode"][];
+        };
+        /** @description One frozen candidate reason per selected code, never an eligible-resource offer. A code without an approved mapping has empty resourceIds. */
+        ReassessmentSymptomSelectionReason: {
+            code: components["schemas"]["ReassessmentSymptomCode"];
+            resourceIds: string[];
+            /** @enum {string} */
+            reasonCode: "SELF_REPORTED_SYMPTOM_MATCH" | "NO_APPROVED_RESOURCE_MAPPING";
+            mappingRevision: string;
+        };
+        /** @description An actually admitted selected resource with the exact Content tuple and Care slot context. Several selected codes may explain one deduplicated resource. */
+        ReassessmentSymptomResourceReason: {
+            code: components["schemas"]["ReassessmentSymptomCode"];
+            slotId: string;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            /** Format: uuid */
+            publicationId: string;
+            /** @enum {string} */
+            role: "PRIMARY" | "ADJUNCT";
+            eligibilityPolicyVersion: string;
+            /** @constant */
+            reasonCode: "SELF_REPORTED_SYMPTOM_MATCH";
+        };
+        /** @description Owner-only native-v3 mapping provenance. Complete sorted selections and exact admitted reasons bind the review fingerprint and confirmed draft; historical values are never hydrated from mutable sources. Omitted for historical plans, v2 adapters and options without an accepted checklist mapping. */
+        ReassessmentSymptomMapping: {
+            /** Format: uuid */
+            reassessmentSummaryId: string;
+            /** Format: uuid */
+            selfReportId: string;
+            /** Format: int64 */
+            selfReportRevision: number;
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            catalogRevision: string;
+            mappingRevision: string;
+            selectedCodes: components["schemas"]["ReassessmentSymptomCode"][];
+            resourceReasons: components["schemas"]["ReassessmentSymptomResourceReason"][];
+        };
         ReassessmentSelfReportCreateRequest: {
             currentPeriod: components["schemas"]["ReassessmentPeriod"];
             currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            /** @description Omission means no checklist; a present empty selection records explicit empty evidence under its catalog revision. */
+            symptomChecklist?: components["schemas"]["ReassessmentSymptomChecklist"];
             helpfulContext?: string | null;
             difficultContext?: string | null;
         };
         ReassessmentSelfReportReplaceRequest: {
             currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            /** @description Omission preserves the existing checklist. A present checklist atomically replaces it; selectedCodes [] clears selections. Explicit null is invalid. */
+            symptomChecklist?: components["schemas"]["ReassessmentSymptomChecklist"];
             helpfulContext?: string | null;
             difficultContext?: string | null;
         };
@@ -2344,6 +2492,9 @@ export interface components {
             sourceVersion: "reassessment-self-report-v1";
             currentPeriod: components["schemas"]["ReassessmentPeriod"];
             currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            symptomChecklist?: components["schemas"]["ReassessmentSymptomChecklist"];
+            /** @description Candidate references only. Both checklist fields are omitted when no checklist was supplied. */
+            symptomSelectionReasons?: components["schemas"]["ReassessmentSymptomSelectionReason"][];
             helpfulContext: string | null;
             difficultContext: string | null;
             /** Format: int64 */
@@ -2496,6 +2647,9 @@ export interface components {
             sourceRevision: number;
             currentPeriod: components["schemas"]["ReassessmentPeriod"];
             currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            symptomChecklist?: components["schemas"]["ReassessmentSymptomChecklist"];
+            /** @description Frozen alongside the exact report revision and period; no current catalog, source or Content hydration on historical reads. Omitted with symptomChecklist for old snapshots. */
+            symptomSelectionReasons?: components["schemas"]["ReassessmentSymptomSelectionReason"][];
             helpfulContext: string | null;
             difficultContext: string | null;
             /** Format: date-time */
@@ -2625,8 +2779,8 @@ export interface components {
             version: number;
         };
         /** @enum {string} */
-        ConsentType: "PRIVACY_POLICY" | "AI_PROCESSING";
-        ConsentDecisionRequest: components["schemas"]["PrivacyConsentDecisionRequest"] | components["schemas"]["AiProcessingConsentDecisionRequest"];
+        ConsentType: "PRIVACY_POLICY" | "AI_PROCESSING" | "AI_CONTEXT_PROCESSING";
+        ConsentDecisionRequest: components["schemas"]["PrivacyConsentDecisionRequest"] | components["schemas"]["AiProcessingConsentDecisionRequest"] | components["schemas"]["AiContextConsentDecisionRequest"];
         PrivacyConsentDecisionRequest: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -2643,8 +2797,21 @@ export interface components {
              * @enum {string}
              */
             consentType: "AI_PROCESSING";
+            /**
+             * @description Historical v1 is valid only for exact replay; new commands require current v2.
+             * @enum {string}
+             */
+            policyVersion: "ai-processing-capstone-v1" | "ai-processing-capstone-v2";
+            granted: boolean;
+        };
+        AiContextConsentDecisionRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            consentType: "AI_CONTEXT_PROCESSING";
             /** @constant */
-            policyVersion: "ai-processing-capstone-v2";
+            policyVersion: "ai-context-processing-capstone-v1";
             granted: boolean;
         };
         ConsentDecision: {
@@ -2669,6 +2836,23 @@ export interface components {
             /** Format: date-time */
             decidedAt: string | null;
         };
+        AiContextAuthorization: {
+            authorized: boolean;
+            /** @enum {string} */
+            reason: "GRANTED" | "MISSING" | "REVOKED" | "POLICY_OUTDATED" | "DEPENDENCY_REQUIRED";
+            /** @constant */
+            consentType: "AI_CONTEXT_PROCESSING";
+            policyVersion: string | null;
+            /** Format: date-time */
+            decidedAt: string | null;
+        };
+        /** @description authorized is true iff reason is GRANTED; missing has null version/time; authorized context implies authorized chat. */
+        AiConsentAuthorizations: {
+            chat: components["schemas"]["AiProcessingAuthorization"];
+            context: components["schemas"]["AiContextAuthorization"];
+            /** Format: date-time */
+            checkedAt: string;
+        };
         PrivacyDisclosure: {
             /** @constant */
             consentType: "PRIVACY_POLICY";
@@ -2689,6 +2873,19 @@ export interface components {
             /** @constant */
             locale: "vi-VN";
             title: string;
+            content: string;
+            /** @constant */
+            capstoneOnly: true;
+        };
+        AiContextProcessingDisclosure: {
+            /** @constant */
+            consentType: "AI_CONTEXT_PROCESSING";
+            /** @constant */
+            version: "ai-context-processing-capstone-v1";
+            /** @constant */
+            locale: "vi-VN";
+            /** @constant */
+            title: "AI dùng bối cảnh";
             content: string;
             /** @constant */
             capstoneOnly: true;
@@ -3466,6 +3663,7 @@ export interface components {
         SupportPlanV3: {
             /** Format: uuid */
             supportPlanId: string;
+            symptomMapping?: components["schemas"]["ReassessmentSymptomMapping"];
             /** @constant */
             modelVersion: 3;
             /** @description Native v3 policy version (support-plan-proposal-v1 for new proposals) or the exact v2 selection policy exposed by the adapter. */
@@ -3819,6 +4017,7 @@ export interface components {
             after: string | null;
         };
         AdaptiveReviewOption: {
+            symptomMapping?: components["schemas"]["ReassessmentSymptomMapping"];
             /** @description Opaque and deterministic for the fingerprinted context. */
             optionId: string;
             /** @enum {string} */
@@ -4205,6 +4404,24 @@ export interface components {
         };
     };
     responses: {
+        /** @description VALIDATION_FAILED for invalid shape, explicit null, duplicate, unknown or more than eight symptom codes. Safe field violations never echo private codes or context; nothing is written. */
+        ReassessmentSymptomValidationProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description REASSESSMENT_SYMPTOM_CATALOG_UNSUPPORTED for an unsupported/stale submitted catalog or IDEMPOTENCY_KEY_REUSED for different normalized POST content. Exact recorded replay is resolved before current-catalog validation; nothing new is written on conflict. */
+        ReassessmentSymptomConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Stable sanitized errors: UNAUTHENTICATED. No downstream payload or private identifiers. */
         VoiceProblem401: {
             headers: {
@@ -4282,6 +4499,86 @@ export interface components {
                  *       ]
                  *     }
                  */
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Request validation failed (VALIDATION_FAILED or CONSENT_TYPE_UNAVAILABLE). */
+        ConsentValidationProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Missing or invalid bearer token. */
+        ConsentUnauthorizedProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Authenticated actor is not an allowed USER. */
+        ConsentForbiddenProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description CONSENT_UNAVAILABLE; current consent authority unavailable; failed closed before source or provider access. */
+        ConsentDependencyProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description PROFILE_NOT_FOUND; creating a decision requires an owned Care profile. */
+        ConsentProfileNotFoundProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Requested locale has no current disclosure (PRIVACY_DISCLOSURE_NOT_FOUND or AI_PROCESSING_DISCLOSURE_NOT_FOUND). */
+        ConsentDisclosureNotFoundProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description AI_CONTEXT_DISCLOSURE_NOT_FOUND; requested locale has no current L2 disclosure. */
+        AiContextDisclosureNotFoundProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description IDEMPOTENCY_KEY_REUSED for changed intent; AI_PROCESSING_DISCLOSURE_REQUIRED or AI_CONTEXT_DISCLOSURE_REQUIRED for a non-current new command; AI_PROCESSING_CONSENT_REQUIRED for a new L2 true decision without effective L1. */
+        ConsentConflictProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
@@ -4393,7 +4690,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Current source facts cannot produce a bounded draft (SUPPORT_EVALUATION_STALE, SUPPORT_PLAN_CORE_UNAVAILABLE, RESOURCE_VERSION_STALE, SUPPORT_PLAN_SAFETY_REVIEW_REQUIRED, SUPPORT_PLAN_TIME_BUDGET_INCOMPATIBLE, or SUPPORT_PLAN_DRAFT_EXISTS); no draft was created */
+        /** @description Current source facts cannot produce a bounded draft (SUPPORT_EVALUATION_STALE, SUPPORT_PLAN_CORE_UNAVAILABLE, RESOURCE_VERSION_STALE, SUPPORT_PLAN_SAFETY_REVIEW_REQUIRED, SUPPORT_PLAN_TIME_BUDGET_INCOMPATIBLE, or SUPPORT_PLAN_DRAFT_EXISTS), or direct native replacement targets a checklist-bound draft (ADAPTIVE_REVIEW_CONFIRM_REQUIRED); no change was applied */
         SupportPlanEligibilityProblem: {
             headers: {
                 [name: string]: unknown;
@@ -4456,7 +4753,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The activation command reuses a key differently, targets a non-draft, conflicts with another current plan, uses a stale personalization revision (SUPPORT_PLAN_PERSONALIZATION_REVIEW_REQUIRED), or fails current policy or eligibility */
+        /** @description The activation command reuses a key differently, targets a non-draft, conflicts with another current plan, uses a stale personalization revision (SUPPORT_PLAN_PERSONALIZATION_REVIEW_REQUIRED), bypasses mandatory adaptive confirmation of a checklist-bound native draft (ADAPTIVE_REVIEW_CONFIRM_REQUIRED), or fails current policy or eligibility */
         SupportPlanActivationConflictProblem: {
             headers: {
                 [name: string]: unknown;
@@ -4893,14 +5190,15 @@ export interface operations {
             /** @description Latest decisions returned */
             200: {
                 headers: {
+                    "Cache-Control"?: "no-store";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ConsentCollection"];
                 };
             };
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
+            401: components["responses"]["ConsentUnauthorizedProblem"];
+            403: components["responses"]["ConsentForbiddenProblem"];
         };
     };
     authorizeOwnAiProcessing: {
@@ -4918,14 +5216,42 @@ export interface operations {
             /** @description Current authorization decision returned */
             200: {
                 headers: {
+                    "Cache-Control"?: "no-store";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["AiProcessingAuthorization"];
                 };
             };
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
+            401: components["responses"]["ConsentUnauthorizedProblem"];
+            403: components["responses"]["ConsentForbiddenProblem"];
+        };
+    };
+    authorizeOwnAiPurposes: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Atomic effective purpose snapshot returned */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiConsentAuthorizations"];
+                };
+            };
+            401: components["responses"]["ConsentUnauthorizedProblem"];
+            403: components["responses"]["ConsentForbiddenProblem"];
+            503: components["responses"]["ConsentDependencyProblem"];
         };
     };
     recordOwnConsentDecision: {
@@ -4942,30 +5268,25 @@ export interface operations {
         };
         requestBody: {
             content: {
-                /**
-                 * @example {
-                 *       "consentType": "PRIVACY_POLICY",
-                 *       "policyVersion": "privacy-capstone-v3",
-                 *       "granted": true
-                 *     }
-                 */
                 "application/json": components["schemas"]["ConsentDecisionRequest"];
             };
         };
         responses: {
-            /** @description Consent decision appended */
+            /** @description Consent decision appended or exact original decision replayed */
             201: {
                 headers: {
+                    "Cache-Control"?: "no-store";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ConsentDecision"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-            409: components["responses"]["IdempotencyConflictProblem"];
+            400: components["responses"]["ConsentValidationProblem"];
+            401: components["responses"]["ConsentUnauthorizedProblem"];
+            403: components["responses"]["ConsentForbiddenProblem"];
+            404: components["responses"]["ConsentProfileNotFoundProblem"];
+            409: components["responses"]["ConsentConflictProblem"];
         };
     };
     getCurrentPrivacyDisclosure: {
@@ -4985,13 +5306,14 @@ export interface operations {
             /** @description Current disclosure returned */
             200: {
                 headers: {
+                    "Cache-Control"?: "no-store";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["PrivacyDisclosure"];
                 };
             };
-            404: components["responses"]["NotFoundProblem"];
+            404: components["responses"]["ConsentDisclosureNotFoundProblem"];
         };
     };
     getCurrentAiProcessingDisclosure: {
@@ -5011,13 +5333,41 @@ export interface operations {
             /** @description Current AI-processing disclosure returned */
             200: {
                 headers: {
+                    "Cache-Control"?: "no-store";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["AiProcessingDisclosure"];
                 };
             };
-            404: components["responses"]["NotFoundProblem"];
+            404: components["responses"]["ConsentDisclosureNotFoundProblem"];
+        };
+    };
+    getCurrentAiContextDisclosure: {
+        parameters: {
+            query?: {
+                locale?: components["parameters"]["Locale"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current L2 disclosure returned */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiContextProcessingDisclosure"];
+                };
+            };
+            404: components["responses"]["AiContextDisclosureNotFoundProblem"];
         };
     };
     getCurrentQuestionnaire: {
@@ -5443,10 +5793,36 @@ export interface operations {
                     "application/json": components["schemas"]["ReassessmentSelfReport"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
+            400: components["responses"]["ReassessmentSymptomValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
-            409: components["responses"]["ConflictProblem"];
+            409: components["responses"]["ReassessmentSymptomConflictProblem"];
+        };
+    };
+    getReassessmentSymptomCatalog: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved catalog and pinned deterministic mapping revision */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSymptomCatalog"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     getOwnCurrentReassessmentSelfReport: {
@@ -5505,10 +5881,11 @@ export interface operations {
                     "application/json": components["schemas"]["ReassessmentSelfReport"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
+            400: components["responses"]["ReassessmentSymptomValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ReassessmentSymptomConflictProblem"];
             412: components["responses"]["VersionProblem"];
         };
     };
@@ -5782,6 +6159,7 @@ export interface operations {
             409: components["responses"]["ConflictProblem"];
             412: components["responses"]["VersionProblem"];
             428: components["responses"]["VersionRequiredProblem"];
+            503: components["responses"]["ConsentDependencyProblem"];
         };
     };
     getOwnConsultationBriefAiDraftJob: {

@@ -22,6 +22,7 @@ type Options<T> = Readonly<{
   accessToken: string
   correlationId: string
   idempotencyKey?: string
+  timeoutMs?: number
   body?: unknown
   parse?: (value: unknown) => T | null
 }>
@@ -35,6 +36,9 @@ const malformed = (cause?: unknown) =>
   })
 
 const maximumCompanionResponseBytes = 8 * 1024 * 1024
+
+// 4 s above the journal-ai TEXT send deadline (24 s: 2 attempts, each capped at 10 s).
+export const COMPANION_SEND_TIMEOUT_MS = 28_000
 
 async function json(response: Response): Promise<unknown> {
   try {
@@ -53,7 +57,10 @@ async function json(response: Response): Promise<unknown> {
 async function upstream<T>(options: Options<T>): Promise<T | undefined> {
   const config = readJournalServerConfig()
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
+  const timeout = setTimeout(
+    () => controller.abort(),
+    options.timeoutMs ?? config.timeoutMs,
+  )
   try {
     const response = await fetch(
       new URL(options.path.replace(/^\//, ''), config.baseUrl),
@@ -159,6 +166,7 @@ export const companionClient = {
       accessToken,
       correlationId,
       idempotencyKey: key,
+      timeoutMs: COMPANION_SEND_TIMEOUT_MS,
       body,
       parse: parseSend,
     }) as Promise<CompanionSend>

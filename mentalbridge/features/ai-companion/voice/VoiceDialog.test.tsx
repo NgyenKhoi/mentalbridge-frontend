@@ -523,6 +523,45 @@ describe('Mầm in the AI voice call', () => {
     },
   )
 
+  it('MB-820 plays gentle for comfort only while speaking, with unchanged copy and stage state', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    expectMam('gentle', 'Mầm đang nói')
+    expect(stage()).toHaveAttribute('data-state', 'speaking')
+    expect(screen.getByRole('status')).not.toHaveTextContent(/gentle|comfort/i)
+    expect(document.querySelectorAll('[aria-live]')).toHaveLength(1)
+    act(() => f.events()?.hint('speaking', 'neutral'))
+    expectMam('speaking', 'Mầm đang nói')
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    act(() => f.events()?.hint('thinking', 'comfort'))
+    expectMam('thinking', 'Mầm đang nghĩ')
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    act(() => f.events()?.hint('unavailable'))
+    expectMam('idle', 'Đang chờ Mầm')
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    act(() => f.events()?.reconnecting())
+    expectMam('idle', 'Đang kết nối lại')
+    expect(stage()).toHaveAttribute('data-dim', 'true')
+    await act(async () => f.controller.end())
+  })
+
+  it('MB-820 never shows comfort while preparing', async () => {
+    const f = await call({ state: 'CONNECTING' })
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    expectMam('idle', 'Đang chuẩn bị cuộc gọi')
+    await act(async () => f.controller.end())
+  })
+
+  it('MB-820 passes gentle with reducedMotion so the renderer stays on the static pose', async () => {
+    setMamMotionOff(true)
+    const f = await call()
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    expect(character()).toHaveAttribute('data-behavior', 'gentle')
+    expect(character()).toHaveAttribute('data-reduced', 'true')
+    expect(stage()).toHaveAttribute('data-reduced', 'true')
+    await act(async () => f.controller.end())
+  })
+
   it('unmounts Mầm when a retained dialog closes mid-call (R1-1)', async () => {
     const f = await call()
     act(() => f.events()?.hint('speaking'))

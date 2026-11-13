@@ -2,7 +2,13 @@ import { expect, type Page } from '@playwright/test'
 
 import { seedOnboardingSeen, test } from './test-fixtures'
 import { homeWorld, installHomeMocks } from './home-next-step-mocks'
-import { box, character, dockRoot, travelling } from './mam-dock-helpers'
+import {
+  box,
+  character,
+  dockRoot,
+  expectPageActionsClickable,
+  travelling,
+} from './mam-dock-helpers'
 
 // MB-769: Mầm targets, summon gestures and reviewed explanations. V1 answers
 // come from reviewed copy, so a summon never calls an AI endpoint. Gestures
@@ -199,9 +205,7 @@ test.describe('MB-769 Mầm summon', () => {
     await dock(page).focus()
     await page.keyboard.press('Enter')
     await page.getByRole('button', { name: 'Hỏi Mầm về trang này' }).click()
-    await bubble(page)
-      .getByRole('button', { name: 'Nên bắt đầu từ đâu?' })
-      .click()
+    await bubble(page).getByRole('button', { name: 'Mầm giải thích' }).click()
     await expect(bubble(page)).toBeVisible()
     await expect(dockRoot(page)).toHaveAttribute('data-mam-gaze', 'false')
     await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
@@ -211,6 +215,363 @@ test.describe('MB-769 Mầm summon', () => {
     await expect(dock(page)).toHaveAttribute('aria-expanded', 'false')
     await expect(page.getByRole('group', { name: 'Mầm' })).toHaveCount(0)
     await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+  })
+
+  // MB-819: the page answer "where to start" points at its card; a card answer never does.
+  test('"Nên bắt đầu từ đâu?" climbs onto the next-step card, points once beside the same answer and keeps the action', async ({
+    page,
+  }) => {
+    const aiCalls = watchAiRequests(page)
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/dashboard')
+    await expect(character(page)).toHaveAttribute('data-mam-status', 'ready', {
+      timeout: 15_000,
+    })
+    await dock(page).focus()
+    await page.keyboard.press('Enter')
+    await page.getByRole('button', { name: 'Hỏi Mầm về trang này' }).click()
+    await bubble(page)
+      .getByRole('button', { name: 'Nên bắt đầu từ đâu?' })
+      .click()
+
+    await travelling(page, 'perch')
+    await expect(bubble(page)).toHaveAttribute('data-anchor', 'point')
+    await expect(bubble(page)).toContainText(
+      'Bắt đầu từ thẻ “Bước tiếp theo” nhé.',
+    )
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', 'point')
+    await expect(nextStep(page)).toHaveAttribute('data-mam-active', '')
+    await expect(async () => {
+      const edge = await box(nextStep(page))
+      const mam = await box(character(page))
+      expect(Math.abs(mam.y - (edge.y - 0.64 * 96))).toBeLessThan(4)
+    }).toPass()
+    const go = bubble(page).getByRole('button', { name: 'Đưa mình tới đó' })
+    await expect(go).toBeFocused()
+    // It points once: the shot ends while the answer stays open.
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+    await expect(bubble(page)).toBeVisible()
+
+    await go.press('Enter')
+    await expect(bubble(page)).toHaveCount(0)
+    await expect(
+      nextStep(page).getByRole('link', { name: 'Bắt đầu ngay', exact: true }),
+    ).toBeFocused()
+    await travelling(page, 'dock')
+    expect(aiCalls).toEqual([])
+  })
+
+  test('closing the page answer on the card sends Mầm home and plays no more', async ({
+    page,
+  }) => {
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/dashboard')
+    await expect(character(page)).toHaveAttribute('data-mam-status', 'ready', {
+      timeout: 15_000,
+    })
+    await dock(page).focus()
+    await page.keyboard.press('Enter')
+    await page.getByRole('button', { name: 'Hỏi Mầm về trang này' }).click()
+    await bubble(page)
+      .getByRole('button', { name: 'Nên bắt đầu từ đâu?' })
+      .click()
+    await travelling(page, 'perch')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', 'point')
+    await page.keyboard.press('Escape')
+    await expect(bubble(page)).toHaveCount(0)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+    await travelling(page, 'dock')
+    await expect(nextStep(page)).not.toHaveAttribute('data-mam-active', '')
+  })
+
+  test('with the next-step card out of sight the answer stays at the dock: no climb, no point, no scroll', async ({
+    page,
+  }) => {
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/dashboard')
+    await expect(character(page)).toHaveAttribute('data-mam-status', 'ready', {
+      timeout: 15_000,
+    })
+    // Its top edge above the sticky header.
+    await nextStep(page).evaluate((el) =>
+      window.scrollBy(0, el.getBoundingClientRect().bottom - 20),
+    )
+    const scrolled = await page.evaluate(() => window.scrollY)
+    await dock(page).focus()
+    await page.keyboard.press('Enter')
+    await page.getByRole('button', { name: 'Hỏi Mầm về trang này' }).click()
+    await bubble(page)
+      .getByRole('button', { name: 'Nên bắt đầu từ đâu?' })
+      .click()
+    await expect(bubble(page)).toContainText(
+      'Bắt đầu từ thẻ “Bước tiếp theo” nhé.',
+    )
+    await expect(bubble(page)).toHaveAttribute('data-anchor', 'dock')
+    await expect(
+      bubble(page).getByRole('button', { name: 'Đưa mình tới đó' }),
+    ).toBeVisible()
+    await page.waitForTimeout(1500)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrolled)
+  })
+
+  test('under reduced motion the page answer stays at the dock: no climb, no point', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await installHomeMocks(page, homeWorld('do-today'))
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/dashboard')
+    await expect(dock(page)).toBeVisible()
+    await dock(page).focus()
+    await page.keyboard.press('Enter')
+    await page.getByRole('button', { name: 'Hỏi Mầm về trang này' }).click()
+    await bubble(page)
+      .getByRole('button', { name: 'Nên bắt đầu từ đâu?' })
+      .click()
+    await expect(bubble(page)).toContainText(
+      'Bắt đầu từ thẻ “Bước tiếp theo” nhé.',
+    )
+    await expect(bubble(page)).toHaveAttribute('data-anchor', 'dock')
+    await page.waitForTimeout(800)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+  })
+
+  // MB-819: drag Mầm onto a card to ask about it.
+  test.describe('drag to ask', () => {
+    // At 375 the dock yields over most links, so look for a scroll position where it
+    // is live and a registered card has a spot on screen that is not a control.
+    const liveSpot = async (page: Page) => {
+      for (let y = 0; y <= 6000; y += 60) {
+        await page.evaluate((top) => window.scrollTo(0, top), y)
+        await page.waitForTimeout(120)
+        if ((await dockRoot(page).getAttribute('data-yield')) !== 'false')
+          continue
+        const spot = await page.evaluate(() => {
+          const scan = () => {
+            const dockRect = document
+              .querySelector('[data-mam-dock]')!
+              .getBoundingClientRect()
+            for (const section of document.querySelectorAll<HTMLElement>(
+              '[aria-label="Bước tiếp theo"], [data-testid="home-resources"]',
+            )) {
+              const rect = section.getBoundingClientRect()
+              const top = Math.max(rect.top, 90)
+              for (
+                let y = top;
+                y < Math.min(rect.bottom, innerHeight - 8);
+                y += 8
+              )
+                for (let x = rect.left + 4; x < rect.right - 4; x += 8) {
+                  const hit = document.elementFromPoint(x, y)
+                  if (
+                    hit &&
+                    section.contains(hit) &&
+                    !hit.closest('a[href], button, input, select, textarea') &&
+                    !(
+                      x > dockRect.left - 20 &&
+                      x < dockRect.right + 20 &&
+                      y > dockRect.top - 20
+                    )
+                  )
+                    return { x, y }
+                }
+            }
+            return null
+          }
+          return scan()
+        })
+        if (spot) return spot
+      }
+      return null
+    }
+    const ready = async (page: Page) => {
+      await expect(character(page)).toHaveAttribute(
+        'data-mam-status',
+        'ready',
+        { timeout: 15_000 },
+      )
+      // Where the dock is live (it yields over page actions), with the card in view.
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+      await expect(dockRoot(page)).toHaveAttribute('data-yield', 'false')
+    }
+    const grab = async (page: Page) => {
+      const home = await box(dock(page))
+      const from = { x: home.x + 48, y: home.y + 48 }
+      await page.mouse.move(from.x, from.y)
+      await page.mouse.down()
+      return from
+    }
+    const ring = (page: Page) => page.locator('[data-mam-drop]')
+
+    test('rings the card under the pointer, drops into the same starters and answers from reviewed copy', async ({
+      page,
+    }) => {
+      const aiCalls = watchAiRequests(page)
+      await installHomeMocks(page, homeWorld('do-today'))
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.goto('/dashboard')
+      await ready(page)
+      const heading = resources(page).getByRole('heading', { level: 2 })
+      const target = await box(heading)
+      await grab(page)
+      await page.mouse.move(target.x + 40, target.y + target.height / 2, {
+        steps: 40,
+      })
+      await travelling(page, 'drag')
+      await expect(ring(page)).toHaveCount(1)
+      await expect(ring(page)).toHaveAttribute('data-testid', 'home-resources')
+      // A visual cue only: not the card Mầm talks about, and no layout shift.
+      await expect(ring(page)).not.toHaveAttribute('data-mam-active', '')
+      expect(
+        await ring(page).evaluate((el) => {
+          const { outlineStyle, outlineWidth, outlineColor } =
+            getComputedStyle(el)
+          return {
+            outlineStyle,
+            outlineWidth,
+            opaque: !outlineColor.includes('/'),
+          }
+        }),
+      ).toEqual({ outlineStyle: 'dashed', outlineWidth: '3px', opaque: true })
+
+      await page.mouse.up()
+      await expect(ring(page)).toHaveCount(0)
+      await travelling(page, 'perch')
+      await expect(bubble(page)).toBeVisible()
+      const starter = bubble(page).getByRole('button', {
+        name: 'Mầm giải thích',
+      })
+      await expect(starter).toBeFocused()
+      // No answer until a starter is chosen, and no text got selected on the way.
+      await expect(bubble(page)).not.toContainText('thư viện MentalBridge')
+      expect(await page.evaluate(() => getSelection()?.toString())).toBe('')
+      await starter.click()
+      await expect(bubble(page)).toContainText('thư viện MentalBridge')
+      expect(aiCalls).toEqual([])
+
+      await page.keyboard.press('Escape')
+      await travelling(page, 'dock')
+    })
+
+    test('no ring over a link or the bare page, and letting go there is the throw', async ({
+      page,
+    }) => {
+      await installHomeMocks(page, homeWorld('do-today'))
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.goto('/dashboard')
+      await ready(page)
+      const link = await box(resources(page).getByRole('link').first())
+      await grab(page)
+      await page.mouse.move(link.x + link.width / 2, link.y + link.height / 2, {
+        steps: 40,
+      })
+      await travelling(page, 'drag')
+      await expect(ring(page)).toHaveCount(0)
+      await page.mouse.up()
+      await travelling(page, 'fly')
+      await expect(bubble(page)).toHaveCount(0)
+      await expect(page.locator('[data-mam-active]')).toHaveCount(0)
+      await travelling(page, 'dock', 20_000)
+      await expectPageActionsClickable(page)
+    })
+
+    test('Escape during the drag snaps Mầm home and takes the ring away', async ({
+      page,
+    }) => {
+      await installHomeMocks(page, homeWorld('do-today'))
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.goto('/dashboard')
+      await ready(page)
+      const target = await box(
+        resources(page).getByRole('heading', { level: 2 }),
+      )
+      await grab(page)
+      await page.mouse.move(target.x + 40, target.y + target.height / 2, {
+        steps: 40,
+      })
+      await expect(ring(page)).toHaveCount(1)
+      await page.keyboard.press('Escape')
+      await travelling(page, 'dock', 2000)
+      await expect(ring(page)).toHaveCount(0)
+      await page.mouse.up()
+      await expect(bubble(page)).toHaveCount(0)
+    })
+
+    test('under reduced motion there is no drag, no ring and no drop', async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await installHomeMocks(page, homeWorld('do-today'))
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.goto('/dashboard')
+      await expect(dock(page)).toBeVisible()
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+      await expect(dockRoot(page)).toHaveAttribute('data-yield', 'false')
+      const target = await box(
+        resources(page).getByRole('heading', { level: 2 }),
+      )
+      await grab(page)
+      await page.mouse.move(target.x + 40, target.y + target.height / 2, {
+        steps: 20,
+      })
+      await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')
+      await expect(ring(page)).toHaveCount(0)
+      await page.mouse.up()
+      await expect(bubble(page)).toHaveCount(0)
+    })
+
+    test('a touch drag at 375 rings the card and drops into the starters', async ({
+      browser,
+    }) => {
+      const context = await browser.newContext({
+        hasTouch: true,
+        isMobile: true,
+        viewport: { width: 375, height: 812 },
+        timezoneId: 'Asia/Ho_Chi_Minh',
+      })
+      const page = await context.newPage()
+      await seedOnboardingSeen(page)
+      await installHomeMocks(page, homeWorld('do-today'))
+      await page.goto('/dashboard')
+      await ready(page)
+      const spot = await liveSpot(page)
+      const home = await box(dock(page))
+      expect(spot).not.toBeNull()
+      const cdp = await context.newCDPSession(page)
+      const touch = (
+        type: 'touchStart' | 'touchMove' | 'touchEnd',
+        x: number,
+        y: number,
+      ) =>
+        cdp.send('Input.dispatchTouchEvent', {
+          type,
+          touchPoints: type === 'touchEnd' ? [] : [{ x, y }],
+        })
+      const from = { x: home.x + 36, y: home.y + 36 }
+      const to = spot!
+      await touch('touchStart', from.x, from.y)
+      for (let i = 1; i <= 30; i++)
+        await touch(
+          'touchMove',
+          from.x + ((to.x - from.x) * i) / 30,
+          from.y + ((to.y - from.y) * i) / 30,
+        )
+      await expect(ring(page)).toHaveCount(1)
+      await touch('touchEnd', to.x, to.y)
+      await expect(ring(page)).toHaveCount(0)
+      await travelling(page, 'perch')
+      await expect(bubble(page)).toBeVisible()
+      const rect = await bubble(page).boundingBox()
+      expect(rect!.x).toBeGreaterThanOrEqual(15)
+      expect(rect!.x + rect!.width).toBeLessThanOrEqual(375 - 15)
+      await context.close()
+    })
   })
 
   test('a summon on a card keeps the gaze and touch motion off while Mầm is perched', async ({

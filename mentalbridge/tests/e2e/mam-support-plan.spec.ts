@@ -193,7 +193,62 @@ test.describe('MB-772 SupportPlan with the global Mầm', () => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/support-plan')
     await expect(cta(page)).toBeVisible()
+    // MB-819: the focus card (the Today list row) must be on screen for Mầm to climb it.
+    await page.locator('li.mbw-row[data-mam]').scrollIntoViewIfNeeded()
 
+    await dock(page).focus()
+    await page.keyboard.press('Enter')
+    await page.getByRole('button', { name: 'Hỏi Mầm về trang này' }).click()
+    // Keep the Today row below the sticky header when the answer resolves. A partially
+    // visible row makes scrollIntoViewIfNeeded a no-op and correctly falls back to the dock.
+    await page
+      .locator('li.mbw-row[data-mam]')
+      .evaluate((row) =>
+        row.scrollIntoView({ block: 'center', behavior: 'auto' }),
+      )
+    await bubble(page)
+      .getByRole('button', { name: 'Nên bắt đầu từ đâu?' })
+      .click()
+    await expect(bubble(page)).toContainText(
+      'Việc nên làm tiếp: “Check-in cảm xúc”.',
+    )
+    // MB-819: the mounted Today card is on screen, so Mầm climbs onto it and points once.
+    await travelling(page, 'perch')
+    await expect(bubble(page)).toHaveAttribute('data-anchor', 'point')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', 'point')
+    await expect(page.locator('li.mbw-row[data-mam-active]')).toHaveCount(1)
+    // The head rises above the card edge: it perches clear of the "0 / 1 việc hôm nay" caption.
+    const head = await box(character(page))
+    const row = await box(page.locator('li.mbw-row[data-mam-active]'))
+    const caption = await box(page.locator('.mbw-day-count .mbw-quiet'))
+    expect(
+      head.x < caption.x + caption.width &&
+        head.x + head.width > caption.x &&
+        caption.y < row.y &&
+        caption.y + caption.height > head.y,
+    ).toBe(false)
+    const go = bubble(page).getByRole('button', { name: 'Đến việc này' })
+    await expect(go).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(bubble(page)).toHaveCount(0)
+    await expect(cta(page)).toBeFocused()
+    await travelling(page, 'dock')
+
+    await dock(page).click()
+    await page.getByRole('button', { name: 'Hỏi Mầm về trang này' }).click()
+    await bubble(page).getByRole('button', { name: 'Mầm giải thích' }).click()
+    await expect(bubble(page)).toContainText('Tab Hôm nay')
+    expect(requests.companionSurfaces()).toEqual([])
+  })
+
+  // MB-819: a focus card below the fold is not scrolled to; the answer stays at the dock.
+  test('the start answer with the focus card below the fold stays at the dock: no climb, no point, no scroll', async ({
+    page,
+  }) => {
+    await installSupportPlanMocks(page)
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/support-plan')
+    await expect(cta(page)).toBeVisible()
     await dock(page).focus()
     await page.keyboard.press('Enter')
     await page.getByRole('button', { name: 'Hỏi Mầm về trang này' }).click()
@@ -203,17 +258,72 @@ test.describe('MB-772 SupportPlan with the global Mầm', () => {
     await expect(bubble(page)).toContainText(
       'Việc nên làm tiếp: “Check-in cảm xúc”.',
     )
-    const go = bubble(page).getByRole('button', { name: 'Đến việc này' })
-    await expect(go).toBeFocused()
-    await page.keyboard.press('Enter')
-    await expect(bubble(page)).toHaveCount(0)
-    await expect(cta(page)).toBeFocused()
+    await expect(bubble(page)).toHaveAttribute('data-anchor', 'dock')
+    await page.waitForTimeout(1500)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+    expect(await page.evaluate(() => window.scrollY)).toBe(0)
+    await expect(
+      bubble(page).getByRole('button', { name: 'Đến việc này' }),
+    ).toBeVisible()
+  })
 
-    await dock(page).click()
+  // MB-819: another tab has no Today card, so the answer stays at the dock.
+  test('the start answer on another tab has no card to point at and stays at the dock', async ({
+    page,
+  }) => {
+    await installSupportPlanMocks(page)
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/support-plan')
+    await expect(cta(page)).toBeVisible()
+    await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+    await dock(page).focus()
+    await page.keyboard.press('Enter')
     await page.getByRole('button', { name: 'Hỏi Mầm về trang này' }).click()
-    await bubble(page).getByRole('button', { name: 'Mầm giải thích' }).click()
-    await expect(bubble(page)).toContainText('Tab Hôm nay')
+    await bubble(page)
+      .getByRole('button', { name: 'Nên bắt đầu từ đâu?' })
+      .click()
+    await expect(bubble(page)).toContainText('Việc nên làm tiếp')
+    await expect(bubble(page)).toHaveAttribute('data-anchor', 'dock')
+    await page.waitForTimeout(1500)
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', '')
+  })
+
+  // MB-819: drag Mầm onto the focus card; it asks Care once, only after a starter.
+  test('dropping Mầm on the focus card opens its starters and asks Care once after the starter', async ({
+    page,
+  }) => {
+    const requests = await installSupportPlanMocks(page)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/support-plan')
+    await expect(cta(page)).toBeVisible()
+    await expect(character(page)).toHaveAttribute('data-mam-status', 'ready', {
+      timeout: 15_000,
+    })
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    await expect(dockRoot(page)).toHaveAttribute('data-yield', 'false')
+    const card = page.locator('li.mbw-row[data-mam]')
+    const target = await box(card.getByRole('heading', { level: 3 }))
+    const home = await box(dock(page))
+    await page.mouse.move(home.x + 48, home.y + 48)
+    await page.mouse.down()
+    await page.mouse.move(target.x + 30, target.y + target.height / 2, {
+      steps: 40,
+    })
+    await expect(card).toHaveAttribute('data-mam-drop', '')
+    await page.mouse.up()
+    await expect(card).not.toHaveAttribute('data-mam-drop', '')
+    await travelling(page, 'perch')
     expect(requests.companionSurfaces()).toEqual([])
+    const starter = bubble(page).getByRole('button', { name: 'Mầm giải thích' })
+    await expect(starter).toBeFocused()
+    await starter.click()
+    await expect(bubble(page)).toContainText(
+      'Hoạt động này thuộc kế hoạch hiện tại.',
+    )
+    expect(requests.companionSurfaces()).toEqual(['TODAY'])
+    expect(requests.planMutations()).toBe(0)
   })
 
   test('Plan rows ask for the PLAN surface and a tab change discards the bubble', async ({

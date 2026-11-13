@@ -20,6 +20,7 @@ import {
   type MamTarget,
   type MamTargetKind,
 } from './mam-targets'
+import { isMamCardOnScreen } from './mam-travel'
 import {
   findMamTarget,
   findMamTargetElement,
@@ -73,6 +74,11 @@ export type MamSummon = Readonly<{
   intent?: MamIntent
   answer?: MamAnswer
   failed?: boolean
+  /**
+   * A page answer whose card is on screen (MB-819): Mầm climbs there and the bubble
+   * sits beside it. The stored summon stays the page's, so the answer is unchanged.
+   */
+  lead?: Readonly<{ element: Element; anchor: MamAnchor }>
 }>
 
 const hasSelectionIn = (element: Element) => {
@@ -82,6 +88,36 @@ const hasSelectionIn = (element: Element) => {
   for (let index = 0; index < selection.rangeCount; index += 1)
     if (selection.getRangeAt(index).intersectsNode(element)) return true
   return false
+}
+
+// A registered target Mầm may open on: native controls and selected text keep their own menu.
+const summonable = (node: EventTarget | null, nativeSelector: string) => {
+  const found = findMamTarget(node)
+  if (!found) return null
+  if (node instanceof Element && node.closest(nativeSelector)) return null
+  if (hasSelectionIn(found.element)) return null
+  return found
+}
+
+/**
+ * The registered card under a viewport point, looking through the dock (`skip`):
+ * what a drag-drop (MB-819) would summon on. Page targets and native controls never match.
+ */
+export function mamDropTargetAt(x: number, y: number, skip: Element | null) {
+  const node = document
+    .elementsFromPoint?.(x, y)
+    .find((element) => !skip?.contains(element))
+  return node ? summonable(node, NATIVE_MENU) : null
+}
+
+/** Focus is on nothing, on Mầm's dock or inside one of its bubbles: still the summon's to move. */
+export const mamHoldsFocus = () => {
+  const active = document.activeElement
+  return (
+    !active ||
+    active === document.body ||
+    Boolean(active.closest('[data-mam-dock], [data-mam-bubble]'))
+  )
 }
 
 const focusInside = (element: Element) => {
@@ -98,6 +134,7 @@ export function useMamSummon({
   dockRef,
   bubbleRef,
   onBlocked,
+  canPoint = false,
 }: Readonly<{
   pathname: string
   enabled: boolean
@@ -106,11 +143,15 @@ export function useMamSummon({
   bubbleRef: RefObject<HTMLElement | null>
   /** Set while Mầm cannot help (dizzy): a summon is reported here and opens nothing. */
   onBlocked?: (returnFocus: HTMLElement | null) => void
+  /** True while Mầm can climb and point (ready, free to travel); read when an answer arrives. */
+  canPoint?: boolean
 }>) {
   const [summon, setSummon] = useState<MamSummon | null>(null)
   const blocked = useRef(onBlocked)
+  const pointable = useRef(canPoint)
   useEffect(() => {
     blocked.current = onBlocked
+    pointable.current = canPoint
   })
   const request = useRef<AbortController | null>(null)
   const latest = useRef(summon)
@@ -128,7 +169,9 @@ export function useMamSummon({
     const returnFocus = latest.current?.returnFocus
     latest.current = null
     setSummon(null)
-    if (restoreFocus && returnFocus?.isConnected) returnFocus.focus()
+    // Focus the user moved to a page control meanwhile stays there.
+    if (restoreFocus && returnFocus?.isConnected && mamHoldsFocus())
+      returnFocus.focus()
   }, [])
 
   // A new route, a hidden Mầm or a modal discards the bubble and any request.
@@ -136,6 +179,10 @@ export function useMamSummon({
   if (closedFor.pathname !== pathname || closedFor.enabled !== enabled) {
     setClosedFor({ pathname, enabled })
     if (summon) setSummon(null)
+  } else if (!canPoint && summon?.lead) {
+    // Travel eligibility fell: keep the answer at the dock for good. A route or
+    // suppression change above closes it instead, and must not be overwritten.
+    setSummon({ ...summon, lead: undefined })
   }
   useEffect(cancelRequest, [pathname, enabled])
   useEffect(() => cancelRequest, [])
@@ -171,6 +218,22 @@ export function useMamSummon({
     [pathname],
   )
 
+  /** Drop of Mầm on a card (MB-819): the same opening as a right-click at that point. */
+  const summonOn = useCallback(
+    (x: number, y: number, skip: Element | null) => {
+      const found = mamDropTargetAt(x, y, skip)
+      return found
+        ? open(
+            found.target,
+            found.element,
+            pointAt(found.element, x + window.scrollX, y + window.scrollY),
+            dockRef.current,
+          )
+        : false
+    },
+    [dockRef, open],
+  )
+
   const summonPage = useCallback(() => {
     const target = getMamPageTarget()
     if (target) open(target, null, { kind: 'dock' }, dockRef.current)
@@ -182,7 +245,12 @@ export function useMamSummon({
     const controller = new AbortController()
     request.current = controller
     const { target } = from
-    const pending: MamSummon = { ...from, phase: 'pending', intent }
+    const pending: MamSummon = {
+      ...from,
+      phase: 'pending',
+      intent,
+      lead: undefined,
+    }
     latest.current = pending
     setSummon(pending)
     const isRegistered = (kind: MamTargetKind) =>
@@ -197,16 +265,40 @@ export function useMamSummon({
     ).then((result) => {
       if (result.status === 'aborted' || request.current !== controller) return
       request.current = null
+      const answer =
+        result.status === 'failed'
+          ? { text: mamFallbackText(target, intent) }
+          : result.answer
+      // Page "where to start": Mầm points at the card only when it is on screen.
+      const card =
+        target.page &&
+        intent === 'WHERE_TO_START' &&
+        result.status !== 'failed' &&
+        answer?.focusKind &&
+        pointable.current
+          ? findMamTargetElement(answer.focusKind)
+          : null
+      const rect =
+        card && isMamCardOnScreen(card) ? card.getBoundingClientRect() : null
+      const lead =
+        card && rect
+          ? {
+              element: card,
+              anchor: pointAt(
+                card,
+                rect.left + window.scrollX,
+                rect.bottom + window.scrollY,
+              ),
+            }
+          : undefined
       setSummon((current) =>
         current && current.target === target
           ? {
               ...current,
               phase: 'answer',
-              answer:
-                result.status === 'failed'
-                  ? { text: mamFallbackText(target, intent) }
-                  : result.answer,
+              answer,
               failed: result.status === 'failed',
+              lead,
             }
           : current,
       )
@@ -261,14 +353,6 @@ export function useMamSummon({
       cancelPress()
       if (swallowClickUntil === Infinity) swallowClickUntil = Date.now() + 400
     }
-    const summonable = (node: EventTarget | null, nativeSelector: string) => {
-      const found = findMamTarget(node)
-      if (!found) return null
-      if (node instanceof Element && node.closest(nativeSelector)) return null
-      if (hasSelectionIn(found.element)) return null
-      return found
-    }
-
     const onContextMenu = (event: MouseEvent) => {
       const found = summonable(event.target, NATIVE_MENU)
       if (!found) return
@@ -414,7 +498,7 @@ export function useMamSummon({
   }, [enabled, open, start])
 
   // The card Mầm is talking about shows it (feature CSS reads the attribute).
-  const talkingAbout = summon?.element
+  const talkingAbout = summon?.element ?? summon?.lead?.element
   useEffect(() => {
     talkingAbout?.setAttribute('data-mam-active', '')
     return () => talkingAbout?.removeAttribute('data-mam-active')
@@ -449,9 +533,11 @@ export function useMamSummon({
     const unsubscribe = subscribeMamTargets(() => {
       const current = latest.current
       if (!current) return
-      const gone = current.element
-        ? !isMamTargetMounted(current.element)
-        : getMamPageTarget() !== current.target
+      // A page answer pointing at a card also ends when that card leaves.
+      const card = current.element ?? current.lead?.element
+      const gone =
+        (card ? !isMamTargetMounted(card) : false) ||
+        (!current.element && getMamPageTarget() !== current.target)
       if (gone) close(false)
     })
     document.addEventListener('keydown', onKeyDown)
@@ -463,8 +549,13 @@ export function useMamSummon({
     }
   }, [bubbleRef, close, dockRef, isOpen])
 
-  const visible =
+  const shown =
     summon && summon.pathname === pathname && enabled ? summon : null
+  // A pointing answer rides the card's climb and bubble; the stored summon stays the page's.
+  const visible =
+    shown?.lead && !shown.element
+      ? { ...shown, element: shown.lead.element, anchor: shown.lead.anchor }
+      : shown
   const behavior: MamLoopingBehavior | null = !visible
     ? null
     : visible.phase === 'menu'
@@ -475,5 +566,13 @@ export function useMamSummon({
           ? 'gentle'
           : 'explaining'
 
-  return { summon: visible, summonPage, choose, go, close, behavior }
+  return {
+    summon: visible,
+    summonPage,
+    summonOn,
+    choose,
+    go,
+    close,
+    behavior,
+  }
 }
