@@ -93,41 +93,47 @@ describe('AdminWorkspace', () => {
       name: 'Điều hướng quản trị',
     })
 
-    expect(within(navigation).getAllByRole('link')).toHaveLength(13)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(10)
     expect(
       within(navigation)
         .getAllByRole('link')
         .map((link) => link.getAttribute('href')),
     ).toEqual([
       '/admin/dashboard',
-      '/admin/retention',
       '/admin/accounts',
       '/admin/specialists',
       '/admin/content',
       '/admin/moderation',
       '/admin/appointments',
       '/admin/disputes',
-      '/admin/audit',
-      '/admin/reports',
       '/admin/payments',
       '/admin/payouts',
-      '/admin/reconciliation',
+      '/admin/feedback',
     ])
     expect(container).not.toHaveTextContent('@example.com')
     expect(container).not.toHaveTextContent('Nguyễn Minh Anh')
     expect(container).not.toHaveTextContent('12.480')
     expect(
-      screen.getByRole('link', { name: 'Bảo lưu & xóa dữ liệu' }),
-    ).toHaveAttribute('href', '/admin/retention')
+      within(navigation).queryByRole('link', { name: 'Bảo lưu & xóa dữ liệu' }),
+    ).not.toBeInTheDocument()
     expect(
-      screen.getByRole('link', { name: 'Thanh toán gói' }),
+      within(navigation).queryByRole('link', { name: 'Nhật ký kiểm toán' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(navigation).queryByRole('link', { name: 'Báo cáo' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(navigation).queryByRole('link', { name: 'Đối soát thương mại' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(navigation).getByRole('link', { name: 'Thanh toán gói' }),
     ).toHaveAttribute('href', '/admin/payments')
     expect(
-      screen.getByRole('link', { name: 'Chi trả chuyên gia' }),
+      within(navigation).getByRole('link', { name: 'Chi trả chuyên gia' }),
     ).toHaveAttribute('href', '/admin/payouts')
     expect(
-      screen.getByRole('link', { name: 'Đối soát thương mại' }),
-    ).toHaveAttribute('href', '/admin/reconciliation')
+      within(navigation).getByRole('link', { name: 'Ý kiến & Phản hồi' }),
+    ).toHaveAttribute('href', '/admin/feedback')
     expect(
       within(navigation).queryByRole('link', { name: /assessment|AI/i }),
     ).not.toBeInTheDocument()
@@ -165,4 +171,15 @@ describe('AdminWorkspace', () => {
       expect(screen.getByRole('region', { name: accessibleName })).toBeVisible()
     },
   )
+
+  it('renders administrator profile badge in topbar with proper admin identity without clinical doctor prefix', () => {
+    renderSection('dashboard')
+
+    const profileBadge = screen.getByRole('link', { name: /hồ sơ quản trị/i })
+    expect(profileBadge).toBeInTheDocument()
+    expect(within(profileBadge).getByText('AD')).toBeInTheDocument()
+    expect(within(profileBadge).getByText('Quản trị viên')).toBeInTheDocument()
+    expect(within(profileBadge).getByText(/admin \/ quyền tối cao/i)).toBeInTheDocument()
+    expect(screen.queryByText(/BS\. Hoàng Khang/i)).not.toBeInTheDocument()
+  })
 })

@@ -1,102 +1,226 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  createCommunityModerationAction,
-  getCommunityModerationCases,
-} from '@/features/community/api/browser-community'
 import AdminCommunityModerationSection from './AdminCommunityModerationSection'
 
-vi.mock('@/features/community/api/browser-community', () => ({
-  createCommunityModerationAction: vi.fn(),
-  getCommunityModerationCases: vi.fn(),
-}))
-
-const moderationCase = {
-  caseId: '10000000-0000-4000-8000-000000000001',
-  targetType: 'POST' as const,
-  targetId: '20000000-0000-4000-8000-000000000001',
-  state: 'OPEN' as const,
-  priority: 'HIGH' as const,
-  reportReasons: ['SELF_HARM_OR_CRISIS_CONCERN' as const],
-  reportContexts: ['Người báo cáo đề nghị đội ngũ xem xét sớm.'],
-  evidence: { content: 'Nội dung bằng chứng.', state: 'ACTIVE', version: 2 },
-  actions: [],
-  createdAt: '2026-10-02T10:00:00Z',
-  updatedAt: '2026-10-02T10:00:00Z',
-  version: 0,
+const mockSummary = {
+  totalPosts: 3,
+  activePosts: 3,
+  hiddenPosts: 0,
+  removedPosts: 0,
+  sensitivePosts: 0,
+  totalComments: 5,
+  totalReactions: 12,
+  openCases: 0,
+  aiSafetyScore: '99.4%',
+  safetyStatus: 'An toàn tuyệt đối',
 }
+
+const mockPosts = [
+  {
+    id: '30db3d3e-fa1b-4e1e-907c-581e2272c7cd',
+    content: 'For when the thoughts won’t stop #anxiety #MentalHealth',
+    state: 'ACTIVE' as const,
+    sensitive_content_warning: null,
+    comment_count: 2,
+    reaction_count: 5,
+    published_at: '2026-11-06T16:48:59Z',
+    updated_at: '2026-11-06T16:48:59Z',
+    author_mode: 'AUTHENTICATED',
+    author_profile_id: 'prof-user-01',
+    author_display_name: 'Khôi',
+    avatar_preset: null,
+    author_status: 'ACTIVE',
+    media_list: [
+      {
+        id: 'media-vid-01',
+        url: 'https://res.cloudinary.com/test/video/authenticated/sample.mp4',
+        type: 'VIDEO',
+        state: 'READY',
+        altText: 'Video tâm sự',
+      },
+    ],
+    topic_list: ['EXPERIENCE_SHARING'],
+  },
+  {
+    id: '4b1f3af2-1f09-47a0-97de-d53af155249b',
+    content: 'Bức tranh bình yên tự vẽ chiều nay',
+    state: 'ACTIVE' as const,
+    sensitive_content_warning: null,
+    comment_count: 0,
+    reaction_count: 3,
+    published_at: '2026-11-07T10:00:00Z',
+    updated_at: '2026-11-07T10:00:00Z',
+    author_mode: 'ANONYMOUS',
+    author_profile_id: 'prof-user-02',
+    author_display_name: 'Ngọc Quyên',
+    avatar_preset: null,
+    author_status: 'ACTIVE',
+    media_list: [
+      {
+        id: 'media-img-01',
+        url: 'https://res.cloudinary.com/test/image/authenticated/art.jpg',
+        type: 'IMAGE',
+        state: 'READY',
+        altText: 'Ảnh vẽ',
+      },
+    ],
+    topic_list: ['MY_STORY'],
+  },
+]
 
 describe('AdminCommunityModerationSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(getCommunityModerationCases).mockResolvedValue([moderationCase])
-    vi.mocked(createCommunityModerationAction).mockResolvedValue({
-      ...moderationCase,
-      state: 'RESOLVED',
-      version: 1,
-    })
+
+    // Mock global fetch
+    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/admin/community/moderation') {
+        if (!init || init.method === 'GET' || !init.method) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                success: true,
+                summary: mockSummary,
+                posts: mockPosts,
+                comments: [],
+                cases: [],
+              }),
+          })
+        }
+
+        // POST action
+        const body = JSON.parse(init.body as string)
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              message: `Thao tác ${body.action} thành công.`,
+            }),
+        })
+      }
+
+      return Promise.reject(new Error(`Unhandled request: ${url}`))
+    }) as any
   })
 
-  it('filters minimized evidence and records an idempotent moderation decision', async () => {
+  it('renders the compact list view of posts with media badges and author info', async () => {
     render(<AdminCommunityModerationSection />)
 
-    expect(await screen.findByText('Nội dung bằng chứng.')).toBeInTheDocument()
-    expect(
-      screen.getByText('Người báo cáo đề nghị đội ngũ xem xét sớm.'),
-    ).toBeInTheDocument()
+    // Check table headers
+    expect(await screen.findByText('TÁC GIẢ')).toBeInTheDocument()
+    expect(screen.getByText('NỘI DUNG & ĐÍNH KÈM')).toBeInTheDocument()
+    expect(screen.getByText('QUYỀN QUẢN TRỊ')).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Loại nội dung'), {
-      target: { value: 'POST' },
-    })
-    await waitFor(() =>
-      expect(getCommunityModerationCases).toHaveBeenLastCalledWith({
-        state: 'OPEN',
-        targetType: 'POST',
-        priority: undefined,
-      }),
-    )
+    // Check post rows
+    expect(screen.getByText('Khôi')).toBeInTheDocument()
+    expect(screen.getByText(/For when the thoughts won’t stop/i)).toBeInTheDocument()
+    expect(screen.getByText(/Video \(1\)/i)).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Quyết định'), {
-      target: { value: 'HIDE' },
-    })
-    fireEvent.change(screen.getByLabelText('Mã lý do'), {
-      target: { value: 'confirmed_risk' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Ghi quyết định' }))
-
-    await waitFor(() =>
-      expect(createCommunityModerationAction).toHaveBeenCalledOnce(),
-    )
-    expect(createCommunityModerationAction).toHaveBeenCalledWith(
-      moderationCase.caseId,
-      { action: 'HIDE', reasonCode: 'CONFIRMED_RISK' },
-      expect.any(String),
-    )
-    expect(
-      await screen.findByText('Quyết định đã được ghi vào nhật ký kiểm duyệt.'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText('Nội dung bằng chứng.')).not.toBeInTheDocument()
+    expect(screen.getByText('Ngọc Quyên')).toBeInTheDocument()
+    expect(screen.getByText(/Bức tranh bình yên tự vẽ/i)).toBeInTheDocument()
+    expect(screen.getByText(/Ảnh \(1\)/i)).toBeInTheDocument()
   })
 
-  it('offers audited warning actions only for post cases', async () => {
-    const { unmount } = render(<AdminCommunityModerationSection />)
-
-    expect(
-      await screen.findByRole('option', { name: 'Thêm cảnh báo nhạy cảm' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('option', { name: 'Gỡ cảnh báo nhạy cảm' }),
-    ).toBeInTheDocument()
-
-    unmount()
-    vi.mocked(getCommunityModerationCases).mockResolvedValueOnce([
-      { ...moderationCase, targetType: 'COMMENT' },
-    ])
+  it('opens the detail modal when clicking a post and renders video player and admin buttons', async () => {
     render(<AdminCommunityModerationSection />)
 
-    await screen.findByText('Nội dung bằng chứng.')
+    // Wait for posts to load
+    await screen.findByText('Khôi')
+
+    // Click "Chi tiết" button on the video post
+    const detailButtons = screen.getAllByRole('button', { name: /Chi tiết/i })
+    fireEvent.click(detailButtons[0])
+
+    // Verify modal opened
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toBeInTheDocument()
     expect(
-      screen.queryByRole('option', { name: 'Thêm cảnh báo nhạy cảm' }),
-    ).not.toBeInTheDocument()
+      within(dialog).getByText(/Chi tiết bài viết & Bảng điều phối kiểm duyệt/i),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText(/Mã bài viết:/i)).toBeInTheDocument()
+
+    // Verify video player rendered for video media
+    const video = dialog.querySelector('video')
+    expect(video).toBeInTheDocument()
+    expect(video).toHaveAttribute(
+      'src',
+      'https://res.cloudinary.com/test/video/authenticated/sample.mp4',
+    )
+
+    // Verify Admin buttons in modal
+    expect(
+      within(dialog).getByRole('button', { name: /Gắn cảnh báo nhạy cảm/i }),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('button', { name: /Tạm ẩn bài viết/i }),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('button', { name: /Gỡ bài viết vi phạm/i }),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('button', { name: /Báo cáo \/ Gắn cờ/i }),
+    ).toBeInTheDocument()
+
+    // Click "Đóng" button to close modal
+    const closeBtn = within(dialog).getByRole('button', { name: /^Đóng$/i })
+    fireEvent.click(closeBtn)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('executes admin moderation actions from modal with live state updates', async () => {
+    render(<AdminCommunityModerationSection />)
+
+    await screen.findByText('Khôi')
+
+    // Open modal
+    const detailButtons = screen.getAllByRole('button', { name: /Chi tiết/i })
+    fireEvent.click(detailButtons[0])
+
+    const dialog = await screen.findByRole('dialog')
+
+    // Click "Tạm ẩn bài viết" inside modal
+    const hideBtn = within(dialog).getByRole('button', { name: /Tạm ẩn bài viết/i })
+    fireEvent.click(hideBtn)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/admin/community/moderation',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'UPDATE_POST_STATE',
+            postId: '30db3d3e-fa1b-4e1e-907c-581e2272c7cd',
+            state: 'HIDDEN',
+          }),
+        }),
+      )
+    })
+
+    // Now button text inside modal should update to "Hiển thị lại bài"
+    expect(
+      await within(dialog).findByRole('button', { name: /Hiển thị lại bài/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('allows toggling between list view and card view', async () => {
+    render(<AdminCommunityModerationSection />)
+
+    await screen.findByText('TÁC GIẢ')
+
+    // Switch to Card view
+    const cardViewBtn = screen.getByRole('button', { name: /Thẻ/i })
+    fireEvent.click(cardViewBtn)
+
+    // In card view, table is not rendered
+    expect(screen.queryByText('TÁC GIẢ')).not.toBeInTheDocument()
+    expect(screen.getByText(/For when the thoughts won’t stop/i)).toBeInTheDocument()
+
+    // Switch back to List view
+    const listViewBtn = screen.getByRole('button', { name: /Danh sách/i })
+    fireEvent.click(listViewBtn)
+
+    expect(await screen.findByText('TÁC GIẢ')).toBeInTheDocument()
   })
 })

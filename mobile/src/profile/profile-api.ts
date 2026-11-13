@@ -1,3 +1,5 @@
+import { ApiError } from '@/api/api-error'
+
 import type { AxiosInstance } from 'axios'
 
 import {
@@ -12,6 +14,23 @@ export interface CareProfileApi {
     request: CareProfileUpdate,
     version: number | undefined,
   ): Promise<CareProfile>
+}
+
+function isMissingProfile(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.status === 404 &&
+    error.code === 'PROFILE_NOT_FOUND'
+  )
+}
+
+export async function loadCareProfile(api: Pick<CareProfileApi, 'getProfile'>) {
+  try {
+    return await api.getProfile()
+  } catch (error) {
+    if (isMissingProfile(error)) return null
+    throw error
+  }
 }
 
 export function createCareProfileApi(client: AxiosInstance): CareProfileApi {

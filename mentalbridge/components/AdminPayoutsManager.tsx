@@ -1,6 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { CheckCircle2, Download, RefreshCw, ShieldCheck } from 'lucide-react'
 import {
   useCallback,
   useEffect,
@@ -16,6 +17,8 @@ import {
   adminPayoutStatusLabel,
   maskedHint,
   payoutProviderName,
+  resolveSpecialistName,
+  getSpecialistInitials,
 } from '@/features/specialist-earnings/payout-labels'
 import { ApiError } from '@/lib/api/api-error'
 import type {
@@ -26,14 +29,18 @@ import type {
 import { Dialog } from './ui/Dialog'
 import { useFeedback } from './ui/FeedbackProvider'
 import { Skeleton } from './ui/Skeleton'
+import AdminPayoutDetailPanel from './AdminPayoutDetailPanel'
 import './admin-payouts-manager.css'
 
 type Item = AdminPayoutList['items'][number]
-type Tab = 'queue' | 'ledger'
+type Tab = 'queue' | 'ledger' | 'history'
 type CheckError = 'conflict' | 'gone' | 'failed' | null
 type StatusFilter = 'ALL' | 'NEEDS_REVIEW' | Item['status']
 
-const TABS: readonly Tab[] = ['queue', 'ledger']
+const TABS: readonly Tab[] = ['queue', 'ledger', 'history']
+const PAGE_SIZE = 6
+const PROVIDERS: Item['provider'][] = ['MOMO', 'PAYOS', 'FAKE']
+
 function money(value: number) {
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
@@ -41,6 +48,7 @@ function money(value: number) {
     maximumFractionDigits: 0,
   }).format(value)
 }
+
 function date(value: string) {
   return new Intl.DateTimeFormat('vi-VN', {
     day: '2-digit',
@@ -48,9 +56,10 @@ function date(value: string) {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Asia/Ho_Chi_Minh',
   }).format(new Date(value))
 }
-// Opacity fade plus height collapse; the negative margin cancels the grid row gap.
+
 const collapse = (reduced: boolean | null) => ({
   opacity: 0,
   height: 0,
@@ -60,6 +69,7 @@ const collapse = (reduced: boolean | null) => ({
   overflow: 'hidden',
   transition: { duration: reduced ? 0 : 0.2 },
 })
+
 const groupDigits = (value: string) => value.replace(/(\d{4})(?=\d)/g, '$1 ')
 
 function useFetch<T>(fetcher: () => Promise<T>) {
@@ -77,6 +87,7 @@ function useFetch<T>(fetcher: () => Promise<T>) {
       setLoading(false)
     }
   }, [fetcher])
+
   useEffect(() => {
     let active = true
     queueMicrotask(() => {
@@ -86,11 +97,61 @@ function useFetch<T>(fetcher: () => Promise<T>) {
       active = false
     }
   }, [run])
+
   return { data, setData, loading, failed, reload: run }
 }
 
 const fetchLedger = () => adminPayoutsBrowserClient.get()
 const fetchQueue = () => adminPayoutsBrowserClient.pendingDestinations()
+
+function exportPayouts(items: Item[]) {
+  const rows = [
+    [
+      'Mã chi trả',
+      'Chuyên gia',
+      'Cổng',
+      'Nơi nhận',
+      'Số tiền (VND)',
+      'Trạng thái',
+      'Khoản thu',
+      'Yêu cầu lúc (GMT+7)',
+    ],
+    ...items.map((item) => [
+      item.payoutId,
+      resolveSpecialistName(item.specialistAccountId),
+      payoutProviderName[item.provider],
+      maskedHint(item.destinationHint),
+      String(item.amountVnd),
+      adminPayoutStatusLabel(
+        item.status,
+        item.reconciliationStatus,
+        item.closedAt,
+      ),
+      String(item.earningCount),
+      date(item.requestedAt),
+    ]),
+  ]
+  const csv = rows
+    .map((row) =>
+      row
+        .map((value) => {
+          const safe = /^[\s]*[=+@-]|^[\t\r\n]/.test(value)
+            ? `'${value}`
+            : value
+          return `"${safe.replaceAll('"', '""')}"`
+        })
+        .join(','),
+    )
+    .join('\r\n')
+  const url = URL.createObjectURL(
+    new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }),
+  )
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'bang-ke-chi-tra-chuyen-gia.csv'
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
 
 export default function AdminPayoutsManager({
   onNotice,
@@ -103,18 +164,25 @@ export default function AdminPayoutsManager({
   const queue = useFetch<AdminPayoutDestinationList>(fetchQueue)
   const [chosenTab, setChosenTab] = useState<Tab | null>(null)
   const [filter, setFilter] = useState<StatusFilter>('ALL')
+  const [provider, setProvider] = useState<Item['provider'] | 'ALL'>('ALL')
+  const [page, setPage] = useState(1)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [detailRefresh, setDetailRefresh] = useState(0)
   const [busy, setBusy] = useState<{
     id: string
     kind: 'retry' | 'close'
     sending: boolean
   } | null>(null)
+
   const rowRefs = useRef(new Map<string, HTMLElement>())
   const retryKeys = useRef(new Map<string, string>())
   const closeKeys = useRef(new Map<string, string>())
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
     queue: null,
     ledger: null,
+    history: null,
   })
+
   // Check dialog: the full account is held only while it is open.
   const [checkId, setCheckId] = useState<string | null>(null)
   const [detail, setDetail] = useState<AdminPayoutDestinationDetail | null>(
@@ -137,15 +205,18 @@ export default function AdminPayoutsManager({
 
   const items = useMemo(
     () =>
-      ledger.data?.items.filter((item) =>
-        filter === 'ALL'
-          ? true
-          : filter === 'NEEDS_REVIEW'
-            ? item.reconciliationStatus === 'NEEDS_REVIEW'
-            : item.status === filter,
+      ledger.data?.items.filter(
+        (item) =>
+          (provider === 'ALL' || item.provider === provider) &&
+          (filter === 'ALL'
+            ? true
+            : filter === 'NEEDS_REVIEW'
+              ? item.reconciliationStatus === 'NEEDS_REVIEW'
+              : item.status === filter),
       ) ?? [],
-    [ledger.data, filter],
+    [ledger.data, filter, provider],
   )
+
   const total =
     ledger.data?.items.reduce((sum, item) => sum + item.amountVnd, 0) ?? 0
   const processing =
@@ -158,6 +229,34 @@ export default function AdminPayoutsManager({
     ledger.data?.items
       .filter((item) => item.status === 'SUCCEEDED')
       .reduce((sum, item) => sum + item.amountVnd, 0) ?? 0
+
+  const allItems = ledger.data?.items ?? []
+  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
+  const pageStart = (currentPage - 1) * PAGE_SIZE
+  const pageItems = items.slice(pageStart, pageStart + PAGE_SIZE)
+  const selectedPayout =
+    pageItems.find((item) => item.payoutId === selectedId) ?? pageItems[0]
+
+  const reviewCount = allItems.filter(
+    (item) => item.reconciliationStatus === 'NEEDS_REVIEW' && !item.closedAt,
+  ).length
+  const paidCount = allItems.filter(
+    (item) => item.status === 'SUCCEEDED',
+  ).length
+
+  // MoMo & PayOS specific metric breakdowns
+  const momoItems = allItems.filter((item) => item.provider === 'MOMO')
+  const momoPaid = momoItems.filter((item) => item.status === 'SUCCEEDED')
+  const momoAmount = momoPaid.reduce((sum, item) => sum + item.amountVnd, 0)
+  const momoCount = momoPaid.length
+  const momoShare = paid > 0 ? ((momoAmount / paid) * 100).toFixed(2) : '0'
+
+  const payosItems = allItems.filter((item) => item.provider === 'PAYOS')
+  const payosPaid = payosItems.filter((item) => item.status === 'SUCCEEDED')
+  const payosAmount = payosPaid.reduce((sum, item) => sum + item.amountVnd, 0)
+  const payosCount = payosPaid.length
+  const payosShare = paid > 0 ? ((payosAmount / paid) * 100).toFixed(2) : '0'
 
   function onTabKeyDown(event: KeyboardEvent, current: Tab) {
     const index = TABS.indexOf(current)
@@ -189,32 +288,28 @@ export default function AdminPayoutsManager({
       if (request === detailRequest.current) setDetailFailed(true)
     }
   }, [])
+
   function openCheck(destinationId: string) {
     window.clearTimeout(clearTimer.current)
     setCheckId(destinationId)
     setAcknowledged(false)
     setCheckError(null)
     setCopied(false)
-    // One key per dialog open: a re-submit after a lost response replays the same command.
     confirmKey.current = crypto.randomUUID()
     void loadDetail(destinationId)
   }
+
   function closeCheck() {
     if (sendingRef.current) return
     setCheckId(null)
     detailRequest.current += 1
-    // Drop the account number once the dialog has faded out.
     clearTimer.current = window.setTimeout(() => {
       setDetail(null)
       setAcknowledged(false)
       setCheckError(null)
     }, 200)
   }
-  // A real edit replaces the destination UUID, so the old revision is dropped and the queue shows the new one.
-  function reloadCheck() {
-    closeCheck()
-    void queue.reload()
-  }
+
   async function confirmAccount() {
     if (!detail || !acknowledged || sendingRef.current) return
     sendingRef.current = true
@@ -257,6 +352,7 @@ export default function AdminPayoutsManager({
     sendingRef.current = false
     setSending(false)
   }
+
   async function copyAccount() {
     if (!detail) return
     try {
@@ -264,15 +360,15 @@ export default function AdminPayoutsManager({
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
     } catch {
-      // Clipboard can be blocked; the number stays visible to read.
+      // Clipboard fallback
     }
   }
 
-  // The focused action button leaves with the row's actions; hand focus to the row instead of body.
   function keepFocusInRow(payoutId: string) {
     if (document.activeElement === document.body || !document.activeElement)
       rowRefs.current.get(payoutId)?.focus()
   }
+
   async function latestAttempt(item: Item) {
     const payout = await adminPayoutsBrowserClient.detail(item.payoutId)
     const latest = [...payout.attempts].sort(
@@ -281,6 +377,7 @@ export default function AdminPayoutsManager({
     if (!latest) throw new Error('missing attempt')
     return latest
   }
+
   function replaceRow(payout: Item) {
     ledger.setData((current) =>
       current
@@ -292,7 +389,9 @@ export default function AdminPayoutsManager({
           }
         : current,
     )
+    setDetailRefresh((current) => current + 1)
   }
+
   async function closePayout(item: Item) {
     if (busy) return
     setBusy({ id: item.payoutId, kind: 'close', sending: false })
@@ -332,6 +431,7 @@ export default function AdminPayoutsManager({
       setBusy(null)
     }
   }
+
   async function retryPayout(item: Item) {
     if (busy) return
     setBusy({ id: item.payoutId, kind: 'retry', sending: false })
@@ -381,65 +481,105 @@ export default function AdminPayoutsManager({
     animate: { opacity: 1, y: 0 },
     transition: { duration: reduced ? 0 : 0.24 },
   }
+
   const checkLoading = Boolean(checkId) && !detail && !detailFailed
 
   return (
     <div className="admin-payouts-manager">
+      {/* Page Heading */}
       <header className="apo-heading">
         <div>
-          <span>Quản trị nền tảng</span>
+          <span>QUẢN TRỊ NỀN TẢNG &amp; TÀI CHÍNH Y TẾ</span>
           <h1>Đối soát chuyên gia</h1>
           <p>
-            Xác nhận tài khoản nhận tiền và theo dõi các yêu cầu chi trả đã được
-            hệ thống tạo từ khoản thu đủ điều kiện.
+            Bố cục phân luồng cổng chi trả &amp; kiểm tra tự động các giao dịch
+            thù lao khám trực tuyến đã đủ điều kiện thanh quyết toán.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            void ledger.reload()
-            void queue.reload()
-            onNotice?.('Đang làm mới dữ liệu chi trả.')
-          }}
-        >
-          Làm mới
-        </button>
-      </header>
-      <div className="apo-tabs" role="tablist" aria-label="Chi trả chuyên gia">
-        {TABS.map((id) => (
+        <div className="apo-heading-actions">
           <button
-            key={id}
-            ref={(node) => {
-              tabRefs.current[id] = node
-            }}
             type="button"
-            role="tab"
-            id={`apo-tab-${id}`}
-            aria-selected={tab === id}
-            aria-controls={`apo-tabbody-${id}`}
-            tabIndex={tab === id ? 0 : -1}
-            className="apo-tab"
-            onClick={() => setChosenTab(id)}
-            onKeyDown={(event) => onTabKeyDown(event, id)}
+            disabled={ledger.loading || queue.loading}
+            onClick={() => {
+              void ledger.reload()
+              void queue.reload()
+              setDetailRefresh((current) => current + 1)
+              onNotice?.('Đang làm mới dữ liệu chi trả.')
+            }}
           >
-            {id === 'queue' ? 'Tài khoản chờ xác nhận' : 'Yêu cầu chi trả'}
-            {id === 'queue' && queue.data && (
-              <b className="apo-count" aria-label={`${queueCount} tài khoản`}>
-                {queueCount}
-              </b>
-            )}
-            {tab === id && (
-              <motion.span
-                layoutId="apo-tab-indicator"
-                className="apo-tab-line"
-                aria-hidden="true"
-                transition={{ duration: reduced ? 0 : 0.24 }}
-              />
-            )}
+            <RefreshCw size={15} aria-hidden="true" />
+            Làm mới
           </button>
-        ))}
+          <button
+            type="button"
+            className="apo-primary"
+            disabled={!items.length || ledger.loading || ledger.failed}
+            onClick={() => exportPayouts(items)}
+          >
+            <Download size={15} aria-hidden="true" />
+            Xuất bảng kê Payout
+          </button>
+        </div>
+      </header>
+
+      {/* Tabs Navigation */}
+      <div className="apo-navigation">
+        <div
+          className="apo-tabs"
+          role="tablist"
+          aria-label="Chi trả chuyên gia"
+        >
+          {TABS.map((id) => (
+            <button
+              key={id}
+              ref={(node) => {
+                tabRefs.current[id] = node
+              }}
+              type="button"
+              role="tab"
+              id={`apo-tab-${id}`}
+              aria-selected={tab === id}
+              aria-controls={`apo-tabbody-${id}`}
+              tabIndex={tab === id ? 0 : -1}
+              className="apo-tab"
+              onClick={() => setChosenTab(id)}
+              onKeyDown={(event) => onTabKeyDown(event, id)}
+            >
+              {id === 'queue'
+                ? 'Tài khoản chờ xác nhận'
+                : id === 'ledger'
+                  ? 'Yêu cầu chi trả & Phân luồng Gateway'
+                  : 'Nhật ký Payout API'}
+              {id === 'queue' && queue.data && (
+                <b className="apo-count" aria-label={`${queueCount} tài khoản`}>
+                  {queueCount}
+                </b>
+              )}
+              {id === 'ledger' && ledger.data && (
+                <b
+                  className="apo-count"
+                  aria-label={`${ledger.data.count} yêu cầu`}
+                >
+                  {ledger.data.count}
+                </b>
+              )}
+              {tab === id && (
+                <motion.span
+                  layoutId="apo-tab-indicator"
+                  className="apo-tab-line"
+                  aria-hidden="true"
+                  transition={{ duration: reduced ? 0 : 0.24 }}
+                />
+              )}
+            </button>
+          ))}
+        </div>
+        <span className="apo-limit">
+          Giới hạn hiển thị: Tối đa 200 yêu cầu gần nhất
+        </span>
       </div>
 
+      {/* Tab: Queue (Tài khoản chờ xác nhận) */}
       {tab === 'queue' && (
         <section
           id="apo-tabbody-queue"
@@ -485,7 +625,7 @@ export default function AdminPayoutsManager({
                         <small>{maskedHint(destination.displayHint)}</small>
                       </div>
                       <span title={specialistAccountId}>
-                        Chuyên gia {specialistAccountId.slice(0, 8)}…
+                        {resolveSpecialistName(specialistAccountId)}
                       </span>
                       {destination.updatedAt && (
                         <time dateTime={destination.updatedAt}>
@@ -509,11 +649,12 @@ export default function AdminPayoutsManager({
         </section>
       )}
 
-      {tab === 'ledger' && (
+      {/* Tab: Ledger & History */}
+      {(tab === 'ledger' || tab === 'history') && (
         <section
-          id="apo-tabbody-ledger"
+          id={`apo-tabbody-${tab}`}
           role="tabpanel"
-          aria-labelledby="apo-tab-ledger"
+          aria-labelledby={`apo-tab-${tab}`}
           className="apo-tabbody"
         >
           {ledger.loading && !ledger.data ? (
@@ -533,197 +674,376 @@ export default function AdminPayoutsManager({
             ledger.data && (
               <>
                 {ledger.data.items.some((item) => item.provider === 'FAKE') && (
-                  <p role="note">
+                  <p role="note" className="apo-fake-note">
                     Có giao dịch mô phỏng trong danh sách. Những giao dịch này
                     không chuyển tiền thật.
                   </p>
                 )}
-                <p>
-                  Chỉ tổng hợp các yêu cầu đang hiển thị, tối đa 200 yêu cầu gần
-                  nhất.
-                </p>
+
+                {/* 4 KPI Metrics Cards */}
                 <section className="apo-metrics" aria-label="Tổng quan chi trả">
-                  <article>
-                    <small>Tổng yêu cầu</small>
-                    <strong>{money(total)}</strong>
-                    <p>{ledger.data.count} yêu cầu</p>
+                  {/* Card 1: Ví MoMo Enterprise */}
+                  <article
+                    className="apo-gateway-card apo-card-momo"
+                    data-provider="MOMO"
+                  >
+                    <header>
+                      <div className="apo-card-brand">
+                        <span className="apo-momo-tag">MoMo</span>
+                        <div>
+                          <h2>MoMo</h2>
+                          <p>Chi trả chuyên gia</p>
+                        </div>
+                      </div>
+                      <span className="apo-pill-status apo-pill-ready">
+                        {momoItems.length} yêu cầu
+                      </span>
+                    </header>
+                    <div className="apo-card-amount">
+                      <strong>{money(momoAmount)}</strong>
+                    </div>
+                    <footer>
+                      <span>{momoCount} giao dịch thành công</span>
+                      <span className="apo-stat-share">
+                        {momoShare}% tổng đợt
+                      </span>
+                    </footer>
                   </article>
-                  <article>
-                    <small>Đang xử lý</small>
-                    <strong>{money(processing)}</strong>
-                    <p>Cần theo dõi kết quả nhà cung cấp</p>
+
+                  {/* Card 2: PayOS Napas247 */}
+                  <article
+                    className="apo-gateway-card apo-card-payos"
+                    data-provider="PAYOS"
+                  >
+                    <header>
+                      <div className="apo-card-brand">
+                        <span className="apo-payos-tag">PayOS</span>
+                        <div>
+                          <h2>PayOS</h2>
+                          <p>Chi trả chuyên gia</p>
+                        </div>
+                      </div>
+                      <span className="apo-pill-status apo-pill-open">
+                        {payosItems.length} yêu cầu
+                      </span>
+                    </header>
+                    <div className="apo-card-amount">
+                      <strong>{money(payosAmount)}</strong>
+                    </div>
+                    <footer>
+                      <span>{payosCount} giao dịch thành công</span>
+                      <span className="apo-stat-share">{payosShare}%</span>
+                    </footer>
                   </article>
-                  <article>
-                    <small>Đã thanh toán</small>
-                    <strong>{money(paid)}</strong>
-                    <p>Đã ghi nhận hoàn tất</p>
+
+                  {/* Card 3: TỔNG GIÁ TRỊ ĐỐI SOÁT */}
+                  <article className="apo-total-card">
+                    <header>
+                      <small>TỔNG GIÁ TRỊ ĐỐI SOÁT</small>
+                    </header>
+                    <div className="apo-card-amount">
+                      <strong>{money(total)}</strong>
+                    </div>
+                    <footer>
+                      <span>Yêu cầu đã thanh toán</span>
+                      <span className="apo-total-verified">
+                        <CheckCircle2 size={13} aria-hidden="true" />
+                        {allItems.length
+                          ? `${new Intl.NumberFormat('vi-VN', { style: 'percent', maximumFractionDigits: 1 }).format(paidCount / allItems.length)} (${paidCount}/${allItems.length})`
+                          : 'Chưa có yêu cầu'}
+                      </span>
+                    </footer>
+                  </article>
+
+                  {/* Card 4: TỰ ĐỘNG HÓA ĐỐI SOÁT */}
+                  <article className="apo-reconciliation-card">
+                    <header>
+                      <small>THEO DÕI ĐỐI SOÁT</small>
+                      <ShieldCheck size={18} aria-hidden="true" />
+                    </header>
+                    <h2>
+                      {reviewCount > 0
+                        ? `${reviewCount} yêu cầu cần kiểm tra`
+                        : 'Theo dõi kết quả chi trả'}
+                    </h2>
+                    <p>
+                      Trạng thái được ghi nhận theo từng yêu cầu và lần chuyển
+                      tiền.
+                    </p>
+                    <footer>
+                      <span>Chờ xử lý: {money(processing)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setChosenTab('history')}
+                      >
+                        Kiểm tra log cổng
+                      </button>
+                    </footer>
                   </article>
                 </section>
-                <section className="apo-ledger">
-                  <header>
-                    <div>
-                      <span>Sổ đối soát</span>
-                      <h2>Yêu cầu chi trả</h2>
-                    </div>
-                    <label>
-                      <span className="apo-sr-only">Lọc trạng thái</span>
-                      <select
-                        value={filter}
-                        onChange={(event) =>
-                          setFilter(event.target.value as StatusFilter)
-                        }
-                      >
-                        <option value="ALL">Tất cả trạng thái</option>
-                        <option value="NEEDS_REVIEW">Cần kiểm tra</option>
-                        <option value="PENDING">Đang tiếp nhận</option>
-                        <option value="PROCESSING">Đang xử lý</option>
-                        <option value="SUCCEEDED">Đã thanh toán</option>
-                        <option value="FAILED">Chưa thành công</option>
-                        <option value="UNKNOWN">Cần đối soát</option>
-                      </select>
-                    </label>
-                  </header>
-                  {items.length ? (
-                    <div className="apo-table">
-                      <div className="apo-table-head">
-                        <span>Nơi nhận</span>
-                        <span>Khoản thu</span>
-                        <span>Yêu cầu lúc</span>
-                        <span>Trạng thái</span>
-                        <span>Số tiền</span>
+
+                {/* Main 2-Column Workspace */}
+                <div className="apo-workspace" data-history={tab === 'history'}>
+                  {/* Left Column: Sổ đối soát lệnh */}
+                  <section className="apo-ledger">
+                    <header>
+                      <div className="apo-ledger-title">
+                        <span>Số đối soát lệnh</span>
+                        <b className="apo-pill-count">
+                          {items.length} đợt chi trả
+                        </b>
                       </div>
-                      {items.map((item) => {
-                        const review =
-                          item.reconciliationStatus === 'NEEDS_REVIEW'
-                        const canRetry =
-                          item.status === 'FAILED' &&
-                          item.reconciliationStatus === 'COMPLETE' &&
-                          !item.closedAt
-                        return (
-                          <article
-                            key={item.payoutId}
-                            tabIndex={-1}
-                            ref={(node) => {
-                              if (node) rowRefs.current.set(item.payoutId, node)
-                              else rowRefs.current.delete(item.payoutId)
+                      <div className="apo-ledger-filters">
+                        <label>
+                          <span className="apo-sr-only">Lọc trạng thái</span>
+                          <select
+                            value={filter}
+                            onChange={(event) => {
+                              setFilter(event.target.value as StatusFilter)
+                              setPage(1)
                             }}
                           >
-                            <div>
-                              <strong title={item.specialistAccountId}>
-                                Chuyên gia{' '}
-                                {item.specialistAccountId.slice(0, 8)}
-                              </strong>
-                              <small>{maskedHint(item.destinationHint)}</small>
-                              <small>{payoutProviderName[item.provider]}</small>
-                              <small title={item.payoutId}>
-                                Yêu cầu {item.payoutId.slice(0, 8)}
-                              </small>
-                            </div>
-                            <span>{item.earningCount} khoản đủ điều kiện</span>
-                            <time>{date(item.requestedAt)}</time>
-                            <span
-                              className={`apo-status is-${item.closedAt ? 'closed' : review ? 'needs_review' : item.status.toLowerCase()}`}
+                            <option value="ALL">Tất cả trạng thái</option>
+                            <option value="NEEDS_REVIEW">Cần kiểm tra</option>
+                            <option value="PENDING">Đang tiếp nhận</option>
+                            <option value="PROCESSING">Đang xử lý</option>
+                            <option value="SUCCEEDED">Đã thanh toán</option>
+                            <option value="FAILED">Chưa thành công</option>
+                            <option value="UNKNOWN">Cần đối soát</option>
+                          </select>
+                        </label>
+                        <label>
+                          <span className="apo-sr-only">Lọc cổng chi trả</span>
+                          <select
+                            value={provider}
+                            onChange={(event) => {
+                              setProvider(
+                                event.target.value as Item['provider'] | 'ALL',
+                              )
+                              setPage(1)
+                            }}
+                          >
+                            <option value="ALL">Cả MoMo &amp; PayOS</option>
+                            <option value="MOMO">Chỉ MoMo</option>
+                            <option value="PAYOS">Chỉ PayOS</option>
+                          </select>
+                        </label>
+                      </div>
+                    </header>
+
+                    {items.length ? (
+                      <div className="apo-table">
+                        {pageItems.map((item) => {
+                          const review =
+                            item.reconciliationStatus === 'NEEDS_REVIEW'
+                          const canRetry =
+                            item.status === 'FAILED' &&
+                            item.reconciliationStatus === 'COMPLETE' &&
+                            !item.closedAt
+                          const isSelected =
+                            selectedPayout?.payoutId === item.payoutId
+                          const isItemSucceeded = item.status === 'SUCCEEDED'
+
+                          return (
+                            <article
+                              key={item.payoutId}
+                              tabIndex={-1}
+                              data-selected={isSelected}
+                              ref={(node) => {
+                                if (node)
+                                  rowRefs.current.set(item.payoutId, node)
+                                else rowRefs.current.delete(item.payoutId)
+                              }}
                             >
-                              <AnimatePresence mode="wait" initial={false}>
-                                <motion.span
-                                  key={adminPayoutStatusLabel(
-                                    item.status,
-                                    item.reconciliationStatus,
-                                    item.closedAt,
-                                  )}
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  exit={{ opacity: 0 }}
-                                  transition={{ duration: reduced ? 0 : 0.12 }}
+                              <button
+                                type="button"
+                                className="apo-select-payout"
+                                aria-pressed={isSelected}
+                                aria-controls="apo-payout-detail"
+                                onClick={() => setSelectedId(item.payoutId)}
+                              >
+                                <span
+                                  className="apo-specialist-avatar"
+                                  aria-hidden="true"
                                 >
-                                  {adminPayoutStatusLabel(
-                                    item.status,
-                                    item.reconciliationStatus,
-                                    item.closedAt,
+                                  {getSpecialistInitials(item.specialistAccountId)}
+                                </span>
+                                <span className="apo-row-identity">
+                                  <span className="apo-row-title">
+                                    <strong title={item.specialistAccountId}>
+                                      {resolveSpecialistName(item.specialistAccountId)}
+                                    </strong>
+                                    <span
+                                      className="apo-provider-badge"
+                                      data-provider={item.provider}
+                                    >
+                                      {item.provider === 'PAYOS'
+                                        ? 'PayOS'
+                                        : item.provider === 'MOMO'
+                                          ? 'MoMo'
+                                          : 'Fake'}
+                                    </span>
+                                    <small>
+                                      {maskedHint(item.destinationHint)}
+                                    </small>
+                                  </span>
+                                  <span className="apo-row-meta">
+                                    <span>
+                                      Lệnh: {item.payoutId.slice(0, 8)}
+                                    </span>
+                                    <span>
+                                      {item.earningCount} khoản đủ điều kiện
+                                    </span>
+                                    <time dateTime={item.requestedAt}>
+                                      {date(item.requestedAt)}
+                                    </time>
+                                  </span>
+                                </span>
+                              </button>
+
+                              <div className="apo-row-right">
+                                <b>{money(item.amountVnd)}</b>
+                                <span
+                                  className={`apo-status is-${item.closedAt ? 'closed' : review ? 'needs_review' : item.status.toLowerCase()}`}
+                                >
+                                  {isItemSucceeded ? (
+                                    <>
+                                      <CheckCircle2
+                                        size={12}
+                                        aria-hidden="true"
+                                        style={{
+                                          display: 'inline',
+                                          marginRight: '4px',
+                                        }}
+                                      />
+                                      Đã thanh toán
+                                    </>
+                                  ) : (
+                                    adminPayoutStatusLabel(
+                                      item.status,
+                                      item.reconciliationStatus,
+                                      item.closedAt,
+                                    )
                                   )}
-                                </motion.span>
+                                </span>
+                              </div>
+
+                              {item.closedAt && (
+                                <p role="status" className="apo-note-closed">
+                                  Đóng lúc {date(item.closedAt)}
+                                </p>
+                              )}
+
+                              <AnimatePresence initial={false}>
+                                {item.failureCode && !item.closedAt && (
+                                  <motion.p
+                                    key="failure"
+                                    role="status"
+                                    exit={collapse(reduced)}
+                                  >
+                                    {adminFailureLines[item.failureCode] ??
+                                      'Yêu cầu cần được đối soát lại trước khi tiếp tục.'}
+                                  </motion.p>
+                                )}
                               </AnimatePresence>
-                            </span>
-                            <b>{money(item.amountVnd)}</b>
-                            {item.closedAt && (
-                              <p role="status" className="apo-note-closed">
-                                Đóng lúc {date(item.closedAt)}
-                              </p>
-                            )}
-                            <AnimatePresence initial={false}>
-                              {item.failureCode && !item.closedAt && (
-                                <motion.p
-                                  key="failure"
-                                  role="status"
-                                  exit={collapse(reduced)}
-                                >
-                                  {adminFailureLines[item.failureCode] ??
-                                    'Yêu cầu cần được đối soát lại trước khi tiếp tục.'}
-                                </motion.p>
+
+                              {review && item.reviewRequiredAt && (
+                                <p role="status">
+                                  Cần kiểm tra từ {date(item.reviewRequiredAt)}.
+                                </p>
                               )}
-                            </AnimatePresence>
-                            {review && item.reviewRequiredAt && (
-                              <p role="status">
-                                Cần kiểm tra từ {date(item.reviewRequiredAt)}.
-                              </p>
-                            )}
-                            <AnimatePresence
-                              initial={false}
-                              onExitComplete={() =>
-                                keepFocusInRow(item.payoutId)
-                              }
-                            >
-                              {canRetry && (
-                                <motion.div
-                                  key="actions"
-                                  className="apo-row-actions"
-                                  exit={collapse(reduced)}
-                                >
-                                  <button
-                                    type="button"
-                                    className="apo-link"
-                                    disabled={busy !== null}
-                                    onClick={() => void retryPayout(item)}
+
+                              <AnimatePresence
+                                initial={false}
+                                onExitComplete={() =>
+                                  keepFocusInRow(item.payoutId)
+                                }
+                              >
+                                {canRetry && (
+                                  <motion.div
+                                    key="actions"
+                                    className="apo-row-actions"
+                                    exit={collapse(reduced)}
                                   >
-                                    {busy?.id === item.payoutId &&
-                                    busy.kind === 'retry'
-                                      ? 'Đang tải…'
-                                      : 'Chuyển lại'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="apo-link apo-close"
-                                    disabled={busy !== null}
-                                    onClick={() => void closePayout(item)}
-                                  >
-                                    {busy?.id === item.payoutId &&
-                                    busy.kind === 'close'
-                                      ? busy.sending
-                                        ? 'Đang đóng…'
-                                        : 'Đang tải…'
-                                      : 'Đóng yêu cầu'}
-                                  </button>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </article>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="apo-empty">
-                      <span>◇</span>
-                      <h3>Không có yêu cầu phù hợp</h3>
-                      <p>Thử chọn trạng thái khác hoặc làm mới dữ liệu.</p>
-                    </div>
-                  )}
-                </section>
+                                    <button
+                                      type="button"
+                                      className="apo-link"
+                                      disabled={busy !== null}
+                                      onClick={() => void retryPayout(item)}
+                                    >
+                                      {busy?.id === item.payoutId &&
+                                      busy.kind === 'retry'
+                                        ? 'Đang tải…'
+                                        : 'Chuyển lại'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="apo-link apo-close"
+                                      disabled={busy !== null}
+                                      onClick={() => void closePayout(item)}
+                                    >
+                                      {busy?.id === item.payoutId &&
+                                      busy.kind === 'close'
+                                        ? busy.sending
+                                          ? 'Đang đóng…'
+                                          : 'Đang tải…'
+                                        : 'Đóng yêu cầu'}
+                                    </button>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </article>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="apo-empty">
+                        <span>◇</span>
+                        <h3>Không có yêu cầu phù hợp</h3>
+                        <p>Thử chọn trạng thái khác hoặc làm mới dữ liệu.</p>
+                      </div>
+                    )}
+
+                    <footer className="apo-pagination">
+                      <p role="status">
+                        Đang xem {pageItems.length} trên tổng số {items.length}{' '}
+                        yêu cầu
+                      </p>
+                      <nav aria-label="Phân trang chi trả">
+                        <button
+                          type="button"
+                          disabled={currentPage === 1}
+                          onClick={() => setPage(currentPage - 1)}
+                        >
+                          Trang trước
+                        </button>
+                        <span aria-current="page">{currentPage}</span>
+                        <button
+                          type="button"
+                          disabled={currentPage === pageCount}
+                          onClick={() => setPage(currentPage + 1)}
+                        >
+                          Trang sau
+                        </button>
+                      </nav>
+                    </footer>
+                  </section>
+
+                  {/* Right Column: Chi tiết đối soát thời gian thực */}
+                  <AdminPayoutDetailPanel
+                    key={selectedPayout?.payoutId ?? 'empty'}
+                    payout={selectedPayout}
+                    history={tab === 'history'}
+                    refresh={detailRefresh}
+                  />
+                </div>
               </>
             )
           )}
         </section>
       )}
 
+      {/* Account Verification Dialog */}
       <Dialog
         open={checkId !== null}
         onOpenChange={(open) => {
@@ -739,130 +1059,78 @@ export default function AdminPayoutsManager({
       >
         <div className="apo-check">
           <header>
-            <h2 id="apo-check-title">Kiểm tra tài khoản nhận tiền</h2>
+            <h2 id="apo-check-title">Xác nhận tài khoản thụ hưởng</h2>
             <p id="apo-check-description">
-              Đối chiếu tên chủ tài khoản với ngân hàng trước khi xác nhận. Mỗi
-              tài khoản chỉ cần xác nhận một lần.
+              Đối chiếu thông tin tài khoản chuyên gia đã đăng ký.
             </p>
           </header>
-          <div className="apo-check-body">
-            {checkLoading && (
-              <div
-                className="apo-loading"
-                role="status"
-                aria-label="Đang tải thông tin tài khoản"
+          {checkLoading ? (
+            <div className="apo-check-loading" role="status" aria-busy="true">
+              <Skeleton height={20} width="60%" />
+              <Skeleton height={40} width="100%" />
+            </div>
+          ) : detailFailed ? (
+            <div className="apo-check-failed" role="alert">
+              <p>Chưa tải được chi tiết tài khoản.</p>
+              <button
+                type="button"
+                onClick={() => checkId && void loadDetail(checkId)}
               >
-                <Skeleton height={20} width="60%" />
-                <Skeleton height={20} width="80%" />
-                <Skeleton height={20} width="50%" />
+                Thử lại
+              </button>
+            </div>
+          ) : detail ? (
+            <div className="apo-check-body">
+              <div className="apo-check-field">
+                <span>Ngân hàng</span>
+                <strong>{detail.destination.bankName ?? 'Chưa rõ'}</strong>
               </div>
-            )}
-            {detailFailed && (
-              <div className="apo-check-error" role="alert">
-                <div>Chưa tải được thông tin tài khoản.</div>
-                <button
-                  type="button"
-                  className="apo-link"
-                  onClick={() => checkId && void loadDetail(checkId)}
-                >
-                  Thử lại
-                </button>
+              <div className="apo-check-field">
+                <span>Số tài khoản</span>
+                <div className="apo-check-number">
+                  <code>{groupDigits(detail.accountReference)}</code>
+                  <button type="button" onClick={() => void copyAccount()}>
+                    {copied ? 'Đã sao chép' : 'Sao chép'}
+                  </button>
+                </div>
               </div>
-            )}
-            {detail && (
-              <dl>
-                <div>
-                  <dt>Ngân hàng</dt>
-                  <dd>
-                    {detail.destination.bankName ?? 'Chưa rõ'}
-                    {detail.destination.bankCode &&
-                      ` (BIN ${detail.destination.bankCode})`}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Số tài khoản</dt>
-                  <dd className="apo-account">
-                    <span>{groupDigits(detail.accountReference)}</span>
-                    <button
-                      type="button"
-                      className="apo-link"
-                      aria-label="Sao chép số tài khoản"
-                      onClick={() => void copyAccount()}
-                    >
-                      {copied ? 'Đã sao chép' : 'Sao chép'}
-                    </button>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Tên chủ tài khoản</dt>
-                  <dd>{detail.accountHolderName}</dd>
-                </div>
-                <div>
-                  <dt>Chuyên gia</dt>
-                  <dd className="apo-id">{detail.specialistAccountId}</dd>
-                </div>
-                {detail.destination.updatedAt && (
-                  <div>
-                    <dt>Gửi lúc</dt>
-                    <dd>{date(detail.destination.updatedAt)}</dd>
-                  </div>
-                )}
-              </dl>
-            )}
-            {detail && (
-              <label className="apo-ack">
+              <label className="apo-check-confirm">
                 <input
                   type="checkbox"
                   checked={acknowledged}
-                  disabled={sending}
-                  onChange={(event) => setAcknowledged(event.target.checked)}
+                  onChange={(e) => setAcknowledged(e.target.checked)}
                 />
-                <span>
-                  Tôi đã kiểm tra tên chủ tài khoản khớp với số tài khoản.
-                </span>
+                <span>Tôi đã kiểm tra kỹ thông tin tài khoản trên.</span>
               </label>
-            )}
-            {checkError && (
-              <div className="apo-check-error" role="alert">
-                <div>
+              {checkError && (
+                <p className="apo-check-error" role="alert">
                   {checkError === 'conflict'
-                    ? 'Chuyên gia vừa đổi tài khoản. Tải lại để kiểm tra thông tin mới.'
+                    ? 'Tài khoản đã được cập nhật từ nơi khác.'
                     : checkError === 'gone'
-                      ? 'Tài khoản này không còn trong hàng chờ.'
-                      : 'Chưa thể xác nhận tài khoản. Bạn có thể thử lại.'}
-                </div>
-                {checkError === 'conflict' && (
-                  <button
-                    type="button"
-                    className="apo-link"
-                    onClick={reloadCheck}
-                  >
-                    Tải lại danh sách
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          <footer>
-            <button type="button" disabled={sending} onClick={closeCheck}>
-              {checkError === 'gone' ? 'Đóng' : 'Hủy'}
-            </button>
-            {checkError !== 'gone' && (
-              <button
-                type="button"
-                className="apo-primary"
-                disabled={
-                  !detail ||
-                  !acknowledged ||
-                  sending ||
-                  checkError === 'conflict'
-                }
-                onClick={() => void confirmAccount()}
-              >
-                {sending ? 'Đang xác nhận…' : 'Xác nhận tài khoản'}
-              </button>
-            )}
-          </footer>
+                      ? 'Tài khoản không còn tồn tại.'
+                      : 'Xác nhận thất bại. Thử lại sau.'}
+                </p>
+              )}
+              <footer className="apo-check-actions">
+                <button
+                  type="button"
+                  className="apo-link"
+                  onClick={closeCheck}
+                  disabled={sending}
+                >
+                  Đóng
+                </button>
+                <button
+                  type="button"
+                  className="apo-primary"
+                  onClick={() => void confirmAccount()}
+                  disabled={!acknowledged || sending}
+                >
+                  {sending ? 'Đang lưu…' : 'Xác nhận hợp lệ'}
+                </button>
+              </footer>
+            </div>
+          ) : null}
         </div>
       </Dialog>
     </div>

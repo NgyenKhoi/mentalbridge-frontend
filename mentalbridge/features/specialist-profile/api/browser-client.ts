@@ -56,6 +56,11 @@ export const browserConsultation = {
       '/api/admin/specialist-profiles/documents/pending',
     )
   },
+  adminSpecialistCredentialDocuments(specialistId: string) {
+    return call<CredentialDocument[]>(
+      `/api/admin/specialist-profiles/${encodeURIComponent(specialistId)}/documents`,
+    )
+  },
   adminCredentialFile(id: string) {
     return call<CredentialDocumentLink>(
       `/api/admin/specialist-profiles/documents/${encodeURIComponent(id)}/file`,

@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@livekit/components-react": "^2.9.24",
+    "@paddleocr/paddleocr-js": "0.4.2",
     "@radix-ui/react-slider": "^1.5.0",
     "@rive-app/canvas-lite": "2.47.1",
     "@tanstack/react-query": "^5.101.4",
@@ -51,11 +52,13 @@
     "livekit-client": "2.20.1",
     "lucide-react": "^1.49.0",
     "next": "16.3.0",
+    "pdfjs-dist": "5.5.207",
     "qrcode.react": "4.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
     "socket.io-client": "^4.8.3",
+    "tesseract.js": "^7.0.0",
     "three": "^0.186.1"
   },
   "devDependencies": {

@@ -177,4 +177,52 @@ describe('AchievementGallery', () => {
       await screen.findByRole('heading', { name: 'journal.first-entry' }),
     ).toBeVisible()
   })
+
+  it('renders interactive blooming garden landscape strip with flowers for milestones', async () => {
+    render(<AchievementGallery />)
+    expect(await screen.findByText('Dải Đất Đang Nở Hoa')).toBeVisible()
+    expect(screen.getByText('Sinh thái đang phát triển')).toBeVisible()
+    expect(screen.getByText('Mức độ đâm chồi: Cấp 2')).toBeVisible()
+  })
+
+  it('filters milestones by tab and updates filter summary', async () => {
+    const user = userEvent.setup()
+    render(<AchievementGallery />)
+    await screen.findByRole('heading', { name: 'Bộ sưu tập hành trình' })
+
+    const earnedTab = screen.getByRole('tab', { name: /đã đạt/i })
+    await user.click(earnedTab)
+    expect(screen.getByText('Hiển thị 4/11 dấu mốc')).toBeVisible()
+
+    const unearnedTab = screen.getByRole('tab', { name: /chưa đạt/i })
+    await user.click(unearnedTab)
+    expect(screen.getByText('Hiển thị 3/11 dấu mốc')).toBeVisible()
+  })
+
+  it('opens and closes celebration modal when triggered', async () => {
+    const user = userEvent.setup()
+    localStorage.clear()
+    render(<AchievementGallery />)
+    await screen.findByRole('heading', { name: 'Bộ sưu tập hành trình' })
+
+    const celebrateBtn = screen.getByRole('button', { name: /xem đóa hoa vừa nở/i })
+    await user.click(celebrateBtn)
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Một bông hoa vừa nở trong khu vườn của bạn',
+      }),
+    ).toBeVisible()
+
+    const acceptBtn = screen.getByRole('button', {
+      name: /cảm ơn, mình đã nhận lấy/i,
+    })
+    await user.click(acceptBtn)
+
+    expect(
+      screen.queryByRole('heading', {
+        name: 'Một bông hoa vừa nở trong khu vườn của bạn',
+      }),
+    ).not.toBeInTheDocument()
+  })
 })

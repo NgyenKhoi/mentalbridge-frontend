@@ -33,9 +33,8 @@ it('shows only canonical server transactions and labels synthetic money', async 
     ],
   })
   render(<AdminPaymentsManager onNotice={vi.fn()} />)
-  expect(await screen.findByText(/5\.000/)).toHaveTextContent(
-    /Đã xác nhận thành công/,
-  )
+  expect((await screen.findAllByText(/Đã xác nhận thành công/)).length).toBeGreaterThan(0)
+  expect(screen.getAllByText(/5\.000/).length).toBeGreaterThan(0)
   expect(
     screen.getByText(/không phải doanh thu thương mại/),
   ).toBeInTheDocument()

@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import AdminWorkspaceShell from '@/features/auth/components/AdminWorkspace'
 import { isAdminSection } from '@/features/auth/model/admin-sections'
@@ -11,6 +11,15 @@ export default async function AdminWorkspace({
   const account = await requireCurrentAccount(['ADMIN'])
   const { section } = await params
   const sectionKey = section?.[0] || 'dashboard'
+
+  if (
+    sectionKey === 'audit' ||
+    sectionKey === 'reconciliation' ||
+    sectionKey === 'reports' ||
+    sectionKey === 'retention'
+  ) {
+    redirect('/admin/dashboard')
+  }
 
   if (!isAdminSection(sectionKey)) notFound()
 
