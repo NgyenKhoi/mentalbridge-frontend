@@ -35,6 +35,8 @@ export const message = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
   type: 'TEXT',
   content: 'Synthetic contract message',
   sentAt: '2026-10-11T10:02:00Z',
+  state: 'VISIBLE',
+  deletedAt: null,
   ...overrides,
 })
 export class TestSocket implements ChatSocket {
@@ -93,5 +95,16 @@ export function fixtureApi(): ChatApi {
     history: jest
       .fn()
       .mockResolvedValue({ items: [], hasMore: false, nextCursor: null }),
+    remove: jest.fn().mockResolvedValue({
+      messageId: uuid(),
+      state: 'DELETED',
+      deletedAt: '2026-10-11T10:04:00Z',
+      duplicate: false,
+    }),
+    report: jest.fn().mockResolvedValue({
+      reportId: uuid(),
+      state: 'OPEN',
+      duplicate: false,
+    }),
   }
 }

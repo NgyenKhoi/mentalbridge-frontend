@@ -126,6 +126,186 @@ it('missing authoritative ready frame triggers bounded reconnect rather than ena
   expect(await value.session.send('unready')).toBe(false)
   value.session.stop()
 })
+it('renders an authoritative tombstone only after the owner delete succeeds', async () => {
+  const value = setup()
+  const own = message({ senderId: user })
+  jest.mocked(value.api.history).mockResolvedValue({
+    items: [own],
+    nextCursor: null,
+    hasMore: false,
+  })
+  jest.mocked(value.api.remove).mockResolvedValue({
+    messageId: own.messageId,
+    state: 'DELETED',
+    deletedAt: '2026-10-11T10:04:00Z',
+    duplicate: false,
+  })
+  await ready(value)
+  expect(await value.session.remove(own.messageId)).toBe(true)
+  expect(value.session.snapshot().messages[0]).toMatchObject({
+    content: null,
+    state: 'DELETED',
+    deletedAt: '2026-10-11T10:04:00Z',
+  })
+  value.session.stop()
+})
+it('reports a visible peer message without inferring a local moderation result', async () => {
+  const value = setup()
+  const peer = message({ senderId: specialist })
+  jest.mocked(value.api.history).mockResolvedValue({
+    items: [peer],
+    nextCursor: null,
+    hasMore: false,
+  })
+  await ready(value)
+  expect(await value.session.report(peer.messageId, 'HARASSMENT')).toBe(true)
+  expect(value.api.report).toHaveBeenCalledWith(
+    peer.messageId,
+    expect.any(String),
+    'HARASSMENT',
+  )
+  expect(value.session.snapshot().messages[0]).toEqual(peer)
+  value.session.stop()
+})
+it('ignores a delete response from a stopped and restarted session', async () => {
+  const value = setup()
+  const own = message({ senderId: user })
+  jest.mocked(value.api.history).mockResolvedValue({
+    items: [own],
+    nextCursor: null,
+    hasMore: false,
+  })
+  let resolveRemove:
+    | ((receipt: {
+        messageId: string
+        state: 'DELETED'
+        deletedAt: string
+        duplicate: boolean
+      }) => void)
+    | undefined
+  jest.mocked(value.api.remove).mockReturnValue(
+    new Promise((resolve) => {
+      resolveRemove = resolve
+    }),
+  )
+  await ready(value)
+  const pending = value.session.remove(own.messageId)
+  await flush()
+  value.session.stop()
+  value.session.start()
+  await flush()
+  value.sockets[1]!.ready()
+  await flush()
+  resolveRemove?.({
+    messageId: own.messageId,
+    state: 'DELETED',
+    deletedAt: '2026-10-11T10:04:00Z',
+    duplicate: false,
+  })
+  await flush()
+
+  expect(await pending).toBe(false)
+  expect(value.session.snapshot().messages[0]).toMatchObject({
+    messageId: own.messageId,
+    state: 'VISIBLE',
+    deletedAt: null,
+  })
+  value.session.stop()
+})
+it('ignores a report failure from a stopped and restarted session', async () => {
+  const value = setup()
+  const peer = message({ senderId: specialist })
+  jest.mocked(value.api.history).mockResolvedValue({
+    items: [peer],
+    nextCursor: null,
+    hasMore: false,
+  })
+  let rejectReport: ((error: Error) => void) | undefined
+  jest.mocked(value.api.report).mockReturnValue(
+    new Promise((_resolve, reject) => {
+      rejectReport = reject
+    }),
+  )
+  await ready(value)
+  const pending = value.session.report(peer.messageId, 'HARASSMENT')
+  await flush()
+  value.session.stop()
+  value.session.start()
+  await flush()
+  value.sockets[1]!.ready()
+  await flush()
+  rejectReport?.(new Error('late failure'))
+  await flush()
+
+  expect(await pending).toBe(false)
+  expect(value.session.snapshot().issue).toBeNull()
+  value.session.stop()
+})
+it('fails closed when a delete receipt names a different message', async () => {
+  const value = setup()
+  const own = message({ senderId: user })
+  jest.mocked(value.api.history).mockResolvedValue({
+    items: [own],
+    nextCursor: null,
+    hasMore: false,
+  })
+  jest.mocked(value.api.remove).mockResolvedValue({
+    messageId: uuid(),
+    state: 'DELETED',
+    deletedAt: '2026-10-11T10:04:00Z',
+    duplicate: false,
+  })
+  await ready(value)
+
+  expect(await value.session.remove(own.messageId)).toBe(false)
+  expect(value.session.snapshot()).toMatchObject({
+    issue: 'CHAT_CONTRACT_MISMATCH',
+    messages: [{ messageId: own.messageId, state: 'VISIBLE' }],
+  })
+  value.session.stop()
+})
+it('reuses moderation idempotency keys until delete and report reconciliation', async () => {
+  const value = setup()
+  const own = message({ senderId: user })
+  const peer = message({ senderId: specialist })
+  jest.mocked(value.api.history).mockResolvedValue({
+    items: [own, peer],
+    nextCursor: null,
+    hasMore: false,
+  })
+  jest
+    .mocked(value.api.remove)
+    .mockRejectedValueOnce(new Error('lost delete response'))
+    .mockResolvedValueOnce({
+      messageId: own.messageId,
+      state: 'DELETED',
+      deletedAt: '2026-10-11T10:04:00Z',
+      duplicate: true,
+    })
+  jest
+    .mocked(value.api.report)
+    .mockRejectedValueOnce(new Error('lost report response'))
+    .mockResolvedValueOnce({
+      reportId: uuid(),
+      state: 'OPEN',
+      duplicate: true,
+    })
+  await ready(value)
+
+  expect(await value.session.remove(own.messageId)).toBe(false)
+  expect(await value.session.remove(own.messageId)).toBe(true)
+  expect(value.api.remove).toHaveBeenCalledTimes(2)
+  expect(jest.mocked(value.api.remove).mock.calls[0]?.[1]).toBe(
+    jest.mocked(value.api.remove).mock.calls[1]?.[1],
+  )
+  expect(await value.session.report(peer.messageId, 'HARASSMENT')).toBe(false)
+  expect(await value.session.report(peer.messageId, 'HARASSMENT')).toBe(true)
+  expect(value.api.report).toHaveBeenCalledTimes(2)
+  expect(jest.mocked(value.api.report).mock.calls[0]?.[1]).toBe(
+    jest.mocked(value.api.report).mock.calls[1]?.[1],
+  )
+  value.session.stop()
+})
 it.each(['USER', 'SPECIALIST'] as const)(
   'authorizes %s and subscribes before send; never fabricates receipts',
   async (role) => {
@@ -349,7 +529,7 @@ it('rejects foreign ready identity, wrong appointment message and conflicting du
           eventType: 'message.created',
           payload: { ...item, content },
         })
-      emit(item.content)
+      emit(item.content ?? '')
       if (scenario === 'duplicate') emit('conflicting content')
     }
     await flush()

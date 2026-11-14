@@ -1,12 +1,16 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import AppointmentChatPanel from './AppointmentChatPanel'
+import AppointmentChatPanel, {
+  mergeAppointmentChatMessages,
+} from './AppointmentChatPanel'
 
 const api = vi.hoisted(() => ({
   chatEligibility: vi.fn(),
   chatHistory: vi.fn(),
   socketCredential: vi.fn(),
+  removeChatMessage: vi.fn(),
+  reportChatMessage: vi.fn(),
 }))
 
 const realtime = vi.hoisted(() => ({
@@ -40,8 +44,10 @@ const transport = vi.hoisted(() => ({
             senderId: string
             clientMessageId: string
             type: 'TEXT'
-            content: string
+            content: string | null
             sentAt: string
+            state: 'VISIBLE' | 'DELETED'
+            deletedAt: string | null
             schemaVersion: 1
           }
         }) => void
@@ -107,6 +113,102 @@ describe('AppointmentChatPanel', () => {
       expiresAt: '2099-09-27T01:56:00Z',
       endpoint: 'http://localhost:3004/',
     })
+    api.removeChatMessage.mockReset()
+    api.reportChatMessage.mockReset()
+  })
+
+  it('keeps a realtime tombstone when delayed history returns a stale visible frame', () => {
+    const visible = {
+      messageId: '11111111-1111-4111-8111-111111111111',
+      conversationId: appointmentId,
+      senderId: baseDecision.userAccountId,
+      clientMessageId: '22222222-2222-4222-8222-222222222222',
+      type: 'TEXT' as const,
+      content: 'stale content',
+      sentAt: '2099-09-27T02:01:00Z',
+      state: 'VISIBLE' as const,
+      deletedAt: null,
+      schemaVersion: 1 as const,
+    }
+    const tombstone = {
+      ...visible,
+      content: null,
+      state: 'DELETED' as const,
+      deletedAt: '2099-09-27T02:02:00Z',
+    }
+
+    expect(mergeAppointmentChatMessages([tombstone], [visible])).toEqual([
+      tombstone,
+    ])
+  })
+
+  it('keeps a history tombstone when a delayed socket frame is stale', () => {
+    const visible = {
+      messageId: '33333333-3333-4333-8333-333333333333',
+      conversationId: appointmentId,
+      senderId: baseDecision.specialistAccountId,
+      clientMessageId: '44444444-4444-4444-8444-444444444444',
+      type: 'TEXT' as const,
+      content: 'late socket content',
+      sentAt: '2099-09-27T02:03:00Z',
+      state: 'VISIBLE' as const,
+      deletedAt: null,
+      schemaVersion: 1 as const,
+    }
+    const tombstone = {
+      ...visible,
+      content: null,
+      state: 'DELETED' as const,
+      deletedAt: '2099-09-27T02:04:00Z',
+    }
+
+    expect(
+      mergeAppointmentChatMessages([visible], [tombstone, visible]),
+    ).toEqual([tombstone])
+  })
+
+  it('reuses the report idempotency key after a lost response', async () => {
+    api.chatEligibility.mockResolvedValue({
+      ...baseDecision,
+      phase: 'ACTIVE',
+      sendAllowed: true,
+    })
+    api.chatHistory.mockResolvedValue({
+      items: [
+        {
+          messageId: '55555555-5555-4555-8555-555555555555',
+          conversationId: appointmentId,
+          senderId: baseDecision.specialistAccountId,
+          clientMessageId: '66666666-6666-4666-8666-666666666666',
+          type: 'TEXT',
+          content: 'report target',
+          sentAt: '2099-09-27T02:05:00Z',
+          state: 'VISIBLE',
+          deletedAt: null,
+          schemaVersion: 1,
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    })
+    api.reportChatMessage
+      .mockRejectedValueOnce(new Error('response lost'))
+      .mockResolvedValueOnce({
+        reportId: '77777777-7777-4777-8777-777777777777',
+        state: 'OPEN',
+        duplicate: true,
+      })
+    render(<AppointmentChatPanel appointmentId={appointmentId} />)
+
+    const select = await screen.findByRole('combobox')
+    fireEvent.change(select, { target: { value: 'HARASSMENT' } })
+    await waitFor(() => expect(api.reportChatMessage).toHaveBeenCalledTimes(1))
+    fireEvent.change(select, { target: { value: 'HARASSMENT' } })
+    await waitFor(() => expect(api.reportChatMessage).toHaveBeenCalledTimes(2))
+
+    expect(api.reportChatMessage.mock.calls[0]?.[2]).toBe(
+      api.reportChatMessage.mock.calls[1]?.[2],
+    )
   })
 
   it('enters the waiting room but keeps sending disabled before the start', async () => {
@@ -274,6 +376,8 @@ describe('AppointmentChatPanel', () => {
           type: 'TEXT',
           content: 'Tin nhắn realtime từ chuyên gia',
           sentAt: '2099-09-27T02:03:00Z',
+          state: 'VISIBLE',
+          deletedAt: null,
           schemaVersion: 1,
         },
       }),

@@ -436,6 +436,29 @@
   align-items: flex-start;
 }
 
+.messageActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.35rem;
+}
+
+.messageActions button,
+.messageActions select {
+  min-height: 2.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary, #1f5c52);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.messageActions select:focus-visible,
+.messageActions button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
 .messageRow p {
   margin: 0;
   padding: 10px 15px;

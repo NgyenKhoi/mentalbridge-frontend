@@ -6,6 +6,9 @@ import {
   credentialSchema,
   eligibilitySchema,
   historySchema,
+  reportReceiptSchema,
+  tombstoneSchema,
+  type ChatReportReason,
   type ChatOperation,
   type ChatRole,
 } from './chat-contract'
@@ -84,6 +87,31 @@ export function createChatApi(
       if (value.items.some((item) => item.conversationId !== id))
         contractMismatch()
       return value
+    },
+    async remove(messageId: string, idempotencyKey: string) {
+      return tombstoneSchema.parse(
+        (
+          await client.delete(
+            `/api/v1/conversations/${id}/messages/${z.uuid().parse(messageId)}`,
+            { headers: { 'Idempotency-Key': idempotencyKey } },
+          )
+        ).data,
+      )
+    },
+    async report(
+      messageId: string,
+      idempotencyKey: string,
+      reason: ChatReportReason,
+    ) {
+      return reportReceiptSchema.parse(
+        (
+          await client.post(
+            `/api/v1/conversations/${id}/messages/${z.uuid().parse(messageId)}/reports`,
+            { reason },
+            { headers: { 'Idempotency-Key': idempotencyKey } },
+          )
+        ).data,
+      )
     },
   }
 }

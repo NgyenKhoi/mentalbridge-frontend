@@ -83,8 +83,10 @@ function messageEvent(eventId = crypto.randomUUID()) {
       senderId,
       clientMessageId: conversationId,
       type: 'TEXT',
+      state: 'VISIBLE',
       content: 'Synthetic event',
       sentAt: new Date().toISOString(),
+      deletedAt: null,
       schemaVersion: 1,
     },
   }
