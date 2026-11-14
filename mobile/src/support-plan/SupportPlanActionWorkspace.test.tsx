@@ -7,6 +7,7 @@ import {
   waitFor,
 } from '@testing-library/react-native'
 import type { ReactElement } from 'react'
+import * as SecureStore from 'expo-secure-store'
 
 import { ApiError } from '@/api/api-error'
 import type { EmotionApi } from '@/emotion/emotion-api'
@@ -28,6 +29,19 @@ import {
 import { makeReassessmentSummary } from './support-plan-test-fixtures'
 
 const mockPush = jest.fn()
+const mockSecureValues = new Map<string, string>()
+jest.mock('expo-secure-store', () => ({
+  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 1,
+  getItemAsync: jest.fn(
+    async (key: string) => mockSecureValues.get(key) ?? null,
+  ),
+  setItemAsync: jest.fn(async (key: string, value: string) => {
+    mockSecureValues.set(key, value)
+  }),
+  deleteItemAsync: jest.fn(async (key: string) => {
+    mockSecureValues.delete(key)
+  }),
+}))
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), push: (value: unknown) => mockPush(value) },
   useFocusEffect: (callback: () => void) => {
@@ -69,6 +83,19 @@ const origin = {
 }
 function api(): jest.Mocked<SupportPlanActionApi> {
   return {
+    getGuidedJourney: jest.fn().mockResolvedValue({
+      journeyPolicyVersion: 'mb-guided-journey-v1',
+      stage: 'GUIDE_READY',
+      assessmentInProgress: false,
+      episodeId: nativeIds.evaluation,
+      episodeCompletedAt: '2026-10-13T01:00:00Z',
+      presentationEvaluationId: nativeIds.evaluation,
+      supportGuideId: nativeIds.plan,
+      nextAction: 'EXPLORE_GUIDE_RESOURCES',
+      currentSupportPlanId: null,
+      entitlementStatus: 'NOT_REQUIRED',
+    }),
+    ensureInitial: jest.fn().mockResolvedValue(nativePlan('DRAFT')),
     getProposalEvaluationId: jest.fn().mockResolvedValue(nativeIds.evaluation),
     getCurrent: jest.fn().mockResolvedValue(nativePlan()),
     getDraft: jest.fn().mockResolvedValue(null),
@@ -175,7 +202,10 @@ function homeEntryFixture(
   })
   return { owner, plan, action, occurrence }
 }
-beforeEach(() => jest.clearAllMocks())
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockSecureValues.clear()
+})
 
 const journalId = '60000000-0000-4000-8000-000000000642'
 const journalOriginValue = {
@@ -664,6 +694,453 @@ it('requires review then explicit native activation, without automatic start on 
     ),
   )
   await waitFor(() => expect(changed).toHaveBeenCalled())
+  expect(owner.getCurrent).toHaveBeenCalled()
+})
+it('automatically prepares an initial proposal for a persisted eligible Guide', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  let created = false
+  owner.getCurrent.mockRejectedValue(missing)
+  owner.getDraft.mockImplementation(async () => {
+    if (created) return nativePlan('DRAFT')
+    throw missing
+  })
+  owner.getGuidedJourney.mockResolvedValue({
+    ...(await owner.getGuidedJourney()),
+    nextAction: 'START_PLAN_PROPOSAL',
+    entitlementStatus: 'VERIFIED',
+  })
+  owner.ensureInitial.mockImplementation(async () => {
+    created = true
+    return nativePlan('DRAFT')
+  })
+  const first = await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await screen.findByText('Phương án để bạn xem lại')
+  expect(owner.ensureInitial).toHaveBeenCalledWith(
+    nativeIds.evaluation,
+    `mb-initial-proposal-${nativeIds.evaluation}`,
+  )
+  expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
+  expect(owner.propose).not.toHaveBeenCalled()
+  expect(owner.activate).not.toHaveBeenCalled()
+  await first.unmount()
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await screen.findByText('Phương án để bạn xem lại')
+  expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
+})
+it('rechecks an earlier unavailable journey when returning after eligibility changes', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  let created = false
+  owner.getCurrent.mockRejectedValue(missing)
+  owner.getDraft.mockImplementation(async () => {
+    if (created) return nativePlan('DRAFT')
+    throw missing
+  })
+  const journey = await owner.getGuidedJourney()
+  owner.ensureInitial.mockImplementation(async () => {
+    created = true
+    return nativePlan('DRAFT')
+  })
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  })
+  const view = () => (
+    <QueryClientProvider client={queryClient}>
+      <SupportPlanActionWorkspace
+        api={owner}
+        legacyApi={legacy}
+        emotionApi={emotion}
+        origin={{ state: 'none' }}
+        now={now}
+      />
+    </QueryClientProvider>
+  )
+  const first = await render(view())
+  await screen.findByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' })
+  expect(owner.ensureInitial).not.toHaveBeenCalled()
+  await first.unmount()
+  owner.getGuidedJourney.mockResolvedValue({
+    ...journey,
+    nextAction: 'START_PLAN_PROPOSAL',
+    entitlementStatus: 'VERIFIED',
+  })
+  await render(view())
+  await screen.findByText('Phương án để bạn xem lại')
+  expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
+})
+it.each(['REVIEW_SAFETY_SUPPORT', 'EXPLORE_GUIDE_RESOURCES'] as const)(
+  'does not create a proposal when Guide returns %s',
+  async (nextAction) => {
+    const owner = api()
+    const missing = new ApiError({
+      status: 404,
+      code: 'NOT_FOUND',
+      message: 'missing',
+    })
+    owner.getCurrent.mockRejectedValue(missing)
+    owner.getDraft.mockRejectedValue(missing)
+    owner.getGuidedJourney.mockResolvedValue({
+      ...(await owner.getGuidedJourney()),
+      nextAction,
+    })
+    await mount(
+      <SupportPlanActionWorkspace
+        api={owner}
+        legacyApi={legacy}
+        emotionApi={emotion}
+        origin={{ state: 'none' }}
+        now={now}
+      />,
+    )
+    await screen.findByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' })
+    expect(owner.ensureInitial).not.toHaveBeenCalled()
+  },
+)
+it.each(['ACTIVE', 'PAUSED'] as const)(
+  'opens an existing %s plan without automatic proposal',
+  async (status) => {
+    const owner = api()
+    owner.getCurrent.mockResolvedValue(nativePlan(status))
+    owner.getDraft.mockRejectedValue(
+      new ApiError({ status: 404, code: 'NOT_FOUND', message: 'missing' }),
+    )
+    await mount(
+      <SupportPlanActionWorkspace
+        api={owner}
+        legacyApi={legacy}
+        emotionApi={emotion}
+        origin={{ state: 'none' }}
+        now={now}
+      />,
+    )
+    await screen.findByText('Kế hoạch hiện tại')
+    expect(owner.ensureInitial).not.toHaveBeenCalled()
+    expect(owner.activate).not.toHaveBeenCalled()
+  },
+)
+it.each(['REQUEST_TIMEOUT', 'SUPPORT_PLAN_INITIAL_CHANGED'] as const)(
+  'reconciles %s before retrying the proposal',
+  async (code) => {
+    const owner = api()
+    const missing = new ApiError({
+      status: 404,
+      code: 'NOT_FOUND',
+      message: 'missing',
+    })
+    let created = false
+    owner.getCurrent.mockRejectedValue(missing)
+    owner.getDraft.mockImplementation(async () => {
+      if (created) return nativePlan('DRAFT')
+      throw missing
+    })
+    owner.getGuidedJourney.mockResolvedValue({
+      ...(await owner.getGuidedJourney()),
+      nextAction: 'START_PLAN_PROPOSAL',
+      entitlementStatus: 'VERIFIED',
+    })
+    owner.ensureInitial.mockImplementation(async () => {
+      created = true
+      throw new ApiError({
+        code,
+        ...(code === 'SUPPORT_PLAN_INITIAL_CHANGED' ? { status: 409 } : {}),
+        message: 'unavailable',
+      })
+    })
+    await mount(
+      <SupportPlanActionWorkspace
+        api={owner}
+        legacyApi={legacy}
+        emotionApi={emotion}
+        origin={{ state: 'none' }}
+        now={now}
+      />,
+    )
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Thử lại' }),
+    )
+    await screen.findByText('Phương án để bạn xem lại')
+    expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
+  },
+)
+it('opens the authoritative current activity view after activation', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  owner.getCurrent
+    .mockRejectedValueOnce(missing)
+    .mockResolvedValue(nativePlan())
+  owner.getDraft
+    .mockResolvedValueOnce(nativePlan('DRAFT'))
+    .mockRejectedValue(missing)
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await fireEvent.press(await screen.findByTestId('native-plan-activate'))
+  await screen.findByText('Kế hoạch hiện tại')
+  await screen.findByText('Hoạt động gần đây và sắp tới')
+  expect(owner.propose).not.toHaveBeenCalled()
+})
+it('keeps recovery when current plan cannot be confirmed after activation', async () => {
+  const owner = api()
+  owner.getCurrent
+    .mockRejectedValueOnce(
+      new ApiError({ code: 'NETWORK_ERROR', message: 'offline' }),
+    )
+    .mockResolvedValue(nativePlan())
+  const changed = jest.fn().mockResolvedValue(undefined)
+  await mount(
+    <NativeSupportPlanScreen
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={null}
+      draft={nativePlan('DRAFT')}
+      onChanged={changed}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await screen.findByText(/Chưa thể thực hiện thao tác/)
+  expect(changed).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await waitFor(() => expect(changed).toHaveBeenCalled())
+  expect(owner.activate).toHaveBeenCalledTimes(1)
+})
+it('renders the Care review cycle and focus reason without starting the plan', async () => {
+  const owner = api()
+  const draft = nativePlan('DRAFT')
+  draft.focuses[0]!.rationale = 'Lý do từ Care'
+  draft.cycle = {
+    policyVersion: 'support-plan-cycle-v1',
+    lengthDays: 14,
+    timezone: 'Asia/Ho_Chi_Minh',
+    cycleNumber: 1,
+    startedOn: null,
+    reviewDueOn: null,
+    currentDay: null,
+    pausedDays: 0,
+    state: 'NOT_STARTED',
+  }
+  await mount(
+    <NativeSupportPlanScreen
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={null}
+      draft={draft}
+      onChanged={jest.fn()}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  expect(screen.getByText('Lý do từ Care')).toBeTruthy()
+  expect(screen.getByText(/không phải thời gian điều trị/)).toBeTruthy()
+  expect(screen.getByText('Múi giờ: Asia/Ho_Chi_Minh')).toBeTruthy()
+  expect(owner.activate).not.toHaveBeenCalled()
+})
+it('reconciles a timeout before retrying with the same activation key', async () => {
+  const owner = api()
+  const draft = nativePlan('DRAFT')
+  owner.activate.mockRejectedValueOnce(
+    new ApiError({ code: 'REQUEST_TIMEOUT', message: 'timeout' }),
+  )
+  owner.getCurrent
+    .mockRejectedValueOnce(
+      new ApiError({ status: 404, code: 'NOT_FOUND', message: 'missing' }),
+    )
+    .mockResolvedValue(nativePlan())
+  owner.getDraft.mockResolvedValue(draft)
+  await mount(
+    <NativeSupportPlanScreen
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={null}
+      draft={draft}
+      onChanged={jest.fn().mockResolvedValue(undefined)}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await screen.findByText(/Chưa thể thực hiện thao tác/)
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await waitFor(() => expect(owner.activate).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(owner.getCurrent).toHaveBeenCalledTimes(2))
+  expect(owner.getDraft).toHaveBeenCalledTimes(1)
+  expect(owner.activate.mock.calls[0]).toEqual(owner.activate.mock.calls[1])
+})
+it('restores an ambiguous activation after the screen is remounted', async () => {
+  const owner = api()
+  const draft = nativePlan('DRAFT')
+  owner.activate.mockRejectedValueOnce(
+    new ApiError({ code: 'REQUEST_TIMEOUT', message: 'timeout' }),
+  )
+  owner.getCurrent
+    .mockRejectedValueOnce(
+      new ApiError({ status: 404, code: 'NOT_FOUND', message: 'missing' }),
+    )
+    .mockResolvedValue(nativePlan())
+  owner.getDraft.mockResolvedValue(draft)
+  const view = () => (
+    <NativeSupportPlanScreen
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={null}
+      draft={draft}
+      onChanged={jest.fn().mockResolvedValue(undefined)}
+      origin={{ state: 'none' }}
+      now={now}
+    />
+  )
+  const first = await mount(view())
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await screen.findByText(/Chưa thể thực hiện thao tác/)
+  await first.unmount()
+  await mount(view())
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await waitFor(() => expect(owner.activate).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(owner.getCurrent).toHaveBeenCalledTimes(2))
+  expect(owner.activate.mock.calls[0]).toEqual(owner.activate.mock.calls[1])
+})
+it('does not activate if secure recovery storage is unavailable', async () => {
+  const owner = api()
+  jest
+    .mocked(SecureStore.setItemAsync)
+    .mockRejectedValueOnce(new Error('storage unavailable'))
+  await mount(
+    <NativeSupportPlanScreen
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={null}
+      draft={nativePlan('DRAFT')}
+      onChanged={jest.fn().mockResolvedValue(undefined)}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await screen.findByText(/Chưa thể thực hiện thao tác/)
+  expect(owner.activate).not.toHaveBeenCalled()
+})
+it('does not retry activation when reconciliation finds a current plan', async () => {
+  const owner = api()
+  owner.activate.mockRejectedValueOnce(
+    new ApiError({ code: 'REQUEST_TIMEOUT', message: 'timeout' }),
+  )
+  const changed = jest.fn().mockResolvedValue(undefined)
+  await mount(
+    <NativeSupportPlanScreen
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={null}
+      draft={nativePlan('DRAFT')}
+      onChanged={changed}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await screen.findByText(/Chưa thể thực hiện thao tác/)
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await waitFor(() => expect(changed).toHaveBeenCalled())
+  expect(owner.activate).toHaveBeenCalledTimes(1)
+})
+it('does not retry an activation after the draft version changes', async () => {
+  const owner = api()
+  const draft = nativePlan('DRAFT')
+  owner.activate.mockRejectedValueOnce(
+    new ApiError({
+      status: 412,
+      code: 'VERSION_CONFLICT',
+      message: 'conflict',
+    }),
+  )
+  owner.getCurrent.mockRejectedValue(
+    new ApiError({ status: 404, code: 'NOT_FOUND', message: 'missing' }),
+  )
+  owner.getDraft.mockResolvedValue({ ...draft, version: draft.version + 1 })
+  await mount(
+    <NativeSupportPlanScreen
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={null}
+      draft={draft}
+      onChanged={jest.fn().mockResolvedValue(undefined)}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await screen.findByText(/Kế hoạch hoặc hoạt động đã thay đổi/)
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await screen.findByText(/Phương án đã thay đổi/)
+  expect(owner.activate).toHaveBeenCalledTimes(1)
+})
+it('suppresses a second activation while the first request is pending', async () => {
+  const owner = api()
+  let resolve!: (plan: ReturnType<typeof nativePlan>) => void
+  owner.activate.mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done
+      }),
+  )
+  await mount(
+    <NativeSupportPlanScreen
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={null}
+      draft={nativePlan('DRAFT')}
+      onChanged={jest.fn().mockResolvedValue(undefined)}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  expect(owner.activate).toHaveBeenCalledTimes(1)
+  await act(async () => resolve(nativePlan()))
 })
 it('proposes from owner screening context and reuses retry identity after ambiguous failure', async () => {
   const owner = api()
@@ -693,6 +1170,136 @@ it('proposes from owner screening context and reuses retry identity after ambigu
   await waitFor(() => expect(owner.propose).toHaveBeenCalledTimes(2))
   expect(owner.propose.mock.calls[0]).toEqual(owner.propose.mock.calls[1])
   expect(owner.propose.mock.calls[0]?.[0]).toBe(nativeIds.evaluation)
+})
+it.each([
+  ['SUPPORT_PLAN_ENTITLEMENT_REQUIRED', 403, /Gói hiện tại chưa có quyền/],
+  ['SUPPORT_PLAN_SAFETY_REVIEW_REQUIRED', 409, /hướng dẫn hỗ trợ an toàn/],
+] as const)(
+  'preserves Guide access when Care returns %s',
+  async (code, status, expected) => {
+    const owner = api()
+    owner.propose.mockRejectedValue(
+      new ApiError({ code, status, message: 'private details' }),
+    )
+    await mount(
+      <NativeProposalEntry
+        api={owner}
+        current={null}
+        draft={null}
+        onChanged={jest.fn()}
+      />,
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tạo phương án để xem lại' }),
+    )
+    await screen.findByText(expected)
+    expect(screen.queryByText('private details')).toBeNull()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith('/(user)/assessment')
+  },
+)
+it.each(['ACTIVE', 'PAUSED'] as const)(
+  'does not offer draft creation for a %s plan',
+  async (status) => {
+    const owner = api()
+    await mount(
+      <NativeProposalEntry
+        api={owner}
+        current={nativePlan(status)}
+        draft={null}
+        onChanged={jest.fn()}
+      />,
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Tạo phương án để xem lại' }),
+    ).toBeNull()
+    expect(owner.propose).not.toHaveBeenCalled()
+  },
+)
+it('shows locked state after an entitlement rejection and lets the user retry explicitly', async () => {
+  const owner = api()
+  owner.propose.mockRejectedValueOnce(
+    new ApiError({
+      code: 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED',
+      status: 403,
+      message: 'private',
+    }),
+  )
+  await mount(
+    <NativeProposalEntry
+      api={owner}
+      current={null}
+      draft={null}
+      onChanged={jest.fn()}
+    />,
+  )
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Tạo phương án để xem lại' }),
+  )
+  await screen.findByText('Kế hoạch chưa khả dụng với gói hiện tại')
+  expect(
+    screen.queryByRole('button', { name: 'Tạo phương án để xem lại' }),
+  ).toBeNull()
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Thử kiểm tra lại' }),
+  )
+  expect(
+    screen.getByRole('button', { name: 'Tạo phương án để xem lại' }),
+  ).toBeTruthy()
+})
+it('shows locked state after entitlement is revoked during activation', async () => {
+  const owner = api()
+  owner.activate.mockRejectedValueOnce(
+    new ApiError({
+      code: 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED',
+      status: 403,
+      message: 'private',
+    }),
+  )
+  await mount(
+    <NativeSupportPlanScreen
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={null}
+      draft={nativePlan('DRAFT')}
+      onChanged={jest.fn()}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await fireEvent.press(screen.getByTestId('native-plan-activate'))
+  await screen.findByText('Kế hoạch chưa khả dụng với gói hiện tại')
+  expect(screen.queryByTestId('native-plan-activate')).toBeNull()
+  expect(mockSecureValues.size).toBe(0)
+  expect(
+    screen.getByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' }),
+  ).toBeTruthy()
+})
+it('explains stale Care evidence without exposing backend details', async () => {
+  const owner = api()
+  owner.propose.mockRejectedValue(
+    new ApiError({
+      code: 'SUPPORT_EVALUATION_STALE',
+      status: 409,
+      message: 'private',
+    }),
+  )
+  await mount(
+    <NativeProposalEntry
+      api={owner}
+      current={null}
+      draft={null}
+      onChanged={jest.fn()}
+    />,
+  )
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Tạo phương án để xem lại' }),
+  )
+  await screen.findByText(/Thông tin nguồn hoặc hoạt động đã thay đổi/)
+  expect(screen.queryByText('private')).toBeNull()
 })
 it('only replaces a current v2 plan after authoritative reassessment comparison and explicit choice', async () => {
   const owner = api(),
@@ -796,7 +1403,7 @@ it('waits for owned terminal history and fails closed before choosing a represen
   await fireEvent.press(
     screen.getByRole('button', { name: 'Thử tải lại lịch sử' }),
   )
-  await screen.findByRole('button', { name: 'Tạo phương án để xem lại' })
+  await screen.findByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' })
   expect(screen.queryByText('Legacy resource plan retained')).toBeNull()
   expect(owner.propose).not.toHaveBeenCalled()
 })

@@ -1,0 +1,26 @@
+# Physical Android execution: NOT_RUN. MB-666 owns staging execution.
+# Requires an isolated paid staging user with an existing Care 14-day draft,
+# no current plan, and the credentials below. Activation changes that user's data.
+appId: com.mentalbridge.mobile
+name: MB-702 review and explicitly activate a Care proposal
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- assertVisible: 'Phương án để bạn xem lại'
+- assertVisible: 'Mốc xem lại sau 14 ngày là khoảng xem lại sản phẩm, không phải thời gian điều trị.'
+- tapOn:
+    id: 'native-plan-activate'
+- assertVisible: 'Đang thực hiện'

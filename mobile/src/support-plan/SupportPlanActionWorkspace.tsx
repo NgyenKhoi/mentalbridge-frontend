@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { randomUUID } from 'expo-crypto'
 import { router, useFocusEffect } from 'expo-router'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   AccessibilityInfo,
@@ -45,6 +45,7 @@ import { SupportPlanPersonalizationCard } from './SupportPlanPersonalizationCard
 import { SupportPlanScheduleEditor } from './SupportPlanScheduleEditor'
 import { SupportPlanScreen } from './SupportPlanScreen'
 import { AdaptiveReviewPanel } from './AdaptiveReviewPanel'
+import { activationRecoveryStore } from './activation-recovery-store'
 import {
   isSupportedJournalAction,
   journalReconciliationMessage,
@@ -78,6 +79,20 @@ const optionalPlan = async (request: Promise<CanonicalSupportPlan>) => {
 }
 function message(error: unknown) {
   if (error instanceof ApiError) {
+    if (error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED')
+      return 'Gói hiện tại chưa có quyền sử dụng kế hoạch. Bạn vẫn có thể quay lại hướng dẫn hỗ trợ.'
+    if (error.code === 'SUPPORT_PLAN_SAFETY_REVIEW_REQUIRED')
+      return 'Hãy xem hướng dẫn hỗ trợ an toàn trước khi tiếp tục với kế hoạch.'
+    if (
+      [
+        'SUPPORT_EVALUATION_STALE',
+        'SUPPORT_PLAN_POLICY_STALE',
+        'RESOURCE_VERSION_STALE',
+      ].includes(error.code)
+    )
+      return 'Thông tin nguồn hoặc hoạt động đã thay đổi. Hãy quay lại hướng dẫn để xem lại trước khi tiếp tục.'
+    if (error.status === 403)
+      return 'Chưa thể xác nhận quyền sử dụng kế hoạch. Bạn có thể quay lại hướng dẫn hỗ trợ.'
     if (error.status === 401)
       return 'Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục.'
     if (
@@ -187,7 +202,45 @@ export function SupportPlanActionWorkspace({
   const refresh = async () => {
     const [a, b] = await Promise.all([current.refetch(), draft.refetch()])
     if (a.isError || b.isError) throw new Error('Current plan unavailable')
+    return { current: a.data, draft: b.data }
   }
+  const autoProposal = useQuery({
+    queryKey: ['support-plan-v3', subject, 'initial-proposal'],
+    enabled: Boolean(
+      subject &&
+      current.isSuccess &&
+      draft.isSuccess &&
+      !current.data &&
+      !draft.data &&
+      terminalHistory.isSuccess &&
+      terminalHistory.data.items.length === 0,
+    ),
+    retry: false,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const [existing, existingDraft] = await Promise.all([
+        optionalPlan(api.getCurrent()),
+        optionalPlan(api.getDraft()),
+      ])
+      if (!existing && !existingDraft) {
+        const journey = await api.getGuidedJourney()
+        if (
+          journey.stage !== 'GUIDE_READY' ||
+          journey.nextAction !== 'START_PLAN_PROPOSAL' ||
+          journey.entitlementStatus !== 'VERIFIED'
+        )
+          return 'unavailable'
+        const evaluation = await api.getProposalEvaluationId('INITIAL_CHECK')
+        await api.ensureInitial(evaluation, `mb-initial-proposal-${evaluation}`)
+      }
+      const latest = await refresh()
+      if (!latest.current && !latest.draft)
+        throw new Error('Current plan unavailable')
+      return 'ready'
+    },
+  })
   if (!subject || current.isPending || draft.isPending)
     return (
       <Screen>
@@ -217,6 +270,10 @@ export function SupportPlanActionWorkspace({
           label="Thử tải lại"
           onPress={() => void refresh().catch(() => undefined)}
         />
+        <Secondary
+          label="Quay lại hướng dẫn hỗ trợ"
+          onPress={() => router.push('/(user)/assessment')}
+        />
       </Screen>
     )
   if (!current.data && !draft.data && terminalHistory.isPending)
@@ -240,6 +297,46 @@ export function SupportPlanActionWorkspace({
         />
       </Screen>
     )
+  if (
+    !current.data &&
+    !draft.data &&
+    terminalHistory.isSuccess &&
+    terminalHistory.data.items.length === 0
+  ) {
+    if (
+      autoProposal.isPending ||
+      autoProposal.isFetching ||
+      (autoProposal.isSuccess && autoProposal.data === 'ready')
+    )
+      return (
+        <Screen>
+          <ActivityIndicator
+            accessibilityLabel="Đang chuẩn bị phương án hỗ trợ"
+            color={colors.tealDeep}
+          />
+        </Screen>
+      )
+    return (
+      <Screen>
+        <Text accessibilityRole="header" style={styles.title}>
+          Kế hoạch hỗ trợ
+        </Text>
+        <Text accessibilityLiveRegion="polite" style={styles.body}>
+          {autoProposal.isError
+            ? message(autoProposal.error)
+            : 'Chưa có phương án kế hoạch phù hợp để xem. Bạn có thể tiếp tục với hướng dẫn hỗ trợ.'}
+        </Text>
+        <PrimaryButton
+          label="Thử lại"
+          onPress={() => void autoProposal.refetch()}
+        />
+        <Secondary
+          label="Quay lại hướng dẫn hỗ trợ"
+          onPress={() => router.push('/(user)/assessment')}
+        />
+      </Screen>
+    )
+  }
   const native =
     current.data?.representationMode === 'NATIVE_V3' ||
     draft.data?.representationMode === 'NATIVE_V3' ||
@@ -258,7 +355,9 @@ export function SupportPlanActionWorkspace({
             api={api}
             current={current.data ?? null}
             draft={draft.data ?? null}
-            onChanged={refresh}
+            onChanged={async () => {
+              await refresh()
+            }}
           />
         }
       />
@@ -271,7 +370,9 @@ export function SupportPlanActionWorkspace({
       emotionApi={emotionApi}
       current={current.data ?? null}
       draft={draft.data ?? null}
-      onChanged={refresh}
+      onChanged={async () => {
+        await refresh()
+      }}
       origin={origin}
       homeOrigin={homeOrigin}
       journalOrigin={journalOrigin}
@@ -295,10 +396,11 @@ export function NativeProposalEntry({
 }>) {
   const [busy, setBusy] = useState(false),
     [notice, setNotice] = useState('')
+  const [locked, setLocked] = useState(false)
   const key = useRef<{ evaluation: string; key: string } | null>(null)
   const running = useRef(false)
   const propose = async () => {
-    if (running.current || draft || disabled) return
+    if (running.current || current || draft || disabled) return
     running.current = true
     setBusy(true)
     setNotice('')
@@ -315,6 +417,10 @@ export function NativeProposalEntry({
       await onChanged()
       key.current = null
     } catch (error) {
+      setLocked(
+        error instanceof ApiError &&
+          error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED',
+      )
       setNotice(message(error))
     } finally {
       running.current = false
@@ -331,11 +437,26 @@ export function NativeProposalEntry({
         xuất trước khi quyết định bắt đầu.
         {current ? ' Kế hoạch hiện tại vẫn được giữ nguyên.' : ''}
       </Text>
-      {draft ? (
+      {current ? (
+        <Text style={styles.body}>Hãy tiếp tục với kế hoạch hiện tại.</Text>
+      ) : draft ? (
         <Text style={styles.body}>
           Bạn đang có một bản đề xuất. Hãy xem lại hoặc bỏ bản đó trước khi tạo
           phương án khác.
         </Text>
+      ) : locked ? (
+        <View>
+          <Text accessibilityRole="header" style={styles.itemTitle}>
+            Kế hoạch chưa khả dụng với gói hiện tại
+          </Text>
+          <Secondary
+            label="Thử kiểm tra lại"
+            onPress={() => {
+              setLocked(false)
+              setNotice('')
+            }}
+          />
+        </View>
       ) : (
         <PrimaryButton
           label={busy ? 'Đang tạo phương án…' : 'Tạo phương án để xem lại'}
@@ -347,6 +468,12 @@ export function NativeProposalEntry({
         <Text accessibilityLiveRegion="polite" style={styles.body}>
           {notice}
         </Text>
+      ) : null}
+      {notice ? (
+        <Secondary
+          label="Quay lại hướng dẫn hỗ trợ"
+          onPress={() => router.push('/(user)/assessment')}
+        />
       ) : null}
     </View>
   )
@@ -382,12 +509,18 @@ export function NativeSupportPlanScreen({
   const [notice, setNotice] = useState(''),
     [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false)
+  const [activationLocked, setActivationLocked] = useState(false)
   const [confirmation, setConfirmation] = useState<
     'PAUSED' | 'COMPLETED' | 'DISCARDED' | null
   >(null)
   const [review, setReview] = useState<NativeReplacementReview | null>(null)
   const key = useRef<{ signature: string; key: string } | null>(null),
     running = useRef(false)
+  const invalidatedActivation = useRef<string | null>(null)
+  useEffect(() => {
+    if (!subject || !current) return
+    void activationRecoveryStore.remove(subject).catch(() => undefined)
+  }, [subject, current])
   const scrollRef = useRef<ScrollView>(null)
   const contentRef = useRef<View>(null)
   const focusReturnedActivity = useCallback((target: View, heading: Text) => {
@@ -509,6 +642,79 @@ export function NativeSupportPlanScreen({
       setBusy(false)
     }
   }
+  const activate = async () => {
+    if (!subject || !draft || current || running.current || dirty) return
+    const signature = `${draft.supportPlanId}:${draft.version}`
+    if (invalidatedActivation.current === signature) return
+    running.current = true
+    setBusy(true)
+    setNotice('')
+    try {
+      let marker = await activationRecoveryStore.read(subject)
+      if (marker) {
+        const existing = await optionalPlan(api.getCurrent())
+        if (existing) {
+          await onChanged()
+          invalidatedActivation.current = signature
+          await activationRecoveryStore.remove(subject)
+          setNotice('Đã tải kế hoạch hiện tại để bạn tiếp tục.')
+          return
+        }
+        const latest = await optionalPlan(api.getDraft())
+        if (
+          !latest ||
+          latest.supportPlanId !== draft.supportPlanId ||
+          latest.version !== draft.version ||
+          marker.planId !== draft.supportPlanId ||
+          marker.version !== draft.version
+        ) {
+          await onChanged()
+          invalidatedActivation.current = signature
+          await activationRecoveryStore.remove(subject)
+          setNotice('Phương án đã thay đổi. Hãy xem lại trước khi bắt đầu.')
+          return
+        }
+      }
+      if (!marker) {
+        marker = {
+          planId: draft.supportPlanId,
+          version: draft.version,
+          key: randomUUID(),
+        }
+        await activationRecoveryStore.write(subject, marker)
+      }
+      try {
+        await api.activate(draft.supportPlanId, draft.version, marker.key)
+      } catch (error) {
+        if (
+          error instanceof ApiError &&
+          [400, 401, 403, 404].includes(error.status ?? 0)
+        )
+          await activationRecoveryStore.remove(subject)
+        throw error
+      }
+      const activated = await api.getCurrent()
+      if (
+        activated.supportPlanId !== draft.supportPlanId ||
+        !['ACTIVE', 'PAUSED'].includes(activated.status)
+      )
+        throw new Error('Current plan authority unavailable')
+      await onChanged()
+      invalidatedActivation.current = signature
+      await activationRecoveryStore.remove(subject)
+      setNotice('Kế hoạch hỗ trợ đã bắt đầu.')
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED'
+      )
+        setActivationLocked(true)
+      setNotice(message(error))
+    } finally {
+      running.current = false
+      setBusy(false)
+    }
+  }
   const loadReview = async () => {
     if (!current || !draft || running.current || dirty) return
     running.current = true
@@ -557,6 +763,12 @@ export function NativeSupportPlanScreen({
         <Text accessibilityLiveRegion="polite" style={styles.notice}>
           {notice}
         </Text>
+      ) : null}
+      {notice ? (
+        <Secondary
+          label="Quay lại hướng dẫn hỗ trợ"
+          onPress={() => router.push('/(user)/assessment')}
+        />
       ) : null}
       {plan && subject ? (
         <SupportPlanCompanion
@@ -781,9 +993,31 @@ export function NativeSupportPlanScreen({
           <Text accessibilityRole="header" style={styles.sectionTitle}>
             Phương án để bạn xem lại
           </Text>
+          {draft.cycle ? (
+            <View style={styles.section}>
+              <Text style={styles.body}>
+                Mốc xem lại sau {draft.cycle.lengthDays} ngày là khoảng xem lại
+                sản phẩm, không phải thời gian điều trị.
+              </Text>
+              <Text style={styles.body}>Múi giờ: {draft.cycle.timezone}</Text>
+              <Text style={styles.body}>
+                {draft.cycle.startedOn
+                  ? `Ngày đầu: ${dateLabel(draft.cycle.startedOn)}`
+                  : 'Ngày đầu được xác định khi bạn bắt đầu kế hoạch.'}
+              </Text>
+              {draft.cycle.reviewDueOn ? (
+                <Text style={styles.body}>
+                  Ngày xem lại: {dateLabel(draft.cycle.reviewDueOn)}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
           {draft.focuses.map((focus) => (
             <View key={focus.focusId} style={styles.section}>
               <Text style={styles.itemTitle}>{focus.title}</Text>
+              {focus.rationale ? (
+                <Text style={styles.body}>{focus.rationale}</Text>
+              ) : null}
               {focus.actions.map((action) => (
                 <View key={action.actionId} style={styles.section}>
                   <Text style={styles.itemTitle}>
@@ -844,24 +1078,25 @@ export function NativeSupportPlanScreen({
               kế hoạch.
             </Text>
           ) : null}
-          {!current ? (
+          {!current && activationLocked ? (
+            <View>
+              <Text accessibilityRole="header" style={styles.itemTitle}>
+                Kế hoạch chưa khả dụng với gói hiện tại
+              </Text>
+              <Secondary
+                label="Thử kiểm tra lại"
+                onPress={() => {
+                  setActivationLocked(false)
+                  setNotice('')
+                }}
+              />
+            </View>
+          ) : !current ? (
             <PrimaryButton
               label={busy ? 'Đang bắt đầu…' : 'Bắt đầu kế hoạch'}
               testID="native-plan-activate"
               disabled={busy || dirty}
-              onPress={() =>
-                void run(
-                  () =>
-                    api.activate(
-                      draft.supportPlanId,
-                      draft.version,
-                      getKey(
-                        `activate:${draft.supportPlanId}:${draft.version}`,
-                      ),
-                    ),
-                  'Kế hoạch hỗ trợ đã bắt đầu.',
-                )
-              }
+              onPress={() => void activate()}
             />
           ) : (
             <>
