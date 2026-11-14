@@ -33,6 +33,7 @@ import {
   chatHistory,
   type ChatMessage,
 } from '../api/chat-browser-client'
+import AppointmentChatPanel from './AppointmentChatPanel'
 import styles from './SpecialistChatView.module.css'
 
 // ==========================================
@@ -235,13 +236,6 @@ export default function SpecialistChatView({
   const [chatStatus, setChatStatus] = useState<
     'loading' | 'ready' | 'empty' | 'forbidden' | 'error'
   >('loading')
-  const [canSend, setCanSend] = useState(false)
-  const [composerDisabledReason, setComposerDisabledReason] = useState(
-    'Phiên tư vấn đã kết thúc • Khung chat chỉ đọc',
-  )
-  const [inputMessage, setInputMessage] = useState('')
-  const [sendingMessage] = useState(false)
-
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   // 1. Load appointment list from backend
@@ -290,6 +284,21 @@ export default function SpecialistChatView({
     if (!selectedId && appointments.length > 0) return appointments[0]
     return appointments.find((a) => a.id === selectedId) || appointments[0]
   }, [appointments, selectedId])
+
+  // Fail closed: clear one appointment's medical data during render, before
+  // another appointment's metadata can be painted next to it.
+  const selectedAppointmentId = selectedAppointment?.id
+  const [detailsAppointmentId, setDetailsAppointmentId] = useState(
+    selectedAppointmentId,
+  )
+  if (detailsAppointmentId !== selectedAppointmentId) {
+    setDetailsAppointmentId(selectedAppointmentId)
+    setSessionSummary(null)
+    setConsultationBrief(null)
+    setRating(null)
+    setChatMessages([])
+    setChatStatus('loading')
+  }
 
   // 2. Load EMR, Brief, Rating & Chat history for selected appointment
   useEffect(() => {
@@ -386,34 +395,6 @@ export default function SpecialistChatView({
           setChatStatus('error')
         }
       }
-
-      // 5) Check send eligibility
-      try {
-        const sendElig = await chatEligibility(aptId, 'send')
-        if (!cancelled) {
-          const isEnded =
-            !selectedAppointment ||
-            ['COMPLETED', 'SESSION_ENDED', 'CANCELLED'].includes(
-              selectedAppointment.status,
-            )
-          if (sendElig.sendAllowed && !isEnded) {
-            setCanSend(true)
-            setComposerDisabledReason('')
-          } else {
-            setCanSend(false)
-            setComposerDisabledReason(
-              isEnded
-                ? 'Phiên tư vấn đã kết thúc • Khung chat chỉ đọc'
-                : 'Khung chat hiện không khả dụng cho phiên này',
-            )
-          }
-        }
-      } catch {
-        if (!cancelled) {
-          setCanSend(false)
-          setComposerDisabledReason('Không thể kiểm tra quyền gửi tin nhắn')
-        }
-      }
     }
 
     void loadSessionDetails()
@@ -429,13 +410,6 @@ export default function SpecialistChatView({
     const params = new URLSearchParams(window.location.search)
     params.set('appointmentId', appointmentId)
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-  }
-
-  // Handle send message
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!canSend || !inputMessage.trim() || sendingMessage) return
-    // Realtime message sending requires active socket connection; disabled for ended/ineligible sessions
   }
 
   // Handle save rating
@@ -607,6 +581,13 @@ export default function SpecialistChatView({
     ['COMPLETED', 'SESSION_ENDED', 'CANCELLED'].includes(
       selectedAppointment.status,
     )
+  // Sending, check-in and presence run only on the realtime chat panel.
+  const isLiveSession =
+    !!selectedAppointment &&
+    ['CONFIRMED', 'IN_PROGRESS'].includes(selectedAppointment.status)
+  const composerDisabledReason = isSessionEnded
+    ? 'Phiên tư vấn đã kết thúc • Khung chat chỉ đọc'
+    : 'Khung chat hiện không khả dụng cho phiên này'
 
   return (
     <div
@@ -887,261 +868,278 @@ export default function SpecialistChatView({
           </div>
         </header>
 
-        {/* Bento Metric Strip over Conversation */}
-        {emrData && (
-          <div
-            className={styles.bentoMetricStrip}
-            data-purpose="chat-session-bento-strip"
-          >
-            <div className={styles.metricStripContent}>
-              <div className={styles.metricLeft}>
-                <span>
-                  <span className={styles.metricDot} />
-                  Thời lượng:{' '}
-                  <strong className="text-slate-800 font-semibold">
-                    {emrData.consultationTime.durationLabel}
-                  </strong>
-                </span>
-                <span className="text-slate-300">•</span>
-                <span>
-                  Báo cáo lâm sàng:{' '}
-                  <strong className="text-emerald-800 font-semibold">
-                    {sessionSummary ? 'Đã có tóm tắt phiên' : 'Chưa có tóm tắt'}
-                  </strong>
-                </span>
-              </div>
-              <span className="text-slate-500 text-[11px]">
-                {emrData.creditsUsed > 0 ? (
-                  <span>
-                    Đã trừ:{' '}
-                    <strong className="text-slate-700 font-semibold">
-                      {emrData.creditsUsed} Credit
-                    </strong>
-                  </span>
-                ) : (
-                  <span>Chưa trừ Credit</span>
-                )}
-              </span>
-            </div>
+        {isLiveSession && selectedAppointment ? (
+          <div className={styles.liveChat} data-purpose="live-chat">
+            <AppointmentChatPanel
+              key={selectedAppointment.id}
+              appointmentId={selectedAppointment.id}
+              viewerRole={viewerRole}
+              timezone={selectedAppointment.timezone}
+              embedded
+            />
           </div>
-        )}
-
-        {/* Dialogue Message Stream Area */}
-        <div
-          className={`${styles.messagesContainer} ${styles.customScroll}`}
-          data-purpose="chat-messages-container"
-        >
-          {/* Timeline Date Pill */}
-          {emrData && (
-            <div className={styles.timelinePill}>
-              <span className={styles.timelineText}>
-                Phiên tham vấn lúc {emrData.consultationTime.timeRange} •{' '}
-                {emrData.consultationTime.date}
-              </span>
-            </div>
-          )}
-
-          {/* Message Stream with Truthful Status Handling */}
-          {chatStatus === 'loading' && (
-            <div
-              className="py-12 text-center text-sm text-slate-500"
-              data-testid="chat-loading-state"
-            >
-              Đang tải lịch sử hội thoại...
-            </div>
-          )}
-
-          {chatStatus === 'forbidden' && (
-            <div
-              className="py-12 text-center px-4"
-              data-testid="chat-forbidden-state"
-            >
-              <div className="inline-flex p-3 rounded-full bg-amber-50 text-amber-700 mb-2">
-                <Lock size={20} />
-              </div>
-              <p className="text-sm font-semibold text-slate-800">
-                Không có quyền truy cập
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                Bạn không có quyền truy cập lịch sử hội thoại của phiên này
-                (403).
-              </p>
-            </div>
-          )}
-
-          {chatStatus === 'error' && (
-            <div
-              className="py-12 text-center px-4"
-              data-testid="chat-error-state"
-            >
-              <div className="inline-flex p-3 rounded-full bg-rose-50 text-rose-700 mb-2">
-                <AlertCircle size={20} />
-              </div>
-              <p className="text-sm font-semibold text-slate-800">
-                Không thể tải lịch sử trò chuyện
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                Đã xảy ra lỗi kết nối khi tải lịch sử phiên. Vui lòng thử lại
-                sau.
-              </p>
-            </div>
-          )}
-
-          {chatStatus === 'empty' && (
-            <div
-              className="py-12 text-center px-4"
-              data-testid="chat-empty-state"
-            >
-              <div className="inline-flex p-3 rounded-full bg-slate-100 text-slate-500 mb-2">
-                <MessageSquare size={20} />
-              </div>
-              <p className="text-sm font-semibold text-slate-700">
-                Chưa có tin nhắn trong phiên này
-              </p>
-              <p className="text-xs text-slate-400 mt-1">
-                Phiên tư vấn này chưa có lịch sử tin nhắn nào được lưu trữ.
-              </p>
-            </div>
-          )}
-
-          {chatStatus === 'ready' &&
-            chatMessages.map((msg) => {
-              const isDoctor = msg.senderType === 'specialist'
-
-              if (isDoctor) {
-                return (
-                  <div key={msg.id} className={styles.messageRowDoctor}>
-                    <div className={styles.msgAvatarDoctor}>
-                      {getInitials(msg.senderName)}
-                    </div>
-                    <div className={styles.msgBodyDoctor}>
-                      <div className={styles.msgHeaderDoctor}>
-                        <span className={styles.msgAuthorDoctor}>
-                          {msg.senderName}
-                        </span>
-                        <span className={styles.msgTime}>{msg.timestamp}</span>
-                      </div>
-                      <div className={styles.bubbleDoctor}>
-                        <p className="m-0 leading-relaxed">{msg.content}</p>
-                        {msg.recommendations && (
-                          <div className={styles.recommendationCard}>
-                            <p className={styles.recommendationTitle}>
-                              {msg.recommendations.title}
-                            </p>
-                            <ul className={styles.recommendationList}>
-                              {msg.recommendations.items.map((item, idx) => (
-                                <li key={idx}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+        ) : (
+          <>
+            {/* Bento Metric Strip over Conversation */}
+            {emrData && (
+              <div
+                className={styles.bentoMetricStrip}
+                data-purpose="chat-session-bento-strip"
+              >
+                <div className={styles.metricStripContent}>
+                  <div className={styles.metricLeft}>
+                    <span>
+                      <span className={styles.metricDot} />
+                      Thời lượng:{' '}
+                      <strong className="text-slate-800 font-semibold">
+                        {emrData.consultationTime.durationLabel}
+                      </strong>
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span>
+                      Báo cáo lâm sàng:{' '}
+                      <strong className="text-emerald-800 font-semibold">
+                        {sessionSummary
+                          ? 'Đã có tóm tắt phiên'
+                          : 'Chưa có tóm tắt'}
+                      </strong>
+                    </span>
                   </div>
-                )
-              }
-
-              // Patient Message
-              return (
-                <div key={msg.id} className={styles.messageRowPatient}>
-                  <div className={styles.msgBodyPatient}>
-                    <div className={styles.msgHeaderPatient}>
-                      <span className={styles.msgTime}>{msg.timestamp}</span>
-                      <span className={styles.msgAuthorPatient}>
-                        {msg.senderName}
+                  <span className="text-slate-500 text-[11px]">
+                    {emrData.creditsUsed > 0 ? (
+                      <span>
+                        Đã trừ:{' '}
+                        <strong className="text-slate-700 font-semibold">
+                          {emrData.creditsUsed} Credit
+                        </strong>
                       </span>
-                    </div>
-                    <div className={styles.bubblePatient}>
-                      <p className="m-0 leading-relaxed text-white font-medium">
-                        {msg.content}
-                      </p>
-                    </div>
+                    ) : (
+                      <span>Chưa trừ Credit</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Dialogue Message Stream Area */}
+            <div
+              className={`${styles.messagesContainer} ${styles.customScroll}`}
+              data-purpose="chat-messages-container"
+            >
+              {/* Timeline Date Pill */}
+              {emrData && (
+                <div className={styles.timelinePill}>
+                  <span className={styles.timelineText}>
+                    Phiên tham vấn lúc {emrData.consultationTime.timeRange} •{' '}
+                    {emrData.consultationTime.date}
+                  </span>
+                </div>
+              )}
+
+              {/* Message Stream with Truthful Status Handling */}
+              {chatStatus === 'loading' && (
+                <div
+                  className="py-12 text-center text-sm text-slate-500"
+                  data-testid="chat-loading-state"
+                >
+                  Đang tải lịch sử hội thoại...
+                </div>
+              )}
+
+              {chatStatus === 'forbidden' && (
+                <div
+                  className="py-12 text-center px-4"
+                  data-testid="chat-forbidden-state"
+                >
+                  <div className="inline-flex p-3 rounded-full bg-amber-50 text-amber-700 mb-2">
+                    <Lock size={20} />
                   </div>
-                  <div className={styles.msgAvatarPatient}>
-                    {getInitials(msg.senderName)}
+                  <p className="text-sm font-semibold text-slate-800">
+                    Không có quyền truy cập
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Bạn không có quyền truy cập lịch sử hội thoại của phiên này
+                    (403).
+                  </p>
+                </div>
+              )}
+
+              {chatStatus === 'error' && (
+                <div
+                  className="py-12 text-center px-4"
+                  data-testid="chat-error-state"
+                >
+                  <div className="inline-flex p-3 rounded-full bg-rose-50 text-rose-700 mb-2">
+                    <AlertCircle size={20} />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    Không thể tải lịch sử trò chuyện
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Đã xảy ra lỗi kết nối khi tải lịch sử phiên. Vui lòng thử
+                    lại sau.
+                  </p>
+                </div>
+              )}
+
+              {chatStatus === 'empty' && (
+                <div
+                  className="py-12 text-center px-4"
+                  data-testid="chat-empty-state"
+                >
+                  <div className="inline-flex p-3 rounded-full bg-slate-100 text-slate-500 mb-2">
+                    <MessageSquare size={20} />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">
+                    Chưa có tin nhắn trong phiên này
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Phiên tư vấn này chưa có lịch sử tin nhắn nào được lưu trữ.
+                  </p>
+                </div>
+              )}
+
+              {chatStatus === 'ready' &&
+                chatMessages.map((msg) => {
+                  const isDoctor = msg.senderType === 'specialist'
+
+                  if (isDoctor) {
+                    return (
+                      <div key={msg.id} className={styles.messageRowDoctor}>
+                        <div className={styles.msgAvatarDoctor}>
+                          {getInitials(msg.senderName)}
+                        </div>
+                        <div className={styles.msgBodyDoctor}>
+                          <div className={styles.msgHeaderDoctor}>
+                            <span className={styles.msgAuthorDoctor}>
+                              {msg.senderName}
+                            </span>
+                            <span className={styles.msgTime}>
+                              {msg.timestamp}
+                            </span>
+                          </div>
+                          <div className={styles.bubbleDoctor}>
+                            <p className="m-0 leading-relaxed">{msg.content}</p>
+                            {msg.recommendations && (
+                              <div className={styles.recommendationCard}>
+                                <p className={styles.recommendationTitle}>
+                                  {msg.recommendations.title}
+                                </p>
+                                <ul className={styles.recommendationList}>
+                                  {msg.recommendations.items.map(
+                                    (item, idx) => (
+                                      <li key={idx}>{item}</li>
+                                    ),
+                                  )}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  // Patient Message
+                  return (
+                    <div key={msg.id} className={styles.messageRowPatient}>
+                      <div className={styles.msgBodyPatient}>
+                        <div className={styles.msgHeaderPatient}>
+                          <span className={styles.msgTime}>
+                            {msg.timestamp}
+                          </span>
+                          <span className={styles.msgAuthorPatient}>
+                            {msg.senderName}
+                          </span>
+                        </div>
+                        <div className={styles.bubblePatient}>
+                          <p className="m-0 leading-relaxed text-white font-medium">
+                            {msg.content}
+                          </p>
+                        </div>
+                      </div>
+                      <div className={styles.msgAvatarPatient}>
+                        {getInitials(msg.senderName)}
+                      </div>
+                    </div>
+                  )
+                })}
+
+              {/* Completion Badge */}
+              {isSessionEnded && emrData && (
+                <div className={styles.completionBadge}>
+                  <p className={styles.completionTitle}>
+                    Phiên hoàn thành lúc{' '}
+                    {emrData.consultationTime.timeRange.split('–')[1]?.trim() ||
+                      '23:55'}
+                  </p>
+                  <p className={styles.completionSub}>
+                    Hồ sơ phiên đã được lưu trữ an toàn trong hệ thống lâm sàng.
+                  </p>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Bottom Read-Only Status Banner / Active Input Bar (Zalo / Messenger Style) */}
+            <footer
+              className={styles.chatFooter}
+              data-purpose="chat-input-and-status-area"
+            >
+              {isSessionEnded && (
+                <div className={styles.readOnlyBanner}>
+                  <div className={styles.bannerText}>
+                    <Lock size={15} className="text-slate-400 shrink-0" />
+                    <span className="truncate">
+                      Phiên đã kết thúc và được lưu trữ an toàn trong hồ sơ bệnh
+                      án EMR.
+                    </span>
+                  </div>
+                  <div className={styles.bannerActions}>
+                    <button
+                      type="button"
+                      onClick={() => setIsEmrDrawerOpen(true)}
+                      className={styles.btnSecondary}
+                      title="Mở ngăn kéo EMR"
+                    >
+                      <FileText size={14} className="text-brand-600" />
+                      <span>Xem EMR</span>
+                    </button>
+                    <Link
+                      href="/specialists"
+                      className={`${styles.btnSecondary} text-brand-700 bg-brand-50 border-brand-200`}
+                    >
+                      <CalendarDays size={14} className="text-emerald-600" />
+                      <span>Tái khám</span>
+                    </Link>
                   </div>
                 </div>
-              )
-            })}
+              )}
 
-          {/* Completion Badge */}
-          {isSessionEnded && emrData && (
-            <div className={styles.completionBadge}>
-              <p className={styles.completionTitle}>
-                Phiên hoàn thành lúc{' '}
-                {emrData.consultationTime.timeRange.split('–')[1]?.trim() ||
-                  '23:55'}
-              </p>
-              <p className={styles.completionSub}>
-                Hồ sơ phiên đã được lưu trữ an toàn trong hệ thống lâm sàng.
-              </p>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Bottom Read-Only Status Banner / Active Input Bar (Zalo / Messenger Style) */}
-        <footer
-          className={styles.chatFooter}
-          data-purpose="chat-input-and-status-area"
-        >
-          {isSessionEnded && (
-            <div className={styles.readOnlyBanner}>
-              <div className={styles.bannerText}>
-                <Lock size={15} className="text-slate-400 shrink-0" />
-                <span className="truncate">
-                  Phiên đã kết thúc và được lưu trữ an toàn trong hồ sơ bệnh án
-                  EMR.
-                </span>
+              <div className={styles.composerForm}>
+                <div className={styles.composerInputRow}>
+                  <input
+                    type="text"
+                    disabled
+                    aria-label={composerDisabledReason}
+                    placeholder={composerDisabledReason}
+                    className={styles.composerTextarea}
+                  />
+                  <button
+                    type="button"
+                    disabled
+                    className={styles.sendBtn}
+                    aria-label="Gửi tin nhắn"
+                    title={composerDisabledReason}
+                  >
+                    <Send size={15} />
+                  </button>
+                </div>
               </div>
-              <div className={styles.bannerActions}>
-                <button
-                  type="button"
-                  onClick={() => setIsEmrDrawerOpen(true)}
-                  className={styles.btnSecondary}
-                  title="Mở ngăn kéo EMR"
-                >
-                  <FileText size={14} className="text-brand-600" />
-                  <span>Xem EMR</span>
-                </button>
-                <Link
-                  href="/specialists"
-                  className={`${styles.btnSecondary} text-brand-700 bg-brand-50 border-brand-200`}
-                >
-                  <CalendarDays size={14} className="text-emerald-600" />
-                  <span>Tái khám</span>
-                </Link>
-              </div>
-            </div>
-          )}
-
-          <form onSubmit={handleSendMessage} className={styles.composerForm}>
-            <div className={styles.composerInputRow}>
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                disabled={!canSend}
-                placeholder={
-                  canSend
-                    ? 'Nhập tin nhắn tư vấn với bác sĩ...'
-                    : composerDisabledReason
-                }
-                className={styles.composerTextarea}
-              />
-              <button
-                type="submit"
-                disabled={!canSend || !inputMessage.trim() || sendingMessage}
-                className={styles.sendBtn}
-                aria-label="Gửi tin nhắn"
-                title={canSend ? 'Gửi tin nhắn' : composerDisabledReason}
-              >
-                <Send size={15} />
-              </button>
-            </div>
-          </form>
-        </footer>
+            </footer>
+          </>
+        )}
       </main>
 
       {/* ======================================================== */}

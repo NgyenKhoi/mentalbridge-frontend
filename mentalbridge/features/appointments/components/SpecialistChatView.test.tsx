@@ -61,6 +61,12 @@ vi.mock('@/features/assessment/api/browser-care', () => ({
     assessmentApi.getAssessmentHistory(...args),
 }))
 
+vi.mock('./AppointmentChatPanel', () => ({
+  default: ({ appointmentId }: { appointmentId: string }) => (
+    <div data-testid="realtime-chat-panel">{appointmentId}</div>
+  ),
+}))
+
 const testAppointment: Appointment = {
   id: '40b3dce0-1d5d-44a2-81dd-b8e0dd9fb377',
   slotId: '22222222-2222-4222-8222-222222222222',
@@ -366,5 +372,68 @@ describe('SpecialistChatView', () => {
         'Chưa có kế hoạch chăm sóc tiếp theo được ghi nhận cho phiên này.',
       ),
     ).toBeVisible()
+  })
+  it('hands an active session to the realtime chat panel instead of a dead composer', async () => {
+    appointmentApi.list.mockResolvedValue({
+      items: [{ ...testAppointment, status: 'IN_PROGRESS' }],
+      count: 1,
+      generatedAt: '2026-10-01T16:00:00Z',
+    })
+    chatApi.chatEligibility.mockResolvedValue({
+      historyAllowed: true,
+      sendAllowed: true,
+      conversationId: 'conv-123',
+    })
+
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    expect(await screen.findByTestId('realtime-chat-panel')).toHaveTextContent(
+      testAppointment.id,
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Gửi tin nhắn' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('never shows the previous appointment summary under a newly selected appointment', async () => {
+    const other: Appointment = {
+      ...testAppointment,
+      id: '50b3dce0-1d5d-44a2-81dd-b8e0dd9fb378',
+      specialistDisplayName: 'ThS. Hòa Bình',
+    }
+    appointmentApi.list.mockResolvedValue({
+      items: [testAppointment, other],
+      count: 2,
+      generatedAt: '2026-10-01T17:00:00Z',
+    })
+    const first = await sessionSummaryApi.list()
+    sessionSummaryApi.list.mockImplementation((id: string) =>
+      id === other.id ? new Promise(() => {}) : Promise.resolve(first),
+    )
+
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    expect(
+      (await screen.findAllByText('Thực hành tập thở 4-7-8')).length,
+    ).toBeGreaterThanOrEqual(1)
+
+    fireEvent.click(screen.getAllByText('ThS. Hòa Bình')[0])
+
+    expect(
+      screen.queryByText('Thực hành tập thở 4-7-8'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Chào bạn, tôi là BS. Minh Anh'),
+    ).not.toBeInTheDocument()
   })
 })
