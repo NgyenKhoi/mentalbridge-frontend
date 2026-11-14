@@ -180,6 +180,7 @@ export function SupportPlanActionWorkspace({
   const queryClient = useQueryClient()
   const focusedSubject = useRef<string | null>(null)
   const focusRefreshPending = useRef(false)
+  const focusRefreshQueued = useRef(false)
   useFocusEffect(
     useCallback(() => {
       if (!subject) return
@@ -187,27 +188,39 @@ export function SupportPlanActionWorkspace({
         focusedSubject.current = subject
         return
       }
-      if (focusRefreshPending.current) return
+      if (focusRefreshPending.current) {
+        focusRefreshQueued.current = true
+        return
+      }
       focusRefreshPending.current = true
       const kinds = ['current', 'draft', 'history', 'initial-proposal']
-      void Promise.all(
-        kinds.map((kind) => {
-          const queryKey = ['support-plan-v3', subject, kind]
-          if (
-            kind === 'initial-proposal' &&
-            queryClient.getQueryState(queryKey)?.fetchStatus === 'fetching'
+      const refreshOnFocus = async () => {
+        do {
+          focusRefreshQueued.current = false
+          await Promise.all(
+            kinds.map((kind) => {
+              const queryKey = ['support-plan-v3', subject, kind]
+              if (
+                kind === 'initial-proposal' &&
+                queryClient.getQueryState(queryKey)?.fetchStatus === 'fetching'
+              )
+                return queryClient
+                  .refetchQueries(
+                    { queryKey, exact: true },
+                    { cancelRefetch: false },
+                  )
+                  .then(() =>
+                    queryClient.invalidateQueries({ queryKey, exact: true }),
+                  )
+              return queryClient.invalidateQueries({ queryKey, exact: true })
+            }),
           )
-            return queryClient
-              .refetchQueries(
-                { queryKey, exact: true },
-                { cancelRefetch: false },
-              )
-              .then(() =>
-                queryClient.invalidateQueries({ queryKey, exact: true }),
-              )
-          return queryClient.invalidateQueries({ queryKey, exact: true })
-        }),
-      ).finally(() => {
+        } while (
+          focusRefreshQueued.current &&
+          focusedSubject.current === subject
+        )
+      }
+      void refreshOnFocus().finally(() => {
         focusRefreshPending.current = false
       })
     }, [queryClient, subject]),

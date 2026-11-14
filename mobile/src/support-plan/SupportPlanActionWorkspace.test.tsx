@@ -982,6 +982,63 @@ it('rechecks Guide eligibility after focus if an older journey read is in flight
   expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
   expect(owner.activate).not.toHaveBeenCalled()
 })
+it('rechecks eligibility after a second focus while an earlier focus refresh is pending', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  let created = false
+  let complete!: (
+    value: Awaited<ReturnType<SupportPlanActionApi['getGuidedJourney']>>,
+  ) => void
+  owner.getCurrent.mockRejectedValue(missing)
+  owner.getDraft.mockImplementation(async () => {
+    if (created) return nativePlan('DRAFT')
+    throw missing
+  })
+  const oldJourney = await owner.getGuidedJourney()
+  owner.getGuidedJourney
+    .mockReset()
+    .mockResolvedValueOnce(oldJourney)
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve
+        }),
+    )
+    .mockResolvedValue({
+      ...oldJourney,
+      nextAction: 'START_PLAN_PROPOSAL',
+      entitlementStatus: 'VERIFIED',
+    })
+  owner.ensureInitial.mockImplementation(async () => {
+    created = true
+    return nativePlan('DRAFT')
+  })
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await screen.findByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' })
+  await act(async () => {
+    for (const callback of mockFocusCallbacks) callback()
+  })
+  await waitFor(() => expect(owner.getGuidedJourney).toHaveBeenCalledTimes(2))
+  await act(async () => {
+    for (const callback of mockFocusCallbacks) callback()
+  })
+  await act(async () => complete(oldJourney))
+  await screen.findByText('Phương án để bạn xem lại')
+  expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
+  expect(owner.activate).not.toHaveBeenCalled()
+})
 it.each(['REVIEW_SAFETY_SUPPORT', 'EXPLORE_GUIDE_RESOURCES'] as const)(
   'does not propose on focus when the current Guide says %s',
   async (nextAction) => {
