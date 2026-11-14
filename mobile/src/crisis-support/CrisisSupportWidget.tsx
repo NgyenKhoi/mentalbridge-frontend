@@ -38,7 +38,11 @@ function useReducedMotion() {
   return reduced
 }
 
-export function CrisisSupportWidget() {
+export function CrisisSupportWidget({
+  bottomOffset = 0,
+}: {
+  bottomOffset?: number
+}) {
   const insets = useSafeAreaInsets()
   const reducedMotion = useReducedMotion()
   const [open, setOpen] = useState(false)
@@ -100,7 +104,10 @@ export function CrisisSupportWidget() {
         onPress={show}
         style={({ pressed }) => [
           styles.trigger,
-          { bottom: Math.max(insets.bottom, spacing.md) + spacing.md },
+          {
+            bottom:
+              Math.max(insets.bottom, spacing.md) + spacing.md + bottomOffset,
+          },
           pressed && styles.pressed,
         ]}
         testID="crisis-support-trigger"

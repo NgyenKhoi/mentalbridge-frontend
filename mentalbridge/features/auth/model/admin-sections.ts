@@ -37,6 +37,11 @@ export const ADMIN_SECTIONS = {
   payouts: {
     label: 'Chi trả chuyên gia',
   },
+  feedback: {
+    label: 'Ý kiến & Phản hồi',
+    description:
+      'Thu thập, phân tích chỉ số hài lòng (CSAT/NPS) và điều phối xử lý ý kiến đóng góp từ Khách hàng và Chuyên gia y tế.',
+  },
   reconciliation: {
     label: 'Đối soát thương mại',
     description:

@@ -17,9 +17,10 @@ import {
   CreditCard,
   Coins,
   ArrowLeftRight,
+  MessageSquareQuote,
   Search,
   Bell,
-  Headphones,
+  HelpCircle,
   User,
 } from 'lucide-react'
 
@@ -37,6 +38,7 @@ import AdminReportsSection from '@/features/reports/components/AdminReportsSecti
 import AdminPaymentsManager from '@/components/AdminPaymentsManager'
 import AdminPayoutsManager from '@/components/AdminPayoutsManager'
 import AdminCommercialReconciliationManager from '@/features/reconciliation/components/AdminCommercialReconciliationManager'
+import AdminFeedbackManager from '@/features/feedback/components/AdminFeedbackManager'
 import AdminRetentionGovernance from '@/features/retention/components/AdminRetentionGovernance'
 import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
 import type { Workspace } from '../model/workspace'
@@ -54,6 +56,7 @@ export const SECTIONS = {
     description:
       'Quản trị chính sách bảo lưu và theo dõi thực thi xóa dữ liệu với bằng chứng kiểm toán.',
     icon: ShieldAlert,
+    hidden: true,
   },
   accounts: {
     label: 'Tài khoản',
@@ -82,10 +85,12 @@ export const SECTIONS = {
   audit: {
     label: 'Nhật ký kiểm toán',
     icon: FileText,
+    hidden: true,
   },
   reports: {
     label: 'Báo cáo',
     icon: BarChart3,
+    hidden: true,
   },
   payments: {
     label: 'Thanh toán gói',
@@ -95,11 +100,18 @@ export const SECTIONS = {
     label: 'Chi trả chuyên gia',
     icon: Coins,
   },
+  feedback: {
+    label: 'Ý kiến & Phản hồi',
+    description:
+      'Thu thập, phân tích chỉ số hài lòng (CSAT/NPS) và điều phối xử lý ý kiến đóng góp từ Khách hàng và Chuyên gia y tế.',
+    icon: MessageSquareQuote,
+  },
   reconciliation: {
     label: 'Đối soát thương mại',
     description:
       'Đối soát vòng đời thương mại, phát hiện sai lệch và truy vết dòng tiền.',
     icon: ArrowLeftRight,
+    hidden: true,
   },
 } as const
 
@@ -141,6 +153,8 @@ function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
       return <AdminPaymentsManager />
     case 'payouts':
       return <AdminPayoutsManager />
+    case 'feedback':
+      return <AdminFeedbackManager />
     case 'reconciliation':
       return <AdminCommercialReconciliationManager />
   }
@@ -254,37 +268,39 @@ export default function AdminWorkspace({
           </motion.span>
         </button>
         <nav aria-label="Điều hướng quản trị">
-          {Object.entries(SECTIONS).map(([key, item]) => {
-            const Icon = item.icon
-            const isActive = key === section
-            return (
-              <div key={key} className="role-nav-item">
-                <Link
-                  href={`/admin/${key}`}
-                  className={isActive ? 'active' : ''}
-                  aria-current={isActive ? 'page' : undefined}
-                  onClick={() => setMobileOpen(false)}
-                  title={sidebarCollapsed ? item.label : undefined}
-                >
-                  {isActive && (
-                    <motion.span
-                      layoutId="role-active-admin"
-                      className="role-active-pill"
-                      transition={{
-                        type: 'spring',
-                        stiffness: 380,
-                        damping: 32,
-                      }}
-                    />
-                  )}
-                  <span className="role-nav-icon" aria-hidden="true">
-                    <Icon size={16} strokeWidth={1.8} />
-                  </span>
-                  <span className="role-nav-label">{item.label}</span>
-                </Link>
-              </div>
-            )
-          })}
+          {Object.entries(SECTIONS)
+            .filter(([, item]) => !(item as { hidden?: boolean }).hidden)
+            .map(([key, item]) => {
+              const Icon = item.icon
+              const isActive = key === section
+              return (
+                <div key={key} className="role-nav-item">
+                  <Link
+                    href={`/admin/${key}`}
+                    className={isActive ? 'active' : ''}
+                    aria-current={isActive ? 'page' : undefined}
+                    onClick={() => setMobileOpen(false)}
+                    title={sidebarCollapsed ? item.label : undefined}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="role-active-admin"
+                        className="role-active-pill"
+                        transition={{
+                          type: 'spring',
+                          stiffness: 380,
+                          damping: 32,
+                        }}
+                      />
+                    )}
+                    <span className="role-nav-icon" aria-hidden="true">
+                      <Icon size={16} strokeWidth={1.8} />
+                    </span>
+                    <span className="role-nav-label">{item.label}</span>
+                  </Link>
+                </div>
+              )
+            })}
         </nav>
         <WorkspaceSwitcher workspaces={workspaces} currentRole="ADMIN" />
         <div className="role-sidebar-foot">
@@ -327,9 +343,13 @@ export default function AdminWorkspace({
                 /
               </span>
               <span className="clinical-breadcrumb-current">
-                {section === 'dashboard'
-                  ? 'Tổng quan hệ thống'
-                  : currentSectionLabel}
+                {section === 'accounts'
+                  ? 'Quản lý tài khoản'
+                  : section === 'dashboard'
+                    ? 'Tổng quan hệ thống'
+                    : section === 'appointments'
+                      ? 'Giám sát vòng đời lịch hẹn'
+                      : currentSectionLabel}
               </span>
             </div>
             <div className="clinical-topbar-status-pill">
@@ -349,27 +369,33 @@ export default function AdminWorkspace({
                 ref={searchInputRef}
                 type="text"
                 className="clinical-search-input"
-                placeholder="Tìm kiếm hồ sơ, bệnh án, giao dịch..."
+                placeholder={
+                  section === 'accounts'
+                    ? 'Tìm kiếm tài khoản, email…'
+                    : section === 'specialists'
+                      ? 'Tìm kiếm chuyên gia, hồ sơ…'
+                      : 'Tìm kiếm hồ sơ, bệnh án…'
+                }
                 aria-label="Tìm kiếm trong hệ thống quản trị"
               />
               <kbd className="clinical-search-kbd">⌘K</kbd>
             </div>
 
             <Link
-              href="/admin/audit"
+              href="/admin/feedback"
               className="clinical-topbar-btn"
-              aria-label="Nhật ký kiểm toán"
-              title="Nhật ký kiểm toán"
+              aria-label="Ý kiến & Phản hồi"
+              title="Ý kiến & Phản hồi"
             >
               <Bell size={17} strokeWidth={1.75} />
             </Link>
             <Link
-              href="/admin/reports"
+              href="/admin/dashboard"
               className="clinical-topbar-btn"
-              aria-label="Báo cáo hệ thống"
-              title="Báo cáo hệ thống"
+              aria-label="Trợ giúp & hướng dẫn"
+              title="Trợ giúp & hướng dẫn"
             >
-              <Headphones size={17} strokeWidth={1.75} />
+              <HelpCircle size={17} strokeWidth={1.75} />
             </Link>
             <Link
               href="/admin/accounts"
@@ -377,9 +403,9 @@ export default function AdminWorkspace({
               aria-label="Hồ sơ quản trị"
               title="Tài khoản quản trị"
             >
-              <div className="clinical-profile-avatar">HK</div>
+              <div className="clinical-profile-avatar">AD</div>
               <div className="clinical-profile-info">
-                <span className="clinical-profile-name">BS. Hoàng Khang</span>
+                <span className="clinical-profile-name">Quản trị viên</span>
                 <span className="clinical-profile-role">
                   Admin / Quyền tối cao
                 </span>

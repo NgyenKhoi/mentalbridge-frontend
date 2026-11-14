@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   agentRules: false,
   distDir: process.env.NEXT_DEV_DIST_DIR ?? '.next',
   output: 'standalone',
+  serverExternalPackages: ['pg'],
   typescript: {
     tsconfigPath: process.env.NEXT_DEV_TSCONFIG ?? 'tsconfig.json',
   },

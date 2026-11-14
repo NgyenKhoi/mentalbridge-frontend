@@ -464,6 +464,19 @@ export const consultationClient = {
       parse: parseCredentialDocuments,
     })
   },
+  adminSpecialistCredentialDocuments(
+    token: string,
+    correlationId: string,
+    specialistId: string,
+  ) {
+    return request<CredentialDocument[]>({
+      method: 'GET',
+      path: `/api/v1/admin/specialist-profiles/documents/specialists/${encodeURIComponent(specialistId)}`,
+      token,
+      correlationId,
+      parse: parseCredentialDocuments,
+    })
+  },
   adminCredentialFile(token: string, correlationId: string, id: string) {
     return request<CredentialDocumentLink>({
       method: 'GET',

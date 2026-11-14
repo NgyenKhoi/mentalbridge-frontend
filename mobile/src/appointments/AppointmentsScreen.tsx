@@ -45,6 +45,7 @@ import {
 } from './appointment-model'
 
 type Props = Readonly<{
+  initialAppointmentId?: string | null
   api: AppointmentApi
   disputeApi?: AppointmentDisputeApi
   consultationBriefApi?: ConsultationBriefApi
@@ -140,6 +141,7 @@ function AccountAppointmentsScreen({
   discovery,
   onBack,
   initialSelection,
+  initialAppointmentId = null,
   originatingPlanActionId,
   sessionSummaryApi,
   supportEvaluationId,
@@ -159,7 +161,7 @@ function AccountAppointmentsScreen({
     staleTime: 0,
   })
   const [filter, setFilter] = useState<AppointmentFilter>('all')
-  const [detailId, setDetailId] = useState<string | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(initialAppointmentId)
   const [choosing, setChoosing] = useState(false)
   const [replacement, setReplacement] = useState<Appointment | null>(null)
   const [review, setReview] = useState<Review | null>(null)

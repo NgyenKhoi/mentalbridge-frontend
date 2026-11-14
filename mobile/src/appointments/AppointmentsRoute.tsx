@@ -1,4 +1,4 @@
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
 
 import { createApiClient } from '@/api/api-client'
@@ -19,6 +19,7 @@ function AccountAppointmentsRoute({
   config,
   subject,
 }: Readonly<{ config: RuntimeConfig; subject: string }>) {
+  const { appointmentId } = useLocalSearchParams<{ appointmentId?: string }>()
   const [binding] = useState(() => {
     const client = createApiClient({
       config,
@@ -48,6 +49,9 @@ function AccountAppointmentsRoute({
   return (
     <AppointmentsScreen
       api={binding.api}
+      initialAppointmentId={
+        typeof appointmentId === 'string' ? appointmentId : null
+      }
       disputeApi={binding.dispute}
       consultationBriefApi={binding.consultationBrief}
       discovery={binding.discovery}
