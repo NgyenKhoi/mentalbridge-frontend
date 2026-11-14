@@ -234,8 +234,7 @@ export default function AdminPayoutsManager({
   const currentPage = Math.min(page, pageCount)
   const pageStart = (currentPage - 1) * PAGE_SIZE
   const pageItems = items.slice(pageStart, pageStart + PAGE_SIZE)
-  const selectedPayout =
-    pageItems.find((item) => item.payoutId === selectedId) ?? pageItems[0]
+  const selectedPayout = pageItems.find((item) => item.payoutId === selectedId)
 
   const reviewCount = allItems.filter(
     (item) => item.reconciliationStatus === 'NEEDS_REVIEW' && !item.closedAt,
@@ -559,14 +558,6 @@ export default function AdminPayoutsManager({
                   {queueCount}
                 </b>
               )}
-              {id === 'ledger' && ledger.data && (
-                <b
-                  className="apo-count"
-                  aria-label={`${ledger.data.count} yêu cầu`}
-                >
-                  {ledger.data.count}
-                </b>
-              )}
               {tab === id && (
                 <motion.span
                   layoutId="apo-tab-indicator"
@@ -871,12 +862,16 @@ export default function AdminPayoutsManager({
                                   className="apo-specialist-avatar"
                                   aria-hidden="true"
                                 >
-                                  {getSpecialistInitials(item.specialistAccountId)}
+                                  {getSpecialistInitials(
+                                    item.specialistAccountId,
+                                  )}
                                 </span>
                                 <span className="apo-row-identity">
                                   <span className="apo-row-title">
                                     <strong title={item.specialistAccountId}>
-                                      {resolveSpecialistName(item.specialistAccountId)}
+                                      {resolveSpecialistName(
+                                        item.specialistAccountId,
+                                      )}
                                     </strong>
                                     <span
                                       className="apo-provider-badge"
@@ -911,25 +906,27 @@ export default function AdminPayoutsManager({
                                 <span
                                   className={`apo-status is-${item.closedAt ? 'closed' : review ? 'needs_review' : item.status.toLowerCase()}`}
                                 >
-                                  {isItemSucceeded ? (
-                                    <>
-                                      <CheckCircle2
-                                        size={12}
-                                        aria-hidden="true"
-                                        style={{
-                                          display: 'inline',
-                                          marginRight: '4px',
-                                        }}
-                                      />
-                                      Đã thanh toán
-                                    </>
-                                  ) : (
-                                    adminPayoutStatusLabel(
-                                      item.status,
-                                      item.reconciliationStatus,
-                                      item.closedAt,
-                                    )
-                                  )}
+                                  <span>
+                                    {isItemSucceeded ? (
+                                      <>
+                                        <CheckCircle2
+                                          size={12}
+                                          aria-hidden="true"
+                                          style={{
+                                            display: 'inline',
+                                            marginRight: '4px',
+                                          }}
+                                        />
+                                        Đã thanh toán
+                                      </>
+                                    ) : (
+                                      adminPayoutStatusLabel(
+                                        item.status,
+                                        item.reconciliationStatus,
+                                        item.closedAt,
+                                      )
+                                    )}
+                                  </span>
                                 </span>
                               </div>
 
