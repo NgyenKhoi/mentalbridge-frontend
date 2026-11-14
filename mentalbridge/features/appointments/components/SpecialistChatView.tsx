@@ -374,7 +374,8 @@ export default function SpecialistChatView({
                       timeZone:
                         selectedAppointment.timezone || 'Asia/Ho_Chi_Minh',
                     }).format(new Date(m.sentAt)),
-                    content: m.content,
+                    // A deleted message has no content (MB-694).
+                    content: m.content ?? 'Tin nhắn này đã được xóa.',
                   }
                 },
               )
