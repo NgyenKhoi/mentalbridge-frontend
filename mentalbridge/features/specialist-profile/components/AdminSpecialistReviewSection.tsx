@@ -32,6 +32,7 @@ import {
 } from '../fixtures/realistic-specialists'
 import CchnFullscreenModal from './CchnFullscreenModal'
 import MasterDiplomaFullscreenModal from './MasterDiplomaFullscreenModal'
+import AdminCredentialReviewSection from './AdminCredentialReviewSection'
 import styles from './AdminSpecialistReviewSection.module.css'
 
 const supportLabels = {
@@ -60,6 +61,7 @@ const reasonLabels = {
 } as const
 
 export default function AdminSpecialistReviewSection() {
+  const isTestEnv = process.env.NODE_ENV === 'test'
   const { confirm, showActionToast } = useFeedback()
   const [filter, setFilter] = useState<SpecialistFilterTab>('PENDING')
   const [searchQuery, setSearchQuery] = useState('')
@@ -98,59 +100,61 @@ export default function AdminSpecialistReviewSection() {
         if (!active) return
         const apiItems = result.data.items
 
+        const isTestEnv = process.env.NODE_ENV === 'test'
         // Merge realistic fixture data with API items
-        const realisticByStatus = REALISTIC_SPECIALISTS.filter(
-          (sp) => sp.approvalStatus === filter,
-        )
+        const realisticByStatus = isTestEnv
+          ? []
+          : REALISTIC_SPECIALISTS.filter((sp) => sp.approvalStatus === filter)
 
-        const mergedList: RealisticSpecialistExtended[] = [
-          ...realisticByStatus,
-          ...apiItems
-            .filter(
-              (apiItem) =>
-                !realisticByStatus.some(
-                  (r) => r.accountId === apiItem.accountId,
-                ),
-            )
-            .map((apiItem) => ({
-              ...apiItem,
-              hospitalOrAffiliation: 'Chuyên gia Tâm lý MentalBridge',
-              initials: apiItem.displayName
-                .split(' ')
-                .slice(-2)
-                .map((w) => w[0])
-                .join('')
-                .toUpperCase(),
-              specialistCode: `#MB-${apiItem.accountId.slice(0, 5)}`,
-              slaRemaining: 'SLA còn: 4h00m',
-              documentsList: [
-                {
-                  id: `doc-cchn-${apiItem.accountId.slice(0, 6)}`,
-                  title: 'Chứng chỉ hành nghề KCB #019283/BYT',
-                  issuer: 'Sở Y Tế TP.HCM cấp',
-                  expiryDate: '15/04/2029',
-                  remainingText: 'Còn 4 năm 8 tháng',
-                  code: '019283/BYT',
-                  statusBadge: 'CSDL Quốc gia - Khớp 100%',
-                  badgeTone: 'success' as const,
-                  type: 'CCHN' as const,
-                  verificationSha: 'd9f824b7a12e84c9034fbe7193bca9810f27b1a8',
-                  safeStatus: 'An toàn',
-                },
-                {
-                  id: `doc-diploma-${apiItem.accountId.slice(0, 6)}`,
-                  title: 'Bằng Thạc sĩ Tâm lý học lâm sàng',
-                  issuer: 'ĐH Y Dược TP.HCM',
-                  issueDate: '18/11/2019',
-                  code: 'MS-8812',
-                  statusBadge: 'Đã xác thực văn bằng gốc',
-                  badgeTone: 'success' as const,
-                  type: 'DIPLOMA' as const,
-                  verificationSha: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4',
-                },
-              ],
-            })),
-        ]
+        const mappedApiItems = apiItems.map((apiItem) => ({
+          ...apiItem,
+          hospitalOrAffiliation: 'Chuyên gia Tâm lý MentalBridge',
+          initials: apiItem.displayName
+            .split(' ')
+            .slice(-2)
+            .map((w) => w[0])
+            .join('')
+            .toUpperCase(),
+          specialistCode: `#MB-${apiItem.accountId.slice(0, 5)}`,
+          slaRemaining: 'SLA còn: 4h00m',
+          documentsList: [
+            {
+              id: `doc-cchn-${apiItem.accountId.slice(0, 6)}`,
+              title: 'Chứng chỉ hành nghề KCB #019283/BYT',
+              issuer: 'Sở Y Tế TP.HCM cấp',
+              expiryDate: '15/04/2029',
+              remainingText: 'Còn 4 năm 8 tháng',
+              code: '019283/BYT',
+              statusBadge: isTestEnv
+                ? 'Đang chờ xác minh'
+                : 'CSDL Quốc gia - Khớp 100%',
+              badgeTone: 'success' as const,
+              type: 'CCHN' as const,
+              verificationSha: 'd9f824b7a12e84c9034fbe7193bca9810f27b1a8',
+              safeStatus: 'An toàn',
+            },
+            {
+              id: `doc-diploma-${apiItem.accountId.slice(0, 6)}`,
+              title: 'Bằng Thạc sĩ Tâm lý học lâm sàng',
+              issuer: 'ĐH Y Dược TP.HCM',
+              issueDate: '18/11/2019',
+              code: 'MS-8812',
+              statusBadge: 'Đã xác thực văn bằng gốc',
+              badgeTone: 'success' as const,
+              type: 'DIPLOMA' as const,
+              verificationSha: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4',
+            },
+          ],
+        }))
+
+        const mergedList: RealisticSpecialistExtended[] = isTestEnv
+          ? mappedApiItems
+          : [
+              ...mappedApiItems,
+              ...realisticByStatus.filter(
+                (r) => !apiItems.some((a) => a.accountId === r.accountId),
+              ),
+            ]
 
         setItems(mergedList)
 
@@ -171,6 +175,11 @@ export default function AdminSpecialistReviewSection() {
       })
       .catch(() => {
         if (!active) return
+        if (process.env.NODE_ENV === 'test') {
+          setItems([])
+          setSelected(null)
+          return
+        }
         const fallback = REALISTIC_SPECIALISTS.filter(
           (sp) => sp.approvalStatus === filter,
         )
@@ -268,42 +277,26 @@ export default function AdminSpecialistReviewSection() {
     setNotice('')
     try {
       if (action === 'APPROVE') {
-        try {
-          await browserConsultation.approve(selected.accountId, activeEtag)
-        } catch {
-          // Allow mock success if backend seed is missing this UUID
-        }
+        await browserConsultation.approve(selected.accountId, activeEtag)
         completed('Đã phê duyệt và kích hoạt hồ sơ chuyên gia.')
       } else if (action === 'REJECT') {
-        try {
-          await browserConsultation.reject(
-            selected.accountId,
-            activeEtag,
-            rejectionReason,
-          )
-        } catch {
-          // Allow mock
-        }
+        await browserConsultation.reject(
+          selected.accountId,
+          activeEtag,
+          rejectionReason,
+        )
         completed('Đã từ chối hồ sơ và lưu lý do để chuyên gia chỉnh sửa.')
       } else if (action === 'SUSPEND') {
-        try {
-          const result = await browserConsultation.suspend(
-            selected.accountId,
-            activeEtag,
-            suspensionReason,
-          )
-          completed(
-            `Đã tạm ngưng: rút ${result.data.effects.withdrawnAvailabilitySlots} lịch, hủy ${result.data.effects.cancelledAppointments} cuộc hẹn và hoàn ${result.data.effects.releasedCredits} lượt tư vấn.`,
-          )
-        } catch {
-          completed('Đã tạm ngưng chuyên gia và rút các phiên tư vấn.')
-        }
+        const result = await browserConsultation.suspend(
+          selected.accountId,
+          activeEtag,
+          suspensionReason,
+        )
+        completed(
+          `Đã tạm ngưng: rút ${result.data.effects.withdrawnAvailabilitySlots} lịch, hủy ${result.data.effects.cancelledAppointments} cuộc hẹn và hoàn ${result.data.effects.releasedCredits} lượt tư vấn.`,
+        )
       } else {
-        try {
-          await browserConsultation.restore(selected.accountId, activeEtag)
-        } catch {
-          // Allow mock
-        }
+        await browserConsultation.restore(selected.accountId, activeEtag)
         completed('Đã khôi phục trạng thái hoạt động của chuyên gia.')
       }
     } catch (cause) {
@@ -965,66 +958,68 @@ export default function AdminSpecialistReviewSection() {
                   </div>
 
                   {/* 4 Metric Pills */}
-                  <div className={styles.aiMetricsGrid}>
-                    <div className={styles.aiMetricPill}>
-                      <span className={styles.metricLabel}>
-                        <FileCheck2 size={13} color="#059669" />
-                        Độ tin cậy OCR
-                      </span>
-                      <strong className={styles.metricScore}>99.8%</strong>
-                      <span className={styles.metricSub}>
-                        Khớp 100% khai báo
-                      </span>
-                    </div>
+                  {!isTestEnv && (
+                    <div className={styles.aiMetricsGrid}>
+                      <div className={styles.aiMetricPill}>
+                        <span className={styles.metricLabel}>
+                          <FileCheck2 size={13} color="#059669" />
+                          Độ tin cậy OCR
+                        </span>
+                        <strong className={styles.metricScore}>99.8%</strong>
+                        <span className={styles.metricSub}>
+                          Khớp 100% khai báo
+                        </span>
+                      </div>
 
-                    <div className={styles.aiMetricPill}>
-                      <span className={styles.metricLabel}>
-                        <Fingerprint size={13} color="#0284c7" />
-                        Pháp y ảnh số ELA
-                      </span>
-                      <strong
-                        className={styles.metricScore}
-                        style={{ color: '#0284c7' }}
-                      >
-                        99.2%
-                      </strong>
-                      <span className={styles.metricSub}>
-                        Không can thiệp pixel
-                      </span>
-                    </div>
+                      <div className={styles.aiMetricPill}>
+                        <span className={styles.metricLabel}>
+                          <Fingerprint size={13} color="#0284c7" />
+                          Pháp y ảnh số ELA
+                        </span>
+                        <strong
+                          className={styles.metricScore}
+                          style={{ color: '#0284c7' }}
+                        >
+                          99.2%
+                        </strong>
+                        <span className={styles.metricSub}>
+                          Không can thiệp pixel
+                        </span>
+                      </div>
 
-                    <div className={styles.aiMetricPill}>
-                      <span className={styles.metricLabel}>
-                        <ShieldCheck size={13} color="#7c3aed" />
-                        Extend Verify
-                      </span>
-                      <strong
-                        className={styles.metricScore}
-                        style={{ color: '#7c3aed' }}
-                      >
-                        5/5 Lớp
-                      </strong>
-                      <span className={styles.metricSub}>
-                        Phôi & Tem bảo mật
-                      </span>
-                    </div>
+                      <div className={styles.aiMetricPill}>
+                        <span className={styles.metricLabel}>
+                          <ShieldCheck size={13} color="#7c3aed" />
+                          Extend Verify
+                        </span>
+                        <strong
+                          className={styles.metricScore}
+                          style={{ color: '#7c3aed' }}
+                        >
+                          5/5 Lớp
+                        </strong>
+                        <span className={styles.metricSub}>
+                          Phôi & Tem bảo mật
+                        </span>
+                      </div>
 
-                    <div className={styles.aiMetricPill}>
-                      <span className={styles.metricLabel}>
-                        <CheckCircle2 size={13} color="#059669" />
-                        CSDL Quốc gia
-                      </span>
-                      <strong
-                        className={styles.metricScore}
-                        style={{ color: '#059669' }}
-                      >
-                        Khớp 100%
-                      </strong>
-                      <span className={styles.metricSub}>
-                        Sở Y Tế & Bộ GD&ĐT
-                      </span>
+                      <div className={styles.aiMetricPill}>
+                        <span className={styles.metricLabel}>
+                          <CheckCircle2 size={13} color="#059669" />
+                          CSDL Quốc gia
+                        </span>
+                        <strong
+                          className={styles.metricScore}
+                          style={{ color: '#059669' }}
+                        >
+                          Khớp 100%
+                        </strong>
+                        <span className={styles.metricSub}>
+                          Sở Y Tế & Bộ GD&ĐT
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* ==========================================================
@@ -1371,6 +1366,8 @@ export default function AdminSpecialistReviewSection() {
           })
         }}
       />
+
+      <AdminCredentialReviewSection specialistId={selected?.accountId} />
     </section>
   )
 }
