@@ -30,6 +30,7 @@ import { makeReassessmentSummary } from './support-plan-test-fixtures'
 
 const mockPush = jest.fn()
 const mockSecureValues = new Map<string, string>()
+const mockFocusCallbacks = new Set<() => void | (() => void)>()
 jest.mock('expo-secure-store', () => ({
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 1,
   getItemAsync: jest.fn(
@@ -44,8 +45,15 @@ jest.mock('expo-secure-store', () => ({
 }))
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), push: (value: unknown) => mockPush(value) },
-  useFocusEffect: (callback: () => void) => {
-    jest.requireActual('react').useEffect(callback, [callback])
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    jest.requireActual('react').useEffect(() => {
+      mockFocusCallbacks.add(callback)
+      const cleanup = callback()
+      return () => {
+        mockFocusCallbacks.delete(callback)
+        cleanup?.()
+      }
+    }, [callback])
   },
 }))
 jest.mock('@/auth/session-context', () => ({
@@ -793,6 +801,222 @@ it('rechecks an earlier unavailable journey when returning after eligibility cha
   await screen.findByText('Phương án để bạn xem lại')
   expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
 })
+it('refreshes a still-mounted Plan on focus and prepares an eligible proposal once', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  let created = false
+  owner.getCurrent.mockRejectedValue(missing)
+  owner.getDraft.mockImplementation(async () => {
+    if (created) return nativePlan('DRAFT')
+    throw missing
+  })
+  const journey = await owner.getGuidedJourney()
+  owner.ensureInitial.mockImplementation(async () => {
+    created = true
+    return nativePlan('DRAFT')
+  })
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await screen.findByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' })
+  owner.getGuidedJourney.mockResolvedValue({
+    ...journey,
+    nextAction: 'START_PLAN_PROPOSAL',
+    entitlementStatus: 'VERIFIED',
+  })
+  await act(async () => {
+    for (const callback of mockFocusCallbacks) callback()
+  })
+  await screen.findByText('Phương án để bạn xem lại')
+  expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    for (const callback of mockFocusCallbacks) callback()
+  })
+  await waitFor(() =>
+    expect(owner.getDraft.mock.calls.length).toBeGreaterThan(3),
+  )
+  expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
+  expect(owner.activate).not.toHaveBeenCalled()
+})
+it('loads a current plan appearing while the Plan remains mounted without proposing', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  let current: ReturnType<typeof nativePlan> | null = null
+  owner.getCurrent.mockImplementation(async () => {
+    if (current) return current
+    throw missing
+  })
+  owner.getDraft.mockRejectedValue(missing)
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await screen.findByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' })
+  current = nativePlan('PAUSED')
+  await act(async () => {
+    for (const callback of mockFocusCallbacks) callback()
+  })
+  await screen.findByText('Kế hoạch hiện tại')
+  expect(owner.ensureInitial).not.toHaveBeenCalled()
+  expect(owner.activate).not.toHaveBeenCalled()
+})
+it('does not restart an in-flight proposal on repeated focus', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  let created = false
+  let complete!: (value: ReturnType<typeof nativePlan>) => void
+  owner.getCurrent.mockRejectedValue(missing)
+  owner.getDraft.mockImplementation(async () => {
+    if (created) return nativePlan('DRAFT')
+    throw missing
+  })
+  const journey = await owner.getGuidedJourney()
+  owner.ensureInitial.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve
+      }),
+  )
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await screen.findByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' })
+  owner.getGuidedJourney.mockResolvedValue({
+    ...journey,
+    nextAction: 'START_PLAN_PROPOSAL',
+    entitlementStatus: 'VERIFIED',
+  })
+  await act(async () => {
+    for (const callback of mockFocusCallbacks) callback()
+  })
+  await waitFor(() => expect(owner.ensureInitial).toHaveBeenCalledTimes(1))
+  await act(async () => {
+    for (const callback of mockFocusCallbacks) callback()
+    for (const callback of mockFocusCallbacks) callback()
+  })
+  expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    created = true
+    complete(nativePlan('DRAFT'))
+  })
+  await screen.findByText('Phương án để bạn xem lại')
+  expect(owner.activate).not.toHaveBeenCalled()
+})
+it('rechecks Guide eligibility after focus if an older journey read is in flight', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  let created = false
+  let complete!: (
+    value: Awaited<ReturnType<SupportPlanActionApi['getGuidedJourney']>>,
+  ) => void
+  owner.getCurrent.mockRejectedValue(missing)
+  owner.getDraft.mockImplementation(async () => {
+    if (created) return nativePlan('DRAFT')
+    throw missing
+  })
+  const oldJourney = await owner.getGuidedJourney()
+  owner.getGuidedJourney.mockReset()
+  owner.getGuidedJourney.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve
+      }),
+  )
+  owner.getGuidedJourney.mockResolvedValue({
+    ...oldJourney,
+    nextAction: 'START_PLAN_PROPOSAL',
+    entitlementStatus: 'VERIFIED',
+  })
+  owner.ensureInitial.mockImplementation(async () => {
+    created = true
+    return nativePlan('DRAFT')
+  })
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await waitFor(() => expect(owner.getGuidedJourney).toHaveBeenCalledTimes(1))
+  await act(async () => {
+    for (const callback of mockFocusCallbacks) callback()
+  })
+  await act(async () => complete(oldJourney))
+  await screen.findByText('Phương án để bạn xem lại')
+  expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
+  expect(owner.activate).not.toHaveBeenCalled()
+})
+it.each(['REVIEW_SAFETY_SUPPORT', 'EXPLORE_GUIDE_RESOURCES'] as const)(
+  'does not propose on focus when the current Guide says %s',
+  async (nextAction) => {
+    const owner = api()
+    const missing = new ApiError({
+      status: 404,
+      code: 'NOT_FOUND',
+      message: 'missing',
+    })
+    owner.getCurrent.mockRejectedValue(missing)
+    owner.getDraft.mockRejectedValue(missing)
+    const journey = await owner.getGuidedJourney()
+    await mount(
+      <SupportPlanActionWorkspace
+        api={owner}
+        legacyApi={legacy}
+        emotionApi={emotion}
+        origin={{ state: 'none' }}
+        now={now}
+      />,
+    )
+    await screen.findByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' })
+    const initialCalls = owner.getGuidedJourney.mock.calls.length
+    owner.getGuidedJourney.mockResolvedValue({ ...journey, nextAction })
+    await act(async () => {
+      for (const callback of mockFocusCallbacks) callback()
+    })
+    await waitFor(() =>
+      expect(owner.getGuidedJourney.mock.calls.length).toBeGreaterThan(
+        initialCalls,
+      ),
+    )
+    expect(owner.ensureInitial).not.toHaveBeenCalled()
+  },
+)
 it.each(['REVIEW_SAFETY_SUPPORT', 'EXPLORE_GUIDE_RESOURCES'] as const)(
   'does not create a proposal when Guide returns %s',
   async (nextAction) => {

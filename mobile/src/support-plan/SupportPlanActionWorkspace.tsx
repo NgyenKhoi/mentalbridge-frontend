@@ -1,4 +1,8 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { randomUUID } from 'expo-crypto'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -173,6 +177,41 @@ export function SupportPlanActionWorkspace({
 }: Props) {
   const { session, signOut } = useSession()
   const subject = session?.subject
+  const queryClient = useQueryClient()
+  const focusedSubject = useRef<string | null>(null)
+  const focusRefreshPending = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (!subject) return
+      if (focusedSubject.current !== subject) {
+        focusedSubject.current = subject
+        return
+      }
+      if (focusRefreshPending.current) return
+      focusRefreshPending.current = true
+      const kinds = ['current', 'draft', 'history', 'initial-proposal']
+      void Promise.all(
+        kinds.map((kind) => {
+          const queryKey = ['support-plan-v3', subject, kind]
+          if (
+            kind === 'initial-proposal' &&
+            queryClient.getQueryState(queryKey)?.fetchStatus === 'fetching'
+          )
+            return queryClient
+              .refetchQueries(
+                { queryKey, exact: true },
+                { cancelRefetch: false },
+              )
+              .then(() =>
+                queryClient.invalidateQueries({ queryKey, exact: true }),
+              )
+          return queryClient.invalidateQueries({ queryKey, exact: true })
+        }),
+      ).finally(() => {
+        focusRefreshPending.current = false
+      })
+    }, [queryClient, subject]),
+  )
   const current = useQuery({
     queryKey: ['support-plan-v3', subject, 'current'],
     enabled: Boolean(subject),
