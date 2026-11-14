@@ -36,8 +36,19 @@ function createPool(): PgPool {
   })
 }
 
-export const communityPool: PgPool = global.__communityPool ?? createPool()
+export function getCommunityPool(): PgPool {
+  if (!global.__communityPool) {
+    global.__communityPool = createPool()
+  }
+  return global.__communityPool
+}
 
-global.__communityPool = communityPool
+export const communityPool: PgPool = new Proxy({} as PgPool, {
+  get(_target, prop) {
+    const pool = getCommunityPool()
+    const value = (pool as unknown as Record<string | symbol, unknown>)[prop]
+    return typeof value === 'function' ? value.bind(pool) : value
+  },
+})
 
 export type { PoolClient }

@@ -36,9 +36,19 @@ function createPool(): PgPool {
   })
 }
 
-export const consultationPool: PgPool =
-  global.__consultationPool ?? createPool()
+export function getConsultationPool(): PgPool {
+  if (!global.__consultationPool) {
+    global.__consultationPool = createPool()
+  }
+  return global.__consultationPool
+}
 
-global.__consultationPool = consultationPool
+export const consultationPool: PgPool = new Proxy({} as PgPool, {
+  get(_target, prop) {
+    const pool = getConsultationPool()
+    const value = (pool as unknown as Record<string | symbol, unknown>)[prop]
+    return typeof value === 'function' ? value.bind(pool) : value
+  },
+})
 
 export type { PoolClient }
