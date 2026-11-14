@@ -30,6 +30,7 @@ export function ResourceBingoPanel({
     if (saveError) retryRef.current?.focus()
   }, [saveError])
   if (!board?.items.length) return null
+  const orderedItems = [...board.items].sort((a, b) => a.position - b.position)
   return (
     <section className={styles.bingo} aria-labelledby="plan-bingo-title">
       <div className={styles.bingoHeading}>
@@ -51,7 +52,22 @@ export function ResourceBingoPanel({
         role="list"
         aria-label="Hoạt động trong kế hoạch tuần này"
       >
-        {board.items.map((item) => {
+        {Array.from({ length: 9 }, (_, index) => {
+          const item = orderedItems[index]
+          if (!item)
+            return (
+              <div
+                role="listitem"
+                key={`empty-${index}`}
+                className={styles.tileItem}
+              >
+                <div className={`${styles.tile} ${styles.emptyTile}`}>
+                  <span aria-hidden="true">＋</span>
+                  <strong>Ô trống</strong>
+                  <small>Chưa có hoạt động</small>
+                </div>
+              </div>
+            )
           const verified = item.evidence === 'CONTENT_VERIFIED'
           const selfConfirmed =
             Boolean(item.selfConfirmedAt) || item.evidence === 'SELF_CONFIRMED'

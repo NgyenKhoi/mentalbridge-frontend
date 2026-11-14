@@ -47,6 +47,11 @@ const artworks = {
     alt: 'Bắt đầu bằng việc nhỏ: nhẹ nhàng chăm sóc một chậu cây',
     position: '50% 45%',
   },
+  specialist: {
+    src: '/images/resource-specialist-prep.jpg',
+    alt: 'Chuẩn bị câu hỏi và ghi chép trước buổi trao đổi với chuyên gia',
+    position: '50% 45%',
+  },
 } as const satisfies Record<string, ResourceArtwork>
 
 const titleArtworks = [
@@ -56,8 +61,9 @@ const titleArtworks = [
   [/giải quyết.*vấn đề/, artworks.problem],
   [/thư giãn cơ|thả lỏng cơ/, artworks.relaxation],
   [/giấc ngủ|nhịp ngủ|ngủ|nghỉ ngơi/, artworks.sleep],
-  [/trầm cảm|lo âu|cảm xúc|căng thẳng/, artworks.emotions],
+  [/trầm cảm|lo âu|lo lắng|nỗi lo|cảm xúc|căng thẳng/, artworks.emotions],
   [/hoạt động nhỏ|bước nhỏ|vận động|đi bộ/, artworks.steps],
+  [/chuyên gia|bác sĩ|tư vấn|trao đổi/, artworks.specialist],
 ] as const
 
 const categoryArtworks = {

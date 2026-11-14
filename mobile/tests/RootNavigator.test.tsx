@@ -4,7 +4,7 @@ import type * as MockReactNativeModule from 'react-native'
 
 import { useSession } from '@/auth/session-context'
 
-import { RootNavigator } from './_layout'
+import { RootNavigator } from '@/app/_layout'
 
 type MockChildren = Readonly<{ children?: MockReactModule.ReactNode }>
 
