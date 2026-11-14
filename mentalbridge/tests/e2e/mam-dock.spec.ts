@@ -324,6 +324,8 @@ test.describe('MB-814 living Mầm on the dock', () => {
     // ended, so a coarse path would leave it that far behind the pointer.
     await page.mouse.move(grab.x + 240, grab.y - 160, { steps: 80 })
     await travelling(page, 'drag')
+    // MB-819: nothing registered under the pointer, so no drop ring.
+    await expect(page.locator('[data-mam-drop]')).toHaveCount(0)
     await expect(async () => {
       const mam = await box(character(page))
       expect(Math.abs(mam.x - (home.x + 240))).toBeLessThan(16)

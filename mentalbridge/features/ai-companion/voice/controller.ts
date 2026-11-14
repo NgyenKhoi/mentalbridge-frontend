@@ -7,7 +7,12 @@ import {
   type VoiceSession,
   type VoiceStartCommand,
 } from './contract'
-import { LiveKitVoiceMedia, type Hint, type Media } from './media'
+import {
+  LiveKitVoiceMedia,
+  type Expression,
+  type Hint,
+  type Media,
+} from './media'
 
 export type VoiceView = Readonly<{
   phase:
@@ -22,6 +27,7 @@ export type VoiceView = Readonly<{
   eligibility?: Eligibility
   session?: VoiceSession
   hint: Hint
+  expression: Expression
   muted: boolean
   audioBlocked: boolean
   error?: string
@@ -41,6 +47,7 @@ export class VoiceController {
   private view: VoiceView = {
     phase: 'loading',
     hint: 'unavailable',
+    expression: 'neutral',
     muted: false,
     audioBlocked: false,
     uncertain: false,
@@ -74,7 +81,12 @@ export class VoiceController {
   }
   private update(patch: Partial<VoiceView>) {
     if (this.disposed) return
-    this.view = { ...this.view, ...patch }
+    // Any hint change drops the expression unless the same snapshot carries one (MB-820 reset rule).
+    this.view = {
+      ...this.view,
+      ...(patch.hint !== undefined && { expression: 'neutral' }),
+      ...patch,
+    }
     for (const listener of this.listeners) listener()
   }
   private current(epoch: number) {
@@ -194,8 +206,9 @@ export class VoiceController {
       }
       this.verifyConnection(connection, session)
       await media.connect(connection, {
-        hint: (hint) => {
-          if (this.current(epoch)) this.update({ hint })
+        hint: (hint, expression) => {
+          if (this.current(epoch))
+            this.update({ hint, expression: expression ?? 'neutral' })
         },
         reconnecting: () => {
           if (this.current(epoch))

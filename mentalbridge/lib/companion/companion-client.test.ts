@@ -57,15 +57,87 @@ describe('AI Companion server-only client', () => {
     ).resolves.toMatchObject({ conversationId, messages: { length: 400 } })
   })
 
-  it('classifies a timed-out send as an ambiguous outcome', async () => {
-    configure('100')
+  describe('timeouts (MB-829)', () => {
+    const sendUrl = `${baseUrl}/api/v1/ai-companion/conversations/${conversationId}/messages`
+    const send = () =>
+      companionClient.send(
+        'access-token',
+        conversationId,
+        { message: 'Xin hỗ trợ' },
+        'companion-command-0004',
+        'correlation-id',
+      )
+
+    afterEach(() => vi.restoreAllMocks())
+
+    it('arms send with a fixed 28 s timer regardless of the shared timeout', async () => {
+      configure('100')
+      const timers = vi.spyOn(globalThis, 'setTimeout')
+      mockServer.use(http.post(sendUrl, () => HttpResponse.json({})))
+      await send().catch(() => undefined)
+      expect(timers.mock.calls.map(([, ms]) => ms)).toContain(28_000)
+      expect(timers.mock.calls.map(([, ms]) => ms)).not.toContain(100)
+    })
+
+    it('keeps the shared timeout for other calls', async () => {
+      configure('4321')
+      const timers = vi.spyOn(globalThis, 'setTimeout')
+      mockServer.use(
+        http.get(`${baseUrl}/api/v1/ai-companion/conversations`, () =>
+          HttpResponse.json({ items: [] }),
+        ),
+      )
+      await companionClient.list('access-token', 'correlation-id')
+      const delays = timers.mock.calls.map(([, ms]) => ms)
+      expect(delays).toContain(4321)
+      expect(delays).not.toContain(28_000)
+    })
+
+    it('maps an abort at the send timer to COMPANION_OUTCOME_UNKNOWN', async () => {
+      configure('100')
+      vi.useFakeTimers()
+      try {
+        mockServer.use(
+          http.post(sendUrl, async () => {
+            await delay('infinite')
+            return HttpResponse.json({})
+          }),
+        )
+        const outcome = expect(send()).rejects.toMatchObject({
+          code: 'COMPANION_OUTCOME_UNKNOWN',
+          status: 503,
+        })
+        await vi.advanceTimersByTimeAsync(28_001)
+        await outcome
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
+
+  it('passes the optional MB-810 title fields through send', async () => {
+    configure()
+    const result = {
+      conversationId,
+      title: 'Áp lực công việc',
+      titleVersion: 'B'.repeat(43),
+      userMessageId: '22222222-2222-4222-8222-222222222222',
+      assistantMessageId: '33333333-3333-4333-8333-333333333333',
+      assistant: 'Mình nghe nè.',
+      createdAt: timestamp,
+      contextKinds: [],
+      quota: {
+        plan: 'FREE',
+        policyVersion: 'companion-quota-v2',
+        remaining: 4,
+        resetAt: '2026-09-20T17:00:00Z',
+        limitDisplayed: true,
+      },
+    }
     mockServer.use(
       http.post(
         `${baseUrl}/api/v1/ai-companion/conversations/${conversationId}/messages`,
-        async () => {
-          await delay(250)
-          return HttpResponse.json({})
-        },
+        () => HttpResponse.json(result, { status: 201 }),
       ),
     )
 
@@ -73,14 +145,11 @@ describe('AI Companion server-only client', () => {
       companionClient.send(
         'access-token',
         conversationId,
-        { message: 'Xin hỗ trợ' },
-        'companion-command-0001',
+        { message: 'Kể chuyện công việc' },
+        'companion-command-0003',
         'correlation-id',
       ),
-    ).rejects.toMatchObject({
-      code: 'COMPANION_OUTCOME_UNKNOWN',
-      status: 503,
-    })
+    ).resolves.toEqual(result)
   })
 
   it('passes a server-resolved suggestion and quota v2 through send', async () => {

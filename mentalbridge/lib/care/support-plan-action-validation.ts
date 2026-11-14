@@ -199,6 +199,8 @@ export function isSupportPlanLocalDate(value: unknown): value is string {
   )
 }
 
+const TARGET_DOMAINS = ['DEPRESSIVE_SYMPTOMS', 'ANXIETY_SYMPTOMS']
+
 /** Minimized resource projection: never pass action rationale or source payloads. */
 export function parsePlanResourceActions(
   value: unknown,
@@ -207,7 +209,14 @@ export function parsePlanResourceActions(
     !exact(
       value,
       ['planState', 'localDate', 'actions'],
-      ['supportPlanId', 'supportPlanVersion', 'representationMode', 'timeZone'],
+      [
+        'supportPlanId',
+        'supportPlanVersion',
+        'representationMode',
+        'timeZone',
+        'targetDomains',
+        'activatedAt',
+      ],
     ) ||
     !['ACTIVE', 'PAUSED', 'NONE'].includes(String(value.planState)) ||
     !isSupportPlanLocalDate(value.localDate) ||
@@ -219,7 +228,9 @@ export function parsePlanResourceActions(
       value.supportPlanId === undefined &&
       value.supportPlanVersion === undefined &&
       value.representationMode === undefined &&
-      value.timeZone === undefined
+      value.timeZone === undefined &&
+      value.targetDomains === undefined &&
+      value.activatedAt === undefined
       ? (value as PlanResourceActionsV1)
       : null
   }
@@ -229,7 +240,15 @@ export function parsePlanResourceActions(
     !['NATIVE_V3', 'V2_RESOURCE_ADAPTER'].includes(
       String(value.representationMode),
     ) ||
-    !text(value.timeZone, 64)
+    !text(value.timeZone, 64) ||
+    !(
+      value.targetDomains === undefined ||
+      (Array.isArray(value.targetDomains) &&
+        value.targetDomains.length > 0 &&
+        new Set(value.targetDomains).size === value.targetDomains.length &&
+        value.targetDomains.every((domain) => TARGET_DOMAINS.includes(domain)))
+    ) ||
+    !(value.activatedAt === undefined || instant(value.activatedAt))
   )
     return null
   for (const entry of value.actions) {

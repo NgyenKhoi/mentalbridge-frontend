@@ -16,17 +16,15 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Leaf, X } from 'lucide-react'
 
 import styles from './MamBubble.module.css'
-import { perchBubble } from './mam-motion'
+import { perchBubble, perchBubbleWidth } from './mam-motion'
 import { MAM_INTENT_LABELS, type MamIntent } from './mam-targets'
-import { mamVisibleTop, type MamPerch } from './mam-travel'
-import type { MamSummon } from './use-mam-summon'
+import { mamContentLeft, mamVisibleTop, type MamPerch } from './mam-travel'
+import { mamHoldsFocus, type MamSummon } from './use-mam-summon'
 
 const GUTTER = 16
 const WIDTH = 320
 const OFFSET = 8
 const ANSWER_ROOM = 280
-// Beside a perched Mầm (design §A): width min(310 px, viewport - 32 px).
-const PERCH_WIDTH = 310
 const ease = [0.16, 1, 0.3, 1] as const
 
 /**
@@ -80,9 +78,7 @@ export function MamBubble({
     if (perch) {
       const size = perch.size
       const beside = perchBubble({
-        width:
-          bubbleRef.current?.offsetWidth ||
-          Math.min(PERCH_WIDTH, viewport - GUTTER * 2),
+        width: bubbleRef.current?.offsetWidth || perchBubbleWidth(viewport),
         height: bubbleRef.current?.offsetHeight ?? 0,
         charLeft: perch.left,
         charTop: perch.top,
@@ -90,11 +86,7 @@ export function MamBubble({
         cardTop: perch.cardTop,
         viewportWidth: viewport,
         viewportHeight: window.innerHeight,
-        viewportLeft: Math.max(
-          0,
-          document.querySelector('.ref-content')?.getBoundingClientRect()
-            .left ?? 0,
-        ),
+        viewportLeft: mamContentLeft(),
         visibleTop: mamVisibleTop(),
       })
       setPlacement({ ...beside, above: false })
@@ -128,9 +120,15 @@ export function MamBubble({
   // A point bubble is measured hidden first, and hidden controls cannot take focus.
   const placed = anchor.kind === 'dock' || placement !== null
   useEffect(() => {
-    if (placed && phase !== 'pending')
+    // Asked from Mầm itself (dock menu, drop): take only focus that is still Mầm's, so a user who
+    // tabbed away during the climb keeps their place.
+    if (
+      placed &&
+      phase !== 'pending' &&
+      (!summon.returnFocus?.closest('[data-mam-dock]') || mamHoldsFocus())
+    )
       (firstLink.current ?? firstAction.current)?.focus({ preventScroll: true })
-  }, [phase, placed])
+  }, [phase, placed, summon.returnFocus])
 
   const travel = reduced ? 0 : 6
   const others = target.intents.filter((value) => value !== intent)

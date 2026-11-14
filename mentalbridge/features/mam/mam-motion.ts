@@ -138,6 +138,41 @@ export const scrollNeeded = (
 export const perchLeft = (cardRight: number, size: number, viewport: number) =>
   clamp(cardRight - size - 28, 8, Math.max(8, viewport - size - 8))
 
+const PERCH_BUBBLE_WIDTH = 310
+/** The perch bubble's width: min(310 px, viewport - 32 px). */
+export const perchBubbleWidth = (viewport: number) =>
+  Math.min(PERCH_BUBBLE_WIDTH, viewport - 32)
+
+/**
+ * Where along the card's top edge Mầm perches: at the right end, else the nearest spot to
+ * its left that `blocked` frees (nothing the head would cover). The bubble keeps its room
+ * to the left of Mầm, so the search stops where it would no longer fit; none free stays right.
+ */
+export function perchSpot({
+  cardLeft,
+  cardRight,
+  size,
+  viewport,
+  viewportLeft,
+  blocked,
+}: Readonly<{
+  cardLeft: number
+  cardRight: number
+  size: number
+  viewport: number
+  viewportLeft: number
+  blocked: (left: number) => boolean
+}>) {
+  const base = perchLeft(cardRight, size, viewport)
+  const least = Math.max(
+    cardLeft + 8,
+    viewportLeft + 16 + perchBubbleWidth(viewport) + 12,
+  )
+  for (let left = base; left >= least; left -= 48)
+    if (!blocked(left)) return left
+  return base
+}
+
 /** `clip-path` that hides the character below the card's top edge and above the header. */
 export function perchClip(
   layerTop: number,
@@ -210,3 +245,26 @@ export function perchBubble({
     side: 'above',
   }
 }
+
+/**
+ * Whether the answer bubble sits beside a Mầm perched at the card's right end. Narrow
+ * screens put it above, over Mầm's own head, so they answer at the dock instead.
+ */
+export const perchBubbleBeside = (
+  cardRight: number,
+  size: number,
+  viewport: number,
+  viewportLeft: number,
+) =>
+  perchBubble({
+    width: perchBubbleWidth(viewport),
+    height: 0,
+    charLeft: perchLeft(cardRight, size, viewport),
+    charTop: 0,
+    size,
+    cardTop: 0,
+    viewportWidth: viewport,
+    viewportHeight: 0,
+    viewportLeft,
+    visibleTop: 0,
+  }).side !== 'above'

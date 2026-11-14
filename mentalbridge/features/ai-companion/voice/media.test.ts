@@ -14,7 +14,12 @@ vi.mock('livekit-client', async (original) => ({
   },
 }))
 import { ParticipantKind, RoomEvent } from 'livekit-client'
-import { admittedAgent, freshHint, LiveKitVoiceMedia } from './media'
+import {
+  admittedAgent,
+  freshExpression,
+  freshHint,
+  LiveKitVoiceMedia,
+} from './media'
 
 class FakeRoom extends EventEmitter {
   name = connection().roomName
@@ -50,6 +55,157 @@ describe('audio-only LiveKit media', () => {
     expect(freshHint('thinking', 1, 2, false)).toBe('unavailable')
     expect(freshHint('private-transcript', 1, 2, true)).toBe('unavailable')
   })
+  it('accepts only comfort while speaking; warm, encourage, empty and unknown are neutral', () => {
+    expect(freshExpression('comfort', 'speaking')).toBe('comfort')
+    for (const value of [
+      'neutral',
+      'warm',
+      'encourage',
+      'COMFORT',
+      '',
+      null,
+      1,
+    ])
+      expect(freshExpression(value, 'speaking')).toBe('neutral')
+    for (const hint of [
+      'thinking',
+      'listening',
+      'idle',
+      'unavailable',
+    ] as const)
+      expect(freshExpression('comfort', hint)).toBe('neutral')
+  })
+  it('MB-820 reads the expression only from the admitted Agent and resets without a clear write', async () => {
+    vi.useFakeTimers()
+    const room = new FakeRoom()
+    sdk.room.mockReturnValue(room)
+    sdk.permission.mockReset().mockResolvedValue({
+      stop: vi.fn(),
+      mute: vi.fn().mockResolvedValue(undefined),
+      unmute: vi.fn().mockResolvedValue(undefined),
+    })
+    const media = new LiveKitVoiceMedia()
+    const e = events()
+    await media.permission()
+    const c = connection()
+    await media.connect(c, e)
+    const attributes: Record<string, string> = {}
+    const agent = {
+      identity: c.agentIdentity,
+      kind: ParticipantKind.AGENT,
+      attributes,
+    }
+    const change = (patch: Record<string, string>, who = agent) => {
+      Object.assign(who.attributes, patch)
+      room.emit(RoomEvent.ParticipantAttributesChanged, patch, who)
+    }
+    // Same snapshot carries state and expression.
+    change({ 'lk.agent.state': 'speaking', 'mb.mam.expression': 'comfort' })
+    expect(e.hint).toHaveBeenLastCalledWith('speaking', 'comfort')
+    // Leaving speaking drops comfort even if the Agent never cleared the attribute.
+    change({ 'lk.agent.state': 'thinking' })
+    expect(e.hint).toHaveBeenLastCalledWith('thinking', 'neutral')
+    // An unchanged value the Agent never cleared is stale: the next turn reads neutral.
+    change({ 'mb.mam.expression': 'comfort' })
+    expect(e.hint).toHaveBeenLastCalledWith('thinking', 'neutral')
+    change({ 'lk.agent.state': 'speaking' })
+    expect(e.hint).toHaveBeenLastCalledWith('speaking', 'neutral')
+    // After a clear, a new write counts again; expression-only changes inside speaking too.
+    change({ 'lk.agent.state': 'listening', 'mb.mam.expression': '' })
+    change({ 'lk.agent.state': 'speaking', 'mb.mam.expression': 'comfort' })
+    expect(e.hint).toHaveBeenLastCalledWith('speaking', 'comfort')
+    change({ 'mb.mam.expression': 'warm' })
+    expect(e.hint).toHaveBeenLastCalledWith('speaking', 'neutral')
+    change({ 'mb.mam.expression': 'comfort' })
+    expect(e.hint).toHaveBeenLastCalledWith('speaking', 'comfort')
+    change({ 'mb.mam.expression': '' })
+    expect(e.hint).toHaveBeenLastCalledWith('speaking', 'neutral')
+    // Another participant never sets it.
+    const calls = vi.mocked(e.hint).mock.calls.length
+    change(
+      { 'lk.agent.state': 'speaking', 'mb.mam.expression': 'comfort' },
+      { ...agent, identity: 'va-other', attributes: {} },
+    )
+    expect(e.hint).toHaveBeenCalledTimes(calls)
+    // An expression-only change never renews freshness: timeout resets it.
+    change({ 'lk.agent.state': 'speaking', 'mb.mam.expression': 'comfort' })
+    await vi.advanceTimersByTimeAsync(20_000)
+    change({ 'mb.mam.expression': 'comfort' })
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(e.hint).toHaveBeenLastCalledWith('unavailable', 'neutral')
+    const afterTimeout = vi.mocked(e.hint).mock.calls.length
+    change({ 'mb.mam.expression': 'comfort' })
+    expect(e.hint).toHaveBeenCalledTimes(afterTimeout)
+    // Agent disconnect and room reconnect reset it; a stale snapshot cannot revive it.
+    change({ 'lk.agent.state': 'speaking', 'mb.mam.expression': 'comfort' })
+    room.emit(RoomEvent.ParticipantDisconnected, agent)
+    expect(e.hint).toHaveBeenLastCalledWith('unavailable', 'neutral')
+    change({ 'lk.agent.state': 'speaking', 'mb.mam.expression': 'comfort' })
+    room.emit(RoomEvent.Reconnecting)
+    expect(e.hint).toHaveBeenLastCalledWith('unavailable', 'neutral')
+    room.emit(RoomEvent.Reconnected)
+    expect(e.hint).toHaveBeenLastCalledWith('unavailable', 'neutral')
+    await media.resume(c)
+    const revived = vi.mocked(e.hint).mock.calls.length
+    change({ 'mb.mam.expression': 'comfort' })
+    expect(e.hint).toHaveBeenCalledTimes(revived)
+    media.close()
+  })
+  it('MB-820 a comfort value the Agent failed to clear never leaks into the next turn', async () => {
+    vi.useFakeTimers()
+    const room = new FakeRoom()
+    sdk.room.mockReturnValue(room)
+    sdk.permission.mockReset().mockResolvedValue({
+      stop: vi.fn(),
+      mute: vi.fn().mockResolvedValue(undefined),
+      unmute: vi.fn().mockResolvedValue(undefined),
+    })
+    const media = new LiveKitVoiceMedia()
+    const e = events()
+    await media.permission()
+    const c = connection()
+    await media.connect(c, e)
+    const agent = {
+      identity: c.agentIdentity,
+      kind: ParticipantKind.AGENT,
+      attributes: {} as Record<string, string>,
+    }
+    const change = (patch: Record<string, string>) => {
+      Object.assign(agent.attributes, patch)
+      room.emit(RoomEvent.ParticipantAttributesChanged, patch, agent)
+    }
+    const last = () => vi.mocked(e.hint).mock.lastCall
+    // comfort, listening, speaking again with no attribute change: neutral.
+    change({ 'lk.agent.state': 'speaking', 'mb.mam.expression': 'comfort' })
+    expect(last()).toEqual(['speaking', 'comfort'])
+    change({ 'lk.agent.state': 'listening' })
+    change({ 'lk.agent.state': 'speaking' })
+    expect(last()).toEqual(['speaking', 'neutral'])
+    // comfort, clear, comfort on the next turn: gentle.
+    change({ 'lk.agent.state': 'listening', 'mb.mam.expression': '' })
+    change({ 'lk.agent.state': 'speaking', 'mb.mam.expression': 'comfort' })
+    expect(last()).toEqual(['speaking', 'comfort'])
+    // Reconnect without a clear write, next turn unchanged: neutral.
+    room.emit(RoomEvent.Reconnecting)
+    room.emit(RoomEvent.Reconnected)
+    await media.resume(c)
+    change({ 'lk.agent.state': 'speaking' })
+    expect(last()).toEqual(['speaking', 'neutral'])
+    // Same after the 30 s freshness timeout.
+    change({ 'lk.agent.state': 'listening', 'mb.mam.expression': '' })
+    change({ 'lk.agent.state': 'speaking', 'mb.mam.expression': 'comfort' })
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(last()).toEqual(['unavailable', 'neutral'])
+    change({ 'lk.agent.state': 'speaking' })
+    expect(last()).toEqual(['speaking', 'neutral'])
+    // An expression-only change just before the limit does not extend the timer.
+    await vi.advanceTimersByTimeAsync(29_999)
+    change({ 'mb.mam.expression': 'warm' })
+    expect(last()).toEqual(['speaking', 'neutral'])
+    await vi.advanceTimersByTimeAsync(1)
+    expect(last()).toEqual(['unavailable', 'neutral'])
+    media.close()
+  })
   it('does not request a microphone until permission(), expires hints and tears down tracks/listeners', async () => {
     vi.useFakeTimers()
     const room = new FakeRoom()
@@ -79,9 +235,9 @@ describe('audio-only LiveKit media', () => {
       { 'lk.agent.state': 'thinking' },
       agent,
     )
-    expect(e.hint).toHaveBeenLastCalledWith('thinking')
+    expect(e.hint).toHaveBeenLastCalledWith('thinking', 'neutral')
     await vi.advanceTimersByTimeAsync(30_000)
-    expect(e.hint).toHaveBeenLastCalledWith('unavailable')
+    expect(e.hint).toHaveBeenLastCalledWith('unavailable', 'neutral')
     room.emit(RoomEvent.Reconnecting)
     expect(microphone.mute).toHaveBeenCalled()
     room.emit(RoomEvent.Reconnected)

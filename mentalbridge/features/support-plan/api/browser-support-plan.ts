@@ -133,12 +133,6 @@ export async function getCurrentSupportPlanDraft() {
     .data
 }
 
-export async function getCurrentSupportPlan() {
-  return (
-    await browserApiClient.get<SupportPlan>('/care/support-plans/current')
-  ).data
-}
-
 export async function getSupportPlan(supportPlanId: string) {
   return (
     await browserApiClient.get<SupportPlan>(

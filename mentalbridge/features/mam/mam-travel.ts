@@ -12,7 +12,9 @@ import {
   hopSteps,
   isFastThrow,
   perchClip,
+  perchBubbleBeside,
   perchLeft,
+  perchSpot,
   sampleVelocity,
   scrollNeeded,
   stepFlight,
@@ -58,9 +60,65 @@ export function mamVisibleTop() {
   )
 }
 
+/** The left edge of the page content: the sidebar beside it is not room. */
+export const mamContentLeft = () =>
+  Math.max(
+    0,
+    document.querySelector('.ref-content')?.getBoundingClientRect().left ?? 0,
+  )
+
+const INK = 'a,button,input,select,textarea,img,video,canvas,[role="button"]'
+
+/**
+ * Whether something readable or pressable is drawn at a viewport point (text glyph boxes,
+ * controls, images), looking through `skip` (the dock). Empty room around it is not.
+ */
+function hasInkAt(x: number, y: number, skip: Element | null) {
+  for (const el of document.elementsFromPoint?.(x, y) ?? []) {
+    if (skip?.contains(el)) continue
+    if (el instanceof SVGElement || el.matches(INK)) return true
+    for (const node of el.childNodes) {
+      if (node.nodeType !== Node.TEXT_NODE || !node.textContent?.trim())
+        continue
+      const range = document.createRange()
+      range.selectNodeContents(node)
+      for (const r of range.getClientRects?.() ?? [])
+        if (
+          x >= r.left - 4 &&
+          x <= r.right + 4 &&
+          y >= r.top - 2 &&
+          y <= r.bottom + 2
+        )
+          return true
+    }
+  }
+  return false
+}
+
 /** The element whose top edge Mầm perches on: a marked inner surface, else the target. */
 export const perchEdge = (target: Element): Element =>
   target.querySelector('[data-mam-perch]') ?? target
+
+/**
+ * A card Mầm may climb to for a page answer (MB-819): mounted, painted, its top edge on
+ * screen below the header (the climb needs at most the usual small scroll), and room for the
+ * bubble beside Mầm: a narrow screen would put it above, over Mầm, so that answers at the dock.
+ */
+export function isMamCardOnScreen(card: Element) {
+  if (!card.isConnected || getComputedStyle(card).visibility === 'hidden')
+    return false
+  const rect = perchEdge(card).getBoundingClientRect()
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    rect.right > 0 &&
+    rect.left < window.innerWidth &&
+    rect.top >= mamVisibleTop() &&
+    rect.top < window.innerHeight &&
+    // The dock's larger size (the compact one only widens the left room).
+    perchBubbleBeside(rect.right, 96, window.innerWidth, mamContentLeft())
+  )
+}
 
 export function createMamTravel(hooks: MamTravelHooks) {
   const values = {
@@ -124,6 +182,8 @@ export function createMamTravel(hooks: MamTravelHooks) {
   let drowsing = false
   // The throw that just ended was fast: land harder and shake off.
   let thrownFast = false
+  // Mầm was dropped on a card: the climb takes it from where it was let go.
+  let dropped = false
   let drag: { ox: number; oy: number; samples: VelocitySample[] } | null = null
   let following = 0
   // A summon is diving or scrolling toward its card (not yet perched).
@@ -137,6 +197,8 @@ export function createMamTravel(hooks: MamTravelHooks) {
     if (rect) origin = { left: rect.left, top: rect.top }
   }
   const visibleTop = mamVisibleTop
+  // How far left of the card's right end Mầm perches, to keep clear of text above the edge.
+  let shift = 0
   // The card's top edge may be a marked inner surface (`data-mam-perch`) when the
   // target itself has no visible top (a section whose heading row sits above its cards).
   let edge: Element | null = null
@@ -160,7 +222,7 @@ export function createMamTravel(hooks: MamTravelHooks) {
       cx = origin.left
       cy = origin.top + st.dockOff
     } else if (rect) {
-      cx = perchLeft(rect.right, size, window.innerWidth)
+      cx = Math.max(8, perchLeft(rect.right, size, window.innerWidth) - shift)
       cy = rect.top + st.perchOff
       values.pawLeft.set(cx + size / 2 - 30 - origin.left)
       values.pawRight.set(cx + size / 2 + 12 - origin.left)
@@ -333,12 +395,14 @@ export function createMamTravel(hooks: MamTravelHooks) {
     drag = null
     drowsing = false
     thrownFast = false
+    dropped = false
     hooks.oneShot(null)
     climbing = false
     ready = false
     lostSent = false
     listen(false)
     target = null
+    shift = 0
     Object.assign(st, {
       dockOff: 0,
       perchOff: 0,
@@ -359,8 +423,31 @@ export function createMamTravel(hooks: MamTravelHooks) {
     render()
   }
 
+  // Mầm's head rises above the card's top edge: perch where that band holds no text or control.
+  function perchShift(el: Element) {
+    const rect = perchEdge(el).getBoundingClientRect()
+    const viewport = window.innerWidth
+    const base = perchLeft(rect.right, size, viewport)
+    const left = perchSpot({
+      cardLeft: rect.left,
+      cardRight: rect.right,
+      size,
+      viewport,
+      viewportLeft: mamContentLeft(),
+      blocked: (at) =>
+        // The head's visible band: up to 0.64 of its size above the edge, a row every ~10 px.
+        [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65].some((up) =>
+          [0.2, 0.4, 0.6, 0.8].some((across) =>
+            hasInkAt(at + size * across, rect.top - size * up, root),
+          ),
+        ),
+    })
+    return base - left
+  }
+
   async function climb(el: Element) {
-    if (st.mode !== 'dock' && st.mode !== 'perch') snap()
+    const fromDrop = dropped && st.mode === 'home'
+    if (!fromDrop && st.mode !== 'dock' && st.mode !== 'perch') snap()
     const t = (token += 1)
     ready = false
     lostSent = false
@@ -370,7 +457,15 @@ export function createMamTravel(hooks: MamTravelHooks) {
     if (asleep && st.mode === 'dock') await wakeSteps(t, true)
     if (!alive(t)) return
     hooks.behavior('curious')
-    if (st.mode === 'perch') {
+    if (fromDrop) {
+      // Let go over the card: Mầm drops out of sight, then comes up behind the card.
+      dropped = false
+      await tween('dy', window.innerHeight - st.y + size, 260, ease.inBack, t)
+      if (!alive(t)) return
+      Object.assign(st, { dy: 0, rot: 0, sx: 1, sy: 1, dockOff: size + 60 })
+      setMode('dock')
+      render()
+    } else if (st.mode === 'perch') {
       if (!(await retreatDown(t))) return
       hooks.behavior('curious')
     } else await tween('dockOff', size + 60, 260, ease.inBack, t)
@@ -385,6 +480,7 @@ export function createMamTravel(hooks: MamTravelHooks) {
     target = el
     edge = null
     lastRect = null
+    shift = perchShift(el)
     st.perchOff = 10
     st.hands = 0
     Object.assign(st, { dockOff: 0, dy: 0, rot: 0, sx: 1, sy: 1 })
@@ -413,6 +509,8 @@ export function createMamTravel(hooks: MamTravelHooks) {
 
   /** Back to the dock; `thanks` first plays the happy squash. */
   async function home(thanks: boolean) {
+    // A drop whose climb never began (the summon closed first): go home at once.
+    if (dropped && !climbing) return snap()
     if (st.mode !== 'perch') {
       if (!climbing) return
       // Dismissed during the dive or the preparatory scroll: cancel the climb
@@ -571,6 +669,17 @@ export function createMamTravel(hooks: MamTravelHooks) {
     raf(loop)
   }
 
+  /** Let go over a card (MB-819): no throw; the summon's climb takes over. */
+  function dragDrop() {
+    if (!drag) return
+    token += 1
+    drag = null
+    dropped = true
+    thrownFast = false
+    setMode('home')
+    hooks.behavior('curious')
+  }
+
   async function land() {
     const t = (token += 1)
     setMode('home')
@@ -649,6 +758,7 @@ export function createMamTravel(hooks: MamTravelHooks) {
     dragStart,
     dragMove,
     dragEnd,
+    dragDrop,
     onLost(handler: () => void) {
       onLost = handler
     },

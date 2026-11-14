@@ -166,3 +166,89 @@ describe('AI Companion suggestion and quota v2', () => {
     }
   })
 })
+
+describe('AI Companion encrypted title fields (MB-810)', () => {
+  const titleVersion = 'B'.repeat(43)
+  const base = '2026-11-06T08:00:00Z'
+  const conversation = {
+    conversationId: '11111111-1111-4111-8111-111111111111',
+    title: 'Áp lực công việc',
+    titleVersion,
+    context: {
+      sources: { plan: false, diary: false, screening: false, resourceIds: [] },
+      updatedAt: base,
+    },
+    messages: [],
+    createdAt: base,
+    updatedAt: base,
+    expiresAt: '2027-02-04T08:00:00Z',
+  }
+  const summary = {
+    conversationId: conversation.conversationId,
+    title: conversation.title,
+    titleVersion,
+    createdAt: base,
+    updatedAt: base,
+    expiresAt: conversation.expiresAt,
+  }
+  const send = {
+    conversationId: conversation.conversationId,
+    title: conversation.title,
+    titleVersion,
+    userMessageId: '22222222-2222-4222-8222-222222222222',
+    assistantMessageId: '33333333-3333-4333-8333-333333333333',
+    assistant: 'Synthetic',
+    createdAt: base,
+    contextKinds: [],
+    quota: {
+      plan: 'FREE',
+      policyVersion: 'companion-quota-v2',
+      remaining: 4,
+      resetAt: '2026-11-06T17:00:00Z',
+      limitDisplayed: true,
+    },
+  }
+  const omit = (value: object, ...keys: string[]) =>
+    Object.fromEntries(Object.entries(value).filter(([k]) => !keys.includes(k)))
+  const conversationWithoutVersion = omit(conversation, 'titleVersion')
+  const sendWithoutTitle = omit(send, 'title', 'titleVersion')
+
+  it('passes backend-shaped detail, list and send through unchanged', () => {
+    expect(parseConversation(conversation)).toEqual(conversation)
+    expect(parseConversationList({ items: [summary] })).toEqual({
+      items: [summary],
+    })
+    expect(parseSend(send)).toEqual(send)
+  })
+
+  it('still accepts the pre-title shape and a send with only a version', () => {
+    expect(parseConversation(conversationWithoutVersion)).not.toBeNull()
+    expect(parseSend(sendWithoutTitle)).not.toBeNull()
+    expect(parseSend({ ...sendWithoutTitle, titleVersion })).not.toBeNull()
+  })
+
+  it.each(['', 'short', 'B'.repeat(44), 'B'.repeat(42) + '=', 7, null])(
+    'rejects an invalid titleVersion %j',
+    (bad) => {
+      expect(
+        parseConversation({ ...conversation, titleVersion: bad }),
+      ).toBeNull()
+      expect(
+        parseConversationList({ items: [{ ...summary, titleVersion: bad }] }),
+      ).toBeNull()
+      expect(parseSend({ ...send, titleVersion: bad })).toBeNull()
+    },
+  )
+
+  it.each(['', 'x'.repeat(81), 7, null])(
+    'rejects an invalid send title %j',
+    (bad) => {
+      expect(parseSend({ ...send, title: bad })).toBeNull()
+    },
+  )
+
+  it('keeps rejecting unknown fields', () => {
+    expect(parseConversation({ ...conversation, rename: true })).toBeNull()
+    expect(parseSend({ ...send, encryptedTitle: 'x' })).toBeNull()
+  })
+})
