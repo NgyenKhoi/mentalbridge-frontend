@@ -7,6 +7,7 @@ import {
   eventSchema,
   type ChatCommand,
   type ChatMessage,
+  type ChatReportReason,
   type ChatRole,
   type Eligibility,
 } from './chat-contract'
@@ -51,6 +52,7 @@ export class ChatSession {
   private listeners = new Set<() => void>()
   private events = new Map<string, string>()
   private waits = new Map<string, () => void>()
+  private moderationKeys = new Map<string, string>()
   constructor(
     private readonly options: Readonly<{
       api: ChatApi
@@ -494,14 +496,21 @@ export class ChatSession {
           (value.senderId === item.senderId &&
             value.clientMessageId === item.clientMessageId),
       )
-      if (
-        previous &&
-        (Object.keys(previous) as (keyof ChatMessage)[]).some(
-          (key) => previous[key] !== item[key],
+      if (previous) {
+        if (
+          previous.conversationId !== item.conversationId ||
+          previous.senderId !== item.senderId ||
+          previous.clientMessageId !== item.clientMessageId ||
+          previous.type !== item.type ||
+          previous.sentAt !== item.sentAt ||
+          (previous.state === 'VISIBLE' &&
+            item.state === 'VISIBLE' &&
+            previous.content !== item.content) ||
+          (previous.state === 'DELETED' && item.state !== 'DELETED')
         )
-      )
-        contractMismatch()
-      if (!previous) messages.push(item)
+          contractMismatch()
+        messages[messages.indexOf(previous)] = item
+      } else messages.push(item)
     }
     messages.sort(
       (a, b) =>
@@ -574,6 +583,68 @@ export class ChatSession {
       if (this.alive(generation)) this.failure(error)
     } finally {
       this.commandBusy = false
+    }
+  }
+  async remove(messageId: string) {
+    const target = this.state.messages.find(
+      (item) => item.messageId === messageId,
+    )
+    if (
+      !target ||
+      target.senderId !== this.options.subject ||
+      target.state !== 'VISIBLE'
+    )
+      return false
+    const generation = this.generation
+    const fingerprint = `DELETE_MESSAGE:${messageId}`
+    const idempotencyKey =
+      this.moderationKeys.get(fingerprint) ?? this.options.uuid()
+    this.moderationKeys.set(fingerprint, idempotencyKey)
+    try {
+      const result = await this.options.api.remove(messageId, idempotencyKey)
+      if (!this.alive(generation)) return false
+      if (result.messageId !== messageId) contractMismatch()
+      this.merge([
+        {
+          ...target,
+          content: null,
+          state: 'DELETED',
+          deletedAt: result.deletedAt,
+        },
+      ])
+      this.moderationKeys.delete(fingerprint)
+      return true
+    } catch (error) {
+      if (!this.alive(generation)) return false
+      this.patch({
+        issue:
+          error instanceof ApiError ? error.code : 'CHAT_CONTRACT_MISMATCH',
+      })
+      return false
+    }
+  }
+  async report(messageId: string, reason: ChatReportReason) {
+    const target = this.state.messages.find(
+      (item) => item.messageId === messageId,
+    )
+    if (!target || target.state !== 'VISIBLE') return false
+    const generation = this.generation
+    const fingerprint = `REPORT_MESSAGE:${messageId}:${reason}`
+    const idempotencyKey =
+      this.moderationKeys.get(fingerprint) ?? this.options.uuid()
+    this.moderationKeys.set(fingerprint, idempotencyKey)
+    try {
+      await this.options.api.report(messageId, idempotencyKey, reason)
+      if (!this.alive(generation)) return false
+      this.moderationKeys.delete(fingerprint)
+      return true
+    } catch (error) {
+      if (!this.alive(generation)) return false
+      this.patch({
+        issue:
+          error instanceof ApiError ? error.code : 'CHAT_CONTRACT_MISMATCH',
+      })
+      return false
     }
   }
   async send(content: string, replay?: ChatCommand) {
