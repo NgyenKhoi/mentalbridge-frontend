@@ -4074,6 +4074,10 @@ export interface components {
             representationMode?: "NATIVE_V3" | "V2_RESOURCE_ADAPTER";
             /** @description Plan time zone used for weekly board boundaries. */
             timeZone?: string;
+            /** @description Screening domains of the plan template families, in family order. Content uses them to pick daily resources. Omitted when the plan has no template family; consumers then cannot build a daily journey. */
+            targetDomains?: ("DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS")[];
+            /** Format: date-time */
+            activatedAt?: string;
             /** Format: date */
             localDate: string;
             /** @description ACTIVE RESOURCE actions in plan order, without rationale or treatment meaning. */

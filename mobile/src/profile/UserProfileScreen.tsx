@@ -16,7 +16,7 @@ import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
-import type { CareProfileApi } from './profile-api'
+import { loadCareProfile, type CareProfileApi } from './profile-api'
 import type { CareProfile } from './profile-contract'
 import {
   profileErrorsFromProblem,
@@ -39,14 +39,6 @@ function profileForm(profile: CareProfile | null): ProfileForm {
         gender: profile.gender ?? '',
       }
     : emptyForm
-}
-
-function isMissingProfile(error: unknown): boolean {
-  return (
-    error instanceof ApiError &&
-    error.status === 404 &&
-    error.code === 'PROFILE_NOT_FOUND'
-  )
 }
 
 function loadErrorMessage(error: unknown): string {
@@ -122,14 +114,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
     queryKey,
     enabled: Boolean(subject),
     refetchOnMount: 'always',
-    queryFn: async () => {
-      try {
-        return await api.getProfile()
-      } catch (error) {
-        if (isMissingProfile(error)) return null
-        throw error
-      }
-    },
+    queryFn: () => loadCareProfile(api),
   })
 
   const profile = profileQuery.data ?? null

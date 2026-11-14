@@ -36,6 +36,7 @@ export const config = {
     '/profile/:path*',
     '/community/:path*',
     '/initial-check/:path*',
+    '/onboarding/:path*',
     '/support-plan/:path*',
     '/support-guides/:path*',
     '/resources/:path*',
