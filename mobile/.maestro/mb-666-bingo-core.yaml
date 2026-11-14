@@ -1,0 +1,46 @@
+appId: com.mentalbridge.mobile
+name: MB-666 required current-plan Bingo persistence
+---
+# AUTHOR_ONLY / TEST_AUTHORED_NOT_RUN. Rewards and Companion remain optional;
+# this flow gates only required current-plan Bingo owner facts and persistence.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB666_PERSONA_A_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB666_PERSONA_A_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Hôm nay của bạn'
+- tapOn: 'Các khu vực khác'
+- scrollUntilVisible:
+    element:
+      text: 'Bộ sưu tập và Bingo'
+    direction: DOWN
+- tapOn: 'Bộ sưu tập và Bingo'
+- scrollUntilVisible:
+    element:
+      text: 'Bingo trong kế hoạch tuần này'
+    direction: DOWN
+- assertVisible: '${MAESTRO_MB_BINGO_VERIFIED_LABEL}'
+- assertVisible: 'Content đã xác minh'
+- tapOn:
+    id: 'bingo-item-${MAESTRO_MB_BINGO_SELF_POSITION}'
+- assertVisible: 'Bạn đã tự đánh dấu'
+- launchApp
+- tapOn: 'Các khu vực khác'
+- scrollUntilVisible:
+    element:
+      text: 'Bộ sưu tập và Bingo'
+    direction: DOWN
+- tapOn: 'Bộ sưu tập và Bingo'
+- scrollUntilVisible:
+    element:
+      text: 'Bạn đã tự đánh dấu'
+    direction: DOWN
+- assertVisible: 'Bạn đã tự đánh dấu'
