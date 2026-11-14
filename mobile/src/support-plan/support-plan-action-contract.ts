@@ -24,6 +24,50 @@ const stateSchema = z.enum([
 ])
 const nullableText = (max: number) => z.string().min(1).max(max).nullable()
 const instant = z.iso.datetime({ offset: true })
+const symptomCode = z.enum([
+  'SLEEP_DIFFICULTY',
+  'LOW_ENERGY',
+  'PERSISTENT_WORRY',
+  'LOW_MOOD',
+  'CONCENTRATION_DIFFICULTY',
+  'APPETITE_CHANGE',
+  'SOCIAL_WITHDRAWAL',
+  'STRESS_OVERLOAD',
+])
+const symptomMappingSchema = z
+  .object({
+    reassessmentSummaryId: z.uuid(),
+    selfReportId: z.uuid(),
+    selfReportRevision: z.number().int().nonnegative(),
+    currentPeriod: z.object({ startAt: instant, endAt: instant }).strict(),
+    catalogRevision: z.string().min(1).max(128),
+    mappingRevision: z.string().min(1).max(128),
+    selectedCodes: z
+      .array(symptomCode)
+      .max(8)
+      .refine((values) => new Set(values).size === values.length),
+    resourceReasons: z
+      .array(
+        z
+          .object({
+            code: symptomCode,
+            slotId: z.string().min(1).max(128),
+            resourceId: z.uuid(),
+            contentVersion: z
+              .string()
+              .max(19)
+              .regex(/^(0|[1-9][0-9]{0,18})$/),
+            publicationId: z.uuid(),
+            role: z.enum(['PRIMARY', 'ADJUNCT']),
+            eligibilityPolicyVersion: z.string().min(1).max(128),
+            reasonCode: z.literal('SELF_REPORTED_SYMPTOM_MATCH'),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(8),
+  })
+  .strict()
 const sourceSchema = z
   .object({
     ownerDomain: z.enum(['CONTENT', 'JOURNAL_AI', 'CONSULTATION', 'CARE']),
@@ -150,6 +194,7 @@ export const canonicalSupportPlanSchema = z
     supportPlanId: z.uuid(),
     modelVersion: z.literal(3),
     planPolicyVersion: z.string().min(1).max(128),
+    symptomMapping: symptomMappingSchema.optional(),
     representationMode: representationSchema,
     status: stateSchema,
     version: z.number().int().nonnegative(),
@@ -203,8 +248,27 @@ export const canonicalSupportPlanSchema = z
     discardedAt: instant.nullable(),
     disclaimerCode: z.literal('WELLBEING_SUPPORT_NOT_TREATMENT'),
     disclaimer: z.string().min(1).max(1000),
-    // Additive MB-669 field; accepted so web-created 14-day plans still load here.
-    cycle: z.unknown().optional(),
+    cycle: z
+      .object({
+        policyVersion: z.literal('support-plan-cycle-v1'),
+        lengthDays: z.literal(14),
+        timezone: z.string().min(1).max(64),
+        cycleNumber: z.number().int().min(1),
+        startedOn: z.iso.date().nullable(),
+        reviewDueOn: z.iso.date().nullable(),
+        currentDay: z.number().int().min(1).nullable(),
+        pausedDays: z.number().int().min(0),
+        state: z.enum([
+          'NOT_STARTED',
+          'IN_PROGRESS',
+          'PAUSED',
+          'REVIEW_DUE',
+          'CLOSED',
+        ]),
+      })
+      .strict()
+      .nullable()
+      .optional(),
   })
   .strict()
   .superRefine((plan, context) => {

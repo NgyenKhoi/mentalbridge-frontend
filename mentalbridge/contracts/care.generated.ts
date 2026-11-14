@@ -1487,6 +1487,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/support-plans/initial-proposal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ensure an initial proposal without replacing a current plan
+         * @description Returns an existing current plan or a revalidated draft, or creates an
+         *     initial native draft after Care admission. The owner lock serializes the
+         *     final current/draft check with activation. Concurrent state changes may
+         *     return 409 and require an authoritative reload. No activation, replacement
+         *     or renewal is performed. A terminal plan history is not eligible for
+         *     automatic initial creation; explicit continuation or review is separate.
+         */
+        post: operations["ensureInitialSupportPlanProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/support-plans/history": {
         parameters: {
             query?: never;
@@ -4076,7 +4101,10 @@ export interface components {
             timeZone?: string;
             /** @description Screening domains of the plan template families, in family order. Content uses them to pick daily resources. Omitted when the plan has no template family; consumers then cannot build a daily journey. */
             targetDomains?: ("DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS")[];
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Start of the current plan period. For support-plan-cycle-v1 plans this is the start of the current cycle's first local day (activation or explicit continuation); otherwise the activation instant. Content counts journey days 1-14 from it.
+             */
             activatedAt?: string;
             /** Format: date */
             localDate: string;
@@ -7136,6 +7164,53 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["SupportPlanEligibilityProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    ensureInitialSupportPlanProposal: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    sourceSupportEvaluationId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Current plan or admitted initial draft */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Initial state changed or a previous plan prevents initial creation (SUPPORT_PLAN_INITIAL_CHANGED or SUPPORT_PLAN_INITIAL_NOT_ELIGIBLE); also covers Care eligibility, stale evidence and idempotency conflicts. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             503: components["responses"]["SupportPlanDependencyProblem"];
         };
     };

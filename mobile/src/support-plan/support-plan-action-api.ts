@@ -1,6 +1,10 @@
 import type { AxiosInstance } from 'axios'
 import { z } from 'zod'
-import { screeningEpisodeSchema } from '@/assessment/assessment-contract'
+import {
+  guidedJourneySchema,
+  screeningEpisodeSchema,
+  type GuidedJourney,
+} from '@/assessment/assessment-contract'
 import {
   reassessmentSummaryReferenceSchema,
   updateActionScheduleRequestSchema,
@@ -56,6 +60,11 @@ const validator = (version: number) => ({
 })
 
 export interface SupportPlanActionApi {
+  getGuidedJourney(): Promise<GuidedJourney>
+  ensureInitial(
+    sourceSupportEvaluationId: string,
+    key: string,
+  ): Promise<CanonicalSupportPlan>
   getProposalEvaluationId(
     purpose: 'INITIAL_CHECK' | 'REASSESSMENT',
   ): Promise<string>
@@ -138,6 +147,26 @@ export function createSupportPlanActionApi(
   client: AxiosInstance,
 ): SupportPlanActionApi {
   return {
+    async getGuidedJourney() {
+      return guidedJourneySchema.parse(
+        (await client.get('/api/v1/guided-journey/current')).data,
+      )
+    },
+    async ensureInitial(sourceSupportEvaluationId, key) {
+      return canonicalSupportPlanSchema.parse(
+        (
+          await client.post(
+            '/api/v2/support-plans/initial-proposal',
+            {
+              sourceSupportEvaluationId: idSchema.parse(
+                sourceSupportEvaluationId,
+              ),
+            },
+            { headers: { 'Idempotency-Key': keySchema.parse(key) } },
+          )
+        ).data,
+      )
+    },
     async getProposalEvaluationId(purpose) {
       const parsedPurpose = z
         .enum(['INITIAL_CHECK', 'REASSESSMENT'])
@@ -271,10 +300,8 @@ export function createSupportPlanActionApi(
           })
         ).data,
       )
-      if (
-        parsed.representationMode !== 'NATIVE_V3' ||
-        parsed.status !== 'DRAFT'
-      )
+      // Care replays the original plan's current state, which may no longer be a draft.
+      if (parsed.representationMode !== 'NATIVE_V3')
         throw new Error('Invalid native proposal.')
       return parsed
     },
