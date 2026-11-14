@@ -106,6 +106,29 @@ function MamResourceTarget({
   )
 }
 
+const DEFAULT_BINGO_TILES = [
+  { id: 'water', label: 'Uống đủ 2L nước', icon: '💧' },
+  { id: 'breathing', label: 'Hít thở sâu 3 phút', icon: '🌿' },
+  { id: 'gratitude', label: 'Viết lời cảm ơn', icon: '✍️' },
+  { id: 'walk', label: 'Đi dạo ngắm cây xanh', icon: '🚶' },
+  { id: 'relax', label: 'Thư giãn toàn thân', icon: '🧘' },
+  { id: 'tea', label: 'Uống một tách trà ấm', icon: '🍵' },
+  { id: 'screen', label: 'Tắt màn hình trước ngủ', icon: '📵' },
+  { id: 'music', label: 'Nghe nhạc êm dịu', icon: '🎵' },
+  { id: 'sleep', label: 'Đi ngủ trước 23h', icon: '😴' },
+] as const
+
+const BINGO_WIN_LINES = [
+  [0, 1, 2],
+  [3, 4, 5],
+  [6, 7, 8],
+  [0, 3, 6],
+  [1, 4, 7],
+  [2, 5, 8],
+  [0, 4, 8],
+  [2, 4, 6],
+]
+
 export default function ResourcesShowcase() {
   useMamPageTarget({ kind: 'resources.page' })
   const today = useMemo(() => localDate(), [])
@@ -134,6 +157,40 @@ export default function ResourcesShowcase() {
   const [filter, setFilter] = useState<Filter>('all')
   const [expanded, setExpanded] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const [bingoMarks, setBingoMarks] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {}
+    try {
+      const key = `mentalbridge:resources:bingo:${localDate().slice(0, 7)}`
+      const saved = localStorage.getItem(key)
+      return saved ? (JSON.parse(saved) as Record<string, boolean>) : {}
+    } catch {
+      return {}
+    }
+  })
+
+  const toggleBingoTile = (id: string) => {
+    setBingoMarks((prev) => {
+      const updated = { ...prev, [id]: !prev[id] }
+      try {
+        const key = `mentalbridge:resources:bingo:${today.slice(0, 7)}`
+        localStorage.setItem(key, JSON.stringify(updated))
+      } catch {
+        // Storage unavailable
+      }
+      return updated
+    })
+  }
+
+  const completedBingoCount = useMemo(
+    () => DEFAULT_BINGO_TILES.filter((tile) => bingoMarks[tile.id]).length,
+    [bingoMarks],
+  )
+
+  const hasBingoWin = useMemo(() => {
+    return BINGO_WIN_LINES.some((line) =>
+      line.every((idx) => bingoMarks[DEFAULT_BINGO_TILES[idx].id]),
+    )
+  }, [bingoMarks])
 
   useEffect(
     () =>
@@ -670,7 +727,12 @@ export default function ResourcesShowcase() {
                                 ? 'Thực hành'
                                 : 'Khám phá'}
                           </span>
-                          <strong>
+                          <strong
+                            title={
+                              resource.sourceOrganization ??
+                              'Nguồn chưa cập nhật'
+                            }
+                          >
                             {resource.sourceOrganization ??
                               'Nguồn chưa cập nhật'}
                           </strong>
@@ -751,6 +813,71 @@ export default function ResourcesShowcase() {
       </section>
 
       <div className={styles.lowerRow}>
+        <section className={styles.bingo} aria-labelledby="bingo-title">
+          <div className={styles.panelHead}>
+            <div>
+              <h2 id="bingo-title">Bingo Thói Quen Tâm Trí</h2>
+              <p>Hoàn thành 3 ô thẳng hàng để nuôi dưỡng thói quen tích cực</p>
+            </div>
+            <div className={styles.bingoHeadBadges}>
+              <span className={styles.bingoWeekBadge}>Tuần này</span>
+              <span className={styles.bingoCountBadge}>
+                {completedBingoCount}/9 ô hoàn thành
+              </span>
+            </div>
+          </div>
+
+          <div
+            className={styles.bingoGrid}
+            role="list"
+            aria-label="Bảng Bingo 9 ô thói quen"
+          >
+            {DEFAULT_BINGO_TILES.map((tile, index) => {
+              const isChecked = Boolean(bingoMarks[tile.id])
+              return (
+                <button
+                  type="button"
+                  key={tile.id}
+                  className={`${styles.bingoTile} ${isChecked ? styles.bingoVerified : styles.bingoUnmarked}`}
+                  aria-pressed={isChecked}
+                  aria-label={`${tile.label}: ${isChecked ? 'Đã hoàn thành' : 'Chưa hoàn thành'}`}
+                  onClick={() => toggleBingoTile(tile.id)}
+                >
+                  <div className={styles.bingoTileTop}>
+                    <span className={styles.bingoTileNumber}>#{index + 1}</span>
+                    <span className={styles.bingoTileIcon} aria-hidden="true">
+                      {isChecked ? '✓' : tile.icon}
+                    </span>
+                  </div>
+                  <strong className={styles.bingoTileTitle}>
+                    {tile.label}
+                  </strong>
+                  <div className={styles.bingoTileBottom}>
+                    <span
+                      className={
+                        isChecked
+                          ? styles.bingoPillVerified
+                          : styles.bingoPillAction
+                      }
+                    >
+                      {isChecked ? 'Đã hoàn thành' : 'Chạm để tick'}
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          <p
+            className={`${styles.bingoNote} ${hasBingoWin ? styles.bingoNoteComplete : ''}`}
+            role="status"
+          >
+            {hasBingoWin
+              ? '🎉 Tuyệt vời! Bạn đã hoàn thành một đường Bingo 3 ô thẳng hàng!'
+              : '💡 Gợi ý: Chạm vào từng ô để đánh dấu thói quen bạn đã thực hiện hôm nay.'}
+          </p>
+        </section>
+
         <div className={styles.sideStack}>
           <section className={styles.badges} aria-labelledby="badges-title">
             <div className={styles.panelHead}>

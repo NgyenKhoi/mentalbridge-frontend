@@ -210,14 +210,14 @@ test.describe('MB-672 Home next step', () => {
       name: 'Bước tiếp theo',
       exact: true,
     })
-    await expect(next.locator('a[href^="tel:"]').first()).toBeVisible()
+    await expect(next.locator('a[href^="tel:"]')).toHaveCount(0)
     await expect(
       next.getByRole('link', { name: 'Xem nơi hỗ trợ', exact: true }),
     ).toBeVisible()
     await expect(
       next.getByRole('link', { name: 'Mở kế hoạch', exact: true }),
     ).toHaveAttribute('href', '/support-plan')
-    await expect(page.getByTestId('home-resources')).toHaveCount(0)
+    await expect(page.getByTestId('home-resources')).toBeVisible()
     await expect
       .poll(() =>
         page.evaluate(() => document.documentElement.dataset.homeSafetyMotion),
@@ -264,14 +264,14 @@ test.describe('MB-672 Home next step', () => {
           name: 'Bước tiếp theo',
           exact: true,
         })
-        await expect(next.locator('a[href^="tel:"]').first()).toBeVisible()
+        await expect(next.locator('a[href^="tel:"]')).toHaveCount(0)
         await expect(
           next.getByRole('link', { name: 'Xem nơi hỗ trợ', exact: true }),
         ).toHaveAttribute('href', '/safety-directory')
         await expect(
           page.getByRole('region', { name: 'Cảm xúc trong kế hoạch' }),
         ).toHaveCount(0)
-        await expect(page.getByTestId('home-resources')).toHaveCount(0)
+        await expect(page.getByTestId('home-resources')).toBeVisible()
         await expect
           .poll(() =>
             page.evaluate(
@@ -615,7 +615,9 @@ async function installSafetyEntranceProbe(
     let sampleCount = 0
     let moving = false
     function sample(now: number) {
-      const card = document.querySelector('.home-next-step--safety')
+      const card = document.querySelector(
+        '[data-home-state="REVIEW_SAFETY_SUPPORT"]',
+      )
       if (card) {
         if (!firstSeen) firstSeen = now
         sampleCount++

@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation'
 
-import AdminWorkspaceShell, {
-  isAdminSection,
-} from '@/features/auth/components/AdminWorkspace'
+import AdminWorkspaceShell from '@/features/auth/components/AdminWorkspace'
+import { isAdminSection } from '@/features/auth/model/admin-sections'
 import { resolveWorkspaces } from '@/features/auth/model/workspace'
 import { requireCurrentAccount } from '@/lib/auth/dal'
 

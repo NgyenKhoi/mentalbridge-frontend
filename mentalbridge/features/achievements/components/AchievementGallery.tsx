@@ -60,6 +60,12 @@ const unitLabel = {
   PRACTICE_DAY: 'ngày thực hành khác nhau',
 } as const
 
+type AchievementFilter = 'ALL' | 'EARNED' | 'UNEARNED'
+
+function isEarned(item: AchievementItem) {
+  return item.status === 'EARNED' || item.status === 'GRANDFATHERED'
+}
+
 function localDate(value: string) {
   return new Intl.DateTimeFormat('vi-VN', {
     day: '2-digit',
@@ -116,6 +122,7 @@ export default function AchievementGallery() {
   )
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<AchievementFilter>('ALL')
   const timezone = useMemo(
     () =>
       Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh',
@@ -186,9 +193,23 @@ export default function AchievementGallery() {
     )
   }
 
-  const earnedCount = collection.items.filter(
-    ({ status }) => status === 'EARNED' || status === 'GRANDFATHERED',
+  const earnedCount = collection.items.filter(isEarned).length
+  const unearnedCount = collection.items.filter(
+    ({ status }) => status === 'UNEARNED',
   ).length
+  const filteredItems = collection.items.filter((item) =>
+    filter === 'ALL'
+      ? true
+      : filter === 'EARNED'
+        ? isEarned(item)
+        : item.status === 'UNEARNED',
+  )
+  const filters: { value: AchievementFilter; label: string; count: number }[] =
+    [
+      { value: 'ALL', label: 'Tất cả', count: collection.items.length },
+      { value: 'EARNED', label: 'Đã đạt', count: earnedCount },
+      { value: 'UNEARNED', label: 'Chưa đạt', count: unearnedCount },
+    ]
   const hasUnavailable = collection.sources.some(
     ({ availability }) => availability === 'UNAVAILABLE',
   )
@@ -216,14 +237,69 @@ export default function AchievementGallery() {
         </div>
       </header>
 
+      <section className={styles.filterBar} aria-label="Lọc bộ sưu tập">
+        <div
+          className={styles.filterButtons}
+          role="group"
+          aria-label="Trạng thái thành tựu"
+        >
+          {filters.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={styles.filterButton}
+              aria-pressed={filter === option.value}
+              onClick={() => setFilter(option.value)}
+            >
+              {option.label}
+              <span className={styles.filterCount}>{option.count}</span>
+            </button>
+          ))}
+        </div>
+        <div className={styles.filterMeta}>
+          <p role="status" aria-live="polite" aria-atomic="true">
+            Hiển thị {filteredItems.length}/{collection.items.length} dấu mốc
+          </p>
+          {earnedCount + unearnedCount < collection.items.length && (
+            <small>
+              Các mục chưa xác minh hoặc chưa mở nằm trong “Tất cả”.
+            </small>
+          )}
+        </div>
+      </section>
+
+      {filteredItems.length === 0 && (
+        <section className={styles.filteredEmpty}>
+          <Leaf aria-hidden="true" />
+          <h2>
+            {filter === 'EARNED'
+              ? 'Chưa có thành tựu đã đạt'
+              : filter === 'UNEARNED'
+                ? 'Không có thành tựu chưa đạt trong bộ lọc này'
+                : 'Bộ sưu tập chưa có dấu mốc'}
+          </h2>
+          <p>
+            {filter === 'EARNED'
+              ? 'Những dấu mốc được ghi nhận sẽ xuất hiện ở đây, theo nhịp của bạn.'
+              : filter === 'UNEARNED'
+                ? 'Bạn có thể xem toàn bộ bộ sưu tập, gồm cả những mục chưa thể xác minh hoặc chưa mở.'
+                : 'Những dấu mốc từ hoạt động của bạn sẽ xuất hiện ở đây khi được ghi nhận.'}
+          </p>
+          {filter !== 'ALL' && (
+            <button type="button" onClick={() => setFilter('ALL')}>
+              Xem tất cả thành tựu
+            </button>
+          )}
+        </section>
+      )}
+
       <div className={styles.domains}>
         {(Object.keys(domainMeta) as Array<keyof typeof domainMeta>).map(
           (domain) => {
             const meta = domainMeta[domain]
             const Icon = meta.icon
-            const items = collection.items.filter(
-              (item) => item.domain === domain,
-            )
+            const items = filteredItems.filter((item) => item.domain === domain)
+            if (items.length === 0) return null
             return (
               <section
                 className={styles.domain}

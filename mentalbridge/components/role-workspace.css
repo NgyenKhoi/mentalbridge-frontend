@@ -2310,7 +2310,8 @@
    PART 2: SPECIALIST WORKSPACE COLOR HARMONIZATION
    Applies unified design tokens and styles across Sidebar, Topbar & Shell
    ========================================================================== */
-.role-specialist {
+.role-specialist,
+.role-admin {
   --color-app-bg: #f6f9fc;
   --color-surface: #ffffff;
   --color-surface-soft: #eef2fd;
@@ -2342,28 +2343,45 @@
 }
 
 .role-specialist,
+.role-admin,
 .role-specialist .role-sidebar,
+.role-admin .role-sidebar,
 .role-specialist .role-topbar,
+.role-admin .role-topbar,
 .role-specialist .role-content,
+.role-admin .role-content,
 .role-specialist .role-drawer,
+.role-admin .role-drawer,
 .role-specialist .role-modal,
+.role-admin .role-modal,
 .role-specialist .availability-modal,
+.role-admin .availability-modal,
 .role-specialist dialog,
-.role-specialist [data-dialog] {
+.role-admin dialog,
+.role-specialist [data-dialog],
+.role-admin [data-dialog] {
   font-family: var(--clinical-font-sans) !important;
 }
 
 .role-specialist button,
+.role-admin button,
 .role-specialist input,
+.role-admin input,
 .role-specialist select,
-.role-specialist textarea {
+.role-admin select,
+.role-specialist textarea,
+.role-admin textarea {
   font-family: var(--clinical-font-sans) !important;
 }
 
 .role-specialist h1,
+.role-admin h1,
 .role-specialist h2,
+.role-admin h2,
 .role-specialist h3,
-.role-specialist h4 {
+.role-admin h3,
+.role-specialist h4,
+.role-admin h4 {
   font-family: var(--clinical-font-serif);
 }
 
@@ -2492,7 +2510,8 @@
 }
 
 /* Active navigation link: Solid primary green pill #1F5C3F with white text & icon */
-.role-specialist .role-sidebar nav a.active {
+.role-specialist .role-sidebar nav a.active,
+.role-admin .role-sidebar nav a.active {
   background: var(--color-primary) !important;
   color: #ffffff !important;
   font-weight: 600 !important;
@@ -2501,7 +2520,9 @@
 }
 
 .role-specialist .role-sidebar nav a.active .role-nav-icon,
-.role-specialist .role-sidebar nav a.active .role-nav-label {
+.role-admin .role-sidebar nav a.active .role-nav-icon,
+.role-specialist .role-sidebar nav a.active .role-nav-label,
+.role-admin .role-sidebar nav a.active .role-nav-label {
   color: #ffffff !important;
 }
 
@@ -2571,4 +2592,72 @@
   background: #f8fafc !important;
   border-color: #cbd5e1 !important;
   box-shadow: 0 4px 18px rgba(20, 40, 60, 0.08) !important;
+}
+
+/* ==========================================================================
+   Admin Unified Operations & Telemetry Dashboard Flow
+   ========================================================================== */
+.admin-unified-dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6, 24px);
+  width: 100%;
+}
+
+.admin-unified-dashboard-grid > div:first-child {
+  display: contents;
+}
+
+.clinical-topbar-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px 4px 6px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 9999px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+}
+
+.clinical-topbar-profile-badge:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.clinical-profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #174e3e;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.clinical-profile-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.clinical-profile-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.clinical-profile-role {
+  font-size: 10px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.clinical-profile-icon {
+  color: #94a3b8;
+  margin-left: 2px;
 }
