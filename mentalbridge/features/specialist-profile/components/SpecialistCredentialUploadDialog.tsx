@@ -228,7 +228,7 @@ export default function SpecialistCredentialUploadDialog({
           </label>
 
           <label className={styles.field}>
-            Cơ quan / Đơn vị cấp
+            Nơi cấp
             <input
               name="issuer"
               type="text"
