@@ -309,6 +309,11 @@ export default function AdminPayoutsManager({
     }, 200)
   }
 
+  function reloadCheck() {
+    closeCheck()
+    void queue.reload()
+  }
+
   async function confirmAccount() {
     if (!detail || !acknowledged || sendingRef.current) return
     sendingRef.current = true
@@ -547,7 +552,7 @@ export default function AdminPayoutsManager({
               {id === 'queue'
                 ? 'Tài khoản chờ xác nhận'
                 : id === 'ledger'
-                  ? 'Yêu cầu chi trả & Phân luồng Gateway'
+                  ? 'Yêu cầu chi trả'
                   : 'Nhật ký Payout API'}
               {id === 'queue' && queue.data && (
                 <b className="apo-count" aria-label={`${queueCount} tài khoản`}>
@@ -787,7 +792,8 @@ export default function AdminPayoutsManager({
                   <section className="apo-ledger">
                     <header>
                       <div className="apo-ledger-title">
-                        <span>Số đối soát lệnh</span>
+                        <span>Sổ đối soát</span>
+                        <h2>Yêu cầu chi trả</h2>
                         <b className="apo-pill-count">
                           {items.length} đợt chi trả
                         </b>
@@ -1058,78 +1064,130 @@ export default function AdminPayoutsManager({
       >
         <div className="apo-check">
           <header>
-            <h2 id="apo-check-title">Xác nhận tài khoản thụ hưởng</h2>
+            <h2 id="apo-check-title">Kiểm tra tài khoản nhận tiền</h2>
             <p id="apo-check-description">
-              Đối chiếu thông tin tài khoản chuyên gia đã đăng ký.
+              Đối chiếu tên chủ tài khoản với ngân hàng trước khi xác nhận. Mỗi
+              tài khoản chỉ cần xác nhận một lần.
             </p>
           </header>
-          {checkLoading ? (
-            <div className="apo-check-loading" role="status" aria-busy="true">
-              <Skeleton height={20} width="60%" />
-              <Skeleton height={40} width="100%" />
-            </div>
-          ) : detailFailed ? (
-            <div className="apo-check-failed" role="alert">
-              <p>Chưa tải được chi tiết tài khoản.</p>
-              <button
-                type="button"
-                onClick={() => checkId && void loadDetail(checkId)}
+          <div className="apo-check-body">
+            {checkLoading && (
+              <div
+                className="apo-loading"
+                role="status"
+                aria-label="Đang tải thông tin tài khoản"
               >
-                Thử lại
-              </button>
-            </div>
-          ) : detail ? (
-            <div className="apo-check-body">
-              <div className="apo-check-field">
-                <span>Ngân hàng</span>
-                <strong>{detail.destination.bankName ?? 'Chưa rõ'}</strong>
+                <Skeleton height={20} width="60%" />
+                <Skeleton height={80} width="100%" />
+                <Skeleton height={50} width="50%" />
               </div>
-              <div className="apo-check-field">
-                <span>Số tài khoản</span>
-                <div className="apo-check-number">
-                  <code>{groupDigits(detail.accountReference)}</code>
-                  <button type="button" onClick={() => void copyAccount()}>
-                    {copied ? 'Đã sao chép' : 'Sao chép'}
-                  </button>
-                </div>
-              </div>
-              <label className="apo-check-confirm">
-                <input
-                  type="checkbox"
-                  checked={acknowledged}
-                  onChange={(e) => setAcknowledged(e.target.checked)}
-                />
-                <span>Tôi đã kiểm tra kỹ thông tin tài khoản trên.</span>
-              </label>
-              {checkError && (
-                <p className="apo-check-error" role="alert">
-                  {checkError === 'conflict'
-                    ? 'Tài khoản đã được cập nhật từ nơi khác.'
-                    : checkError === 'gone'
-                      ? 'Tài khoản không còn tồn tại.'
-                      : 'Xác nhận thất bại. Thử lại sau.'}
-                </p>
-              )}
-              <footer className="apo-check-actions">
+            )}
+            {detailFailed && (
+              <div className="apo-check-error" role="alert">
+                <div>Chưa tải được thông tin tài khoản.</div>
                 <button
                   type="button"
                   className="apo-link"
-                  onClick={closeCheck}
+                  onClick={() => checkId && void loadDetail(checkId)}
+                >
+                  Thử lại
+                </button>
+              </div>
+            )}
+            {detail && (
+              <dl className="apo-check-detail">
+                <div>
+                  <dt>Ngân hàng</dt>
+                  <dd>
+                    {detail.destination.bankName ?? 'Chưa rõ'}
+                    {detail.destination.bankCode &&
+                      ` (BIN ${detail.destination.bankCode})`}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Số tài khoản</dt>
+                  <dd className="apo-account">
+                    <span>{groupDigits(detail.accountReference)}</span>
+                    <button
+                      type="button"
+                      className="apo-link"
+                      aria-label="Sao chép số tài khoản"
+                      onClick={() => void copyAccount()}
+                    >
+                      {copied ? 'Đã sao chép' : 'Sao chép'}
+                    </button>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Tên chủ tài khoản</dt>
+                  <dd>{detail.accountHolderName}</dd>
+                </div>
+                <div>
+                  <dt>Chuyên gia</dt>
+                  <dd className="apo-id">{detail.specialistAccountId}</dd>
+                </div>
+                {detail.destination.updatedAt && (
+                  <div>
+                    <dt>Gửi lúc</dt>
+                    <dd>{date(detail.destination.updatedAt)}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
+            {detail && (
+              <label className="apo-ack">
+                <input
+                  type="checkbox"
+                  checked={acknowledged}
                   disabled={sending}
-                >
-                  Đóng
-                </button>
-                <button
-                  type="button"
-                  className="apo-primary"
-                  onClick={() => void confirmAccount()}
-                  disabled={!acknowledged || sending}
-                >
-                  {sending ? 'Đang lưu…' : 'Xác nhận hợp lệ'}
-                </button>
-              </footer>
-            </div>
-          ) : null}
+                  onChange={(event) => setAcknowledged(event.target.checked)}
+                />
+                <span>
+                  Tôi đã kiểm tra tên chủ tài khoản khớp với số tài khoản.
+                </span>
+              </label>
+            )}
+            {checkError && (
+              <div className="apo-check-error" role="alert">
+                <div>
+                  {checkError === 'conflict'
+                    ? 'Chuyên gia vừa đổi tài khoản. Tải lại để kiểm tra thông tin mới.'
+                    : checkError === 'gone'
+                      ? 'Tài khoản này không còn trong hàng chờ.'
+                      : 'Chưa thể xác nhận tài khoản. Bạn có thể thử lại.'}
+                </div>
+                {checkError === 'conflict' && (
+                  <button
+                    type="button"
+                    className="apo-link"
+                    onClick={reloadCheck}
+                  >
+                    Tải lại danh sách
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <footer>
+            <button type="button" disabled={sending} onClick={closeCheck}>
+              {checkError === 'gone' ? 'Đóng' : 'Hủy'}
+            </button>
+            {checkError !== 'gone' && (
+              <button
+                type="button"
+                className="apo-primary"
+                disabled={
+                  !detail ||
+                  !acknowledged ||
+                  sending ||
+                  checkError === 'conflict'
+                }
+                onClick={() => void confirmAccount()}
+              >
+                {sending ? 'Đang xác nhận…' : 'Xác nhận tài khoản'}
+              </button>
+            )}
+          </footer>
         </div>
       </Dialog>
     </div>

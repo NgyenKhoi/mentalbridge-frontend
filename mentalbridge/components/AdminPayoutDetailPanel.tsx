@@ -153,18 +153,23 @@ export default function AdminPayoutDetailPanel({
       if (!active) return
       setLoading(true)
       setFailed(false)
-      adminPayoutsBrowserClient.detail(payoutId).then(
-        (response) => {
-          if (!active) return
-          setDetail(response)
-          setLoading(false)
-        },
-        () => {
-          if (!active) return
-          setFailed(true)
-          setLoading(false)
-        },
-      )
+      if (typeof adminPayoutsBrowserClient?.detail === 'function') {
+        const req = adminPayoutsBrowserClient.detail(payoutId)
+        if (req && typeof req.then === 'function') {
+          req.then(
+            (response) => {
+              if (!active) return
+              setDetail(response)
+              setLoading(false)
+            },
+            () => {
+              if (!active) return
+              setFailed(true)
+              setLoading(false)
+            },
+          )
+        }
+      }
     })
     return () => {
       active = false
