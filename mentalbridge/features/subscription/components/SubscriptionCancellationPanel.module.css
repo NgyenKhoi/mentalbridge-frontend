@@ -85,7 +85,13 @@
 }
 
 .error {
+  margin-top: 14px;
   color: #874f41 !important;
+}
+
+.error p {
+  max-width: 68ch;
+  line-height: 1.6;
 }
 
 @media (max-width: 560px) {

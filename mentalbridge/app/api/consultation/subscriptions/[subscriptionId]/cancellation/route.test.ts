@@ -1,13 +1,18 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
+import { ApiError } from '@/lib/api/api-error'
+import { ConsultationServiceError } from '@/lib/consultation/consultation-client'
 
 const consultationMocks = vi.hoisted(() => ({ cancelSubscription: vi.fn() }))
 const sessionMocks = vi.hoisted(() => ({
   resolveSession: vi.fn(),
   ensureRole: vi.fn(),
 }))
-vi.mock('@/lib/consultation/consultation-client', () => ({
+vi.mock('@/lib/consultation/consultation-client', async (original) => ({
+  ...(await original<
+    typeof import('@/lib/consultation/consultation-client')
+  >()),
   consultationClient: consultationMocks,
 }))
 vi.mock('@/lib/auth/session-service', () => ({
@@ -72,5 +77,49 @@ describe('subscription cancellation BFF', () => {
     expect(invalidId.status).toBe(400)
     expect(invalidKey.status).toBe(400)
     expect(consultationMocks.cancelSubscription).not.toHaveBeenCalled()
+  })
+
+  it('rejects unauthenticated and unauthorized commands before the provider', async () => {
+    sessionMocks.resolveSession.mockRejectedValueOnce(
+      new ApiError({
+        status: 401,
+        code: 'UNAUTHENTICATED',
+        message: 'Expired.',
+      }),
+    )
+    expect(
+      (await POST(request(), { params: Promise.resolve({ subscriptionId }) }))
+        .status,
+    ).toBe(401)
+
+    sessionMocks.ensureRole.mockImplementationOnce(() => {
+      throw new ApiError({
+        status: 403,
+        code: 'FORBIDDEN',
+        message: 'Not allowed.',
+      })
+    })
+    expect(
+      (await POST(request(), { params: Promise.resolve({ subscriptionId }) }))
+        .status,
+    ).toBe(403)
+    expect(consultationMocks.cancelSubscription).not.toHaveBeenCalled()
+  })
+
+  it('preserves an authoritative invalid-state conflict', async () => {
+    consultationMocks.cancelSubscription.mockRejectedValue(
+      new ConsultationServiceError(
+        409,
+        'SUBSCRIPTION_CANCELLATION_INVALID_STATE',
+        'Already cancelled.',
+      ),
+    )
+    const response = await POST(request(), {
+      params: Promise.resolve({ subscriptionId }),
+    })
+    expect(response.status).toBe(409)
+    expect((await response.json()).code).toBe(
+      'SUBSCRIPTION_CANCELLATION_INVALID_STATE',
+    )
   })
 })

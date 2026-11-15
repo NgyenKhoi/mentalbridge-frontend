@@ -2013,7 +2013,7 @@ export interface components {
         /** @enum {string} */
         CreditSource: "DEFAULT_FREE" | "DEMO" | "PAID";
         /** @enum {string} */
-        CreditLedgerEventType: "PROVISIONED" | "HELD" | "CONSUMED" | "RELEASED" | "FORFEITED";
+        CreditLedgerEventType: "PROVISIONED" | "HELD" | "CONSUMED" | "RELEASED" | "FORFEITED" | "ADJUSTED_RELEASED" | "REVOKED";
         /** @enum {string} */
         ConsultationCreditPolicyVersion: "consultation-credit-v1" | "consultation-credit-v2";
         ServiceCreditBalance: {
@@ -3963,7 +3963,7 @@ export interface components {
             sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
             sessionOutcomeReasonCode: string | null;
             /** @enum {string} */
-            settlementState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            settlementState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED" | "REVOKED";
             /** Format: date-time */
             updatedAt: string;
             /** Format: int64 */
@@ -3985,7 +3985,7 @@ export interface components {
             nextCursor: string | null;
         };
         /** @enum {string} */
-        AppointmentCancellationCreditOutcome: "RELEASED" | "FORFEITED" | "TRANSFERRED_TO_REPLACEMENT";
+        AppointmentCancellationCreditOutcome: "RELEASED" | "FORFEITED" | "TRANSFERRED_TO_REPLACEMENT" | "REVOKED";
         AppointmentHistoryEntry: {
             /** Format: uuid */
             eventId: string;
@@ -3998,7 +3998,7 @@ export interface components {
             /** Format: uuid */
             actorId: string | null;
             /** @enum {string} */
-            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED" | "SESSION_ACTIVITY_OBSERVED" | "SCHEDULED_WINDOW_ENDED" | "EVIDENCE_REQUIREMENTS_MET" | "SPECIALIST_VIDEO_END_CONFIRMED" | "VIDEO_MANUAL_REVIEW_REQUIRED";
+            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "OWNER_SUBSCRIPTION_CANCELLED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED" | "SESSION_ACTIVITY_OBSERVED" | "SCHEDULED_WINDOW_ENDED" | "EVIDENCE_REQUIREMENTS_MET" | "SPECIALIST_VIDEO_END_CONFIRMED" | "VIDEO_MANUAL_REVIEW_REQUIRED";
             creditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
             /** Format: date-time */
             occurredAt: string;
@@ -4044,7 +4044,7 @@ export interface components {
             /** @enum {string|null} */
             sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
             /** @enum {string} */
-            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED" | "REVOKED";
             /** Format: date-time */
             scheduledStartAt: string;
             /** Format: date-time */
@@ -4198,7 +4198,7 @@ export interface components {
             /** Format: date-time */
             cancelledAt: string | null;
             /** @enum {string|null} */
-            cancellationReason: "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_SUSPENDED" | null;
+            cancellationReason: "USER_CANCELLED" | "USER_RESCHEDULED" | "OWNER_SUBSCRIPTION_CANCELLED" | "SPECIALIST_SUSPENDED" | null;
             /** @enum {string|null} */
             cancellationActor: "USER" | "ADMIN" | null;
             cancellationCreditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
@@ -4214,7 +4214,7 @@ export interface components {
             /** Format: uuid */
             completionFactId: string | null;
             /** @enum {string} */
-            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED" | "REVOKED";
             history: components["schemas"]["AppointmentHistoryEntry"][];
             /** Format: int64 */
             version: number;

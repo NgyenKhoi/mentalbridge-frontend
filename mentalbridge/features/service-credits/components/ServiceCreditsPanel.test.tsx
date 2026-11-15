@@ -73,4 +73,38 @@ describe('ServiceCreditsPanel', () => {
     await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
     expect(await screen.findByText('Gói Plus dùng thử')).toBeInTheDocument()
   })
+
+  it('renders revoked credit history after subscription cancellation', async () => {
+    get.mockResolvedValue({
+      ...demo,
+      packageCode: 'FREE',
+      source: 'DEFAULT_FREE',
+      sourceReference: null,
+      periodStart: null,
+      periodEnd: null,
+      balance: {
+        available: 0,
+        held: 0,
+        consumed: 0,
+        forfeited: 0,
+        total: 0,
+        releasedTransitions: 0,
+      },
+      reservationCapacity: { active: 0, maximum: 0, remaining: 0 },
+      history: [
+        {
+          ...demo.history[0],
+          eventType: 'REVOKED',
+          source: 'PAID',
+          appointmentId: null,
+        },
+      ],
+    })
+    const user = userEvent.setup()
+    render(<ServiceCreditsPanel />)
+    await user.click(
+      await screen.findByRole('button', { name: 'Lịch sử lượt tư vấn' }),
+    )
+    expect(screen.getByText('Đã thu hồi khi hủy gói')).toBeInTheDocument()
+  })
 })

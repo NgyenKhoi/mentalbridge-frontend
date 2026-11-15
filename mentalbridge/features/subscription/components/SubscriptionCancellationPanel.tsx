@@ -3,7 +3,10 @@
 import { CalendarClock, CircleCheck, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import type { OwnSubscription } from '@/lib/consultation/billing-validation'
+import type {
+  OwnSubscription,
+  SubscriptionCancellation,
+} from '@/lib/consultation/billing-validation'
 import {
   browserSubscription,
   SubscriptionBrowserError,
@@ -18,7 +21,7 @@ const date = (value: string | null) =>
       }).format(new Date(value))
     : ''
 
-function errorCopy(error: unknown) {
+function definitiveErrorCopy(error: unknown) {
   if (error instanceof SubscriptionBrowserError) {
     if (error.code === 'SUBSCRIPTION_CANCELLATION_INVALID_STATE')
       return 'Gói này vừa thay đổi trạng thái. Hãy tải lại thông tin trước khi tiếp tục.'
@@ -27,28 +30,83 @@ function errorCopy(error: unknown) {
     if (error.code === 'UNAUTHENTICATED')
       return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
   }
-  return 'Chưa thể hủy gói lúc này. Quyền lợi hiện tại chưa thay đổi; bạn có thể thử lại.'
+  return 'Yêu cầu hủy gói đã bị từ chối. Hãy kiểm tra lại trạng thái trước khi tiếp tục.'
 }
 
-export default function SubscriptionCancellationPanel() {
+function loadErrorCopy(error: unknown) {
+  if (
+    error instanceof SubscriptionBrowserError &&
+    error.code === 'UNAUTHENTICATED'
+  )
+    return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+  return 'Chưa thể tải trạng thái gói từ máy chủ. Vui lòng thử kiểm tra lại.'
+}
+
+function isDefinitiveFailure(error: unknown) {
+  return (
+    error instanceof SubscriptionBrowserError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    ![408, 429].includes(error.status)
+  )
+}
+
+function receiptState(
+  receipt: SubscriptionCancellation,
+  current: OwnSubscription,
+): OwnSubscription | null {
+  if (
+    receipt.subscriptionId !== current.subscriptionId ||
+    !['CANCEL_PENDING_SESSION_END', 'CANCELLED'].includes(receipt.status)
+  )
+    return null
+  return {
+    subscriptionId: receipt.subscriptionId,
+    planCode: receipt.planCode,
+    status: receipt.status,
+    currentPeriodStart: current.currentPeriodStart,
+    currentPeriodEnd: receipt.currentPeriodEnd,
+    cancellationRequestedAt: receipt.cancellationRequestedAt,
+    paidAccessEndedAt: receipt.paidAccessEndedAt,
+    liveAppointmentId: receipt.liveAppointmentId,
+    liveSessionEndsAt: receipt.liveSessionEndsAt,
+    generatedAt: receipt.generatedAt,
+  }
+}
+
+type Props = Readonly<{ onConfirmedCancellation?: () => void }>
+
+export default function SubscriptionCancellationPanel({
+  onConfirmedCancellation,
+}: Props) {
   const [subscription, setSubscription] = useState<OwnSubscription | null>(null)
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState('')
+  const [reconciliationRequired, setReconciliationRequired] = useState(false)
   const pendingKey = useRef<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      setSubscription(await browserSubscription.current())
+      const latest = await browserSubscription.current()
+      setSubscription(latest)
+      setReconciliationRequired(false)
+      if (
+        latest.status === 'CANCELLED' ||
+        latest.status === 'CANCEL_PENDING_SESSION_END'
+      ) {
+        pendingKey.current = null
+        onConfirmedCancellation?.()
+      }
     } catch (caught) {
-      setError(errorCopy(caught))
+      setError(loadErrorCopy(caught))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [onConfirmedCancellation])
 
   useEffect(() => {
     let active = true
@@ -58,7 +116,7 @@ export default function SubscriptionCancellationPanel() {
         if (active) setSubscription(result)
       })
       .catch((caught) => {
-        if (active) setError(errorCopy(caught))
+        if (active) setError(loadErrorCopy(caught))
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -76,12 +134,75 @@ export default function SubscriptionCancellationPanel() {
     pendingKey.current = key
     setPending(true)
     setError('')
+    const expectedSubscriptionId = subscription.subscriptionId
     try {
-      await browserSubscription.cancel(subscription.subscriptionId, key)
-      setSubscription(await browserSubscription.current())
+      const receipt = await browserSubscription.cancel(
+        expectedSubscriptionId,
+        key,
+      )
+      const accepted = receiptState(receipt, subscription)
+      if (!accepted) {
+        setReconciliationRequired(true)
+        setError(
+          'Máy chủ trả về biên nhận không khớp. Trạng thái chưa được xác minh; hãy kiểm tra lại trước khi thao tác tiếp.',
+        )
+        return
+      }
+
+      setSubscription(accepted)
       pendingKey.current = null
+      setReconciliationRequired(false)
+      onConfirmedCancellation?.()
+      try {
+        const refreshed = await browserSubscription.current()
+        if (
+          refreshed.subscriptionId !== expectedSubscriptionId ||
+          !['CANCEL_PENDING_SESSION_END', 'CANCELLED'].includes(
+            refreshed.status,
+          )
+        ) {
+          throw new Error('subscription reconciliation mismatch')
+        }
+        setSubscription(refreshed)
+      } catch {
+        setError(
+          'Gói đã được máy chủ xác nhận hủy, nhưng chưa thể làm mới toàn bộ thông tin. Hãy kiểm tra lại sau.',
+        )
+      }
     } catch (caught) {
-      setError(errorCopy(caught))
+      if (isDefinitiveFailure(caught)) {
+        pendingKey.current = null
+        setReconciliationRequired(
+          caught instanceof SubscriptionBrowserError &&
+            [
+              'SUBSCRIPTION_CANCELLATION_INVALID_STATE',
+              'SUBSCRIPTION_NOT_FOUND',
+            ].includes(caught.code),
+        )
+        setError(definitiveErrorCopy(caught))
+      } else {
+        setReconciliationRequired(true)
+        setError(
+          'Kết quả yêu cầu chưa xác định vì kết nối bị gián đoạn. Không gửi yêu cầu mới; hãy kiểm tra trạng thái máy chủ.',
+        )
+        try {
+          const reconciled = await browserSubscription.current()
+          if (
+            reconciled.subscriptionId === expectedSubscriptionId &&
+            ['CANCEL_PENDING_SESSION_END', 'CANCELLED'].includes(
+              reconciled.status,
+            )
+          ) {
+            setSubscription(reconciled)
+            pendingKey.current = null
+            setReconciliationRequired(false)
+            setError('')
+            onConfirmedCancellation?.()
+          }
+        } catch {
+          // The retained key and explicit recheck keep this ambiguous command safe.
+        }
+      }
     } finally {
       setPending(false)
     }
@@ -142,7 +263,7 @@ export default function SubscriptionCancellationPanel() {
           <button
             type="button"
             className={styles.cancel}
-            disabled={pending}
+            disabled={pending || reconciliationRequired}
             onClick={() => setConfirming(true)}
           >
             {pending ? 'Đang hủy gói…' : 'Hủy gói hiện tại'}
@@ -171,9 +292,14 @@ export default function SubscriptionCancellationPanel() {
       )}
 
       {error && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
+        <div className={styles.error} role="alert">
+          <p>{error}</p>
+          {reconciliationRequired && (
+            <button type="button" className={styles.secondary} onClick={load}>
+              <RefreshCw size={16} aria-hidden="true" /> Kiểm tra trạng thái
+            </button>
+          )}
+        </div>
       )}
 
       <ConfirmDialog
