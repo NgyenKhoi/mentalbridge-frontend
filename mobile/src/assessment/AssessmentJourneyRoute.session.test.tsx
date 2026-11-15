@@ -180,6 +180,33 @@ it('discards a pending request on direct same-owner session replacement', async 
   ).toBeOnTheScreen()
 })
 
+it('discards stale responses from earlier sessions across A -> B -> A switches', async () => {
+  const firstA = deferred<unknown>()
+  const secondB = deferred<unknown>()
+  mockApiQueue.push(
+    api(firstA.promise),
+    api(secondB.promise),
+    api(Promise.resolve(emptyHistory)),
+  )
+  await setup(async () => {})
+  await waitFor(() => expect(mockApiQueue).toHaveLength(2))
+  await fireEvent.press(screen.getByRole('button', { name: 'Switch B' }))
+  await waitFor(() => expect(mockApiQueue).toHaveLength(1))
+  await fireEvent.press(screen.getByRole('button', { name: 'Login A' }))
+  expect(
+    await screen.findByText('Bạn chưa có kết quả sàng lọc đã lưu.'),
+  ).toBeOnTheScreen()
+  await act(async () => {
+    firstA.resolve(history)
+    secondB.resolve(history)
+    await Promise.all([firstA.promise, secondB.promise])
+  })
+  expect(screen.queryByText('PHQ-9 · Nhẹ')).toBeNull()
+  expect(
+    screen.getByText('Bạn chưa có kết quả sàng lọc đã lưu.'),
+  ).toBeOnTheScreen()
+})
+
 it.each(['PHQ9', 'GAD7'] as const)(
   'keeps %s answers during the provider refresh',
   async (instrument) => {
