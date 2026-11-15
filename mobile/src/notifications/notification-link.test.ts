@@ -209,3 +209,18 @@ it.each([
 )
 it('does not invent a destination for a null action', () =>
   expect(userDestination(null)).toBeNull())
+it('maps OPEN_SUPPORT_PLAN only for the exact targetless /support-plan path, USER only', () => {
+  const type = 'OPEN_SUPPORT_PLAN' as const
+  const action = { type, href: '/support-plan', targetId: null }
+  expect(userDestination(action)).toEqual({ pathname: '/(user)/support-plan' })
+  for (const invalid of [
+    { type, href: '/support-plan', targetId },
+    { type, href: '/support-plan/x', targetId: null },
+    { type, href: '/support-plan?x=1', targetId: null },
+    { type, href: '/support-guide', targetId: null },
+  ])
+    expect(userDestination(invalid)).toBeNull()
+  expect(specialistDestination(action)).toBeNull()
+  const reminder = notification({ kind: 'SUPPORT_PLAN_DAILY_REMINDER', action })
+  expect(notificationSchema.safeParse(reminder).success).toBe(true)
+})

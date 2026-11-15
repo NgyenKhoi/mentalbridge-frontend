@@ -634,3 +634,129 @@ describe('push switch', () => {
     )
   })
 })
+describe('daily reminder time', () => {
+  const timeField = () => screen.getByLabelText('Giờ nhắc mỗi ngày')
+  const inlineError = 'Nhập giờ dạng HH:mm, ví dụ 20:00.'
+  it('shows the stored time with its time zone and sends dailyReminderTime in the patch', async () => {
+    const next = preferences(1)
+    next.preferences.dailyReminderTime = '07:30'
+    const api = fixtureApi({
+      savePreferences: jest.fn().mockResolvedValue(next),
+    })
+    await mount(api)
+    await screen.findByLabelText('Nhận thông báo')
+    expect(
+      screen.getByRole('header', { name: 'Giờ nhắc mỗi ngày' }),
+    ).toBeOnTheScreen()
+    expect(timeField()).toHaveDisplayValue('20:00')
+    expect(
+      screen.getByText(
+        'Nhắc viết nhật ký, ghi cảm xúc và kế hoạch hỗ trợ vào giờ này, theo múi giờ Asia/Ho_Chi_Minh.',
+      ),
+    ).toBeOnTheScreen()
+    expect(screen.queryByText(/Đã lưu giờ nhắc/)).toBeNull()
+    await fireEvent.changeText(timeField(), '07:30')
+    await save()
+    expect(await screen.findByText('Đã lưu giờ nhắc 07:30.')).toBeOnTheScreen()
+    expect(api.savePreferences).toHaveBeenCalledWith(
+      expect.objectContaining({ dailyReminderTime: '07:30' }),
+      '"0"',
+    )
+  })
+  it('limits the field to five characters and stays quiet while typing', async () => {
+    await mount()
+    await screen.findByLabelText('Nhận thông báo')
+    expect(timeField().props.maxLength).toBe(5)
+    for (const partial of ['0', '07', '07:'])
+      await fireEvent.changeText(timeField(), partial)
+    expect(screen.queryByText(inlineError)).toBeNull()
+  })
+  it('shows the alert after blur with an invalid value and clears it once valid', async () => {
+    await mount()
+    await screen.findByLabelText('Nhận thông báo')
+    await fireEvent.changeText(timeField(), '25:00')
+    expect(screen.queryByText(inlineError)).toBeNull()
+    await fireEvent(timeField(), 'blur')
+    expect(await screen.findByText(inlineError)).toBeOnTheScreen()
+    await fireEvent.changeText(timeField(), '21:15')
+    expect(screen.queryByText(inlineError)).toBeNull()
+  })
+  it.each(['25:00', '7h'])(
+    'blocks save for %s without blur and shows the inline alert',
+    async (value) => {
+      const { api } = await mount()
+      await screen.findByLabelText('Nhận thông báo')
+      await fireEvent.changeText(timeField(), value)
+      expect(screen.queryByText(inlineError)).toBeNull()
+      await save()
+      expect(await screen.findByText(inlineError)).toBeOnTheScreen()
+      expect(api.savePreferences).not.toHaveBeenCalled()
+      expect(screen.queryByText(/Đã lưu giờ nhắc/)).toBeNull()
+      await fireEvent.changeText(timeField(), '21:15')
+      expect(screen.queryByText(inlineError)).toBeNull()
+    },
+  )
+  it('does not show the saved-time line after a save that left the time unchanged', async () => {
+    const api = fixtureApi()
+    await mount(api)
+    await screen.findByLabelText('Nhận thông báo')
+    await toggle('Tương tác cộng đồng')
+    await save()
+    expect(await screen.findByText('Tùy chọn đã được lưu.')).toBeOnTheScreen()
+    expect(screen.queryByText(/Đã lưu giờ nhắc/)).toBeNull()
+  })
+  // The editor remounts on save, so a success line above the viewport would push everything down: it must sit right before the button.
+  it.each([
+    ['time changed', 'Đã lưu giờ nhắc 07:30.'],
+    ['time unchanged', 'Tùy chọn đã được lưu.'],
+  ])(
+    'shows one status line directly above the save button (%s)',
+    async (when, line) => {
+      const next = preferences(1)
+      if (when === 'time changed') next.preferences.dailyReminderTime = '07:30'
+      await mount(
+        fixtureApi({ savePreferences: jest.fn().mockResolvedValue(next) }),
+      )
+      await screen.findByLabelText('Nhận thông báo')
+      if (when === 'time changed')
+        await fireEvent.changeText(timeField(), '07:30')
+      else await toggle('Tương tác cộng đồng')
+      await save()
+      await screen.findByText(line)
+      expect(screen.getAllByText(/Đã lưu|đã được lưu/)).toHaveLength(1)
+      // Document order of every rendered string: nothing may sit between the status line and the button label.
+      const texts: string[] = []
+      const walk = (node: unknown) => {
+        if (typeof node === 'string') texts.push(node)
+        else if (node && typeof node === 'object')
+          for (const child of (node as { children?: unknown[] }).children ?? [])
+            walk(child)
+      }
+      walk(screen.toJSON())
+      expect(texts[texts.indexOf(line) + 1]).toBe('Lưu tùy chọn')
+    },
+  )
+  it('toggles the support plan group and sends it in contentGroups', async () => {
+    const api = fixtureApi()
+    await mount(api)
+    await screen.findByLabelText('Nhận thông báo')
+    expect(screen.getByLabelText('Kế hoạch hỗ trợ hôm nay')).toBeChecked()
+    await toggle('Kế hoạch hỗ trợ hôm nay')
+    await save()
+    await waitFor(() => expect(api.savePreferences).toHaveBeenCalledTimes(1))
+    expect(api.savePreferences).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentGroups: expect.objectContaining({ supportPlanReminder: false }),
+      }),
+      '"0"',
+    )
+  })
+  it('hides the time section and the plan group from a specialist', async () => {
+    mockSession = { subject, role: 'SPECIALIST' }
+    await mount()
+    await screen.findByLabelText('Lịch hẹn và tin nhắn')
+    expect(screen.queryByLabelText('Giờ nhắc mỗi ngày')).toBeNull()
+    expect(screen.queryByText('Giờ nhắc mỗi ngày')).toBeNull()
+    expect(screen.queryByLabelText('Kế hoạch hỗ trợ hôm nay')).toBeNull()
+  })
+})
