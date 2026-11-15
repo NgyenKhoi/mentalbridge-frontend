@@ -22,6 +22,7 @@ import {
   Bell,
   HelpCircle,
   User,
+  MapPinned,
 } from 'lucide-react'
 
 import SessionActions from './SessionActions'
@@ -40,6 +41,7 @@ import AdminPayoutsManager from '@/components/AdminPayoutsManager'
 import AdminCommercialReconciliationManager from '@/features/reconciliation/components/AdminCommercialReconciliationManager'
 import AdminFeedbackManager from '@/features/feedback/components/AdminFeedbackManager'
 import AdminRetentionGovernance from '@/features/retention/components/AdminRetentionGovernance'
+import AdminSafetyDirectoryManager from '@/features/safety-directory-admin/components/AdminSafetyDirectoryManager'
 import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
 import type { Workspace } from '../model/workspace'
 
@@ -69,6 +71,10 @@ export const SECTIONS = {
   content: {
     label: 'Tài nguyên tự chăm sóc',
     icon: BookOpen,
+  },
+  'safety-directory': {
+    label: 'Thư mục hỗ trợ an toàn',
+    icon: MapPinned,
   },
   moderation: {
     label: 'Kiểm duyệt Community',
@@ -139,6 +145,8 @@ function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
       return <AdminSpecialistReviewSection />
     case 'content':
       return <AdminContentSection />
+    case 'safety-directory':
+      return <AdminSafetyDirectoryManager />
     case 'moderation':
       return <AdminCommunityModerationSection />
     case 'appointments':
