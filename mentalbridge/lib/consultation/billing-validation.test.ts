@@ -4,6 +4,8 @@ import {
   parsePlanPayment,
   parsePlanPaymentHistory,
   parseServicePlanCatalogue,
+  parseOwnSubscription,
+  parseSubscriptionCancellation,
 } from './billing-validation'
 
 const plan = {
@@ -25,6 +27,50 @@ const plan = {
 }
 
 describe('billing validation', () => {
+  it('accepts authoritative cancellation states and rejects incomplete evidence', () => {
+    const current = {
+      subscriptionId: '62200000-0000-4000-8000-000000000005',
+      planCode: 'PLUS',
+      status: 'CANCELLED',
+      currentPeriodStart: '2026-11-01T00:00:00Z',
+      currentPeriodEnd: '2026-12-01T00:00:00Z',
+      cancellationRequestedAt: '2026-11-14T12:00:00Z',
+      paidAccessEndedAt: '2026-11-14T12:00:00Z',
+      liveAppointmentId: null,
+      liveSessionEndsAt: null,
+      generatedAt: '2026-11-14T12:00:01Z',
+    }
+    expect(parseOwnSubscription(current)).toEqual(current)
+    expect(
+      parseOwnSubscription({
+        ...current,
+        status: 'ACTIVE',
+        subscriptionId: null,
+      }),
+    ).toBeNull()
+
+    const receipt = {
+      subscriptionId: current.subscriptionId,
+      planCode: 'PLUS',
+      status: 'CANCELLED',
+      currentPeriodEnd: current.currentPeriodEnd,
+      cancellationRequestedAt: current.cancellationRequestedAt,
+      paidAccessEndedAt: current.paidAccessEndedAt,
+      liveAppointmentId: null,
+      liveSessionEndsAt: null,
+      cancelledAppointments: 1,
+      revokedCredits: 4,
+      generatedAt: current.generatedAt,
+    }
+    expect(parseSubscriptionCancellation(receipt)).toEqual(receipt)
+    expect(
+      parseSubscriptionCancellation({ ...receipt, revokedCredits: -1 }),
+    ).toBeNull()
+    expect(
+      parseSubscriptionCancellation({ ...receipt, paymentSecret: 'leak' }),
+    ).toBeNull()
+  })
+
   it('validates bounded canonical admin reads and rejects leaked provider fields', () => {
     const item = {
       paymentId: '62200000-0000-4000-8000-000000000004',

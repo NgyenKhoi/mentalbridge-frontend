@@ -8,6 +8,7 @@ import {
 
 import ServiceCreditsPanel from '@/features/service-credits/components/ServiceCreditsPanel'
 import PlanCheckoutPanel from '@/features/subscription/components/PlanCheckoutPanel'
+import SubscriptionCancellationPanel from '@/features/subscription/components/SubscriptionCancellationPanel'
 
 import './subscription-redesign.css'
 
@@ -30,6 +31,8 @@ export default function SubscriptionPageContent() {
           thức và thanh toán an toàn khi bạn muốn đồng hành sâu hơn.
         </p>
       </header>
+
+      <SubscriptionCancellationPanel />
 
       <PlanCheckoutPanel />
 
