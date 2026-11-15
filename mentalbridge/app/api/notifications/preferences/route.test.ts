@@ -31,6 +31,7 @@ const preferences = {
     appointmentMessage: true,
     resourceSystem: true,
     communityInteraction: true,
+    supportPlanReminder: true,
   },
   quietHours: {
     enabled: false,
@@ -46,6 +47,7 @@ const preferences = {
     dailyDigestTime: '19:00',
     resourceReminderTime: '18:30',
   },
+  dailyReminderTime: '20:00',
   version: 0,
   updatedAt: '2026-09-26T00:00:00.000Z',
 }
@@ -143,6 +145,37 @@ describe('/api/notifications/preferences', () => {
     )
   })
 
+  it('passes the daily reminder time and plan group through unchanged', async () => {
+    const patch = {
+      dailyReminderTime: '07:30',
+      contentGroups: { supportPlanReminder: false },
+    }
+    contentMocks.update.mockResolvedValue({
+      preferences: {
+        ...preferences,
+        dailyReminderTime: '07:30',
+        contentGroups: {
+          ...preferences.contentGroups,
+          supportPlanReminder: false,
+        },
+        version: 1,
+      },
+      etag: '"1"',
+    })
+    const response = await PATCH(request('PATCH', patch, '"0"'))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      dailyReminderTime: '07:30',
+      contentGroups: { supportPlanReminder: false },
+    })
+    expect(contentMocks.update).toHaveBeenCalledWith(
+      'identity-access-secret',
+      patch,
+      '"0"',
+      expect.any(String),
+    )
+  })
+
   it('accepts a separate appointment reminder preference', async () => {
     const patch = { email: { appointmentRemindersEnabled: true } }
     contentMocks.update.mockResolvedValue({
@@ -183,6 +216,7 @@ describe('/api/notifications/preferences', () => {
   it.each([
     [{ channels: { sms: true } }, '"0"'],
     [{ quietHours: { start: '25:00' } }, '"0"'],
+    [{ dailyReminderTime: '7h' }, '"0"'],
     [{ email: { appointmentRemindersEnabled: 'yes' } }, '"0"'],
     [{ channels: { email: true } }, undefined],
   ])(

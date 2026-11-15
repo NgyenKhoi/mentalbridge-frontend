@@ -68,6 +68,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/support-plan-reminder-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check whether the owner gets today's generic SupportPlan reminder
+         * @description MB-855 Content-to-Care service read; user JWTs never authorize it. eligible is true only when the owner's current plan is ACTIVE (PAUSED or none is false) and has a SCHEDULED occurrence whose localDate equals asOf's local date in that occurrence's own timezone, whose schedule is ACTIVE with reminderEnabled, and whose native action (v3) is ACTIVE; v2 resource plans and v3 native plans both count. It reuses the Today read, so it may idempotently generate occurrences, and never changes occurrence state. No plan, action, count or clinical detail is returned. Every refusal for a missing, wrong or disabled credential is 401 with no body.
+         */
+        post: operations["checkSupportPlanReminderEligibility"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/product-journey-metrics": {
         parameters: {
             query?: never;
@@ -2171,6 +2191,21 @@ export interface components {
             consentVersion: "ai-voice-processing-capstone-v1" | "ai-voice-processing-capstone-v2";
             granted: boolean;
         };
+        SupportPlanReminderEligibilityQuery: {
+            /**
+             * Format: uuid
+             * @description Trusted owner asserted by Content
+             */
+            ownerAccountId: string;
+            /**
+             * Format: date-time
+             * @description Instant whose local date in each occurrence timezone is "today"
+             */
+            asOf: string;
+        };
+        SupportPlanReminderEligibility: {
+            eligible: boolean;
+        };
         VoiceOwnerCheck: {
             /** Format: uuid */
             ownerId: string;
@@ -4076,7 +4111,10 @@ export interface components {
             timeZone?: string;
             /** @description Screening domains of the plan template families, in family order. Content uses them to pick daily resources. Omitted when the plan has no template family; consumers then cannot build a daily journey. */
             targetDomains?: ("DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS")[];
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Start of the current plan period. For support-plan-cycle-v1 plans this is the start of the current cycle's first local day (activation or explicit continuation); otherwise the activation instant. Content counts journey days 1-14 from it.
+             */
             activatedAt?: string;
             /** Format: date */
             localDate: string;
@@ -5073,6 +5111,40 @@ export interface operations {
             403: components["responses"]["VoiceProblem403"];
             422: components["responses"]["VoiceProblem422"];
             503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    checkSupportPlanReminderEligibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportPlanReminderEligibilityQuery"];
+            };
+        };
+        responses: {
+            /** @description Current reminder eligibility only */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanReminderEligibility"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            /** @description Missing, wrong or disabled service credential; empty body */
+            401: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     getCareProductJourneyMetrics: {
