@@ -1,6 +1,7 @@
 import {
   sanitizeGuideOrigin,
   type GuideOrigin,
+  type PlanPayment,
 } from './support-plan-access-contract'
 
 const UPGRADE_INTENT_TTL_MS = 30 * 60 * 1000
@@ -21,11 +22,21 @@ export type CheckoutAttemptRecord = Readonly<{
   idempotencyKey: string
   status: CheckoutAttemptStatus
   paymentId?: string | undefined
+  payment?: PlanPayment | undefined
   createdAtMs: number
+}>
+
+export type InFlightCheckoutRecord<T = unknown> = Readonly<{
+  subject: string
+  planVersionId: string
+  idempotencyKey: string
+  promise: Promise<T>
 }>
 
 let currentIntent: PendingUpgradeIntent | null = null
 let currentCheckoutAttempt: CheckoutAttemptRecord | null = null
+let currentInFlightCheckout: InFlightCheckoutRecord | null = null
+const expiredUnresolvedSubjects = new Set<string>()
 
 /**
  * Stores ephemeral in-memory upgrade return intent scoped to a single authenticated
@@ -97,6 +108,12 @@ export function getCheckoutAttempt(
     return null
   }
   if (nowMs - currentCheckoutAttempt.createdAtMs > UPGRADE_INTENT_TTL_MS) {
+    if (
+      currentCheckoutAttempt.status === 'preparing' ||
+      currentCheckoutAttempt.status === 'uncertain'
+    ) {
+      expiredUnresolvedSubjects.add(currentCheckoutAttempt.subject)
+    }
     currentCheckoutAttempt = null
     return null
   }
@@ -113,6 +130,7 @@ export function saveCheckoutAttempt(
     idempotencyKey: string
     status: CheckoutAttemptStatus
     paymentId?: string | undefined
+    payment?: PlanPayment | undefined
     nowMs?: number | undefined
   }>,
 ): CheckoutAttemptRecord {
@@ -122,6 +140,7 @@ export function saveCheckoutAttempt(
     idempotencyKey: input.idempotencyKey,
     status: input.status,
     paymentId: input.paymentId,
+    payment: input.payment,
     createdAtMs: input.nowMs ?? Date.now(),
   }
   currentCheckoutAttempt = next
@@ -149,6 +168,7 @@ export function markCheckoutAttemptPending(
   idempotencyKey: string,
   paymentId: string,
   nowMs = Date.now(),
+  payment?: PlanPayment,
 ): CheckoutAttemptRecord {
   return saveCheckoutAttempt({
     subject,
@@ -156,6 +176,7 @@ export function markCheckoutAttemptPending(
     idempotencyKey,
     status: 'pending',
     paymentId,
+    payment,
     nowMs,
   })
 }
@@ -181,8 +202,77 @@ export function markCheckoutAttemptTerminal(
 }
 
 export function clearCheckoutAttempt(subject?: string | null): void {
-  if (!currentCheckoutAttempt) return
-  if (!subject || currentCheckoutAttempt.subject === subject) {
+  if (!subject) {
+    currentCheckoutAttempt = null
+    currentInFlightCheckout = null
+    expiredUnresolvedSubjects.clear()
+    return
+  }
+  if (currentCheckoutAttempt?.subject === subject) {
     currentCheckoutAttempt = null
   }
+  if (currentInFlightCheckout?.subject === subject) {
+    currentInFlightCheckout = null
+  }
+  expiredUnresolvedSubjects.delete(subject)
+}
+
+export function getInFlightCheckout<T = unknown>(
+  subject: string | null | undefined,
+  planVersionId?: string | null,
+): InFlightCheckoutRecord<T> | null {
+  if (!currentInFlightCheckout) return null
+  if (!subject || currentInFlightCheckout.subject !== subject) {
+    currentInFlightCheckout = null
+    return null
+  }
+  if (
+    planVersionId &&
+    currentInFlightCheckout.planVersionId !== planVersionId
+  ) {
+    return null
+  }
+  return currentInFlightCheckout as InFlightCheckoutRecord<T>
+}
+
+export function setInFlightCheckout<T = unknown>(
+  entry: InFlightCheckoutRecord<T>,
+): void {
+  currentInFlightCheckout = entry
+}
+
+export function clearInFlightCheckout(
+  subject?: string | null,
+  idempotencyKey?: string | null,
+): void {
+  if (!currentInFlightCheckout) return
+  if (subject && currentInFlightCheckout.subject !== subject) return
+  if (
+    idempotencyKey &&
+    currentInFlightCheckout.idempotencyKey !== idempotencyKey
+  ) {
+    return
+  }
+  currentInFlightCheckout = null
+}
+
+export function hasExpiredUnresolvedCheckoutAttempt(
+  subject: string | null | undefined,
+): boolean {
+  if (!subject) return false
+  return expiredUnresolvedSubjects.has(subject)
+}
+
+export function markExpiredUnresolvedCheckoutAttempt(subject: string): void {
+  expiredUnresolvedSubjects.add(subject)
+}
+
+export function clearExpiredUnresolvedCheckoutAttempt(
+  subject?: string | null,
+): void {
+  if (!subject) {
+    expiredUnresolvedSubjects.clear()
+    return
+  }
+  expiredUnresolvedSubjects.delete(subject)
 }

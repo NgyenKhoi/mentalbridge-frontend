@@ -21,12 +21,20 @@ import { ApiError } from '@/api/api-error'
 import { SupportPlanAccessGate } from './SupportPlanAccessGate'
 import type { SupportPlanAccessApi } from './support-plan-access-api'
 import {
+  attestCareOwnershipFromApiResponse,
+  careOwnedPlanProofSchema,
+  resolveCareOwnershipFromApi,
+  type CareOwnedPlanProof,
+} from './support-plan-access-contract'
+import {
   GUIDE_ID,
   PAYMENT_ID_1,
   PAYMENT_ID_2,
   PLUS_PLAN_VERSION_ID,
   USER_A_SUBJECT,
   USER_B_SUBJECT,
+  makeCareSupportPlanHistoryResponse,
+  makeCareSupportPlanResponse,
   makeCatalogue,
   makeEntitlement,
   makePayment,
@@ -37,6 +45,7 @@ import {
   clearPendingUpgradeIntent,
   getCheckoutAttempt,
   getPendingUpgradeIntent,
+  saveCheckoutAttempt,
 } from './upgrade-intent-store'
 import { useSupportPlanAccess } from './useSupportPlanAccess'
 
@@ -1510,7 +1519,12 @@ describe('MB-703 R2 — Strict checkout attempt & payment correlation', () => {
     function Harness() {
       const controller = useSupportPlanAccess({ api, subject: USER_A_SUBJECT })
       controllerRef = controller
-      return <Text testID="r2-1-kind">{controller.resolved.kind}</Text>
+      const ready =
+        controller.resolved.kind === 'locked-preview' &&
+        controller.resolved.checkout.available
+      return (
+        <Text testID="r2-1-kind">{`${controller.resolved.kind}:${ready}`}</Text>
+      )
     }
 
     await render(
@@ -1519,8 +1533,7 @@ describe('MB-703 R2 — Strict checkout attempt & payment correlation', () => {
       </QueryClientProvider>,
     )
     await waitFor(() => {
-      expect(screen.getByText('locked-preview')).toBeTruthy()
-      expect(api.getServicePlans).toHaveBeenCalled()
+      expect(screen.getByText('locked-preview:true')).toBeTruthy()
     })
 
     await act(async () => {
@@ -2209,5 +2222,698 @@ describe('MB-703 R3 — Verified Care ownership & read-only contract', () => {
     )
     expect(screen.getByTestId('support-plan-access-unavailable')).toBeTruthy()
     expect(screen.queryByTestId('r3-nosubj-child')).toBeNull()
+  })
+})
+
+describe('MB-703 P1 — Cold-start payment-history race & authoritative submit verification', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    clearPendingUpgradeIntent()
+    clearCheckoutAttempt()
+    let uuidSeq = 200
+    jest
+      .spyOn(Crypto, 'randomUUID')
+      .mockImplementation(
+        () =>
+          `00000000-0000-4000-a000-${String(uuidSeq++).padStart(12, '0')}` as ReturnType<
+            typeof Crypto.randomUUID
+          >,
+      )
+  })
+
+  afterEach(() => {
+    cleanup()
+    for (const client of activeClients.splice(0)) {
+      client.clear()
+    }
+    jest.restoreAllMocks()
+    clearPendingUpgradeIntent()
+    clearCheckoutAttempt()
+  })
+
+  it('P1.1 & P1.4: blocks checkout when catalogue resolves before payment history, then allows single checkout once history verifies no PENDING', async () => {
+    let resolveHistory:
+      | ((value: {
+          items: ReturnType<typeof makePayment>[]
+          count: number
+          generatedAt: string
+        }) => void)
+      | undefined
+
+    const startCheckout = jest
+      .fn()
+      .mockResolvedValue(makePayment({ status: 'PENDING' }))
+    const getPaymentHistory = jest.fn(
+      () =>
+        new Promise<{
+          items: ReturnType<typeof makePayment>[]
+          count: number
+          generatedAt: string
+        }>((resolve) => {
+          resolveHistory = resolve
+        }),
+    )
+    const api = makeApi({ startCheckout, getPaymentHistory })
+
+    let controllerRef: ReturnType<typeof useSupportPlanAccess> | undefined
+    function RaceHarness() {
+      const controller = useSupportPlanAccess({ api, subject: USER_A_SUBJECT })
+      controllerRef = controller
+      return <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+    }
+
+    await render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <RaceHarness />
+      </QueryClientProvider>,
+    )
+
+    // Catalogue has resolved, but payment history is still in flight -> Upgrade CTA must NOT be available!
+    await waitFor(() => {
+      expect(api.getServicePlans).toHaveBeenCalled()
+      expect(screen.getByText('Mã: PAYMENT_HISTORY_LOADING')).toBeTruthy()
+    })
+    expect(screen.queryByTestId('locked-preview-upgrade-button')).toBeNull()
+
+    // Even an imperative call to startPlusUpgrade() while history is pending must NOT POST or mint a key.
+    await act(async () => {
+      await controllerRef?.startPlusUpgrade()
+    })
+    expect(startCheckout).not.toHaveBeenCalled()
+    expect(Crypto.randomUUID).not.toHaveBeenCalled()
+
+    // Once payment history resolves with no PENDING payments, checkout becomes available and posts once.
+    await act(async () => {
+      resolveHistory?.({
+        items: [],
+        count: 0,
+        generatedAt: '2026-11-15T10:00:00Z',
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('locked-preview-upgrade-button')).toBeTruthy()
+    })
+    await fireEvent.press(screen.getByTestId('locked-preview-upgrade-button'))
+    await waitFor(() => {
+      expect(startCheckout).toHaveBeenCalledTimes(1)
+    })
+    expect(Crypto.randomUUID).toHaveBeenCalledTimes(1)
+  })
+
+  it('P1.2 & P1.5: ignores cached empty QueryClient history when fresh history is pending or returns PENDING, showing blocker/reconcile without adopting attempt', async () => {
+    const seededClient = makeQueryClient()
+    seededClient.setQueryData(
+      ['support-plan-access', USER_A_SUBJECT, 'payments'],
+      {
+        items: [],
+        count: 0,
+        generatedAt: '2026-11-15T09:00:00Z',
+      },
+    )
+
+    let resolveFreshHistory:
+      | ((value: {
+          items: ReturnType<typeof makePayment>[]
+          count: number
+          generatedAt: string
+        }) => void)
+      | undefined
+    const startCheckout = jest.fn()
+    const pendingRow = makePayment({
+      paymentId: PAYMENT_ID_2,
+      status: 'PENDING',
+    })
+    const getPaymentHistory = jest.fn(
+      () =>
+        new Promise<{
+          items: ReturnType<typeof makePayment>[]
+          count: number
+          generatedAt: string
+        }>((resolve) => {
+          resolveFreshHistory = resolve
+        }),
+    )
+    const getPayment = jest
+      .fn()
+      .mockResolvedValue(
+        makePayment({ paymentId: PAYMENT_ID_2, status: 'PENDING' }),
+      )
+    const api = makeApi({ startCheckout, getPaymentHistory, getPayment })
+
+    let controllerRef: ReturnType<typeof useSupportPlanAccess> | undefined
+    function CachedHistoryHarness() {
+      const controller = useSupportPlanAccess({ api, subject: USER_A_SUBJECT })
+      controllerRef = controller
+      return <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+    }
+
+    await render(
+      <QueryClientProvider client={seededClient}>
+        <CachedHistoryHarness />
+      </QueryClientProvider>,
+    )
+
+    // Despite cached empty history in QueryClient, fresh history is still pending -> must NOT allow checkout!
+    await waitFor(() => {
+      expect(screen.getByText('Mã: PAYMENT_HISTORY_LOADING')).toBeTruthy()
+    })
+    expect(screen.queryByTestId('locked-preview-upgrade-button')).toBeNull()
+
+    await act(async () => {
+      await controllerRef?.startPlusUpgrade()
+    })
+    expect(startCheckout).not.toHaveBeenCalled()
+
+    // Fresh history resolves with a server PENDING payment.
+    await act(async () => {
+      resolveFreshHistory?.({
+        items: [pendingRow],
+        count: 1,
+        generatedAt: '2026-11-15T10:00:00Z',
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('locked-preview-pending-blocker')).toBeTruthy()
+    })
+    expect(screen.queryByTestId('locked-preview-upgrade-button')).toBeNull()
+    // Must NOT auto-adopt the server PENDING payment as a local CheckoutAttemptRecord.
+    expect(getCheckoutAttempt(USER_A_SUBJECT)).toBeNull()
+
+    // Reconcile button checks the exact server paymentId via Consultation.
+    await fireEvent.press(screen.getByTestId('locked-preview-reconcile-button'))
+    await waitFor(() => {
+      expect(getPayment).toHaveBeenCalledWith(PAYMENT_ID_2)
+    })
+    expect(startCheckout).not.toHaveBeenCalled()
+  })
+
+  it('P1.3 & P1.6: fails closed on payment history 503/timeout with retry recovery, and discards stale in-flight history across account switch', async () => {
+    const startCheckout = jest
+      .fn()
+      .mockResolvedValue(makePayment({ status: 'PENDING' }))
+    const getPaymentHistory = jest
+      .fn()
+      .mockRejectedValueOnce(
+        new ApiError({
+          status: 503,
+          code: 'HTTP_503',
+          message: 'Payments history down',
+        }),
+      )
+      .mockResolvedValueOnce({
+        items: [],
+        count: 0,
+        generatedAt: '2026-11-15T10:02:00Z',
+      })
+    const api = makeApi({ startCheckout, getPaymentHistory })
+
+    const view = await render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Mã: PAYMENT_HISTORY_UNAVAILABLE')).toBeTruthy()
+    })
+    expect(screen.queryByTestId('locked-preview-upgrade-button')).toBeNull()
+    expect(startCheckout).not.toHaveBeenCalled()
+
+    // Retry button re-verifies entitlement + catalogue + payment history and unlocks upgrade CTA.
+    await fireEvent.press(
+      screen.getByTestId('locked-preview-retry-catalogue-button'),
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('locked-preview-upgrade-button')).toBeTruthy()
+    })
+    await view.unmount()
+
+    // P1.6: Account switch while User A's history request is in flight -> User A's PENDING history never leaks into User B.
+    let resolveHistoryA:
+      | ((value: {
+          items: ReturnType<typeof makePayment>[]
+          count: number
+          generatedAt: string
+        }) => void)
+      | undefined
+    const apiA = makeApi({
+      getPaymentHistory: jest.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveHistoryA = resolve
+          }),
+      ),
+    })
+    const apiB = makeApi({
+      getEntitlement: jest
+        .fn()
+        .mockResolvedValue(makeEntitlement({ accountId: USER_B_SUBJECT })),
+      getPaymentHistory: jest.fn().mockResolvedValue({
+        items: [],
+        count: 0,
+        generatedAt: '2026-11-15T10:03:00Z',
+      }),
+    })
+
+    const sharedClient = makeQueryClient()
+    const switchView = await render(
+      <QueryClientProvider client={sharedClient}>
+        <SupportPlanAccessGate api={apiA} subject={USER_A_SUBJECT} />
+      </QueryClientProvider>,
+    )
+    await waitFor(() => {
+      expect(apiA.getPaymentHistory).toHaveBeenCalled()
+    })
+
+    await switchView.rerender(
+      <QueryClientProvider client={sharedClient}>
+        <SupportPlanAccessGate api={apiB} subject={USER_B_SUBJECT} />
+      </QueryClientProvider>,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('locked-preview-upgrade-button')).toBeTruthy()
+    })
+
+    // Resolve User A's pending payment history late -> User B must NOT see User A's PENDING payment.
+    await act(async () => {
+      resolveHistoryA?.({
+        items: [makePayment({ paymentId: PAYMENT_ID_1, status: 'PENDING' })],
+        count: 1,
+        generatedAt: '2026-11-15T10:04:00Z',
+      })
+    })
+    expect(screen.queryByTestId('locked-preview-pending-blocker')).toBeNull()
+    expect(screen.getByTestId('locked-preview-upgrade-button')).toBeTruthy()
+  })
+})
+
+describe('MB-703 P2 — In-flight preparing attempt survival across remount & single-flight idempotency', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    clearPendingUpgradeIntent()
+    clearCheckoutAttempt()
+    let uuidSeq = 300
+    jest
+      .spyOn(Crypto, 'randomUUID')
+      .mockImplementation(
+        () =>
+          `00000000-0000-4000-b000-${String(uuidSeq++).padStart(12, '0')}` as ReturnType<
+            typeof Crypto.randomUUID
+          >,
+      )
+  })
+
+  afterEach(() => {
+    cleanup()
+    for (const client of activeClients.splice(0)) {
+      client.clear()
+    }
+    jest.restoreAllMocks()
+    clearPendingUpgradeIntent()
+    clearCheckoutAttempt()
+  })
+
+  it('P2.1, P2.2, P2.3, P2.4: preserves in-flight preparing attempt across unmount/remount without minting a second key or POST, and replays exact key after timeout', async () => {
+    let rejectInFlightCheckout: ((err: Error) => void) | undefined
+    const startCheckout = jest
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<ReturnType<typeof makePayment>>((_, reject) => {
+            rejectInFlightCheckout = reject
+          }),
+      )
+      .mockResolvedValueOnce(
+        makePayment({ paymentId: PAYMENT_ID_1, status: 'PENDING' }),
+      )
+
+    const api = makeApi({ startCheckout })
+    const sharedClient = makeQueryClient()
+
+    const mount1 = await render(
+      <QueryClientProvider client={sharedClient}>
+        <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+      </QueryClientProvider>,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('locked-preview-upgrade-button')).toBeTruthy()
+    })
+
+    // Start checkout on Mount 1 -> status becomes 'preparing', POST is in-flight.
+    await fireEvent.press(screen.getByTestId('locked-preview-upgrade-button'))
+    expect(startCheckout).toHaveBeenCalledTimes(1)
+    expect(Crypto.randomUUID).toHaveBeenCalledTimes(1)
+    const originalKey = getCheckoutAttempt(USER_A_SUBJECT)?.idempotencyKey
+    expect(originalKey).toBe('00000000-0000-4000-b000-000000000300')
+    expect(getCheckoutAttempt(USER_A_SUBJECT)?.status).toBe('preparing')
+
+    // Unmount Mount 1 while POST is still pending, then mount Mount 2!
+    await mount1.unmount()
+
+    let mount2Controller: ReturnType<typeof useSupportPlanAccess> | undefined
+    function RemountHarness() {
+      const controller = useSupportPlanAccess({ api, subject: USER_A_SUBJECT })
+      mount2Controller = controller
+      return <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+    }
+
+    const mount2 = await render(
+      <QueryClientProvider client={sharedClient}>
+        <RemountHarness />
+      </QueryClientProvider>,
+    )
+
+    // Mount 2 recognizes the in-flight attempt and disables the button while joining it.
+    await waitFor(() => {
+      expect(mount2Controller?.isStartingCheckout).toBe(true)
+    })
+
+    // Calling startPlusUpgrade() on Mount 2 while first POST is still pending MUST NOT mint a new key or fire a second POST.
+    await act(async () => {
+      void mount2Controller?.startPlusUpgrade()
+      void mount2Controller?.startPlusUpgrade()
+    })
+    expect(startCheckout).toHaveBeenCalledTimes(1)
+    expect(Crypto.randomUUID).toHaveBeenCalledTimes(1)
+
+    // Now the first in-flight POST times out -> transitions to 'uncertain' with the SAME key.
+    await act(async () => {
+      rejectInFlightCheckout?.(
+        new ApiError({ code: 'REQUEST_TIMEOUT', message: 'Network timeout' }),
+      )
+    })
+
+    await waitFor(() => {
+      expect(getCheckoutAttempt(USER_A_SUBJECT)).toMatchObject({
+        status: 'uncertain',
+        idempotencyKey: originalKey,
+      })
+      expect(screen.getByTestId('locked-preview-checkout-error')).toBeTruthy()
+    })
+
+    // Retrying on Mount 2 replays the exact same Idempotency-Key.
+    await fireEvent.press(screen.getByTestId('locked-preview-upgrade-button'))
+    await waitFor(() => {
+      expect(startCheckout).toHaveBeenCalledTimes(2)
+    })
+    expect(Crypto.randomUUID).toHaveBeenCalledTimes(1)
+    expect(startCheckout.mock.calls[1]).toEqual([
+      PLUS_PLAN_VERSION_ID,
+      originalKey,
+    ])
+    expect(getCheckoutAttempt(USER_A_SUBJECT)).toMatchObject({
+      status: 'pending',
+      paymentId: PAYMENT_ID_1,
+      idempotencyKey: originalKey,
+    })
+    await mount2.unmount()
+
+    // Also verify that an orphaned 'preparing' attempt record in store reuses its key and never calls randomUUID.
+    saveCheckoutAttempt({
+      subject: USER_A_SUBJECT,
+      planVersionId: PLUS_PLAN_VERSION_ID,
+      idempotencyKey: 'orphaned-preparing-key-9999',
+      status: 'preparing',
+    })
+    const orphanApi = makeApi({
+      startCheckout: jest
+        .fn()
+        .mockResolvedValue(
+          makePayment({ paymentId: PAYMENT_ID_2, status: 'PENDING' }),
+        ),
+    })
+    await render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SupportPlanAccessGate api={orphanApi} subject={USER_A_SUBJECT} />
+      </QueryClientProvider>,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('locked-preview-upgrade-button')).toBeTruthy()
+    })
+    await fireEvent.press(screen.getByTestId('locked-preview-upgrade-button'))
+    await waitFor(() => {
+      expect(orphanApi.startCheckout).toHaveBeenCalledWith(
+        PLUS_PLAN_VERSION_ID,
+        'orphaned-preparing-key-9999',
+      )
+    })
+    expect(Crypto.randomUUID).toHaveBeenCalledTimes(1)
+  })
+
+  it('P2.5, P2.6, P2.7: rotates key only after verified FAILED/CHARGEBACK, isolates in-flight attempt on account switch, and recovers safely after preparing TTL expiry', async () => {
+    // P2.5: Verified CHARGEBACK allows rotating to a new key on the next attempt.
+    const startCheckout = jest
+      .fn()
+      .mockResolvedValueOnce(
+        makePayment({ paymentId: PAYMENT_ID_1, status: 'PENDING' }),
+      )
+      .mockResolvedValueOnce(
+        makePayment({ paymentId: PAYMENT_ID_2, status: 'PENDING' }),
+      )
+    const getPayment = jest.fn().mockResolvedValue(
+      makePayment({
+        paymentId: PAYMENT_ID_1,
+        status: 'CHARGEBACK',
+      }),
+    )
+    const getPaymentHistory = jest
+      .fn()
+      .mockResolvedValueOnce({
+        items: [],
+        count: 0,
+        generatedAt: '2026-11-15T10:00:00Z',
+      })
+      .mockResolvedValue({
+        items: [makePayment({ paymentId: PAYMENT_ID_1, status: 'CHARGEBACK' })],
+        count: 1,
+        generatedAt: '2026-11-15T10:05:00Z',
+      })
+    const api = makeApi({ startCheckout, getPayment, getPaymentHistory })
+
+    const v1 = await render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+      </QueryClientProvider>,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('locked-preview-upgrade-button')).toBeTruthy()
+    })
+    await fireEvent.press(screen.getByTestId('locked-preview-upgrade-button'))
+    await waitFor(() => {
+      expect(screen.getByTestId('locked-preview-reconcile-button')).toBeTruthy()
+    })
+    const firstKey = startCheckout.mock.calls[0]?.[1]
+
+    // Reconcile confirms CHARGEBACK -> marks attempt terminal -> next upgrade rotates key.
+    await fireEvent.press(screen.getByTestId('locked-preview-reconcile-button'))
+    await waitFor(() => {
+      expect(getCheckoutAttempt(USER_A_SUBJECT)?.status).toBe('terminal')
+      expect(screen.getByTestId('locked-preview-upgrade-button')).toBeTruthy()
+    })
+    await fireEvent.press(screen.getByTestId('locked-preview-upgrade-button'))
+    await waitFor(() => {
+      expect(startCheckout).toHaveBeenCalledTimes(2)
+    })
+    const secondKey = startCheckout.mock.calls[1]?.[1]
+    expect(secondKey).not.toBe(firstKey)
+    await v1.unmount()
+    clearCheckoutAttempt()
+    clearPendingUpgradeIntent()
+
+    // P2.7: TTL expiry of an in-session 'preparing' attempt forces server /payments check and blocks duplicate charge.
+    let nowMs = 5_000_000
+    jest.spyOn(Date, 'now').mockImplementation(() => nowMs)
+    saveCheckoutAttempt({
+      subject: USER_A_SUBJECT,
+      planVersionId: PLUS_PLAN_VERSION_ID,
+      idempotencyKey: 'ttl-preparing-key-0001',
+      status: 'preparing',
+      nowMs,
+    })
+    nowMs += 31 * 60 * 1000
+
+    const ttlCheckout = jest.fn()
+    const ttlApi = makeApi({
+      startCheckout: ttlCheckout,
+      getPaymentHistory: jest
+        .fn()
+        .mockResolvedValueOnce({
+          items: [],
+          count: 0,
+          generatedAt: '2026-11-15T10:00:00Z',
+        })
+        .mockResolvedValueOnce({
+          items: [makePayment({ paymentId: PAYMENT_ID_2, status: 'PENDING' })],
+          count: 1,
+          generatedAt: '2026-11-15T10:35:00Z',
+        }),
+    })
+    await render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SupportPlanAccessGate api={ttlApi} subject={USER_A_SUBJECT} />
+      </QueryClientProvider>,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('locked-preview-upgrade-button')).toBeTruthy()
+    })
+    await fireEvent.press(screen.getByTestId('locked-preview-upgrade-button'))
+    await waitFor(() => {
+      expect(
+        screen.getByText('Mã: PENDING_PAYMENT_RECOVERY_REQUIRED'),
+      ).toBeTruthy()
+    })
+    expect(ttlCheckout).not.toHaveBeenCalled()
+  })
+})
+
+describe('MB-703 P3 — Non-forgeable Care API ownership boundary', () => {
+  afterEach(() => {
+    cleanup()
+    for (const client of activeClients.splice(0)) {
+      client.clear()
+    }
+    jest.restoreAllMocks()
+    clearPendingUpgradeIntent()
+    clearCheckoutAttempt()
+  })
+
+  it('P3.1, P3.2, P3.3: rejects schema-valid forged proof objects, wrong-subject Care responses, and unknown ownership fail-closed without rendering private Plan', async () => {
+    const expiredApi = makeApi({
+      getEntitlement: jest.fn().mockResolvedValue(
+        makeEntitlement({
+          accountId: USER_A_SUBJECT,
+          packageCode: 'PLUS',
+          entitlementState: 'EXPIRED',
+          supportPlanEnabled: false,
+        }),
+      ),
+    })
+    const onContinueToPlan = jest.fn()
+
+    // Forged object literal that 100% passes careOwnedPlanProofSchema.safeParse MUST still be rejected!
+    const forgedSchemaValidObject: CareOwnedPlanProof = {
+      status: 'VERIFIED_OWNED',
+      subject: USER_A_SUBJECT,
+      source: 'CARE_AUTHENTICATED_READ',
+      hasCurrentPlan: true,
+      hasHistory: true,
+    }
+    expect(
+      careOwnedPlanProofSchema.safeParse(forgedSchemaValidObject).success,
+    ).toBe(true)
+
+    const vForged = await render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SupportPlanAccessGate
+          api={expiredApi}
+          autoContinue
+          careOwnership={forgedSchemaValidObject}
+          onContinueToPlan={onContinueToPlan}
+          subject={USER_A_SUBJECT}
+        >
+          {() => <Text testID="p3-forged-private-plan">Private Plan</Text>}
+        </SupportPlanAccessGate>
+      </QueryClientProvider>,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('support-plan-access-unavailable')).toBeTruthy()
+    })
+    expect(screen.getByText('Mã: CARE_OWNERSHIP_UNAVAILABLE')).toBeTruthy()
+    expect(screen.queryByTestId('p3-forged-private-plan')).toBeNull()
+    expect(onContinueToPlan).not.toHaveBeenCalled()
+    await vForged.unmount()
+
+    // Care API response carrying another user's accountId/subject fails closed.
+    const crossUserProof = attestCareOwnershipFromApiResponse({
+      authenticatedSubject: USER_A_SUBJECT,
+      currentPlan: makeCareSupportPlanResponse({ accountId: USER_B_SUBJECT }),
+    })
+    expect(crossUserProof.status).toBe('UNAVAILABLE')
+
+    // Unknown ownership (empty snapshot or failed Care API reader) fails closed.
+    const unknownProof = attestCareOwnershipFromApiResponse({
+      authenticatedSubject: USER_A_SUBJECT,
+    })
+    expect(unknownProof.status).toBe('UNAVAILABLE')
+
+    const failedReaderProof = await resolveCareOwnershipFromApi(
+      {
+        getCurrent: jest.fn().mockRejectedValue(
+          new ApiError({
+            status: 503,
+            code: 'HTTP_503',
+            message: 'Care 503',
+          }),
+        ),
+        getHistory: jest.fn().mockRejectedValue(
+          new ApiError({
+            status: 503,
+            code: 'HTTP_503',
+            message: 'Care 503',
+          }),
+        ),
+      },
+      USER_A_SUBJECT,
+    )
+    expect(failedReaderProof.status).toBe('UNAVAILABLE')
+  })
+
+  it('P3.4 & P3.5: accepts Care ownership attested from authenticated Care API reader for read-only continuity with canCreatePlan=false and no autoContinue', async () => {
+    const attestedFromReader = await resolveCareOwnershipFromApi(
+      {
+        getCurrent: jest
+          .fn()
+          .mockRejectedValue({ status: 404, code: 'HTTP_404' }),
+        getCurrentDraft: jest
+          .fn()
+          .mockRejectedValue({ status: 404, code: 'HTTP_404' }),
+        getHistory: jest
+          .fn()
+          .mockResolvedValue(
+            makeCareSupportPlanHistoryResponse([makeCareSupportPlanResponse()]),
+          ),
+      },
+      USER_A_SUBJECT,
+    )
+    expect(attestedFromReader.status).toBe('VERIFIED_OWNED')
+
+    const unavailableConsultationApi = makeApi({
+      getEntitlement: jest
+        .fn()
+        .mockRejectedValue(
+          new ApiError({ status: 503, code: 'HTTP_503', message: 'Down' }),
+        ),
+    })
+    const onContinueToPlan = jest.fn()
+
+    await render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SupportPlanAccessGate
+          api={unavailableConsultationApi}
+          autoContinue
+          careOwnership={attestedFromReader}
+          offline
+          onContinueToPlan={onContinueToPlan}
+          subject={USER_A_SUBJECT}
+        >
+          {(ctx) => (
+            <Text testID="p3-verified-readonly">
+              {`MODE:${ctx.accessMode}:CREATE:${ctx.canCreatePlan}:VERIFIED_CARE:${ctx.careOwnershipVerified}`}
+            </Text>
+          )}
+        </SupportPlanAccessGate>
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'MODE:read-only-owned:CREATE:false:VERIFIED_CARE:true',
+        ),
+      ).toBeTruthy()
+    })
+    expect(onContinueToPlan).not.toHaveBeenCalled()
   })
 })

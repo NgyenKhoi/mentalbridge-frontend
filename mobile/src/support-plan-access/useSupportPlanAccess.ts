@@ -11,6 +11,7 @@ import {
   resolveSupportPlanAccessState,
   selectLatestRelevantPayment,
   selectPlusUpgradePlan,
+  type PaymentHistoryVerificationStatus,
   type ResolvedSupportPlanAccess,
 } from './plan-access-model'
 import type { SupportPlanAccessApi } from './support-plan-access-api'
@@ -21,18 +22,24 @@ import {
   type CareOwnedPlanProof,
   type GuideOrigin,
   type PlanPayment,
+  type PlanPaymentHistory,
   type ServiceCreditEntitlement,
 } from './support-plan-access-contract'
 import {
   clearCheckoutAttempt,
+  clearExpiredUnresolvedCheckoutAttempt,
+  clearInFlightCheckout,
   clearPendingUpgradeIntent,
   consumePendingUpgradeIntent,
   getCheckoutAttempt,
+  getInFlightCheckout,
   getPendingUpgradeIntent,
+  hasExpiredUnresolvedCheckoutAttempt,
   markCheckoutAttemptPending,
   markCheckoutAttemptTerminal,
   markCheckoutAttemptUncertain,
   saveCheckoutAttempt,
+  setInFlightCheckout,
   setPendingUpgradeIntent,
 } from './upgrade-intent-store'
 
@@ -60,6 +67,21 @@ type VerifiedEntitlementState = Readonly<{
   generation: number
   value: ServiceCreditEntitlement
 }>
+
+type VerifiedPaymentHistoryState = Readonly<{
+  subject: string
+  generation: number
+  value: PlanPaymentHistory
+}>
+
+type CheckoutSettlementOutcome =
+  | Readonly<{ kind: 'aborted' }>
+  | Readonly<{ kind: 'success'; payment: PlanPayment }>
+  | Readonly<{
+      kind: 'error'
+      error: CheckoutErrorInfo
+      refreshPayments?: boolean | undefined
+    }>
 
 function supportPlanAccessKey(
   subject: string | null,
@@ -159,12 +181,20 @@ export function useSupportPlanAccess(
   const retryLockRef = useRef(false)
   const verificationGenRef = useRef(0)
   const entitlementReqSeqRef = useRef(0)
+  const paymentsReqSeqRef = useRef(0)
+  const verifiedEntitlementRef = useRef<VerifiedEntitlementState | null>(null)
+  const verifiedPaymentHistoryRef = useRef<VerifiedPaymentHistoryState | null>(
+    null,
+  )
+  const scopedPaymentRef = useRef<SubjectScoped<PlanPayment> | null>(null)
   const pendingForegroundReconcileRef = useRef(false)
   const hadUncertainAttemptRef = useRef(false)
 
   const [verificationGen, setVerificationGen] = useState(0)
   const [verifiedEntitlement, setVerifiedEntitlement] =
     useState<VerifiedEntitlementState | null>(null)
+  const [verifiedPaymentHistory, setVerifiedPaymentHistory] =
+    useState<VerifiedPaymentHistoryState | null>(null)
   const [scopedPayment, setScopedPayment] =
     useState<SubjectScoped<PlanPayment> | null>(null)
   const [scopedCheckoutError, setScopedCheckoutError] =
@@ -176,13 +206,19 @@ export function useSupportPlanAccess(
   > | null>(null)
   const [isReconciling, setIsReconciling] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [isJoiningInFlight, setIsJoiningInFlight] = useState(false)
+  const [, setInFlightSettlementTick] = useState(0)
 
   const invalidateLiveEntitlement = useCallback(() => {
     verificationGenRef.current += 1
     entitlementReqSeqRef.current += 1
+    paymentsReqSeqRef.current += 1
+    verifiedEntitlementRef.current = null
+    verifiedPaymentHistoryRef.current = null
     setVerificationGen(verificationGenRef.current)
     setVerifiedEntitlement(null)
-  }, [])
+    setVerifiedPaymentHistory(null)
+  }, [setVerificationGen, setVerifiedEntitlement, setVerifiedPaymentHistory])
 
   useEffect(() => {
     isMountedRef.current = true
@@ -190,6 +226,7 @@ export function useSupportPlanAccess(
       isMountedRef.current = false
       lifecycleEpochRef.current += 1
       entitlementReqSeqRef.current += 1
+      paymentsReqSeqRef.current += 1
     }
   }, [])
 
@@ -200,6 +237,10 @@ export function useSupportPlanAccess(
       lifecycleEpochRef.current += 1
       verificationGenRef.current += 1
       entitlementReqSeqRef.current += 1
+      paymentsReqSeqRef.current += 1
+      verifiedEntitlementRef.current = null
+      verifiedPaymentHistoryRef.current = null
+      scopedPaymentRef.current = null
       pendingForegroundReconcileRef.current = false
       hadUncertainAttemptRef.current = false
       if (previousSubject) {
@@ -211,6 +252,7 @@ export function useSupportPlanAccess(
       }
       setVerificationGen(verificationGenRef.current)
       setVerifiedEntitlement(null)
+      setVerifiedPaymentHistory(null)
       setScopedPayment(null)
       setScopedCheckoutError(null)
       setScopedExternalNotice(null)
@@ -220,6 +262,7 @@ export function useSupportPlanAccess(
       retryLockRef.current = false
       setIsReconciling(false)
       setIsRetrying(false)
+      setIsJoiningInFlight(false)
       prevSubjectRef.current = subject
     }
     return () => {
@@ -232,8 +275,13 @@ export function useSupportPlanAccess(
   useEffect(() => {
     if (!subject) return
     if (offline) {
+      verifiedPaymentHistoryRef.current = null
       queryClient.removeQueries({
         queryKey: supportPlanAccessKey(subject, 'entitlement'),
+        exact: true,
+      })
+      queryClient.removeQueries({
+        queryKey: supportPlanAccessKey(subject, 'payments'),
         exact: true,
       })
     }
@@ -274,11 +322,13 @@ export function useSupportPlanAccess(
           entitlementReqSeqRef.current === reqSeq
 
         if (stillCurrent) {
-          setVerifiedEntitlement({
+          const verified: VerifiedEntitlementState = {
             subject: capturedSubject,
             generation: capturedGen,
             value: result,
-          })
+          }
+          verifiedEntitlementRef.current = verified
+          setVerifiedEntitlement(verified)
         }
 
         return result
@@ -292,6 +342,7 @@ export function useSupportPlanAccess(
           stillSameSubjectAndEpoch &&
           entitlementReqSeqRef.current === reqSeq
         ) {
+          verifiedEntitlementRef.current = null
           setVerifiedEntitlement(null)
         }
         throw error
@@ -362,21 +413,86 @@ export function useSupportPlanAccess(
     enabled: shouldLoadBilling,
     retry: false,
     staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
-      if (!api) {
+      if (!api || !subject) {
         throw new ApiError({
           code: 'PAYMENTS_UNAVAILABLE',
           message: 'Thiếu dịch vụ lịch sử thanh toán.',
         })
       }
-      return api.getPaymentHistory()
+      const capturedSubject = subject
+      const capturedEpoch = lifecycleEpochRef.current
+      const capturedGen = verificationGenRef.current
+      const reqSeq = (paymentsReqSeqRef.current += 1)
+
+      try {
+        const result = await api.getPaymentHistory()
+        for (const item of result.items) {
+          const itemAccountId = (item as { accountId?: unknown }).accountId
+          if (
+            typeof itemAccountId === 'string' &&
+            itemAccountId !== capturedSubject
+          ) {
+            throw new ApiError({
+              code: 'PAYMENT_IDENTITY_MISMATCH',
+              message:
+                'Lịch sử thanh toán không khớp tài khoản đang đăng nhập.',
+            })
+          }
+        }
+
+        const stillCurrent =
+          isMountedRef.current &&
+          lifecycleEpochRef.current === capturedEpoch &&
+          activeSubjectRef.current === capturedSubject &&
+          verificationGenRef.current === capturedGen &&
+          paymentsReqSeqRef.current === reqSeq
+
+        if (stillCurrent) {
+          const verified: VerifiedPaymentHistoryState = {
+            subject: capturedSubject,
+            generation: capturedGen,
+            value: result,
+          }
+          verifiedPaymentHistoryRef.current = verified
+          setVerifiedPaymentHistory(verified)
+        }
+
+        return result
+      } catch (error) {
+        const stillSameSubjectAndEpoch =
+          isMountedRef.current &&
+          lifecycleEpochRef.current === capturedEpoch &&
+          activeSubjectRef.current === capturedSubject
+
+        if (stillSameSubjectAndEpoch && paymentsReqSeqRef.current === reqSeq) {
+          verifiedPaymentHistoryRef.current = null
+          setVerifiedPaymentHistory(null)
+        }
+        throw error
+      }
     },
   })
 
-  const activeSubjectPayment =
-    subject && scopedPayment?.subject === subject ? scopedPayment.value : null
+  const activeVerifiedPaymentHistory =
+    subject &&
+    !offline &&
+    verifiedPaymentHistory &&
+    verifiedPaymentHistory.subject === subject &&
+    verifiedPaymentHistory.generation === verificationGen &&
+    paymentsQuery.status === 'success' &&
+    !paymentsQuery.isError
+      ? verifiedPaymentHistory.value
+      : null
 
-  const paymentItems = paymentsQuery.data?.items ?? []
+  const currentSubjectAttempt = getCheckoutAttempt(subject)
+  const activeSubjectPayment =
+    subject && scopedPayment?.subject === subject
+      ? scopedPayment.value
+      : (currentSubjectAttempt?.payment ?? null)
+
+  const paymentItems = activeVerifiedPaymentHistory?.items ?? []
   const mergedPayments = activeSubjectPayment
     ? [
         activeSubjectPayment,
@@ -386,6 +502,19 @@ export function useSupportPlanAccess(
       ]
     : paymentItems
   const latestPayment = selectLatestRelevantPayment(mergedPayments)
+
+  const hasUnresolvedLocalAttempt =
+    currentSubjectAttempt?.status === 'uncertain' ||
+    currentSubjectAttempt?.status === 'preparing'
+
+  const paymentHistoryStatus: PaymentHistoryVerificationStatus =
+    offline || hasUnresolvedLocalAttempt
+      ? 'verified'
+      : paymentsQuery.isError
+        ? 'unavailable'
+        : !activeVerifiedPaymentHistory || paymentsQuery.isLoading
+          ? 'loading'
+          : 'verified'
 
   const isConfirmedForSubject =
     Boolean(subject) && confirmedUpgrade?.subject === subject
@@ -435,6 +564,7 @@ export function useSupportPlanAccess(
         ? (catalogueQuery.data ?? null)
         : null,
     latestPayment,
+    paymentHistoryStatus,
     origin: confirmedOrigin ?? validatedOrigin,
   })
 
@@ -480,6 +610,7 @@ export function useSupportPlanAccess(
       const recoveryPendingPaymentId =
         !explicitlyTrackedPaymentId &&
         attempt?.status !== 'uncertain' &&
+        attempt?.status !== 'preparing' &&
         !intent &&
         latestPayment?.status === 'PENDING'
           ? latestPayment.paymentId
@@ -494,6 +625,26 @@ export function useSupportPlanAccess(
         try {
           const history = await api.getPaymentHistory()
           if (!isCurrentContext()) return
+          for (const item of history.items) {
+            const itemAccountId = (item as { accountId?: unknown }).accountId
+            if (
+              typeof itemAccountId === 'string' &&
+              itemAccountId !== capturedSubject
+            ) {
+              throw new ApiError({
+                code: 'PAYMENT_IDENTITY_MISMATCH',
+                message:
+                  'Lịch sử thanh toán không khớp tài khoản đang đăng nhập.',
+              })
+            }
+          }
+          const verifiedHistory: VerifiedPaymentHistoryState = {
+            subject: capturedSubject,
+            generation: verificationGenRef.current,
+            value: history,
+          }
+          verifiedPaymentHistoryRef.current = verifiedHistory
+          setVerifiedPaymentHistory(verifiedHistory)
           queryClient.setQueryData(
             supportPlanAccessKey(capturedSubject, 'payments'),
             history,
@@ -505,7 +656,9 @@ export function useSupportPlanAccess(
             subject: capturedSubject,
             value: {
               ...extractApiError(error),
-              uncertain: attempt?.status === 'uncertain',
+              uncertain:
+                attempt?.status === 'uncertain' ||
+                attempt?.status === 'preparing',
             },
           })
         }
@@ -527,7 +680,12 @@ export function useSupportPlanAccess(
               message: 'Mã giao dịch đối chiếu không khớp.',
             })
           }
-          setScopedPayment({ subject: capturedSubject, value: reconciled })
+          const nextScoped: SubjectScoped<PlanPayment> = {
+            subject: capturedSubject,
+            value: reconciled,
+          }
+          scopedPaymentRef.current = nextScoped
+          setScopedPayment(nextScoped)
           if (
             reconciled.status === 'FAILED' ||
             reconciled.status === 'CHARGEBACK'
@@ -586,8 +744,16 @@ export function useSupportPlanAccess(
           ),
         })
         setScopedCheckoutError(null)
+        await queryClient.cancelQueries({
+          queryKey: supportPlanAccessKey(capturedSubject, 'payments'),
+          exact: true,
+        })
         await paymentsQuery.refetch()
       } else if (freshAccess === 'free' || freshAccess === 'expired') {
+        await queryClient.cancelQueries({
+          queryKey: supportPlanAccessKey(capturedSubject, 'payments'),
+          exact: true,
+        })
         await Promise.all([catalogueQuery.refetch(), paymentsQuery.refetch()])
       }
     } catch (error) {
@@ -629,6 +795,7 @@ export function useSupportPlanAccess(
     setIsReconciling,
     setScopedCheckoutError,
     setScopedPayment,
+    setVerifiedPaymentHistory,
     subject,
     validatedOrigin,
   ])
@@ -668,7 +835,16 @@ export function useSupportPlanAccess(
         ? planAccessFrom(fresh.data)
         : 'unavailable'
       if (freshStatus === 'free' || freshStatus === 'expired') {
-        await Promise.all([catalogueQuery.refetch(), paymentsQuery.refetch()])
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: supportPlanAccessKey(capturedSubject, 'catalogue'),
+            exact: true,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: supportPlanAccessKey(capturedSubject, 'payments'),
+            exact: true,
+          }),
+        ])
       }
     } catch (error) {
       if (isCurrentContext()) {
@@ -685,11 +861,9 @@ export function useSupportPlanAccess(
     }
   }, [
     api,
-    catalogueQuery,
     entitlementQuery,
     invalidateLiveEntitlement,
     offline,
-    paymentsQuery,
     queryClient,
     safetyOverride,
     setIsRetrying,
@@ -698,8 +872,116 @@ export function useSupportPlanAccess(
     subject,
   ])
 
+  const applySettlementToCurrentMount = useCallback(
+    async (
+      capturedSubject: string,
+      capturedEpoch: number,
+      outcome: CheckoutSettlementOutcome,
+    ) => {
+      const isStillCurrent = () =>
+        isMountedRef.current &&
+        lifecycleEpochRef.current === capturedEpoch &&
+        activeSubjectRef.current === capturedSubject
+
+      if (!isStillCurrent() || outcome.kind === 'aborted') return
+
+      if (outcome.kind === 'error') {
+        hadUncertainAttemptRef.current = Boolean(outcome.error.uncertain)
+        setScopedCheckoutError({
+          subject: capturedSubject,
+          value: outcome.error,
+        })
+        if (outcome.refreshPayments) {
+          await queryClient.cancelQueries({
+            queryKey: supportPlanAccessKey(capturedSubject, 'payments'),
+            exact: true,
+          })
+          await paymentsQuery.refetch()
+        }
+        return
+      }
+
+      hadUncertainAttemptRef.current = false
+      setScopedCheckoutError(null)
+      const nextScoped: SubjectScoped<PlanPayment> = {
+        subject: capturedSubject,
+        value: outcome.payment,
+      }
+      scopedPaymentRef.current = nextScoped
+      setScopedPayment(nextScoped)
+
+      await queryClient.invalidateQueries({
+        queryKey: supportPlanAccessKey(capturedSubject, 'payments'),
+      })
+
+      if (outcome.payment.status === 'SUCCEEDED') {
+        await reconcileStatus()
+      }
+    },
+    [
+      paymentsQuery,
+      queryClient,
+      reconcileStatus,
+      setScopedCheckoutError,
+      setScopedPayment,
+    ],
+  )
+
+  useEffect(() => {
+    if (!subject) return
+    const existingInFlight =
+      getInFlightCheckout<CheckoutSettlementOutcome>(subject)
+    if (!existingInFlight) return
+
+    const capturedSubject = subject
+    const capturedEpoch = lifecycleEpochRef.current
+
+    void existingInFlight.promise
+      .then(async (outcome) => {
+        await applySettlementToCurrentMount(
+          capturedSubject,
+          capturedEpoch,
+          outcome,
+        )
+      })
+      .finally(() => {
+        if (
+          isMountedRef.current &&
+          activeSubjectRef.current === capturedSubject
+        ) {
+          setIsJoiningInFlight(false)
+          setInFlightSettlementTick((tick) => tick + 1)
+        }
+      })
+  }, [applySettlementToCurrentMount, subject])
+
   const startPlusUpgrade = useCallback(async () => {
     if (!subject || !api || safetyOverride || offline) return
+
+    const existingInFlight =
+      getInFlightCheckout<CheckoutSettlementOutcome>(subject)
+    if (existingInFlight) {
+      if (checkoutLockRef.current) return
+      const capturedSubject = subject
+      const capturedEpoch = lifecycleEpochRef.current
+      checkoutLockRef.current = true
+      setIsJoiningInFlight(true)
+      try {
+        const outcome = await existingInFlight.promise
+        await applySettlementToCurrentMount(
+          capturedSubject,
+          capturedEpoch,
+          outcome,
+        )
+      } finally {
+        checkoutLockRef.current = false
+        if (isMountedRef.current) {
+          setIsJoiningInFlight(false)
+        }
+      }
+      return
+    }
+
     if (checkoutLockRef.current || checkoutMutation.isPending) return
 
     const availability = selectPlusUpgradePlan(catalogueQuery.data ?? null)
@@ -745,188 +1027,317 @@ export function useSupportPlanAccess(
       }
 
       const isReplayingUncertainAttempt =
-        existingAttempt?.status === 'uncertain'
+        existingAttempt?.status === 'uncertain' ||
+        existingAttempt?.status === 'preparing'
 
-      if (!isReplayingUncertainAttempt && latestPayment?.status === 'PENDING') {
-        setScopedCheckoutError({
-          subject: capturedSubject,
-          value: {
-            code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
-            message:
-              'Trên máy chủ đang có giao dịch nâng cấp Plus chưa hoàn tất. Vui lòng đối chiếu thanh toán thay vì mở giao dịch mới.',
-            uncertain: false,
-          },
-        })
-        await reconcileStatus()
-        return
-      }
-
-      // If an earlier uncertain attempt's TTL just expired in-session, verify `/payments`
-      // from the server before minting any new idempotencyKey so a charge is never duplicated.
-      if (!isReplayingUncertainAttempt && hadUncertainAttemptRef.current) {
-        try {
-          const refreshedHistory = await api.getPaymentHistory()
-          if (!isCurrentContext()) return
-          queryClient.setQueryData(
-            supportPlanAccessKey(capturedSubject, 'payments'),
-            refreshedHistory,
-          )
-          const unresolvedPending = refreshedHistory.items.find(
-            (item) => item.status === 'PENDING',
-          )
-          if (unresolvedPending) {
-            hadUncertainAttemptRef.current = false
-            setScopedPayment({
-              subject: capturedSubject,
-              value: unresolvedPending,
-            })
-            setScopedCheckoutError({
-              subject: capturedSubject,
-              value: {
-                code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
-                message:
-                  'Trên máy chủ đang có giao dịch nâng cấp Plus chưa hoàn tất. Vui lòng đối chiếu thanh toán thay vì mở giao dịch mới.',
-                uncertain: false,
-              },
-            })
-            await reconcileStatus()
-            return
-          }
-          hadUncertainAttemptRef.current = false
-        } catch {
-          if (!isCurrentContext()) return
+      // When creating a new checkout attempt (not replaying an in-session uncertain/preparing
+      // Idempotency-Key), enforce authoritative entitlement + live payment history verification
+      // at submit time to prevent cold-start and TOCTOU duplicate checkouts.
+      if (!isReplayingUncertainAttempt) {
+        const liveEntitlement = verifiedEntitlementRef.current
+        const liveEntitlementAccess =
+          liveEntitlement &&
+          liveEntitlement.subject === capturedSubject &&
+          liveEntitlement.generation === verificationGenRef.current
+            ? planAccessFrom(liveEntitlement.value)
+            : 'unavailable'
+        if (
+          liveEntitlementAccess !== 'free' &&
+          liveEntitlementAccess !== 'expired'
+        ) {
           setScopedCheckoutError({
             subject: capturedSubject,
             value: {
-              code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
+              code: 'ENTITLEMENT_UNAVAILABLE',
               message:
-                'Không thể kiểm tra lịch sử giao dịch sau khi phiên thử lại hết hạn. Vui lòng đối chiếu lại thanh toán trước khi thử mở giao dịch mới.',
+                'Chưa xác minh được quyền gói hiện tại từ Consultation trước khi tạo giao dịch.',
               uncertain: false,
             },
           })
           return
         }
+
+        // If an earlier uncertain/preparing attempt's TTL expired in-session, verify `/payments`
+        // from the server before minting any new idempotencyKey so a charge is never duplicated.
+        if (
+          hadUncertainAttemptRef.current ||
+          hasExpiredUnresolvedCheckoutAttempt(capturedSubject)
+        ) {
+          try {
+            const refreshedHistory = await api.getPaymentHistory()
+            if (!isCurrentContext()) return
+            const verifiedHistory: VerifiedPaymentHistoryState = {
+              subject: capturedSubject,
+              generation: verificationGenRef.current,
+              value: refreshedHistory,
+            }
+            verifiedPaymentHistoryRef.current = verifiedHistory
+            setVerifiedPaymentHistory(verifiedHistory)
+            queryClient.setQueryData(
+              supportPlanAccessKey(capturedSubject, 'payments'),
+              refreshedHistory,
+            )
+            const unresolvedPending = refreshedHistory.items.find(
+              (item) => item.status === 'PENDING',
+            )
+            if (unresolvedPending) {
+              hadUncertainAttemptRef.current = false
+              clearExpiredUnresolvedCheckoutAttempt(capturedSubject)
+              const nextScoped: SubjectScoped<PlanPayment> = {
+                subject: capturedSubject,
+                value: unresolvedPending,
+              }
+              scopedPaymentRef.current = nextScoped
+              setScopedPayment(nextScoped)
+              setScopedCheckoutError({
+                subject: capturedSubject,
+                value: {
+                  code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
+                  message:
+                    'Trên máy chủ đang có giao dịch nâng cấp Plus chưa hoàn tất. Vui lòng đối chiếu thanh toán thay vì mở giao dịch mới.',
+                  uncertain: false,
+                },
+              })
+              return
+            }
+            hadUncertainAttemptRef.current = false
+            clearExpiredUnresolvedCheckoutAttempt(capturedSubject)
+          } catch {
+            if (!isCurrentContext()) return
+            setScopedCheckoutError({
+              subject: capturedSubject,
+              value: {
+                code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
+                message:
+                  'Không thể kiểm tra lịch sử giao dịch sau khi phiên thử lại hết hạn. Vui lòng đối chiếu lại thanh toán trước khi thử mở giao dịch mới.',
+                uncertain: false,
+              },
+            })
+            return
+          }
+        }
+
+        if (paymentsQuery.isError) {
+          setScopedCheckoutError({
+            subject: capturedSubject,
+            value: {
+              code: 'PAYMENT_HISTORY_UNAVAILABLE',
+              message:
+                'Chưa tải được lịch sử giao dịch từ Consultation để xác minh không có thanh toán đang chờ.',
+              uncertain: false,
+            },
+          })
+          return
+        }
+
+        const liveHistory = verifiedPaymentHistoryRef.current
+        if (
+          !liveHistory ||
+          liveHistory.subject !== capturedSubject ||
+          liveHistory.generation !== verificationGenRef.current ||
+          paymentsQuery.isLoading ||
+          paymentsQuery.isFetching ||
+          reconcileLockRef.current
+        ) {
+          setScopedCheckoutError({
+            subject: capturedSubject,
+            value: {
+              code: 'PAYMENT_HISTORY_LOADING',
+              message:
+                'Đang kiểm tra lịch sử giao dịch từ Consultation trước khi mở nâng cấp.',
+              uncertain: false,
+            },
+          })
+          return
+        }
+
+        const scopedForSubject =
+          scopedPaymentRef.current?.subject === capturedSubject
+            ? scopedPaymentRef.current.value
+            : null
+        const livePendingItem =
+          (scopedForSubject?.status === 'PENDING' ? scopedForSubject : null) ??
+          liveHistory.value.items.find((item) => item.status === 'PENDING') ??
+          (latestPayment?.status === 'PENDING' ? latestPayment : null)
+
+        if (livePendingItem) {
+          setScopedCheckoutError({
+            subject: capturedSubject,
+            value: {
+              code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
+              message:
+                'Trên máy chủ đang có giao dịch nâng cấp Plus chưa hoàn tất. Vui lòng đối chiếu thanh toán thay vì mở giao dịch mới.',
+              uncertain: false,
+            },
+          })
+          await reconcileStatus()
+          return
+        }
       }
 
       const idempotencyKey =
-        existingAttempt && existingAttempt.status === 'uncertain'
+        existingAttempt &&
+        (existingAttempt.status === 'uncertain' ||
+          existingAttempt.status === 'preparing')
           ? existingAttempt.idempotencyKey
           : randomUUID()
+      const expectedPaymentId = existingAttempt?.paymentId
 
       saveCheckoutAttempt({
         subject: capturedSubject,
         planVersionId,
         idempotencyKey,
         status: 'preparing',
+        paymentId: expectedPaymentId,
       })
 
-      try {
-        const payment = await checkoutMutation.mutateAsync({
-          planVersionId,
-          idempotencyKey,
-        })
-        if (!isCurrentContext()) return
+      const settlementPromise =
+        (async (): Promise<CheckoutSettlementOutcome> => {
+          try {
+            const payment = await checkoutMutation.mutateAsync({
+              planVersionId,
+              idempotencyKey,
+            })
+            const currentAttempt = getCheckoutAttempt(
+              capturedSubject,
+              planVersionId,
+            )
+            if (
+              !currentAttempt ||
+              currentAttempt.idempotencyKey !== idempotencyKey
+            ) {
+              return { kind: 'aborted' }
+            }
 
-        const paymentAccountId = (payment as { accountId?: unknown }).accountId
-        const expectedPaymentId = existingAttempt?.paymentId
-        if (
-          !payment.paymentId ||
-          payment.planVersionId !== planVersionId ||
-          (expectedPaymentId && payment.paymentId !== expectedPaymentId) ||
-          (typeof paymentAccountId === 'string' &&
-            paymentAccountId !== capturedSubject)
-        ) {
-          clearCheckoutAttempt(capturedSubject)
-          clearPendingUpgradeIntent(capturedSubject)
-          setScopedCheckoutError({
-            subject: capturedSubject,
-            value: {
-              code: 'PAYMENT_IDENTITY_MISMATCH',
-              message:
-                'Phản hồi giao dịch từ máy chủ không khớp gói nâng cấp hoặc tài khoản hiện tại.',
-              uncertain: false,
-            },
-          })
-          return
-        }
+            const paymentAccountId = (payment as { accountId?: unknown })
+              .accountId
+            if (
+              !payment.paymentId ||
+              payment.planVersionId !== planVersionId ||
+              (expectedPaymentId && payment.paymentId !== expectedPaymentId) ||
+              (typeof paymentAccountId === 'string' &&
+                paymentAccountId !== capturedSubject)
+            ) {
+              clearCheckoutAttempt(capturedSubject)
+              clearPendingUpgradeIntent(capturedSubject)
+              clearExpiredUnresolvedCheckoutAttempt(capturedSubject)
+              return {
+                kind: 'error',
+                error: {
+                  code: 'PAYMENT_IDENTITY_MISMATCH',
+                  message:
+                    'Phản hồi giao dịch từ máy chủ không khớp gói nâng cấp hoặc tài khoản hiện tại.',
+                  uncertain: false,
+                },
+              }
+            }
 
-        setScopedCheckoutError(null)
-        hadUncertainAttemptRef.current = false
-        setScopedPayment({ subject: capturedSubject, value: payment })
+            clearExpiredUnresolvedCheckoutAttempt(capturedSubject)
+            if (
+              payment.status === 'PENDING' ||
+              payment.status === 'SUCCEEDED'
+            ) {
+              markCheckoutAttemptPending(
+                capturedSubject,
+                payment.planVersionId,
+                idempotencyKey,
+                payment.paymentId,
+                Date.now(),
+                payment,
+              )
+              setPendingUpgradeIntent({
+                subject: capturedSubject,
+                paymentId: payment.paymentId,
+                origin: validatedOrigin,
+              })
+            } else {
+              markCheckoutAttemptTerminal(capturedSubject, payment.paymentId)
+              clearPendingUpgradeIntent(capturedSubject)
+            }
 
-        if (payment.status === 'PENDING' || payment.status === 'SUCCEEDED') {
-          markCheckoutAttemptPending(
-            capturedSubject,
-            payment.planVersionId,
-            idempotencyKey,
-            payment.paymentId,
-          )
-          setPendingUpgradeIntent({
-            subject: capturedSubject,
-            paymentId: payment.paymentId,
-            origin: validatedOrigin,
-          })
-        } else {
-          markCheckoutAttemptTerminal(capturedSubject, payment.paymentId)
-          clearPendingUpgradeIntent(capturedSubject)
-        }
+            return { kind: 'success', payment }
+          } catch (error) {
+            const currentAttempt = getCheckoutAttempt(
+              capturedSubject,
+              planVersionId,
+            )
+            if (
+              !currentAttempt ||
+              currentAttempt.idempotencyKey !== idempotencyKey
+            ) {
+              return { kind: 'aborted' }
+            }
 
-        await queryClient.invalidateQueries({
-          queryKey: supportPlanAccessKey(capturedSubject, 'payments'),
-        })
+            const apiError =
+              error instanceof ApiError ? error : toApiError(error)
+            if (isPreCreationDeterministicRejection(apiError)) {
+              clearExpiredUnresolvedCheckoutAttempt(capturedSubject)
+              clearCheckoutAttempt(capturedSubject)
+              return {
+                kind: 'error',
+                error: {
+                  code: apiError.code,
+                  message: apiError.message,
+                  uncertain: false,
+                },
+                refreshPayments:
+                  apiError.code === 'SUBSCRIPTION_PAYMENT_PENDING',
+              }
+            }
 
-        if (payment.status === 'SUCCEEDED') {
-          await reconcileStatus()
-        }
-      } catch (error) {
-        if (!isCurrentContext()) return
-        const apiError = error instanceof ApiError ? error : toApiError(error)
-        if (isPreCreationDeterministicRejection(apiError)) {
-          hadUncertainAttemptRef.current = false
-          clearCheckoutAttempt(capturedSubject)
-          setScopedCheckoutError({
-            subject: capturedSubject,
-            value: {
-              code: apiError.code,
-              message: apiError.message,
-              uncertain: false,
-            },
-          })
-          if (apiError.code === 'SUBSCRIPTION_PAYMENT_PENDING') {
-            await paymentsQuery.refetch()
+            markCheckoutAttemptUncertain(
+              capturedSubject,
+              planVersionId,
+              idempotencyKey,
+            )
+            return {
+              kind: 'error',
+              error: {
+                code: apiError.code,
+                message:
+                  'Chưa rõ máy chủ đã tạo giao dịch hay chưa do gián đoạn kết nối. Hệ thống giữ nguyên mã idempotency và sẽ dùng lại chính mã này khi thử lại.',
+                uncertain: true,
+              },
+            }
+          } finally {
+            clearInFlightCheckout(capturedSubject, idempotencyKey)
           }
-        } else {
-          hadUncertainAttemptRef.current = true
-          markCheckoutAttemptUncertain(
-            capturedSubject,
-            planVersionId,
-            idempotencyKey,
-          )
-          setScopedCheckoutError({
-            subject: capturedSubject,
-            value: {
-              code: apiError.code,
-              message:
-                'Chưa rõ máy chủ đã tạo giao dịch hay chưa do gián đoạn kết nối. Hệ thống giữ nguyên mã idempotency và sẽ dùng lại chính mã này khi thử lại.',
-              uncertain: true,
-            },
-          })
-        }
-      }
+        })()
+
+      setInFlightCheckout({
+        subject: capturedSubject,
+        planVersionId,
+        idempotencyKey,
+        promise: settlementPromise,
+      })
+
+      const outcome = await settlementPromise
+      await applySettlementToCurrentMount(
+        capturedSubject,
+        capturedEpoch,
+        outcome,
+      )
     } finally {
       checkoutLockRef.current = false
     }
   }, [
     api,
+    applySettlementToCurrentMount,
     catalogueQuery.data,
     checkoutMutation,
-    latestPayment?.paymentId,
-    latestPayment?.status,
+    latestPayment,
     offline,
-    paymentsQuery,
+    paymentsQuery.isError,
+    paymentsQuery.isFetching,
+    paymentsQuery.isLoading,
     queryClient,
     reconcileStatus,
     safetyOverride,
+    setIsJoiningInFlight,
+    setScopedCheckoutError,
+    setScopedExternalNotice,
+    setScopedPayment,
+    setVerifiedPaymentHistory,
     subject,
     validatedOrigin,
   ])
@@ -1013,14 +1424,27 @@ export function useSupportPlanAccess(
     setConfirmedUpgrade(null)
   }, [setConfirmedUpgrade, subject])
 
+  const fallbackUncertainError: CheckoutErrorInfo | null =
+    currentSubjectAttempt?.status === 'uncertain'
+      ? {
+          code: 'CHECKOUT_OUTCOME_UNCERTAIN',
+          message:
+            'Chưa rõ máy chủ đã tạo giao dịch hay chưa do gián đoạn kết nối. Hệ thống giữ nguyên mã idempotency và sẽ dùng lại chính mã này khi thử lại.',
+          uncertain: true,
+        }
+      : null
+
   const activeError =
     subject && scopedCheckoutError?.subject === subject
       ? scopedCheckoutError.value
-      : null
+      : fallbackUncertainError
   const activeNotice =
     subject && scopedExternalNotice?.subject === subject
       ? scopedExternalNotice.value
       : null
+  const hasActiveInFlightCheckout = Boolean(
+    subject && getInFlightCheckout(subject),
+  )
 
   return {
     resolved,
@@ -1032,7 +1456,10 @@ export function useSupportPlanAccess(
         catalogueQuery.isFetching ||
         paymentsQuery.isFetching),
     isReconciling,
-    isStartingCheckout: checkoutMutation.isPending,
+    isStartingCheckout:
+      checkoutMutation.isPending ||
+      isJoiningInFlight ||
+      hasActiveInFlightCheckout,
     checkoutError: activeError,
     externalCheckoutNotice: activeNotice,
     activePayment: latestPayment,

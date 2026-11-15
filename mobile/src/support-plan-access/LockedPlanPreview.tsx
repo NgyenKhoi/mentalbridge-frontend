@@ -469,10 +469,16 @@ export function LockedPlanPreview({
           >
             <Text style={styles.supportingText}>{checkout.reason}</Text>
             <Text style={styles.mutedNote}>{`Mã: ${checkout.code}`}</Text>
-            {checkout.code === 'CATALOGUE_UNAVAILABLE' && onRetryCheck ? (
+            {(checkout.code === 'CATALOGUE_UNAVAILABLE' ||
+              checkout.code === 'PAYMENT_HISTORY_UNAVAILABLE') &&
+            onRetryCheck ? (
               <SecondaryActionButton
                 disabled={offline || isReconciling}
-                label="Tải lại bảng gói từ Consultation"
+                label={
+                  checkout.code === 'PAYMENT_HISTORY_UNAVAILABLE'
+                    ? 'Thử tải lại lịch sử giao dịch'
+                    : 'Tải lại bảng gói từ Consultation'
+                }
                 onPress={onRetryCheck}
                 testID="locked-preview-retry-catalogue-button"
               />

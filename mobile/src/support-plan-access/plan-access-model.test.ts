@@ -7,12 +7,15 @@ import {
   selectPlusUpgradePlan,
 } from './plan-access-model'
 import {
+  CARE_OWNERSHIP_INTEGRATION_BLOCKER,
   CARE_OWNERSHIP_STATES,
+  attestCareOwnershipFromApiResponse,
   canOpenHostedCheckoutUrl,
   careOwnedPlanProofSchema,
   guideOriginSchema,
   isAllowedCheckoutUrl,
   planPaymentSchema,
+  resolveCareOwnershipFromApi,
   sanitizeGuideOrigin,
   serviceCreditEntitlementSchema,
   verifyCareOwnership,
@@ -25,6 +28,8 @@ import {
   PREMIUM_PLAN_VERSION_ID,
   USER_A_SUBJECT,
   USER_B_SUBJECT,
+  makeCareSupportPlanHistoryResponse,
+  makeCareSupportPlanResponse,
   makeCatalogue,
   makeEntitlement,
   makePayment,
@@ -219,6 +224,16 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
       paymentProvider: 'FAKE',
       plan: { planCode: 'PLUS', priceVnd: 5000 },
     })
+    expect(selectPlusUpgradePlan(makeCatalogue(), 'loading')).toMatchObject({
+      available: false,
+      code: 'PAYMENT_HISTORY_LOADING',
+    })
+    expect(selectPlusUpgradePlan(makeCatalogue(), 'unavailable')).toMatchObject(
+      {
+        available: false,
+        code: 'PAYMENT_HISTORY_UNAVAILABLE',
+      },
+    )
 
     expect(
       canOpenHostedCheckoutUrl('https://pay.payos.vn/web/123', 'PAYOS'),
@@ -250,7 +265,7 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
     expect(momoFailedSummary.detail).not.toContain('PayOS')
   })
 
-  it('orders PENDING payments ahead of older rows and resolves priority states correctly', () => {
+  it('orders PENDING payments ahead of older rows and resolves priority states correctly', async () => {
     const olderSucceeded = makePayment({
       paymentId: PAYMENT_ID_2,
       status: 'SUCCEEDED',
@@ -441,6 +456,9 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
       'VERIFIED_OWNED',
       'UNAVAILABLE',
     ])
+    expect(CARE_OWNERSHIP_INTEGRATION_BLOCKER).toBe(
+      'MB_702_CARE_OWNERSHIP_ADAPTER_HANDOFF_PENDING',
+    )
     expect(verifyCareOwnership(undefined, USER_A_SUBJECT)).toBe('NONE')
     expect(verifyCareOwnership(undefined, USER_A_SUBJECT, true)).toBe(
       'UNAVAILABLE',
@@ -465,6 +483,7 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
         hasHistory: false,
       }).success,
     ).toBe(true)
+    // Forged object matching schema without Care API attestation MUST fail closed.
     expect(
       verifyCareOwnership(
         {
@@ -476,7 +495,30 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
         },
         USER_A_SUBJECT,
       ),
-    ).toBe('VERIFIED_OWNED')
+    ).toBe('UNAVAILABLE')
+    // Attested proof derived from validated Care API response grants VERIFIED_OWNED for matching subject only.
+    const attestedProof = attestCareOwnershipFromApiResponse({
+      authenticatedSubject: USER_A_SUBJECT,
+      currentPlan: null,
+      history: makeCareSupportPlanHistoryResponse([
+        makeCareSupportPlanResponse(),
+      ]),
+    })
+    expect(verifyCareOwnership(attestedProof, USER_A_SUBJECT)).toBe(
+      'VERIFIED_OWNED',
+    )
+    expect(verifyCareOwnership(attestedProof, USER_B_SUBJECT)).toBe(
+      'UNAVAILABLE',
+    )
+    const resolvedFromApi = await resolveCareOwnershipFromApi(
+      {
+        getCurrent: async () => makeCareSupportPlanResponse(),
+      },
+      USER_A_SUBJECT,
+    )
+    expect(verifyCareOwnership(resolvedFromApi, USER_A_SUBJECT)).toBe(
+      'VERIFIED_OWNED',
+    )
   })
 
   it('isolates ephemeral upgrade intent and checkout idempotency attempts per subject and TTL', () => {

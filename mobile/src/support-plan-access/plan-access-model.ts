@@ -109,6 +109,9 @@ export function planAccessFrom(
   return 'unavailable'
 }
 
+export type PaymentHistoryVerificationStatus =
+  'verified' | 'loading' | 'unavailable'
+
 export type CheckoutAvailability =
   | Readonly<{
       available: true
@@ -119,6 +122,8 @@ export type CheckoutAvailability =
       available: false
       code:
         | 'CATALOGUE_UNAVAILABLE'
+        | 'PAYMENT_HISTORY_LOADING'
+        | 'PAYMENT_HISTORY_UNAVAILABLE'
         | 'PAYMENT_CHECKOUT_DISABLED'
         | 'PROVIDER_MOMO_DORMANT'
         | 'NO_ELIGIBLE_PLUS_PLAN'
@@ -133,10 +138,12 @@ export function providerDisplayLabel(provider: PaymentProvider): string {
 
 /**
  * Selects the eligible Plus plan only when Consultation reports checkout enabled
- * under an active gateway (`PAYOS` or deterministic `FAKE`). Rejects dormant `MOMO`.
+ * under an active gateway (`PAYOS` or deterministic `FAKE`) and payment history
+ * for the authenticated subject has been verified. Rejects dormant `MOMO`.
  */
 export function selectPlusUpgradePlan(
   catalogue: ServicePlanCatalogue | null | undefined,
+  paymentHistoryStatus: PaymentHistoryVerificationStatus = 'verified',
 ): CheckoutAvailability {
   if (!catalogue) {
     return {
@@ -171,6 +178,22 @@ export function selectPlusUpgradePlan(
       available: false,
       code: 'NO_ELIGIBLE_PLUS_PLAN',
       reason: 'Chưa có phiên bản gói Plus hợp lệ từ Consultation.',
+    }
+  }
+  if (paymentHistoryStatus === 'loading') {
+    return {
+      available: false,
+      code: 'PAYMENT_HISTORY_LOADING',
+      reason:
+        'Đang kiểm tra lịch sử giao dịch từ Consultation trước khi mở nâng cấp...',
+    }
+  }
+  if (paymentHistoryStatus === 'unavailable') {
+    return {
+      available: false,
+      code: 'PAYMENT_HISTORY_UNAVAILABLE',
+      reason:
+        'Chưa tải được lịch sử giao dịch từ Consultation để xác minh không có thanh toán đang chờ.',
     }
   }
   return {
@@ -260,6 +283,7 @@ export type ResolveAccessInput = Readonly<{
   hasConfirmedPaymentSettlement: boolean
   catalogue: ServicePlanCatalogue | null
   latestPayment: PlanPayment | null
+  paymentHistoryStatus?: PaymentHistoryVerificationStatus | undefined
   origin?: GuideOrigin | undefined
 }>
 
@@ -393,7 +417,10 @@ export function resolveSupportPlanAccessState(
       kind: 'locked-preview',
       variant: status,
       latestPayment: input.latestPayment,
-      checkout: selectPlusUpgradePlan(input.catalogue),
+      checkout: selectPlusUpgradePlan(
+        input.catalogue,
+        input.paymentHistoryStatus ?? 'verified',
+      ),
       origin,
     }
   }
