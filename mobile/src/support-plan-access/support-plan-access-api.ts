@@ -116,7 +116,7 @@ export function createSupportPlanAccessApi(
       if (!parsed.success) {
         throw invalidContract(
           'PAYMENT_CONTRACT_MISMATCH',
-          'Thông tin giao dịch PayOS trả về không hợp lệ.',
+          'Thông tin giao dịch trả về không hợp lệ.',
           parsed.error,
         )
       }

@@ -1,11 +1,13 @@
-import type {
-  EntitlementState,
-  GuideOrigin,
-  PackageCode,
-  PlanPayment,
-  ServiceCreditEntitlement,
-  ServicePlanCatalogue,
-  ServicePlanVersion,
+import {
+  sanitizeGuideOrigin,
+  type EntitlementState,
+  type GuideOrigin,
+  type PackageCode,
+  type PaymentProvider,
+  type PlanPayment,
+  type ServiceCreditEntitlement,
+  type ServicePlanCatalogue,
+  type ServicePlanVersion,
 } from './support-plan-access-contract'
 
 export type PlanAccessStatus =
@@ -105,7 +107,11 @@ export function planAccessFrom(
 }
 
 export type CheckoutAvailability =
-  | Readonly<{ available: true; plan: ServicePlanVersion }>
+  | Readonly<{
+      available: true
+      plan: ServicePlanVersion
+      paymentProvider: 'PAYOS' | 'FAKE'
+    }>
   | Readonly<{
       available: false
       code:
@@ -115,6 +121,12 @@ export type CheckoutAvailability =
         | 'NO_ELIGIBLE_PLUS_PLAN'
       reason: string
     }>
+
+export function providerDisplayLabel(provider: PaymentProvider): string {
+  if (provider === 'PAYOS') return 'PayOS'
+  if (provider === 'FAKE') return 'Cổng thử nghiệm (FAKE)'
+  return 'MoMo (tạm ngừng)'
+}
 
 /**
  * Selects the eligible Plus plan only when Consultation reports checkout enabled
@@ -142,8 +154,7 @@ export function selectPlusUpgradePlan(
     return {
       available: false,
       code: 'PROVIDER_MOMO_DORMANT',
-      reason:
-        'Cổng MoMo đang tạm ngừng hoạt động. Hệ thống chỉ hỗ trợ thanh toán PayOS.',
+      reason: 'Cổng MoMo hiện tạm ngừng hoạt động.',
     }
   }
   const plusPlan = catalogue.plans.find(
@@ -159,7 +170,11 @@ export function selectPlusUpgradePlan(
       reason: 'Chưa có phiên bản gói Plus hợp lệ từ Consultation.',
     }
   }
-  return { available: true, plan: plusPlan }
+  return {
+    available: true,
+    plan: plusPlan,
+    paymentProvider: catalogue.paymentProvider,
+  }
 }
 
 /**
@@ -183,9 +198,11 @@ export function selectLatestRelevantPayment(
 }
 
 export type VerifiedPlanAccessContext = Readonly<{
-  packageCode: PackageCode
-  entitlementState: EntitlementState
+  packageCode: PackageCode | null
+  entitlementState: EntitlementState | null
   supportPlanEnabled: boolean
+  entitlementVerified: boolean
+  canCreatePlan: boolean
   hasOwnedPlanOrHistory: boolean
   upgradedNow: boolean
   origin?: GuideOrigin | undefined
@@ -209,6 +226,9 @@ export type ResolvedSupportPlanAccess =
       kind: 'owned-plan'
       context: VerifiedPlanAccessContext
       showExpiredUpgradeBanner: boolean
+      showUnavailableUpgradeBanner: boolean
+      offline: boolean
+      errorCode?: string | undefined
       origin?: GuideOrigin | undefined
     }>
   | Readonly<{
@@ -232,11 +252,17 @@ export type ResolveAccessInput = Readonly<{
   entitlement: ServiceCreditEntitlement | null
   errorCode?: string | undefined
   hasOwnedPlanOrHistory: boolean
-  hasPendingUpgradeIntent: boolean
+  hasConfirmedPaymentSettlement: boolean
   catalogue: ServicePlanCatalogue | null
   latestPayment: PlanPayment | null
   origin?: GuideOrigin | undefined
 }>
+
+const AUTH_FAIL_CLOSED_CODES = new Set([
+  'UNAUTHENTICATED',
+  'HTTP_401',
+  'ENTITLEMENT_SUBJECT_MISMATCH',
+])
 
 /**
  * Pure priority resolver enforcing safety override > fail-closed errors > verified access /
@@ -245,39 +271,58 @@ export type ResolveAccessInput = Readonly<{
 export function resolveSupportPlanAccessState(
   input: ResolveAccessInput,
 ): ResolvedSupportPlanAccess {
+  const origin = sanitizeGuideOrigin(input.origin)
+
   if (input.safetyOverride) {
-    return { kind: 'safety-override', origin: input.origin }
+    return { kind: 'safety-override', origin }
   }
 
-  if (input.loading && !input.entitlement && !input.errorCode) {
-    return { kind: 'loading', origin: input.origin }
+  if (
+    input.loading &&
+    !input.entitlement &&
+    !input.errorCode &&
+    !input.offline
+  ) {
+    return { kind: 'loading', origin }
   }
 
-  const status = input.errorCode
+  const parsedStatus = input.errorCode
     ? 'unavailable'
     : planAccessFrom(input.entitlement)
 
-  if (status === 'paid' && input.entitlement?.entitlementState === 'ACTIVE') {
+  const status =
+    input.offline && parsedStatus === 'paid' ? 'unavailable' : parsedStatus
+
+  if (
+    status === 'paid' &&
+    !input.offline &&
+    input.entitlement?.entitlementState === 'ACTIVE' &&
+    Boolean(input.entitlement.supportPlanEnabled)
+  ) {
     const context: VerifiedPlanAccessContext = {
       packageCode: input.entitlement.packageCode,
       entitlementState: input.entitlement.entitlementState,
-      supportPlanEnabled: Boolean(input.entitlement.supportPlanEnabled),
+      supportPlanEnabled: true,
+      entitlementVerified: true,
+      canCreatePlan: true,
       hasOwnedPlanOrHistory: input.hasOwnedPlanOrHistory,
-      upgradedNow: input.hasPendingUpgradeIntent,
-      origin: input.origin,
+      upgradedNow: input.hasConfirmedPaymentSettlement,
+      origin,
     }
-    if (input.hasPendingUpgradeIntent) {
+    if (input.hasConfirmedPaymentSettlement) {
       return {
         kind: 'upgrade-confirmed',
         context,
-        origin: input.origin,
+        origin,
       }
     }
     return {
       kind: 'owned-plan',
       context,
       showExpiredUpgradeBanner: false,
-      origin: input.origin,
+      showUnavailableUpgradeBanner: false,
+      offline: false,
+      origin,
     }
   }
 
@@ -286,15 +331,19 @@ export function resolveSupportPlanAccessState(
       packageCode: input.entitlement?.packageCode ?? 'FREE',
       entitlementState: 'EXPIRED',
       supportPlanEnabled: false,
+      entitlementVerified: true,
+      canCreatePlan: false,
       hasOwnedPlanOrHistory: true,
       upgradedNow: false,
-      origin: input.origin,
+      origin,
     }
     return {
       kind: 'owned-plan',
       context,
       showExpiredUpgradeBanner: true,
-      origin: input.origin,
+      showUnavailableUpgradeBanner: false,
+      offline: input.offline,
+      origin,
     }
   }
 
@@ -304,15 +353,45 @@ export function resolveSupportPlanAccessState(
       variant: status,
       latestPayment: input.latestPayment,
       checkout: selectPlusUpgradePlan(input.catalogue),
-      origin: input.origin,
+      origin,
+    }
+  }
+
+  const finalErrorCode =
+    input.errorCode ??
+    (input.offline ? 'NETWORK_ERROR' : 'ENTITLEMENT_UNAVAILABLE')
+  const isOffline = input.offline || finalErrorCode === 'NETWORK_ERROR'
+
+  if (
+    input.hasOwnedPlanOrHistory &&
+    !AUTH_FAIL_CLOSED_CODES.has(finalErrorCode)
+  ) {
+    const context: VerifiedPlanAccessContext = {
+      packageCode: null,
+      entitlementState: null,
+      supportPlanEnabled: false,
+      entitlementVerified: false,
+      canCreatePlan: false,
+      hasOwnedPlanOrHistory: true,
+      upgradedNow: false,
+      origin,
+    }
+    return {
+      kind: 'owned-plan',
+      context,
+      showExpiredUpgradeBanner: false,
+      showUnavailableUpgradeBanner: true,
+      offline: isOffline,
+      errorCode: finalErrorCode,
+      origin,
     }
   }
 
   return {
     kind: 'unavailable',
-    offline: input.offline || input.errorCode === 'NETWORK_ERROR',
-    errorCode: input.errorCode ?? 'ENTITLEMENT_UNAVAILABLE',
-    origin: input.origin,
+    offline: isOffline,
+    errorCode: finalErrorCode,
+    origin,
   }
 }
 
@@ -322,17 +401,34 @@ export function describePaymentState(payment: PlanPayment): Readonly<{
   tone: 'pending' | 'failed' | 'succeeded'
 }> {
   if (payment.status === 'PENDING') {
+    if (payment.provider === 'FAKE') {
+      return {
+        title: 'Giao dịch thử nghiệm (FAKE) đang chờ xác nhận',
+        detail:
+          'Kế hoạch vẫn đang khoá cho đến khi máy chủ Consultation xác nhận giao dịch thử nghiệm thành công. Hãy kiểm tra lại trạng thái để đối chiếu.',
+        tone: 'pending',
+      }
+    }
+    if (payment.provider === 'MOMO') {
+      return {
+        title: 'Giao dịch MoMo đang chờ kết quả cuối cùng',
+        detail:
+          'Cổng MoMo hiện tạm ngừng mở giao dịch mới. Kế hoạch vẫn đang khoá cho đến khi máy chủ Consultation xác nhận trạng thái giao dịch này.',
+        tone: 'pending',
+      }
+    }
     return {
       title: 'Thanh toán PayOS đang chờ xác nhận',
       detail:
-        'Kế hoạch vẫn đang khoá cho đến khi máy chủ Consultation xác nhận giao dịch thành công. Sau khi chuyển khoản hoặc quay lại từ PayOS, hãy kiểm tra lại trạng thái.',
+        'Kế hoạch vẫn đang khoá cho đến khi máy chủ Consultation xác nhận giao dịch thành công. Sau khi chuyển khoản VietQR hoặc quay lại từ PayOS, hãy kiểm tra lại trạng thái.',
       tone: 'pending',
     }
   }
   if (payment.status === 'SUCCEEDED') {
     return {
       title: 'Giao dịch đã được ghi nhận',
-      detail: 'Đang đối chiếu quyền gói Plus với máy chủ Consultation.',
+      detail:
+        'Thanh toán đã thành công nhưng cần Consultation xác minh lại quyền gói Plus trước khi mở khoá. Hãy nhấn kiểm tra lại trạng thái.',
       tone: 'succeeded',
     }
   }
@@ -344,10 +440,16 @@ export function describePaymentState(payment: PlanPayment): Readonly<{
       tone: 'failed',
     }
   }
+  const providerFailureReason =
+    payment.provider === 'FAKE'
+      ? 'Giao dịch thử nghiệm (FAKE) không thành công.'
+      : payment.provider === 'MOMO'
+        ? 'Cổng MoMo báo giao dịch không thành công.'
+        : 'Cổng PayOS báo giao dịch không thành công.'
   const reasonMap = {
     EXPIRED: 'Liên kết thanh toán đã hết hạn trước khi xác nhận.',
     CANCELLED: 'Giao dịch đã được huỷ trước khi hoàn tất.',
-    PROVIDER_FAILED: 'Cổng PayOS báo giao dịch không thành công.',
+    PROVIDER_FAILED: providerFailureReason,
   } as const
   return {
     title: 'Thanh toán chưa hoàn tất',

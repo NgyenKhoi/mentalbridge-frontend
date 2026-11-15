@@ -48,6 +48,12 @@ export type ServiceCreditEntitlement = z.infer<
   typeof serviceCreditEntitlementSchema
 >
 
+export function isHostedCheckoutSupportedProvider(
+  provider: PaymentProvider,
+): boolean {
+  return provider === 'PAYOS'
+}
+
 export function isAllowedCheckoutUrl(
   rawUrl: string,
   provider: PaymentProvider,
@@ -70,6 +76,16 @@ export function isAllowedCheckoutUrl(
     return hostname === 'momo.vn' || hostname.endsWith('.momo.vn')
   }
   return false
+}
+
+export function canOpenHostedCheckoutUrl(
+  rawUrl: string | null | undefined,
+  provider: PaymentProvider,
+): rawUrl is string {
+  if (!rawUrl || !isHostedCheckoutSupportedProvider(provider)) {
+    return false
+  }
+  return isAllowedCheckoutUrl(rawUrl, provider)
 }
 
 export const servicePlanVersionSchema = z
@@ -187,8 +203,14 @@ export const guideOriginSchema = z
   .object({
     source: z.enum(GUIDE_ORIGIN_SOURCES),
     guideId: z.uuid().optional(),
-    step: z.string().min(1).max(64).optional(),
+    step: z.string().trim().min(1).max(64).optional(),
   })
   .strict()
 
 export type GuideOrigin = z.infer<typeof guideOriginSchema>
+
+export function sanitizeGuideOrigin(origin: unknown): GuideOrigin | undefined {
+  if (origin == null) return undefined
+  const parsed = guideOriginSchema.safeParse(origin)
+  return parsed.success ? parsed.data : undefined
+}

@@ -11,15 +11,17 @@ import {
   describePaymentState,
   formatVnd,
   PLUS_BENEFITS,
+  providerDisplayLabel,
   SAMPLE_PREVIEW_CONTENT,
   type CheckoutAvailability,
   type PreviewTab,
 } from './plan-access-model'
 import {
-  isAllowedCheckoutUrl,
+  canOpenHostedCheckoutUrl,
   type GuideOrigin,
   type PlanPayment,
 } from './support-plan-access-contract'
+import type { CheckoutErrorInfo } from './useSupportPlanAccess'
 
 const TAB_LABELS: readonly Readonly<{ id: PreviewTab; label: string }>[] = [
   { id: 'today', label: 'Hôm nay' },
@@ -34,7 +36,7 @@ export type LockedPlanPreviewProps = Readonly<{
   offline: boolean
   isReconciling: boolean
   isStartingCheckout: boolean
-  checkoutError: Readonly<{ code: string; message: string }> | null
+  checkoutError: CheckoutErrorInfo | null
   externalCheckoutNotice: string | null
   origin?: GuideOrigin | undefined
   onStartUpgrade(): void
@@ -148,10 +150,21 @@ export function LockedPlanPreview({
     ? describePaymentState(latestPayment)
     : null
   const hasPendingPayment = latestPayment?.status === 'PENDING'
-  const hasAllowedHostedUrl =
+  const hasAllowedHostedUrl = Boolean(
     hasPendingPayment &&
-    latestPayment.checkoutUrl != null &&
-    isAllowedCheckoutUrl(latestPayment.checkoutUrl, latestPayment.provider)
+    latestPayment &&
+    canOpenHostedCheckoutUrl(latestPayment.checkoutUrl, latestPayment.provider),
+  )
+  const pendingTransferAmount =
+    latestPayment?.amount ?? latestPayment?.amountVnd ?? 0
+  const pendingExpiry =
+    latestPayment?.expiredAt ?? latestPayment?.expiresAt ?? ''
+  const hasBankTransferFields = Boolean(
+    latestPayment?.accountName ||
+    latestPayment?.accountNumber ||
+    latestPayment?.bin ||
+    latestPayment?.description,
+  )
 
   return (
     <Screen layout="dashboard" clearSafetyButton>
@@ -340,40 +353,66 @@ export function LockedPlanPreview({
 
             {hasPendingPayment && latestPayment ? (
               <View style={styles.transferDetails}>
-                <Text style={styles.transferHeading}>
-                  Thông tin chuyển khoản VietQR / PayOS
-                </Text>
-                {latestPayment.accountName ? (
-                  <Text selectable style={styles.transferLine}>
-                    {`Người nhận: ${latestPayment.accountName}`}
-                  </Text>
-                ) : null}
-                {latestPayment.accountNumber ? (
-                  <Text selectable style={styles.transferLine}>
-                    {`Số tài khoản: ${latestPayment.accountNumber}`}
-                  </Text>
-                ) : null}
-                {latestPayment.bin ? (
-                  <Text selectable style={styles.transferLine}>
-                    {`Mã ngân hàng (BIN): ${latestPayment.bin}`}
-                  </Text>
-                ) : null}
-                <Text selectable style={styles.transferLine}>
-                  {`Số tiền: ${formatVnd(latestPayment.amountVnd)}`}
-                </Text>
-                {latestPayment.description ? (
-                  <Text selectable style={styles.transferLine}>
-                    {`Nội dung chuyển khoản: ${latestPayment.description}`}
-                  </Text>
-                ) : null}
-                {latestPayment.qrCode ? (
-                  <Text selectable style={styles.mutedNote}>
-                    Mã VietQR đã sẵn sàng từ PayOS (cần module hiển thị mã QR
-                    riêng nếu muốn quét trực tiếp trong ứng dụng).
-                  </Text>
-                ) : null}
+                {latestPayment.provider === 'PAYOS' ? (
+                  <>
+                    <Text style={styles.transferHeading}>
+                      Thông tin chuyển khoản VietQR (PayOS)
+                    </Text>
+                    {latestPayment.accountName ? (
+                      <Text selectable style={styles.transferLine}>
+                        {`Người nhận: ${latestPayment.accountName}`}
+                      </Text>
+                    ) : null}
+                    {latestPayment.accountNumber ? (
+                      <Text selectable style={styles.transferLine}>
+                        {`Số tài khoản: ${latestPayment.accountNumber}`}
+                      </Text>
+                    ) : null}
+                    {latestPayment.bin ? (
+                      <Text selectable style={styles.transferLine}>
+                        {`Mã ngân hàng (BIN): ${latestPayment.bin}`}
+                      </Text>
+                    ) : null}
+                    <Text selectable style={styles.transferLine}>
+                      {`Số tiền: ${formatVnd(pendingTransferAmount)}`}
+                    </Text>
+                    {latestPayment.description ? (
+                      <Text selectable style={styles.transferLine}>
+                        {`Nội dung chuyển khoản: ${latestPayment.description}`}
+                      </Text>
+                    ) : null}
+                    <Text
+                      selectable
+                      style={styles.mutedNote}
+                      testID="locked-preview-vietqr-note"
+                    >
+                      {latestPayment.qrCode || latestPayment.qrCodeUrl
+                        ? 'Ứng dụng hiện chưa dựng hình mã QR quét trực tiếp (chờ thư viện QR); vui lòng sao chép thông tin chuyển khoản VietQR bên trên để thanh toán.'
+                        : hasBankTransferFields
+                          ? 'Vui lòng chuyển khoản theo đúng thông tin VietQR bên trên và đối chiếu sau khi hoàn tất.'
+                          : 'Chưa nhận được đủ thông tin tài khoản VietQR từ PayOS. Bạn có thể kiểm tra lại trạng thái hoặc dùng trang PayOS dự phòng nếu có.'}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.transferHeading}>
+                      {`Giao dịch qua ${providerDisplayLabel(latestPayment.provider)}`}
+                    </Text>
+                    <Text selectable style={styles.transferLine}>
+                      {`Số tiền: ${formatVnd(pendingTransferAmount)}`}
+                    </Text>
+                    <Text
+                      style={styles.mutedNote}
+                      testID="locked-preview-provider-pending-note"
+                    >
+                      {latestPayment.provider === 'FAKE'
+                        ? 'Đây là giao dịch mô phỏng chế độ thử nghiệm (FAKE), không phát sinh chuyển khoản ngân hàng thật.'
+                        : 'Cổng MoMo hiện tạm ngừng; chỉ giữ theo dõi trạng thái lịch sử giao dịch.'}
+                    </Text>
+                  </>
+                )}
                 <Text style={styles.mutedNote}>
-                  Hạn giao dịch: {latestPayment.expiresAt}
+                  {`Hạn giao dịch: ${pendingExpiry}`}
                 </Text>
               </View>
             ) : null}
@@ -382,7 +421,7 @@ export function LockedPlanPreview({
               {hasAllowedHostedUrl ? (
                 <SecondaryActionButton
                   disabled={offline || isReconciling}
-                  label="Mở cổng thanh toán PayOS"
+                  label="Mở trang thanh toán PayOS (dự phòng)"
                   onPress={onOpenHostedCheckout}
                   testID="locked-preview-open-payos-url"
                 />
@@ -444,12 +483,20 @@ export function LockedPlanPreview({
             disabled={offline || isStartingCheckout}
             label={
               isStartingCheckout
-                ? 'Đang tạo giao dịch PayOS...'
-                : hasPendingPayment
-                  ? 'Tạo giao dịch nâng cấp mới'
-                  : variant === 'expired'
-                    ? 'Gia hạn gói Plus qua PayOS'
-                    : 'Nâng cấp gói Plus qua PayOS'
+                ? checkout.paymentProvider === 'FAKE'
+                  ? 'Đang tạo giao dịch thử nghiệm...'
+                  : 'Đang tạo giao dịch...'
+                : checkoutError?.uncertain
+                  ? 'Kiểm tra và thử lại nâng cấp Plus'
+                  : hasPendingPayment
+                    ? 'Kiểm tra hoặc tiếp tục giao dịch đang chờ'
+                    : checkout.paymentProvider === 'FAKE'
+                      ? variant === 'expired'
+                        ? 'Gia hạn gói Plus (Thử nghiệm FAKE)'
+                        : 'Nâng cấp gói Plus (Thử nghiệm FAKE)'
+                      : variant === 'expired'
+                        ? 'Gia hạn gói Plus qua PayOS'
+                        : 'Nâng cấp gói Plus qua PayOS'
             }
             onPress={onStartUpgrade}
             testID="locked-preview-upgrade-button"

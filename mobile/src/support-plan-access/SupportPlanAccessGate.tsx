@@ -237,7 +237,7 @@ export function SupportPlanAccessGate({
             Gói Plus của bạn đã sẵn sàng
           </Text>
           <Text style={styles.bodyText}>
-            {`Consultation đã xác nhận gói ${resolved.context.packageCode}. Bạn có thể tiếp tục sang Kế hoạch hỗ trợ để tự xác nhận tạo hoặc mở kế hoạch khi sẵn sàng.`}
+            {`Consultation đã xác nhận gói ${resolved.context.packageCode ?? 'PLUS'}. Bạn có thể tiếp tục sang Kế hoạch hỗ trợ để tự xác nhận tạo hoặc mở kế hoạch khi sẵn sàng.`}
           </Text>
           <View style={styles.buttonStack}>
             {onContinueToPlan ? (
@@ -252,7 +252,13 @@ export function SupportPlanAccessGate({
             ) : null}
             {onNavigateGuide ? (
               <ActionLinkButton
-                label="Quay lại bước Hướng dẫn trước đó"
+                label={
+                  resolved.origin
+                    ? resolved.origin.source === 'REASSESSMENT'
+                      ? 'Quay lại đánh giá lại và Hướng dẫn'
+                      : 'Quay lại bước Hướng dẫn trước đó'
+                    : 'Quay lại Hướng dẫn hỗ trợ'
+                }
                 onPress={() => {
                   controller.clearUpgradeConfirmation()
                   onNavigateGuide(resolved.origin)
@@ -285,21 +291,61 @@ export function SupportPlanAccessGate({
           </View>
         ) : null}
 
+        {resolved.showUnavailableUpgradeBanner ? (
+          <View
+            accessibilityLiveRegion="polite"
+            style={styles.expiredBanner}
+            testID="support-plan-unverified-owned-banner"
+          >
+            <Text style={styles.itemTitle}>
+              {resolved.offline
+                ? 'Đang ngoại tuyến — bạn vẫn xem được kế hoạch và lịch sử đã có.'
+                : 'Chưa xác minh được quyền nâng cấp từ Consultation — bạn vẫn xem được kế hoạch đã có.'}
+            </Text>
+            <Text style={styles.mutedNote}>
+              {`Quyền tạo chu kỳ kế hoạch mới tạm bị giữ ở trạng thái chờ xác minh (${resolved.errorCode ?? 'ENTITLEMENT_UNAVAILABLE'}).`}
+            </Text>
+            {!resolved.offline ? (
+              <ActionLinkButton
+                label={
+                  controller.isChecking
+                    ? 'Đang kiểm tra lại...'
+                    : 'Thử xác minh lại quyền gói'
+                }
+                onPress={() => void controller.retryEntitlementCheck()}
+                testID="owned-plan-retry-verify-button"
+              />
+            ) : null}
+          </View>
+        ) : null}
+
         {children ? (
           children(resolved.context)
         ) : (
           <Screen clearSafetyButton>
             <View style={styles.panel}>
-              <Text style={styles.eyebrow}>ĐÃ XÁC MINH QUYỀN KẾ HOẠCH</Text>
+              <Text style={styles.eyebrow}>
+                {resolved.context.canCreatePlan
+                  ? 'ĐÃ XÁC MINH QUYỀN KẾ HOẠCH'
+                  : 'QUYỀN ĐỌC KẾ HOẠCH HIỆN CÓ'}
+              </Text>
               <Text accessibilityRole="header" style={styles.heading}>
-                Quyền truy cập Kế hoạch hỗ trợ đã mở
+                {resolved.context.canCreatePlan
+                  ? 'Quyền truy cập Kế hoạch hỗ trợ đã mở'
+                  : 'Xem kế hoạch và lịch sử hỗ trợ đã có'}
               </Text>
               <Text style={styles.bodyText}>
-                {`Trạng thái từ Consultation: ${resolved.context.packageCode} (${resolved.context.entitlementState}).`}
+                {resolved.context.entitlementVerified
+                  ? `Trạng thái từ Consultation: ${resolved.context.packageCode ?? 'FREE'} (${resolved.context.entitlementState ?? 'EXPIRED'}).`
+                  : 'Chưa xác minh lại quyền từ Consultation; hệ thống chỉ mở quyền đọc kế hoạch từ Care.'}
               </Text>
               {onContinueToPlan ? (
                 <PrimaryButton
-                  label="Mở Kế hoạch hỗ trợ"
+                  label={
+                    resolved.context.canCreatePlan
+                      ? 'Mở Kế hoạch hỗ trợ'
+                      : 'Xem kế hoạch và lịch sử đã có'
+                  }
                   onPress={() => onContinueToPlan(resolved.context)}
                   testID="owned-plan-continue-button"
                 />

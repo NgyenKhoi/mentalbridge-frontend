@@ -1,4 +1,7 @@
-import type { GuideOrigin } from './support-plan-access-contract'
+import {
+  sanitizeGuideOrigin,
+  type GuideOrigin,
+} from './support-plan-access-contract'
 
 const UPGRADE_INTENT_TTL_MS = 30 * 60 * 1000
 
@@ -9,7 +12,20 @@ export type PendingUpgradeIntent = Readonly<{
   createdAtMs: number
 }>
 
+export type CheckoutAttemptStatus =
+  'preparing' | 'uncertain' | 'pending' | 'terminal'
+
+export type CheckoutAttemptRecord = Readonly<{
+  subject: string
+  planVersionId: string
+  idempotencyKey: string
+  status: CheckoutAttemptStatus
+  paymentId?: string | undefined
+  createdAtMs: number
+}>
+
 let currentIntent: PendingUpgradeIntent | null = null
+let currentCheckoutAttempt: CheckoutAttemptRecord | null = null
 
 /**
  * Stores ephemeral in-memory upgrade return intent scoped to a single authenticated
@@ -26,7 +42,7 @@ export function setPendingUpgradeIntent(
   const next: PendingUpgradeIntent = {
     subject: input.subject,
     paymentId: input.paymentId,
-    origin: input.origin,
+    origin: sanitizeGuideOrigin(input.origin),
     createdAtMs: input.nowMs ?? Date.now(),
   }
   currentIntent = next
@@ -67,5 +83,106 @@ export function clearPendingUpgradeIntent(subject?: string | null): void {
   if (!currentIntent) return
   if (!subject || currentIntent.subject === subject) {
     currentIntent = null
+  }
+}
+
+export function getCheckoutAttempt(
+  subject: string | null | undefined,
+  planVersionId?: string | null,
+  nowMs = Date.now(),
+): CheckoutAttemptRecord | null {
+  if (!currentCheckoutAttempt) return null
+  if (!subject || currentCheckoutAttempt.subject !== subject) {
+    currentCheckoutAttempt = null
+    return null
+  }
+  if (nowMs - currentCheckoutAttempt.createdAtMs > UPGRADE_INTENT_TTL_MS) {
+    currentCheckoutAttempt = null
+    return null
+  }
+  if (planVersionId && currentCheckoutAttempt.planVersionId !== planVersionId) {
+    return null
+  }
+  return currentCheckoutAttempt
+}
+
+export function saveCheckoutAttempt(
+  input: Readonly<{
+    subject: string
+    planVersionId: string
+    idempotencyKey: string
+    status: CheckoutAttemptStatus
+    paymentId?: string | undefined
+    nowMs?: number | undefined
+  }>,
+): CheckoutAttemptRecord {
+  const next: CheckoutAttemptRecord = {
+    subject: input.subject,
+    planVersionId: input.planVersionId,
+    idempotencyKey: input.idempotencyKey,
+    status: input.status,
+    paymentId: input.paymentId,
+    createdAtMs: input.nowMs ?? Date.now(),
+  }
+  currentCheckoutAttempt = next
+  return next
+}
+
+export function markCheckoutAttemptUncertain(
+  subject: string,
+  planVersionId: string,
+  idempotencyKey: string,
+  nowMs = Date.now(),
+): CheckoutAttemptRecord {
+  return saveCheckoutAttempt({
+    subject,
+    planVersionId,
+    idempotencyKey,
+    status: 'uncertain',
+    nowMs,
+  })
+}
+
+export function markCheckoutAttemptPending(
+  subject: string,
+  planVersionId: string,
+  idempotencyKey: string,
+  paymentId: string,
+  nowMs = Date.now(),
+): CheckoutAttemptRecord {
+  return saveCheckoutAttempt({
+    subject,
+    planVersionId,
+    idempotencyKey,
+    status: 'pending',
+    paymentId,
+    nowMs,
+  })
+}
+
+export function markCheckoutAttemptTerminal(
+  subject: string,
+  paymentId?: string | null,
+): void {
+  if (!currentCheckoutAttempt || currentCheckoutAttempt.subject !== subject) {
+    return
+  }
+  if (
+    paymentId &&
+    currentCheckoutAttempt.paymentId &&
+    currentCheckoutAttempt.paymentId !== paymentId
+  ) {
+    return
+  }
+  currentCheckoutAttempt = {
+    ...currentCheckoutAttempt,
+    status: 'terminal',
+  }
+}
+
+export function clearCheckoutAttempt(subject?: string | null): void {
+  if (!currentCheckoutAttempt) return
+  if (!subject || currentCheckoutAttempt.subject === subject) {
+    currentCheckoutAttempt = null
   }
 }

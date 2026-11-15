@@ -6,10 +6,13 @@ export {
   PAYMENT_PROVIDERS,
   PAYMENT_STATUSES,
   PAYMENT_TERMINAL_REASONS,
+  canOpenHostedCheckoutUrl,
   guideOriginSchema,
   isAllowedCheckoutUrl,
+  isHostedCheckoutSupportedProvider,
   planPaymentHistorySchema,
   planPaymentSchema,
+  sanitizeGuideOrigin,
   serviceCreditEntitlementSchema,
   servicePlanCatalogueSchema,
   servicePlanVersionSchema,
@@ -34,6 +37,7 @@ export {
   describePaymentState,
   formatVnd,
   planAccessFrom,
+  providerDisplayLabel,
   resolveSupportPlanAccessState,
   selectLatestRelevantPayment,
   selectPlusUpgradePlan,
@@ -53,15 +57,24 @@ export {
 } from './support-plan-access-api'
 
 export {
+  clearCheckoutAttempt,
   clearPendingUpgradeIntent,
   consumePendingUpgradeIntent,
+  getCheckoutAttempt,
   getPendingUpgradeIntent,
+  markCheckoutAttemptPending,
+  markCheckoutAttemptTerminal,
+  markCheckoutAttemptUncertain,
+  saveCheckoutAttempt,
   setPendingUpgradeIntent,
+  type CheckoutAttemptRecord,
+  type CheckoutAttemptStatus,
   type PendingUpgradeIntent,
 } from './upgrade-intent-store'
 
 export {
   useSupportPlanAccess,
+  type CheckoutErrorInfo,
   type SupportPlanAccessController,
   type UseSupportPlanAccessOptions,
 } from './useSupportPlanAccess'

@@ -1,18 +1,25 @@
 import {
+  describePaymentState,
   planAccessFrom,
+  providerDisplayLabel,
   resolveSupportPlanAccessState,
   selectLatestRelevantPayment,
   selectPlusUpgradePlan,
 } from './plan-access-model'
 import {
+  canOpenHostedCheckoutUrl,
   guideOriginSchema,
   isAllowedCheckoutUrl,
   planPaymentSchema,
+  sanitizeGuideOrigin,
   serviceCreditEntitlementSchema,
 } from './support-plan-access-contract'
 import {
   GUIDE_ID,
+  PAYMENT_ID_1,
   PAYMENT_ID_2,
+  PLUS_PLAN_VERSION_ID,
+  PREMIUM_PLAN_VERSION_ID,
   USER_A_SUBJECT,
   USER_B_SUBJECT,
   makeCatalogue,
@@ -20,15 +27,22 @@ import {
   makePayment,
 } from './support-plan-access-test-fixtures'
 import {
+  clearCheckoutAttempt,
   clearPendingUpgradeIntent,
   consumePendingUpgradeIntent,
+  getCheckoutAttempt,
   getPendingUpgradeIntent,
+  markCheckoutAttemptPending,
+  markCheckoutAttemptTerminal,
+  markCheckoutAttemptUncertain,
+  saveCheckoutAttempt,
   setPendingUpgradeIntent,
 } from './upgrade-intent-store'
 
 describe('support-plan-access contracts and fail-closed state machine', () => {
   afterEach(() => {
     clearPendingUpgradeIntent()
+    clearCheckoutAttempt()
   })
 
   it('derives entitlement strictly and fails closed on missing or contradictory fields', () => {
@@ -192,8 +206,45 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
     })
     expect(selectPlusUpgradePlan(makeCatalogue())).toMatchObject({
       available: true,
+      paymentProvider: 'PAYOS',
       plan: { planCode: 'PLUS', priceVnd: 5000 },
     })
+    expect(
+      selectPlusUpgradePlan(makeCatalogue({ paymentProvider: 'FAKE' })),
+    ).toMatchObject({
+      available: true,
+      paymentProvider: 'FAKE',
+      plan: { planCode: 'PLUS', priceVnd: 5000 },
+    })
+
+    expect(
+      canOpenHostedCheckoutUrl('https://pay.payos.vn/web/123', 'PAYOS'),
+    ).toBe(true)
+    expect(
+      canOpenHostedCheckoutUrl('https://test.momo.vn/pay/123', 'MOMO'),
+    ).toBe(false)
+    expect(
+      canOpenHostedCheckoutUrl('https://pay.payos.vn/web/123', 'FAKE'),
+    ).toBe(false)
+    expect(providerDisplayLabel('PAYOS')).toBe('PayOS')
+    expect(providerDisplayLabel('FAKE')).toContain('FAKE')
+    expect(providerDisplayLabel('MOMO')).toContain('MoMo')
+
+    const fakePendingSummary = describePaymentState(
+      makePayment({ provider: 'FAKE', checkoutUrl: null }),
+    )
+    expect(fakePendingSummary.title).not.toContain('PayOS')
+    expect(fakePendingSummary.detail).not.toContain('PayOS')
+
+    const momoFailedSummary = describePaymentState(
+      makePayment({
+        provider: 'MOMO',
+        status: 'FAILED',
+        terminalReason: 'PROVIDER_FAILED',
+        checkoutUrl: null,
+      }),
+    )
+    expect(momoFailedSummary.detail).not.toContain('PayOS')
   })
 
   it('orders PENDING payments ahead of older rows and resolves priority states correctly', () => {
@@ -218,7 +269,7 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
         offline: false,
         entitlement: makeEntitlement(),
         hasOwnedPlanOrHistory: false,
-        hasPendingUpgradeIntent: false,
+        hasConfirmedPaymentSettlement: false,
         catalogue: makeCatalogue(),
         latestPayment: null,
       }).kind,
@@ -234,14 +285,101 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
         supportPlanEnabled: false,
       }),
       hasOwnedPlanOrHistory: true,
-      hasPendingUpgradeIntent: false,
+      hasConfirmedPaymentSettlement: false,
       catalogue: makeCatalogue(),
       latestPayment: null,
     })
     expect(expiredWithPlan).toMatchObject({
       kind: 'owned-plan',
       showExpiredUpgradeBanner: true,
+      showUnavailableUpgradeBanner: false,
+      context: {
+        canCreatePlan: false,
+        entitlementVerified: true,
+      },
     })
+
+    // Unconfirmed settlement with existing ACTIVE PLUS stays owned-plan (not upgrade-confirmed).
+    const preExistingActive = resolveSupportPlanAccessState({
+      safetyOverride: false,
+      loading: false,
+      offline: false,
+      entitlement: makeEntitlement({
+        packageCode: 'PLUS',
+        entitlementState: 'ACTIVE',
+        supportPlanEnabled: true,
+      }),
+      hasOwnedPlanOrHistory: false,
+      hasConfirmedPaymentSettlement: false,
+      catalogue: makeCatalogue(),
+      latestPayment: activePending,
+    })
+    expect(preExistingActive).toMatchObject({
+      kind: 'owned-plan',
+      context: {
+        upgradedNow: false,
+        canCreatePlan: true,
+      },
+    })
+
+    // Offline must never grant canCreatePlan even if stale PLUS entitlement was passed.
+    const offlineStalePaid = resolveSupportPlanAccessState({
+      safetyOverride: false,
+      loading: false,
+      offline: true,
+      entitlement: makeEntitlement({
+        packageCode: 'PLUS',
+        entitlementState: 'ACTIVE',
+        supportPlanEnabled: true,
+      }),
+      hasOwnedPlanOrHistory: false,
+      hasConfirmedPaymentSettlement: true,
+      catalogue: makeCatalogue(),
+      latestPayment: null,
+    })
+    expect(offlineStalePaid).toEqual({
+      kind: 'unavailable',
+      offline: true,
+      errorCode: 'NETWORK_ERROR',
+      origin: undefined,
+    })
+
+    // Owned Care Plan/history remains readable under 503/offline without granting canCreatePlan.
+    const unavailableOwnedPlan = resolveSupportPlanAccessState({
+      safetyOverride: false,
+      loading: false,
+      offline: false,
+      entitlement: null,
+      errorCode: 'HTTP_503',
+      hasOwnedPlanOrHistory: true,
+      hasConfirmedPaymentSettlement: false,
+      catalogue: null,
+      latestPayment: null,
+    })
+    expect(unavailableOwnedPlan).toMatchObject({
+      kind: 'owned-plan',
+      showUnavailableUpgradeBanner: true,
+      errorCode: 'HTTP_503',
+      context: {
+        canCreatePlan: false,
+        entitlementVerified: false,
+        hasOwnedPlanOrHistory: true,
+      },
+    })
+
+    // Auth failure still fails closed even with hasOwnedPlanOrHistory.
+    const unauthenticatedOwned = resolveSupportPlanAccessState({
+      safetyOverride: false,
+      loading: false,
+      offline: false,
+      entitlement: null,
+      errorCode: 'HTTP_401',
+      hasOwnedPlanOrHistory: true,
+      hasConfirmedPaymentSettlement: false,
+      catalogue: null,
+      latestPayment: null,
+    })
+    expect(unauthenticatedOwned.kind).toBe('unavailable')
 
     const unavailableOnError = resolveSupportPlanAccessState({
       safetyOverride: false,
@@ -250,7 +388,7 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
       entitlement: makeEntitlement(),
       errorCode: 'HTTP_503',
       hasOwnedPlanOrHistory: false,
-      hasPendingUpgradeIntent: false,
+      hasConfirmedPaymentSettlement: false,
       catalogue: makeCatalogue(),
       latestPayment: null,
     })
@@ -260,9 +398,16 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
       errorCode: 'HTTP_503',
       origin: undefined,
     })
+
+    expect(
+      sanitizeGuideOrigin({ source: 'GUIDE', step: '   ' }),
+    ).toBeUndefined()
+    expect(
+      sanitizeGuideOrigin({ source: 'GUIDE', guideId: GUIDE_ID, step: 'next' }),
+    ).toEqual({ source: 'GUIDE', guideId: GUIDE_ID, step: 'next' })
   })
 
-  it('isolates ephemeral upgrade intent per subject and expires after TTL', () => {
+  it('isolates ephemeral upgrade intent and checkout idempotency attempts per subject and TTL', () => {
     setPendingUpgradeIntent({
       subject: USER_A_SUBJECT,
       paymentId: activeId(),
@@ -289,6 +434,44 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
       activeId(),
     )
     expect(getPendingUpgradeIntent(USER_A_SUBJECT, 6_000)).toBeNull()
+
+    saveCheckoutAttempt({
+      subject: USER_A_SUBJECT,
+      planVersionId: PLUS_PLAN_VERSION_ID,
+      idempotencyKey: 'key-1111111111111111',
+      status: 'preparing',
+      nowMs: 1_000,
+    })
+    markCheckoutAttemptUncertain(
+      USER_A_SUBJECT,
+      PLUS_PLAN_VERSION_ID,
+      'key-1111111111111111',
+      2_000,
+    )
+    expect(
+      getCheckoutAttempt(USER_A_SUBJECT, PLUS_PLAN_VERSION_ID, 3_000),
+    ).toMatchObject({
+      status: 'uncertain',
+      idempotencyKey: 'key-1111111111111111',
+    })
+    // Different planVersionId must not reuse uncertain key intended for PLUS.
+    expect(
+      getCheckoutAttempt(USER_A_SUBJECT, PREMIUM_PLAN_VERSION_ID, 3_000),
+    ).toBeNull()
+    markCheckoutAttemptPending(
+      USER_A_SUBJECT,
+      PLUS_PLAN_VERSION_ID,
+      'key-1111111111111111',
+      PAYMENT_ID_1,
+      4_000,
+    )
+    markCheckoutAttemptTerminal(USER_A_SUBJECT, PAYMENT_ID_1)
+    expect(
+      getCheckoutAttempt(USER_A_SUBJECT, PLUS_PLAN_VERSION_ID, 5_000)?.status,
+    ).toBe('terminal')
+    expect(
+      getCheckoutAttempt(USER_B_SUBJECT, PLUS_PLAN_VERSION_ID, 5_000),
+    ).toBeNull()
   })
 })
 
