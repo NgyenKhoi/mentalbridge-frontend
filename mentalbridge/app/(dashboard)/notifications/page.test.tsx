@@ -47,6 +47,7 @@ const preferences = {
     appointmentMessage: true,
     resourceSystem: true,
     communityInteraction: true,
+    supportPlanReminder: true,
   },
   quietHours: {
     enabled: true,
@@ -62,6 +63,7 @@ const preferences = {
     dailyDigestTime: '19:00',
     resourceReminderTime: '18:30',
   },
+  dailyReminderTime: '20:00',
   version: 0,
   updatedAt: '2026-09-26T00:00:00.000Z',
 }
@@ -545,6 +547,138 @@ describe('Notification preferences page', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('phải khác nhau')
     expect(api.save).not.toHaveBeenCalled()
+  })
+
+  it('saves an edited daily reminder time and confirms it under the field', async () => {
+    const user = userEvent.setup()
+    api.save.mockImplementation(async (patch) => ({
+      preferences: { ...preferences, ...patch, version: 1 },
+      etag: '"1"',
+    }))
+    render(<NotificationsPage />)
+    await user.click(screen.getByRole('button', { name: /Cài đặt/i }))
+    const field = await screen.findByLabelText('Giờ nhắc mỗi ngày')
+    expect(field).toHaveValue('20:00')
+    expect(
+      screen.getByText(
+        'Nhắc viết nhật ký, ghi cảm xúc và kế hoạch hỗ trợ vào giờ này, theo múi giờ Asia/Ho_Chi_Minh.',
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText(/Đã lưu giờ nhắc/)).not.toBeInTheDocument()
+
+    fireEvent.change(field, { target: { value: '07:30' } })
+    await user.click(screen.getByRole('button', { name: 'Lưu cài đặt' }))
+
+    await waitFor(() => expect(api.save).toHaveBeenCalledTimes(1))
+    expect(api.save).toHaveBeenCalledWith(
+      expect.objectContaining({ dailyReminderTime: '07:30' }),
+      '"0"',
+    )
+    const status = await screen.findByText('Đã lưu giờ nhắc 07:30.')
+    expect(status).toHaveAttribute('role', 'status')
+    expect(status.closest('footer')).not.toBeNull()
+
+    fireEvent.change(field, { target: { value: '08:00' } })
+    await waitFor(() =>
+      expect(screen.queryByText(/Đã lưu giờ nhắc/)).not.toBeInTheDocument(),
+    )
+  })
+
+  it('does not announce a saved reminder time when only another preference changed', async () => {
+    const user = userEvent.setup()
+    api.save.mockImplementation(async (patch) => ({
+      preferences: { ...preferences, ...patch, version: 1 },
+      etag: '"1"',
+    }))
+    render(<NotificationsPage />)
+    await user.click(screen.getByRole('button', { name: /Cài đặt/i }))
+    await user.click(await screen.findByRole('switch', { name: 'Email' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu cài đặt' }))
+
+    expect(await screen.findByText('Đã lưu cài đặt thông báo.')).toBeVisible()
+    expect(screen.queryByText(/Đã lưu giờ nhắc/)).not.toBeInTheDocument()
+  })
+
+  it('blocks saving an empty reminder time with an inline alert', async () => {
+    const user = userEvent.setup()
+    render(<NotificationsPage />)
+    await user.click(screen.getByRole('button', { name: /Cài đặt/i }))
+    const field = await screen.findByLabelText('Giờ nhắc mỗi ngày')
+
+    fireEvent.change(field, { target: { value: '' } })
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Nhập giờ dạng HH:mm, ví dụ 20:00.',
+    )
+    expect(field).toBeInvalid()
+    expect(field.getAttribute('aria-describedby')).toContain(
+      screen.getByRole('alert').id,
+    )
+    expect(screen.getByRole('button', { name: 'Lưu cài đặt' })).toBeDisabled()
+    expect(api.save).not.toHaveBeenCalled()
+
+    fireEvent.change(field, { target: { value: '20:00' } })
+    await waitFor(() =>
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
+    )
+  })
+
+  it('saves the support plan reminder group independently', async () => {
+    const user = userEvent.setup()
+    api.save.mockImplementation(async (patch) => ({
+      preferences: { ...preferences, ...patch, version: 1 },
+      etag: '"1"',
+    }))
+    render(<NotificationsPage />)
+    await user.click(screen.getByRole('button', { name: /Cài đặt/i }))
+    const toggle = await screen.findByRole('switch', {
+      name: 'Kế hoạch hỗ trợ hôm nay',
+    })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(
+      screen.getByText('Một lời nhắc khi kế hoạch có hoạt động trong ngày.'),
+    ).toBeVisible()
+    await user.click(toggle)
+    await user.click(screen.getByRole('button', { name: 'Lưu cài đặt' }))
+
+    await waitFor(() => expect(api.save).toHaveBeenCalledTimes(1))
+    expect(api.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentGroups: expect.objectContaining({ supportPlanReminder: false }),
+      }),
+      '"0"',
+    )
+  })
+
+  it('shows the plan reminder in the inbox and opens the support plan', async () => {
+    const user = userEvent.setup()
+    const planReminder = {
+      ...notification,
+      kind: 'SUPPORT_PLAN_DAILY_REMINDER' as const,
+      title: 'Bạn có hoạt động trong kế hoạch hôm nay',
+      body: 'Mở MentalBridge để xem kế hoạch hỗ trợ hôm nay.',
+      read: true,
+      readAt: '2026-09-26T02:00:00.000Z',
+      action: {
+        type: 'OPEN_SUPPORT_PLAN' as const,
+        targetId: null,
+        href: '/support-plan',
+      },
+    }
+    inboxApi.get.mockResolvedValueOnce({
+      items: [planReminder],
+      nextCursor: null,
+      hasMore: false,
+      unreadCount: 0,
+    })
+    render(<NotificationsPage />)
+
+    expect(await screen.findByText('Kế hoạch hỗ trợ')).toBeVisible()
+    await user.click(
+      screen.getByRole('button', {
+        name: /Bạn có hoạt động trong kế hoạch hôm nay[\s\S]*Mở MentalBridge/,
+      }),
+    )
+    expect(inboxApi.push).toHaveBeenCalledWith('/support-plan')
   })
 
   it('offers reload when another device has changed the version', async () => {

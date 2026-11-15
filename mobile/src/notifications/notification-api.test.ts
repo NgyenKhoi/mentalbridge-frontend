@@ -43,6 +43,21 @@ it('marks one notification read without actor, body or new idempotency protocol'
   expect(requests[0]?.data).toBeUndefined()
   expect(requests[0]?.headers.get('Idempotency-Key')).toBeUndefined()
 })
+it('parses an appointment reminder in the inbox and in the mark-read response', async () => {
+  const appointment = notification({
+    kind: 'APPOINTMENT',
+    action: {
+      type: 'OPEN_APPOINTMENT',
+      targetId,
+      href: `/appointments/${targetId}`,
+    },
+  })
+  await expect(setup(page([appointment])).api.list()).resolves.toEqual(
+    page([appointment]),
+  )
+  const read = { ...appointment, read: true, readAt: date }
+  await expect(setup(read).api.markRead(notificationId)).resolves.toEqual(read)
+})
 it('uses only the mark-all owner command and server count', async () => {
   const { api, requests } = setup({ updatedCount: 8 })
   expect(await api.markAllRead()).toEqual({ updatedCount: 8 })

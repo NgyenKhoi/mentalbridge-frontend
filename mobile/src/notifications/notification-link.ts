@@ -73,6 +73,14 @@ export function notificationDestination(
           params: { postId: action.targetId },
         }
   }
+  if (action.type === 'OPEN_APPOINTMENT') {
+    // No appointment detail screen on mobile: open the list for the exact published path.
+    if (!action.targetId || !z.uuid().safeParse(action.targetId).success)
+      return null
+    return action.href === `/appointments/${action.targetId}`
+      ? { pathname: '/(user)/appointments' as const }
+      : null
+  }
   if (action.targetId !== null) return null
   switch (action.type) {
     case 'OPEN_JOURNAL':
@@ -90,6 +98,10 @@ export function notificationDestination(
     case 'OPEN_RESOURCES':
       return action.href === '/resources'
         ? { pathname: '/(user)/resources' as const }
+        : null
+    case 'OPEN_SUPPORT_PLAN':
+      return action.href === '/support-plan'
+        ? { pathname: '/(user)/support-plan' as const }
         : null
     case 'OPEN_ASSESSMENTS':
       return action.href === '/assessments'

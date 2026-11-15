@@ -36,6 +36,7 @@ const preferences = {
     appointmentMessage: true,
     resourceSystem: true,
     communityInteraction: false,
+    supportPlanReminder: false,
   },
   quietHours: {
     enabled: false,
@@ -51,6 +52,7 @@ const preferences = {
     resourceReminderTime: '08:00',
     appointmentRemindersEnabled: false,
   },
+  dailyReminderTime: '20:00',
   version: 0,
   updatedAt: '2026-10-12T00:00:00.000Z',
 }
@@ -114,6 +116,10 @@ describe('SpecialistNotificationCenter', () => {
     expect(
       screen.queryByRole('checkbox', { name: /Nhật ký|cảm xúc/i }),
     ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('checkbox', { name: /Kế hoạch hỗ trợ/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Giờ nhắc/)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Lưu cài đặt' }))
     await waitFor(() =>

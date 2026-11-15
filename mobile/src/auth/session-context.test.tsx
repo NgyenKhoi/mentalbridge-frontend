@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -123,6 +124,72 @@ describe('mobile session context', () => {
         screen.getByRole('button', { name: 'unauthenticated' }),
       ).toBeOnTheScreen()
     })
+  })
+
+  it('runs the before-sign-out hook before logout, and still logs out when it fails', async () => {
+    const service = createSessionService()
+    service.logout.mockResolvedValue()
+    const order: string[] = []
+    service.logout.mockImplementation(async () => {
+      order.push('logout')
+    })
+    const beforeSignOut = jest.fn(async () => {
+      order.push('hook')
+      throw new Error('revoke failed')
+    })
+
+    await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <SessionProvider
+          beforeSignOut={beforeSignOut}
+          initialSession={{ role: 'USER', subject: 'account-1' }}
+          service={service}
+        >
+          <SignOutHarness />
+        </SessionProvider>
+      </QueryClientProvider>,
+    )
+
+    await fireEvent.press(screen.getByRole('button', { name: 'authenticated' }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'unauthenticated' }),
+      ).toBeOnTheScreen()
+    })
+    expect(order).toEqual(['hook', 'logout'])
+  })
+
+  it('does not wait longer than the bound for a hung before-sign-out hook', async () => {
+    jest.useFakeTimers()
+    try {
+      const service = createSessionService()
+      service.logout.mockResolvedValue()
+
+      await render(
+        <QueryClientProvider client={createQueryClient()}>
+          <SessionProvider
+            beforeSignOut={() => new Promise<void>(() => undefined)}
+            initialSession={{ role: 'USER', subject: 'account-1' }}
+            service={service}
+          >
+            <SignOutHarness />
+          </SessionProvider>
+        </QueryClientProvider>,
+      )
+
+      await fireEvent.press(
+        screen.getByRole('button', { name: 'authenticated' }),
+      )
+      expect(service.logout).not.toHaveBeenCalled()
+
+      await act(async () => {
+        jest.advanceTimersByTime(3_000)
+      })
+      expect(service.logout).toHaveBeenCalledTimes(1)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('clears the authenticated state only after Identity changes the password', async () => {

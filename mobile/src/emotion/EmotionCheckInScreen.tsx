@@ -1,114 +1,33 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { randomUUID } from 'expo-crypto'
+import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
-import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
+import { useSession } from '@/auth/session-context'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 import type { ResolvedEmotionPlanOrigin } from '@/support-plan/emotion-plan-context'
 
 import type { EmotionApi } from './emotion-api'
-import type {
-  Emotion,
-  EmotionCheckIn,
-  EmotionCheckInList,
-  EmotionInfluenceFactor,
-} from './emotion-contract'
+import { EmotionCheckInForm } from './EmotionCheckInForm'
+import { emotionByValue, emotions } from './emotion-presentation'
+import {
+  emotionKeys,
+  useEmotionCheckIn,
+  type EmotionCopy,
+} from './use-emotion-check-in'
 
-const emotions: readonly {
-  value: Emotion
-  emoji: string
-  label: string
-}[] = [
-  { value: 'GREAT', emoji: '😄', label: 'Rất tốt' },
-  { value: 'GOOD', emoji: '😊', label: 'Tốt' },
-  { value: 'OKAY', emoji: '😌', label: 'Bình thường' },
-  { value: 'LOW', emoji: '🥱', label: 'Không tốt' },
-  { value: 'VERY_LOW', emoji: '😟', label: 'Rất không tốt' },
-]
 const periods = [7, 14, 30] as const
-const influenceFactors: readonly {
-  value: EmotionInfluenceFactor
-  label: string
-}[] = [
-  { value: 'sleep', label: 'Giấc ngủ' },
-  { value: 'work', label: 'Công việc' },
-  { value: 'study', label: 'Học tập' },
-  { value: 'family', label: 'Gia đình' },
-  { value: 'friends', label: 'Bạn bè' },
-  { value: 'health', label: 'Sức khỏe' },
-  { value: 'other', label: 'Điều khác' },
-]
 type Period = (typeof periods)[number]
-type Draft = Readonly<{
-  emotion: Emotion | null
-  intensity: number | null
-  factors: readonly EmotionInfluenceFactor[]
-  note: string
-}>
-type SaveCommand = Readonly<{
-  subject: string
-  localDate: string
-  timezone: string
-  scope: string
-  draft: Draft
-  current: EmotionCheckIn | null
-}>
-type DeleteCommand = Readonly<{
-  subject: string
-  localDate: string
-  timezone: string
-  scope: string
-}>
-
-const emptyDraft: Draft = {
-  emotion: null,
-  intensity: null,
-  factors: [],
-  note: '',
-}
 const historyLimit = 30
-
-const savedDraft = (checkIn: EmotionCheckIn): Draft => ({
-  emotion: checkIn.emotion,
-  intensity: checkIn.intensity,
-  factors: checkIn.factors,
-  note: checkIn.note ?? '',
-})
-
-function draftSyncKey(
-  subject: string | undefined,
-  localDate: string,
-  checkIn: EmotionCheckIn | null,
-) {
-  const ownerKey = subject ?? 'no-subject'
-  return checkIn
-    ? `${ownerKey}:${localDate}:${checkIn.id}:${checkIn.revision}`
-    : `${ownerKey}:${localDate}:empty`
-}
-
-export function localDateInTimeZone(now: Date, timezone: string) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now)
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((item) => item.type === type)?.value ?? ''
-  return `${part('year')}-${part('month')}-${part('day')}`
-}
 
 const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
   day: '2-digit',
@@ -119,10 +38,6 @@ const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
 
 const displayDate = (localDate: string) =>
   dateFormatter.format(new Date(`${localDate}T00:00:00.000Z`))
-
-function isNotFound(error: unknown) {
-  return error instanceof ApiError && error.status === 404
-}
 
 function isUnauthorized(error: unknown) {
   return (
@@ -171,9 +86,15 @@ function StateMessage({
   )
 }
 
+const copy: EmotionCopy = {
+  conflict:
+    'Ghi nhận đã thay đổi ở nơi khác. Bản mới nhất đã được tải; hãy kiểm tra lại trước khi lưu.',
+  failure: mutationErrorMessage,
+}
+
 export function EmotionCheckInScreen({
   api,
-  now = () => new Date(),
+  now,
   timezone: timezoneOverride,
   planOrigin,
   onReturnToPlan,
@@ -184,234 +105,44 @@ export function EmotionCheckInScreen({
   planOrigin?: ResolvedEmotionPlanOrigin
   onReturnToPlan?: () => void
 }>) {
-  const { session, signOut } = useSession()
-  const queryClient = useQueryClient()
-  const subject = session?.subject
-  const timezone = useMemo(
-    () =>
-      timezoneOverride ??
-      Intl.DateTimeFormat().resolvedOptions().timeZone ??
-      'UTC',
-    [timezoneOverride],
-  )
-  const localDate = useMemo(
-    () => localDateInTimeZone(now(), timezone),
-    [now, timezone],
-  )
-  const todayKey = ['emotion-check-in', subject, 'today', localDate] as const
-  const historyKey = [
-    'emotion-check-in',
+  const { signOut } = useSession()
+  const {
     subject,
-    'history',
-    historyLimit,
-  ] as const
-  const progressKey = [
-    'emotion-check-in',
-    subject,
-    'progress',
     timezone,
-  ] as const
-  const [draft, setDraft] = useState<Draft>(emptyDraft)
-  const [period, setPeriod] = useState<Period>(7)
-  const [contextExpanded, setContextExpanded] = useState(false)
-  const [notice, setNotice] = useState<{
-    message: string
-    tone: 'error' | 'success'
-  } | null>(null)
-  const [pendingDeleteDate, setPendingDeleteDate] = useState<string | null>(
-    null,
-  )
-  const syncedDraftKey = useRef<string | undefined>(undefined)
-  const scope = `${subject}:${localDate}:${timezone}`
-  const currentScope = useRef(scope)
-  useLayoutEffect(() => {
-    currentScope.current = scope
-  }, [scope])
-  const saveKey = useRef<{ signature: string; key: string } | null>(null)
-
-  const todayQuery = useQuery({
-    queryKey: todayKey,
-    enabled: Boolean(subject),
-    refetchOnMount: 'always',
-    queryFn: async () => {
-      try {
-        return await api.getCheckIn(localDate)
-      } catch (error) {
-        if (isNotFound(error)) return null
-        throw error
-      }
-    },
+    localDate,
+    scope,
+    todayQuery,
+    current,
+    draft,
+    notice,
+    saveDisabled: draftSaveDisabled,
+    pendingDeleteDate,
+    setPendingDeleteDate,
+    saveMutation,
+    deleteMutation,
+    editDraft,
+    save,
+    remove,
+  } = useEmotionCheckIn({
+    api,
+    ...(now ? { now } : {}),
+    timezone: timezoneOverride,
+    copy,
   })
+  const [period, setPeriod] = useState<Period>(7)
+
   const historyQuery = useQuery({
-    queryKey: historyKey,
+    queryKey: emotionKeys.history(subject, historyLimit),
     enabled: Boolean(subject),
     refetchOnMount: 'always',
     queryFn: () => api.listCheckIns(historyLimit),
   })
   const progressQuery = useQuery({
-    queryKey: progressKey,
+    queryKey: emotionKeys.progress(subject, timezone),
     enabled: Boolean(subject),
     refetchOnMount: 'always',
     queryFn: () => api.getProgress(timezone),
   })
-
-  const current = todayQuery.data ?? null
-
-  useEffect(() => {
-    if (!subject || !todayQuery.isSuccess) return
-    const syncKey = draftSyncKey(subject, localDate, current)
-    if (syncedDraftKey.current === syncKey) return
-    syncedDraftKey.current = syncKey
-    setDraft(current ? savedDraft(current) : emptyDraft)
-    setNotice(null)
-    setPendingDeleteDate(null)
-  }, [current, localDate, subject, todayQuery.isSuccess])
-
-  const refreshHistoryAndProgress = async (owner: {
-    subject: string
-    timezone: string
-  }) => {
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: ['emotion-check-in', owner.subject, 'history'],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: [
-          'emotion-check-in',
-          owner.subject,
-          'progress',
-          owner.timezone,
-        ],
-      }),
-    ])
-  }
-
-  const saveMutation = useMutation({
-    mutationFn: async (command: SaveCommand) => {
-      if (!command.draft.emotion || !command.draft.intensity) {
-        throw new Error('Emotion check-in draft is incomplete')
-      }
-      const value = {
-        emotion: command.draft.emotion,
-        intensity: command.draft.intensity,
-        factors: [...command.draft.factors],
-        note: command.draft.note.trim() || null,
-      }
-      const signature = JSON.stringify([
-        command.scope,
-        command.current?.revision,
-        value,
-      ])
-      if (saveKey.current?.signature !== signature)
-        saveKey.current = { signature, key: randomUUID() }
-      return command.current
-        ? api.updateCheckIn(
-            command.localDate,
-            command.current.revision,
-            value,
-            saveKey.current.key,
-          )
-        : api.createCheckIn(
-            {
-              ...value,
-              localDate: command.localDate,
-              timezone: command.timezone,
-            },
-            saveKey.current.key,
-          )
-    },
-    onSuccess: async (saved, command) => {
-      queryClient.setQueryData(
-        ['emotion-check-in', command.subject, 'today', command.localDate],
-        saved,
-      )
-      if (currentScope.current === command.scope) {
-        syncedDraftKey.current = draftSyncKey(
-          command.subject,
-          command.localDate,
-          saved,
-        )
-        setDraft(savedDraft(saved))
-        saveKey.current = null
-        setNotice({
-          message: command.current
-            ? 'Đã cập nhật ghi nhận hôm nay.'
-            : 'Đã lưu ghi nhận hôm nay.',
-          tone: 'success',
-        })
-      }
-      await refreshHistoryAndProgress(command)
-    },
-    onError: async (error, command) => {
-      if (currentScope.current !== command.scope) return
-      if (
-        error instanceof ApiError &&
-        (error.status === 409 || error.status === 412)
-      ) {
-        const refreshed = await todayQuery.refetch()
-        if (currentScope.current !== command.scope) return
-        if (refreshed.isSuccess && refreshed.data) {
-          syncedDraftKey.current = draftSyncKey(
-            subject,
-            localDate,
-            refreshed.data,
-          )
-          setDraft(savedDraft(refreshed.data))
-        }
-        setNotice({
-          message:
-            'Ghi nhận đã thay đổi ở nơi khác. Bản mới nhất đã được tải; hãy kiểm tra lại trước khi lưu.',
-          tone: 'error',
-        })
-        return
-      }
-      setNotice({ message: mutationErrorMessage(error), tone: 'error' })
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (command: DeleteCommand) =>
-      api.deleteCheckIn(command.localDate, randomUUID()),
-    onSuccess: async (tombstone, command) => {
-      queryClient.setQueryData(
-        ['emotion-check-in', command.subject, 'today', tombstone.localDate],
-        null,
-      )
-      if (
-        currentScope.current === command.scope &&
-        tombstone.localDate === localDate
-      ) {
-        syncedDraftKey.current = draftSyncKey(
-          command.subject,
-          tombstone.localDate,
-          null,
-        )
-        setDraft(emptyDraft)
-      }
-      queryClient.setQueryData<EmotionCheckInList>(
-        ['emotion-check-in', command.subject, 'history', historyLimit],
-        (history) =>
-          history
-            ? {
-                ...history,
-                items: history.items.filter(
-                  ({ localDate: date }) => date !== tombstone.localDate,
-                ),
-              }
-            : history,
-      )
-      if (currentScope.current === command.scope) {
-        setPendingDeleteDate(null)
-        setNotice({ message: 'Đã xóa ghi nhận đã chọn.', tone: 'success' })
-      }
-      await refreshHistoryAndProgress(command)
-    },
-    onError: (error, command) => {
-      if (currentScope.current === command.scope)
-        setNotice({ message: mutationErrorMessage(error), tone: 'error' })
-    },
-  })
-
   if (!subject) {
     return (
       <Screen>
@@ -456,15 +187,8 @@ export function EmotionCheckInScreen({
 
   const saveDisabled =
     Boolean(planOrigin && planOrigin.occurrence.localDate !== localDate) ||
-    !draft.emotion ||
-    !draft.intensity ||
-    saveMutation.isPending ||
-    deleteMutation.isPending ||
-    (current?.emotion === draft.emotion &&
-      current.intensity === draft.intensity &&
-      current.note === (draft.note.trim() || null) &&
-      current.factors.join(',') === draft.factors.join(','))
-  const emotionCopy = new Map(emotions.map((item) => [item.value, item]))
+    draftSaveDisabled
+  const emotionCopy = emotionByValue
   const selectedWindow = progressQuery.data?.windows.find(
     ({ days }) => days === period,
   )
@@ -549,185 +273,13 @@ export function EmotionCheckInScreen({
                 ? 'Bạn có thể điều chỉnh lựa chọn đã lưu trong hôm nay.'
                 : 'Hôm nay bạn chưa ghi nhận cảm xúc.'}
             </Text>
-            <View accessibilityRole="radiogroup" style={styles.choiceGrid}>
-              {emotions.map((item) => {
-                const selected = draft.emotion === item.value
-                return (
-                  <Pressable
-                    key={item.value}
-                    accessibilityLabel={item.label}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
-                    disabled={saveMutation.isPending}
-                    onPress={() => {
-                      setDraft((value) => ({
-                        ...value,
-                        emotion: item.value,
-                      }))
-                      setNotice(null)
-                    }}
-                    style={({ pressed }) => [
-                      styles.choice,
-                      selected && styles.choiceSelected,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text style={styles.emoji}>{item.emoji}</Text>
-                    <Text style={styles.choiceLabel}>{item.label}</Text>
-                  </Pressable>
-                )
-              })}
-            </View>
-
-            <Text style={styles.fieldLabel}>Mức độ cảm nhận</Text>
-            <Text style={styles.supporting}>
-              1 là nhẹ, 5 là mạnh — không phải điểm sức khỏe.
-            </Text>
-            <View accessibilityRole="radiogroup" style={styles.intensityRow}>
-              {[1, 2, 3, 4, 5].map((intensity) => {
-                const selected = draft.intensity === intensity
-                return (
-                  <Pressable
-                    key={intensity}
-                    accessibilityLabel={`Mức cảm nhận ${intensity}`}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
-                    disabled={saveMutation.isPending}
-                    onPress={() => {
-                      setDraft((value) => ({ ...value, intensity }))
-                      setNotice(null)
-                    }}
-                    style={({ pressed }) => [
-                      styles.intensity,
-                      selected && styles.intensitySelected,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.intensityLabel,
-                        selected && styles.intensityLabelSelected,
-                      ]}
-                    >
-                      {intensity}
-                    </Text>
-                  </Pressable>
-                )
-              })}
-            </View>
-            <Pressable
-              accessibilityLabel="Thêm bối cảnh riêng tư (không bắt buộc)"
-              accessibilityRole="button"
-              accessibilityState={{ expanded: contextExpanded }}
-              onPress={() => setContextExpanded((value) => !value)}
-              style={({ pressed }) => [
-                styles.contextToggle,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.contextToggleLabel}>
-                Thêm bối cảnh riêng tư (không bắt buộc)
-              </Text>
-              <Text accessible={false} style={styles.contextToggleIcon}>
-                {contextExpanded ? '−' : '+'}
-              </Text>
-            </Pressable>
-            {contextExpanded && (
-              <View style={styles.contextBody}>
-                <Text style={styles.contextPrivacy}>
-                  Chỉ lưu khi bạn chọn “Lưu ghi nhận”. Nội dung này giúp bạn xem
-                  lại và không tự động gửi cho AI, kế hoạch hỗ trợ hay phân
-                  tích.
-                </Text>
-                <Text style={styles.fieldLabel}>
-                  Điều gì có thể ảnh hưởng đến cảm xúc này?
-                </Text>
-                <Text style={styles.supporting}>Có thể chọn tối đa 3 mục.</Text>
-                <View style={styles.factorGrid}>
-                  {influenceFactors.map((factor) => {
-                    const selected = draft.factors.includes(factor.value)
-                    const disabled =
-                      saveMutation.isPending ||
-                      (!selected && draft.factors.length >= 3)
-                    return (
-                      <Pressable
-                        key={factor.value}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: selected, disabled }}
-                        disabled={disabled}
-                        onPress={() =>
-                          setDraft((currentDraft) => ({
-                            ...currentDraft,
-                            factors: selected
-                              ? currentDraft.factors.filter(
-                                  (value) => value !== factor.value,
-                                )
-                              : influenceFactors
-                                  .filter(
-                                    ({ value }) =>
-                                      currentDraft.factors.includes(value) ||
-                                      value === factor.value,
-                                  )
-                                  .map(({ value }) => value),
-                          }))
-                        }
-                        style={({ pressed }) => [
-                          styles.factorChip,
-                          selected && styles.factorSelected,
-                          disabled && styles.factorDisabled,
-                          pressed && styles.pressed,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.factorLabel,
-                            selected && styles.factorLabelSelected,
-                          ]}
-                        >
-                          {factor.label}
-                        </Text>
-                      </Pressable>
-                    )
-                  })}
-                </View>
-                <Text style={styles.fieldLabel}>
-                  Ghi chú riêng (không bắt buộc)
-                </Text>
-                <TextInput
-                  accessibilityLabel="Ghi chú riêng (không bắt buộc)"
-                  editable={!saveMutation.isPending}
-                  maxLength={500}
-                  multiline
-                  onChangeText={(note) =>
-                    setDraft((currentDraft) => ({ ...currentDraft, note }))
-                  }
-                  placeholder="Bạn có thể để trống"
-                  style={styles.noteInput}
-                  textAlignVertical="top"
-                  value={draft.note}
-                />
-                <Text style={styles.noteCount}>{draft.note.length}/500</Text>
-              </View>
-            )}
-            <PrimaryButton
-              disabled={saveDisabled}
-              label={
-                saveMutation.isPending
-                  ? 'Đang lưu…'
-                  : current
-                    ? 'Cập nhật ghi nhận'
-                    : 'Lưu ghi nhận'
-              }
-              onPress={() =>
-                saveMutation.mutate({
-                  subject,
-                  localDate,
-                  timezone,
-                  scope,
-                  draft,
-                  current,
-                })
-              }
+            <EmotionCheckInForm
+              draft={draft}
+              onChange={editDraft}
+              onSave={() => save()}
+              saving={saveMutation.isPending}
+              saveDisabled={saveDisabled}
+              saveLabel={current ? 'Cập nhật ghi nhận' : 'Lưu ghi nhận'}
             />
           </>
         )}
@@ -884,14 +436,7 @@ export function EmotionCheckInScreen({
                         <Pressable
                           accessibilityRole="button"
                           disabled={deleteMutation.isPending}
-                          onPress={() =>
-                            deleteMutation.mutate({
-                              subject,
-                              localDate: item.localDate,
-                              timezone,
-                              scope,
-                            })
-                          }
+                          onPress={() => remove(item.localDate)}
                           style={({ pressed }) => [
                             styles.dangerButton,
                             pressed && styles.pressed,
@@ -1028,7 +573,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.tealPale,
     borderColor: colors.tealDeep,
   },
-  emoji: { fontSize: 24 },
   choiceLabel: {
     color: colors.ink,
     fontSize: 14,
@@ -1041,7 +585,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: spacing.sm,
   },
-  intensityRow: { flexDirection: 'row', gap: spacing.sm },
   intensity: {
     alignItems: 'center',
     backgroundColor: colors.surfaceSoft,
@@ -1061,7 +604,6 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     fontWeight: '700',
   },
-  intensityLabelSelected: { color: colors.white },
   contextToggle: {
     alignItems: 'center',
     borderTopColor: colors.line,
@@ -1084,7 +626,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: spacing.md,
   },
-  contextBody: { gap: spacing.md },
   contextPrivacy: {
     color: colors.inkSoft,
     fontSize: 14,
@@ -1109,9 +650,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.tealPale,
     borderColor: colors.tealDeep,
   },
-  factorDisabled: { opacity: 0.5 },
-  factorLabel: { color: colors.ink, fontSize: 14, fontWeight: '700' },
-  factorLabelSelected: { color: colors.tealDeep },
   noteInput: {
     borderColor: colors.line,
     borderRadius: radii.control,

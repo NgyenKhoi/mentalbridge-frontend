@@ -42,7 +42,7 @@ schema migration, local database or workflow change is introduced.
 | Deleted/unavailable target           | Revalidate notification with mark-read before opening; fresh target-owned detail fetch and safe 404/dependency states                                         |
 | Persisted preferences                | GET/PATCH public preferences endpoint; exact strong If-Match equals response version; malformed ETag fails closed                                             |
 | Channel/content/quiet hours          | Existing values editable; IANA timezone and HH:mm input checks; overnight window supported; disabled categories do not delete/filter historical inbox locally |
-| PUSH honesty                         | Persisted boolean only; copy explicitly says no device registration/provider delivery exists                                                                  |
+| PUSH honesty                         | Switch reflects this device only (registered + system permission granted); in-app off forces push off; denied/unavailable states say so                       |
 | Privacy                              | Strict response fields; no raw Journal/assessment/chat/provider fields; no payload logs or on-device notification persistence                                 |
 | Reload/restart/device/account change | Fresh mount/focus GET, owner-scoped query keys, account-keyed editor; abort old route HTTP and suppress late old-account writes/navigation                    |
 
@@ -96,7 +96,7 @@ npm run test:ci -- src/notifications src/community/CommunityScreen.test.tsx src/
 - The exact-head normal dev gate must be green before handoff. Its mobile lane
   is compile-only; broader web regression runs in CI, not duplicated locally.
 
-## Deferred device verification / push
+## Device verification and push
 
 The owner requested consolidated Android testing later because there is no
 mobile staging environment (2026-10-11). **Android E2E DoD is unverified**, not
@@ -110,8 +110,16 @@ restart app and verify server state; repeat with an expired/deleted target and
 dependency failure. Use an approved test USER; do not put credentials or private
 content in chat, screenshots or committed fixtures.
 
-Native push requires a separate approved device-token/provider story. A stored
-PUSH preference must not be presented as active delivery. No permission prompt,
-device registration, token upload, local notification, or push SDK is introduced.
+Push is real since MB-849. Enabling it asks for the Android notification
+permission, fetches an Expo push token and registers this device with
+`PUT /api/v1/push-devices/{installationId}`; switching it off, losing the
+permission or signing out sends `DELETE` for the same installation. Delivery
+uses the channel `mentalbridge-chime-v1` with the MentalBridge sound. The
+preferences switch reads this device's registration and permission, so a
+stored PUSH preference alone is never shown as active delivery. A tap opens the
+approved destination: emotion reminder/milestone kinds open the Home emotion
+section, every other kind uses the same inbox mapping as the in-app list, and
+malformed data opens the inbox. The notification is marked read on tap. Push
+payloads carry only reviewed ids and the closed action, never private content.
 
 Navigation guidance checked against [Expo SDK 57 Router documentation](https://docs.expo.dev/versions/v57.0.0/sdk/router/).

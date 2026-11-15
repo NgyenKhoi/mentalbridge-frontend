@@ -1,11 +1,33 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
-import { Switch, Text, TextInput, View } from 'react-native'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  ActivityIndicator,
+  Linking,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated'
 import { ApiError } from '@/api/api-error'
 import type { MobileRole } from '@/auth/session'
 import { useSession } from '@/auth/session-context'
-import { PrimaryButton } from '@/components/PrimaryButton'
+import {
+  useMotionProps,
+  useRevealProps,
+  useStaggerProps,
+} from '@/components/motion'
+import { PressableScale } from '@/components/PressableScale'
 import { Screen } from '@/components/Screen'
+import type { PushApi } from '@/push/push-api'
+import { PUSH_STATE_KEY, type PushState } from '@/push/push-constants'
+import {
+  disablePush,
+  enablePush,
+  isPushEnabledOnDevice,
+} from '@/push/push-registration'
+import { colors, radii, spacing, typography } from '@/theme/tokens'
 import type { NotificationApi } from './notification-api'
 import {
   clockTimeSchema,
@@ -31,13 +53,12 @@ const groupLabels: Record<
   appointmentMessage: 'Lịch hẹn và tin nhắn',
   resourceSystem: 'Tài nguyên và hệ thống',
   communityInteraction: 'Tương tác cộng đồng',
+  supportPlanReminder: 'Kế hoạch hỗ trợ hôm nay',
 }
 const specialistGroups = [
   'appointmentMessage',
   'resourceSystem',
-] as const satisfies ReadonlyArray<
-  keyof NotificationPreferences['contentGroups']
->
+] as const satisfies readonly (keyof NotificationPreferences['contentGroups'])[]
 const specialistGroupLabels: Record<(typeof specialistGroups)[number], string> =
   {
     appointmentMessage: 'Lịch hẹn và tin nhắn',
@@ -51,7 +72,7 @@ function preferencePatch(
   if (role === 'SPECIALIST')
     return specialistPreferencePatchSchema.parse({
       notificationsEnabled: draft.notificationsEnabled,
-      channels: { inApp: draft.channels.inApp },
+      channels: { inApp: draft.channels.inApp, push: draft.channels.push },
       contentGroups: {
         appointmentMessage: draft.contentGroups.appointmentMessage,
         resourceSystem: draft.contentGroups.resourceSystem,
@@ -61,6 +82,7 @@ function preferencePatch(
     notificationsEnabled: draft.notificationsEnabled,
     channels: draft.channels,
     contentGroups: draft.contentGroups,
+    dailyReminderTime: draft.dailyReminderTime,
     quietHours: draft.quietHours,
     email: draft.email,
   }
@@ -76,16 +98,110 @@ function Toggle({
   disabled: boolean
   change: (value: boolean) => void
 }>) {
+  // The whole row is the switch for assistive tech; the native Switch stays tappable but is hidden from them.
   return (
-    <View style={styles.row}>
+    <PressableScale
+      accessibilityLabel={label}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value, disabled }}
+      disabled={disabled}
+      onPress={() => change(!value)}
+      style={[styles.row, { minHeight: 48 }, disabled && { opacity: 0.5 }]}
+    >
       <Text style={[styles.body, { flex: 1 }]}>{label}</Text>
-      <Switch
-        accessibilityLabel={label}
-        accessibilityState={{ disabled, checked: value }}
-        disabled={disabled}
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <Switch
+          accessible={false}
+          disabled={disabled}
+          value={value}
+          onValueChange={change}
+        />
+      </View>
+    </PressableScale>
+  )
+}
+type PushLine = 'busy' | 'inApp' | null
+// The permission dialog backgrounds the app and the screen can remount around it (focus refetch, route change),
+// so the outcome of the last enable tap lives in the query cache, not only in component state.
+const LAST_ENABLE_KEY = ['push', 'lastEnable'] as const
+const ENABLING_KEY = ['push', 'enabling'] as const
+const ENABLE_FRESH_MS = 60_000
+type LastEnable = { result: PushState; at: number }
+function useCached<T>(key: readonly unknown[]): T | null | undefined {
+  return useQuery({
+    queryKey: key,
+    queryFn: () => null as T | null,
+    enabled: false,
+  }).data
+}
+function freshEnable(value: LastEnable | null | undefined) {
+  return value && Date.now() - value.at < ENABLE_FRESH_MS
+    ? value.result
+    : undefined
+}
+const pushCopy = {
+  default:
+    'Nhắc nhở và thông báo hiện trên điện thoại, kể cả khi ứng dụng đang đóng.',
+  busy: 'Đang bật thông báo đẩy…',
+  DENIED:
+    'Bạn đã tắt quyền thông báo cho MentalBridge. Hãy bật lại trong Cài đặt của điện thoại.',
+  UNAVAILABLE:
+    'Thông báo đẩy tạm thời chưa sẵn sàng. Bạn vẫn xem được thông báo trong ứng dụng.',
+  inApp: 'Thông báo đẩy cần bật thông báo trong ứng dụng.',
+  masterOff: 'Bật “Nhận thông báo” để dùng thông báo đẩy.',
+} as const
+function PushRow({
+  value,
+  disabled,
+  line,
+  state,
+  masterOff,
+  change,
+}: Readonly<{
+  value: boolean
+  disabled: boolean
+  masterOff: boolean
+  line: PushLine
+  state: PushState | undefined
+  change: (value: boolean) => void
+}>) {
+  const reduceMotion = useReducedMotion()
+  const key =
+    line ??
+    (masterOff
+      ? 'masterOff'
+      : state === 'DENIED' || state === 'UNAVAILABLE'
+        ? state
+        : 'default')
+  return (
+    <View style={styles.column}>
+      <Toggle
+        label="Thông báo đẩy"
         value={value}
-        onValueChange={change}
+        disabled={disabled || line === 'busy'}
+        change={change}
       />
+      <View accessibilityLiveRegion="polite">
+        <Animated.View
+          key={key}
+          {...(reduceMotion ? {} : { entering: FadeIn.duration(160) })}
+          style={styles.row}
+        >
+          {key === 'busy' && (
+            <ActivityIndicator size="small" color={colors.teal} />
+          )}
+          <Text style={[styles.muted, { flex: 1 }]}>{pushCopy[key]}</Text>
+        </Animated.View>
+      </View>
+      {key === 'DENIED' && (
+        <NotificationButton
+          label="Mở cài đặt"
+          onPress={() => void Linking.openSettings()}
+        />
+      )}
     </View>
   )
 }
@@ -115,11 +231,125 @@ function Field({
     </View>
   )
 }
+// PrimaryButton look with a press scale; the shared button keeps its opacity dip for the other screens.
+function SaveButton({
+  label,
+  disabled,
+  busy,
+  onPress,
+}: Readonly<{
+  label: string
+  disabled: boolean
+  busy: boolean
+  onPress: () => void
+}>) {
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityState={{ disabled, busy }}
+      disabled={disabled}
+      onPress={onPress}
+      style={[saveButton.base, disabled && { opacity: 0.55 }]}
+    >
+      <Text style={saveButton.label}>{label}</Text>
+    </PressableScale>
+  )
+}
+const saveButton = StyleSheet.create({
+  base: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.tealDeep,
+    borderRadius: radii.control,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  label: { color: colors.white, fontSize: typography.body, fontWeight: '700' },
+})
+const timeFieldError = 'Nhập giờ dạng HH:mm, ví dụ 20:00.'
+function Reveal({
+  step,
+  animate,
+  children,
+}: Readonly<{ step: number; animate: boolean; children: React.ReactNode }>) {
+  const motion = useStaggerProps(step, animate)
+  return (
+    <Animated.View {...motion} style={styles.column}>
+      {children}
+    </Animated.View>
+  )
+}
+// Same HH:mm rule as the quiet hours; the error shows once the field was left or a save was tried, until the value is valid.
+function DailyTimeField({
+  value,
+  timeZone,
+  disabled,
+  attempted,
+  change,
+}: Readonly<{
+  value: string
+  timeZone: string
+  disabled: boolean
+  attempted: boolean
+  change: (value: string) => void
+}>) {
+  const [focused, setFocused] = useState(false)
+  const [touched, setTouched] = useState(false)
+  const errorEntering = useMotionProps({ entering: FadeIn.duration(160) })
+  const invalid =
+    (touched || attempted) && !clockTimeSchema.safeParse(value).success
+  return (
+    <View
+      accessibilityState={{ disabled }}
+      style={[styles.column, disabled && { opacity: 0.5 }]}
+    >
+      <Text style={styles.body}>Giờ nhắc (HH:mm)</Text>
+      <TextInput
+        accessibilityLabel="Giờ nhắc mỗi ngày"
+        value={value}
+        onChangeText={change}
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          setFocused(false)
+          setTouched(true)
+        }}
+        editable={!disabled}
+        accessibilityState={{ disabled }}
+        maxLength={5}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="numbers-and-punctuation"
+        style={[
+          styles.input,
+          focused && {
+            borderColor: colors.teal,
+            borderWidth: 2,
+            padding: spacing.md - 1,
+          },
+          invalid && { borderColor: colors.terracotta },
+        ]}
+      />
+      {invalid && (
+        <Animated.View {...errorEntering}>
+          <Text accessibilityRole="alert" style={styles.body}>
+            {timeFieldError}
+          </Text>
+        </Animated.View>
+      )}
+      <Text style={styles.muted}>
+        {`Nhắc viết nhật ký, ghi cảm xúc và kế hoạch hỗ trợ vào giờ này, theo múi giờ ${timeZone}.`}
+      </Text>
+    </View>
+  )
+}
 function validQuiet(draft: NotificationPreferences) {
   const quiet = draft.quietHours
   if (
     !clockTimeSchema.safeParse(quiet.start).success ||
     !clockTimeSchema.safeParse(quiet.end).success ||
+    !clockTimeSchema.safeParse(draft.dailyReminderTime).success ||
     (quiet.enabled && quiet.start === quiet.end)
   )
     return false
@@ -138,20 +368,31 @@ function validQuiet(draft: NotificationPreferences) {
 function PreferenceEditor({
   initial,
   api,
+  pushApi,
   role,
   onSaved,
   onReconcile,
   authority,
+  animate,
+  savedNotice,
+  onEntered,
 }: Readonly<{
   initial: VersionedPreferences
   api: NotificationApi
+  pushApi: PushApi
   role: MobileRole
-  onSaved: (value: VersionedPreferences) => void
+  onSaved: (value: VersionedPreferences, timeChanged: boolean) => void
   onReconcile: () => Promise<void>
   authority: boolean
+  animate: boolean
+  savedNotice: string | null
+  onEntered: () => void
 }>) {
+  useEffect(() => onEntered(), [onEntered])
+  const reveal = useRevealProps()
   const [draft, setDraft] = useState(initial.preferences)
   const [busy, setBusy] = useState(false)
+  const [attempted, setAttempted] = useState(false)
   const pending = useRef(false)
   const mounted = useRef(true)
   useEffect(() => {
@@ -161,18 +402,97 @@ function PreferenceEditor({
     }
   }, [])
   const [notice, setNotice] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const [pushLine, setPushLine] = useState<PushLine>(null)
+  const [deviceOn, setDeviceOn] = useState(false)
+  const lastEnable = useCached<LastEnable>(LAST_ENABLE_KEY)
+  const enabling = useCached<boolean>(ENABLING_KEY) === true
+  // An enable that finished while this editor was not mounted still turns the draft on.
+  const enabledAt =
+    freshEnable(lastEnable) === 'ENABLED' ? lastEnable?.at : undefined
+  const [appliedAt, setAppliedAt] = useState<number>()
+  if (enabledAt && enabledAt !== appliedAt) {
+    setAppliedAt(enabledAt)
+    setDeviceOn(true)
+    setDraft((current) => ({
+      ...current,
+      channels: { ...current.channels, inApp: true, push: true },
+    }))
+  }
+  // PushBridge writes DENIED here when the system permission was withdrawn.
+  const cachedState = useQuery({
+    queryKey: PUSH_STATE_KEY,
+    queryFn: () => 'OFF' as PushState,
+    enabled: false,
+  }).data
+  // Every PushBridge refresh is the latest word on registration: only ENABLED means this device is registered.
+  const [seenState, setSeenState] = useState(cachedState)
+  if (cachedState !== seenState) {
+    setSeenState(cachedState)
+    if (cachedState) setDeviceOn(cachedState === 'ENABLED')
+  }
+  // The permission dialog and token rotation trigger a PushBridge refresh that writes 'OFF' over the cache
+  // while enablePush is in flight, so the outcome of the last tap is kept here and wins over the cache.
+  const [enableResult, setEnableResult] = useState<PushState>()
+  const recent = freshEnable(lastEnable)
+  const pushState =
+    enableResult ?? (recent && recent !== 'ENABLED' ? recent : cachedState)
+  useEffect(() => {
+    void isPushEnabledOnDevice().then((on) => {
+      // Only ever raises the flag: a stale false must not undo an enable that finished meanwhile.
+      if (on && mounted.current) setDeviceOn(true)
+    })
+  }, [])
+  const pushBusy = pushLine === 'busy' || enabling
   const disabled = busy || !authority
   const changed = JSON.stringify(draft) !== JSON.stringify(initial.preferences)
   const channels =
-    role === 'SPECIALIST'
-      ? (['inApp'] as const)
-      : (['inApp', 'email', 'push'] as const)
+    role === 'SPECIALIST' ? (['inApp'] as const) : (['inApp', 'email'] as const)
+  // No refresh result yet: the SecureStore flag read at mount decides; afterwards only ENABLED counts.
+  const pushOn =
+    draft.channels.push &&
+    deviceOn &&
+    (pushState === undefined || pushState === 'ENABLED')
+  const changeInApp = (inApp: boolean) => {
+    // Turning in-app back on clears the line; turning it off with push on explains why push went off.
+    setPushLine(!inApp && pushOn ? 'inApp' : null)
+    setDraft({
+      ...draft,
+      channels: { ...draft.channels, inApp, ...(inApp ? {} : { push: false }) },
+    })
+  }
+  const changePush = async (on: boolean) => {
+    setEnableResult(undefined)
+    queryClient.setQueryData(LAST_ENABLE_KEY, null)
+    if (!on) {
+      setPushLine(null)
+      setDraft({ ...draft, channels: { ...draft.channels, push: false } })
+      return
+    }
+    setPushLine('busy')
+    queryClient.setQueryData(ENABLING_KEY, true)
+    const result = await enablePush(pushApi).catch(() => 'UNAVAILABLE' as const)
+    queryClient.setQueryData(ENABLING_KEY, false)
+    queryClient.setQueryData(PUSH_STATE_KEY, result)
+    queryClient.setQueryData(LAST_ENABLE_KEY, { result, at: Date.now() })
+    if (!mounted.current) return
+    setEnableResult(result === 'ENABLED' ? undefined : result)
+    setPushLine(null)
+    if (result !== 'ENABLED') return
+    setDeviceOn(true)
+    // Push fans out from inbox rows, so in-app must be on too.
+    setDraft((current) => ({
+      ...current,
+      channels: { ...current.channels, inApp: true, push: true },
+    }))
+  }
   const groups =
     role === 'SPECIALIST'
       ? specialistGroups
       : (Object.keys(groupLabels) as (keyof typeof groupLabels)[])
   const save = async () => {
-    if (disabled || pending.current || !changed) return
+    if (disabled || pushBusy || pending.current || !changed) return
+    setAttempted(true)
     if (role === 'USER' && !validQuiet(draft)) {
       setNotice(
         'Nhập giờ theo HH:mm, múi giờ hợp lệ và giờ bắt đầu khác giờ kết thúc khi bật giờ yên lặng.',
@@ -187,7 +507,17 @@ function PreferenceEditor({
         preferencePatch(draft, role),
         initial.etag,
       )
-      if (mounted.current) onSaved(result)
+      queryClient.setQueryData(LAST_ENABLE_KEY, null)
+      if (!result.preferences.channels.push && deviceOn) {
+        await disablePush(pushApi)
+        queryClient.setQueryData(PUSH_STATE_KEY, 'OFF')
+      }
+      if (mounted.current)
+        onSaved(
+          result,
+          result.preferences.dailyReminderTime !==
+            initial.preferences.dailyReminderTime,
+        )
     } catch (error) {
       if (!mounted.current) return
       setNotice(notificationError(error))
@@ -207,191 +537,220 @@ function PreferenceEditor({
           {notice}
         </Text>
       )}
-      <Toggle
-        label="Nhận thông báo"
-        value={draft.notificationsEnabled}
-        disabled={disabled}
-        change={(notificationsEnabled) =>
-          setDraft({ ...draft, notificationsEnabled })
-        }
-      />
-      {!draft.notificationsEnabled && (
-        <Text style={styles.muted}>
-          Thông báo mới đang tắt. Bạn vẫn xem được lịch sử đã lưu.
-        </Text>
-      )}
-      <Text accessibilityRole="header" style={styles.heading}>
-        Kênh nhận
-      </Text>
-      {channels.map((channel) => (
+      <Reveal step={0} animate={animate}>
         <Toggle
-          key={channel}
-          label={
-            {
-              inApp: 'Trong ứng dụng',
-              email: 'Email',
-              push: 'Lưu tùy chọn PUSH (chưa hỗ trợ gửi)',
-            }[channel]
-          }
-          value={draft.channels[channel]}
-          disabled={disabled || !draft.notificationsEnabled}
-          change={(value) =>
-            setDraft({
-              ...draft,
-              channels: { ...draft.channels, [channel]: value },
-            })
+          label="Nhận thông báo"
+          value={draft.notificationsEnabled}
+          disabled={disabled}
+          change={(notificationsEnabled) =>
+            setDraft({ ...draft, notificationsEnabled })
           }
         />
-      ))}
-      {role === 'USER' && (
-        <Text style={styles.muted}>
-          PUSH chỉ lưu lựa chọn của bạn. Ứng dụng chưa đăng ký thiết bị hoặc gửi
-          push; bật mục này không bật dịch vụ push.
-        </Text>
-      )}
-      <Text accessibilityRole="header" style={styles.heading}>
-        Nội dung muốn nhận
-      </Text>
-      {groups.map((group) => (
-        <Toggle
-          key={group}
-          label={
-            role === 'SPECIALIST'
-              ? specialistGroupLabels[
-                  group as (typeof specialistGroups)[number]
-                ]
-              : groupLabels[group]
-          }
-          value={draft.contentGroups[group]}
-          disabled={disabled || !draft.notificationsEnabled}
-          change={(value) =>
-            setDraft({
-              ...draft,
-              contentGroups: { ...draft.contentGroups, [group]: value },
-            })
-          }
-        />
-      ))}
-      <Text style={styles.muted}>
-        Tắt một nhóm áp dụng cho thông báo mới, không xóa lịch sử đã lưu.
-      </Text>
-      {role === 'USER' && (
-        <>
-          <Text accessibilityRole="header" style={styles.heading}>
-            Giờ yên lặng
+        {!draft.notificationsEnabled && (
+          <Text style={styles.muted}>
+            Thông báo mới đang tắt. Bạn vẫn xem được lịch sử đã lưu.
           </Text>
+        )}
+      </Reveal>
+      <Reveal step={1} animate={animate}>
+        <Text accessibilityRole="header" style={styles.heading}>
+          Kênh nhận
+        </Text>
+        {channels.map((channel) => (
           <Toggle
-            label="Bật giờ yên lặng"
-            value={draft.quietHours.enabled}
-            disabled={disabled}
-            change={(enabled) =>
+            key={channel}
+            label={{ inApp: 'Trong ứng dụng', email: 'Email' }[channel]}
+            value={draft.channels[channel]}
+            disabled={disabled || !draft.notificationsEnabled}
+            change={(value) =>
+              channel === 'inApp'
+                ? changeInApp(value)
+                : setDraft({
+                    ...draft,
+                    channels: { ...draft.channels, [channel]: value },
+                  })
+            }
+          />
+        ))}
+        <PushRow
+          value={pushOn}
+          disabled={disabled || !draft.notificationsEnabled}
+          line={pushBusy ? 'busy' : pushLine}
+          masterOff={!draft.notificationsEnabled}
+          state={pushState}
+          change={(value) => void changePush(value)}
+        />
+      </Reveal>
+      <Reveal step={2} animate={animate}>
+        <Text accessibilityRole="header" style={styles.heading}>
+          Nội dung muốn nhận
+        </Text>
+        {groups.map((group) => (
+          <Toggle
+            key={group}
+            label={
+              role === 'SPECIALIST'
+                ? specialistGroupLabels[
+                    group as (typeof specialistGroups)[number]
+                  ]
+                : groupLabels[group]
+            }
+            value={draft.contentGroups[group]}
+            disabled={disabled || !draft.notificationsEnabled}
+            change={(value) =>
               setDraft({
                 ...draft,
-                quietHours: { ...draft.quietHours, enabled },
+                contentGroups: { ...draft.contentGroups, [group]: value },
               })
             }
           />
-          {(['start', 'end', 'timeZone'] as const).map((field) => (
-            <Field
-              key={field}
-              label={
-                {
-                  start: 'Bắt đầu (HH:mm)',
-                  end: 'Kết thúc (HH:mm)',
-                  timeZone: 'Múi giờ (IANA, ví dụ Asia/Ho_Chi_Minh)',
-                }[field]
+        ))}
+        <Text style={styles.muted}>
+          Tắt một nhóm áp dụng cho thông báo mới, không xóa lịch sử đã lưu.
+        </Text>
+      </Reveal>
+      {role === 'USER' && (
+        <>
+          <Reveal step={3} animate={animate}>
+            <Text accessibilityRole="header" style={styles.heading}>
+              Giờ nhắc mỗi ngày
+            </Text>
+            <DailyTimeField
+              value={draft.dailyReminderTime}
+              timeZone={draft.quietHours.timeZone}
+              disabled={disabled || !draft.notificationsEnabled}
+              attempted={attempted}
+              change={(dailyReminderTime) =>
+                setDraft({ ...draft, dailyReminderTime })
               }
-              value={draft.quietHours[field]}
+            />
+          </Reveal>
+          <Reveal step={4} animate={animate}>
+            <Text accessibilityRole="header" style={styles.heading}>
+              Giờ yên lặng
+            </Text>
+            <Toggle
+              label="Bật giờ yên lặng"
+              value={draft.quietHours.enabled}
               disabled={disabled}
-              change={(value) =>
+              change={(enabled) =>
                 setDraft({
                   ...draft,
-                  quietHours: { ...draft.quietHours, [field]: value },
+                  quietHours: { ...draft.quietHours, enabled },
                 })
               }
             />
-          ))}
-          <Text style={styles.muted}>
-            Khung giờ có thể đi qua nửa đêm. Hệ thống áp dụng theo múi giờ đã
-            lưu.
-          </Text>
-          <Text accessibilityRole="header" style={styles.heading}>
-            Tùy chọn email
-          </Text>
-          {(['IMMEDIATE', 'DAILY_DIGEST', 'WEEKLY_DIGEST'] as const).map(
-            (cadence) => (
-              <NotificationButton
-                key={cadence}
-                label={`${draft.email.cadence === cadence ? 'Đang chọn: ' : ''}${{ IMMEDIATE: 'Nhận ngay', DAILY_DIGEST: 'Tổng hợp mỗi ngày', WEEKLY_DIGEST: 'Tổng hợp mỗi tuần' }[cadence]}`}
-                disabled={
-                  disabled ||
-                  !draft.notificationsEnabled ||
-                  !draft.channels.email
-                }
-                onPress={() =>
-                  setDraft({ ...draft, email: { ...draft.email, cadence } })
-                }
-              />
-            ),
-          )}
-          {(
-            [
-              'wellbeingDigestEnabled',
-              'resourceRemindersEnabled',
-              'appointmentRemindersEnabled',
-            ] as const
-          ).map((field) =>
-            draft.email[field] === undefined ? null : (
-              <Toggle
-                key={field}
-                label={
-                  {
-                    wellbeingDigestEnabled: 'Email nhắc chăm sóc bản thân',
-                    resourceRemindersEnabled: 'Email nhắc tài nguyên',
-                    appointmentRemindersEnabled: 'Email nhắc lịch hẹn',
-                  }[field]
-                }
-                value={draft.email[field]}
-                disabled={
-                  disabled ||
-                  !draft.notificationsEnabled ||
-                  !draft.channels.email
-                }
-                change={(value) =>
-                  setDraft({
-                    ...draft,
-                    email: { ...draft.email, [field]: value },
-                  })
-                }
-              />
-            ),
-          )}
-          {(['dailyDigestTime', 'resourceReminderTime'] as const).map(
-            (field) => (
+            {(['start', 'end', 'timeZone'] as const).map((field) => (
               <Field
                 key={field}
                 label={
                   {
-                    dailyDigestTime: 'Giờ email tổng hợp (HH:mm)',
-                    resourceReminderTime: 'Giờ nhắc tài nguyên (HH:mm)',
+                    start: 'Bắt đầu (HH:mm)',
+                    end: 'Kết thúc (HH:mm)',
+                    timeZone: 'Múi giờ (IANA, ví dụ Asia/Ho_Chi_Minh)',
                   }[field]
                 }
-                value={draft.email[field]}
+                value={draft.quietHours[field]}
                 disabled={disabled}
                 change={(value) =>
                   setDraft({
                     ...draft,
-                    email: { ...draft.email, [field]: value },
+                    quietHours: { ...draft.quietHours, [field]: value },
                   })
                 }
               />
-            ),
-          )}
+            ))}
+            <Text style={styles.muted}>
+              Khung giờ có thể đi qua nửa đêm. Hệ thống áp dụng theo múi giờ đã
+              lưu.
+            </Text>
+            <Text accessibilityRole="header" style={styles.heading}>
+              Tùy chọn email
+            </Text>
+            {(['IMMEDIATE', 'DAILY_DIGEST', 'WEEKLY_DIGEST'] as const).map(
+              (cadence) => (
+                <NotificationButton
+                  key={cadence}
+                  label={`${draft.email.cadence === cadence ? 'Đang chọn: ' : ''}${{ IMMEDIATE: 'Nhận ngay', DAILY_DIGEST: 'Tổng hợp mỗi ngày', WEEKLY_DIGEST: 'Tổng hợp mỗi tuần' }[cadence]}`}
+                  disabled={
+                    disabled ||
+                    !draft.notificationsEnabled ||
+                    !draft.channels.email
+                  }
+                  onPress={() =>
+                    setDraft({ ...draft, email: { ...draft.email, cadence } })
+                  }
+                />
+              ),
+            )}
+            {(
+              [
+                'wellbeingDigestEnabled',
+                'resourceRemindersEnabled',
+                'appointmentRemindersEnabled',
+              ] as const
+            ).map((field) =>
+              draft.email[field] === undefined ? null : (
+                <Toggle
+                  key={field}
+                  label={
+                    {
+                      wellbeingDigestEnabled: 'Email nhắc chăm sóc bản thân',
+                      resourceRemindersEnabled: 'Email nhắc tài nguyên',
+                      appointmentRemindersEnabled: 'Email nhắc lịch hẹn',
+                    }[field]
+                  }
+                  value={draft.email[field]}
+                  disabled={
+                    disabled ||
+                    !draft.notificationsEnabled ||
+                    !draft.channels.email
+                  }
+                  change={(value) =>
+                    setDraft({
+                      ...draft,
+                      email: { ...draft.email, [field]: value },
+                    })
+                  }
+                />
+              ),
+            )}
+            {(['dailyDigestTime', 'resourceReminderTime'] as const).map(
+              (field) => (
+                <Field
+                  key={field}
+                  label={
+                    {
+                      dailyDigestTime: 'Giờ email tổng hợp (HH:mm)',
+                      resourceReminderTime: 'Giờ nhắc tài nguyên (HH:mm)',
+                    }[field]
+                  }
+                  value={draft.email[field]}
+                  disabled={disabled}
+                  change={(value) =>
+                    setDraft({
+                      ...draft,
+                      email: { ...draft.email, [field]: value },
+                    })
+                  }
+                />
+              ),
+            )}
+          </Reveal>
         </>
       )}
-      <PrimaryButton
+      {/* Reserved slot: the save button must not move under the finger when the status appears. */}
+      <View style={{ minHeight: 24 }} accessibilityLiveRegion="polite">
+        {savedNotice && !changed && (
+          <Animated.View {...reveal}>
+            <Text style={styles.body}>{savedNotice}</Text>
+          </Animated.View>
+        )}
+      </View>
+      <SaveButton
         label={busy ? 'Đang lưu tùy chọn…' : 'Lưu tùy chọn'}
-        disabled={disabled || !changed}
+        disabled={disabled || pushBusy || !changed}
+        busy={busy}
         onPress={() => void save()}
       />
     </View>
@@ -399,11 +758,13 @@ function PreferenceEditor({
 }
 function AccountPreferences({
   api,
+  pushApi,
   subject,
   role,
   onBack,
 }: Readonly<{
   api: NotificationApi
+  pushApi: PushApi
   subject: string
   role: MobileRole
   onBack: () => void
@@ -416,14 +777,23 @@ function AccountPreferences({
     retry: false,
     staleTime: 0,
     refetchOnMount: 'always',
+    // Returning from the push permission dialog is a focus event; a refetch would unmount the editor and drop the draft.
+    refetchOnWindowFocus: false,
   })
   const [notice, setNotice] = useState<string | null>(null)
+  // The editor remounts on every save; the success line (shown above its save button, never above the viewport)
+  // and the entrance state live here.
+  const [savedNotice, setSavedNotice] = useState<string | null>(null)
+  const [entered, setEntered] = useState(false)
+  const markEntered = useCallback(() => setEntered(true), [])
+  const reveal = useRevealProps()
   const reconcile = async () => {
+    setSavedNotice(null)
     setNotice('Tải lại tùy chọn hiện tại trước khi tiếp tục lưu.')
     await query.refetch()
   }
   return (
-    <Screen>
+    <Screen clearSafetyButton>
       <View style={styles.column}>
         <NotificationButton label="Về thông báo" onPress={onBack} />
         <Text accessibilityRole="header" style={styles.title}>
@@ -442,12 +812,16 @@ function AccountPreferences({
           </Text>
         )}
         {query.isFetching && (
-          <Text style={styles.muted}>Đang tải tùy chọn…</Text>
+          <Animated.View {...reveal}>
+            <Text style={styles.muted}>Đang tải tùy chọn…</Text>
+          </Animated.View>
         )}
         {query.isError && (
-          <Text accessibilityRole="alert" style={styles.body}>
-            {notificationError(query.error)}
-          </Text>
+          <Animated.View {...reveal}>
+            <Text accessibilityRole="alert" style={styles.body}>
+              {notificationError(query.error)}
+            </Text>
+          </Animated.View>
         )}
         <NotificationButton
           label="Tải lại tùy chọn (bỏ thay đổi chưa lưu)"
@@ -459,12 +833,21 @@ function AccountPreferences({
             key={`${subject}:${role}:${query.data.etag}`}
             initial={query.data}
             api={api}
+            pushApi={pushApi}
             role={role}
             authority={!query.isFetching}
             onReconcile={reconcile}
-            onSaved={(value) => {
+            animate={!entered}
+            savedNotice={savedNotice}
+            onEntered={markEntered}
+            onSaved={(value, timeChanged) => {
               client.setQueryData(key, value)
-              setNotice('Tùy chọn đã được lưu.')
+              setNotice(null)
+              setSavedNotice(
+                timeChanged
+                  ? `Đã lưu giờ nhắc ${value.preferences.dailyReminderTime}.`
+                  : 'Tùy chọn đã được lưu.',
+              )
             }}
           />
         )}

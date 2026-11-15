@@ -395,6 +395,7 @@
 }
 .notification-settings-section h2 {
   font-size: 21px;
+  text-wrap: balance;
 }
 .notification-settings-section > header > p {
   max-width: 280px;
@@ -580,6 +581,28 @@
 .notification-time-grid select:disabled {
   opacity: 0.48;
   cursor: not-allowed;
+}
+.notification-reminder-time {
+  grid-template-columns: minmax(0, 220px);
+}
+.notification-reminder-help {
+  display: block;
+  margin-top: 8px;
+}
+.notification-reminder-feedback {
+  min-height: 22px;
+  margin: 6px 0 14px;
+}
+.notification-reminder-error {
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 650;
+}
+.notification-reminder-time input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+.notification-reminder-time input {
+  transition: border-color 120ms var(--ease-standard);
 }
 .notification-timezone {
   margin-top: 9px;
