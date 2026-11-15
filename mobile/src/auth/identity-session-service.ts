@@ -78,32 +78,76 @@ export function createSessionService({
 }: SessionServiceOptions): SessionService {
   let authEpoch = 0
   let latestClearEpoch = 0
+  let persistedEpoch = 0
+  let credentialQueue: Promise<unknown> = Promise.resolve()
 
-  async function clearIfCurrent(opEpoch: number) {
-    if (opEpoch === authEpoch) {
-      await credentials.clear()
-    }
+  function runCredentialOp<T>(operation: () => Promise<T>): Promise<T> {
+    const next = credentialQueue.then(operation, operation)
+    credentialQueue = next.then(
+      () => undefined,
+      () => undefined,
+    )
+    return next
   }
 
-  async function persistTokenPair(
+  function readCredentials(opEpoch: number): Promise<StoredCredentials | null> {
+    return runCredentialOp(async () => {
+      if (opEpoch !== authEpoch) return null
+      const stored = await credentials.getCredentials()
+      if (opEpoch !== authEpoch) return null
+      if (!stored) {
+        await credentials.clear()
+        persistedEpoch = 0
+        return null
+      }
+      return stored
+    })
+  }
+
+  function clearIfCurrent(opEpoch: number): Promise<void> {
+    return runCredentialOp(async () => {
+      if (opEpoch === authEpoch || persistedEpoch === opEpoch) {
+        await credentials.clear()
+        if (persistedEpoch <= opEpoch) {
+          persistedEpoch = 0
+        }
+      }
+    })
+  }
+
+  function clearIfSupersededByClear(opEpoch: number): Promise<void> {
+    return runCredentialOp(async () => {
+      if (
+        persistedEpoch === opEpoch ||
+        (latestClearEpoch > opEpoch && persistedEpoch <= latestClearEpoch)
+      ) {
+        await credentials.clear()
+        persistedEpoch = 0
+      }
+    })
+  }
+
+  function persistTokenPair(
     pair: TokenPair,
     opEpoch: number,
   ): Promise<StoredCredentials | null> {
-    if (opEpoch !== authEpoch) return null
-    const stored = {
-      accessToken: pair.accessToken,
-      accessExpiresAt: new Date(now() + pair.expiresIn * 1000).toISOString(),
-      refreshToken: pair.refreshToken,
-      refreshExpiresAt: pair.refreshExpiresAt,
-    }
-    await credentials.setCredentials(stored)
-    if (opEpoch !== authEpoch) {
-      if (latestClearEpoch === authEpoch) {
-        await credentials.clear()
+    return runCredentialOp(async () => {
+      if (opEpoch !== authEpoch) return null
+      const stored = {
+        accessToken: pair.accessToken,
+        accessExpiresAt: new Date(now() + pair.expiresIn * 1000).toISOString(),
+        refreshToken: pair.refreshToken,
+        refreshExpiresAt: pair.refreshExpiresAt,
       }
-      return null
-    }
-    return stored
+      await credentials.setCredentials(stored)
+      if (opEpoch !== authEpoch) {
+        await credentials.clear()
+        persistedEpoch = 0
+        return null
+      }
+      persistedEpoch = opEpoch
+      return stored
+    })
   }
 
   async function resolveAccount(
@@ -135,9 +179,7 @@ export function createSessionService({
       try {
         const resolved = await resolveAccount(rotated)
         if (opEpoch !== authEpoch) {
-          if (latestClearEpoch === authEpoch) {
-            await credentials.clear()
-          }
+          await clearIfSupersededByClear(opEpoch)
           return null
         }
         return resolved
@@ -174,9 +216,7 @@ export function createSessionService({
         const resolved = await resolveAccount(stored)
         if (opEpoch !== authEpoch) {
           await api.logout(pair.refreshToken).catch(() => undefined)
-          if (latestClearEpoch === authEpoch) {
-            await credentials.clear()
-          }
+          await clearIfSupersededByClear(opEpoch)
           throw invalidSession(
             'Sign-in was superseded by another session operation.',
           )
@@ -190,12 +230,8 @@ export function createSessionService({
     },
     async restore() {
       const opEpoch = ++authEpoch
-      const stored = await credentials.getCredentials()
-      if (opEpoch !== authEpoch) return null
-      if (!stored) {
-        await clearIfCurrent(opEpoch)
-        return null
-      }
+      const stored = await readCredentials(opEpoch)
+      if (!stored) return null
 
       if (Date.parse(stored.accessExpiresAt) - ACCESS_EXPIRY_SKEW_MS <= now()) {
         return rotate(stored, opEpoch)
@@ -204,9 +240,7 @@ export function createSessionService({
       try {
         const resolved = await resolveAccount(stored)
         if (opEpoch !== authEpoch) {
-          if (latestClearEpoch === authEpoch) {
-            await credentials.clear()
-          }
+          await clearIfSupersededByClear(opEpoch)
           return null
         }
         return resolved
@@ -222,24 +256,23 @@ export function createSessionService({
     },
     async refresh() {
       const opEpoch = authEpoch
-      const stored = await credentials.getCredentials()
-      if (opEpoch !== authEpoch) return null
-      if (!stored) {
-        await clearIfCurrent(opEpoch)
-        return null
-      }
+      const stored = await readCredentials(opEpoch)
+      if (!stored) return null
       return rotate(stored, opEpoch)
     },
     async logout() {
       const opEpoch = ++authEpoch
       latestClearEpoch = opEpoch
-      const stored = await credentials.getCredentials()
-      if (opEpoch !== authEpoch) return
-      await credentials.clear()
-      try {
-        if (stored) await api.logout(stored.refreshToken)
-      } finally {
-        await clearIfCurrent(opEpoch)
+      const stored = await runCredentialOp(async () => {
+        if (persistedEpoch > opEpoch) return null
+        const current = await credentials.getCredentials()
+        if (persistedEpoch > opEpoch) return null
+        await credentials.clear()
+        persistedEpoch = 0
+        return current
+      })
+      if (stored) {
+        await api.logout(stored.refreshToken)
       }
     },
     async registerUser(email, password, idempotencyKey) {
