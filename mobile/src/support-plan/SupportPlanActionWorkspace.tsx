@@ -288,7 +288,10 @@ export function SupportPlanActionWorkspace({
           return 'unavailable'
         const evaluation = await api.getProposalEvaluationId('INITIAL_CHECK')
         try {
-          await api.ensureInitial(evaluation, `mb-initial-proposal-${evaluation}`)
+          await api.ensureInitial(
+            evaluation,
+            `mb-initial-proposal-${evaluation}`,
+          )
         } catch (error) {
           if (
             error instanceof ApiError &&

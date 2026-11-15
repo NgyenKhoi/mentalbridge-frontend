@@ -10,6 +10,7 @@ import type { ReactElement } from 'react'
 import * as SecureStore from 'expo-secure-store'
 
 import { ApiError } from '@/api/api-error'
+import { guidedJourneySchema } from '@/assessment/assessment-contract'
 import type { EmotionApi } from '@/emotion/emotion-api'
 import type { SupportPlanApi } from './support-plan-api'
 import type { SupportPlanActionApi } from './support-plan-action-api'
@@ -1111,12 +1112,14 @@ it('shows native locked-plan UX for FREE user with UNAVAILABLE entitlement', asy
   })
   owner.getCurrent.mockRejectedValue(missing)
   owner.getDraft.mockRejectedValue(missing)
-  owner.getGuidedJourney.mockResolvedValue({
-    ...(await owner.getGuidedJourney()),
-    stage: 'GUIDE_READY',
-    nextAction: 'EXPLORE_GUIDE_RESOURCES',
-    entitlementStatus: 'UNAVAILABLE',
-  })
+  owner.getGuidedJourney.mockResolvedValue(
+    guidedJourneySchema.parse({
+      ...(await owner.getGuidedJourney()),
+      stage: 'GUIDE_READY',
+      nextAction: 'EXPLORE_GUIDE_RESOURCES',
+      entitlementStatus: 'UNAVAILABLE',
+    }),
+  )
   await mount(
     <SupportPlanActionWorkspace
       api={owner}
@@ -1147,12 +1150,14 @@ it('prioritizes safety over locked state when Guide requires safety review', asy
   })
   owner.getCurrent.mockRejectedValue(missing)
   owner.getDraft.mockRejectedValue(missing)
-  owner.getGuidedJourney.mockResolvedValue({
-    ...(await owner.getGuidedJourney()),
-    stage: 'GUIDE_READY',
-    nextAction: 'REVIEW_SAFETY_SUPPORT',
-    entitlementStatus: 'UNAVAILABLE',
-  })
+  owner.getGuidedJourney.mockResolvedValue(
+    guidedJourneySchema.parse({
+      ...(await owner.getGuidedJourney()),
+      stage: 'GUIDE_READY',
+      nextAction: 'REVIEW_SAFETY_SUPPORT',
+      entitlementStatus: 'NOT_REQUIRED',
+    }),
+  )
   await mount(
     <SupportPlanActionWorkspace
       api={owner}
@@ -1187,12 +1192,14 @@ it('transitions from locked to proposal when user upgrades entitlement and retri
     throw missing
   })
   const journey = await owner.getGuidedJourney()
-  owner.getGuidedJourney.mockResolvedValue({
-    ...journey,
-    stage: 'GUIDE_READY',
-    nextAction: 'EXPLORE_GUIDE_RESOURCES',
-    entitlementStatus: 'UNAVAILABLE',
-  })
+  owner.getGuidedJourney.mockResolvedValue(
+    guidedJourneySchema.parse({
+      ...journey,
+      stage: 'GUIDE_READY',
+      nextAction: 'EXPLORE_GUIDE_RESOURCES',
+      entitlementStatus: 'UNAVAILABLE',
+    }),
+  )
   owner.ensureInitial.mockImplementation(async () => {
     created = true
     return nativePlan('DRAFT')
@@ -1209,12 +1216,14 @@ it('transitions from locked to proposal when user upgrades entitlement and retri
   await screen.findByText('Kế hoạch chưa khả dụng với gói hiện tại')
   expect(owner.ensureInitial).not.toHaveBeenCalled()
 
-  owner.getGuidedJourney.mockResolvedValue({
-    ...journey,
-    stage: 'GUIDE_READY',
-    nextAction: 'START_PLAN_PROPOSAL',
-    entitlementStatus: 'VERIFIED',
-  })
+  owner.getGuidedJourney.mockResolvedValue(
+    guidedJourneySchema.parse({
+      ...journey,
+      stage: 'GUIDE_READY',
+      nextAction: 'START_PLAN_PROPOSAL',
+      entitlementStatus: 'VERIFIED',
+    }),
+  )
   await fireEvent.press(
     screen.getByRole('button', { name: 'Thử kiểm tra lại' }),
   )
@@ -1230,12 +1239,14 @@ it('shows locked state when Care ensureInitial rejects with SUPPORT_PLAN_ENTITLE
   })
   owner.getCurrent.mockRejectedValue(missing)
   owner.getDraft.mockRejectedValue(missing)
-  owner.getGuidedJourney.mockResolvedValue({
-    ...(await owner.getGuidedJourney()),
-    stage: 'GUIDE_READY',
-    nextAction: 'START_PLAN_PROPOSAL',
-    entitlementStatus: 'VERIFIED',
-  })
+  owner.getGuidedJourney.mockResolvedValue(
+    guidedJourneySchema.parse({
+      ...(await owner.getGuidedJourney()),
+      stage: 'GUIDE_READY',
+      nextAction: 'START_PLAN_PROPOSAL',
+      entitlementStatus: 'VERIFIED',
+    }),
+  )
   owner.ensureInitial.mockRejectedValueOnce(
     new ApiError({
       status: 403,
