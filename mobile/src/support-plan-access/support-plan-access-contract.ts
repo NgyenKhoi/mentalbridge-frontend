@@ -214,3 +214,72 @@ export function sanitizeGuideOrigin(origin: unknown): GuideOrigin | undefined {
   const parsed = guideOriginSchema.safeParse(origin)
   return parsed.success ? parsed.data : undefined
 }
+
+export const CARE_OWNERSHIP_STATES = [
+  'NONE',
+  'VERIFIED_OWNED',
+  'UNAVAILABLE',
+] as const
+
+export type CareOwnershipState = (typeof CARE_OWNERSHIP_STATES)[number]
+
+export const CARE_OWNERSHIP_SOURCES = ['CARE_AUTHENTICATED_READ'] as const
+
+export const careOwnedPlanProofSchema = z
+  .object({
+    status: z.enum(CARE_OWNERSHIP_STATES),
+    subject: z.string().trim().min(1).optional(),
+    source: z.enum(CARE_OWNERSHIP_SOURCES).optional(),
+    hasCurrentPlan: z.boolean().optional(),
+    hasHistory: z.boolean().optional(),
+  })
+  .strict()
+
+export type CareOwnedPlanProof = z.infer<typeof careOwnedPlanProofSchema>
+
+/**
+ * Resolves verified Care ownership fail-closed for the active subject.
+ * Raw unverified boolean hints cannot grant `VERIFIED_OWNED`.
+ */
+export function verifyCareOwnership(
+  proof: unknown,
+  authenticatedSubject: string | null | undefined,
+  unverifiedOwnedHint?: boolean,
+): CareOwnershipState {
+  const normalizedSubject =
+    typeof authenticatedSubject === 'string' &&
+    authenticatedSubject.trim().length > 0
+      ? authenticatedSubject.trim()
+      : null
+
+  if (proof == null) {
+    return unverifiedOwnedHint === true ? 'UNAVAILABLE' : 'NONE'
+  }
+
+  const parsed = careOwnedPlanProofSchema.safeParse(proof)
+  if (!parsed.success) {
+    return 'UNAVAILABLE'
+  }
+
+  const data = parsed.data
+  if (data.status === 'UNAVAILABLE') {
+    return 'UNAVAILABLE'
+  }
+
+  if (data.status === 'NONE') {
+    return unverifiedOwnedHint === true ? 'UNAVAILABLE' : 'NONE'
+  }
+
+  const hasOwnedArtifact =
+    data.hasCurrentPlan === true || data.hasHistory === true
+  if (
+    !normalizedSubject ||
+    data.subject !== normalizedSubject ||
+    data.source !== 'CARE_AUTHENTICATED_READ' ||
+    !hasOwnedArtifact
+  ) {
+    return 'UNAVAILABLE'
+  }
+
+  return 'VERIFIED_OWNED'
+}

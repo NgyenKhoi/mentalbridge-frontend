@@ -1,5 +1,6 @@
 import {
   sanitizeGuideOrigin,
+  type CareOwnershipState,
   type EntitlementState,
   type GuideOrigin,
   type PackageCode,
@@ -12,6 +13,8 @@ import {
 
 export type PlanAccessStatus =
   'loading' | 'paid' | 'free' | 'expired' | 'unavailable'
+
+export type PlanAccessMode = 'full-create-and-read' | 'read-only-owned'
 
 export type PreviewTab = 'today' | 'progress' | 'review'
 
@@ -203,6 +206,8 @@ export type VerifiedPlanAccessContext = Readonly<{
   supportPlanEnabled: boolean
   entitlementVerified: boolean
   canCreatePlan: boolean
+  accessMode: PlanAccessMode
+  careOwnershipVerified: boolean
   hasOwnedPlanOrHistory: boolean
   upgradedNow: boolean
   origin?: GuideOrigin | undefined
@@ -251,7 +256,7 @@ export type ResolveAccessInput = Readonly<{
   offline: boolean
   entitlement: ServiceCreditEntitlement | null
   errorCode?: string | undefined
-  hasOwnedPlanOrHistory: boolean
+  careOwnership: CareOwnershipState
   hasConfirmedPaymentSettlement: boolean
   catalogue: ServicePlanCatalogue | null
   latestPayment: PlanPayment | null
@@ -266,7 +271,7 @@ const AUTH_FAIL_CLOSED_CODES = new Set([
 
 /**
  * Pure priority resolver enforcing safety override > fail-closed errors > verified access /
- * owned-plan continuity > locked 14-day preview. Never creates or activates a Plan.
+ * verified owned-plan read-only continuity > locked 14-day preview. Never creates or activates a Plan.
  */
 export function resolveSupportPlanAccessState(
   input: ResolveAccessInput,
@@ -299,13 +304,16 @@ export function resolveSupportPlanAccessState(
     input.entitlement?.entitlementState === 'ACTIVE' &&
     Boolean(input.entitlement.supportPlanEnabled)
   ) {
+    const careOwnershipVerified = input.careOwnership === 'VERIFIED_OWNED'
     const context: VerifiedPlanAccessContext = {
       packageCode: input.entitlement.packageCode,
       entitlementState: input.entitlement.entitlementState,
       supportPlanEnabled: true,
       entitlementVerified: true,
       canCreatePlan: true,
-      hasOwnedPlanOrHistory: input.hasOwnedPlanOrHistory,
+      accessMode: 'full-create-and-read',
+      careOwnershipVerified,
+      hasOwnedPlanOrHistory: careOwnershipVerified,
       upgradedNow: input.hasConfirmedPaymentSettlement,
       origin,
     }
@@ -326,13 +334,33 @@ export function resolveSupportPlanAccessState(
     }
   }
 
-  if (status === 'expired' && input.hasOwnedPlanOrHistory) {
+  const preAuthErrorCode =
+    input.errorCode ??
+    (input.offline && status === 'unavailable' ? 'NETWORK_ERROR' : undefined)
+
+  if (
+    input.careOwnership === 'VERIFIED_OWNED' &&
+    !(preAuthErrorCode && AUTH_FAIL_CLOSED_CODES.has(preAuthErrorCode))
+  ) {
+    const entitlementVerified = status === 'expired' || status === 'free'
+    const unavailabilityCode =
+      input.errorCode ??
+      (input.offline ? 'NETWORK_ERROR' : 'ENTITLEMENT_UNAVAILABLE')
     const context: VerifiedPlanAccessContext = {
-      packageCode: input.entitlement?.packageCode ?? 'FREE',
-      entitlementState: 'EXPIRED',
+      packageCode: entitlementVerified
+        ? (input.entitlement?.packageCode ?? 'FREE')
+        : null,
+      entitlementState:
+        status === 'expired'
+          ? 'EXPIRED'
+          : status === 'free'
+            ? (input.entitlement?.entitlementState ?? 'DEFAULT_FREE')
+            : null,
       supportPlanEnabled: false,
-      entitlementVerified: true,
+      entitlementVerified,
       canCreatePlan: false,
+      accessMode: 'read-only-owned',
+      careOwnershipVerified: true,
       hasOwnedPlanOrHistory: true,
       upgradedNow: false,
       origin,
@@ -340,9 +368,22 @@ export function resolveSupportPlanAccessState(
     return {
       kind: 'owned-plan',
       context,
-      showExpiredUpgradeBanner: true,
-      showUnavailableUpgradeBanner: false,
-      offline: input.offline,
+      showExpiredUpgradeBanner: status === 'expired',
+      showUnavailableUpgradeBanner: status !== 'expired' && status !== 'free',
+      offline: input.offline || unavailabilityCode === 'NETWORK_ERROR',
+      errorCode: entitlementVerified ? undefined : unavailabilityCode,
+      origin,
+    }
+  }
+
+  if (input.careOwnership === 'UNAVAILABLE') {
+    const finalErrorCode =
+      input.errorCode ??
+      (input.offline ? 'NETWORK_ERROR' : 'CARE_OWNERSHIP_UNAVAILABLE')
+    return {
+      kind: 'unavailable',
+      offline: input.offline || finalErrorCode === 'NETWORK_ERROR',
+      errorCode: finalErrorCode,
       origin,
     }
   }
@@ -361,31 +402,6 @@ export function resolveSupportPlanAccessState(
     input.errorCode ??
     (input.offline ? 'NETWORK_ERROR' : 'ENTITLEMENT_UNAVAILABLE')
   const isOffline = input.offline || finalErrorCode === 'NETWORK_ERROR'
-
-  if (
-    input.hasOwnedPlanOrHistory &&
-    !AUTH_FAIL_CLOSED_CODES.has(finalErrorCode)
-  ) {
-    const context: VerifiedPlanAccessContext = {
-      packageCode: null,
-      entitlementState: null,
-      supportPlanEnabled: false,
-      entitlementVerified: false,
-      canCreatePlan: false,
-      hasOwnedPlanOrHistory: true,
-      upgradedNow: false,
-      origin,
-    }
-    return {
-      kind: 'owned-plan',
-      context,
-      showExpiredUpgradeBanner: false,
-      showUnavailableUpgradeBanner: true,
-      offline: isOffline,
-      errorCode: finalErrorCode,
-      origin,
-    }
-  }
 
   return {
     kind: 'unavailable',

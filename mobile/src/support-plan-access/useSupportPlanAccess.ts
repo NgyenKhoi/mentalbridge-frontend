@@ -17,8 +17,11 @@ import type { SupportPlanAccessApi } from './support-plan-access-api'
 import {
   canOpenHostedCheckoutUrl,
   sanitizeGuideOrigin,
+  verifyCareOwnership,
+  type CareOwnedPlanProof,
   type GuideOrigin,
   type PlanPayment,
+  type ServiceCreditEntitlement,
 } from './support-plan-access-contract'
 import {
   clearCheckoutAttempt,
@@ -37,6 +40,11 @@ export type UseSupportPlanAccessOptions = Readonly<{
   subject: string | null
   api: SupportPlanAccessApi | null
   safetyOverride?: boolean | undefined
+  careOwnership?: CareOwnedPlanProof | undefined
+  /**
+   * @deprecated Unverified boolean hints fail closed to `UNAVAILABLE` unless paired
+   * with a valid `careOwnership` proof for the active `subject`.
+   */
   hasOwnedPlanOrHistory?: boolean | undefined
   offline?: boolean | undefined
   origin?: GuideOrigin | undefined
@@ -45,6 +53,12 @@ export type UseSupportPlanAccessOptions = Readonly<{
 type SubjectScoped<T> = Readonly<{
   subject: string
   value: T
+}>
+
+type VerifiedEntitlementState = Readonly<{
+  subject: string
+  generation: number
+  value: ServiceCreditEntitlement
 }>
 
 function supportPlanAccessKey(
@@ -121,11 +135,17 @@ export function useSupportPlanAccess(
     subject,
     api,
     safetyOverride = false,
-    hasOwnedPlanOrHistory = false,
+    careOwnership,
+    hasOwnedPlanOrHistory,
     offline = false,
     origin,
   } = options
   const validatedOrigin = sanitizeGuideOrigin(origin)
+  const verifiedCareOwnership = verifyCareOwnership(
+    careOwnership,
+    subject,
+    hasOwnedPlanOrHistory,
+  )
 
   const queryClient = useQueryClient()
   const isMountedRef = useRef(true)
@@ -133,12 +153,18 @@ export function useSupportPlanAccess(
   const activeSubjectRef = useRef<string | null>(subject)
 
   const prevSubjectRef = useRef<string | null>(subject)
-  const prevOfflineRef = useRef(offline)
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
   const reconcileLockRef = useRef(false)
   const checkoutLockRef = useRef(false)
   const retryLockRef = useRef(false)
+  const verificationGenRef = useRef(0)
+  const entitlementReqSeqRef = useRef(0)
+  const pendingForegroundReconcileRef = useRef(false)
+  const hadUncertainAttemptRef = useRef(false)
 
+  const [verificationGen, setVerificationGen] = useState(0)
+  const [verifiedEntitlement, setVerifiedEntitlement] =
+    useState<VerifiedEntitlementState | null>(null)
   const [scopedPayment, setScopedPayment] =
     useState<SubjectScoped<PlanPayment> | null>(null)
   const [scopedCheckoutError, setScopedCheckoutError] =
@@ -151,11 +177,19 @@ export function useSupportPlanAccess(
   const [isReconciling, setIsReconciling] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
 
+  const invalidateLiveEntitlement = useCallback(() => {
+    verificationGenRef.current += 1
+    entitlementReqSeqRef.current += 1
+    setVerificationGen(verificationGenRef.current)
+    setVerifiedEntitlement(null)
+  }, [])
+
   useEffect(() => {
     isMountedRef.current = true
     return () => {
       isMountedRef.current = false
       lifecycleEpochRef.current += 1
+      entitlementReqSeqRef.current += 1
     }
   }, [])
 
@@ -164,6 +198,10 @@ export function useSupportPlanAccess(
     activeSubjectRef.current = subject
     if (previousSubject !== subject) {
       lifecycleEpochRef.current += 1
+      verificationGenRef.current += 1
+      entitlementReqSeqRef.current += 1
+      pendingForegroundReconcileRef.current = false
+      hadUncertainAttemptRef.current = false
       if (previousSubject) {
         clearPendingUpgradeIntent(previousSubject)
         clearCheckoutAttempt(previousSubject)
@@ -171,6 +209,8 @@ export function useSupportPlanAccess(
           queryKey: ['support-plan-access', previousSubject],
         })
       }
+      setVerificationGen(verificationGenRef.current)
+      setVerifiedEntitlement(null)
       setScopedPayment(null)
       setScopedCheckoutError(null)
       setScopedExternalNotice(null)
@@ -192,19 +232,10 @@ export function useSupportPlanAccess(
   useEffect(() => {
     if (!subject) return
     if (offline) {
-      const current = queryClient.getQueryData(
-        supportPlanAccessKey(subject, 'entitlement'),
-      )
-      if (
-        !current ||
-        planAccessFrom(current as Parameters<typeof planAccessFrom>[0]) ===
-          'paid'
-      ) {
-        queryClient.removeQueries({
-          queryKey: supportPlanAccessKey(subject, 'entitlement'),
-          exact: true,
-        })
-      }
+      queryClient.removeQueries({
+        queryKey: supportPlanAccessKey(subject, 'entitlement'),
+        exact: true,
+      })
     }
   }, [offline, queryClient, subject])
 
@@ -215,43 +246,95 @@ export function useSupportPlanAccess(
     staleTime: 0,
     refetchOnMount: 'always',
     queryFn: async () => {
-      if (!api) {
+      if (!api || !subject) {
         throw new ApiError({
           code: 'ENTITLEMENT_UNAVAILABLE',
           message: 'Thiếu dịch vụ kiểm tra quyền gói.',
         })
       }
-      return api.getEntitlement()
+      const capturedSubject = subject
+      const capturedEpoch = lifecycleEpochRef.current
+      const capturedGen = verificationGenRef.current
+      const reqSeq = (entitlementReqSeqRef.current += 1)
+
+      try {
+        const result = await api.getEntitlement()
+        if (result.accountId !== capturedSubject) {
+          throw new ApiError({
+            code: 'ENTITLEMENT_SUBJECT_MISMATCH',
+            message: 'Thông tin quyền gói không khớp tài khoản đang đăng nhập.',
+          })
+        }
+
+        const stillCurrent =
+          isMountedRef.current &&
+          lifecycleEpochRef.current === capturedEpoch &&
+          activeSubjectRef.current === capturedSubject &&
+          verificationGenRef.current === capturedGen &&
+          entitlementReqSeqRef.current === reqSeq
+
+        if (stillCurrent) {
+          setVerifiedEntitlement({
+            subject: capturedSubject,
+            generation: capturedGen,
+            value: result,
+          })
+        }
+
+        return result
+      } catch (error) {
+        const stillSameSubjectAndEpoch =
+          isMountedRef.current &&
+          lifecycleEpochRef.current === capturedEpoch &&
+          activeSubjectRef.current === capturedSubject
+
+        if (
+          stillSameSubjectAndEpoch &&
+          entitlementReqSeqRef.current === reqSeq
+        ) {
+          setVerifiedEntitlement(null)
+        }
+        throw error
+      }
     },
   })
 
-  const entitlementMatchesSubject =
-    Boolean(subject) && entitlementQuery.data?.accountId === subject
-  const cachedPlanStatus = entitlementMatchesSubject
-    ? planAccessFrom(entitlementQuery.data)
+  // Cached/stale TanStack Query data MUST NEVER unlock entitlement.
+  // Authorization only reads `verifiedEntitlement` written inside live `queryFn`.
+  // When online, the underlying query entry must also still be active & succeeded
+  // (e.g. not wiped by an offline cache eviction pending re-verification).
+  const activeVerifiedEntitlement =
+    subject &&
+    verifiedEntitlement &&
+    verifiedEntitlement.subject === subject &&
+    verifiedEntitlement.generation === verificationGen &&
+    verifiedEntitlement.value.accountId === subject &&
+    (offline ||
+      (entitlementQuery.status === 'success' && !entitlementQuery.isError))
+      ? verifiedEntitlement.value
+      : null
+
+  const verifiedPlanStatus = activeVerifiedEntitlement
+    ? planAccessFrom(activeVerifiedEntitlement)
     : 'unavailable'
 
-  // Cached FREE/EXPIRED lock state may remain in-session when offline (buttons disabled);
-  // cached PAID entitlement must NEVER be trusted offline or after any query error.
+  // Live in-session FREE/EXPIRED lock state may remain visible offline (actions disabled);
+  // PLUS entitlement NEVER carries into offline or unverified states.
   const canUseOfflineLockedState =
     offline &&
     queriesEnabled &&
     !entitlementQuery.isError &&
-    entitlementMatchesSubject &&
-    (cachedPlanStatus === 'free' || cachedPlanStatus === 'expired')
+    Boolean(activeVerifiedEntitlement) &&
+    (verifiedPlanStatus === 'free' || verifiedPlanStatus === 'expired')
 
   const canTrustEntitlement =
     (queriesEnabled &&
       !offline &&
       !entitlementQuery.isError &&
-      entitlementQuery.status === 'success' &&
-      entitlementMatchesSubject &&
-      (entitlementQuery.isFetchedAfterMount || !entitlementQuery.isFetching)) ||
+      Boolean(activeVerifiedEntitlement)) ||
     canUseOfflineLockedState
 
-  const rawStatus = !canTrustEntitlement
-    ? 'unavailable'
-    : planAccessFrom(entitlementQuery.data)
+  const rawStatus = !canTrustEntitlement ? 'unavailable' : verifiedPlanStatus
   const shouldLoadBilling =
     queriesEnabled &&
     !offline &&
@@ -319,7 +402,9 @@ export function useSupportPlanAccess(
     !offline &&
     !entitlementQuery.isLoading &&
     !entitlementQuery.isFetching &&
-    !entitlementQuery.data &&
+    !isReconciling &&
+    !isRetrying &&
+    !activeVerifiedEntitlement &&
     !entitlementQuery.isError
 
   const resolvedErrorCode = !subject
@@ -327,23 +412,23 @@ export function useSupportPlanAccess(
     : offline && !canUseOfflineLockedState
       ? 'NETWORK_ERROR'
       : (entitlementError?.code ??
-        (entitlementQuery.data && !entitlementMatchesSubject
-          ? 'ENTITLEMENT_SUBJECT_MISMATCH'
-          : entitlementMissingResult
-            ? 'ENTITLEMENT_UNAVAILABLE'
-            : undefined))
+        (entitlementMissingResult ? 'ENTITLEMENT_UNAVAILABLE' : undefined))
 
   const resolved = resolveSupportPlanAccessState({
     safetyOverride,
     loading:
       queriesEnabled &&
       !offline &&
+      !activeVerifiedEntitlement &&
+      !entitlementError &&
       (entitlementQuery.isLoading ||
-        (entitlementQuery.isFetching && !canTrustEntitlement)),
+        entitlementQuery.isFetching ||
+        isReconciling ||
+        isRetrying),
     offline,
-    entitlement: canTrustEntitlement ? (entitlementQuery.data ?? null) : null,
+    entitlement: canTrustEntitlement ? activeVerifiedEntitlement : null,
     errorCode: resolvedErrorCode,
-    hasOwnedPlanOrHistory,
+    careOwnership: verifiedCareOwnership,
     hasConfirmedPaymentSettlement: isConfirmedForSubject,
     catalogue:
       queriesEnabled && !entitlementQuery.isError
@@ -374,10 +459,12 @@ export function useSupportPlanAccess(
 
     const capturedSubject = subject
     const capturedEpoch = lifecycleEpochRef.current
+    const capturedGen = verificationGenRef.current
     const isCurrentContext = () =>
       isMountedRef.current &&
       lifecycleEpochRef.current === capturedEpoch &&
-      activeSubjectRef.current === capturedSubject
+      activeSubjectRef.current === capturedSubject &&
+      verificationGenRef.current === capturedGen
 
     reconcileLockRef.current = true
     setIsReconciling(true)
@@ -385,15 +472,25 @@ export function useSupportPlanAccess(
     try {
       const intent = getPendingUpgradeIntent(capturedSubject)
       const attempt = getCheckoutAttempt(capturedSubject)
-      let pendingPaymentId: string | null =
-        intent?.paymentId ??
-        attempt?.paymentId ??
-        (latestPayment?.status === 'PENDING' ? latestPayment.paymentId : null)
+      const explicitlyTrackedPaymentId =
+        intent?.paymentId ?? attempt?.paymentId ?? null
+      // Never auto-correlate any `/payments` PENDING row onto an `uncertain` attempt
+      // or `idempotencyKey`. When local attempt/intent state was lost (restart / TTL),
+      // surface and check the server pending payment only for safe recovery.
+      const recoveryPendingPaymentId =
+        !explicitlyTrackedPaymentId &&
+        attempt?.status !== 'uncertain' &&
+        !intent &&
+        latestPayment?.status === 'PENDING'
+          ? latestPayment.paymentId
+          : null
+      const paymentIdToCheck =
+        explicitlyTrackedPaymentId ?? recoveryPendingPaymentId
 
       let paymentCheckFailed = false
       let settledTrackedPayment: PlanPayment | null = null
 
-      if (!pendingPaymentId && attempt?.status === 'uncertain') {
+      if (!paymentIdToCheck) {
         try {
           const history = await api.getPaymentHistory()
           if (!isCurrentContext()) return
@@ -401,27 +498,6 @@ export function useSupportPlanAccess(
             supportPlanAccessKey(capturedSubject, 'payments'),
             history,
           )
-          const pendingFromHistory = history.items.find(
-            (item) => item.status === 'PENDING',
-          )
-          if (pendingFromHistory) {
-            pendingPaymentId = pendingFromHistory.paymentId
-            markCheckoutAttemptPending(
-              capturedSubject,
-              pendingFromHistory.planVersionId,
-              attempt.idempotencyKey,
-              pendingFromHistory.paymentId,
-            )
-            setPendingUpgradeIntent({
-              subject: capturedSubject,
-              paymentId: pendingFromHistory.paymentId,
-              origin: validatedOrigin,
-            })
-            setScopedPayment({
-              subject: capturedSubject,
-              value: pendingFromHistory,
-            })
-          }
         } catch (error) {
           if (!isCurrentContext()) return
           paymentCheckFailed = true
@@ -429,17 +505,23 @@ export function useSupportPlanAccess(
             subject: capturedSubject,
             value: {
               ...extractApiError(error),
-              uncertain: true,
+              uncertain: attempt?.status === 'uncertain',
             },
           })
         }
       }
 
-      if (pendingPaymentId) {
+      if (paymentIdToCheck) {
         try {
-          const reconciled = await api.getPayment(pendingPaymentId)
+          const reconciled = await api.getPayment(paymentIdToCheck)
           if (!isCurrentContext()) return
-          if (reconciled.paymentId !== pendingPaymentId) {
+          const reconciledAccountId = (reconciled as { accountId?: unknown })
+            .accountId
+          if (
+            reconciled.paymentId !== paymentIdToCheck ||
+            (typeof reconciledAccountId === 'string' &&
+              reconciledAccountId !== capturedSubject)
+          ) {
             throw new ApiError({
               code: 'PAYMENT_IDENTITY_MISMATCH',
               message: 'Mã giao dịch đối chiếu không khớp.',
@@ -451,8 +533,13 @@ export function useSupportPlanAccess(
             reconciled.status === 'CHARGEBACK'
           ) {
             clearPendingUpgradeIntent(capturedSubject)
-            markCheckoutAttemptTerminal(capturedSubject, reconciled.paymentId)
-          } else if (reconciled.status === 'SUCCEEDED') {
+            if (attempt?.paymentId === reconciled.paymentId) {
+              markCheckoutAttemptTerminal(capturedSubject, reconciled.paymentId)
+            }
+          } else if (
+            reconciled.status === 'SUCCEEDED' &&
+            explicitlyTrackedPaymentId === reconciled.paymentId
+          ) {
             settledTrackedPayment = reconciled
           }
         } catch (error) {
@@ -465,11 +552,16 @@ export function useSupportPlanAccess(
         }
       }
 
+      await queryClient.cancelQueries({
+        queryKey: supportPlanAccessKey(capturedSubject, 'entitlement'),
+        exact: true,
+      })
       const freshEntitlement = await entitlementQuery.refetch()
       if (!isCurrentContext()) return
 
       const freshValid =
         !freshEntitlement.isError &&
+        freshEntitlement.status === 'success' &&
         freshEntitlement.data?.accountId === capturedSubject
       const freshAccess = freshValid
         ? planAccessFrom(freshEntitlement.data)
@@ -478,9 +570,9 @@ export function useSupportPlanAccess(
       const hasVerifiedTrackedSettlement = Boolean(
         freshAccess === 'paid' &&
         !paymentCheckFailed &&
-        pendingPaymentId &&
+        explicitlyTrackedPaymentId &&
         settledTrackedPayment &&
-        settledTrackedPayment.paymentId === pendingPaymentId &&
+        settledTrackedPayment.paymentId === explicitlyTrackedPaymentId &&
         settledTrackedPayment.status === 'SUCCEEDED',
       )
 
@@ -509,6 +601,19 @@ export function useSupportPlanAccess(
       reconcileLockRef.current = false
       if (isMountedRef.current) {
         setIsReconciling(false)
+        if (
+          pendingForegroundReconcileRef.current &&
+          activeSubjectRef.current === capturedSubject &&
+          !safetyOverride &&
+          !offline
+        ) {
+          pendingForegroundReconcileRef.current = false
+          await queryClient.cancelQueries({
+            queryKey: supportPlanAccessKey(capturedSubject, 'entitlement'),
+            exact: true,
+          })
+          await entitlementQuery.refetch()
+        }
       }
     }
   }, [
@@ -520,6 +625,10 @@ export function useSupportPlanAccess(
     paymentsQuery,
     queryClient,
     safetyOverride,
+    setConfirmedUpgrade,
+    setIsReconciling,
+    setScopedCheckoutError,
+    setScopedPayment,
     subject,
     validatedOrigin,
   ])
@@ -528,12 +637,16 @@ export function useSupportPlanAccess(
     if (!subject || !api || safetyOverride || offline) return
     if (retryLockRef.current) return
 
+    invalidateLiveEntitlement()
+
     const capturedSubject = subject
     const capturedEpoch = lifecycleEpochRef.current
+    const capturedGen = verificationGenRef.current
     const isCurrentContext = () =>
       isMountedRef.current &&
       lifecycleEpochRef.current === capturedEpoch &&
-      activeSubjectRef.current === capturedSubject
+      activeSubjectRef.current === capturedSubject &&
+      verificationGenRef.current === capturedGen
 
     retryLockRef.current = true
     setIsRetrying(true)
@@ -541,10 +654,16 @@ export function useSupportPlanAccess(
     setScopedExternalNotice(null)
 
     try {
+      await queryClient.cancelQueries({
+        queryKey: supportPlanAccessKey(capturedSubject, 'entitlement'),
+        exact: true,
+      })
       const fresh = await entitlementQuery.refetch()
       if (!isCurrentContext()) return
       const freshValid =
-        !fresh.isError && fresh.data?.accountId === capturedSubject
+        !fresh.isError &&
+        fresh.status === 'success' &&
+        fresh.data?.accountId === capturedSubject
       const freshStatus = freshValid
         ? planAccessFrom(fresh.data)
         : 'unavailable'
@@ -568,9 +687,14 @@ export function useSupportPlanAccess(
     api,
     catalogueQuery,
     entitlementQuery,
+    invalidateLiveEntitlement,
     offline,
     paymentsQuery,
+    queryClient,
     safetyOverride,
+    setIsRetrying,
+    setScopedCheckoutError,
+    setScopedExternalNotice,
     subject,
   ])
 
@@ -601,12 +725,6 @@ export function useSupportPlanAccess(
     setScopedExternalNotice(null)
 
     try {
-      if (latestPayment?.status === 'PENDING') {
-        setScopedCheckoutError(null)
-        await reconcileStatus()
-        return
-      }
-
       const planVersionId = availability.plan.planVersionId
       let existingAttempt = getCheckoutAttempt(capturedSubject, planVersionId)
       if (
@@ -620,54 +738,74 @@ export function useSupportPlanAccess(
         existingAttempt = getCheckoutAttempt(capturedSubject, planVersionId)
       }
 
-      if (existingAttempt?.status === 'uncertain') {
+      if (existingAttempt?.status === 'pending' && existingAttempt.paymentId) {
+        setScopedCheckoutError(null)
+        await reconcileStatus()
+        return
+      }
+
+      const isReplayingUncertainAttempt =
+        existingAttempt?.status === 'uncertain'
+
+      if (!isReplayingUncertainAttempt && latestPayment?.status === 'PENDING') {
+        setScopedCheckoutError({
+          subject: capturedSubject,
+          value: {
+            code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
+            message:
+              'Trên máy chủ đang có giao dịch nâng cấp Plus chưa hoàn tất. Vui lòng đối chiếu thanh toán thay vì mở giao dịch mới.',
+            uncertain: false,
+          },
+        })
+        await reconcileStatus()
+        return
+      }
+
+      // If an earlier uncertain attempt's TTL just expired in-session, verify `/payments`
+      // from the server before minting any new idempotencyKey so a charge is never duplicated.
+      if (!isReplayingUncertainAttempt && hadUncertainAttemptRef.current) {
         try {
-          const history = await api.getPaymentHistory()
+          const refreshedHistory = await api.getPaymentHistory()
           if (!isCurrentContext()) return
           queryClient.setQueryData(
             supportPlanAccessKey(capturedSubject, 'payments'),
-            history,
+            refreshedHistory,
           )
-          const pendingFromHistory = history.items.find(
+          const unresolvedPending = refreshedHistory.items.find(
             (item) => item.status === 'PENDING',
           )
-          if (pendingFromHistory) {
-            markCheckoutAttemptPending(
-              capturedSubject,
-              pendingFromHistory.planVersionId,
-              existingAttempt.idempotencyKey,
-              pendingFromHistory.paymentId,
-            )
-            setPendingUpgradeIntent({
-              subject: capturedSubject,
-              paymentId: pendingFromHistory.paymentId,
-              origin: validatedOrigin,
-            })
+          if (unresolvedPending) {
+            hadUncertainAttemptRef.current = false
             setScopedPayment({
               subject: capturedSubject,
-              value: pendingFromHistory,
+              value: unresolvedPending,
             })
-            setScopedCheckoutError(null)
+            setScopedCheckoutError({
+              subject: capturedSubject,
+              value: {
+                code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
+                message:
+                  'Trên máy chủ đang có giao dịch nâng cấp Plus chưa hoàn tất. Vui lòng đối chiếu thanh toán thay vì mở giao dịch mới.',
+                uncertain: false,
+              },
+            })
+            await reconcileStatus()
             return
           }
-        } catch (historyError) {
+          hadUncertainAttemptRef.current = false
+        } catch {
           if (!isCurrentContext()) return
-          const extracted = extractApiError(historyError)
           setScopedCheckoutError({
             subject: capturedSubject,
             value: {
-              code: 'CHECKOUT_OUTCOME_UNCERTAIN',
-              message: `${extracted.message} Chưa thể xác minh trạng thái giao dịch trước; mã idempotency được giữ nguyên để thử lại an toàn.`,
-              uncertain: true,
+              code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
+              message:
+                'Không thể kiểm tra lịch sử giao dịch sau khi phiên thử lại hết hạn. Vui lòng đối chiếu lại thanh toán trước khi thử mở giao dịch mới.',
+              uncertain: false,
             },
           })
           return
         }
-      }
-
-      if (existingAttempt?.status === 'pending' && existingAttempt.paymentId) {
-        await reconcileStatus()
-        return
       }
 
       const idempotencyKey =
@@ -689,22 +827,34 @@ export function useSupportPlanAccess(
         })
         if (!isCurrentContext()) return
 
+        const paymentAccountId = (payment as { accountId?: unknown }).accountId
+        const expectedPaymentId = existingAttempt?.paymentId
+        if (
+          !payment.paymentId ||
+          payment.planVersionId !== planVersionId ||
+          (expectedPaymentId && payment.paymentId !== expectedPaymentId) ||
+          (typeof paymentAccountId === 'string' &&
+            paymentAccountId !== capturedSubject)
+        ) {
+          clearCheckoutAttempt(capturedSubject)
+          clearPendingUpgradeIntent(capturedSubject)
+          setScopedCheckoutError({
+            subject: capturedSubject,
+            value: {
+              code: 'PAYMENT_IDENTITY_MISMATCH',
+              message:
+                'Phản hồi giao dịch từ máy chủ không khớp gói nâng cấp hoặc tài khoản hiện tại.',
+              uncertain: false,
+            },
+          })
+          return
+        }
+
         setScopedCheckoutError(null)
+        hadUncertainAttemptRef.current = false
         setScopedPayment({ subject: capturedSubject, value: payment })
 
-        if (payment.status === 'PENDING') {
-          markCheckoutAttemptPending(
-            capturedSubject,
-            payment.planVersionId,
-            idempotencyKey,
-            payment.paymentId,
-          )
-          setPendingUpgradeIntent({
-            subject: capturedSubject,
-            paymentId: payment.paymentId,
-            origin: validatedOrigin,
-          })
-        } else if (payment.status === 'SUCCEEDED') {
+        if (payment.status === 'PENDING' || payment.status === 'SUCCEEDED') {
           markCheckoutAttemptPending(
             capturedSubject,
             payment.planVersionId,
@@ -732,6 +882,7 @@ export function useSupportPlanAccess(
         if (!isCurrentContext()) return
         const apiError = error instanceof ApiError ? error : toApiError(error)
         if (isPreCreationDeterministicRejection(apiError)) {
+          hadUncertainAttemptRef.current = false
           clearCheckoutAttempt(capturedSubject)
           setScopedCheckoutError({
             subject: capturedSubject,
@@ -745,6 +896,7 @@ export function useSupportPlanAccess(
             await paymentsQuery.refetch()
           }
         } else {
+          hadUncertainAttemptRef.current = true
           markCheckoutAttemptUncertain(
             capturedSubject,
             planVersionId,
@@ -755,7 +907,7 @@ export function useSupportPlanAccess(
             value: {
               code: apiError.code,
               message:
-                'Chưa rõ máy chủ đã tạo giao dịch hay chưa do gián đoạn kết nối. Hệ thống giữ nguyên mã idempotency và sẽ đối chiếu /payments trước khi thử lại.',
+                'Chưa rõ máy chủ đã tạo giao dịch hay chưa do gián đoạn kết nối. Hệ thống giữ nguyên mã idempotency và sẽ dùng lại chính mã này khi thử lại.',
               uncertain: true,
             },
           })
@@ -824,15 +976,13 @@ export function useSupportPlanAccess(
           'Không thể mở trang PayOS lúc này. Bạn có thể chuyển khoản bằng thông tin VietQR bên dưới rồi bấm kiểm tra lại.',
       })
     }
-  }, [latestPayment, offline, subject, validatedOrigin])
-
-  useEffect(() => {
-    const wasOffline = prevOfflineRef.current
-    prevOfflineRef.current = offline
-    if (wasOffline && !offline && queriesEnabled) {
-      void retryEntitlementCheck()
-    }
-  }, [offline, queriesEnabled, retryEntitlementCheck])
+  }, [
+    latestPayment,
+    offline,
+    setScopedExternalNotice,
+    subject,
+    validatedOrigin,
+  ])
 
   useEffect(() => {
     if (!queriesEnabled) return
@@ -843,18 +993,25 @@ export function useSupportPlanAccess(
         (prevState === 'background' || prevState === 'inactive') &&
         nextState === 'active'
       ) {
+        if (!offline) {
+          invalidateLiveEntitlement()
+          if (reconcileLockRef.current) {
+            pendingForegroundReconcileRef.current = true
+            return
+          }
+        }
         void reconcileStatus()
       }
     })
     return () => subscription.remove()
-  }, [queriesEnabled, reconcileStatus])
+  }, [invalidateLiveEntitlement, offline, queriesEnabled, reconcileStatus])
 
   const clearUpgradeConfirmation = useCallback(() => {
     if (subject) {
       clearPendingUpgradeIntent(subject)
     }
     setConfirmedUpgrade(null)
-  }, [subject])
+  }, [setConfirmedUpgrade, subject])
 
   const activeError =
     subject && scopedCheckoutError?.subject === subject

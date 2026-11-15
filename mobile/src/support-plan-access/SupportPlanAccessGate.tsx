@@ -14,13 +14,21 @@ import { colors, radii, spacing, typography } from '@/theme/tokens'
 import { LockedPlanPreview } from './LockedPlanPreview'
 import type { VerifiedPlanAccessContext } from './plan-access-model'
 import type { SupportPlanAccessApi } from './support-plan-access-api'
-import type { GuideOrigin } from './support-plan-access-contract'
+import type {
+  CareOwnedPlanProof,
+  GuideOrigin,
+} from './support-plan-access-contract'
 import { useSupportPlanAccess } from './useSupportPlanAccess'
 
 export type SupportPlanAccessGateProps = Readonly<{
   subject: string | null
   api: SupportPlanAccessApi | null
   safetyOverride?: boolean | undefined
+  careOwnership?: CareOwnedPlanProof | undefined
+  /**
+   * @deprecated Unverified boolean hints fail closed to `UNAVAILABLE` unless paired
+   * with a valid `careOwnership` proof for the active `subject`.
+   */
   hasOwnedPlanOrHistory?: boolean | undefined
   offline?: boolean | undefined
   origin?: GuideOrigin | undefined
@@ -65,7 +73,8 @@ export function SupportPlanAccessGate({
   subject,
   api,
   safetyOverride = false,
-  hasOwnedPlanOrHistory = false,
+  careOwnership,
+  hasOwnedPlanOrHistory,
   offline = false,
   origin,
   autoContinue = false,
@@ -81,6 +90,7 @@ export function SupportPlanAccessGate({
     subject,
     api,
     safetyOverride,
+    careOwnership,
     hasOwnedPlanOrHistory,
     offline,
     origin,
@@ -97,6 +107,8 @@ export function SupportPlanAccessGate({
     if (
       autoContinue &&
       resolved.kind === 'owned-plan' &&
+      resolved.context.canCreatePlan &&
+      resolved.context.entitlementVerified &&
       !children &&
       onContinueToPlan &&
       subject &&
@@ -324,7 +336,14 @@ export function SupportPlanAccessGate({
         ) : (
           <Screen clearSafetyButton>
             <View style={styles.panel}>
-              <Text style={styles.eyebrow}>
+              <Text
+                style={styles.eyebrow}
+                testID={
+                  resolved.context.accessMode === 'read-only-owned'
+                    ? 'owned-plan-read-only-badge'
+                    : 'owned-plan-full-access-badge'
+                }
+              >
                 {resolved.context.canCreatePlan
                   ? 'ĐÃ XÁC MINH QUYỀN KẾ HOẠCH'
                   : 'QUYỀN ĐỌC KẾ HOẠCH HIỆN CÓ'}

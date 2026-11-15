@@ -7,12 +7,15 @@ import {
   selectPlusUpgradePlan,
 } from './plan-access-model'
 import {
+  CARE_OWNERSHIP_STATES,
   canOpenHostedCheckoutUrl,
+  careOwnedPlanProofSchema,
   guideOriginSchema,
   isAllowedCheckoutUrl,
   planPaymentSchema,
   sanitizeGuideOrigin,
   serviceCreditEntitlementSchema,
+  verifyCareOwnership,
 } from './support-plan-access-contract'
 import {
   GUIDE_ID,
@@ -268,7 +271,7 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
         loading: false,
         offline: false,
         entitlement: makeEntitlement(),
-        hasOwnedPlanOrHistory: false,
+        careOwnership: 'NONE',
         hasConfirmedPaymentSettlement: false,
         catalogue: makeCatalogue(),
         latestPayment: null,
@@ -284,7 +287,7 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
         entitlementState: 'EXPIRED',
         supportPlanEnabled: false,
       }),
-      hasOwnedPlanOrHistory: true,
+      careOwnership: 'VERIFIED_OWNED',
       hasConfirmedPaymentSettlement: false,
       catalogue: makeCatalogue(),
       latestPayment: null,
@@ -295,6 +298,8 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
       showUnavailableUpgradeBanner: false,
       context: {
         canCreatePlan: false,
+        accessMode: 'read-only-owned',
+        careOwnershipVerified: true,
         entitlementVerified: true,
       },
     })
@@ -309,7 +314,7 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
         entitlementState: 'ACTIVE',
         supportPlanEnabled: true,
       }),
-      hasOwnedPlanOrHistory: false,
+      careOwnership: 'NONE',
       hasConfirmedPaymentSettlement: false,
       catalogue: makeCatalogue(),
       latestPayment: activePending,
@@ -319,6 +324,7 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
       context: {
         upgradedNow: false,
         canCreatePlan: true,
+        accessMode: 'full-create-and-read',
       },
     })
 
@@ -332,7 +338,7 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
         entitlementState: 'ACTIVE',
         supportPlanEnabled: true,
       }),
-      hasOwnedPlanOrHistory: false,
+      careOwnership: 'NONE',
       hasConfirmedPaymentSettlement: true,
       catalogue: makeCatalogue(),
       latestPayment: null,
@@ -344,14 +350,14 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
       origin: undefined,
     })
 
-    // Owned Care Plan/history remains readable under 503/offline without granting canCreatePlan.
+    // Verified owned Care Plan/history remains read-only under 503/offline without granting canCreatePlan.
     const unavailableOwnedPlan = resolveSupportPlanAccessState({
       safetyOverride: false,
       loading: false,
       offline: false,
       entitlement: null,
       errorCode: 'HTTP_503',
-      hasOwnedPlanOrHistory: true,
+      careOwnership: 'VERIFIED_OWNED',
       hasConfirmedPaymentSettlement: false,
       catalogue: null,
       latestPayment: null,
@@ -362,24 +368,48 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
       errorCode: 'HTTP_503',
       context: {
         canCreatePlan: false,
+        accessMode: 'read-only-owned',
+        careOwnershipVerified: true,
         entitlementVerified: false,
         hasOwnedPlanOrHistory: true,
       },
     })
 
-    // Auth failure still fails closed even with hasOwnedPlanOrHistory.
+    // Auth failure still fails closed even with VERIFIED_OWNED Care ownership.
     const unauthenticatedOwned = resolveSupportPlanAccessState({
       safetyOverride: false,
       loading: false,
       offline: false,
       entitlement: null,
       errorCode: 'HTTP_401',
-      hasOwnedPlanOrHistory: true,
+      careOwnership: 'VERIFIED_OWNED',
       hasConfirmedPaymentSettlement: false,
       catalogue: null,
       latestPayment: null,
     })
     expect(unauthenticatedOwned.kind).toBe('unavailable')
+
+    // Unverified / unavailable Care ownership fails closed when not PAID.
+    const unverifiedCareClaim = resolveSupportPlanAccessState({
+      safetyOverride: false,
+      loading: false,
+      offline: false,
+      entitlement: makeEntitlement({
+        packageCode: 'PLUS',
+        entitlementState: 'EXPIRED',
+        supportPlanEnabled: false,
+      }),
+      careOwnership: 'UNAVAILABLE',
+      hasConfirmedPaymentSettlement: false,
+      catalogue: makeCatalogue(),
+      latestPayment: null,
+    })
+    expect(unverifiedCareClaim).toEqual({
+      kind: 'unavailable',
+      offline: false,
+      errorCode: 'CARE_OWNERSHIP_UNAVAILABLE',
+      origin: undefined,
+    })
 
     const unavailableOnError = resolveSupportPlanAccessState({
       safetyOverride: false,
@@ -387,7 +417,7 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
       offline: false,
       entitlement: makeEntitlement(),
       errorCode: 'HTTP_503',
-      hasOwnedPlanOrHistory: false,
+      careOwnership: 'NONE',
       hasConfirmedPaymentSettlement: false,
       catalogue: makeCatalogue(),
       latestPayment: null,
@@ -405,6 +435,48 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
     expect(
       sanitizeGuideOrigin({ source: 'GUIDE', guideId: GUIDE_ID, step: 'next' }),
     ).toEqual({ source: 'GUIDE', guideId: GUIDE_ID, step: 'next' })
+
+    expect(CARE_OWNERSHIP_STATES).toEqual([
+      'NONE',
+      'VERIFIED_OWNED',
+      'UNAVAILABLE',
+    ])
+    expect(verifyCareOwnership(undefined, USER_A_SUBJECT)).toBe('NONE')
+    expect(verifyCareOwnership(undefined, USER_A_SUBJECT, true)).toBe(
+      'UNAVAILABLE',
+    )
+    expect(
+      verifyCareOwnership(
+        {
+          status: 'VERIFIED_OWNED',
+          subject: USER_B_SUBJECT,
+          source: 'CARE_AUTHENTICATED_READ',
+          hasCurrentPlan: true,
+        },
+        USER_A_SUBJECT,
+      ),
+    ).toBe('UNAVAILABLE')
+    expect(
+      careOwnedPlanProofSchema.safeParse({
+        status: 'VERIFIED_OWNED',
+        subject: USER_A_SUBJECT,
+        source: 'CARE_AUTHENTICATED_READ',
+        hasCurrentPlan: true,
+        hasHistory: false,
+      }).success,
+    ).toBe(true)
+    expect(
+      verifyCareOwnership(
+        {
+          status: 'VERIFIED_OWNED',
+          subject: USER_A_SUBJECT,
+          source: 'CARE_AUTHENTICATED_READ',
+          hasCurrentPlan: false,
+          hasHistory: true,
+        },
+        USER_A_SUBJECT,
+      ),
+    ).toBe('VERIFIED_OWNED')
   })
 
   it('isolates ephemeral upgrade intent and checkout idempotency attempts per subject and TTL', () => {

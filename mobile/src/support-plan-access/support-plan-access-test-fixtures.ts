@@ -1,4 +1,5 @@
 import type {
+  CareOwnedPlanProof,
   PlanPayment,
   ServiceCreditEntitlement,
   ServicePlanCatalogue,
@@ -107,6 +108,20 @@ export function makePayment(overrides: Partial<PlanPayment> = {}): PlanPayment {
     createdAt: '2026-11-15T10:00:00Z',
     paidAt: null,
     failedAt: null,
+    ...overrides,
+  }
+}
+
+export function makeVerifiedCareOwnership(
+  subject = USER_A_SUBJECT,
+  overrides: Partial<CareOwnedPlanProof> = {},
+): CareOwnedPlanProof {
+  return {
+    status: 'VERIFIED_OWNED',
+    subject,
+    source: 'CARE_AUTHENTICATED_READ',
+    hasCurrentPlan: true,
+    hasHistory: false,
     ...overrides,
   }
 }

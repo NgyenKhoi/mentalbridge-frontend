@@ -478,6 +478,21 @@ export function LockedPlanPreview({
               />
             ) : null}
           </View>
+        ) : hasPendingPayment && !checkoutError?.uncertain ? (
+          <View
+            accessibilityLiveRegion="polite"
+            style={styles.noticeBox}
+            testID="locked-preview-pending-blocker"
+          >
+            <Text style={styles.itemTitle}>
+              Đang tạm khoá tạo giao dịch mới để tránh trùng lặp
+            </Text>
+            <Text style={styles.supportingText}>
+              Trên máy chủ vẫn còn giao dịch đang chờ xác nhận. Vui lòng dùng
+              nút “Kiểm tra lại thanh toán” ở trên để đối chiếu trạng thái trước
+              khi thực hiện thao tác khác.
+            </Text>
+          </View>
         ) : (
           <PrimaryButton
             disabled={offline || isStartingCheckout}
@@ -488,15 +503,13 @@ export function LockedPlanPreview({
                   : 'Đang tạo giao dịch...'
                 : checkoutError?.uncertain
                   ? 'Kiểm tra và thử lại nâng cấp Plus'
-                  : hasPendingPayment
-                    ? 'Kiểm tra hoặc tiếp tục giao dịch đang chờ'
-                    : checkout.paymentProvider === 'FAKE'
-                      ? variant === 'expired'
-                        ? 'Gia hạn gói Plus (Thử nghiệm FAKE)'
-                        : 'Nâng cấp gói Plus (Thử nghiệm FAKE)'
-                      : variant === 'expired'
-                        ? 'Gia hạn gói Plus qua PayOS'
-                        : 'Nâng cấp gói Plus qua PayOS'
+                  : checkout.paymentProvider === 'FAKE'
+                    ? variant === 'expired'
+                      ? 'Gia hạn gói Plus (Thử nghiệm FAKE)'
+                      : 'Nâng cấp gói Plus (Thử nghiệm FAKE)'
+                    : variant === 'expired'
+                      ? 'Gia hạn gói Plus qua PayOS'
+                      : 'Nâng cấp gói Plus qua PayOS'
             }
             onPress={onStartUpgrade}
             testID="locked-preview-upgrade-button"
