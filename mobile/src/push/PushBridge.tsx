@@ -120,7 +120,13 @@ export function PushBridge() {
         .then((state) => queryClient.setQueryData(PUSH_STATE_KEY, state))
         .catch(() => undefined)
     refresh()
-    const subscription = Notifications.addPushTokenListener(refresh)
+    // Android emits this event on every token fetch, including the one inside registration: react to rotation only.
+    let lastToken: unknown
+    const subscription = Notifications.addPushTokenListener(({ data }) => {
+      if (data === lastToken) return
+      lastToken = data
+      refresh()
+    })
     // Permission changed in system settings: re-check once per return to the foreground.
     let previous = AppState.currentState
     const foreground = AppState.addEventListener('change', (next) => {
