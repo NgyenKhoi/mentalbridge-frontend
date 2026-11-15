@@ -1,11 +1,28 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { Switch, Text, TextInput, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated'
 import { ApiError } from '@/api/api-error'
 import type { MobileRole } from '@/auth/session'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
+import type { PushApi } from '@/push/push-api'
+import { PUSH_STATE_KEY, type PushState } from '@/push/push-constants'
+import {
+  disablePush,
+  enablePush,
+  isPushEnabledOnDevice,
+} from '@/push/push-registration'
+import { colors } from '@/theme/tokens'
 import type { NotificationApi } from './notification-api'
 import {
   clockTimeSchema,
@@ -35,9 +52,7 @@ const groupLabels: Record<
 const specialistGroups = [
   'appointmentMessage',
   'resourceSystem',
-] as const satisfies ReadonlyArray<
-  keyof NotificationPreferences['contentGroups']
->
+] as const satisfies readonly (keyof NotificationPreferences['contentGroups'])[]
 const specialistGroupLabels: Record<(typeof specialistGroups)[number], string> =
   {
     appointmentMessage: 'Lịch hẹn và tin nhắn',
@@ -51,7 +66,7 @@ function preferencePatch(
   if (role === 'SPECIALIST')
     return specialistPreferencePatchSchema.parse({
       notificationsEnabled: draft.notificationsEnabled,
-      channels: { inApp: draft.channels.inApp },
+      channels: { inApp: draft.channels.inApp, push: draft.channels.push },
       contentGroups: {
         appointmentMessage: draft.contentGroups.appointmentMessage,
         resourceSystem: draft.contentGroups.resourceSystem,
@@ -76,16 +91,114 @@ function Toggle({
   disabled: boolean
   change: (value: boolean) => void
 }>) {
+  // The whole row is the switch for assistive tech; the native Switch stays tappable but is hidden from them.
   return (
-    <View style={styles.row}>
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value, disabled }}
+      disabled={disabled}
+      onPress={() => change(!value)}
+      style={({ pressed }) => [
+        styles.row,
+        { minHeight: 48 },
+        pressed && { opacity: 0.7 },
+      ]}
+    >
       <Text style={[styles.body, { flex: 1 }]}>{label}</Text>
-      <Switch
-        accessibilityLabel={label}
-        accessibilityState={{ disabled, checked: value }}
-        disabled={disabled}
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <Switch
+          accessible={false}
+          disabled={disabled}
+          value={value}
+          onValueChange={change}
+        />
+      </View>
+    </Pressable>
+  )
+}
+type PushLine = 'busy' | 'inApp' | null
+// The permission dialog backgrounds the app and the screen can remount around it (focus refetch, route change),
+// so the outcome of the last enable tap lives in the query cache, not only in component state.
+const LAST_ENABLE_KEY = ['push', 'lastEnable'] as const
+const ENABLING_KEY = ['push', 'enabling'] as const
+const ENABLE_FRESH_MS = 60_000
+type LastEnable = { result: PushState; at: number }
+function useCached<T>(key: readonly unknown[]): T | null | undefined {
+  return useQuery({
+    queryKey: key,
+    queryFn: () => null as T | null,
+    enabled: false,
+  }).data
+}
+function freshEnable(value: LastEnable | null | undefined) {
+  return value && Date.now() - value.at < ENABLE_FRESH_MS
+    ? value.result
+    : undefined
+}
+const pushCopy = {
+  default:
+    'Nhắc nhở và thông báo hiện trên điện thoại, kể cả khi ứng dụng đang đóng.',
+  busy: 'Đang bật thông báo đẩy…',
+  DENIED:
+    'Bạn đã tắt quyền thông báo cho MentalBridge. Hãy bật lại trong Cài đặt của điện thoại.',
+  UNAVAILABLE:
+    'Thông báo đẩy tạm thời chưa sẵn sàng. Bạn vẫn xem được thông báo trong ứng dụng.',
+  inApp: 'Thông báo đẩy cần bật thông báo trong ứng dụng.',
+  masterOff: 'Bật “Nhận thông báo” để dùng thông báo đẩy.',
+} as const
+function PushRow({
+  value,
+  disabled,
+  line,
+  state,
+  masterOff,
+  change,
+}: Readonly<{
+  value: boolean
+  disabled: boolean
+  masterOff: boolean
+  line: PushLine
+  state: PushState | undefined
+  change: (value: boolean) => void
+}>) {
+  const reduceMotion = useReducedMotion()
+  const key =
+    line ??
+    (masterOff
+      ? 'masterOff'
+      : state === 'DENIED' || state === 'UNAVAILABLE'
+        ? state
+        : 'default')
+  return (
+    <View style={styles.column}>
+      <Toggle
+        label="Thông báo đẩy"
         value={value}
-        onValueChange={change}
+        disabled={disabled || line === 'busy'}
+        change={change}
       />
+      <View accessibilityLiveRegion="polite">
+        <Animated.View
+          key={key}
+          {...(reduceMotion ? {} : { entering: FadeIn.duration(160) })}
+          style={styles.row}
+        >
+          {key === 'busy' && (
+            <ActivityIndicator size="small" color={colors.teal} />
+          )}
+          <Text style={[styles.muted, { flex: 1 }]}>{pushCopy[key]}</Text>
+        </Animated.View>
+      </View>
+      {key === 'DENIED' && (
+        <NotificationButton
+          label="Mở cài đặt"
+          onPress={() => void Linking.openSettings()}
+        />
+      )}
     </View>
   )
 }
@@ -138,6 +251,7 @@ function validQuiet(draft: NotificationPreferences) {
 function PreferenceEditor({
   initial,
   api,
+  pushApi,
   role,
   onSaved,
   onReconcile,
@@ -145,6 +259,7 @@ function PreferenceEditor({
 }: Readonly<{
   initial: VersionedPreferences
   api: NotificationApi
+  pushApi: PushApi
   role: MobileRole
   onSaved: (value: VersionedPreferences) => void
   onReconcile: () => Promise<void>
@@ -161,18 +276,96 @@ function PreferenceEditor({
     }
   }, [])
   const [notice, setNotice] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const [pushLine, setPushLine] = useState<PushLine>(null)
+  const [deviceOn, setDeviceOn] = useState(false)
+  const lastEnable = useCached<LastEnable>(LAST_ENABLE_KEY)
+  const enabling = useCached<boolean>(ENABLING_KEY) === true
+  // An enable that finished while this editor was not mounted still turns the draft on.
+  const enabledAt =
+    freshEnable(lastEnable) === 'ENABLED' ? lastEnable?.at : undefined
+  const [appliedAt, setAppliedAt] = useState<number>()
+  if (enabledAt && enabledAt !== appliedAt) {
+    setAppliedAt(enabledAt)
+    setDeviceOn(true)
+    setDraft((current) => ({
+      ...current,
+      channels: { ...current.channels, inApp: true, push: true },
+    }))
+  }
+  // PushBridge writes DENIED here when the system permission was withdrawn.
+  const cachedState = useQuery({
+    queryKey: PUSH_STATE_KEY,
+    queryFn: () => 'OFF' as PushState,
+    enabled: false,
+  }).data
+  // Every PushBridge refresh is the latest word on registration: only ENABLED means this device is registered.
+  const [seenState, setSeenState] = useState(cachedState)
+  if (cachedState !== seenState) {
+    setSeenState(cachedState)
+    if (cachedState) setDeviceOn(cachedState === 'ENABLED')
+  }
+  // The permission dialog and token rotation trigger a PushBridge refresh that writes 'OFF' over the cache
+  // while enablePush is in flight, so the outcome of the last tap is kept here and wins over the cache.
+  const [enableResult, setEnableResult] = useState<PushState>()
+  const recent = freshEnable(lastEnable)
+  const pushState =
+    enableResult ?? (recent && recent !== 'ENABLED' ? recent : cachedState)
+  useEffect(() => {
+    void isPushEnabledOnDevice().then((on) => {
+      // Only ever raises the flag: a stale false must not undo an enable that finished meanwhile.
+      if (on && mounted.current) setDeviceOn(true)
+    })
+  }, [])
+  const pushBusy = pushLine === 'busy' || enabling
   const disabled = busy || !authority
   const changed = JSON.stringify(draft) !== JSON.stringify(initial.preferences)
   const channels =
-    role === 'SPECIALIST'
-      ? (['inApp'] as const)
-      : (['inApp', 'email', 'push'] as const)
+    role === 'SPECIALIST' ? (['inApp'] as const) : (['inApp', 'email'] as const)
+  // No refresh result yet: the SecureStore flag read at mount decides; afterwards only ENABLED counts.
+  const pushOn =
+    draft.channels.push &&
+    deviceOn &&
+    (pushState === undefined || pushState === 'ENABLED')
+  const changeInApp = (inApp: boolean) => {
+    // Turning in-app back on clears the line; turning it off with push on explains why push went off.
+    setPushLine(!inApp && pushOn ? 'inApp' : null)
+    setDraft({
+      ...draft,
+      channels: { ...draft.channels, inApp, ...(inApp ? {} : { push: false }) },
+    })
+  }
+  const changePush = async (on: boolean) => {
+    setEnableResult(undefined)
+    queryClient.setQueryData(LAST_ENABLE_KEY, null)
+    if (!on) {
+      setPushLine(null)
+      setDraft({ ...draft, channels: { ...draft.channels, push: false } })
+      return
+    }
+    setPushLine('busy')
+    queryClient.setQueryData(ENABLING_KEY, true)
+    const result = await enablePush(pushApi).catch(() => 'UNAVAILABLE' as const)
+    queryClient.setQueryData(ENABLING_KEY, false)
+    queryClient.setQueryData(PUSH_STATE_KEY, result)
+    queryClient.setQueryData(LAST_ENABLE_KEY, { result, at: Date.now() })
+    if (!mounted.current) return
+    setEnableResult(result === 'ENABLED' ? undefined : result)
+    setPushLine(null)
+    if (result !== 'ENABLED') return
+    setDeviceOn(true)
+    // Push fans out from inbox rows, so in-app must be on too.
+    setDraft((current) => ({
+      ...current,
+      channels: { ...current.channels, inApp: true, push: true },
+    }))
+  }
   const groups =
     role === 'SPECIALIST'
       ? specialistGroups
       : (Object.keys(groupLabels) as (keyof typeof groupLabels)[])
   const save = async () => {
-    if (disabled || pending.current || !changed) return
+    if (disabled || pushBusy || pending.current || !changed) return
     if (role === 'USER' && !validQuiet(draft)) {
       setNotice(
         'Nhập giờ theo HH:mm, múi giờ hợp lệ và giờ bắt đầu khác giờ kết thúc khi bật giờ yên lặng.',
@@ -187,6 +380,11 @@ function PreferenceEditor({
         preferencePatch(draft, role),
         initial.etag,
       )
+      queryClient.setQueryData(LAST_ENABLE_KEY, null)
+      if (!result.preferences.channels.push && deviceOn) {
+        await disablePush(pushApi)
+        queryClient.setQueryData(PUSH_STATE_KEY, 'OFF')
+      }
       if (mounted.current) onSaved(result)
     } catch (error) {
       if (!mounted.current) return
@@ -226,29 +424,27 @@ function PreferenceEditor({
       {channels.map((channel) => (
         <Toggle
           key={channel}
-          label={
-            {
-              inApp: 'Trong ứng dụng',
-              email: 'Email',
-              push: 'Lưu tùy chọn PUSH (chưa hỗ trợ gửi)',
-            }[channel]
-          }
+          label={{ inApp: 'Trong ứng dụng', email: 'Email' }[channel]}
           value={draft.channels[channel]}
           disabled={disabled || !draft.notificationsEnabled}
           change={(value) =>
-            setDraft({
-              ...draft,
-              channels: { ...draft.channels, [channel]: value },
-            })
+            channel === 'inApp'
+              ? changeInApp(value)
+              : setDraft({
+                  ...draft,
+                  channels: { ...draft.channels, [channel]: value },
+                })
           }
         />
       ))}
-      {role === 'USER' && (
-        <Text style={styles.muted}>
-          PUSH chỉ lưu lựa chọn của bạn. Ứng dụng chưa đăng ký thiết bị hoặc gửi
-          push; bật mục này không bật dịch vụ push.
-        </Text>
-      )}
+      <PushRow
+        value={pushOn}
+        disabled={disabled || !draft.notificationsEnabled}
+        line={pushBusy ? 'busy' : pushLine}
+        masterOff={!draft.notificationsEnabled}
+        state={pushState}
+        change={(value) => void changePush(value)}
+      />
       <Text accessibilityRole="header" style={styles.heading}>
         Nội dung muốn nhận
       </Text>
@@ -391,7 +587,7 @@ function PreferenceEditor({
       )}
       <PrimaryButton
         label={busy ? 'Đang lưu tùy chọn…' : 'Lưu tùy chọn'}
-        disabled={disabled || !changed}
+        disabled={disabled || pushBusy || !changed}
         onPress={() => void save()}
       />
     </View>
@@ -399,11 +595,13 @@ function PreferenceEditor({
 }
 function AccountPreferences({
   api,
+  pushApi,
   subject,
   role,
   onBack,
 }: Readonly<{
   api: NotificationApi
+  pushApi: PushApi
   subject: string
   role: MobileRole
   onBack: () => void
@@ -416,6 +614,8 @@ function AccountPreferences({
     retry: false,
     staleTime: 0,
     refetchOnMount: 'always',
+    // Returning from the push permission dialog is a focus event; a refetch would unmount the editor and drop the draft.
+    refetchOnWindowFocus: false,
   })
   const [notice, setNotice] = useState<string | null>(null)
   const reconcile = async () => {
@@ -459,6 +659,7 @@ function AccountPreferences({
             key={`${subject}:${role}:${query.data.etag}`}
             initial={query.data}
             api={api}
+            pushApi={pushApi}
             role={role}
             authority={!query.isFetching}
             onReconcile={reconcile}

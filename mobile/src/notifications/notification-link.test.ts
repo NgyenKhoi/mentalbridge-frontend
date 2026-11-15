@@ -129,6 +129,26 @@ it('rejects a target identity on targetless SPECIALIST actions', () => {
     }),
   ).toBeNull()
 })
+it('maps OPEN_APPOINTMENT only for the exact published appointment path', () => {
+  const type = 'OPEN_APPOINTMENT' as const
+  const href = `/appointments/${targetId}`
+  expect(userDestination({ type, href, targetId })).toEqual({
+    pathname: '/(user)/appointments',
+  })
+  for (const invalid of [
+    { type, href: '/appointments', targetId },
+    { type, href, targetId: null },
+    { type, href: `${href}?x=1`, targetId },
+    { type, href: '/appointments/bad', targetId: 'bad' },
+  ])
+    expect(userDestination(invalid)).toBeNull()
+  expect(specialistDestination({ type, href, targetId })).toBeNull()
+  const appointment = notification({
+    kind: 'APPOINTMENT',
+    action: { type, href, targetId },
+  })
+  expect(notificationSchema.safeParse(appointment).success).toBe(true)
+})
 it.each([
   ['OPEN_JOURNAL', '/journal', '/(user)/journal'],
   ['OPEN_MESSAGES', '/messages', '/(user)/messages'],
