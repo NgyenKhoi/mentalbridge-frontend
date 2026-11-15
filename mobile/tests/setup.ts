@@ -21,3 +21,30 @@ jest.mock('expo-crypto', () => ({
 // execution claim; CNG/build/runtime checks remain separate.
 jest.mock('@livekit/react-native', () => ({}))
 jest.mock('@livekit/react-native-webrtc', () => ({}))
+
+// Jest has no native notification module; push tests override these per case.
+jest.mock('expo-notifications', () => ({
+  AndroidImportance: { HIGH: 6 },
+  setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn(async () => null),
+  getPermissionsAsync: jest.fn(async () => ({
+    status: 'undetermined',
+    granted: false,
+    canAskAgain: true,
+  })),
+  requestPermissionsAsync: jest.fn(async () => ({
+    status: 'denied',
+    granted: false,
+    canAskAgain: false,
+  })),
+  getExpoPushTokenAsync: jest.fn(async () => ({
+    type: 'expo',
+    data: 'ExponentPushToken[test]',
+  })),
+  addPushTokenListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({
+    remove: jest.fn(),
+  })),
+  getLastNotificationResponse: jest.fn(() => null),
+  clearLastNotificationResponse: jest.fn(),
+}))

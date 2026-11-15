@@ -31,9 +31,11 @@ Home → **Hôm nay và lời nhắc** → **Hôm nay / Sắp tới**.
   claim that an eligible reminder will certainly be sent.
 - Paused reminders, quiet hours, disabled channels, processing, failed or
   uncertain sends retain distinct Vietnamese copy. The backend remains authoritative.
-- SupportPlan, individual Resource, reassessment and PUSH scheduling are
-  explicitly unavailable in this A2 version. Appointment email exposes its
-  separate delivery history, with no guessed next time or private appointment ID.
+- SupportPlan, individual Resource and reassessment scheduling are
+  explicitly unavailable in this A2 version. Daily reminders are also pushed
+  to registered devices by the backend at 20:00 local time, only while the
+  activity is still undone; the app schedules nothing locally. Appointment
+  email exposes its separate delivery history, with no guessed next time or private appointment ID.
 - The presentation component still supports skipped/rescheduled/unavailable
   owner facts for future approved adapters; this provider does not manufacture
   those states for Journal/Emotion. Unsupported categories do not become task rows.

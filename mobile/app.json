@@ -43,6 +43,15 @@
       ],
       "expo-video",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#3D7A6E",
+          "defaultChannel": "mentalbridge-chime-v1",
+          "sounds": ["./assets/sounds/mentalbridge_chime.wav"]
+        }
+      ],
+      [
         "@livekit/react-native-expo-plugin",
         {
           "android": {
@@ -62,6 +71,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "owner": "mentalbridges-team",
+    "extra": {
+      "eas": {
+        "projectId": "677cfeff-8c5a-41c4-9f13-7fe4c01b5d0c"
+      }
     }
   }
 }
