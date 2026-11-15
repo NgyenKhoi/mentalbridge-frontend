@@ -1102,6 +1102,159 @@ it.each(['REVIEW_SAFETY_SUPPORT', 'EXPLORE_GUIDE_RESOURCES'] as const)(
     expect(owner.ensureInitial).not.toHaveBeenCalled()
   },
 )
+it('shows native locked-plan UX for FREE user with UNAVAILABLE entitlement', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  owner.getCurrent.mockRejectedValue(missing)
+  owner.getDraft.mockRejectedValue(missing)
+  owner.getGuidedJourney.mockResolvedValue({
+    ...(await owner.getGuidedJourney()),
+    stage: 'GUIDE_READY',
+    nextAction: 'EXPLORE_GUIDE_RESOURCES',
+    entitlementStatus: 'UNAVAILABLE',
+  })
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await screen.findByText('Kế hoạch chưa khả dụng với gói hiện tại')
+  expect(
+    screen.getByText(
+      'Gói hiện tại chưa có quyền sử dụng kế hoạch. Bạn vẫn có thể quay lại hướng dẫn hỗ trợ.',
+    ),
+  ).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Thử kiểm tra lại' })).toBeTruthy()
+  expect(
+    screen.getByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' }),
+  ).toBeTruthy()
+  expect(owner.ensureInitial).not.toHaveBeenCalled()
+})
+it('prioritizes safety over locked state when Guide requires safety review', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  owner.getCurrent.mockRejectedValue(missing)
+  owner.getDraft.mockRejectedValue(missing)
+  owner.getGuidedJourney.mockResolvedValue({
+    ...(await owner.getGuidedJourney()),
+    stage: 'GUIDE_READY',
+    nextAction: 'REVIEW_SAFETY_SUPPORT',
+    entitlementStatus: 'UNAVAILABLE',
+  })
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await screen.findByRole('button', { name: 'Quay lại hướng dẫn hỗ trợ' })
+  expect(
+    screen.queryByText('Kế hoạch chưa khả dụng với gói hiện tại'),
+  ).toBeNull()
+  expect(
+    screen.getByText(
+      'Chưa có phương án kế hoạch phù hợp để xem. Bạn có thể tiếp tục với hướng dẫn hỗ trợ.',
+    ),
+  ).toBeTruthy()
+  expect(owner.ensureInitial).not.toHaveBeenCalled()
+})
+it('transitions from locked to proposal when user upgrades entitlement and retries', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  let created = false
+  owner.getCurrent.mockRejectedValue(missing)
+  owner.getDraft.mockImplementation(async () => {
+    if (created) return nativePlan('DRAFT')
+    throw missing
+  })
+  const journey = await owner.getGuidedJourney()
+  owner.getGuidedJourney.mockResolvedValue({
+    ...journey,
+    stage: 'GUIDE_READY',
+    nextAction: 'EXPLORE_GUIDE_RESOURCES',
+    entitlementStatus: 'UNAVAILABLE',
+  })
+  owner.ensureInitial.mockImplementation(async () => {
+    created = true
+    return nativePlan('DRAFT')
+  })
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await screen.findByText('Kế hoạch chưa khả dụng với gói hiện tại')
+  expect(owner.ensureInitial).not.toHaveBeenCalled()
+
+  owner.getGuidedJourney.mockResolvedValue({
+    ...journey,
+    stage: 'GUIDE_READY',
+    nextAction: 'START_PLAN_PROPOSAL',
+    entitlementStatus: 'VERIFIED',
+  })
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Thử kiểm tra lại' }),
+  )
+  await screen.findByText('Phương án để bạn xem lại')
+  expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
+})
+it('shows locked state when Care ensureInitial rejects with SUPPORT_PLAN_ENTITLEMENT_REQUIRED', async () => {
+  const owner = api()
+  const missing = new ApiError({
+    status: 404,
+    code: 'NOT_FOUND',
+    message: 'missing',
+  })
+  owner.getCurrent.mockRejectedValue(missing)
+  owner.getDraft.mockRejectedValue(missing)
+  owner.getGuidedJourney.mockResolvedValue({
+    ...(await owner.getGuidedJourney()),
+    stage: 'GUIDE_READY',
+    nextAction: 'START_PLAN_PROPOSAL',
+    entitlementStatus: 'VERIFIED',
+  })
+  owner.ensureInitial.mockRejectedValueOnce(
+    new ApiError({
+      status: 403,
+      code: 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED',
+      message: 'entitlement required',
+    }),
+  )
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await screen.findByText('Kế hoạch chưa khả dụng với gói hiện tại')
+  expect(owner.ensureInitial).toHaveBeenCalledTimes(1)
+})
 it.each(['ACTIVE', 'PAUSED'] as const)(
   'opens an existing %s plan without automatic proposal',
   async (status) => {

@@ -278,14 +278,25 @@ export function SupportPlanActionWorkspace({
       ])
       if (!existing && !existingDraft) {
         const journey = await api.getGuidedJourney()
+        if (journey.stage !== 'GUIDE_READY') return 'unavailable'
+        if (journey.nextAction === 'REVIEW_SAFETY_SUPPORT') return 'unavailable'
+        if (journey.entitlementStatus === 'UNAVAILABLE') return 'locked'
         if (
-          journey.stage !== 'GUIDE_READY' ||
           journey.nextAction !== 'START_PLAN_PROPOSAL' ||
           journey.entitlementStatus !== 'VERIFIED'
         )
           return 'unavailable'
         const evaluation = await api.getProposalEvaluationId('INITIAL_CHECK')
-        await api.ensureInitial(evaluation, `mb-initial-proposal-${evaluation}`)
+        try {
+          await api.ensureInitial(evaluation, `mb-initial-proposal-${evaluation}`)
+        } catch (error) {
+          if (
+            error instanceof ApiError &&
+            error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED'
+          )
+            return 'locked'
+          throw error
+        }
       }
       const latest = await refresh()
       if (!latest.current && !latest.draft)
@@ -366,6 +377,36 @@ export function SupportPlanActionWorkspace({
             accessibilityLabel="Đang chuẩn bị phương án hỗ trợ"
             color={colors.tealDeep}
           />
+        </Screen>
+      )
+    if (
+      autoProposal.data === 'locked' ||
+      (autoProposal.isError &&
+        autoProposal.error instanceof ApiError &&
+        autoProposal.error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED')
+    )
+      return (
+        <Screen>
+          <Text accessibilityRole="header" style={styles.title}>
+            Kế hoạch hỗ trợ
+          </Text>
+          <View style={styles.panel}>
+            <Text accessibilityRole="header" style={styles.itemTitle}>
+              Kế hoạch chưa khả dụng với gói hiện tại
+            </Text>
+            <Text accessibilityLiveRegion="polite" style={styles.body}>
+              Gói hiện tại chưa có quyền sử dụng kế hoạch. Bạn vẫn có thể quay
+              lại hướng dẫn hỗ trợ.
+            </Text>
+            <Secondary
+              label="Thử kiểm tra lại"
+              onPress={() => void autoProposal.refetch()}
+            />
+            <Secondary
+              label="Quay lại hướng dẫn hỗ trợ"
+              onPress={() => router.push('/(user)/assessment')}
+            />
+          </View>
         </Screen>
       )
     return (
