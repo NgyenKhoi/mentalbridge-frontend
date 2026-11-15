@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -168,6 +168,44 @@ describe('FeedbackProvider', () => {
     expect(cancel).toHaveFocus()
     await user.click(cancel)
 
+    expect(decision).toHaveBeenCalledWith(false)
+  })
+
+  it('cancels a pending confirmation when privileged state is revoked', async () => {
+    const user = userEvent.setup()
+    const decision = vi.fn()
+    let revoke = () => undefined
+
+    function AuthorizationHarness() {
+      const { cancelConfirm, confirm } = useFeedback()
+      revoke = cancelConfirm
+      return (
+        <button
+          onClick={() =>
+            void confirm({
+              title: 'Review entry?',
+              description: 'This action requires current admin access.',
+            }).then(decision)
+          }
+        >
+          Open protected action
+        </button>
+      )
+    }
+
+    render(
+      <FeedbackProvider>
+        <AuthorizationHarness />
+      </FeedbackProvider>,
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Open protected action' }),
+    )
+    expect(screen.getByRole('dialog')).toBeVisible()
+
+    act(() => revoke())
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(decision).toHaveBeenCalledWith(false)
   })
 })

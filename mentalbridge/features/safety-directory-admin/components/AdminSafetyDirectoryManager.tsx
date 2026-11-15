@@ -15,15 +15,41 @@ type FormState = {
   type: 'FACILITY' | 'HOTLINE'
   phone: string
   address: string
+  coverage: CoverageForm[]
+  sourceName: string
+  sourceReference: string
+  sourceRetrievedAt: string
+  originalSourceRetrievedAt: string | null
+  originalSourceRetrievedAtLocal: string
+  sourceChecksum: string
+}
+
+type CoverageForm = {
   level: 'NATIONWIDE' | 'PROVINCE' | 'DISTRICT'
   provinceCode: string
   provinceName: string
   districtCode: string
   districtName: string
-  sourceName: string
-  sourceReference: string
-  sourceRetrievedAt: string
-  sourceChecksum: string
+}
+
+type EditableTextKey = Exclude<
+  keyof FormState,
+  'coverage' | 'originalSourceRetrievedAt' | 'originalSourceRetrievedAtLocal'
+>
+
+const blankCoverage = (): CoverageForm => ({
+  level: 'NATIONWIDE',
+  provinceCode: '',
+  provinceName: '',
+  districtCode: '',
+  districtName: '',
+})
+
+export function toLocalDateTimeValue(instant: string) {
+  const date = new Date(instant)
+  if (Number.isNaN(date.getTime())) return ''
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
 }
 
 const blankForm = (): FormState => ({
@@ -31,14 +57,12 @@ const blankForm = (): FormState => ({
   type: 'HOTLINE',
   phone: '',
   address: '',
-  level: 'NATIONWIDE',
-  provinceCode: '',
-  provinceName: '',
-  districtCode: '',
-  districtName: '',
+  coverage: [blankCoverage()],
   sourceName: '',
   sourceReference: '',
   sourceRetrievedAt: '',
+  originalSourceRetrievedAt: null,
+  originalSourceRetrievedAtLocal: '',
   sourceChecksum: '',
 })
 
@@ -50,20 +74,24 @@ const statusCopy: Record<SafetyDirectoryAdminEntry['reviewState'], string> = {
 }
 
 function toForm(entry: SafetyDirectoryAdminEntry): FormState {
-  const coverage = entry.coverage[0]
+  const sourceRetrievedAt = toLocalDateTimeValue(entry.sourceRetrievedAt)
   return {
     name: entry.name,
     type: entry.type,
     phone: entry.phone,
     address: entry.address ?? '',
-    level: coverage.level,
-    provinceCode: coverage.provinceCode ?? '',
-    provinceName: coverage.provinceName ?? '',
-    districtCode: coverage.districtCode ?? '',
-    districtName: coverage.districtName ?? '',
+    coverage: entry.coverage.map((coverage) => ({
+      level: coverage.level,
+      provinceCode: coverage.provinceCode ?? '',
+      provinceName: coverage.provinceName ?? '',
+      districtCode: coverage.districtCode ?? '',
+      districtName: coverage.districtName ?? '',
+    })),
     sourceName: entry.sourceName,
     sourceReference: entry.sourceReference,
-    sourceRetrievedAt: entry.sourceRetrievedAt.slice(0, 16),
+    sourceRetrievedAt,
+    originalSourceRetrievedAt: entry.sourceRetrievedAt,
+    originalSourceRetrievedAtLocal: sourceRetrievedAt,
     sourceChecksum: entry.sourceChecksum ?? '',
   }
 }
@@ -83,16 +111,20 @@ function payload(form: FormState): SafetyDirectoryEntryWrite {
     )
   if (form.type === 'FACILITY' && !form.address.trim())
     throw new Error('Cơ sở hỗ trợ phải có địa chỉ.')
-  if (
-    form.level !== 'NATIONWIDE' &&
-    (!form.provinceCode.trim() || !form.provinceName.trim())
-  )
-    throw new Error('Phạm vi địa phương phải có mã và tên tỉnh/thành.')
-  if (
-    form.level === 'DISTRICT' &&
-    (!form.districtCode.trim() || !form.districtName.trim())
-  )
-    throw new Error('Phạm vi quận/huyện phải có mã và tên quận/huyện.')
+  if (form.coverage.length === 0 || form.coverage.length > 100)
+    throw new Error('Phạm vi phải có từ 1 đến 100 khu vực.')
+  for (const coverage of form.coverage) {
+    if (
+      coverage.level !== 'NATIONWIDE' &&
+      (!coverage.provinceCode.trim() || !coverage.provinceName.trim())
+    )
+      throw new Error('Phạm vi địa phương phải có mã và tên tỉnh/thành.')
+    if (
+      coverage.level === 'DISTRICT' &&
+      (!coverage.districtCode.trim() || !coverage.districtName.trim())
+    )
+      throw new Error('Phạm vi quận/huyện phải có mã và tên quận/huyện.')
+  }
   if (form.sourceChecksum && !/^[a-f0-9]{64}$/i.test(form.sourceChecksum))
     throw new Error('Checksum SHA-256 phải có đúng 64 ký tự hex.')
   return {
@@ -100,22 +132,24 @@ function payload(form: FormState): SafetyDirectoryEntryWrite {
     type: form.type,
     phone: form.phone.trim(),
     address: form.address.trim() || null,
-    coverage: [
-      {
-        level: form.level,
-        provinceCode:
-          form.level === 'NATIONWIDE' ? null : form.provinceCode.trim(),
-        provinceName:
-          form.level === 'NATIONWIDE' ? null : form.provinceName.trim(),
-        districtCode:
-          form.level === 'DISTRICT' ? form.districtCode.trim() : null,
-        districtName:
-          form.level === 'DISTRICT' ? form.districtName.trim() : null,
-      },
-    ],
+    coverage: form.coverage.map((coverage) => ({
+      level: coverage.level,
+      provinceCode:
+        coverage.level === 'NATIONWIDE' ? null : coverage.provinceCode.trim(),
+      provinceName:
+        coverage.level === 'NATIONWIDE' ? null : coverage.provinceName.trim(),
+      districtCode:
+        coverage.level === 'DISTRICT' ? coverage.districtCode.trim() : null,
+      districtName:
+        coverage.level === 'DISTRICT' ? coverage.districtName.trim() : null,
+    })),
     sourceName: form.sourceName.trim(),
     sourceReference: form.sourceReference.trim(),
-    sourceRetrievedAt: local.toISOString(),
+    sourceRetrievedAt:
+      form.originalSourceRetrievedAt &&
+      form.sourceRetrievedAt === form.originalSourceRetrievedAtLocal
+        ? form.originalSourceRetrievedAt
+        : local.toISOString(),
     sourceChecksum: form.sourceChecksum.trim() || null,
   }
 }
@@ -126,13 +160,22 @@ function displayError(error: unknown) {
       return 'Bạn không có quyền quản trị thư mục an toàn.'
     if (error.status === 409)
       return 'Bản ghi đã thay đổi. Dữ liệu mới nhất đã được tải lại; hãy kiểm tra trước khi thao tác lại.'
+    if (error.code === 'REQUEST_TIMEOUT' || error.status === 503)
+      return 'Kết quả tạo chưa xác định. Hãy bấm Lưu để đối soát bằng cùng mã lệnh, hoặc Hủy để bỏ draft này trước khi bắt đầu yêu cầu mới.'
     return `${error.message}${error.correlationId ? ` (mã đối soát: ${error.correlationId})` : ''}`
   }
   return error instanceof Error ? error.message : 'Không thể hoàn tất thao tác.'
 }
 
+function isAuthorizationFailure(error: unknown) {
+  return (
+    error instanceof ApiError && (error.status === 401 || error.status === 403)
+  )
+}
+
 export default function AdminSafetyDirectoryManager() {
   const feedback = useFeedback()
+  const cancelConfirm = feedback.cancelConfirm
   const [entries, setEntries] = useState<SafetyDirectoryAdminEntry[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -143,29 +186,54 @@ export default function AdminSafetyDirectoryManager() {
   >('ALL')
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<'create' | 'update' | null>(null)
+  const [access, setAccess] = useState<'unknown' | 'authorized' | 'denied'>(
+    'unknown',
+  )
   const [form, setForm] = useState<FormState>(blankForm)
   const createCommand = useRef<{ fingerprint: string; key: string } | null>(
     null,
   )
+  const loadGeneration = useRef(0)
 
-  const load = useCallback(async (retainSelection = true) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const next = await adminSafetyDirectoryApi.list()
-      setEntries(next)
-      setSelectedId((current) =>
-        retainSelection &&
-        next.some((item) => item.directoryEntryId === current)
-          ? current
-          : (next[0]?.directoryEntryId ?? null),
-      )
-    } catch (reason) {
-      setError(displayError(reason))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const revokePrivilegedState = useCallback(() => {
+    loadGeneration.current += 1
+    setEntries([])
+    setSelectedId(null)
+    setEditing(null)
+    setBusy(false)
+    setLoading(false)
+    setAccess('denied')
+    createCommand.current = null
+    cancelConfirm()
+  }, [cancelConfirm])
+
+  const load = useCallback(
+    async (retainSelection = true) => {
+      const generation = loadGeneration.current + 1
+      loadGeneration.current = generation
+      setLoading(true)
+      setError(null)
+      try {
+        const next = await adminSafetyDirectoryApi.list()
+        if (loadGeneration.current !== generation) return
+        setAccess('authorized')
+        setEntries(next)
+        setSelectedId((current) =>
+          retainSelection &&
+          next.some((item) => item.directoryEntryId === current)
+            ? current
+            : (next[0]?.directoryEntryId ?? null),
+        )
+      } catch (reason) {
+        if (loadGeneration.current !== generation) return
+        if (isAuthorizationFailure(reason)) revokePrivilegedState()
+        setError(displayError(reason))
+      } finally {
+        if (loadGeneration.current === generation) setLoading(false)
+      }
+    },
+    [revokePrivilegedState],
+  )
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(false), 0)
@@ -185,15 +253,40 @@ export default function AdminSafetyDirectoryManager() {
     [entries, filter, query],
   )
 
-  const change = (key: keyof FormState, value: string) =>
+  const change = (key: EditableTextKey, value: string) =>
     setForm((current) => ({ ...current, [key]: value }))
+  const changeCoverage = (
+    index: number,
+    key: keyof CoverageForm,
+    value: string,
+  ) =>
+    setForm((current) => ({
+      ...current,
+      coverage: current.coverage.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [key]: value } : item,
+      ),
+    }))
+  const addCoverage = () =>
+    setForm((current) =>
+      current.coverage.length >= 100
+        ? current
+        : { ...current, coverage: [...current.coverage, blankCoverage()] },
+    )
+  const removeCoverage = (index: number) =>
+    setForm((current) => ({
+      ...current,
+      coverage: current.coverage.filter((_, itemIndex) => itemIndex !== index),
+    }))
   const beginCreate = () => {
+    if (access !== 'authorized') return
+    createCommand.current = null
     setForm(blankForm())
     setEditing('create')
     setError(null)
   }
   const beginUpdate = () => {
-    if (selected) {
+    if (access === 'authorized' && selected) {
+      createCommand.current = null
       setForm(toForm(selected))
       setEditing('update')
       setError(null)
@@ -201,6 +294,7 @@ export default function AdminSafetyDirectoryManager() {
   }
 
   async function save() {
+    if (access !== 'authorized') return
     let body: SafetyDirectoryEntryWrite
     try {
       body = payload(form)
@@ -217,6 +311,7 @@ export default function AdminSafetyDirectoryManager() {
         tone: 'danger',
       })
       if (!confirmed) return
+      if (access !== 'authorized') return
     }
     setBusy(true)
     setError(null)
@@ -249,7 +344,8 @@ export default function AdminSafetyDirectoryManager() {
         tone: 'success',
       })
     } catch (reason) {
-      if (reason instanceof ApiError && reason.status === 409) await load()
+      if (isAuthorizationFailure(reason)) revokePrivilegedState()
+      else if (reason instanceof ApiError && reason.status === 409) await load()
       setError(displayError(reason))
     } finally {
       setBusy(false)
@@ -257,7 +353,7 @@ export default function AdminSafetyDirectoryManager() {
   }
 
   async function transition(action: 'review' | 'deactivate') {
-    if (!selected) return
+    if (access !== 'authorized' || !selected) return
     const confirmed = await feedback.confirm({
       title:
         action === 'review'
@@ -272,6 +368,7 @@ export default function AdminSafetyDirectoryManager() {
       tone: 'danger',
     })
     if (!confirmed) return
+    if (access !== 'authorized') return
     setBusy(true)
     setError(null)
     try {
@@ -287,7 +384,8 @@ export default function AdminSafetyDirectoryManager() {
         tone: 'success',
       })
     } catch (reason) {
-      if (reason instanceof ApiError && reason.status === 409) await load()
+      if (isAuthorizationFailure(reason)) revokePrivilegedState()
+      else if (reason instanceof ApiError && reason.status === 409) await load()
       setError(displayError(reason))
     } finally {
       setBusy(false)
@@ -305,9 +403,25 @@ export default function AdminSafetyDirectoryManager() {
             dùng.
           </p>
         </div>
-        <button className={styles.primary} type="button" onClick={beginCreate}>
-          Thêm bản ghi
-        </button>
+        {access === 'authorized' && (
+          <div className={styles.actions}>
+            <button
+              className={styles.secondary}
+              type="button"
+              onClick={() => void load()}
+              disabled={loading || busy}
+            >
+              Làm mới
+            </button>
+            <button
+              className={styles.primary}
+              type="button"
+              onClick={beginCreate}
+            >
+              Thêm bản ghi
+            </button>
+          </div>
+        )}
       </header>
       {error && (
         <div className={styles.error} role="alert">
@@ -360,6 +474,7 @@ export default function AdminSafetyDirectoryManager() {
                     type="button"
                     className={`${styles.itemButton} ${entry.directoryEntryId === selectedId ? styles.selected : ''}`}
                     onClick={() => {
+                      createCommand.current = null
                       setSelectedId(entry.directoryEntryId)
                       setEditing(null)
                     }}
@@ -391,10 +506,16 @@ export default function AdminSafetyDirectoryManager() {
             <EntryForm
               form={form}
               change={change}
+              changeCoverage={changeCoverage}
+              addCoverage={addCoverage}
+              removeCoverage={removeCoverage}
               busy={busy}
               editing={editing}
               onSave={() => void save()}
-              onCancel={() => setEditing(null)}
+              onCancel={() => {
+                createCommand.current = null
+                setEditing(null)
+              }}
             />
           ) : selected ? (
             <div className={styles.detail}>
@@ -501,13 +622,23 @@ function Fact({ label, value }: { label: string; value: string }) {
 function EntryForm({
   form,
   change,
+  changeCoverage,
+  addCoverage,
+  removeCoverage,
   busy,
   editing,
   onSave,
   onCancel,
 }: {
   form: FormState
-  change: (key: keyof FormState, value: string) => void
+  change: (key: EditableTextKey, value: string) => void
+  changeCoverage: (
+    index: number,
+    key: keyof CoverageForm,
+    value: string,
+  ) => void
+  addCoverage: () => void
+  removeCoverage: (index: number) => void
   busy: boolean
   editing: 'create' | 'update'
   onSave: () => void
@@ -557,49 +688,87 @@ function EntryForm({
           onChange={(value) => change('address', value)}
           required={form.type === 'FACILITY'}
         />
-        <label className={styles.field}>
-          Phạm vi
-          <select
-            value={form.level}
-            onChange={(event) => change('level', event.target.value)}
-          >
-            <option value="NATIONWIDE">Toàn quốc</option>
-            <option value="PROVINCE">Tỉnh/thành</option>
-            <option value="DISTRICT">Quận/huyện</option>
-          </select>
-        </label>
-        {form.level !== 'NATIONWIDE' && (
-          <>
-            <Field
-              label="Mã tỉnh/thành"
-              value={form.provinceCode}
-              onChange={(value) => change('provinceCode', value)}
-              required
-            />
-            <Field
-              label="Tên tỉnh/thành"
-              value={form.provinceName}
-              onChange={(value) => change('provinceName', value)}
-              required
-            />
-          </>
-        )}
-        {form.level === 'DISTRICT' && (
-          <>
-            <Field
-              label="Mã quận/huyện"
-              value={form.districtCode}
-              onChange={(value) => change('districtCode', value)}
-              required
-            />
-            <Field
-              label="Tên quận/huyện"
-              value={form.districtName}
-              onChange={(value) => change('districtName', value)}
-              required
-            />
-          </>
-        )}
+        <div className={`${styles.coverageEditor} ${styles.wide}`}>
+          <div className={styles.coverageHeader}>
+            <strong>Phạm vi phục vụ ({form.coverage.length})</strong>
+            <button
+              className={styles.secondary}
+              type="button"
+              onClick={addCoverage}
+              disabled={busy || form.coverage.length >= 100}
+            >
+              Thêm phạm vi
+            </button>
+          </div>
+          {form.coverage.map((coverage, index) => (
+            <fieldset className={styles.coverageGroup} key={index}>
+              <legend>Phạm vi {index + 1}</legend>
+              <label className={styles.field}>
+                Mức phạm vi {index + 1}
+                <select
+                  value={coverage.level}
+                  onChange={(event) =>
+                    changeCoverage(index, 'level', event.target.value)
+                  }
+                >
+                  <option value="NATIONWIDE">Toàn quốc</option>
+                  <option value="PROVINCE">Tỉnh/thành</option>
+                  <option value="DISTRICT">Quận/huyện</option>
+                </select>
+              </label>
+              {coverage.level !== 'NATIONWIDE' && (
+                <>
+                  <Field
+                    label={`Mã tỉnh/thành ${index + 1}`}
+                    value={coverage.provinceCode}
+                    onChange={(value) =>
+                      changeCoverage(index, 'provinceCode', value)
+                    }
+                    required
+                  />
+                  <Field
+                    label={`Tên tỉnh/thành ${index + 1}`}
+                    value={coverage.provinceName}
+                    onChange={(value) =>
+                      changeCoverage(index, 'provinceName', value)
+                    }
+                    required
+                  />
+                </>
+              )}
+              {coverage.level === 'DISTRICT' && (
+                <>
+                  <Field
+                    label={`Mã quận/huyện ${index + 1}`}
+                    value={coverage.districtCode}
+                    onChange={(value) =>
+                      changeCoverage(index, 'districtCode', value)
+                    }
+                    required
+                  />
+                  <Field
+                    label={`Tên quận/huyện ${index + 1}`}
+                    value={coverage.districtName}
+                    onChange={(value) =>
+                      changeCoverage(index, 'districtName', value)
+                    }
+                    required
+                  />
+                </>
+              )}
+              {form.coverage.length > 1 && (
+                <button
+                  className={styles.danger}
+                  type="button"
+                  onClick={() => removeCoverage(index)}
+                  disabled={busy}
+                >
+                  Xóa phạm vi {index + 1}
+                </button>
+              )}
+            </fieldset>
+          ))}
+        </div>
         <Field
           label="Tên nguồn"
           value={form.sourceName}
