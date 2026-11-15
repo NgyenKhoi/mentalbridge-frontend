@@ -13,6 +13,8 @@ import { ApiError } from '@/api/api-error'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
+import type { RewardApi } from '@/rewards/reward-api'
+import type { ResourceBookmark } from '@/rewards/reward-contract'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type { ResourceApi } from './resource-api'
@@ -76,6 +78,7 @@ function StateMessage({
 
 export function ResourceDetailScreen({
   api,
+  rewardApi,
   resourceId,
   activityDate,
   now = () => new Date(),
@@ -83,6 +86,10 @@ export function ResourceDetailScreen({
   onBack,
 }: Readonly<{
   api: ResourceApi
+  rewardApi?: Pick<
+    RewardApi,
+    'getBookmarks' | 'saveBookmark' | 'deleteBookmark'
+  >
   resourceId: string
   activityDate?: string
   now?: () => Date
@@ -120,6 +127,7 @@ export function ResourceDetailScreen({
     tone: 'error' | 'success'
   } | null>(null)
   const [videoOpened, setVideoOpened] = useState(false)
+  const [bookmarkUncertain, setBookmarkUncertain] = useState(false)
   const [timerState, setTimerState] = useState<{
     resourceId: string
     remaining: number
@@ -138,6 +146,13 @@ export function ResourceDetailScreen({
     enabled: Boolean(subject && isUser && resourceId),
     refetchOnMount: 'always',
     queryFn: () => api.listProgress(localDate, localDate),
+  })
+  const bookmarkKey = ['resource-bookmarks', subject] as const
+  const bookmarkQuery = useQuery({
+    queryKey: bookmarkKey,
+    enabled: Boolean(subject && isUser && rewardApi),
+    refetchOnMount: 'always',
+    queryFn: () => rewardApi?.getBookmarks() ?? Promise.resolve([]),
   })
   const resource = resourceQuery.data
   const savedProgress = progressQuery.data?.find(
@@ -182,6 +197,43 @@ export function ResourceDetailScreen({
     },
     onError: (error) => {
       setNotice({ message: progressErrorMessage(error), tone: 'error' })
+    },
+  })
+  const bookmarkMutation = useMutation({
+    mutationFn: async (bookmarked: boolean) => {
+      if (!rewardApi) throw new Error('Bookmark owner API is unavailable.')
+      if (bookmarked) {
+        await rewardApi.deleteBookmark(resourceId)
+        return null
+      }
+      return rewardApi.saveBookmark(resourceId)
+    },
+    onSuccess: (saved) => {
+      queryClient.setQueryData<ResourceBookmark[]>(
+        bookmarkKey,
+        (current = []) =>
+          saved
+            ? [
+                ...current.filter(
+                  (bookmark) => bookmark.resourceId !== resourceId,
+                ),
+                saved,
+              ]
+            : current.filter((bookmark) => bookmark.resourceId !== resourceId),
+      )
+      setBookmarkUncertain(false)
+      setNotice({
+        message: saved ? 'Đã lưu tài nguyên.' : 'Đã bỏ lưu tài nguyên.',
+        tone: 'success',
+      })
+    },
+    onError: () => {
+      setBookmarkUncertain(true)
+      setNotice({
+        message:
+          'Chưa xác nhận được trạng thái lưu. Hãy tải lại trước khi thử tiếp.',
+        tone: 'error',
+      })
     },
   })
 
@@ -316,6 +368,10 @@ export function ResourceDetailScreen({
     (isTimed && (actions.length === 0 || timerSeconds === undefined)) ||
     (isVideo && !externalUrl)
   const completed = savedProgress?.status === 'COMPLETED'
+  const bookmarked =
+    bookmarkQuery.data?.some(
+      (bookmark) => bookmark.resourceId === resourceId,
+    ) ?? false
   const allStepsSelected =
     actions.length > 0 &&
     actions.every((action) => completedActionIds.includes(action.id))
@@ -400,6 +456,32 @@ export function ResourceDetailScreen({
           {completed ? 'Đã hoàn thành' : 'Chưa hoàn thành'}
         </Text>
       </View>
+
+      {rewardApi ? (
+        <View style={styles.bookmarkPanel}>
+          {bookmarkQuery.isError || bookmarkUncertain ? (
+            <>
+              <StateMessage tone="error">
+                Chưa thể xác nhận tài nguyên này có đang được lưu hay không.
+              </StateMessage>
+              <PrimaryButton
+                label="Tải lại trạng thái lưu"
+                onPress={() => {
+                  setBookmarkUncertain(false)
+                  void bookmarkQuery.refetch()
+                }}
+              />
+            </>
+          ) : (
+            <PrimaryButton
+              disabled={bookmarkQuery.isPending || bookmarkMutation.isPending}
+              label={bookmarked ? 'Bỏ lưu tài nguyên' : 'Lưu tài nguyên'}
+              onPress={() => bookmarkMutation.mutate(bookmarked)}
+              testID="resource-bookmark-toggle"
+            />
+          )}
+        </View>
+      ) : null}
 
       {content.overview && (
         <View style={styles.panel}>
@@ -619,6 +701,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  bookmarkPanel: {
+    alignItems: 'flex-start',
     marginBottom: spacing.xl,
   },
   meta: {

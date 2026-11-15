@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { createApiClient } from '@/api/api-client'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
+import { createRewardApi } from '@/rewards/reward-api'
 import { secureCredentialStore } from '@/security/credential-store'
 
 import { createResourceApi } from './resource-api'
@@ -19,19 +20,21 @@ export function ResourceDetailRoute() {
     date?: string | string[]
     category?: string | string[]
   }>()
-  const [api] = useState(() =>
-    createResourceApi(
-      createApiClient({
-        config: runtimeConfig,
-        getBearerToken: () => secureCredentialStore.getAccessToken(),
-      }),
-    ),
-  )
+  const [binding] = useState(() => {
+    const client = createApiClient({
+      config: runtimeConfig,
+      getBearerToken: () => secureCredentialStore.getAccessToken(),
+    })
+    return {
+      api: createResourceApi(client),
+      rewardApi: createRewardApi(client),
+    }
+  })
   const activityDate = first(params.date)
 
   return (
     <ResourceDetailScreen
-      api={api}
+      {...binding}
       {...(activityDate ? { activityDate } : {})}
       onBack={() => router.back()}
       resourceId={first(params.resourceId) ?? ''}

@@ -80,6 +80,22 @@ async function installChatFixture(page: Page) {
     ifMatch?: string
     body?: unknown
   }> = []
+  await page.route('**/api/community/social/friends*', (route) =>
+    json(route, {
+      items: [peer, invitee].map((person, index) => ({
+        friendshipId: `70000000-0000-4000-8000-00000000000${index + 1}`,
+        peer: {
+          communityProfileId: person.communityProfileId,
+          displayName: person.displayName,
+          avatarPreset: 'SPROUT',
+          state: 'ACTIVE',
+        },
+        state: 'FRIENDS',
+        createdAt: '2026-10-20T07:00:00Z',
+      })),
+      nextCursor: null,
+    }),
+  )
   await page.route('**/api/community/profile', (route) =>
     json(
       route,
@@ -369,6 +385,172 @@ test.describe('Community chat journey', () => {
     'The deterministic Community chat fixture does not run against live data.',
   )
 
+  for (const width of [1280, 1440, 768, 375]) {
+    test(`shares people and groups in a bounded inbox at ${width}px`, async ({
+      page,
+      request,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 })
+      expect(
+        (await request.post(`${identityFixtureUrl}/__test/reset`)).status(),
+      ).toBe(204)
+      await login(page)
+      const fixture = await installChatFixture(page)
+      if (width === 1280) {
+        await page.route(
+          `**/api/community/chat/conversations/${groupConversationId}/messages?*`,
+          (route) =>
+            json(route, {
+              items: Array.from({ length: 16 }, (_, index) => ({
+                messageId: `40000000-0000-4000-8000-${String(index + 10).padStart(12, '0')}`,
+                conversationId: groupConversationId,
+                clientMessageId: `50000000-0000-4000-8000-${String(index + 10).padStart(12, '0')}`,
+                sender: index % 2 ? conversation.peers[0] : peer,
+                state: 'ACTIVE',
+                content:
+                  index === 0
+                    ? 'Mình vừa hoàn thành bài tập thở 5 phút.'
+                    : `Ghi nhận ${index}: Mình dành một khoảng nghỉ nhỏ và thấy dễ chịu hơn.`,
+                createdAt: new Date(
+                  Date.UTC(2026, 9, 20, 8, index),
+                ).toISOString(),
+              })),
+              nextCursor: null,
+            }),
+        )
+      }
+      await page.goto('/community/messages')
+      const inbox = page.getByRole('complementary', {
+        name: 'Hộp thư cộng đồng',
+      })
+      await expect(inbox.getByRole('link', { name: /Mầm Nắng/ })).toBeVisible()
+      await expect(
+        inbox.getByRole('link', { name: /Góc bình yên/ }),
+      ).toBeVisible()
+      await expect(
+        page.getByRole('link', { name: 'Nhóm riêng (Vòng tay)' }),
+      ).toHaveCount(0)
+      await inbox.getByRole('button', { name: 'Nhóm', exact: true }).click()
+      await expect(inbox.getByRole('link', { name: /Mầm Nắng/ })).toHaveCount(0)
+      await inbox.getByRole('button', { name: 'Cá nhân', exact: true }).click()
+      await expect(
+        inbox.getByRole('link', { name: /Góc bình yên/ }),
+      ).toHaveCount(0)
+      await inbox.getByRole('button', { name: 'Tất cả', exact: true }).click()
+      await inbox
+        .getByRole('textbox', { name: 'Tìm người hoặc nhóm trong hộp thư' })
+        .fill('goc binh yen')
+      await expect(
+        inbox.getByRole('link', { name: /Góc bình yên/ }),
+      ).toBeVisible()
+      await expect(inbox.getByRole('link', { name: /Mầm Nắng/ })).toHaveCount(0)
+      expect(fixture.readCursorCalls).toBe(0)
+      await inbox.getByRole('button', { name: 'Xóa tìm kiếm hộp thư' }).click()
+      await inbox
+        .getByRole('button', { name: 'Tin nhắn mới hoặc tạo nhóm' })
+        .click()
+      await page.getByRole('button', { name: 'Tạo nhóm trò chuyện' }).click()
+      await expect(
+        page.getByRole('dialog', { name: 'Tạo nhóm trò chuyện' }),
+      ).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(
+        page.getByRole('dialog', { name: 'Tạo nhóm trò chuyện' }),
+      ).not.toBeVisible()
+      await page.screenshot({ path: testInfo.outputPath('inbox.png') })
+
+      await inbox.getByRole('link', { name: /Góc bình yên/ }).click()
+      await expect(
+        page.getByText('Mình vừa hoàn thành bài tập thở 5 phút.'),
+      ).toBeVisible()
+      const composer = page.getByRole('textbox', {
+        name: 'Tin nhắn',
+        exact: true,
+      })
+      await expect(composer).toBeInViewport()
+      await expect(
+        page.getByRole('button', { name: 'Gửi', exact: true }),
+      ).toBeInViewport()
+      const sendBounds = await page
+        .getByRole('button', { name: 'Gửi', exact: true })
+        .boundingBox()
+      const helpBounds = await page
+        .getByRole('button', { name: 'Mở hỗ trợ khẩn cấp', exact: true })
+        .boundingBox()
+      if (!sendBounds || !helpBounds)
+        throw new Error('Expected both send and support controls to be visible')
+      expect(
+        sendBounds.x < helpBounds.x + helpBounds.width &&
+          sendBounds.x + sendBounds.width > helpBounds.x &&
+          sendBounds.y < helpBounds.y + helpBounds.height &&
+          sendBounds.y + sendBounds.height > helpBounds.y,
+      ).toBe(false)
+      await expect(page.locator('html')).toHaveJSProperty('scrollWidth', width)
+      await expect(page.locator('[data-community-messaging]')).toBeInViewport({
+        ratio: 1,
+      })
+      if (width === 1280) {
+        const history = page.getByRole('log', { name: 'Lịch sử trò chuyện' })
+        expect(
+          await history.evaluate(
+            (element) =>
+              element.scrollHeight > element.clientHeight &&
+              getComputedStyle(element).overflowY === 'auto',
+          ),
+        ).toBe(true)
+      }
+      await page.screenshot({ path: testInfo.outputPath('group-thread.png') })
+      if (width <= 760) {
+        await expect(inbox).not.toBeVisible()
+        await page.getByRole('link', { name: '← Hộp thư' }).click()
+        await expect(inbox).toBeVisible()
+      }
+    })
+  }
+
+  test('keeps the unified inbox truthful when messaging is unavailable', async ({
+    page,
+    request,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    expect(
+      (await request.post(`${identityFixtureUrl}/__test/reset`)).status(),
+    ).toBe(204)
+    await login(page)
+    await installChatFixture(page)
+    await page.route('**/api/community/chat/**', (route) =>
+      json(
+        route,
+        {
+          code: 'DEPENDENCY_UNAVAILABLE',
+          status: 503,
+          title: 'Unavailable',
+          type: 'https://mentalbridge.local/problems/unavailable',
+          correlationId: 'community-inbox-fixture',
+        },
+        503,
+      ),
+    )
+    await page.goto('/community/messages')
+    await expect(page.getByText('Tin nhắn hiện chưa khả dụng')).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Tin nhắn và nhóm riêng' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Tin nhắn mới hoặc tạo nhóm' }),
+    ).toBeDisabled()
+    await expect(
+      page.getByRole('textbox', { name: 'Tìm người hoặc nhóm trong hộp thư' }),
+    ).toBeDisabled()
+    await expect(
+      page.getByRole('button', { name: 'Thử lại', exact: true }),
+    ).toHaveCount(0)
+    await expect(page.locator('[data-community-messaging]')).toBeInViewport({
+      ratio: 1,
+    })
+    await page.screenshot({ path: testInfo.outputPath('unavailable.png') })
+  })
+
   test('handles inbox, privacy, requests and same-key retry on desktop', async ({
     page,
     request,
@@ -386,7 +568,8 @@ test.describe('Community chat journey', () => {
       page.getByText('Mình ở đây và sẵn sàng lắng nghe.'),
     ).toBeVisible()
     await page.getByText('Quyền riêng tư tin nhắn').click()
-    await page.getByLabel('Cho phép nhắn trực tiếp').check()
+    await expect(page.getByText(/Chỉ bạn bè đã chấp nhận/)).toBeVisible()
+    await page.getByLabel('Hiển thị trạng thái hoạt động').check()
     await page.getByRole('button', { name: 'Lưu quyền riêng tư' }).click()
     await expect(page.getByText(/Đã lưu quyền riêng tư/)).toBeVisible()
 
@@ -525,17 +708,17 @@ test.describe('Community chat journey', () => {
     await page.goto(`/community/messages/${groupConversationId}`)
 
     await expect(
-      page.getByText('Góc bình yên', { exact: true }).last(),
+      page.locator('header').getByText('Góc bình yên', { exact: true }),
     ).toBeVisible()
     await expect(
       page.getByText('Mình vừa hoàn thành bài tập thở 5 phút.'),
     ).toBeVisible()
-    await page.getByRole('button', { name: /Thành viên · Chủ nhóm/ }).click()
-    await expect(page.getByText('Quản lý thành viên')).toBeVisible()
+    await page.getByRole('button', { name: /thành viên.*Chủ nhóm/ }).click()
+    await expect(
+      page.getByRole('dialog', { name: 'Góc bình yên' }),
+    ).toBeVisible()
 
-    await page
-      .getByRole('combobox', { name: 'Chọn người từ trò chuyện riêng' })
-      .click()
+    await page.getByRole('combobox', { name: 'Mời thêm bạn bè' }).click()
     await page.getByRole('option', { name: invitee.displayName }).click()
     await page.getByRole('button', { name: 'Mời thành viên' }).click()
     await expect(page.getByText(/Người nhận phải tự chấp thuận/)).toBeVisible()

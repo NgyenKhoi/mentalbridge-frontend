@@ -685,6 +685,14 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     await page.goto('/support-plan')
     const next = todayRow(page, 'Thở chậm 3 phút')
     await expect(next).toBeVisible()
+    await expect(page.locator('.mbw-today-hero h2')).toHaveCSS(
+      'color',
+      'rgb(255, 255, 255)',
+    )
+    await expect(page.locator('.mbw-today-hero p')).toHaveCSS(
+      'color',
+      'rgb(255, 255, 255)',
+    )
     const open = next.getByRole('link', { name: /Mở nội dung/ })
     const href = new URL(
       (await open.getAttribute('href')) ?? '',
@@ -1087,12 +1095,19 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     await page.goto('/support-plan')
 
     // Hôm nay: nothing done yet, then one Resource acknowledged.
+    const weeklyProgress = page.getByRole('progressbar', {
+      name: 'Hoạt động đã hoàn thành trong tuần',
+    })
+    await expect(weeklyProgress).toHaveAttribute('aria-valuenow', '0')
+    await expect(weeklyProgress).toHaveAttribute('aria-valuemax', '2')
     await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '0')
     await expect(dayBar(page)).toHaveAttribute('aria-valuemax', '2')
     await todayRow(page, 'Thở chậm 3 phút')
       .getByRole('button', { name: 'Đã làm xong' })
       .click()
     await expect(dayBar(page)).toHaveAttribute('aria-valuenow', '1')
+    await expect(weeklyProgress).toHaveAttribute('aria-valuenow', '1')
+    await expect(weeklyProgress).toContainText('50%')
     await expect(page.locator('.mbw-day-count')).toContainText(
       '1 / 2 việc hôm nay',
     )

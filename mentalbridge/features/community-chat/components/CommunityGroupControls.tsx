@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Users, X, UserRoundPlus } from 'lucide-react'
 
 import LightSelect from '@/components/LightSelect'
 import { Dialog } from '@/components/ui/Dialog'
@@ -183,10 +184,18 @@ export function GroupManagement({
   groups,
   viewerProfileId,
   inviteCandidates,
+  onLoadMoreCandidates,
+  loadingCandidates = false,
+  candidateError,
+  onRetryCandidates,
 }: Readonly<{
   groups: Groups
   viewerProfileId?: string
   inviteCandidates: ChatPeer[]
+  onLoadMoreCandidates?: () => void
+  loadingCandidates?: boolean
+  candidateError?: string
+  onRetryCandidates?: () => void
 }>) {
   const [open, setOpen] = useState(false)
   const [invitee, setInvitee] = useState('')
@@ -237,177 +246,224 @@ export function GroupManagement({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        {open
-          ? 'Đóng quản lý nhóm'
-          : `Thành viên · ${roleName(group.viewerRole)}`}
+        {open ? (
+          <>
+            <Users size={16} />
+            Thông tin nhóm
+          </>
+        ) : (
+          <>
+            <Users size={16} />
+            {group.peers.length} thành viên <span>·</span>{' '}
+            {roleName(group.viewerRole)}
+          </>
+        )}
       </button>
       {open && (
-        <div className={styles.groupPanel}>
-          <div className={styles.groupPanelHeader}>
-            <div>
-              <h2>Quản lý thành viên</h2>
-              <p>Chỉ thành viên đã chấp thuận mới có thể đọc và gửi tin.</p>
+        <Dialog
+          open={open}
+          onOpenChange={setOpen}
+          labelledBy="community-group-info-title"
+          className={styles.groupDetailsDialog}
+        >
+          <div className={styles.groupPanel}>
+            <div className={styles.groupPanelHeader}>
+              <div>
+                <span className={styles.groupInfoIcon}>
+                  <Users size={28} />
+                </span>
+                <h2 id="community-group-info-title">{group.groupName}</h2>
+                <p>Nhóm chat riêng · {group.peers.length} thành viên</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Đóng thông tin nhóm"
+                onClick={() => setOpen(false)}
+              >
+                <X size={19} />
+              </button>
             </div>
-          </div>
-          {canInvite && (
-            <form
-              className={styles.inviteForm}
-              onSubmit={(event) => {
-                event.preventDefault()
-                if (!selectedInvitee) return
-                void groups.invite(selectedInvitee).then((sent) => {
-                  if (sent) setInvitee('')
-                })
-              }}
-            >
-              <label id="community-group-invitee-label">
-                Chọn người từ trò chuyện riêng
-              </label>
-              <p className={styles.inviteHint}>
-                Chỉ những người bạn đang có trò chuyện riêng mới xuất hiện ở
-                đây. MentalBridge không hiển thị danh bạ cộng đồng công khai.
-              </p>
-              {inviteOptions.length ? (
-                <div>
-                  <LightSelect
-                    id="community-group-invitee"
-                    value={selectedInvitee}
-                    labelledBy="community-group-invitee-label"
-                    placeholder="Chọn người để mời"
-                    options={inviteOptions}
-                    disabled={groups.busyKey === 'invite'}
-                    onChange={setInvitee}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!selectedInvitee || groups.busyKey === 'invite'}
-                  >
-                    {groups.busyKey === 'invite'
-                      ? 'Đang mời…'
-                      : 'Mời thành viên'}
-                  </button>
-                </div>
-              ) : (
-                <p className={styles.inviteEmpty}>
-                  Chưa có người phù hợp để mời từ hộp thư riêng của bạn.
+            {canInvite && (
+              <form
+                className={styles.inviteForm}
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  if (!selectedInvitee) return
+                  void groups.invite(selectedInvitee).then((sent) => {
+                    if (sent) setInvitee('')
+                  })
+                }}
+              >
+                <label id="community-group-invitee-label">
+                  <UserRoundPlus size={16} /> Mời thêm bạn bè
+                </label>
+                <p className={styles.inviteHint}>
+                  Người được mời phải là bạn bè đã chấp nhận và tự đồng ý tham
+                  gia nhóm.
                 </p>
-              )}
-            </form>
-          )}
-          {groups.memberLoading ? (
-            <p role="status" aria-busy="true">
-              Đang tải thành viên…
-            </p>
-          ) : groups.memberError ? (
-            <p role="alert">{groups.memberError}</p>
-          ) : (
-            <ul className={styles.memberList}>
-              {groups.members.map((member, index) => {
-                const memberId =
-                  member.peer.state === 'AVAILABLE'
-                    ? member.peer.communityProfileId
-                    : ''
-                const self = memberId === viewerProfileId
-                const ownerCanChange =
-                  group.viewerRole === 'OWNER' &&
-                  member.role !== 'OWNER' &&
-                  !self
-                const adminCanRemove =
-                  group.viewerRole === 'ADMIN' &&
-                  member.role === 'MEMBER' &&
-                  !self
-                const canRemove =
-                  ownerCanChange ||
-                  adminCanRemove ||
-                  (self && group.viewerRole !== 'OWNER')
-                return (
-                  <li
-                    key={
-                      memberId || `${member.role}-${member.joinedAt}-${index}`
-                    }
+                {inviteOptions.length ? (
+                  <div>
+                    <LightSelect
+                      id="community-group-invitee"
+                      value={selectedInvitee}
+                      labelledBy="community-group-invitee-label"
+                      placeholder="Chọn người để mời"
+                      options={inviteOptions}
+                      disabled={groups.busyKey === 'invite'}
+                      onChange={setInvitee}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!selectedInvitee || groups.busyKey === 'invite'}
+                    >
+                      {groups.busyKey === 'invite'
+                        ? 'Đang mời…'
+                        : 'Mời thành viên'}
+                    </button>
+                  </div>
+                ) : (
+                  <p className={styles.inviteEmpty}>
+                    {loadingCandidates
+                      ? 'Đang tải bạn bè…'
+                      : 'Chưa có bạn bè phù hợp để mời. Bạn có thể kết bạn từ trang cá nhân cộng đồng.'}
+                  </p>
+                )}
+                {candidateError && (
+                  <p role="alert">
+                    {candidateError}{' '}
+                    <button type="button" onClick={onRetryCandidates}>
+                      Thử lại
+                    </button>
+                  </p>
+                )}
+                {onLoadMoreCandidates && (
+                  <button
+                    type="button"
+                    disabled={loadingCandidates}
+                    onClick={onLoadMoreCandidates}
                   >
-                    <div>
-                      <strong>
-                        {memberName(member)}
-                        {self ? ' · Bạn' : ''}
-                      </strong>
-                      <small>{roleName(member.role)}</small>
-                    </div>
-                    {member.peer.state === 'AVAILABLE' && (
-                      <div className={styles.memberActions}>
-                        {ownerCanChange && (
-                          <button
-                            type="button"
-                            disabled={groups.busyKey === memberId}
-                            onClick={() =>
-                              void groups.setRole(
-                                member,
-                                member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN',
-                              )
-                            }
-                          >
-                            {member.role === 'ADMIN'
-                              ? 'Hạ quyền'
-                              : 'Thăng cấp quản trị'}
-                          </button>
-                        )}
-                        {group.viewerRole === 'OWNER' &&
-                          member.role === 'ADMIN' &&
-                          !self && (
+                    {loadingCandidates ? 'Đang tải…' : 'Xem thêm bạn bè'}
+                  </button>
+                )}
+              </form>
+            )}
+            {groups.memberLoading ? (
+              <p role="status" aria-busy="true">
+                Đang tải thành viên…
+              </p>
+            ) : groups.memberError ? (
+              <p role="alert">{groups.memberError}</p>
+            ) : (
+              <ul className={styles.memberList}>
+                {groups.members.map((member, index) => {
+                  const memberId =
+                    member.peer.state === 'AVAILABLE'
+                      ? member.peer.communityProfileId
+                      : ''
+                  const self = memberId === viewerProfileId
+                  const ownerCanChange =
+                    group.viewerRole === 'OWNER' &&
+                    member.role !== 'OWNER' &&
+                    !self
+                  const adminCanRemove =
+                    group.viewerRole === 'ADMIN' &&
+                    member.role === 'MEMBER' &&
+                    !self
+                  const canRemove =
+                    ownerCanChange ||
+                    adminCanRemove ||
+                    (self && group.viewerRole !== 'OWNER')
+                  return (
+                    <li
+                      key={
+                        memberId || `${member.role}-${member.joinedAt}-${index}`
+                      }
+                    >
+                      <div>
+                        <strong>
+                          {memberName(member)}
+                          {self ? ' · Bạn' : ''}
+                        </strong>
+                        <small>{roleName(member.role)}</small>
+                      </div>
+                      {member.peer.state === 'AVAILABLE' && (
+                        <div className={styles.memberActions}>
+                          {ownerCanChange && (
                             <button
                               type="button"
                               disabled={groups.busyKey === memberId}
                               onClick={() =>
-                                setConfirm({ type: 'transfer', member })
+                                void groups.setRole(
+                                  member,
+                                  member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN',
+                                )
                               }
                             >
-                              Chuyển quyền chủ nhóm
+                              {member.role === 'ADMIN'
+                                ? 'Hạ quyền'
+                                : 'Thăng cấp quản trị'}
                             </button>
                           )}
-                        {canRemove && (
-                          <button
-                            className={styles.dangerButton}
-                            type="button"
-                            disabled={groups.busyKey === memberId}
-                            onClick={() =>
-                              setConfirm({ type: 'remove', member })
-                            }
-                          >
-                            {self ? 'Rời nhóm' : 'Xóa khỏi nhóm'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-          {groups.memberCursor && (
-            <button
-              type="button"
-              disabled={groups.busyKey === 'members-page'}
-              onClick={() => void groups.loadMoreMembers()}
-            >
-              {groups.busyKey === 'members-page'
-                ? 'Đang tải…'
-                : 'Tải thêm thành viên'}
-            </button>
-          )}
-          {group.viewerRole === 'OWNER' && group.state === 'ACTIVE' && (
-            <div className={styles.groupDangerZone}>
-              <p>Chủ nhóm phải chuyển quyền hoặc lưu trữ nhóm trước khi rời.</p>
+                          {group.viewerRole === 'OWNER' &&
+                            member.role === 'ADMIN' &&
+                            !self && (
+                              <button
+                                type="button"
+                                disabled={groups.busyKey === memberId}
+                                onClick={() =>
+                                  setConfirm({ type: 'transfer', member })
+                                }
+                              >
+                                Chuyển quyền chủ nhóm
+                              </button>
+                            )}
+                          {canRemove && (
+                            <button
+                              className={styles.dangerButton}
+                              type="button"
+                              disabled={groups.busyKey === memberId}
+                              onClick={() =>
+                                setConfirm({ type: 'remove', member })
+                              }
+                            >
+                              {self ? 'Rời nhóm' : 'Xóa khỏi nhóm'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            {groups.memberCursor && (
               <button
-                className={styles.dangerButton}
                 type="button"
-                disabled={groups.busyKey === 'archive'}
-                onClick={() => setConfirm({ type: 'archive' })}
+                disabled={groups.busyKey === 'members-page'}
+                onClick={() => void groups.loadMoreMembers()}
               >
-                Lưu trữ nhóm
+                {groups.busyKey === 'members-page'
+                  ? 'Đang tải…'
+                  : 'Tải thêm thành viên'}
               </button>
-            </div>
-          )}
-        </div>
+            )}
+            {group.viewerRole === 'OWNER' && group.state === 'ACTIVE' && (
+              <div className={styles.groupDangerZone}>
+                <p>
+                  Chủ nhóm phải chuyển quyền hoặc lưu trữ nhóm trước khi rời.
+                </p>
+                <button
+                  className={styles.dangerButton}
+                  type="button"
+                  disabled={groups.busyKey === 'archive'}
+                  onClick={() => setConfirm({ type: 'archive' })}
+                >
+                  Lưu trữ nhóm
+                </button>
+              </div>
+            )}
+          </div>
+        </Dialog>
       )}
       <Dialog
         open={Boolean(confirm)}

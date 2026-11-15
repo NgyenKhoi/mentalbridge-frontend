@@ -1,0 +1,290 @@
+.dialog {
+  width: min(760px, calc(100% - 24px));
+  font-family: var(--font-be-vietnam), sans-serif;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  color: var(--ink);
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.header h2 {
+  font:
+    650 20px/1.4 var(--font-be-vietnam),
+    sans-serif;
+  margin: 0;
+}
+.header p {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+.header > button {
+  margin-left: auto;
+  padding: 10px;
+  border-radius: 50%;
+  background: var(--bg);
+}
+.groupIcon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+.name {
+  position: relative;
+  padding: 20px 24px;
+}
+.name label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.name input {
+  width: 100%;
+  padding: 12px 62px 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  background: var(--surface);
+  color: inherit;
+}
+.name small {
+  position: absolute;
+  right: 36px;
+  bottom: 33px;
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  min-height: 280px;
+  border-block: 1px solid var(--line);
+}
+.picker {
+  padding: 16px 24px;
+  min-width: 0;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink-soft);
+}
+.search input {
+  border: 0;
+  background: transparent;
+  min-width: 0;
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  outline: none;
+}
+.sectionTitle {
+  display: block;
+  margin-block: 16px 8px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 500;
+}
+.friendList {
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.friendList > p,
+.selected > p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
+  padding: 16px 0;
+}
+.friend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 9px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.friend:hover {
+  background: var(--bg);
+}
+.friend input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.friend:focus-within {
+  outline: 2px solid var(--teal);
+  outline-offset: -2px;
+}
+.friend :global(.community-avatar) {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+  font-size: 13px;
+}
+.friend > span {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.friend > i {
+  width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: white;
+}
+.friend:has(input:checked) > i {
+  background: var(--teal-deep);
+  border-color: var(--teal-deep);
+}
+.friend:has(input:disabled) {
+  opacity: 0.55;
+}
+.selected {
+  padding: 20px 16px;
+  border-left: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 35%, var(--surface));
+  max-height: 370px;
+  overflow-y: auto;
+}
+.selected > strong {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.selected > strong span {
+  color: var(--teal);
+  font-size: 12px;
+}
+.selected > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 7px;
+  padding: 6px 8px;
+  background: var(--surface);
+}
+.selected > div span {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.selected button {
+  padding: 6px;
+  color: var(--ink-soft);
+}
+.privacy {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 16px 24px 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+.privacy svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.footer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 24px 22px;
+}
+.footer > span {
+  flex: 1;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.footer button,
+.loadMore {
+  padding: 10px 16px;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--teal-deep);
+}
+.footer button[type='submit'] {
+  background: var(--teal-deep);
+  color: white;
+  border-color: var(--teal-deep);
+}
+.form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.notice {
+  padding: 12px 24px;
+  font-size: 13px;
+  color: var(--terracotta);
+}
+.form :is(button, input):focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .selected {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    max-height: 130px;
+  }
+  .selected:has(> p) {
+    display: none;
+  }
+  .header,
+  .name,
+  .picker,
+  .footer {
+    padding-inline: 16px;
+  }
+  .footer {
+    flex-wrap: wrap;
+  }
+  .footer > span {
+    flex-basis: 100%;
+  }
+  .name input,
+  .search input {
+    font-size: 16px;
+  }
+  .friendList {
+    max-height: 210px;
+  }
+}

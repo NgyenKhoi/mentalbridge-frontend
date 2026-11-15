@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * generateAuthorizedVoiceTurn
-         * @description Ephemeral final vi-VN STT only; validate trimmed nonempty text, language, finality, order, attempt/lease and unique turn. Freshly verify BOTH consent streams, Consultation entitlement, remaining independent voice usage and current approved pinned Bedrock route BEFORE EVERY generation and before publication. Do not call persisted text send or consume text answers. Dedicated service identity; no client/worker user selection. RAM-only recent4turnpairs/2000tokens; transcript2000chars/reply1000chars; no transcript/prompt/provider output in idempotency snapshots/logs/traces. In-memory replay returns exact reply only during live lease; after context loss, fail stale rather than regenerate/charge again. Cancel/discard late responses after stop/withdrawal/lease expiry. No provider fallback, no Care/financial/safety mutation.
+         * @description Ephemeral final vi-VN STT only; validate trimmed nonempty text, language, finality, order, attempt/lease and unique turn. Freshly verify effective L1 AI_PROCESSING and separate Voice v2 consent, Consultation entitlement, remaining independent voice usage and current approved pinned Bedrock route BEFORE EVERY generation and before publication. Do not call persisted text send or consume text answers. Dedicated service identity; no client/worker user selection. RAM-only recent4turnpairs/2000tokens; transcript2000chars/reply1000chars; no transcript/prompt/provider output in idempotency snapshots/logs/traces. In-memory replay returns exact reply only during live lease; after context loss, fail stale rather than regenerate/charge again. Cancel/discard late responses after stop/withdrawal/lease expiry. No provider fallback, no Care/financial/safety mutation.
          */
         post: operations["generateAuthorizedVoiceTurn"];
         delete?: never;
@@ -35,7 +35,7 @@ export interface paths {
         put?: never;
         /**
          * Prepare an explicitly selected owner Text conversation for Voice.
-         * @description Disabled by default. Requires current AI_PROCESSING, Voice disclosure v2 and PLUS/PREMIUM. Return a content-free signed ticket expiring in 120 seconds; no admission, provider or microphone. Only the last two complete adjacent pairs with empty contextKinds and at most 1200 UTF-8 bytes are eligible; stop at an ineligible/oversized pair rather than silently cross a private-context gap. START rechecks owner, current authority and exact unexpired snapshot. A ticket is bound once to one session through the admission transaction. Wrong/missing/deleted/expired conversation returns404; no eligible pair returns422. Errors never contain Text, ticket or owner identifiers. No automatic fallback.
+         * @description Disabled by default. Requires effective L1 AI_PROCESSING, Voice disclosure v2 and PLUS/PREMIUM. Return a content-free signed ticket expiring in 120 seconds; no admission, provider or microphone. Only the last two complete adjacent pairs with empty contextKinds and at most 1200 UTF-8 bytes are eligible; stop at an ineligible/oversized pair rather than silently cross a private-context gap. START rechecks owner, current authority and exact unexpired snapshot. A ticket is bound once to one session through the admission transaction. Wrong/missing/deleted/expired conversation returns404; no eligible pair returns422. Errors never contain Text, ticket or owner identifiers. No automatic fallback.
          */
         post: operations["prepareVoiceContextHandoff"];
         delete?: never;
@@ -55,7 +55,7 @@ export interface paths {
         put?: never;
         /**
          * startVoiceSession
-         * @description USER only. Resolve current subject, both consents and entitlement before atomic Mongo admission. Reserve user1/global2 and finite session+seconds before any room/dispatch effect. Existing attempt conflict SESSION_LIMIT; duplicate same key reuses logical session. Snapshot day/route/deadline; no text quota or financial writes. Optional handoffToken is an explicit Text-context opt-in; absence means zero Text context. Same key with changed intent returns409; consumed handoff cannot be reused with another key. Attached content exists only in RAM and shares the existing four-pair/2000-byte context and token caps.
+         * @description USER only. Resolve current subject, effective L1 plus Voice v2 and entitlement before atomic Mongo admission. Reserve user1/global2 and finite session+seconds before any room/dispatch effect. Existing attempt conflict SESSION_LIMIT; duplicate same key reuses logical session. Snapshot day/route/deadline; no text quota or financial writes. Optional handoffToken is an explicit Text-context opt-in; absence means zero Text context. Same key with changed intent returns409; consumed handoff cannot be reused with another key. Attached content exists only in RAM and shares the existing four-pair/2000-byte context and token caps.
          */
         post: operations["startVoiceSession"];
         delete?: never;
@@ -95,7 +95,7 @@ export interface paths {
         put?: never;
         /**
          * authorizeVoiceConnection
-         * @description Freshly check both consents/current entitlement/voice budget/active attempt before every initial token or reconnect. Mint room+participant-scoped audio-only token for at most60seconds and never beyond hardStopAt; grant no camera/data/admin/egress. New token cannot extend session. LiveKit token expiry alone cannot stop a connected participant; owner revokes/removes/tears down explicitly.
+         * @description Freshly check effective L1 plus Voice v2/current entitlement/voice budget/active attempt before every initial token or reconnect. Mint room+participant-scoped audio-only token for at most60seconds and never beyond hardStopAt; grant no camera/data/admin/egress. New token cannot extend session. LiveKit token expiry alone cannot stop a connected participant; owner revokes/removes/tears down explicitly.
          */
         post: operations["authorizeVoiceConnection"];
         delete?: never;
@@ -173,7 +173,7 @@ export interface paths {
         };
         /**
          * getVoiceEligibility
-         * @description Current owner-sourced capability, not authority to connect. Resolve BOTH Care consents, Consultation current entitlement, independent voice quota and provider readiness. Uncertainty never maps to ELIGIBLE. No client package/policy/clock authority. MB-756 uses a fresh server-generated check UUID for this read; it creates no Voice Session or quota reservation. Live readiness remains unavailable until MB-757/760/762 supply the approved media/provider gates.
+         * @description Current owner-sourced capability, not authority to connect. Resolve effective L1 plus separate Voice v2 Care consent, Consultation current entitlement, independent voice quota and provider readiness. Uncertainty never maps to ELIGIBLE. No client package/policy/clock authority. MB-756 uses a fresh server-generated check UUID for this read; it creates no Voice Session or quota reservation. Live readiness remains unavailable until MB-757/760/762 supply the approved media/provider gates.
          */
         get: operations["getVoiceEligibility"];
         put?: never;
@@ -395,7 +395,7 @@ export interface paths {
         };
         /**
          * Return a factor- and note-free minimized projection for consented AI reflection.
-         * @description Reminder composition is deliberately unavailable until a separate reminder consent contract is accepted.
+         * @description Requires effective L2 AI_CONTEXT_PROCESSING before source projection; consent.type reports AI_CONTEXT_PROCESSING. Reminder composition remains unavailable until a separate reminder consent contract is accepted.
          */
         get: operations["getEmotionCheckInConsumerContext"];
         put?: never;
@@ -512,7 +512,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Request analysis of one exact owned journal revision. */
+        /**
+         * Request analysis of one exact owned journal revision.
+         * @description Requires effective L2 AI_CONTEXT_PROCESSING before source content access and immediately before every provider attempt/retry; 409 AI_CONTEXT_CONSENT_REQUIRED denies new work, while owner history reads remain available. Verified bearer remains memory-only; consent uncertainty returns 503 CONSENT_UNAVAILABLE.
+         */
         post: operations["createExactRevisionAnalysisJob"];
         delete?: never;
         options?: never;
@@ -586,8 +589,58 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Deliver one bounded response using only owner-verified minimized context. */
+        /**
+         * Deliver one bounded response using only owner-verified minimized context.
+         * @description Requires effective L1 AI_PROCESSING at request and immediately before each
+         *     provider attempt (403 AI_CONSENT_REQUIRED on refusal). Effective L2
+         *     AI_CONTEXT_PROCESSING is required before personal source access and use.
+         *     Known L2-off produces plain chat with no personal source assembly and no
+         *     personal-kind memory. If L2 is lost during assembly, discard personal
+         *     input and rebuild plain input before final L1 authorization. Uncertain
+         *     consent returns 503 CONSENT_OR_ENTITLEMENT_UNAVAILABLE and releases reservations.
+         *     contextKinds is the union of actual fetched sources and retained-history
+         *     kinds; a pair with a disallowed kind is excluded before decryption.
+         *     The first committed reply can initialize an empty default conversation's
+         *     title from the same provider output or the first 40 Unicode code points
+         *     of the first user message. Manual and existing custom titles are preserved.
+         *     Optional title and titleVersion are current-at-read, including replay;
+         *     both may be omitted on title hydration uncertainty without failing the answer.
+         *     No trusted per-turn safety source is available; the neutral dated safety
+         *     override is deferred to MB-810-CARE-SAFETY-TITLE (ADR 0021).
+         */
         post: operations["sendAiCompanionMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-companion/conversations/{conversationId}/title": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace the authenticated owner's conversation title.
+         * @description Replaces only the title; no consent, entitlement, provider, quota or rate
+         *     call is made and messages are unchanged. Missing, foreign, deleted and
+         *     expired conversations return the same RESOURCE_NOT_FOUND response.
+         *     If-Match is a strong quoted titleVersion; weak, multiple and wildcard
+         *     values are invalid. Exact retries with the same key, normalized title,
+         *     conversation and If-Match replay the original result before stale-token
+         *     checks, even after a later rename. Reusing that key with changed inputs
+         *     returns IDEMPOTENCY_KEY_REUSED. A different key with a stale token returns
+         *     CHAT_TITLE_VERSION_CONFLICT. Retry CHAT_TITLE_UNAVAILABLE with the exact
+         *     command; persistence uncertainty is never reported as success.
+         *     The response ETag covers this title-only representation, not conversation
+         *     message/context activity. Consumers refetch after overlapping or
+         *     out-of-order send/rename results and when a titleVersion is absent.
+         */
+        put: operations["renameAiCompanionConversation"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -604,7 +657,12 @@ export interface paths {
         get?: never;
         /**
          * Replace the owner-scoped sources used by one conversation.
-         * @description Message sends read this persisted configuration; client-supplied source lists are never authoritative.
+         * @description Saved sources are preferences, never authorization. Selecting any personal
+         *     source requires effective L2 AI_CONTEXT_PROCESSING before source validation
+         *     (403 AI_CONTEXT_CONSENT_REQUIRED; uncertainty 503 CONSENT_UNAVAILABLE).
+         *     Clearing all sources remains allowed without consent. New conversations
+         *     default to all flags false and resourceIds empty. Existing preferences are
+         *     ignored while L2 is ineffective and freshly revalidated when L2 resumes.
          */
         put: operations["replaceAiCompanionConversationContext"];
         post?: never;
@@ -623,7 +681,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Request a consented comparison of owned journals across two bounded periods. */
+        /**
+         * Request a consented comparison of owned journals across two bounded periods.
+         * @description Requires effective L2 AI_CONTEXT_PROCESSING before source content access and immediately before every provider attempt/retry; 409 AI_CONTEXT_CONSENT_REQUIRED denies new work, while owner history reads remain available. Verified bearer remains memory-only; consent uncertainty returns 503 CONSENT_UNAVAILABLE.
+         */
         post: operations["createLongitudinalAnalysisJob"];
         delete?: never;
         options?: never;
@@ -657,7 +718,7 @@ export interface paths {
         };
         /**
          * Return minimized longitudinal evidence for Care reassessment composition.
-         * @description Requires the verified end-user bearer context forwarded by Care, a matching user ID, current AI_PROCESSING consent, and purpose REASSESSMENT_SUMMARY. The response never contains raw journal text or a clinical improvement conclusion.
+         * @description Requires the verified end-user bearer context forwarded by Care, a matching user ID, effective L2 AI_CONTEXT_PROCESSING consent, and purpose REASSESSMENT_SUMMARY. The response never contains raw journal text or a clinical improvement conclusion.
          */
         get: operations["getLongitudinalEvidenceForCare"];
         put?: never;
@@ -679,7 +740,7 @@ export interface paths {
         put?: never;
         /**
          * Rephrase exact Care-approved Support Guide copy.
-         * @description Care forwards the verified end-user bearer. Journal/AI verifies current AI_PROCESSING consent and may only rephrase the supplied approved text; it cannot add resources, decide safety or eligibility, or mutate Care state.
+         * @description Care forwards the verified end-user bearer. Journal/AI verifies effective L2 AI_CONTEXT_PROCESSING consent and may only rephrase the supplied approved text; it cannot add resources, decide safety or eligibility, or mutate Care state.
          */
         post: operations["phraseSupportGuideCopy"];
         delete?: never;
@@ -699,7 +760,7 @@ export interface paths {
         put?: never;
         /**
          * Phrase one policy-selected SupportPlan Companion intent.
-         * @description Care authenticates with its dedicated service credential and forwards the verified end-user bearer plus one exact v1 intent envelope containing only the approved minimized context. Journal/AI validates both caller boundaries, surface, intent and context before checking current AI consent or calling one configured provider. Missing consent, provider rate/quota limit, timeout, provider failure, malformed output and policy rejection return deterministic template copy. The operation cannot create or mutate a plan, action, schedule, review, consent, booking or source-domain record.
+         * @description Care authenticates with its dedicated service credential and forwards the verified end-user bearer plus one exact v1 intent envelope containing only the approved minimized context. Journal/AI validates both caller boundaries, surface, intent and context before checking effective L2 AI_CONTEXT_PROCESSING at request and immediately before one configured provider attempt. Missing consent, provider rate/quota limit, timeout, provider failure, malformed output and policy rejection return deterministic template copy. The operation cannot create or mutate a plan, action, schedule, review, consent, booking or source-domain record.
          */
         post: operations["createSupportPlanCompanionMessage"];
         delete?: never;
@@ -719,7 +780,7 @@ export interface paths {
         put?: never;
         /**
          * Generate an editable suggestion from one exact minimized Care-owned draft source
-         * @description Requires the forwarded verified end-user bearer and current AI_PROCESSING consent. It may rewrite only currentSituation and userGoals. It cannot change the screening source, save or approve a brief, grant specialist access, or consume Journal, chat, raw assessment answers, or private specialist notes.
+         * @description Requires the forwarded verified end-user bearer and effective L2 AI_CONTEXT_PROCESSING consent. It may rewrite only currentSituation and userGoals. It cannot change the screening source, save or approve a brief, grant specialist access, or consume Journal, chat, raw assessment answers, or private specialist notes.
          */
         post: operations["generateConsultationBriefDraftSuggestion"];
         delete?: never;
@@ -756,6 +817,11 @@ export interface components {
             /** @constant */
             language: "vi-VN";
             spokenText: string;
+            /**
+             * @description Display-only Mầm tag, present only when the caller sent X-MentalBridge-Voice-Capabilities: expression. Text handoff and missing or unknown model output are neutral. warm and encourage wait for a Care-owned trusted safety source.
+             * @enum {string}
+             */
+            expression?: "neutral" | "comfort";
             /** Format: date-time */
             expiresAt: string;
             /** @constant */
@@ -1161,8 +1227,22 @@ export interface components {
             fallbackReason: "CONSENT_REQUIRED" | "CONSENT_UNAVAILABLE" | "PROVIDER_DISABLED" | "PROVIDER_TIMEOUT" | "PROVIDER_QUOTA_LIMITED" | "PROVIDER_UNAVAILABLE" | "MALFORMED_OUTPUT" | "POLICY_REJECTED" | null;
         };
         CreateAiConversationRequest: {
+            /** @description Optional explicit title; outer whitespace is allowed and bounds are 1..80 Unicode code points after outer trim (expressed by the pattern, not a raw maxLength), with no six-word limit. Compile the pattern with the Unicode flag. Raw outer whitespace is bounded only by the HTTP request body limit. Stored encrypted even when equal to the default title. */
             title?: string;
         };
+        /** @description Opaque HMAC token for title state only, stable across message/context changes. Its absence on an older response requires a refetch before rename. */
+        AiConversationTitleVersion: string;
+        RenameAiConversationTitleRequest: {
+            /** @description Outer whitespace is allowed; title bounded to 1..80 Unicode code points after outer trim (expressed by the pattern, not a raw maxLength). Compile the pattern with the Unicode flag. Raw outer whitespace is bounded only by the HTTP request body limit. Manual titles have no six-word limit. */
+            title: string;
+        };
+        AiConversationTitle: {
+            /** Format: uuid */
+            conversationId: string;
+            title: string;
+            titleVersion: components["schemas"]["AiConversationTitleVersion"];
+        };
+        /** @description Personal-source preferences only; default all false and empty resourceIds. Use requires current effective L2 and fresh source ownership checks. */
         AiContextSources: {
             plan: boolean;
             diary: boolean;
@@ -1180,7 +1260,10 @@ export interface components {
         SendAiMessageRequest: {
             message: string;
         };
-        /** @enum {string} */
+        /**
+         * @description All four kinds are personal; bounded ordinary conversation memory has no kinds. New labels include fetched sources and retained-memory kinds; historical labels are immutable.
+         * @enum {string}
+         */
         AiContextKind: "JOURNAL" | "SUPPORT_PLAN" | "REASSESSMENT" | "RESOURCE";
         /** @description Optional navigation the server resolved from the TEXT companion reply (ADR 0049). The model chooses only the destination and a catalogue ref; the server maps the ref to a published reviewed Resource. RESOURCE carries resourceId and resourceTitle; every other destination carries null for both. No href or label is sent: clients own routes and copy. Null when guidance v2 is off, the reply offered nothing, or the suggestion was invalid. The destination page performs its own access and package checks. */
         AiCompanionSuggestion: {
@@ -1205,6 +1288,7 @@ export interface components {
             /** Format: uuid */
             conversationId: string;
             title: string;
+            titleVersion?: components["schemas"]["AiConversationTitleVersion"];
             context: components["schemas"]["AiConversationContext"];
             messages: components["schemas"]["AiMessage"][];
             /** Format: date-time */
@@ -1218,6 +1302,7 @@ export interface components {
             /** Format: uuid */
             conversationId: string;
             title: string;
+            titleVersion?: components["schemas"]["AiConversationTitleVersion"];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1239,6 +1324,8 @@ export interface components {
         SendAiMessageResponse: {
             /** Format: uuid */
             conversationId: string;
+            title?: string;
+            titleVersion?: components["schemas"]["AiConversationTitleVersion"];
             /** Format: uuid */
             userMessageId: string;
             /** Format: uuid */
@@ -1467,7 +1554,7 @@ export interface components {
             purpose: "AI_REFLECTION";
             consent: {
                 /** @constant */
-                type: "AI_PROCESSING";
+                type: "AI_CONTEXT_PROCESSING";
                 policyVersion: string | null;
                 /** Format: date-time */
                 decidedAt: string | null;
@@ -1589,7 +1676,10 @@ export interface components {
             /** Format: date-time */
             completedAt?: string | null;
         };
-        /** @enum {string} */
+        /**
+         * @description Consent reasons refer to effective L2. Missing/outdated L2 or lost L1 dependency is CONSENT_REQUIRED; own L2 withdrawal is CONSENT_REVOKED; unavailable authority is CONSENT_UNAVAILABLE.
+         * @enum {string}
+         */
         AnalysisTerminalReason: "CONSENT_REQUIRED" | "CONSENT_REVOKED" | "CONSENT_UNAVAILABLE" | "ENTITLEMENT_UNAVAILABLE" | "ENTITLEMENT_CHANGED" | "AUTHORIZATION_CONTEXT_LOST" | "REVISION_STALE" | "JOURNAL_DELETED" | "PROVIDER_TIMEOUT" | "PROVIDER_UNAVAILABLE" | "INVALID_PROVIDER_RESULT" | "INTERNAL_ERROR";
         NormalizedAnalysisResult: {
             summary?: string;
@@ -1712,7 +1802,10 @@ export interface components {
             /** Format: date-time */
             completedAt: string | null;
         };
-        /** @enum {string} */
+        /**
+         * @description Consent reasons refer to effective L2. Missing/outdated L2 or lost L1 dependency is CONSENT_REQUIRED; own L2 withdrawal is CONSENT_REVOKED; unavailable authority is CONSENT_UNAVAILABLE.
+         * @enum {string}
+         */
         LongitudinalTerminalReason: "CONSENT_REQUIRED" | "CONSENT_REVOKED" | "CONSENT_UNAVAILABLE" | "ENTITLEMENT_UNAVAILABLE" | "ENTITLEMENT_CHANGED" | "AUTHORIZATION_CONTEXT_LOST" | "SOURCE_REVISION_CHANGED" | "SOURCE_DELETED" | "PROVIDER_TIMEOUT" | "PROVIDER_UNAVAILABLE" | "INVALID_PROVIDER_RESULT" | "INTERNAL_ERROR";
         Problem: {
             /** Format: uri-reference */
@@ -2085,6 +2178,16 @@ export interface components {
                 "application/problem+json": components["schemas"]["VoiceProblem"];
             };
         };
+        /** @description AI_CONTEXT_CONSENT_REQUIRED; current effective L2 does not permit this personal source or provider operation. */
+        AiContextConsentRequired: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Request failed validation. */
         BadRequest: {
             headers: {
@@ -2139,9 +2242,11 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description A required dependency was unavailable and the request failed closed. */
+        /** @description A required dependency was unavailable and the request failed closed; CONSENT_UNAVAILABLE covers Care timeout, malformed/inconsistent snapshots or unavailable current authority. */
         DependencyUnavailable: {
             headers: {
+                /** @description Returned as no-store for consent refusals from PUT /api/v1/ai-companion/conversations/{conversationId}/context. */
+                "Cache-Control"?: "no-store";
                 [name: string]: unknown;
             };
             content: {
@@ -2165,6 +2270,11 @@ export interface components {
         IdempotencyKey: string;
         /** @description Current revision number expected by the client. */
         IfMatchRevision: number;
+        /**
+         * @description Strong quoted current titleVersion. Weak, multiple and wildcard tokens are invalid; refetch if no titleVersion is available.
+         * @example "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+         */
+        IfMatchAiConversationTitle: string;
         CorrelationId: string;
         Limit: number;
         /** @description Opaque cursor returned by the previous list response. */
@@ -2185,6 +2295,8 @@ export interface operations {
             header: {
                 /** @description Scoped to authenticated owner+operation. Exact replay never reserves again; changed intent returns409. Replays of live access still reauthorize; expired tokens are never replayed as authority. Store HMAC key+safe intent hash/metadata only, never transcript. */
                 "Idempotency-Key": string;
+                /** @description MB-820 negotiated reply capability. Only the exact value expression adds VoiceReply.expression; absent or any other value returns the pre-MB-820 VoiceReply unchanged. */
+                "X-MentalBridge-Voice-Capabilities"?: "expression";
             };
             path: {
                 voiceSessionId: string;
@@ -3182,7 +3294,110 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            503: components["responses"]["DependencyUnavailable"];
+            /** @description CONSENT_OR_ENTITLEMENT_UNAVAILABLE when Care or Consultation cannot establish current authority; fails closed without a provider call and releases any quota reservation. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    renameAiCompanionConversation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable key for safe client retries of journal mutations. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /**
+                 * @description Strong quoted current titleVersion. Weak, multiple and wildcard tokens are invalid; refetch if no titleVersion is available.
+                 * @example "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                 */
+                "If-Match": components["parameters"]["IfMatchAiConversationTitle"];
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameAiConversationTitleRequest"];
+            };
+        };
+        responses: {
+            /** @description The title was replaced or the exact completed command was replayed. */
+            200: {
+                headers: {
+                    /**
+                     * @description Strong quoted titleVersion of this result; a replay retains its original version.
+                     * @example "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+                     */
+                    ETag?: string;
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiConversationTitle"];
+                };
+            };
+            /** @description VALIDATION_FAILED for invalid ID, body, key or missing/malformed If-Match; no input echo. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description AUTHENTICATION_REQUIRED when no valid end-user bearer is available. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description RESOURCE_NOT_FOUND for missing, foreign, deleted or expired conversation; no input echo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description IDEMPOTENCY_KEY_REUSED when the same key has a changed title, path or If-Match. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description CHAT_TITLE_VERSION_CONFLICT for a valid stale title token with a different key. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description CHAT_TITLE_UNAVAILABLE for storage or encryption failure before known completion; retry the exact command. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     replaceAiCompanionConversationContext: {
@@ -3213,7 +3428,9 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["AiContextConsentRequired"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["DependencyUnavailable"];
         };
     };
     createLongitudinalAnalysisJob: {

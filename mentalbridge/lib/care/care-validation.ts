@@ -431,7 +431,9 @@ function parseConsentDecision(value: unknown) {
   if (
     !isRecord(value) ||
     !isUuid(value.decisionId) ||
-    !['PRIVACY_POLICY', 'AI_PROCESSING'].includes(String(value.consentType)) ||
+    !['PRIVACY_POLICY', 'AI_PROCESSING', 'AI_CONTEXT_PROCESSING'].includes(
+      String(value.consentType),
+    ) ||
     typeof value.policyVersion !== 'string' ||
     value.policyVersion.length < 1 ||
     value.policyVersion.length > 64 ||
@@ -448,7 +450,7 @@ export function parseConsentCollection(
   if (
     !isRecord(value) ||
     !Array.isArray(value.decisions) ||
-    value.decisions.length > 2 ||
+    value.decisions.length > 3 ||
     value.decisions.some((item) => !parseConsentDecision(item))
   )
     return null
@@ -467,7 +469,9 @@ export function parseConsentRequest(
       (value.consentType === 'PRIVACY_POLICY' &&
         value.policyVersion === 'privacy-capstone-v3') ||
       (value.consentType === 'AI_PROCESSING' &&
-        value.policyVersion === 'ai-processing-capstone-v2')
+        value.policyVersion === 'ai-processing-capstone-v2') ||
+      (value.consentType === 'AI_CONTEXT_PROCESSING' &&
+        value.policyVersion === 'ai-context-processing-capstone-v1')
     ) ||
     typeof value.granted !== 'boolean'
   )

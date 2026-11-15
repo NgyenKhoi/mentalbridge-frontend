@@ -244,6 +244,72 @@
 .mark[data-state='speaking'] {
   background: var(--amber-soft);
 }
+/* Mầm's stage (MB-815): one fixed box per breakpoint, so a state change never moves layout. */
+.stage {
+  position: relative;
+  width: 184px;
+  height: 184px;
+  margin: 14px auto 10px;
+}
+.halo,
+.ring {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+}
+.halo {
+  border: 1px solid var(--line);
+  background: var(--teal-pale);
+  transition: background 240ms ease;
+}
+.ring {
+  border: 2px solid transparent;
+  opacity: 0;
+}
+.mam {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -52%);
+  transition: opacity 240ms ease;
+}
+.stage[data-state='thinking'] .halo {
+  animation: breathe 2400ms ease-in-out infinite;
+}
+.stage[data-state='speaking'] .halo {
+  background: var(--amber-soft);
+}
+.stage[data-state='speaking'] .ring {
+  border-color: color-mix(in srgb, var(--amber) 60%, transparent);
+  animation: ring 1600ms ease-out infinite;
+}
+.stage[data-dim='true'] .mam {
+  opacity: 0.72;
+}
+.stage[data-reduced='true'] .halo,
+.stage[data-reduced='true'] .ring,
+.stage[data-reduced='true'] .mam {
+  animation: none;
+  transition: none;
+}
+.micBadge {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 2px solid var(--surface, #fcfdfa);
+  border-radius: 50%;
+  background: var(--surface, #fcfdfa);
+  outline: 1px solid var(--line);
+  color: var(--teal-deep);
+}
+.micBadge svg {
+  width: 16px;
+  height: 16px;
+}
 .body .status {
   font-family: inherit;
   font-size: 19px;
@@ -343,6 +409,35 @@
     transform: scale(1.015);
   }
 }
+@keyframes ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 0;
+    /* stays inside the 184 px stage (max 1.095) so no ancestor clip can cut it */
+    transform: scale(1.08);
+  }
+}
+@media (max-width: 479.98px), (max-height: 759.98px) {
+  .stage {
+    width: 132px;
+    height: 132px;
+    /* 134 px block, same as the old 94 px mark + margins, so short phones keep today's fold */
+    margin: 2px auto 0;
+  }
+  .micBadge {
+    right: 10px;
+    bottom: 10px;
+    width: 28px;
+    height: 28px;
+  }
+  .micBadge svg {
+    width: 14px;
+    height: 14px;
+  }
+}
 @media (max-width: 760px) {
   .desktopEntry {
     display: none;
@@ -374,7 +469,11 @@
   .primary,
   .secondary,
   .mark,
-  .mark[data-state] {
+  .mark[data-state],
+  .halo,
+  .mam,
+  .stage[data-state] .halo,
+  .stage[data-state] .ring {
     animation: none;
     transition: none;
   }

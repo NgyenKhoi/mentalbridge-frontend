@@ -268,7 +268,13 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="settings-page">
-        <section className="settings-runtime-state" aria-live="polite">
+        <section
+          className="settings-runtime-state"
+          aria-live="polite"
+          data-user-page-header
+          data-user-page-heading
+        >
+          <span data-user-page-kicker>Tài khoản của bạn</span>
           <h1>Đang tải hồ sơ</h1>
           <p>Thông tin đã lưu của bạn đang được tải.</p>
         </section>
@@ -278,8 +284,12 @@ export default function ProfilePage() {
 
   return (
     <div className="settings-page">
-      <header className="settings-hero">
-        <span>Tài khoản của bạn</span>
+      <header
+        className="settings-hero"
+        data-user-page-header
+        data-user-page-heading
+      >
+        <span data-user-page-kicker>Tài khoản của bạn</span>
         <h1>Hồ sơ và quyền riêng tư</h1>
         <p>Quản lý thông tin cá nhân và lựa chọn xử lý dữ liệu của bạn.</p>
       </header>

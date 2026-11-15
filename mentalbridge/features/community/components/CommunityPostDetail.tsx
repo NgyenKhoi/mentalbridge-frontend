@@ -17,6 +17,7 @@ import {
 } from '@/features/community/api/browser-community'
 import CommunityMedia from './CommunityMedia'
 import CommunityAvatar from './CommunityAvatar'
+import CommunityAuthorLink from './CommunityAuthorLink'
 import CommunityComments from './CommunityComments'
 import CommunitySafetyActions from './CommunitySafetyActions'
 import CommunityInteractions from './CommunityInteractions'
@@ -49,13 +50,24 @@ const DetailStatIcon = ({ name }: Readonly<{ name: 'heart' | 'comment' }>) => (
   </svg>
 )
 
-export default function CommunityPostDetail({ postId }: { postId: string }) {
+export default function CommunityPostDetail({
+  postId,
+  presentation = 'page',
+  onPostChange,
+  onUnavailable,
+}: Readonly<{
+  postId: string
+  presentation?: 'page' | 'dialog'
+  onPostChange?: (post: Post) => void
+  onUnavailable?: () => void
+}>) {
   const router = useRouter()
   const { confirm, showActionToast } = useFeedback()
   const [post, setPost] = useState<Post>()
   const [version, setVersion] = useState<number | null>(null)
   const [topics, setTopics] = useState<CommunityTopic[]>([])
   const [loading, setLoading] = useState(true)
+  const [retryAttempt, setRetryAttempt] = useState(0)
   const [message, setMessage] = useState('')
   const [editing, setEditing] = useState(false)
   const [content, setContent] = useState('')
@@ -68,6 +80,10 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
   const [sensitiveContentWarning, setSensitiveContentWarning] = useState<
     'SENSITIVE_CONTENT' | null
   >(null)
+
+  useEffect(() => {
+    if (post) onPostChange?.(post)
+  }, [post, onPostChange])
 
   const loadPost = useCallback(async () => {
     const result = await getCommunityPost(postId)
@@ -113,7 +129,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
     return () => {
       active = false
     }
-  }, [postId])
+  }, [postId, retryAttempt])
 
   function toggleTopic(topic: CommunityTopicCode) {
     setSelected((current) =>
@@ -193,7 +209,8 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
     try {
       await deleteCommunityPost(post.postId, version)
       showActionToast({ title: 'Đã xóa bài viết', tone: 'success' })
-      router.push('/community')
+      if (presentation === 'dialog') onUnavailable?.()
+      else router.push('/community')
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 412) {
         try {
@@ -231,16 +248,31 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
     return (
       <section className="community-state community-detail-state" role="alert">
         <h1>{message || 'Bài viết này không còn khả dụng.'}</h1>
-        <Link href="/community">Trở về bảng tin</Link>
+        {presentation === 'dialog' ? (
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true)
+              setMessage('')
+              setRetryAttempt((current) => current + 1)
+            }}
+          >
+            Thử tải lại
+          </button>
+        ) : (
+          <Link href="/community">Trở về bảng tin</Link>
+        )}
       </section>
     )
   }
 
   return (
     <div className="community-detail-page">
-      <Link className="community-back" href="/community">
-        ← Trở về bảng tin
-      </Link>
+      {presentation === 'page' && (
+        <Link className="community-back" href="/community">
+          ← Trở về bảng tin
+        </Link>
+      )}
       {message && (
         <p className="community-detail-message" role="alert">
           {message}
@@ -248,20 +280,24 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
       )}
       <article className="community-detail">
         <header>
-          <CommunityAvatar
-            displayName={post.author.displayName}
-            avatarPreset={post.author.avatarPreset}
-            avatarImage={post.author.avatarImage}
-            deleted={post.author.state === 'DELETED'}
-            anonymous={post.author.state === 'ANONYMOUS'}
-          />
+          <CommunityAuthorLink author={post.author}>
+            <CommunityAvatar
+              displayName={post.author.displayName}
+              avatarPreset={post.author.avatarPreset}
+              avatarImage={post.author.avatarImage}
+              deleted={post.author.state === 'DELETED'}
+              anonymous={post.author.state === 'ANONYMOUS'}
+            />
+          </CommunityAuthorLink>
           <div>
-            <strong>{post.author.displayName}</strong>
+            <strong>
+              <CommunityAuthorLink author={post.author} />
+            </strong>
             <time dateTime={post.publishedAt}>
               {communityTime(post.publishedAt)}
             </time>
           </div>
-          {version !== null && !editing && (
+          {version !== null && !editing && presentation === 'page' && (
             <div className="community-owner-actions">
               <button type="button" onClick={() => setEditing(true)}>
                 Chỉnh sửa
@@ -452,7 +488,10 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
                 targetType="POST"
                 targetId={post.postId}
                 communityProfileId={post.author.communityProfileId}
-                onHidden={() => router.push('/community')}
+                onHidden={() => {
+                  if (presentation === 'dialog') onUnavailable?.()
+                  else router.push('/community')
+                }}
               />
             )}
           </>
@@ -460,6 +499,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
       </article>
       <CommunityComments
         postId={post.postId}
+        focusComposer={presentation === 'dialog'}
         onCountChange={(difference) =>
           setPost((current) =>
             current

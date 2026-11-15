@@ -38,6 +38,7 @@ export type CompanionMessage = Readonly<{
 export type CompanionConversation = Readonly<{
   conversationId: string
   title: string
+  titleVersion?: string
   context: CompanionConversationContext
   messages: CompanionMessage[]
   createdAt: string
@@ -48,6 +49,7 @@ export type CompanionConversation = Readonly<{
 export type CompanionConversationSummary = Readonly<{
   conversationId: string
   title: string
+  titleVersion?: string
   createdAt: string
   updatedAt: string
   expiresAt: string
@@ -63,6 +65,8 @@ export type CompanionQuota = Readonly<{
 
 export type CompanionSend = Readonly<{
   conversationId: string
+  title?: string
+  titleVersion?: string
   userMessageId: string
   assistantMessageId: string
   assistant: string

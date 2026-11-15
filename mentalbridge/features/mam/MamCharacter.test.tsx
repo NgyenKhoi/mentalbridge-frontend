@@ -36,7 +36,20 @@ const runtime = vi.hoisted(() => {
       off: (cb) => (cb ? listeners.delete(cb) : listeners.clear()),
     }
   }
-  const oneShots = ['light_success', 'celebrate_soft', 'celebrate_hero']
+  const oneShots = [
+    'light_success',
+    'celebrate_soft',
+    'celebrate_hero',
+    'drowsy',
+    'wake',
+    'giggle',
+    'tickled',
+    'nod',
+    'stretch',
+    'look_around',
+    'scratch',
+    'point',
+  ]
 
   class Rive {
     cleanup = vi.fn()
@@ -204,6 +217,91 @@ describe('MamCharacter', () => {
     await waitFor(() => expect(instance.fired).toHaveLength(2))
   })
 
+  it('cuts a running one-shot and starts the next two frames later, once', async () => {
+    vi.useFakeTimers({
+      toFake: ['requestAnimationFrame', 'cancelAnimationFrame'],
+    })
+    const { rerender } = render(
+      <MamCharacter size={96} oneShot={{ kind: 'giggle', key: 'a' }} />,
+    )
+    const instance = await loaded()
+    expect(instance.fired).toEqual(['playOnce'])
+    expect(instance.values.behaviorState!.value).toBe('giggle')
+
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'tickled', key: 'b' }} />)
+    // The asset has no route from one one-shot to another: it is cut first.
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock'])
+    expect(instance.values.behaviorState!.value).toBe('idle')
+    act(() => void vi.advanceTimersByTime(16))
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock'])
+    act(() => void vi.advanceTimersByTime(16))
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock', 'playOnce'])
+    expect(instance.values.behaviorState!.value).toBe('tickled')
+    vi.useRealTimers()
+  })
+
+  it('drops a pending replay when the host withdraws the command or unmounts', async () => {
+    vi.useFakeTimers({
+      toFake: ['requestAnimationFrame', 'cancelAnimationFrame'],
+    })
+    const { rerender, unmount } = render(
+      <MamCharacter size={96} oneShot={{ kind: 'giggle', key: 'a' }} />,
+    )
+    const instance = await loaded()
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'tickled', key: 'b' }} />)
+    rerender(<MamCharacter size={96} oneShot={null} />)
+    act(() => void vi.advanceTimersByTime(64))
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock'])
+
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'nod', key: 'c' }} />)
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock', 'playOnce'])
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'giggle', key: 'd' }} />)
+    unmount()
+    act(() => void vi.advanceTimersByTime(64))
+    expect(instance.fired).toEqual([
+      'playOnce',
+      'returnToDock',
+      'playOnce',
+      'returnToDock',
+    ])
+    vi.useRealTimers()
+  })
+
+  it('follows the pointer gaze, but an active anchor wins and 0 returns to the gaze', async () => {
+    let value = 0.4
+    const listeners = new Set<() => void>()
+    const gaze = {
+      get: () => value,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener)
+        return () => void listeners.delete(listener)
+      },
+    }
+    const { rerender, unmount } = render(<MamCharacter size={96} gaze={gaze} />)
+    const instance = await loaded()
+    const attention = () => instance.values.attentionDirection!.value
+    expect(attention()).toBe(0.4)
+    value = -0.7
+    act(() => listeners.forEach((listener) => listener()))
+    expect(attention()).toBe(-0.7)
+
+    // The anchor owns the gaze while it is not 0, and the gaze listener is gone.
+    rerender(<MamCharacter size={96} gaze={gaze} attention={0.6} />)
+    expect(attention()).toBe(0.6)
+    expect(listeners.size).toBe(0)
+    value = 0.2
+    act(() => listeners.forEach((listener) => listener()))
+    expect(attention()).toBe(0.6)
+
+    rerender(<MamCharacter size={96} gaze={gaze} attention={0} />)
+    expect(attention()).toBe(0.2)
+    // Without a gaze source (ineligible host) the eyes return to the centre.
+    rerender(<MamCharacter size={96} />)
+    expect(attention()).toBe(0)
+    expect(listeners.size).toBe(0)
+    unmount()
+  })
+
   it('replays an older key that follows a different one (A, B, A)', async () => {
     const shot = (key: string) => ({ kind: 'light_success' as const, key })
     const { rerender } = render(<MamCharacter size={96} oneShot={shot('a')} />)
@@ -364,7 +462,7 @@ describe('MamCharacter', () => {
     const [first, second] = runtime.state.instances
     expect(first!.options.buffer).not.toBe(second!.options.buffer)
     expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch).toHaveBeenCalledWith('/mam/mam-v03.riv')
+    expect(fetch).toHaveBeenCalledWith('/mam/mam-v06.riv')
   })
 
   it('keeps the static pose when the asset download fails, and retries later', async () => {
@@ -390,5 +488,99 @@ describe('MamCharacter', () => {
     unmount()
     expect(instance.cleanup).toHaveBeenCalledTimes(1)
     act(() => instance.load())
+  })
+})
+
+// MB-814: dizzy shows for a broken renderer only, never for an unsupported device.
+describe('MamCharacter fallback reason', () => {
+  it('reports unsupported when the device has no canvas or WebAssembly', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('unsupported'))
+    expect(onFallback).toHaveBeenCalledTimes(1)
+    expect(runtime.state.instances).toHaveLength(0)
+  })
+
+  it.each([
+    ['the asset fails to load', () => (runtime.state.loadError = true)],
+    [
+      'the WASM runtime fails',
+      () => (runtime.state.runtimeError = new Error('wasm')),
+    ],
+  ])('reports an error when %s', async (_case, arrange) => {
+    arrange()
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    if (!runtime.state.runtimeError) {
+      await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+      act(() => runtime.state.instances[0]!.load())
+    }
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('error'))
+    expect(onFallback).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports an error when the asset breaks the contract', async () => {
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+    const instance = runtime.state.instances[0]!
+    delete instance.values.behaviorState
+    act(() => instance.load())
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('error'))
+  })
+
+  it('reports an error when the canvas context is lost', async () => {
+    const onFallback = vi.fn()
+    const { container } = render(
+      <MamCharacter size={96} onFallback={onFallback} />,
+    )
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+    act(() => runtime.state.instances[0]!.load())
+    act(() => {
+      container.querySelector('canvas')!.dispatchEvent(new Event('contextlost'))
+    })
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('error'))
+  })
+
+  // MB-815: the voice call mounts MamCharacter alone; a broken renderer leaves the static
+  // image and nothing else (dizzy belongs to the dock host).
+  it.each([
+    [
+      'unsupported',
+      () =>
+        vi
+          .spyOn(HTMLCanvasElement.prototype, 'getContext')
+          .mockReturnValue(null),
+    ],
+    ['error', () => (runtime.state.runtimeError = new Error('wasm'))],
+  ])(
+    'keeps a speaking in-call avatar as a static image on %s',
+    async (reason, arrange) => {
+      arrange()
+      const onFallback = vi.fn()
+      const { container } = render(
+        <MamCharacter size={164} behavior="speaking" onFallback={onFallback} />,
+      )
+      await waitFor(() => expect(onFallback).toHaveBeenCalledWith(reason))
+      expect(container.querySelector('img')).not.toBeNull()
+      expect(container.querySelector('canvas')?.dataset.ready).not.toBe('true')
+      expect(container.querySelector('[role], [data-mam-dizzy]')).toBeNull()
+    },
+  )
+
+  it('sets the speaking behavior on the asset', async () => {
+    render(<MamCharacter size={164} behavior="speaking" />)
+    const instance = await loaded()
+    expect(instance.values.behaviorState!.value).toBe('speaking')
+  })
+
+  it('reports nothing while the character renders', async () => {
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+    act(() => runtime.state.instances[0]!.load())
+    await act(async () => {})
+    expect(onFallback).not.toHaveBeenCalled()
   })
 })

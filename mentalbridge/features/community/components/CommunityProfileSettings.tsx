@@ -235,127 +235,138 @@ export default function CommunityProfileSettings() {
       </header>
 
       <form className="community-profile-form" onSubmit={save} noValidate>
-        <div
-          className="community-profile-preview"
-          aria-label="Xem trước danh tính"
-        >
-          <CommunityAvatar
-            displayName={displayName.trim() || '?'}
-            avatarPreset={avatarPreset}
-            avatarImage={profile?.avatarImage}
-          />
-          <div>
-            <span>Người khác sẽ thấy</span>
-            <strong>{displayName.trim() || 'Tên hiển thị của bạn'}</strong>
+        <aside className="community-profile-summary">
+          <div
+            className="community-profile-preview"
+            aria-label="Xem trước danh tính"
+          >
+            <CommunityAvatar
+              displayName={displayName.trim() || '?'}
+              avatarPreset={avatarPreset}
+              avatarImage={profile?.avatarImage}
+            />
+            <div>
+              <span>Người khác sẽ thấy</span>
+              <strong>{displayName.trim() || 'Tên hiển thị của bạn'}</strong>
+            </div>
           </div>
-        </div>
 
-        {profile ? (
-          <CommunityAvatarEditor
-            profile={profile}
-            etag={etag}
-            disabled={saving}
-            onCommit={commitPhoto}
-            onReload={reloadProfile}
-            onBusyChange={setPhotoBusy}
-            onDirtyChange={setPhotoDirty}
-          />
-        ) : (
-          <p>
-            Tạo danh tính cộng đồng trước, sau đó bạn có thể tải ảnh đại diện
-            lên.
-          </p>
-        )}
-
-        <div className="community-profile-field">
-          <label htmlFor="community-display-name">
-            Tên hiển thị hoặc biệt danh
-          </label>
-          <input
-            ref={nameInput}
-            id="community-display-name"
-            value={displayName}
-            onChange={(event) => {
-              setDisplayName(event.target.value)
-              setNameError('')
-            }}
-            maxLength={160}
-            autoComplete="off"
-            required
-            disabled={saving}
-            aria-invalid={Boolean(nameError)}
-            aria-describedby={
-              nameError
-                ? 'community-name-help community-name-error'
-                : 'community-name-help'
-            }
-          />
-          <small id="community-name-help">
-            Tối đa 80 ký tự. Tránh dùng họ tên thật nếu bạn muốn giữ riêng tư.
-          </small>
-          {nameError && (
-            <p
-              id="community-name-error"
-              className="community-profile-error"
-              role="alert"
-            >
-              {nameError}
+          <div className="community-profile-privacy">
+            <strong>Điều gì được công khai?</strong>
+            <p>
+              Tên hiển thị và ảnh hoặc biểu tượng bạn chọn. Danh tính tài khoản
+              được giữ kín để xác định quyền sở hữu, chặn và xử lý an toàn.
             </p>
-          )}
-        </div>
-
-        <fieldset disabled={saving}>
-          <legend>Biểu tượng dự phòng</legend>
-          <p>Được dùng khi bạn chưa chọn ảnh hoặc khi ảnh không tải được.</p>
-          <div className="community-avatar-options">
-            {avatarOptions.map((option) => (
-              <label key={option.value ?? 'INITIAL'}>
-                <input
-                  type="radio"
-                  name="avatarPreset"
-                  checked={avatarPreset === option.value}
-                  onChange={() => setAvatarPreset(option.value)}
-                />
-                <CommunityAvatar
-                  displayName={displayName.trim() || '?'}
-                  avatarPreset={option.value}
-                />
-                <span>{option.label}</span>
-              </label>
-            ))}
           </div>
-        </fieldset>
-
-        <aside className="community-profile-privacy">
-          <strong>Điều gì được công khai?</strong>
-          <p>
-            Tên hiển thị và ảnh hoặc biểu tượng bạn chọn. Danh tính tài khoản
-            được giữ kín để xác định quyền sở hữu, chặn và xử lý an toàn.
-          </p>
         </aside>
 
-        {error && (
-          <p className="community-profile-error" role="alert">
-            {error}
-          </p>
-        )}
-        {message && <p aria-live="polite">{message}</p>}
-        {stale && (
-          <button
-            type="button"
-            disabled={saving || photoBusy}
-            onClick={() => void reloadName()}
-          >
-            Tải thông tin mới
+        <div className="community-profile-editor">
+          {profile ? (
+            <CommunityAvatarEditor
+              profile={profile}
+              etag={etag}
+              disabled={saving}
+              onCommit={commitPhoto}
+              onReload={reloadProfile}
+              onBusyChange={setPhotoBusy}
+              onDirtyChange={setPhotoDirty}
+            />
+          ) : (
+            <p>
+              Tạo danh tính cộng đồng trước, sau đó bạn có thể tải ảnh đại diện
+              lên.
+            </p>
+          )}
+
+          <div className="community-profile-field">
+            <label htmlFor="community-display-name">
+              Tên hiển thị hoặc biệt danh
+            </label>
+            <input
+              ref={nameInput}
+              id="community-display-name"
+              value={displayName}
+              onChange={(event) => {
+                setDisplayName(event.target.value)
+                setNameError('')
+              }}
+              maxLength={160}
+              autoComplete="off"
+              required
+              disabled={saving}
+              aria-invalid={Boolean(nameError)}
+              aria-describedby={
+                nameError
+                  ? 'community-name-help community-name-error'
+                  : 'community-name-help'
+              }
+            />
+            <small id="community-name-help">
+              Tối đa 80 ký tự. Tránh dùng họ tên thật nếu bạn muốn giữ riêng tư.
+            </small>
+            {nameError && (
+              <p
+                id="community-name-error"
+                className="community-profile-error"
+                role="alert"
+              >
+                {nameError}
+              </p>
+            )}
+          </div>
+
+          <fieldset disabled={saving}>
+            <legend>Biểu tượng dự phòng</legend>
+            <p>Được dùng khi bạn chưa chọn ảnh hoặc khi ảnh không tải được.</p>
+            <div className="community-avatar-options">
+              {avatarOptions.map((option) => (
+                <label
+                  key={option.value ?? 'INITIAL'}
+                  className={
+                    option.value === null
+                      ? 'community-avatar-initial'
+                      : undefined
+                  }
+                >
+                  <input
+                    type="radio"
+                    name="avatarPreset"
+                    checked={avatarPreset === option.value}
+                    onChange={() => setAvatarPreset(option.value)}
+                  />
+                  <CommunityAvatar
+                    displayName={displayName.trim() || '?'}
+                    avatarPreset={option.value}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          {error && (
+            <p className="community-profile-error" role="alert">
+              {error}
+            </p>
+          )}
+          {message && <p aria-live="polite">{message}</p>}
+          {stale && (
+            <button
+              type="button"
+              disabled={saving || photoBusy}
+              onClick={() => void reloadName()}
+            >
+              Tải thông tin mới
+            </button>
+          )}
+          <button type="submit" disabled={saving || photoBusy || stale}>
+            {saving
+              ? 'Đang lưu…'
+              : profile
+                ? 'Lưu thay đổi'
+                : 'Tạo danh tính cộng đồng'}
           </button>
-        )}
-        <button type="submit" disabled={saving || photoBusy || stale}>
-          {saving
-            ? 'Đang lưu…'
-            : profile
-              ? 'Lưu thay đổi'
-              : 'Tạo danh tính cộng đồng'}
-        </button>
+        </div>
       </form>
     </div>
   )

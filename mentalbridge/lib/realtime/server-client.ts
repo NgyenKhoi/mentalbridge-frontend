@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { readRealtimeServerConfig } from '@/lib/config/server'
+import { parseCommunityCredential } from '@/features/community-chat/api/community-presence'
 
 export class RealtimeServiceError extends Error {
   constructor(
@@ -16,7 +17,8 @@ async function call(
   path: string,
   token: string,
   correlationId: string,
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE' | 'PATCH',
+  options: Readonly<{ idempotencyKey?: string; body?: unknown }> = {},
 ) {
   const config = readRealtimeServerConfig()
   let response: Response
@@ -29,7 +31,12 @@ async function call(
         Accept: 'application/json, application/problem+json',
         Authorization: `Bearer ${token}`,
         'X-Correlation-Id': correlationId,
+        ...(options.idempotencyKey
+          ? { 'Idempotency-Key': options.idempotencyKey }
+          : {}),
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
       },
+      ...(options.body ? { body: JSON.stringify(options.body) } : {}),
       signal: AbortSignal.timeout(config.timeoutMs),
     })
   } catch {
@@ -62,6 +69,24 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 export const realtimeServerClient = {
+  async communityCredential(token: string, correlationId: string) {
+    const config = readRealtimeServerConfig()
+    const credential = parseCommunityCredential(
+      await call(
+        '/api/v1/community/socket-credentials',
+        token,
+        correlationId,
+        'POST',
+      ),
+    )
+    if (!credential || Date.parse(credential.expiresAt) <= Date.now())
+      throw new RealtimeServiceError(
+        502,
+        'REALTIME_MALFORMED_RESPONSE',
+        'Realtime returned an invalid response.',
+      )
+    return { ...credential, endpoint: config.publicUrl }
+  },
   async credential(token: string, correlationId: string) {
     const config = readRealtimeServerConfig()
     const value = asRecord(
@@ -101,6 +126,37 @@ export const realtimeServerClient = {
       token,
       correlationId,
       'GET',
+    )
+  },
+  removeOwnMessage(
+    token: string,
+    correlationId: string,
+    conversationId: string,
+    messageId: string,
+    idempotencyKey: string,
+  ) {
+    return call(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
+      token,
+      correlationId,
+      'DELETE',
+      { idempotencyKey },
+    )
+  },
+  reportMessage(
+    token: string,
+    correlationId: string,
+    conversationId: string,
+    messageId: string,
+    idempotencyKey: string,
+    body: unknown,
+  ) {
+    return call(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reports`,
+      token,
+      correlationId,
+      'POST',
+      { idempotencyKey, body },
     )
   },
 }

@@ -19,3 +19,4 @@ run_milestone_phase support-plan npm run e2e:android:support-plan
 run_milestone_phase resources npm run e2e:android:resources
 run_milestone_phase journal npm run e2e:android:journal
 run_milestone_phase specialist npm run e2e:android:specialist
+run_milestone_phase mb-666-capstone npm run e2e:android:capstone

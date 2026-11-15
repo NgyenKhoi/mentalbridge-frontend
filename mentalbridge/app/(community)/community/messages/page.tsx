@@ -15,9 +15,12 @@ export default async function CommunityMessagesPage({
   )
   return (
     <CommunityChatWorkspace
-      key={consentTarget ?? 'conversations'}
+      key={
+        consentTarget ?? (query.view === 'groups' ? 'groups' : 'conversations')
+      }
       recipientCommunityProfileId={recipient}
       initialTab={consentTarget ? 'requests' : 'conversations'}
+      groupsOnly={query.view === 'groups'}
     />
   )
 }

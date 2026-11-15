@@ -29,6 +29,7 @@ export function MamCardButton({
   onToggle,
   expanded,
   controls,
+  hiddenUntilFocus = false,
 }: Readonly<{
   id?: string
   label: string
@@ -36,6 +37,12 @@ export function MamCardButton({
   onToggle?: () => void
   expanded?: boolean
   controls?: string
+  /**
+   * Visually hidden at rest, still in the DOM with its name and action; the
+   * disc shows on `:focus-visible`. Right-click or long-press summons for
+   * everyone else (MB-814).
+   */
+  hiddenUntilFocus?: boolean
 }>) {
   const { hidden } = useMamPreferences()
   const suppressed = useMamSuppressed()
@@ -70,7 +77,11 @@ export function MamCardButton({
     <button
       id={id}
       type="button"
-      className={styles.button}
+      className={
+        hiddenUntilFocus
+          ? `${styles.button} ${styles.hiddenUntilFocus}`
+          : styles.button
+      }
       data-mam-trigger=""
       aria-label={label}
       aria-disabled={inert || undefined}

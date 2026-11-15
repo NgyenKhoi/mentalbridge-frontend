@@ -19,6 +19,7 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('./browser-home-next-step', () => ({ getHomeNextStep: vi.fn() }))
 vi.mock('./home-destination', () => ({ homeDestination: vi.fn() }))
+vi.mock('./HomeScreeningNotice', () => ({ HomeScreeningNotice: () => null }))
 vi.mock('./HomeGreeting', () => ({
   HomeGreeting: () => (
     <header data-testid="home-greeting">Chào buổi sáng</header>
@@ -196,7 +197,7 @@ describe('HomeHub', () => {
   })
 
   it.each([null, homePlanFixture('DO_TODAY')])(
-    'renders safety with no motion or secondary sections (plan: %s)',
+    'keeps safety first without hiding ordinary dashboard sections (plan: %s)',
     async (plan) => {
       vi.mocked(getHomeNextStep).mockResolvedValue(
         homeNextStepFixture({
@@ -215,10 +216,22 @@ describe('HomeHub', () => {
         'off',
       )
       for (const name of ['Cảm xúc', 'Tài nguyên gợi ý', 'Buổi hẹn sắp tới'])
-        expect(screen.queryByRole('region', { name })).toBeNull()
+        expect(screen.getByRole('region', { name })).toBeVisible()
       expect(
-        screen.queryByRole('navigation', { name: 'Hành động nhanh' }),
-      ).toBeNull()
+        screen.getByRole('navigation', { name: 'Hành động nhanh' }),
+      ).toBeVisible()
+      for (const name of ['Tài nguyên gợi ý', 'Buổi hẹn sắp tới'])
+        expect(screen.getByRole('region', { name })).toHaveAttribute(
+          'data-summonable',
+          'false',
+        )
+      expect(
+        screen
+          .getByRole('region', { name: 'Bước tiếp theo' })
+          .compareDocumentPosition(
+            screen.getByRole('region', { name: 'Cảm xúc' }),
+          ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
       if (plan)
         expect(
           screen.getByRole('link', { name: 'Mở kế hoạch' }),
@@ -268,7 +281,7 @@ describe('HomeHub', () => {
       screen.queryByRole('button', { name: 'Lưu cảm xúc trong kế hoạch' }),
     ).toBeNull()
     expect(
-      screen.queryByRole('navigation', { name: 'Hành động nhanh' }),
-    ).toBeNull()
+      screen.getByRole('navigation', { name: 'Hành động nhanh' }),
+    ).toBeVisible()
   })
 })

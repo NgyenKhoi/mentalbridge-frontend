@@ -194,6 +194,31 @@ describe('browser authentication', () => {
     expect(called).toHaveBeenCalledOnce()
   })
 
+  it('drops every unsent AI Companion draft on logout, even when the request fails', async () => {
+    window.sessionStorage.setItem('mb.companion.draft.acc.conv', 'riêng tư')
+    window.sessionStorage.setItem(
+      'mb.companion.pending.acc.conv',
+      '{"key":"k","text":"riêng tư"}',
+    )
+    window.sessionStorage.setItem('other', 'keep')
+    mockServer.use(
+      http.post(
+        'http://localhost/api/identity/logout',
+        () => new HttpResponse(null, { status: 503 }),
+      ),
+    )
+
+    await terminateSession('current').catch(() => undefined)
+    expect(
+      window.sessionStorage.getItem('mb.companion.draft.acc.conv'),
+    ).toBeNull()
+    expect(
+      window.sessionStorage.getItem('mb.companion.pending.acc.conv'),
+    ).toBeNull()
+    expect(window.sessionStorage.getItem('other')).toBe('keep')
+    window.sessionStorage.clear()
+  })
+
   it('keeps account failures generic while identifying a dependency outage', () => {
     expect(loginErrorMessage(new Error('locked account'))).not.toContain(
       'locked',

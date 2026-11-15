@@ -30,6 +30,15 @@ import CompanionContextDialog from './CompanionContextDialog'
 import StreamingText from './StreamingText'
 import { suggestionLink } from './suggestion-link'
 import VoiceEntry from '../voice/VoiceEntry'
+import {
+  clearCompanionDraft,
+  clearCompanionPending,
+  readCompanionDraft,
+  readCompanionPending,
+  writeCompanionDraft,
+  writeCompanionPending,
+  type CompanionPending,
+} from './companion-draft-storage'
 
 const starters = [
   'Mình đang thấy lo âu',
@@ -147,7 +156,9 @@ function SparkIcon() {
   )
 }
 
-export default function AiCompanionChat() {
+export default function AiCompanionChat({
+  accountId,
+}: Readonly<{ accountId: string }>) {
   const { confirm, showActionToast } = useFeedback()
   const [conversations, setConversations] = useState<
     CompanionConversationSummary[]
@@ -158,7 +169,10 @@ export default function AiCompanionChat() {
   const [quota, setQuota] = useState<CompanionQuota | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<{
+    message: string
+    retry: 'load' | 'send'
+  } | null>(null)
   const [search, setSearch] = useState('')
   const [contextOpen, setContextOpen] = useState(false)
   const [contextSaving, setContextSaving] = useState(false)
@@ -166,7 +180,9 @@ export default function AiCompanionChat() {
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
-  const pendingKey = useRef<string | null>(null)
+  // One command per conversation; its key is valid only for the exact text it was issued for.
+  const pendingRef = useRef<Record<string, CompanionPending>>({})
+  const activeIdRef = useRef('')
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const messagesRef = useRef<HTMLDivElement | null>(null)
   const nearBottomRef = useRef(true)
@@ -174,6 +190,9 @@ export default function AiCompanionChat() {
   const requestControllerRef = useRef<AbortController | null>(null)
 
   const activeId = active?.conversationId ?? ''
+  useEffect(() => {
+    activeIdRef.current = activeId
+  }, [activeId])
   const message = activeId ? (drafts[activeId] ?? '') : ''
   const contextCount = active
     ? Number(active.context.sources.plan) +
@@ -190,14 +209,14 @@ export default function AiCompanionChat() {
   const setMessage = (value: string) => {
     if (!activeId) return
     setDrafts((current) => ({ ...current, [activeId]: value }))
-    pendingKey.current = null
+    writeCompanionDraft(accountId, activeId, value)
   }
 
   const setContextVisibility = (open: boolean) => setContextOpen(open)
 
   const load = useCallback(async () => {
     setLoading(true)
-    setError('')
+    setError(null)
     try {
       const today = localDate()
       const [history, resourceResult] = await Promise.all([
@@ -208,6 +227,14 @@ export default function AiCompanionChat() {
         ]).catch(() => null),
       ])
       setConversations(history.items)
+      const stored: Record<string, string> = {}
+      for (const item of history.items) {
+        const draft = readCompanionDraft(accountId, item.conversationId)
+        if (draft) stored[item.conversationId] = draft
+        const pending = readCompanionPending(accountId, item.conversationId)
+        if (pending) pendingRef.current[item.conversationId] ??= pending
+      }
+      setDrafts((current) => ({ ...stored, ...current }))
       setActive(
         history.items[0]
           ? await companionBrowserClient.get(history.items[0].conversationId)
@@ -219,11 +246,11 @@ export default function AiCompanionChat() {
         setResources(catalogue.items.filter((item) => viewed.has(item.id)))
       } else setResources([])
     } catch (cause) {
-      setError(friendlyError(cause))
+      setError({ message: friendlyError(cause), retry: 'load' })
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [accountId])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -246,7 +273,7 @@ export default function AiCompanionChat() {
 
   const createConversation = async () => {
     if (!(await allowConversationChange())) return
-    setError('')
+    setError(null)
     try {
       const created = await companionBrowserClient.create()
       setConversations((current) => [
@@ -258,10 +285,9 @@ export default function AiCompanionChat() {
       setActive(created)
       setQuota(null)
       setMobileView('chat')
-      pendingKey.current = null
       showActionToast({ title: 'Đã tạo cuộc trò chuyện mới' })
     } catch (cause) {
-      setError(friendlyError(cause))
+      setError({ message: friendlyError(cause), retry: 'load' })
     }
   }
 
@@ -271,38 +297,50 @@ export default function AiCompanionChat() {
       return
     }
     if (!(await allowConversationChange())) return
-    setError('')
+    setError(null)
     try {
       setActive(await companionBrowserClient.get(id))
       setQuota(null)
       setMobileView('chat')
-      pendingKey.current = null
     } catch (cause) {
-      setError(friendlyError(cause))
+      setError({ message: friendlyError(cause), retry: 'load' })
     }
   }
 
   const send = async () => {
     const text = message.trim()
     if (!active || !text || sending) return
+    const originId = active.conversationId
     setSending(true)
-    setError('')
-    pendingKey.current ??= crypto.randomUUID()
+    setError(null)
+    // Written before dispatch so a reload cannot lose the key of an unconfirmed command.
+    const stored = pendingRef.current[originId]
+    const pending =
+      stored?.text === text ? stored : { key: crypto.randomUUID(), text }
+    pendingRef.current[originId] = pending
+    writeCompanionPending(accountId, originId, pending)
+    const settle = () => {
+      delete pendingRef.current[originId]
+      clearCompanionPending(accountId, originId)
+    }
     const controller = new AbortController()
     requestControllerRef.current = controller
     let animating = false
     try {
       const result = await companionBrowserClient.send(
-        active.conversationId,
+        originId,
         { message: text },
-        pendingKey.current,
+        pending.key,
         controller.signal,
       )
       if (controller.signal.aborted) return
-      animating = true
+      // The user may have switched away; then the answer is on the server, not in view.
+      animating = activeIdRef.current === originId
       setQuota(result.quota)
-      streamTextRef.current = ''
-      setStreamingId(result.assistantMessageId)
+      if (animating) {
+        streamTextRef.current = ''
+        setStreamingId(result.assistantMessageId)
+      }
       setActive((current) =>
         current?.conversationId === active.conversationId
           ? {
@@ -336,7 +374,8 @@ export default function AiCompanionChat() {
         ),
       ])
       setDrafts((current) => ({ ...current, [active.conversationId]: '' }))
-      pendingKey.current = null
+      clearCompanionDraft(accountId, originId)
+      settle()
     } catch (cause) {
       if (controller.signal.aborted) return
       if (
@@ -344,11 +383,15 @@ export default function AiCompanionChat() {
         cause.code !== 'CHAT_REQUEST_IN_PROGRESS' &&
         cause.code !== 'COMPANION_OUTCOME_UNKNOWN'
       )
-        pendingKey.current = null
-      setError(friendlyError(cause))
+        settle()
+      if (activeIdRef.current === originId)
+        setError({ message: friendlyError(cause), retry: 'send' })
     } finally {
-      requestControllerRef.current = null
-      if (!animating) setSending(false)
+      // A stopped request may settle after its replacement started: only the current one may release.
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null
+        if (!animating) setSending(false)
+      }
     }
   }
 
@@ -398,7 +441,7 @@ export default function AiCompanionChat() {
   const saveContext = async (sources: CompanionContextSources) => {
     if (!active) return
     setContextSaving(true)
-    setError('')
+    setError(null)
     try {
       const updated = await companionBrowserClient.updateContext(
         active.conversationId,
@@ -429,7 +472,7 @@ export default function AiCompanionChat() {
       setContextVisibility(false)
       showActionToast({ title: 'Đã lưu nguồn thông tin' })
     } catch (cause) {
-      setError(friendlyError(cause))
+      setError({ message: friendlyError(cause), retry: 'load' })
     } finally {
       setContextSaving(false)
     }
@@ -447,28 +490,30 @@ export default function AiCompanionChat() {
     if (!confirmed) return
     try {
       await companionBrowserClient.remove(removedId)
+      clearCompanionDraft(accountId, removedId)
+      clearCompanionPending(accountId, removedId)
+      delete pendingRef.current[removedId]
       const remaining = conversations.filter(
         (item) => item.conversationId !== removedId,
       )
+      // Drop the deleted conversation first: a failed load of the next one must not leave it on screen.
       setConversations(remaining)
-      setActive(
-        remaining[0]
-          ? await companionBrowserClient.get(remaining[0].conversationId)
-          : null,
-      )
       setDrafts((current) => {
         const next = { ...current }
         delete next[removedId]
         return next
       })
+      setActive(null)
       setQuota(null)
       setMobileView('list')
+      if (remaining[0])
+        setActive(await companionBrowserClient.get(remaining[0].conversationId))
       showActionToast({
         title: 'Đã xóa cuộc trò chuyện',
         description: 'Các tin nhắn trong cuộc trò chuyện đã được xóa.',
       })
     } catch (cause) {
-      setError(friendlyError(cause))
+      setError({ message: friendlyError(cause), retry: 'load' })
     }
   }
 
@@ -660,10 +705,19 @@ export default function AiCompanionChat() {
 
         {error ? (
           <div className={styles.error} role="alert">
-            <p>{error}</p>
-            <button type="button" onClick={() => void load()}>
-              Tải lại
-            </button>
+            <p>{error.message}</p>
+            {error.retry === 'load' || (active && message.trim()) ? (
+              <button
+                type="button"
+                disabled={loading || sending}
+                onClick={() => {
+                  if (error.retry === 'send') void send()
+                  else void load()
+                }}
+              >
+                {error.retry === 'send' ? 'Gửi lại' : 'Tải lại'}
+              </button>
+            ) : null}
           </div>
         ) : null}
 

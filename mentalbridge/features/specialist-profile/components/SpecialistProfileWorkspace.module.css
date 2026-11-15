@@ -368,12 +368,30 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
   padding: 12px 16px;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 -4px 18px rgba(31, 90, 77, 0.1);
   backdrop-filter: blur(6px);
+}
+
+.actionReasons {
+  flex-basis: 100%;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.actionReasons p {
+  margin: 3px 0;
+}
+
+.actionReasons strong {
+  font-weight: 600;
 }
 
 .actionBar > span {

@@ -61,17 +61,20 @@ export interface AssessmentApi {
   ): Promise<SafetyDirectoryResponse>
 }
 
-export function createAssessmentApi(client: AxiosInstance): AssessmentApi {
+export function createAssessmentApi(
+  client: AxiosInstance,
+  purpose: ScreeningEpisode['purpose'] = 'INITIAL_CHECK',
+): AssessmentApi {
   return {
     async getCurrentEpisode() {
       const response = await client.get('/api/v1/screening-episodes/current', {
-        params: { purpose: 'INITIAL_CHECK' },
+        params: { purpose },
       })
       return screeningEpisodeSchema.parse(response.data)
     },
     async startEpisode() {
       const response = await client.post('/api/v1/screening-episodes', {
-        purpose: 'INITIAL_CHECK',
+        purpose,
       })
       return screeningEpisodeSchema.parse(response.data)
     },

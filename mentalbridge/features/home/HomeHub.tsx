@@ -8,12 +8,14 @@ import type { PublicResourceSummary } from '@/features/resources/api/browser-res
 import { PlanEmotionCheckIn } from '@/features/emotion-check-in/PlanEmotionCheckIn'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useMamPageTarget } from '@/features/mam/use-mam-target'
+import { useMamSuppress } from '@/features/mam/mam-suppression'
 import HomeNextStepCard from './HomeNextStepCard'
 import { HomeGreeting } from './HomeGreeting'
 import { HomeQuickActions } from './HomeQuickActions'
 import { HomeEmotionSection } from './HomeEmotionSection'
 import { HomeResources } from './HomeResources'
 import { HomeUpcomingAppointment } from './HomeUpcomingAppointment'
+import { HomeScreeningNotice } from './HomeScreeningNotice'
 import { getHomeNextStep } from './browser-home-next-step'
 import { homeDestination } from './home-destination'
 
@@ -100,6 +102,7 @@ export function HomeHub() {
   const home = state.phase === 'ready' ? state.home : null
   const safety = home?.journey.nextAction === 'REVIEW_SAFETY_SUPPORT'
   const loading = state.phase === 'loading'
+  useMamSuppress(safety, 'hide')
   // Safety support and the emotion check-in are no-interrupt zones (ADR).
   useMamPageTarget(safety || planEmotion ? null : { kind: 'dashboard.page' })
 
@@ -110,6 +113,7 @@ export function HomeHub() {
       data-page-motion={safety ? 'off' : undefined}
     >
       <HomeGreeting home={home} safety={safety} />
+      {home && <HomeScreeningNotice journey={home.journey} />}
       <div className="home-primary-slot" data-page-motion="off">
         {planEmotion && !safety ? (
           <section
@@ -158,18 +162,18 @@ export function HomeHub() {
           )
         )}
       </div>
-      {!safety && !planEmotion && <HomeEmotionSection onPersisted={reload} />}
-      {!safety && (
-        <div className="home-secondary-row" data-page-motion="off">
-          <HomeResources
-            home={home}
-            loading={loading}
-            summonable={!planEmotion}
-          />
-          <HomeUpcomingAppointment summonable={!planEmotion} />
-        </div>
+      {!planEmotion && (
+        <HomeEmotionSection onPersisted={reload} motionOff={safety} />
       )}
-      {!safety && <HomeQuickActions home={home} />}
+      <div className="home-secondary-row" data-page-motion="off">
+        <HomeResources
+          home={home}
+          loading={loading}
+          summonable={!safety && !planEmotion}
+        />
+        <HomeUpcomingAppointment summonable={!safety && !planEmotion} />
+      </div>
+      <HomeQuickActions home={home} />
     </div>
   )
 }

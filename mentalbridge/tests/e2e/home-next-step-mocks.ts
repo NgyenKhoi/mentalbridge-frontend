@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, type Route } from '@playwright/test'
+import { combinedMeaningFixture } from '../fixtures/combined-meaning'
 import type {
   GuidedJourney,
   HomeNextStep,
@@ -326,6 +327,22 @@ export async function installHomeMocks(
       return json(route, homeResponse(world))
     }
     if (path === '/api/care/guided-journey') return json(route, world.journey)
+    if (
+      path === `/api/care/support-evaluations/${evaluationId}/combined-meaning`
+    ) {
+      const meaning = combinedMeaningFixture({
+        supportEvaluationId: evaluationId,
+        episodeId: world.journey.episodeId ?? undefined,
+        priority:
+          world.journey.nextAction === 'REVIEW_SAFETY_SUPPORT'
+            ? 'SAFETY'
+            : 'SELF_GUIDED',
+      })
+      return json(route, {
+        ...meaning,
+        episodeCompletedAt: world.journey.episodeCompletedAt,
+      })
+    }
     if (path === '/api/care/v2/support-plans/current/resource-actions') {
       await world.holdSections
       const projection = resourceActionsProjection(

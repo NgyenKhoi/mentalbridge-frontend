@@ -660,7 +660,7 @@ describe('Consultation contract validation', () => {
     expect(parseSpecialistDiscoveryPage(discoveryPage)).toEqual(discoveryPage)
   })
 
-  it('fails closed on malformed or stale discovery slots and entitlement drift', () => {
+  it('accepts an approved profile without slots when its availability explanation agrees', () => {
     expect(
       parseSpecialistDiscoveryItem({
         ...discoveryItem,
@@ -674,7 +674,13 @@ describe('Consultation contract validation', () => {
           ),
         },
       }),
+    ).not.toBeNull()
+    expect(
+      parseSpecialistDiscoveryItem({ ...discoveryItem, selectableSlots: [] }),
     ).toBeNull()
+  })
+
+  it('fails closed on malformed or stale discovery slots and entitlement drift', () => {
     expect(
       parseSpecialistDiscoveryItem({
         ...discoveryItem,

@@ -482,7 +482,13 @@ function JourneyContinuation({
 
 export function AssessmentJourneyScreen({
   api,
-}: Readonly<{ api: AssessmentApi }>) {
+  reassessment = false,
+  onReassessmentComplete,
+}: Readonly<{
+  api: AssessmentApi
+  reassessment?: boolean
+  onReassessmentComplete?: () => void
+}>) {
   const { session, signOut } = useSession()
   const [overview, setOverview] = useState<Overview | null>(null)
   const [view, setView] = useState<ViewState>({ name: 'overview' })
@@ -571,6 +577,11 @@ export function AssessmentJourneyScreen({
             ),
           }
         : await api.completeEpisode(episode.episodeId)
+
+    if (reassessment && onReassessmentComplete) {
+      onReassessmentComplete()
+      return
+    }
 
     const { guide, journey } = await prepareGuide(outcome.episode.episodeId)
     const latestGuides = await api.listSupportGuides().catch(() => null)
@@ -1053,7 +1064,9 @@ export function AssessmentJourneyScreen({
       <BackButton onPress={() => router.back()} />
       <Text style={styles.eyebrow}>CHĂM SÓC BẢN THÂN</Text>
       <Text accessibilityRole="header" style={styles.title}>
-        Sàng lọc và gợi ý hỗ trợ
+        {reassessment
+          ? 'Kiểm tra lại cho giai đoạn này'
+          : 'Sàng lọc và gợi ý hỗ trợ'}
       </Text>
       <Text style={styles.description}>
         Hoàn thành PHQ-9 rồi GAD-7 theo nội dung đã được duyệt. Câu trả lời chỉ
@@ -1086,7 +1099,9 @@ export function AssessmentJourneyScreen({
             <Text style={styles.sectionTitle}>
               {overview.episode && overview.episode.status !== 'COMPLETED'
                 ? 'Tiếp tục lượt đang làm'
-                : 'Bắt đầu lượt sàng lọc'}
+                : reassessment
+                  ? 'Bắt đầu lượt kiểm tra lại'
+                  : 'Bắt đầu lượt sàng lọc'}
             </Text>
             <Text style={styles.body}>
               Hai bài hỏi về trải nghiệm trong 14 ngày gần đây. Kết quả dùng để

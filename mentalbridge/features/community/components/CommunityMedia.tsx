@@ -2,11 +2,12 @@
 
 import { ArrowLeft, ArrowRight, Expand, ImageOff, Play, X } from 'lucide-react'
 import Image from 'next/image'
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent } from 'react'
 
 import { Dialog } from '@/components/ui/Dialog'
 import type { components } from '@/contracts/community.generated'
+import { useCommunityVideoPlayback } from './useCommunityVideoPlayback'
 
 import styles from './CommunityMedia.module.css'
 
@@ -40,6 +41,8 @@ function MediaAsset({
   const [ratio, setRatio] = useState(size.width / size.height)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  const networkRetried = useRef(false)
+  const videoRef = useCommunityVideoPlayback()
   const alt =
     item.altText ||
     (item.type === 'IMAGE'
@@ -69,6 +72,7 @@ function MediaAsset({
               type="button"
               onClick={() => {
                 setAttempt((current) => current + 1)
+                networkRetried.current = false
                 setFailed(false)
               }}
             >
@@ -99,10 +103,13 @@ function MediaAsset({
         />
       ) : (
         <video
+          ref={videoRef}
           key={attempt}
+          src={item.url}
           className={styles.preview}
           preload="metadata"
-          muted={!viewer}
+          muted
+          loop
           controls={viewer}
           playsInline
           aria-label={alt}
@@ -112,16 +119,28 @@ function MediaAsset({
               event.currentTarget.videoHeight,
             )
           }
-          onError={() => setFailed(true)}
-        >
-          <source src={item.url} />
-        </video>
+          onError={(event) => {
+            const video = event.currentTarget
+            if (video.error?.code === 2 && !networkRetried.current) {
+              networkRetried.current = true
+              video.load()
+              return
+            }
+            setFailed(true)
+          }}
+        />
       )}
     </span>
   )
 }
 
-export default function CommunityMedia({ media }: { media: readonly Media[] }) {
+export default function CommunityMedia({
+  media,
+  compact = false,
+}: {
+  media: readonly Media[]
+  compact?: boolean
+}) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const viewerId = useId()
   const active = activeIndex === null ? undefined : media[activeIndex]
@@ -163,10 +182,15 @@ export default function CommunityMedia({ media }: { media: readonly Media[] }) {
           'community-media',
           styles.media,
           media.length === 1 ? styles.single : styles.grid,
+          compact ? styles.compact : '',
         ].join(' ')}
       >
-        {media.slice(0, 4).map((item, index) => {
-          const remaining = index === 3 ? media.length - 4 : 0
+        {media.slice(0, compact ? 1 : 4).map((item, index) => {
+          const remaining = compact
+            ? media.length - 1
+            : index === 3
+              ? media.length - 4
+              : 0
           return (
             <button
               className={styles.trigger}

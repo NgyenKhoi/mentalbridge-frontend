@@ -1,0 +1,132 @@
+/* Over the character box, never wider: the box is the dock button. */
+.root {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+
+/* Drawn at the 96 px reference and scaled to the character size. */
+.art {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 96px;
+  height: 96px;
+  transform-origin: 0 0;
+}
+
+.art svg {
+  display: block;
+  overflow: visible;
+}
+
+/* The face colour of the pose, covering the calm eyes and the smile. */
+.patch {
+  fill: #f5eedc; /* Mầm's face tone in the rig */
+}
+
+/* Heavy and dark: a swirl and a wobbly mouth read at 72 px. */
+.stroke {
+  fill: none;
+  stroke: #1f3f3a; /* a darker step of Mầm's outline colour */
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.swirl {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mam-swirl 1s linear infinite;
+}
+
+/* Amber stars with an edge, about 10 px in the 96 box, above and around the head. */
+.star {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mam-orbit 1.6s linear infinite;
+}
+
+.star path {
+  fill: var(--amber);
+  stroke: var(--amber-deep);
+  stroke-width: 0.7px;
+  stroke-linejoin: round;
+}
+
+.star[data-star='1'] {
+  animation-delay: -0.53s;
+}
+
+.star[data-star='2'] {
+  animation-delay: -1.07s;
+}
+
+@keyframes mam-swirl {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* An ellipse of about 32 x 8 px around the sprout; the far side is smaller and fainter. */
+@keyframes mam-orbit {
+  0% {
+    transform: translate(-32px, 0) scale(0.85);
+  }
+
+  25% {
+    transform: translate(0, 8px) scale(1.1);
+  }
+
+  50% {
+    transform: translate(32px, 0) scale(0.85);
+  }
+
+  75% {
+    opacity: 0.55;
+    transform: translate(0, -8px) scale(0.65);
+  }
+
+  100% {
+    transform: translate(-32px, 0) scale(0.85);
+  }
+}
+
+/* Still (reduced motion, or after the 8 s): rest at three points of the same ellipse. */
+.root[data-still='true'] .swirl,
+.root[data-still='true'] .star {
+  animation: none;
+}
+
+.root[data-still='true'] .star[data-star='0'] {
+  transform: translate(-32px, 0) scale(0.95);
+}
+
+.root[data-still='true'] .star[data-star='1'] {
+  transform: translate(32px, 0) scale(0.95);
+}
+
+.root[data-still='true'] .star[data-star='2'] {
+  opacity: 0.8;
+  transform: translate(0, -8px) scale(0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swirl,
+  .star {
+    animation: none;
+  }
+
+  .star[data-star='0'] {
+    transform: translate(-32px, 0) scale(0.95);
+  }
+
+  .star[data-star='1'] {
+    transform: translate(32px, 0) scale(0.95);
+  }
+
+  .star[data-star='2'] {
+    opacity: 0.8;
+    transform: translate(0, -8px) scale(0.85);
+  }
+}

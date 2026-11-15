@@ -139,6 +139,8 @@ function message(
     type: 'TEXT',
     content,
     sentAt,
+    state: 'VISIBLE',
+    deletedAt: null,
     schemaVersion: 1,
   }
 }

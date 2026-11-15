@@ -488,6 +488,7 @@
   border-radius: 13px;
   background: var(--terracotta-soft);
   color: #7e493d;
+  animation: mb-data-enter var(--motion-base) var(--ease-standard) both;
 }
 
 .error p {
@@ -497,10 +498,18 @@
 }
 .error button {
   flex: none;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 9px;
   color: inherit;
   font-size: 12px;
   font-weight: 750;
   cursor: pointer;
+  transition: background var(--motion-base) var(--ease-standard);
+}
+
+.error button:hover {
+  background: color-mix(in srgb, var(--terracotta) 16%, transparent);
 }
 
 .empty,
@@ -1920,8 +1929,11 @@
     width: 44px;
     padding: 8px;
   }
-  .sendButton > span:not(.sendingDots) {
+  .sendButton > span:not(.sendingDots):not(.stopIcon) {
     display: none;
+  }
+  .error button {
+    min-height: 44px;
   }
   .composerMeta small:first-child {
     max-width: 230px;

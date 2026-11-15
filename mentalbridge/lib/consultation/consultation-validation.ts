@@ -1769,7 +1769,6 @@ export function parseSpecialistDiscoveryItem(
     !ianaTimezone(item.timezone) ||
     !validSpecialistRatingAggregate(item.ratingAggregate) ||
     !Array.isArray(item.selectableSlots) ||
-    item.selectableSlots.length < 1 ||
     item.selectableSlots.length > 20
   )
     return null

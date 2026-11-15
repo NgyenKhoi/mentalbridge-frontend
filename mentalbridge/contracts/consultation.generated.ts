@@ -5653,7 +5653,7 @@ export interface operations {
     getAppointmentChatEligibility: {
         parameters: {
             query: {
-                operation: "SUBSCRIBE" | "SEND" | "HISTORY" | "CHECK_IN";
+                operation: "SUBSCRIBE" | "SEND" | "HISTORY" | "CHECK_IN" | "DELETE" | "REPORT";
             };
             header?: never;
             path: {

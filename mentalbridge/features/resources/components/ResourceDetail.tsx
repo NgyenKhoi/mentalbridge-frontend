@@ -49,6 +49,8 @@ import { BreathingResourceDetail } from './BreathingResourceDetail'
 import { MindfulnessResourceDetail } from './MindfulnessResourceDetail'
 import { ProblemSolvingResourceDetail } from './ProblemSolvingResourceDetail'
 import { ProgressiveRelaxationResourceDetail } from './ProgressiveRelaxationResourceDetail'
+import { SleepRoutineResourceDetail } from './SleepRoutineResourceDetail'
+import { SmallStepsResourceDetail } from './SmallStepsResourceDetail'
 import { StretchResourceDetail } from './StretchResourceDetail'
 import { PurposeShapedActions } from './PurposeShapedActions'
 import { VietnameseCaptionedVideo } from './VietnameseCaptionedVideo'
@@ -363,6 +365,11 @@ export default function ResourceDetail({
     resource?.interactionType === 'PROGRESSIVE_RELAXATION' ||
     resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thả lỏng cơ') ||
     resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thư giãn cơ')
+  const isFeaturedSleep =
+    resource?.id === '00000000-0000-4000-8000-000000000207' ||
+    resourceId === 'sleep-routine' ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('nhịp ngủ') ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('giấc ngủ')
   const isProblemSolving =
     resource?.id === '00000000-0000-4000-8000-000000000209' ||
     resource?.id === '00000000-0000-4000-8000-000000000219' ||
@@ -371,6 +378,20 @@ export default function ResourceDetail({
       .trim()
       .toLocaleLowerCase('vi-VN')
       .includes('giải quyết một vấn đề')
+  const isSmallSteps =
+    resource?.id === '00000000-0000-4000-8000-000000000208' ||
+    resource?.id === '00000000-0000-4000-8000-000000000104' ||
+    resourceId === 'small-steps' ||
+    Boolean(
+      resource?.title
+        .trim()
+        .toLocaleLowerCase('vi-VN')
+        .includes('hành động nhỏ') ||
+      resource?.title
+        .trim()
+        .toLocaleLowerCase('vi-VN')
+        .includes('hoạt động nhỏ'),
+    )
   const totalPracticeSeconds = isFeaturedBreathing
     ? 300
     : (interaction?.durationSeconds ?? 0)
@@ -809,6 +830,33 @@ export default function ResourceDetail({
     return visitedSections.includes(sectionId) && sectionId !== activeSection
   }
 
+  if (isFeaturedSleep) {
+    return (
+      <SleepRoutineResourceDetail
+        resource={resource}
+        date={date}
+        backHref={backHref}
+        status={status}
+        progressLoadState={progressLoadState}
+        saving={saving}
+        message={message}
+        planNotice={planNotice}
+        onRetryProgress={() => {
+          setMessage('')
+          setProgressResult(undefined)
+          setProgressRetryCount((count) => count + 1)
+        }}
+        onConfirmCompletion={() => {
+          const actionsToComplete =
+            requiredActions.length > 0
+              ? requiredActions
+              : ['video-viewed', 'routine-completed']
+          return persistProgress([...actionsToComplete], 'COMPLETED')
+        }}
+      />
+    )
+  }
+
   if (isFeaturedProgressiveRelaxation) {
     return (
       <ProgressiveRelaxationResourceDetail
@@ -868,6 +916,35 @@ export default function ResourceDetail({
             ...newPracticeSession(),
             practiceDurationSeconds: Math.round(watchedSeconds),
           })
+        }
+      />
+    )
+  }
+
+  if (isSmallSteps) {
+    return (
+      <SmallStepsResourceDetail
+        resource={resource}
+        backHref={backHref}
+        backLabel={backLabel}
+        status={status}
+        progressLoadState={progressLoadState}
+        saving={saving}
+        message={message}
+        planNotice={planNotice}
+        onRetryProgress={() => {
+          setMessage('')
+          setProgressResult(undefined)
+          setProgressRetryCount((count) => count + 1)
+        }}
+        onRecord={(watchedSeconds) =>
+          persistProgress([...requiredActions], 'COMPLETED', {
+            ...newPracticeSession(),
+            practiceDurationSeconds: Math.round(watchedSeconds),
+          })
+        }
+        onConfirmCompletion={() =>
+          persistProgress([...requiredActions], 'COMPLETED')
         }
       />
     )

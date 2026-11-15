@@ -1,5 +1,8 @@
 # Synthetic browser evidence
 
+The owner's 2026-11-08 [Home high-score notice](home-high-score-notice.md)
+records the severe-score display thresholds separately from item-9 safety guidance.
+
 MB-790 adds explicit selected Text-to-Voice continuation with Care Voice v2.
 [Acceptance states and verification](mb-790-text-voice-handoff.md) distinguish
 local contract/component checks from the still-gated live provider journey.

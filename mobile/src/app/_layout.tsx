@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router'
+import { Stack, usePathname } from 'expo-router'
 import { StyleSheet, View } from 'react-native'
 
 import { useSession } from '@/auth/session-context'
@@ -12,6 +12,8 @@ const runtimeConfig = readRuntimeConfig()
 
 export function RootNavigator() {
   const { retryRestore, session, status } = useSession()
+
+  const pathname = usePathname()
 
   let content
 
@@ -43,7 +45,9 @@ export function RootNavigator() {
   return (
     <View style={styles.root}>
       {content}
-      <CrisisSupportWidget />
+      <CrisisSupportWidget
+        bottomOffset={session && pathname === '/user' ? 76 : 0}
+      />
     </View>
   )
 }

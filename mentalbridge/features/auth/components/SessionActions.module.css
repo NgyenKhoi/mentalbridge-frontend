@@ -306,6 +306,40 @@
   }
 }
 
+/* Match the specialist account surfaces within the user workspace. */
+:global(.ref-shell) .trigger {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+
+:global(.ref-shell) .trigger:hover {
+  background: var(--color-surface-soft);
+  border-color: color-mix(
+    in srgb,
+    var(--color-primary) 20%,
+    var(--color-border)
+  );
+}
+
+:global(.ref-shell) :is(.avatar, .headerAvatar) {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary) !important;
+  box-shadow: none;
+}
+
+:global(.ref-shell) .triggerCopy strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:global(.ref-shell) .triggerCopy small,
+:global(.ref-shell) .menuHeader small {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .menu {
     animation: none;

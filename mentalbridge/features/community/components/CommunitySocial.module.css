@@ -1,0 +1,325 @@
+.page {
+  width: min(960px, 100%);
+  margin-inline: auto;
+  padding-bottom: var(--space-8);
+  color: var(--ink);
+  font-family: inherit;
+}
+.heading {
+  margin-bottom: var(--space-6);
+}
+.heading h1,
+.profileHeader h1 {
+  margin: 0;
+  font:
+    650 clamp(1.5rem, 2.5vw, 2rem)/1.4 var(--font-be-vietnam-variable),
+    sans-serif;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+.heading p,
+.profileHeader p {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+.primary,
+.secondary,
+.tabs > button,
+.search input {
+  font: inherit;
+  font-size: 0.8125rem;
+}
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+}
+.primary {
+  color: var(--primary-foreground);
+  background: var(--teal-deep);
+  border-color: var(--teal-deep);
+}
+.secondary {
+  color: var(--teal-deep);
+  background: var(--surface);
+}
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.primary:focus-visible,
+.secondary:focus-visible,
+.tabs > button:focus-visible,
+.personIdentity:focus-visible,
+.back:focus-visible,
+.authorLink:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 3px;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+.search > svg {
+  flex-shrink: 0;
+  color: var(--ink-soft);
+}
+.search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+}
+.search:focus-within {
+  box-shadow: var(--focus-ring);
+}
+.search input:focus-visible {
+  outline: none;
+}
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-5) 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+.tabs > button {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.tabs > button[aria-pressed='true'] {
+  color: var(--teal-deep);
+  background: var(--teal-pale);
+  font-weight: 600;
+}
+.people,
+.posts {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.8125rem;
+}
+.personIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.personIdentity > span:last-child {
+  min-width: 0;
+}
+.personIdentity strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.personIdentity small {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+.friendActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+}
+.friendActions > [role='status'] {
+  color: var(--ink-soft);
+}
+.error {
+  width: 100%;
+  margin: var(--space-3) 0;
+  color: var(--terracotta);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.state {
+  display: grid;
+  justify-items: start;
+  align-content: center;
+  gap: var(--space-3);
+  min-height: 180px;
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+.state h2,
+.sectionHeading h2 {
+  margin: 0;
+  font:
+    600 1.125rem/1.5 var(--font-be-vietnam-variable),
+    sans-serif;
+  color: var(--ink);
+}
+.state p {
+  margin: 0;
+}
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 var(--space-4);
+}
+.sectionHeading > span {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-bottom: var(--space-4);
+  color: var(--teal-deep);
+  text-decoration: none;
+  font-size: 0.8125rem;
+}
+.profileHeader {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+.profileIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  min-width: 0;
+}
+.profileIdentity > :last-child {
+  min-width: 0;
+}
+.profileIdentity :global(.community-avatar) {
+  width: 88px;
+  height: 88px;
+  flex-basis: 88px;
+}
+.profileIdentity :global(.community-avatar) svg {
+  width: 36px;
+  height: 36px;
+}
+.eyebrow {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+.authorLink {
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+}
+.dialog {
+  width: min(520px, calc(100vw - 24px));
+}
+.dialogContent {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+.dialogHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}
+.dialogHeading h2 {
+  margin: 0;
+  font:
+    600 1.25rem/1.4 var(--font-be-vietnam-variable),
+    sans-serif;
+}
+.contacts {
+  display: grid;
+  gap: var(--space-2);
+  max-height: 50dvh;
+  overflow-y: auto;
+}
+.contacts .person {
+  padding: var(--space-3);
+}
+@media (hover: hover) and (pointer: fine) {
+  .secondary:hover,
+  .tabs > button:hover {
+    background: var(--surface-soft);
+  }
+  .authorLink:hover,
+  .personIdentity:hover strong {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+@media (max-width: 600px) {
+  .person,
+  .profileHeader {
+    padding: var(--space-4);
+  }
+  .profileIdentity {
+    gap: var(--space-3);
+  }
+  .profileIdentity :global(.community-avatar) {
+    width: 64px;
+    height: 64px;
+    flex-basis: 64px;
+  }
+  .search {
+    gap: var(--space-2);
+  }
+  .search .primary {
+    padding-inline: var(--space-3);
+  }
+  .person > .friendActions {
+    width: 100%;
+  }
+}

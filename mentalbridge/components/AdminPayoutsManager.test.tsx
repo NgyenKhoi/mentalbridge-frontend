@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AdminPayoutsManager from './AdminPayoutsManager'
 import { FeedbackProvider } from './ui/FeedbackProvider'
-import { ApiError } from '@/lib/api/api-error'
+import { ApiError } from '../lib/api/api-error'
 
 const api = vi.hoisted(() => ({
   get: vi.fn(),

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 
 import CommunityShell from '@/features/community/components/CommunityShell'
+import { CommunityPresenceProvider } from '@/features/community-chat/components/CommunityPresenceProvider'
+import { CommunityInboxProvider } from '@/features/community-chat/components/CommunityInboxProvider'
 import { requireCurrentAccount } from '@/lib/auth/dal'
 
 import './community/community.css'
@@ -16,5 +18,11 @@ export default async function CommunityLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   await requireCurrentAccount(['USER'])
 
-  return <CommunityShell>{children}</CommunityShell>
+  return (
+    <CommunityInboxProvider>
+      <CommunityPresenceProvider>
+        <CommunityShell>{children}</CommunityShell>
+      </CommunityPresenceProvider>
+    </CommunityInboxProvider>
+  )
 }
