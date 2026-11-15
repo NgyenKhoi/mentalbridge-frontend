@@ -1,0 +1,647 @@
+.page {
+  width: min(1080px, 100%);
+  margin-inline: auto;
+  padding-bottom: var(--space-6);
+  color: var(--ink);
+  font-family: var(--font-be-vietnam-variable), sans-serif;
+}
+.heading {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--line);
+}
+.heading > div:first-child {
+  flex: 1 1 460px;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-bottom: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+.eyebrow i,
+.onlineLabel i,
+.quickFilters button i {
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+.heading h1 {
+  margin: 0;
+  max-width: 30ch;
+  font:
+    650 clamp(1.375rem, 2.2vw, 1.875rem)/1.35 var(--font-be-vietnam-variable),
+    sans-serif;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.heading p {
+  max-width: 66ch;
+  margin: 10px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.75;
+}
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-decoration: none;
+  cursor: pointer;
+}
+.primary {
+  background: var(--teal-deep);
+  color: var(--primary-foreground);
+  border-color: var(--teal-deep);
+}
+.secondary {
+  background: var(--surface);
+  color: var(--teal-deep);
+}
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.privacy {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 14px 16px;
+  margin-bottom: var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--teal) 15%, var(--line));
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--teal-pale) 12%, var(--surface));
+}
+.privacyIcon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--teal);
+}
+.privacy p {
+  flex: 1;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+.privacy strong {
+  margin-right: 6px;
+  color: var(--teal-deep);
+  font-weight: 600;
+}
+.privacy a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  color: var(--teal-deep);
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+.controls {
+  padding: 12px 16px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  margin-bottom: var(--space-5);
+}
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tabs > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.tabs > button span {
+  min-width: 20px;
+  padding: 2px 5px;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.tabs > button[aria-pressed='true'] {
+  background: var(--teal-deep);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+.tabs > button[aria-pressed='true'] span {
+  background: rgb(255 255 255 / 18%);
+  color: inherit;
+}
+.quickFilters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 10px;
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+}
+.quickFilters > span {
+  margin-right: 2px;
+}
+.quickFilters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  cursor: pointer;
+}
+.quickFilters button[aria-pressed='true'] {
+  border-color: var(--line);
+  background: var(--bg);
+  color: var(--teal-deep);
+}
+.quickFilters button i {
+  color: var(--teal);
+}
+.quickFilters button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+}
+.search > svg {
+  flex-shrink: 0;
+  margin-left: 13px;
+  margin-right: -36px;
+  z-index: 1;
+  pointer-events: none;
+}
+.search input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 10px 12px 10px 38px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 50%, var(--surface));
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+.search input::placeholder {
+  color: var(--ink-faint);
+}
+.invitationNotice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--amber) 32%, var(--line));
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--amber-pale) 28%, var(--surface));
+}
+.invitationNotice > span {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--amber-pale);
+  color: var(--amber-deep);
+}
+.invitationNotice p {
+  flex: 1;
+  margin: 0;
+}
+.invitationNotice strong {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.invitationNotice small {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.invitationNotice .secondary {
+  min-height: 36px;
+  font-size: 0.75rem;
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--line));
+}
+.listPanel {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+.listHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 58%, var(--surface));
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+.listHeading small {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+.person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 22px 20px;
+}
+.person + .person,
+.searchPerson + .searchPerson {
+  border-top: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+}
+.avatarFrame {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.avatarFrame :global(.community-avatar) {
+  width: 54px;
+  height: 54px;
+  flex-basis: 54px;
+  border: 1px solid color-mix(in srgb, var(--teal-pale) 60%, var(--surface));
+  border-radius: 16px;
+  overflow: hidden;
+  font-size: 1rem;
+}
+.avatarFrame :global(.community-avatar) img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.onlineDot {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 12px;
+  height: 12px;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-pale);
+}
+.personInfo {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 5px;
+}
+.personName {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.personName > a {
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 650;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.relationship {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--teal-deep);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+}
+.onlineLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--teal);
+  font-size: 0.6875rem;
+}
+.profileLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+.personInfo > small {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+}
+.actions {
+  flex-shrink: 0;
+}
+.actions > div {
+  justify-content: flex-end;
+}
+.actions > div > :is(a, button) {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  border-radius: 10px;
+}
+.actions > div > button {
+  background: transparent;
+}
+.listFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 40%, var(--surface));
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+}
+.listFooter .secondary {
+  min-height: 36px;
+  font-size: 0.75rem;
+}
+.state {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  min-height: 220px;
+  padding: var(--space-8);
+  color: var(--ink-soft);
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+.state h2 {
+  max-width: 42ch;
+  margin: 0;
+  color: var(--ink);
+  font:
+    600 1rem/1.6 var(--font-be-vietnam-variable),
+    sans-serif;
+}
+.state p {
+  max-width: 54ch;
+  margin: 0;
+}
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  color: var(--teal);
+  background: var(--bg);
+}
+.error {
+  padding: 14px 18px;
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--terracotta);
+  font-size: 0.875rem;
+}
+.searchPerson {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.searchPerson > strong {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.searchPerson > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8125rem;
+  color: var(--teal);
+}
+.textButton {
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--teal-deep);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.pageFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: var(--space-6);
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+.pageFooter > a,
+.pageFooter > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+.pageFooter > span {
+  font-size: 0.75rem;
+}
+.page :is(a, button, input):focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .person:hover,
+  .searchPerson:hover {
+    background: color-mix(in srgb, var(--bg) 38%, var(--surface));
+  }
+  .primary:hover:not(:disabled) {
+    background: var(--teal);
+  }
+  .secondary:hover:not(:disabled) {
+    background: var(--bg);
+  }
+  .profileLink:hover,
+  .personName > a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+@media (max-width: 1100px) {
+  .person {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .actions {
+    margin-left: 70px;
+    flex-basis: calc(100% - 70px);
+  }
+  .actions > div {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 760px) {
+  .heading {
+    gap: 16px;
+  }
+  .heading h1 {
+    font-size: 1.375rem;
+  }
+  .headerActions {
+    width: 100%;
+  }
+  .headerActions > button {
+    flex: 1;
+    min-height: 44px;
+  }
+  .privacy {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px;
+  }
+  .privacy p {
+    min-width: 180px;
+  }
+  .privacy a {
+    margin-left: 44px;
+    min-height: 36px;
+  }
+  .controls {
+    padding: 10px 12px 12px;
+  }
+  .tabs {
+    gap: 2px;
+  }
+  .tabs > button {
+    padding-inline: 9px;
+    min-height: 44px;
+  }
+  .quickFilters button {
+    min-height: 40px;
+  }
+  .search {
+    gap: 8px;
+  }
+  .search input {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+  .search .primary {
+    min-height: 44px;
+    padding-inline: 12px;
+  }
+  .invitationNotice {
+    padding: 14px;
+  }
+  .invitationNotice .secondary {
+    margin-left: 50px;
+    min-height: 44px;
+  }
+  .person {
+    padding: 18px 14px;
+  }
+  .personName > a {
+    font-size: 1rem;
+  }
+  .personInfo {
+    min-width: 160px;
+  }
+  .actions > div > :is(a, button) {
+    min-height: 44px;
+    font-size: 0.8125rem;
+  }
+  .listHeading,
+  .listFooter {
+    padding-inline: 14px;
+  }
+  .listFooter .secondary {
+    min-height: 44px;
+  }
+  .state {
+    padding: 24px 16px;
+  }
+  .searchPerson {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 14px;
+  }
+  .searchPerson > span:last-child {
+    margin-left: 66px;
+  }
+}

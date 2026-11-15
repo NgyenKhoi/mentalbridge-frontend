@@ -25,8 +25,9 @@ jest.mock('./combined-meaning-api', () => ({
   createCombinedMeaningApi: () => ({}),
 }))
 jest.mock('expo-router', () => ({
-  router: { back: jest.fn(), push: jest.fn() },
+  router: { back: jest.fn(), push: jest.fn(), dismissTo: jest.fn() },
   useFocusEffect: () => {},
+  useLocalSearchParams: () => ({}),
 }))
 
 function deferred<T>() {
@@ -88,7 +89,13 @@ function setup(
   })
   return render(
     <QueryClientProvider client={client}>
-      <SessionProvider service={service} initialSession={ownerA}>
+      <SessionProvider
+        service={service}
+        initialSession={ownerA}
+        initialAccessExpiresAt={
+          refresh ? new Date(Date.now() + 60_000).toISOString() : null
+        }
+      >
         <Controls />
       </SessionProvider>
     </QueryClientProvider>,
@@ -118,7 +125,7 @@ it('discards owner A pending result after switching to B and shows B data', asyn
   ).toBeOnTheScreen()
 })
 
-it('documents that logout start leaves the old request visible until logout completes', async () => {
+it('discards pending request immediately when logout starts before server revocation completes', async () => {
   const old = deferred<unknown>()
   const logout = deferred<void>()
   mockApiQueue.push(api(old.promise))
@@ -129,12 +136,12 @@ it('documents that logout start leaves the old request visible until logout comp
     old.resolve(history)
     await old.promise
   })
-  expect(await screen.findByText('PHQ-9 · Nhẹ')).toBeOnTheScreen()
+  expect(screen.queryByText('PHQ-9 · Nhẹ')).toBeNull()
   await act(async () => {
     logout.resolve()
     await logout.promise
   })
-  await waitFor(() => expect(screen.queryByText('PHQ-9 · Nhẹ')).toBeNull())
+  expect(screen.queryByText('PHQ-9 · Nhẹ')).toBeNull()
 })
 
 it('discards a previous login result when the same owner logs in again', async () => {
@@ -154,17 +161,23 @@ it('discards a previous login result when the same owner logs in again', async (
   expect(screen.queryByText('PHQ-9 · Nhẹ')).toBeNull()
 })
 
-it('documents that direct same-owner replacement cannot be distinguished from refresh', async () => {
+it('discards a pending request on direct same-owner session replacement', async () => {
   const old = deferred<unknown>()
-  mockApiQueue.push(api(old.promise))
+  mockApiQueue.push(api(old.promise), api(Promise.resolve(emptyHistory)))
   await setup(async () => {})
-  await waitFor(() => expect(mockApiQueue).toHaveLength(0))
+  await waitFor(() => expect(mockApiQueue).toHaveLength(1))
   await fireEvent.press(screen.getByRole('button', { name: 'Login A' }))
+  expect(
+    await screen.findByText('Bạn chưa có kết quả sàng lọc đã lưu.'),
+  ).toBeOnTheScreen()
   await act(async () => {
     old.resolve(history)
     await old.promise
   })
-  expect(await screen.findByText('PHQ-9 · Nhẹ')).toBeOnTheScreen()
+  expect(screen.queryByText('PHQ-9 · Nhẹ')).toBeNull()
+  expect(
+    screen.getByText('Bạn chưa có kết quả sàng lọc đã lưu.'),
+  ).toBeOnTheScreen()
 })
 
 it.each(['PHQ9', 'GAD7'] as const)(
@@ -200,10 +213,11 @@ it.each(['PHQ9', 'GAD7'] as const)(
         .fn()
         .mockRejectedValue(new Error('offline')),
     }
-    const refresh = jest.fn().mockResolvedValue({
-      session: { ...ownerA },
-      accessExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
-    })
+    const refreshGate = deferred<{
+      session: typeof ownerA
+      accessExpiresAt: string
+    }>()
+    const refresh = jest.fn(() => refreshGate.promise)
     mockApiQueue.push(assessmentApi)
     await setup(async () => {}, refresh)
     await fireEvent.press(
@@ -226,8 +240,14 @@ it.each(['PHQ9', 'GAD7'] as const)(
     await waitFor(() =>
       expect(assessmentApi.submitEpisodeAssessment).toHaveBeenCalledTimes(1),
     )
-    await fireEvent.press(screen.getByRole('button', { name: 'Login A' }))
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+    await act(async () => {
+      refreshGate.resolve({
+        session: { ...ownerA },
+        accessExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      })
+      await refreshGate.promise
+    })
     expect(screen.getByText('Câu hỏi hai')).toBeOnTheScreen()
     await fireEvent.press(screen.getByRole('button', { name: 'Câu trước' }))
     expect(

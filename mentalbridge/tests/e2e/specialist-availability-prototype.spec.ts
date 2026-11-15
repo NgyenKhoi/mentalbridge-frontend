@@ -38,9 +38,7 @@ async function capture(page: Page, info: TestInfo, name: string) {
     )
   })
   const path = info.outputPath(`${name}.png`)
-  const modalOpen = await page
-    .getByRole('dialog', { name: 'Rút khung giờ này?' })
-    .isVisible()
+  const modalOpen = (await page.locator('dialog[open]').count()) > 0
   await page.screenshot({ path, fullPage: !modalOpen, animations: 'disabled' })
   await info.attach(name, { path, contentType: 'image/png' })
 }
@@ -128,7 +126,9 @@ test('availability complete setup, keyboard pickers, publish, cancel and withdra
   await noOverflow(page)
   await capture(page, info, 'availability-01-empty-1440')
   await page.getByRole('button', { name: 'Tạo khung giờ đầu tiên' }).click()
-  await expect(page.getByLabel('Ngày', { exact: true })).toBeFocused()
+  await expect(
+    page.getByRole('dialog', { name: 'Thêm khung giờ' }),
+  ).toBeVisible()
   const calendarTrigger = page.getByRole('button', {
     name: 'Mở lịch chọn ngày',
   })
@@ -206,6 +206,9 @@ test('availability complete setup, keyboard pickers, publish, cancel and withdra
   ).toBeVisible()
   const card = page.locator('li').filter({ hasText: '10:15 – 11:15' })
   await expect(card).toContainText('Có thể đặt')
+  await expect(
+    page.getByRole('dialog', { name: 'Thêm khung giờ' }),
+  ).not.toBeVisible()
   await expect(page.getByLabel('Ngày', { exact: true })).toHaveValue('')
   await capture(page, info, 'availability-05-published-1440')
 
@@ -274,6 +277,7 @@ test('availability complete setup, keyboard pickers, publish, cancel and withdra
     await noOverflow(page)
     await capture(page, info, `availability-08-saved-${viewport.width}`)
   }
+  await page.getByRole('button', { name: 'Thêm khung giờ' }).click()
   await calendarTrigger.click()
   await expect(calendar).toBeVisible()
   await noOverflow(page)
@@ -360,6 +364,7 @@ test('availability loading, refresh and publish failures preserve data; stale wi
   await page.setViewportSize({ width: 1440, height: 900 })
   await enter(page)
   await expect(page.getByText('Đang tải lịch khả dụng…')).toBeVisible()
+  await page.getByRole('button', { name: 'Thêm khung giờ' }).click()
   await expect(
     page.getByRole('button', { name: 'Xuất bản khung giờ' }),
   ).toBeDisabled()
@@ -370,17 +375,21 @@ test('availability loading, refresh and publish failures preserve data; stale wi
   await page.getByLabel('Ngày', { exact: true }).fill('2098-01-04')
   await page.getByLabel('Giờ bắt đầu', { exact: true }).fill('14:30')
   failRead = true
+  await page.getByRole('button', { name: 'Đóng thêm khung giờ' }).click()
   await page.getByRole('button', { name: 'Tải lại', exact: true }).click()
   await expect(page.getByText('Chưa thể cập nhật danh sách')).toBeVisible()
   await expect(card).toBeVisible()
+  await page.getByRole('button', { name: 'Thêm khung giờ' }).click()
   await expect(page.getByLabel('Ngày', { exact: true })).toHaveValue(
     '2098-01-04',
   )
   await capture(page, info, 'availability-12-refresh-failed-retained-data')
   failRead = false
+  await page.getByRole('button', { name: 'Đóng thêm khung giờ' }).click()
   await page.getByRole('button', { name: 'Thử lại', exact: true }).click()
   await expect(page.getByText('Chưa thể cập nhật danh sách')).toHaveCount(0)
   failPublish = true
+  await page.getByRole('button', { name: 'Thêm khung giờ' }).click()
   await page.getByRole('button', { name: 'Xuất bản khung giờ' }).click()
   await expect(
     page.getByText(/Khung giờ này trùng với một khung giờ/),
@@ -390,6 +399,7 @@ test('availability loading, refresh and publish failures preserve data; stale wi
   )
   await capture(page, info, 'availability-13-publish-conflict')
   staleWithdraw = true
+  await page.getByRole('button', { name: 'Đóng thêm khung giờ' }).click()
   await card.getByRole('button', { name: 'Rút khung giờ' }).click()
   await page
     .getByRole('dialog', { name: 'Rút khung giờ này?' })

@@ -93,8 +93,9 @@ function AssessmentsContent() {
 
   return (
     <div className="assessment-page">
-      <header className="assessment-page-header">
-        <div className="assessment-page-title">
+      <header className="assessment-page-header" data-user-page-header>
+        <div className="assessment-page-title" data-user-page-heading>
+          <span data-user-page-kicker>Không gian của bạn</span>
           <h1 aria-label="Bài sàng lọc">
             <span className="assessment-desktop-label">Bài sàng lọc</span>
             <span className="assessment-mobile-label">Lịch sử sàng lọc</span>

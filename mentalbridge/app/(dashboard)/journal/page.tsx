@@ -12,6 +12,8 @@ import {
   GraduationCap,
   Activity,
   Moon,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react'
 import Link from 'next/link'
 import type {
@@ -24,10 +26,9 @@ import {
   JOURNAL_PROMPTS,
   MOOD_PROMPTS,
   getMoodCategory,
-  journalMood,
 } from '@/features/journal/authoring'
 
-import { JournalReflection } from '@/features/journal/reflection/JournalReflection'
+import { JournalDetail } from '@/features/journal/JournalDetail'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import { Dialog } from '@/components/ui/Dialog'
@@ -107,11 +108,6 @@ const errorMessage = (problem: Problem | null, fallback: string) =>
   })[problem?.code ?? ''] ??
   problem?.title ??
   fallback
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat('vi-VN', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-  }).format(new Date(value))
 const tagsOf = (value: string) =>
   value
     .split(',')
@@ -230,6 +226,7 @@ export default function JournalPage() {
   const triggerRef = useRef<HTMLElement | null>(null)
   const backgroundRef = useRef<HTMLDivElement | null>(null)
   const dialogRef = useRef<HTMLElement | null>(null)
+  const [detailExpanded, setDetailExpanded] = useState(false)
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null)
   const firstMoodRef = useRef<HTMLInputElement | null>(null)
   const occurredAtRef = useRef<HTMLInputElement | null>(null)
@@ -987,7 +984,9 @@ export default function JournalPage() {
             className={`journal-dialog ${
               mode === 'create' || mode === 'edit'
                 ? 'journal-dialog-editor'
-                : ''
+                : mode === 'view'
+                  ? `journal-dialog-reader ${detailExpanded ? 'journal-dialog-reader-expanded' : ''}`
+                  : ''
             }`}
             aria-labelledby="journal-dialog-title"
             aria-busy={working || detailLoading}
@@ -1027,15 +1026,37 @@ export default function JournalPage() {
                         : 'Chi tiết nhật ký'}
                 </h2>
               </div>
-              <button
-                type="button"
-                className="journal-dialog-close-btn"
-                onClick={requestClose}
-                disabled={working}
-                aria-label="Đóng"
-              >
-                <X size={18} aria-hidden="true" />
-              </button>
+              <div className="journal-dialog-window-actions">
+                {mode === 'view' && (
+                  <button
+                    type="button"
+                    className="journal-dialog-expand-btn"
+                    onClick={() => setDetailExpanded((value) => !value)}
+                    aria-label={
+                      detailExpanded ? 'Thu gọn khung đọc' : 'Mở rộng khung đọc'
+                    }
+                    title={
+                      detailExpanded ? 'Thu gọn khung đọc' : 'Mở rộng khung đọc'
+                    }
+                    aria-pressed={detailExpanded}
+                  >
+                    {detailExpanded ? (
+                      <Minimize2 size={17} aria-hidden="true" />
+                    ) : (
+                      <Maximize2 size={17} aria-hidden="true" />
+                    )}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="journal-dialog-close-btn"
+                  onClick={requestClose}
+                  disabled={working}
+                  aria-label="Đóng"
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
             </header>
             {writingOrigin && (
               <div className="journal-plan-origin">
@@ -1078,33 +1099,11 @@ export default function JournalPage() {
               </div>
             )}
             {!detailLoading && mode === 'view' && selected && (
-              <div className="journal-detail">
-                <time>{formatDate(selected.occurredAt)}</time>
-                {journalMood(selected.mood) && (
-                  <p className="journal-detail-mood">
-                    <span aria-hidden="true">
-                      {journalMood(selected.mood)?.emoji}
-                    </span>{' '}
-                    Bạn đã chọn: {journalMood(selected.mood)?.label}
-                  </p>
-                )}
-                <p>{selected.content.text}</p>
-                <div>
-                  {selected.tags.map((tag) => (
-                    <span key={tag}>#{tag}</span>
-                  ))}
-                </div>
-                <JournalReflection
-                  key={`${selected.id}:${selected.currentRevision}`}
-                  entry={selected}
-                />
-                <footer>
-                  <button className="danger" onClick={() => setMode('delete')}>
-                    Xóa
-                  </button>
-                  <button onClick={startEdit}>Chỉnh sửa</button>
-                </footer>
-              </div>
+              <JournalDetail
+                entry={selected}
+                onEdit={startEdit}
+                onDelete={() => setMode('delete')}
+              />
             )}
             {(mode === 'create' || (mode === 'edit' && selected)) && (
               <div className="journal-editor-form">

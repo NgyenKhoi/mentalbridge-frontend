@@ -13,7 +13,11 @@ export default async function DashboardLayout({
   const account = await requireCurrentAccount(['USER'])
 
   return (
-    <AuthenticatedShell workspaces={resolveWorkspaces(account.roles) ?? []}>
+    <AuthenticatedShell
+      key={account.accountId}
+      accountId={account.accountId}
+      workspaces={resolveWorkspaces(account.roles) ?? []}
+    >
       {children}
       {process.env.MAM_WEB_ENABLED === 'true' ? (
         <MamDockSlot accountId={account.accountId} />

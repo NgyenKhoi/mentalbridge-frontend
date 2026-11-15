@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import SessionActions from '@/features/auth/components/SessionActions'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
@@ -18,6 +18,11 @@ import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
 import SpecialistOperationalAnalytics from '@/features/specialist-analytics/components/SpecialistOperationalAnalytics'
 import SpecialistNotificationCenter from '@/features/notifications/components/SpecialistNotificationCenter'
+import OnboardingTour from '@/features/onboarding/OnboardingTour'
+import {
+  requestSpecialistOnboardingReplay,
+  SPECIALIST_ONBOARDING_NAV_TARGETS,
+} from '@/features/onboarding/specialist-tour-steps'
 import { Bell, Headphones, User, Search } from 'lucide-react'
 import './SpecialistClinicalDashboard.css'
 import './role-workspace.css'
@@ -64,11 +69,13 @@ export default function RoleWorkspace({
   workspaces,
   selectedAppointmentId,
   videoAppointmentId,
+  accountId,
 }: {
   sectionKey: string
   workspaces: readonly Workspace[]
   selectedAppointmentId?: string
   videoAppointmentId?: string
+  accountId?: string
 }) {
   const sectionLabel =
     specialistSections[sectionKey as keyof typeof specialistSections] ??
@@ -78,9 +85,39 @@ export default function RoleWorkspace({
   const sidebarRef = useRef<HTMLElement>(null)
   const wasMobileOpen = useRef(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [tourActive, setTourActive] = useState(false)
+  const shellState = useRef({ sidebarCollapsed, mobileOpen })
+  useEffect(() => {
+    shellState.current = { sidebarCollapsed, mobileOpen }
+  }, [sidebarCollapsed, mobileOpen])
+  const beforeTour = useRef<{
+    sidebarCollapsed: boolean
+    mobileOpen: boolean
+  } | null>(null)
+  const prepareTourStep = useCallback((inSidebar: boolean) => {
+    beforeTour.current ??= shellState.current
+    setTourActive(true)
+    setSidebarCollapsed(false)
+    setMobileOpen(
+      inSidebar && window.matchMedia('(max-width: 980px)').matches,
+    )
+  }, [])
+  const endTour = useCallback(() => {
+    const previous = beforeTour.current
+    beforeTour.current = null
+    setTourActive(false)
+    if (previous) {
+      setSidebarCollapsed(previous.sidebarCollapsed)
+      setMobileOpen(previous.mobileOpen)
+    }
+  }, [])
 
   // Mobile slide-in menu keeps keyboard users inside it and returns focus on close.
   useEffect(() => {
+    if (tourActive) {
+      wasMobileOpen.current = false
+      return
+    }
     if (!mobileOpen) {
       if (wasMobileOpen.current) menuButtonRef.current?.focus()
       wasMobileOpen.current = false
@@ -95,7 +132,7 @@ export default function RoleWorkspace({
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [mobileOpen])
+  }, [mobileOpen, tourActive])
   const [accountName, setAccountName] = useState<string | null>(null)
   const hasPersonalWorkspace = workspaces.some(
     (workspace) => workspace.role === 'USER',
@@ -175,11 +212,12 @@ export default function RoleWorkspace({
   return (
     <div
       className={`role-shell role-specialist ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+      data-onboarding-active={tourActive || undefined}
     >
       <motion.aside
         ref={sidebarRef}
         className={`role-sidebar ${mobileOpen ? 'open' : ''}`}
-        layout
+        layout={!tourActive}
         initial={false}
         transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}
       >
@@ -216,7 +254,10 @@ export default function RoleWorkspace({
               <Link
                 href={`/specialist/${key}`}
                 className={key === sectionKey ? 'active' : ''}
-                onClick={() => setMobileOpen(false)}
+                data-onboarding={SPECIALIST_ONBOARDING_NAV_TARGETS[key]}
+                onClick={() => {
+                  if (!tourActive) setMobileOpen(false)
+                }}
                 title={sidebarCollapsed ? label : undefined}
               >
                 {key === sectionKey && (
@@ -257,13 +298,16 @@ export default function RoleWorkspace({
               hasPersonalWorkspace ? 'Hồ sơ cá nhân' : 'Hồ sơ chuyên gia'
             }
             showSubscription={hasPersonalWorkspace}
+            onReplayTour={
+              accountId ? requestSpecialistOnboardingReplay : undefined
+            }
           />
         </div>
       </motion.aside>
       <motion.main
         className="role-main"
         inert={mobileOpen}
-        layout="position"
+        layout={tourActive ? false : 'position'}
         transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}
       >
         <header className="role-topbar role-topbar-specialist">
@@ -279,6 +323,7 @@ export default function RoleWorkspace({
               <div
                 className="clinical-breadcrumb"
                 aria-label="Đường dẫn điều hướng"
+                data-onboarding="specialist-welcome"
               >
                 <span className="clinical-breadcrumb-parent">
                   Không gian chuyên gia
@@ -400,6 +445,20 @@ export default function RoleWorkspace({
           className="role-overlay"
           aria-label="Đóng menu"
           onClick={() => setMobileOpen(false)}
+        />
+      )}
+      {accountId && (
+        <OnboardingTour
+          key={accountId}
+          audience="specialist"
+          accountId={accountId}
+          pathname={
+            videoAppointmentId
+              ? `/specialist/appointments/${videoAppointmentId}/video`
+              : `/specialist/${sectionKey}`
+          }
+          prepareStep={prepareTourStep}
+          onEnd={endTour}
         />
       )}
     </div>

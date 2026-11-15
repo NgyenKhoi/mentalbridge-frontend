@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -9,6 +9,13 @@ import { appointmentBrowserClient } from '@/features/appointments/api/browser-cl
 import SessionActions from '@/features/auth/components/SessionActions'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
+import { ApiError } from '@/lib/api/api-error'
+import OnboardingTour from '@/features/onboarding/OnboardingTour'
+import {
+  ONBOARDING_NAV_TARGETS,
+  requestOnboardingReplay,
+} from '@/features/onboarding/tour-steps'
+import '@/app/(dashboard)/user-workspace-theme.css'
 
 const Svg = ({ children }: { children: React.ReactNode }) => (
   <svg
@@ -117,7 +124,6 @@ const groups = [
   {
     title: 'Thông tin',
     items: [
-      ['/community', 'Cộng đồng', <CommunityIcon key="community" />],
       [
         '/resources',
         'Tài nguyên',
@@ -184,20 +190,53 @@ function resolveContextLabel(pathname: string) {
     return 'Kết quả sàng lọc'
   }
 
+  if (pathname.startsWith('/resources/')) return 'Chi tiết tài nguyên'
+  if (pathname.startsWith('/specialists/')) return 'Hồ sơ chuyên gia'
+  if (pathname.startsWith('/support-guides/')) return 'Chi tiết gợi ý hỗ trợ'
+  if (pathname.startsWith('/appointments/')) return 'Chi tiết lịch hẹn'
+
   return labels[pathname] ?? 'MentalBridge'
 }
 
 export default function AuthenticatedShell({
   children,
   workspaces,
+  accountId,
 }: {
   children: React.ReactNode
   workspaces: readonly Workspace[]
+  accountId?: string
 }) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [mobile, setMobile] = useState(false)
+  const [tourActive, setTourActive] = useState(false)
+  const shellState = useRef({ collapsed, mobile })
+  useEffect(() => {
+    shellState.current = { collapsed, mobile }
+  }, [collapsed, mobile])
+  const beforeTour = useRef<{ collapsed: boolean; mobile: boolean } | null>(
+    null,
+  )
+  const prepareTourStep = useCallback((inSidebar: boolean) => {
+    beforeTour.current ??= shellState.current
+    setTourActive(true)
+    setCollapsed(false)
+    setMobile(inSidebar && window.matchMedia('(max-width: 900px)').matches)
+  }, [])
+  const endTour = useCallback(() => {
+    const previous = beforeTour.current
+    beforeTour.current = null
+    setTourActive(false)
+    if (previous) {
+      setCollapsed(previous.collapsed)
+      setMobile(previous.mobile)
+    }
+  }, [])
   const [profile, setProfile] = useState<{ displayName: string } | null>(null)
+  const [profileStatus, setProfileStatus] = useState<
+    'loading' | 'ready' | 'missing' | 'error'
+  >('loading')
   const [specialistSearch, setSpecialistSearch] = useState('')
   const [generalSearch, setGeneralSearch] = useState('')
   const [appointmentCount, setAppointmentCount] = useState<number | null>(null)
@@ -249,14 +288,23 @@ export default function AuthenticatedShell({
 
   useEffect(() => {
     let active = true
+    let latestRequest = 0
     const loadProfile = async () => {
+      const request = ++latestRequest
       try {
         const data = await getCareProfile()
-        if (active && data?.displayName) {
-          setProfile(data)
+        if (active && request === latestRequest) {
+          const name = data?.displayName?.trim()
+          setProfile(name ? { displayName: name } : null)
+          setProfileStatus(name ? 'ready' : 'missing')
         }
-      } catch {
-        // Fallback to default name if profile not found
+      } catch (error) {
+        if (active && request === latestRequest)
+          setProfileStatus(
+            error instanceof ApiError && error.status === 404
+              ? 'missing'
+              : 'error',
+          )
       }
     }
 
@@ -264,21 +312,39 @@ export default function AuthenticatedShell({
 
     const handleProfileUpdate = (e: Event) => {
       const customEvent = e as CustomEvent<{ displayName?: string }>
-      if (customEvent.detail?.displayName) {
-        setProfile({ displayName: customEvent.detail.displayName })
+      const name = customEvent.detail?.displayName?.trim()
+      if (name) {
+        latestRequest++
+        setProfile({ displayName: name })
+        setProfileStatus('ready')
       } else {
         void loadProfile()
       }
     }
 
     window.addEventListener('mb:profile-updated', handleProfileUpdate)
+    window.addEventListener('focus', loadProfile)
     return () => {
       active = false
       window.removeEventListener('mb:profile-updated', handleProfileUpdate)
+      window.removeEventListener('focus', loadProfile)
     }
-  }, [])
+  }, [accountId])
 
-  const displayName = profile?.displayName || 'Người dùng'
+  const displayName =
+    profile?.displayName ??
+    (profileStatus === 'loading'
+      ? 'Đang tải hồ sơ…'
+      : profileStatus === 'missing'
+        ? 'Hoàn thiện hồ sơ'
+        : 'Hồ sơ của bạn')
+  const accountLabel = profile
+    ? 'Hồ sơ cá nhân'
+    : profileStatus === 'loading'
+      ? 'Thông tin của bạn'
+      : profileStatus === 'missing'
+        ? 'Thêm tên của bạn'
+        : 'Chưa tải được thông tin'
   const isScreeningJourney = [
     '/initial-check',
     '/assessments',
@@ -295,7 +361,7 @@ export default function AuthenticatedShell({
           .split(/\s+/)
           .slice(-2)
           .map((part) => part[0])
-          .join('') || 'N'
+          .join('') || '?'
       ).toUpperCase(),
     [profile?.displayName],
   )
@@ -303,6 +369,7 @@ export default function AuthenticatedShell({
   return (
     <div
       className={`ref-shell ${isScreeningJourney ? 'ref-screening-journey' : ''} ${collapsed ? 'collapsed' : ''} ${mobile ? 'mobile-open' : ''}`}
+      data-onboarding-active={tourActive || undefined}
     >
       <aside className="ref-sidebar">
         <div className="ref-brand">
@@ -330,7 +397,10 @@ export default function AuthenticatedShell({
                 <Link
                   key={item[0] as string}
                   href={item[0] as string}
-                  onClick={() => setMobile(false)}
+                  data-onboarding={ONBOARDING_NAV_TARGETS[item[0] as string]}
+                  onClick={() => {
+                    if (!tourActive) setMobile(false)
+                  }}
                   className={`${pathname === item[0] ? 'active' : ''} ${item[0] === '/community' ? 'ref-community-nav' : ''}`}
                   aria-label={
                     item[0] === '/community' ? 'Cộng đồng' : undefined
@@ -360,6 +430,11 @@ export default function AuthenticatedShell({
             compact={collapsed && !mobile}
             displayName={displayName}
             avatar={initials}
+            accountLabel={accountLabel}
+            profileLabel={
+              profileStatus === 'missing' ? 'Hoàn thiện hồ sơ' : 'Hồ sơ cá nhân'
+            }
+            onReplayTour={accountId ? requestOnboardingReplay : undefined}
           />
         </div>
       </aside>
@@ -378,39 +453,65 @@ export default function AuthenticatedShell({
               <path d="M4 7h16M4 12h16M4 17h16" />
             </Svg>
           </button>
-          {isProgressiveRelaxation ? (
-            <nav className="pmr-top-crumb" aria-label="Đường dẫn trên cùng">
-              <Link href="/resources">Tài nguyên</Link>
-              <span aria-hidden="true">›</span>
-              <span aria-current="page">
-                {pathname.endsWith('0216')
-                  ? 'Thả lỏng cơ theo từng vùng'
-                  : 'Thư giãn cơ tiến triển'}
+          <div className="ref-topbar-left">
+            {isProgressiveRelaxation ? (
+              <nav
+                className="ref-context pmr-top-crumb"
+                aria-label="Đường dẫn trên cùng"
+                data-onboarding="welcome"
+              >
+                <Link className="ref-context-parent" href="/resources">
+                  Tài nguyên
+                </Link>
+                <span className="ref-context-separator" aria-hidden="true">
+                  ›
+                </span>
+                <span aria-current="page">
+                  {pathname.endsWith('0216')
+                    ? 'Thả lỏng cơ theo từng vùng'
+                    : 'Thư giãn cơ tiến triển'}
+                </span>
+              </nav>
+            ) : isScreeningJourney ? (
+              <nav
+                className="ref-context ref-screening-crumb"
+                aria-label="Đường dẫn trên cùng"
+                data-onboarding="welcome"
+              >
+                <Link className="ref-context-parent" href="/dashboard">
+                  Không gian của bạn
+                </Link>
+                <span className="ref-context-separator" aria-hidden="true">
+                  ›
+                </span>
+                <span aria-current="page">{resolveContextLabel(pathname)}</span>
+              </nav>
+            ) : (
+              <nav
+                className="ref-context"
+                aria-label="Đường dẫn điều hướng"
+                data-onboarding="welcome"
+              >
+                <Link className="ref-context-parent" href="/dashboard">
+                  Không gian của bạn
+                </Link>
+                <span className="ref-context-separator" aria-hidden="true">
+                  ›
+                </span>
+                <span aria-current="page">
+                  {pathname === '/appointments'
+                    ? 'Lịch hẹn tư vấn'
+                    : resolveContextLabel(pathname)}
+                </span>
+              </nav>
+            )}
+            {!isProgressiveRelaxation && (
+              <span className="ref-workspace-label">
+                <i aria-hidden="true" />
+                Không gian cá nhân
               </span>
-            </nav>
-          ) : isScreeningJourney ? (
-            <nav
-              className="ref-screening-crumb"
-              aria-label="Đường dẫn trên cùng"
-            >
-              <Link href="/dashboard">Không gian của bạn</Link>
-              <span aria-hidden="true">/</span>
-              <span aria-current="page">{resolveContextLabel(pathname)}</span>
-            </nav>
-          ) : (
-            <div className="ref-context">
-              <span>
-                {pathname === '/appointments'
-                  ? 'Không gian cá nhân / '
-                  : 'Không gian của bạn'}
-              </span>
-              <strong>
-                {pathname === '/appointments'
-                  ? 'Lịch hẹn tư vấn'
-                  : resolveContextLabel(pathname)}
-              </strong>
-            </div>
-          )}
+            )}
+          </div>
           <label>
             <Svg>
               <circle cx="11" cy="11" r="7" />
@@ -533,6 +634,15 @@ export default function AuthenticatedShell({
           className="ref-overlay"
           onClick={() => setMobile(false)}
           aria-label="Đóng menu"
+        />
+      )}
+      {accountId && (
+        <OnboardingTour
+          key={accountId}
+          accountId={accountId}
+          pathname={pathname}
+          prepareStep={prepareTourStep}
+          onEnd={endTour}
         />
       )}
     </div>

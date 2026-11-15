@@ -78,6 +78,13 @@ export function useCommunityGroups({
   const [groupVersion, setGroupVersion] = useState(group?.version ?? '')
   const [busyKey, setBusyKey] = useState('')
   const [notice, setNotice] = useState('')
+  const createAttempt = useRef<{
+    signature: string
+    key: string
+    created?: Awaited<ReturnType<typeof createChatGroup>>
+    invitations: Map<string, string>
+    sent: Set<string>
+  } | null>(null)
 
   const loadInvitations = useCallback(async () => {
     setInvitationLoading(true)
@@ -183,16 +190,56 @@ export function useCommunityGroups({
     }
   }
 
-  async function create(name: string) {
+  async function create(name: string, invitees: string[] = []) {
+    if (busyKey === 'create') return false
+    const signature = JSON.stringify([name.trim(), [...invitees].sort()])
+    if (createAttempt.current?.signature !== signature)
+      createAttempt.current = {
+        signature,
+        key: crypto.randomUUID(),
+        invitations: new Map(),
+        sent: new Set(),
+      }
+    const attempt = createAttempt.current
     setBusyKey('create')
     setNotice('')
     try {
-      const created = await createChatGroup(name.trim(), crypto.randomUUID())
+      const created =
+        attempt.created ?? (await createChatGroup(name.trim(), attempt.key))
+      attempt.created = created
+      const fresh = await getChatConversation(created.conversationId)
+      let version = fresh.version
+      for (const profileId of invitees) {
+        if (attempt.sent.has(profileId)) continue
+        let key = attempt.invitations.get(profileId)
+        if (!key) {
+          key = crypto.randomUUID()
+          attempt.invitations.set(profileId, key)
+        }
+        const result = await inviteChatGroupMember(
+          created.conversationId,
+          profileId,
+          version,
+          key,
+        )
+        version = versionFromEtag(result.version, version)
+        attempt.sent.add(profileId)
+      }
+      createAttempt.current = null
+      setNotice(
+        invitees.length
+          ? `Đã tạo nhóm và gửi ${invitees.length} lời mời tham gia.`
+          : 'Đã tạo nhóm chat.',
+      )
       reloadOverview()
       router.push(`/community/messages/${created.conversationId}`)
       return true
     } catch (cause) {
-      setNotice(friendlyGroupError(cause))
+      setNotice(
+        attempt.created
+          ? `Nhóm đã tạo, còn lời mời chưa gửi được. Giữ nguyên lựa chọn và nhấn tạo nhóm để thử lại. ${friendlyGroupError(cause)}`
+          : friendlyGroupError(cause),
+      )
       return false
     } finally {
       setBusyKey('')

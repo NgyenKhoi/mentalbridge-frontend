@@ -73,6 +73,29 @@
   min-width: 0;
   padding-top: 1px;
 }
+.copy .actionLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  color: var(--teal-deep);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.copy .actionLink > span {
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+}
+.actionLink:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+.actionLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 .copy strong,
 .copy span {

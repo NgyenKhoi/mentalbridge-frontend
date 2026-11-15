@@ -11,6 +11,8 @@ import { Linking } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
 import type { AppSession } from '@/auth/session'
+import type { RewardApi } from '@/rewards/reward-api'
+import type { ResourceBookmark } from '@/rewards/reward-contract'
 
 import type { ResourceApi } from './resource-api'
 import type { ResourceDetail, ResourceProgressItem } from './resource-contract'
@@ -135,6 +137,25 @@ const screenFor = (resourceApi: ResourceApi, resourceId: string) => (
     timezone="Asia/Ho_Chi_Minh"
   />
 )
+
+function bookmarkApi(
+  overrides: Partial<
+    Pick<RewardApi, 'getBookmarks' | 'saveBookmark' | 'deleteBookmark'>
+  > = {},
+) {
+  const saved: ResourceBookmark = {
+    resourceId: '11111111-1111-4111-8111-111111111111',
+    contentVersion: '4',
+    savedAt: '2026-10-07T02:00:00.000Z',
+    version: '1',
+  }
+  return {
+    getBookmarks: jest.fn().mockResolvedValue([]),
+    saveBookmark: jest.fn().mockResolvedValue(saved),
+    deleteBookmark: jest.fn().mockResolvedValue(undefined),
+    ...overrides,
+  }
+}
 
 describe('mobile reviewed resource detail and progress', () => {
   beforeEach(() => {
@@ -323,5 +344,64 @@ describe('mobile reviewed resource detail and progress', () => {
     expect(await screen.findByText(resource.title)).toBeOnTheScreen()
     expect(screen.getByText(/cập nhật đang tạm dừng/)).toBeOnTheScreen()
     expect(dependencyApi.saveProgress).not.toHaveBeenCalled()
+  })
+
+  it('saves, reloads and removes an owner bookmark without changing progress', async () => {
+    const resource = detail()
+    const resourceApi = api(resource)
+    const saved: ResourceBookmark = {
+      resourceId: resource.id,
+      contentVersion: resource.contentVersion,
+      savedAt: '2026-10-07T02:00:00.000Z',
+      version: '1',
+    }
+    const owner = bookmarkApi({
+      getBookmarks: jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValue([saved]),
+      saveBookmark: jest.fn().mockResolvedValue(saved),
+    })
+    const first = await renderDetail(
+      <ResourceDetailScreen
+        activityDate="2026-10-07"
+        api={resourceApi}
+        rewardApi={owner}
+        now={() => new Date('2026-10-07T03:00:00.000Z')}
+        onBack={jest.fn()}
+        resourceId={resource.id}
+        timezone="Asia/Ho_Chi_Minh"
+      />,
+    )
+    await fireEvent.press(await screen.findByTestId('resource-bookmark-toggle'))
+    await waitFor(() =>
+      expect(owner.saveBookmark).toHaveBeenCalledWith(resource.id),
+    )
+    expect(
+      await screen.findByRole('button', { name: 'Bỏ lưu tài nguyên' }),
+    ).toBeTruthy()
+    expect(resourceApi.saveProgress).not.toHaveBeenCalled()
+
+    await first.unmount()
+    await renderDetail(
+      <ResourceDetailScreen
+        activityDate="2026-10-07"
+        api={resourceApi}
+        rewardApi={owner}
+        now={() => new Date('2026-10-07T03:00:00.000Z')}
+        onBack={jest.fn()}
+        resourceId={resource.id}
+        timezone="Asia/Ho_Chi_Minh"
+      />,
+    )
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Bỏ lưu tài nguyên' }),
+    )
+    await waitFor(() =>
+      expect(owner.deleteBookmark).toHaveBeenCalledWith(resource.id),
+    )
+    expect(
+      await screen.findByRole('button', { name: 'Lưu tài nguyên' }),
+    ).toBeTruthy()
   })
 })

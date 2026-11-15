@@ -1,15 +1,9 @@
 name: Frontend quality
 
 on:
+  # quality-gate is a required check, so it must report on every PR; the changes job picks the checks.
   pull_request:
     branches: [dev]
-    paths:
-      - 'mentalbridge/**'
-      - 'mobile/**'
-      - 'AGENTS.md'
-      - 'CONTRIBUTING.md'
-      - '.github/workflows/frontend-quality.yml'
-      - '.github/workflows/staging-quality.yml'
   push:
     branches: [dev]
     paths:

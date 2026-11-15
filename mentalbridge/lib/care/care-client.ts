@@ -1073,19 +1073,6 @@ export const careClient = {
     })
   },
 
-  currentSupportPlan(
-    accessToken: string,
-    correlationId: string,
-  ): Promise<SupportPlan> {
-    return careRequest({
-      method: 'GET',
-      path: '/api/v1/support-plans/current',
-      correlationId,
-      authorization: accessToken,
-      parseSuccess: parseSupportPlan,
-    })
-  },
-
   supportPlanPersonalization(
     accessToken: string,
     correlationId: string,

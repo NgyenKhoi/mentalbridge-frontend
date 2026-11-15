@@ -27,11 +27,18 @@ const api = vi.hoisted(() => ({
   startDirectConversation: vi.fn(),
   getCommunityProfile: vi.fn(),
   blockCommunityProfile: vi.fn(),
+  getFriends: vi.fn(),
 }))
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => router }))
 vi.mock('../api/browser-community-chat', () => api)
+vi.mock('@/features/community/api/browser-community-social', () => ({
+  getFriends: api.getFriends,
+}))
+vi.mock('./useCommunityChatRealtime', () => ({
+  useCommunityChatRealtime: () => 'idle',
+}))
 vi.mock('@/features/community/api/browser-community', () => ({
   getCommunityProfile: api.getCommunityProfile,
   blockCommunityProfile: api.blockCommunityProfile,
@@ -147,6 +154,7 @@ function deferred<T>() {
 describe('CommunityChatWorkspace', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    api.getFriends.mockResolvedValue({ items: [], nextCursor: null })
     api.getChatConversations.mockResolvedValue({
       items: [conversation],
       nextCursor: null,
@@ -191,6 +199,114 @@ describe('CommunityChatWorkspace', () => {
       caseId: '60000000-0000-4000-8000-000000000001',
       state: 'RECEIVED',
     })
+  })
+
+  it('shows an availability state without a misleading retry when the service is unavailable', async () => {
+    const unavailable = new ApiError({
+      message: 'unavailable',
+      code: 'DEPENDENCY_UNAVAILABLE',
+      status: 503,
+    })
+    api.getChatConversations.mockRejectedValue(unavailable)
+    api.getChatRequests.mockRejectedValue(unavailable)
+    api.getChatPrivacy.mockRejectedValue(unavailable)
+    render(<CommunityChatWorkspace />)
+
+    expect(await screen.findByText('Tin nhắn hiện chưa khả dụng')).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Thử lại' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Tin nhắn mới hoặc tạo nhóm' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('heading', {
+        name: 'Tin nhắn và nhóm riêng',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Trở về bảng tin →' }),
+    ).toHaveAttribute('href', '/community')
+  })
+
+  it('filters people and groups in one inbox without opening or reading a thread', async () => {
+    api.getChatConversations.mockResolvedValue({
+      items: [conversation, groupConversation],
+      nextCursor: null,
+    })
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace />)
+    const inbox = within(
+      screen.getByRole('complementary', { name: 'Hộp thư cộng đồng' }),
+    )
+    expect(await inbox.findByRole('link', { name: /Mầm Nắng/ })).toBeVisible()
+    expect(inbox.getByRole('link', { name: /Nhóm đồng hành/ })).toBeVisible()
+
+    await user.click(inbox.getByRole('button', { name: 'Nhóm' }))
+    expect(
+      inbox.queryByRole('link', { name: /Mầm Nắng/ }),
+    ).not.toBeInTheDocument()
+    expect(inbox.getByRole('link', { name: /Nhóm đồng hành/ })).toBeVisible()
+    await user.click(inbox.getByRole('button', { name: 'Cá nhân' }))
+    expect(inbox.getByRole('link', { name: /Mầm Nắng/ })).toBeVisible()
+    expect(
+      inbox.queryByRole('link', { name: /Nhóm đồng hành/ }),
+    ).not.toBeInTheDocument()
+    await user.click(inbox.getByRole('button', { name: 'Tất cả' }))
+    const search = inbox.getByRole('textbox', {
+      name: 'Tìm người hoặc nhóm trong hộp thư',
+    })
+    await user.type(search, 'dong hanh')
+    expect(inbox.getByRole('link', { name: /Nhóm đồng hành/ })).toBeVisible()
+    expect(
+      inbox.queryByRole('link', { name: /Mầm Nắng/ }),
+    ).not.toBeInTheDocument()
+    await user.click(
+      inbox.getByRole('button', { name: 'Xóa tìm kiếm hộp thư' }),
+    )
+    await user.type(search, 'mam nang')
+    expect(inbox.getByRole('link', { name: /Mầm Nắng/ })).toBeVisible()
+    await user.clear(search)
+    await user.type(search, 'khong tim thay')
+    expect(inbox.getByText('Chưa tìm thấy hội thoại phù hợp')).toBeVisible()
+    await user.click(inbox.getByRole('button', { name: 'Xóa tìm kiếm' }))
+    expect(inbox.getAllByRole('link')).toHaveLength(2)
+    expect(api.getChatMessages).not.toHaveBeenCalled()
+    expect(api.advanceChatReadCursor).not.toHaveBeenCalled()
+  })
+
+  it('opens the legacy group destination as the group filter of the shared inbox', async () => {
+    api.getChatConversations.mockResolvedValue({
+      items: [conversation, groupConversation],
+      nextCursor: null,
+    })
+    const user = userEvent.setup()
+    render(<CommunityChatWorkspace groupsOnly />)
+    expect(
+      await screen.findByRole('link', { name: /Nhóm đồng hành/ }),
+    ).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Tin nhắn' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Nhóm' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(
+      screen.queryByRole('link', { name: /Mầm Nắng/ }),
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Tất cả' }))
+    expect(screen.getByRole('link', { name: /Mầm Nắng/ })).toBeVisible()
+  })
+
+  it('keeps a retry for a network failure rather than claiming chat is disabled', async () => {
+    api.getChatConversations.mockRejectedValue(new TypeError('network'))
+    api.getChatRequests.mockRejectedValue(new TypeError('network'))
+    api.getChatPrivacy.mockRejectedValue(new TypeError('network'))
+    render(<CommunityChatWorkspace />)
+
+    expect(await screen.findByRole('button', { name: 'Thử lại' })).toBeEnabled()
+    expect(
+      screen.queryByText('Tin nhắn hiện chưa khả dụng'),
+    ).not.toBeInTheDocument()
   })
 
   it('opens notification consent targets without granting transcript access', async () => {
@@ -558,16 +674,49 @@ describe('CommunityChatWorkspace', () => {
       />,
     )
 
-    expect(await screen.findByText(groupConversation.groupName)).toBeVisible()
-    expect(screen.getByText(/Nhóm riêng/)).toBeVisible()
+    expect(
+      await screen.findByText(groupConversation.groupName, {
+        selector: 'strong',
+      }),
+    ).toBeVisible()
+    expect(screen.getByText(/Nhóm chat/)).toBeVisible()
     expect(api.getChatMessages).toHaveBeenCalledWith(
       groupConversation.conversationId,
     )
     expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toBeVisible()
-    expect(screen.getByRole('button', { name: /Thành viên/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /thành viên/ })).toBeVisible()
   })
 
   it('creates a private group with the authoritative provider result', async () => {
+    api.getFriends.mockResolvedValue({
+      items: [
+        {
+          friendshipId: requestId,
+          state: 'FRIENDS',
+          createdAt: '2026-10-20T07:00:00Z',
+          peer: {
+            communityProfileId: peerId,
+            displayName: peer.displayName,
+            avatarPreset: null,
+            state: 'ACTIVE',
+          },
+        },
+      ],
+      nextCursor: null,
+    })
+    api.getChatConversation.mockResolvedValue(ownerGroupConversation)
+    api.inviteChatGroupMember.mockResolvedValue({
+      invitation: {
+        invitationId: requestId,
+        conversationId: ownerGroupConversation.conversationId,
+        groupName: ownerGroupConversation.groupName,
+        inviter: peer,
+        state: 'PENDING',
+        expiresAt: '2026-10-28T00:00:00Z',
+        version: '0',
+      },
+      version: '"8"',
+    })
     api.createChatGroup.mockResolvedValue({
       conversationId: groupConversation.conversationId,
       kind: 'GROUP',
@@ -580,10 +729,23 @@ describe('CommunityChatWorkspace', () => {
     render(<CommunityChatWorkspace />)
     await screen.findByText('Mầm Nắng')
 
-    await user.click(screen.getByRole('button', { name: /Tạo nhóm riêng/ }))
+    await user.click(
+      screen.getByRole('button', { name: 'Tin nhắn mới hoặc tạo nhóm' }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Tạo nhóm trò chuyện' }),
+    )
+    await screen.findByRole('dialog', { name: 'Tạo nhóm trò chuyện' })
     await user.type(screen.getByLabelText('Tên nhóm'), 'Góc bình yên')
     await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', {
+      within(
+        screen.getByRole('dialog', { name: 'Tạo nhóm trò chuyện' }),
+      ).getByRole('checkbox'),
+    )
+    await user.click(
+      within(
+        screen.getByRole('dialog', { name: 'Tạo nhóm trò chuyện' }),
+      ).getByRole('button', {
         name: 'Tạo nhóm',
       }),
     )
@@ -594,8 +756,16 @@ describe('CommunityChatWorkspace', () => {
         expect.stringMatching(/^[\da-f-]{36}$/i),
       ),
     )
-    expect(router.push).toHaveBeenCalledWith(
-      `/community/messages/${groupConversation.conversationId}`,
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith(
+        `/community/messages/${groupConversation.conversationId}`,
+      ),
+    )
+    expect(api.inviteChatGroupMember).toHaveBeenCalledWith(
+      groupConversation.conversationId,
+      peerId,
+      '7',
+      expect.stringMatching(/^[\da-f-]{36}$/i),
     )
   })
 
@@ -669,7 +839,7 @@ describe('CommunityChatWorkspace', () => {
     )
 
     await user.click(
-      await screen.findByRole('button', { name: /Thành viên · Chủ nhóm/ }),
+      await screen.findByRole('button', { name: /thành viên.*Chủ nhóm/ }),
     )
     await user.click(await screen.findByRole('button', { name: 'Hạ quyền' }))
     expect(api.setChatGroupMemberRole).toHaveBeenCalledWith(
@@ -681,7 +851,9 @@ describe('CommunityChatWorkspace', () => {
 
     await user.click(screen.getByRole('button', { name: 'Lưu trữ nhóm' }))
     await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', {
+      within(
+        screen.getByRole('dialog', { name: 'Xác nhận thay đổi nhóm' }),
+      ).getByRole('button', {
         name: 'Xác nhận',
       }),
     )
@@ -723,13 +895,15 @@ describe('CommunityChatWorkspace', () => {
       />,
     )
     await user.click(
-      await screen.findByRole('button', { name: /Thành viên · Chủ nhóm/ }),
+      await screen.findByRole('button', { name: /thành viên.*Chủ nhóm/ }),
     )
     await user.click(
       await screen.findByRole('button', { name: 'Chuyển quyền chủ nhóm' }),
     )
     await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', {
+      within(
+        screen.getByRole('dialog', { name: 'Xác nhận thay đổi nhóm' }),
+      ).getByRole('button', {
         name: 'Xác nhận',
       }),
     )
@@ -745,18 +919,31 @@ describe('CommunityChatWorkspace', () => {
     expect(
       screen.queryByRole('button', { name: 'Chuyển quyền chủ nhóm' }),
     ).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Đóng quản lý nhóm' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Đóng thông tin nhóm' }),
+    )
     expect(
-      screen.getByRole('button', { name: /Thành viên · Quản trị viên/ }),
+      screen.getByRole('button', { name: /thành viên.*Quản trị viên/ }),
     ).toBeInTheDocument()
   })
 
-  it('invites a peer selected from private conversations without exposing profile ids', async () => {
+  it('invites only an accepted friend without exposing profile ids', async () => {
     const invitePeer = {
       ...peer,
       communityProfileId: '10000000-0000-4000-8000-000000000004',
       displayName: 'Chồi Xanh',
     }
+    api.getFriends.mockResolvedValue({
+      items: [
+        {
+          friendshipId: requestId,
+          peer: { ...invitePeer, state: 'ACTIVE', avatarPreset: null },
+          state: 'FRIENDS',
+          createdAt: '2026-10-20T00:00:00Z',
+        },
+      ],
+      nextCursor: null,
+    })
     api.getChatConversations.mockResolvedValue({
       items: [
         conversation,
@@ -800,14 +987,14 @@ describe('CommunityChatWorkspace', () => {
     )
 
     await user.click(
-      await screen.findByRole('button', { name: /Thành viên · Chủ nhóm/ }),
+      await screen.findByRole('button', { name: /thành viên.*Chủ nhóm/ }),
     )
     expect(
       screen.queryByText(invitePeer.communityProfileId),
     ).not.toBeInTheDocument()
     await user.click(
       screen.getByRole('combobox', {
-        name: 'Chọn người từ trò chuyện riêng',
+        name: 'Mời thêm bạn bè',
       }),
     )
     await user.click(

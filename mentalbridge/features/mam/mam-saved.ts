@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 
 import type { MamOneShotCommand } from './MamCharacter'
+import { MAM_ONE_SHOT_MS } from './mam-contract'
 
 // A feature reports a save Care has confirmed (never a pending or failed one);
-// the dock answers with one `light_success` when every condition holds.
+// the dock answers with one `nod` (MB-818: the same nod for every content, never a
+// celebration) when every condition holds.
 export const MAM_SAVED_EVENT = 'mam:saved'
-// The asset returns to `idle` itself at 1.3 s (ADR "Control contract").
-const LIGHT_SUCCESS_MS = 1400
 
 export const dispatchMamSaved = () =>
   window.dispatchEvent(new Event(MAM_SAVED_EVENT))
@@ -36,14 +36,14 @@ export function useMamSaved(
     const onSaved = () => {
       if (!allowedRef.current) return
       count.current += 1
-      setPlaying({ kind: 'light_success', key: `saved:${count.current}` })
+      setPlaying({ kind: 'nod', key: `saved:${count.current}` })
     }
     window.addEventListener(MAM_SAVED_EVENT, onSaved)
     return () => window.removeEventListener(MAM_SAVED_EVENT, onSaved)
   }, [])
   useEffect(() => {
     if (!playing) return
-    const timer = setTimeout(() => setPlaying(null), LIGHT_SUCCESS_MS)
+    const timer = setTimeout(() => setPlaying(null), MAM_ONE_SHOT_MS.nod)
     return () => clearTimeout(timer)
   }, [playing])
   return allowed ? playing : null

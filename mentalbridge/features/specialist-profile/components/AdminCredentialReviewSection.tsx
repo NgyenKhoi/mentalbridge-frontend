@@ -1,15 +1,31 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Check, Eye, FileBadge2, RefreshCw, X } from 'lucide-react'
 
 import { Dialog } from '@/components/ui/Dialog'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { browserConsultation } from '../api/browser-client'
 import type { CredentialDocument } from '../api/credential-validation'
+import CredentialEvidencePanel from './CredentialEvidencePanel'
 import styles from './AdminCredentialReviewSection.module.css'
 
-export default function AdminCredentialReviewSection() {
+const statusLabels = {
+  PENDING: 'Đang chờ xác minh',
+  VERIFIED: 'Đã xác minh',
+  REJECTED: 'Đã từ chối',
+} satisfies Record<CredentialDocument['verificationStatus'], string>
+
+export default function AdminCredentialReviewSection({
+  specialistId,
+  refreshRevision = 0,
+  onReviewed,
+}: {
+  specialistId?: string
+  refreshRevision?: number
+  onReviewed?: () => void
+}) {
+  const id = useId()
   const { confirm, showActionToast } = useFeedback()
   const [documents, setDocuments] = useState<CredentialDocument[]>([])
   const [selected, setSelected] = useState<CredentialDocument | null>(null)
@@ -19,28 +35,14 @@ export default function AdminCredentialReviewSection() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-
-  async function load() {
-    setLoading(true)
-    setError('')
-    try {
-      const result = await browserConsultation.pendingCredentialDocuments()
-      setDocuments(result.data)
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'Không thể tải giấy tờ đang chờ.',
-      )
-    } finally {
-      setLoading(false)
-    }
-  }
+  const [retry, setRetry] = useState(0)
 
   useEffect(() => {
     let active = true
-    browserConsultation
-      .pendingCredentialDocuments()
+    const request = specialistId
+      ? browserConsultation.adminSpecialistCredentialDocuments(specialistId)
+      : browserConsultation.pendingCredentialDocuments()
+    request
       .then((result) => {
         if (!active) return
         setDocuments(result.data)
@@ -50,7 +52,7 @@ export default function AdminCredentialReviewSection() {
         setError(
           cause instanceof Error
             ? cause.message
-            : 'Không thể tải giấy tờ đang chờ.',
+            : 'Không thể tải danh sách giấy tờ.',
         )
       })
       .finally(() => {
@@ -59,7 +61,7 @@ export default function AdminCredentialReviewSection() {
     return () => {
       active = false
     }
-  }, [])
+  }, [refreshRevision, retry, specialistId])
 
   const selectedId = selected?.id
 
@@ -89,7 +91,7 @@ export default function AdminCredentialReviewSection() {
   }
 
   async function decide(decision: 'verify' | 'reject') {
-    if (!selected) return
+    if (!selected || selected.verificationStatus !== 'PENDING') return
     const approved = await confirm({
       title:
         decision === 'verify'
@@ -97,7 +99,7 @@ export default function AdminCredentialReviewSection() {
           : 'Từ chối giấy tờ này?',
       description:
         decision === 'verify'
-          ? 'Chuyên gia có thể tự bật huy hiệu công khai sau khi giấy tờ được xác minh.'
+          ? 'Chỉ xác minh sau khi bạn đã kiểm tra bản gốc và đối chiếu với đơn vị cấp. Sau đó, chuyên gia có thể bật huy hiệu công khai.'
           : 'Chuyên gia sẽ thấy giấy tờ chưa được xác minh và có thể tải lại giấy tờ khác.',
       confirmLabel: decision === 'verify' ? 'Xác minh' : 'Từ chối',
       ...(decision === 'reject' ? { tone: 'danger' as const } : {}),
@@ -106,16 +108,21 @@ export default function AdminCredentialReviewSection() {
     setBusy(true)
     setError('')
     try {
-      await browserConsultation.reviewCredential(
+      const result = await browserConsultation.reviewCredential(
         selected.id,
         decision,
         selected.version,
       )
       setDocuments((current) =>
-        current.filter((item) => item.id !== selected.id),
+        specialistId
+          ? current.map((item) =>
+              item.id === selected.id ? result.data : item,
+            )
+          : current.filter((item) => item.id !== selected.id),
       )
       setSelected(null)
       setFile(null)
+      onReviewed?.()
       showActionToast({
         title:
           decision === 'verify' ? 'Đã xác minh giấy tờ' : 'Đã từ chối giấy tờ',
@@ -131,25 +138,24 @@ export default function AdminCredentialReviewSection() {
   }
 
   return (
-    <section
-      className={styles.section}
-      aria-labelledby="credential-review-title"
-    >
+    <section className={styles.section} aria-labelledby={`${id}-title`}>
       <div className={styles.heading}>
         <div>
           <span className={styles.overline}>XÁC MINH RIÊNG TƯ</span>
-          <h2 id="credential-review-title">
-            Giấy tờ chuyên gia <b>{documents.length}</b>
+          <h2 id={`${id}-title`}>
+            {specialistId ? 'Giấy tờ của chuyên gia' : 'Giấy tờ chuyên gia'}{' '}
+            <b>{documents.length}</b>
           </h2>
-          <p>
-            Chỉ quản trị viên xem được tệp gốc. Huy hiệu công khai do chuyên gia
-            bật sau khi được xác minh.
-          </p>
+          <p>Mở bản gốc để kiểm tra và đối chiếu thủ công với đơn vị cấp.</p>
         </div>
         <button
           type="button"
           className={styles.refresh}
-          onClick={() => void load()}
+          onClick={() => {
+            setError('')
+            setLoading(true)
+            setRetry((current) => current + 1)
+          }}
           disabled={loading}
         >
           <RefreshCw aria-hidden="true" /> Làm mới
@@ -163,7 +169,13 @@ export default function AdminCredentialReviewSection() {
       {loading ? (
         <p className={styles.empty}>Đang tải giấy tờ…</p>
       ) : documents.length === 0 ? (
-        <p className={styles.empty}>Không có giấy tờ đang chờ xác minh.</p>
+        !error && (
+          <p className={styles.empty}>
+            {specialistId
+              ? 'Chuyên gia chưa tải lên giấy tờ.'
+              : 'Không có giấy tờ đang chờ xác minh.'}
+          </p>
+        )
       ) : (
         <div className={styles.list}>
           {documents.map((document) => (
@@ -176,6 +188,7 @@ export default function AdminCredentialReviewSection() {
                 <small>
                   {document.issuer} · {document.issueYear} · {document.fileName}
                 </small>
+                <small>{statusLabels[document.verificationStatus]}</small>
                 <small>
                   Chuyên gia #{document.specialistAccountId.slice(0, 8)} · Đã
                   gửi {new Date(document.createdAt).toLocaleDateString('vi-VN')}
@@ -196,15 +209,15 @@ export default function AdminCredentialReviewSection() {
             setFile(null)
           }
         }}
-        labelledBy="credential-review-document-title"
+        labelledBy={`${id}-document-title`}
         className={styles.dialog}
       >
         {selected && (
           <div className={styles.viewer}>
             <header>
               <div>
-                <span>GIẤY TỜ CHỜ XÁC MINH</span>
-                <h2 id="credential-review-document-title">{selected.title}</h2>
+                <span>{statusLabels[selected.verificationStatus]}</span>
+                <h2 id={`${id}-document-title`}>{selected.title}</h2>
                 <p>
                   {selected.issuer} · {selected.issueYear} · {selected.fileName}
                 </p>
@@ -222,26 +235,39 @@ export default function AdminCredentialReviewSection() {
               </button>
             </header>
             {file?.documentId === selected.id ? (
-              <iframe title={`Tệp gốc ${selected.title}`} src={file.url} />
+              <div className={styles.viewerBody}>
+                <iframe
+                  title={`Tệp gốc ${selected.title}`}
+                  src={file.url}
+                  referrerPolicy="no-referrer"
+                />
+                <CredentialEvidencePanel
+                  key={selected.id}
+                  credential={selected}
+                  url={file.url}
+                />
+              </div>
             ) : (
               <p className={styles.empty}>{error || 'Đang mở tệp gốc…'}</p>
             )}
-            <footer>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void decide('reject')}
-              >
-                <X aria-hidden="true" /> Từ chối
-              </button>
-              <button
-                type="button"
-                disabled={busy || file?.documentId !== selected.id}
-                onClick={() => void decide('verify')}
-              >
-                <Check aria-hidden="true" /> Xác minh
-              </button>
-            </footer>
+            {selected.verificationStatus === 'PENDING' && (
+              <footer>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void decide('reject')}
+                >
+                  <X aria-hidden="true" /> Từ chối
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || file?.documentId !== selected.id}
+                  onClick={() => void decide('verify')}
+                >
+                  <Check aria-hidden="true" /> Xác minh
+                </button>
+              </footer>
+            )}
           </div>
         )}
       </Dialog>

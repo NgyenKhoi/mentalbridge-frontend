@@ -133,8 +133,10 @@ describe('DailyEmotionCheckIn Mầm entry', () => {
     window.localStorage.clear()
     window.sessionStorage.clear()
     Element.prototype.scrollIntoView = vi.fn()
+    // These cover the explanation flow; reduced motion keeps the bubble beside
+    // the card with no climb (MB-814), which has its own tests in features/mam.
     window.matchMedia = vi.fn((query: string) => ({
-      matches: false,
+      matches: query.includes('prefers-reduced-motion'),
       media: query,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -264,6 +266,8 @@ describe('DailyEmotionCheckIn Mầm entry', () => {
     get.mockResolvedValue(record())
     render(<App />)
     const button = await screen.findByRole('button', { name: BUTTON })
+    // MB-814: the icon is hidden until focus; right-click and long-press replace it.
+    expect(button.className).toMatch(/hiddenUntilFocus/)
     await user.click(button)
     const bubble = await screen.findByRole('dialog', { name: 'Mầm' })
     expect(bubble).toHaveTextContent(

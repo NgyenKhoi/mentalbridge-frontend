@@ -9,7 +9,12 @@ export default function SupportPlanError({
 }: Readonly<{ reset: () => void }>) {
   return (
     <div className="mbw-page">
-      <header className="mbw-header">
+      <header
+        className="mbw-header"
+        data-user-page-header
+        data-user-page-heading
+      >
+        <span data-user-page-kicker>Không gian của bạn</span>
         <h1>Kế hoạch của bạn</h1>
       </header>
       <WorkspaceMessage

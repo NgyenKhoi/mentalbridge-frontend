@@ -25,7 +25,10 @@ const account = {
   emailVerified: true,
 }
 
-function request(policyVersion = 'ai-processing-capstone-v2') {
+function request(
+  policyVersion = 'ai-processing-capstone-v2',
+  consentType = 'AI_PROCESSING',
+) {
   return new NextRequest('http://localhost/api/care/consent-decisions', {
     method: 'POST',
     headers: {
@@ -34,7 +37,7 @@ function request(policyVersion = 'ai-processing-capstone-v2') {
       'Idempotency-Key': 'consent-command-0001',
     },
     body: JSON.stringify({
-      consentType: 'AI_PROCESSING',
+      consentType,
       policyVersion,
       granted: true,
     }),
@@ -71,6 +74,39 @@ describe('AI processing consent BFF', () => {
       'consent-command-0001',
       expect.any(String),
     )
+  })
+
+  it('records the L2 AI context consent only with its current policy', async () => {
+    careMocks.recordConsent.mockResolvedValue({
+      decisionId: '30000000-0000-4000-8000-000000000002',
+      consentType: 'AI_CONTEXT_PROCESSING',
+      policyVersion: 'ai-context-processing-capstone-v1',
+      granted: true,
+      decidedAt: '2026-11-06T00:01:00Z',
+    })
+
+    const response = await POST(
+      request('ai-context-processing-capstone-v1', 'AI_CONTEXT_PROCESSING'),
+    )
+
+    expect(response.status).toBe(201)
+    expect(careMocks.recordConsent).toHaveBeenCalledWith(
+      'access-token',
+      {
+        consentType: 'AI_CONTEXT_PROCESSING',
+        policyVersion: 'ai-context-processing-capstone-v1',
+        granted: true,
+      },
+      'consent-command-0001',
+      expect.any(String),
+    )
+
+    careMocks.recordConsent.mockClear()
+    const stale = await POST(
+      request('ai-processing-capstone-v2', 'AI_CONTEXT_PROCESSING'),
+    )
+    expect(stale.status).toBe(400)
+    expect(careMocks.recordConsent).not.toHaveBeenCalled()
   })
 
   it('rejects an outdated AI policy before calling Care', async () => {

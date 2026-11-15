@@ -47,6 +47,7 @@
   text-underline-offset: 3px;
 }
 .heading a:focus-visible,
+.journalLink:focus-visible,
 .error button:focus-visible {
   outline: 3px solid var(--teal);
   outline-offset: 3px;
@@ -101,6 +102,62 @@
 .note svg {
   color: var(--teal);
   flex-shrink: 0;
+}
+.encouragement {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-5) 0 0;
+  border-top: 1px solid var(--line);
+}
+.messageLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  color: var(--teal-deep);
+  font-size: 12px;
+  font-weight: 600;
+}
+.emotionLabel {
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--teal-pale);
+}
+.encouragement h3 {
+  margin: 0;
+  color: var(--teal-deep);
+  font: 560 24px/1.35 var(--font-fraunces);
+  text-wrap: balance;
+}
+.encouragement p {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.journalLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  min-height: 44px;
+  color: var(--teal-deep);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.journalLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.encouragement .recordedDays {
+  padding-top: var(--space-2);
+  font-size: 12px;
 }
 .pop {
   animation: pop var(--motion-base) var(--ease-standard) both;

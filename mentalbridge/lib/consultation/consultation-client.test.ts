@@ -309,6 +309,41 @@ describe('Consultation server-only client', () => {
     })
   })
 
+  it('parses effective staging demo earnings on read and payout without a 502', async () => {
+    const demo = {
+      currency: 'VND',
+      earningPolicyVersion: 'staging-demo-paid-v1',
+      settlementHoldDays: 0,
+      settlementHoldSeconds: 600,
+      minimumWithdrawalVnd: 2000,
+      generatedAt: '2026-11-04T03:00:00Z',
+      balance: {
+        pendingSettlementVnd: 0,
+        availableVnd: 2625,
+        processingVnd: 0,
+        paidVnd: 0,
+      },
+      destination: null,
+      earnings: [],
+      payouts: [],
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => Promise.resolve(Response.json(demo))),
+    )
+    await expect(
+      consultationClient.specialistEarnings('access-token', 'correlation-id'),
+    ).resolves.toMatchObject({ data: demo })
+    await expect(
+      consultationClient.createSpecialistPayout(
+        'access-token',
+        'correlation-id',
+        'f5297ec9-bbc9-4d51-8212-62778245335c',
+        'payout-request-123456',
+      ),
+    ).resolves.toMatchObject({ data: demo })
+  })
+
   it('reads the authoritative credit balance with bearer and correlation headers', async () => {
     const account = {
       accountId: 'f5297ec9-bbc9-4d51-8212-62778245335c',

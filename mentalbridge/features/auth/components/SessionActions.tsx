@@ -33,6 +33,7 @@ export default function SessionActions({
   profileHref,
   profileLabel,
   showSubscription,
+  onReplayTour,
 }: {
   compact?: boolean
   displayName?: string
@@ -43,6 +44,7 @@ export default function SessionActions({
   profileHref?: string
   profileLabel?: string
   showSubscription?: boolean
+  onReplayTour?: () => void
 }) {
   const router = useRouter()
   const menuId = useId()
@@ -158,6 +160,27 @@ export default function SessionActions({
               <span className={styles.itemLabel}>Gói dịch vụ</span>
             </Link>
           )}
+          {onReplayTour && (
+            <button
+              type="button"
+              className={styles.menuItem}
+              role="menuitem"
+              disabled={pendingMode !== null}
+              onClick={() => {
+                setOpen(false)
+                triggerRef.current?.focus()
+                onReplayTour()
+              }}
+            >
+              <span className={styles.itemIcon}>
+                <Icon>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="m16 8-2 6-6 2 2-6 6-2Z" />
+                </Icon>
+              </span>
+              <span className={styles.itemLabel}>Xem lại hướng dẫn</span>
+            </button>
+          )}
           <div className={styles.separator} role="separator" />
           <button
             type="button"
@@ -200,6 +223,7 @@ export default function SessionActions({
       ) : null}
       <button
         ref={triggerRef}
+        data-onboarding={onReplayTour ? 'profile' : undefined}
         type="button"
         className={styles.trigger}
         aria-label={`${open ? 'Đóng' : 'Mở'} menu tài khoản${specialist ? ' chuyên gia' : ''}`}

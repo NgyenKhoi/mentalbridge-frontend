@@ -119,6 +119,10 @@ test('one specialist identity, usable collapsed menu, consistent floating suppor
   await expect(profile).toHaveText('Hồ sơ chuyên gia')
   await profile.focus()
   await page.keyboard.press('Tab')
+  await expect(
+    sidebar.getByRole('menuitem', { name: 'Xem lại hướng dẫn' }),
+  ).toBeFocused()
+  await page.keyboard.press('Tab')
   // A specialist-only account has no personal subscription entry.
   await expect(
     sidebar.getByRole('menuitem', { name: 'Gói dịch vụ' }),

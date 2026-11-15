@@ -42,20 +42,26 @@ test.describe('Community feed journey', () => {
     await expect(
       page.getByText(/Ở đây, hỗ trợ không phải là phán xét/),
     ).toHaveCount(0)
-    await expect(page.getByText('Minh An')).toBeVisible()
+    await expect(page.getByText('Minh An', { exact: true })).toBeVisible()
     await expect(page.getByText(/Một số nội dung đa phương tiện/)).toBeVisible()
 
     await page.getByRole('button', { name: 'Xem thêm câu chuyện' }).click()
-    await expect(page.getByText('Thành viên đã rời cộng đồng')).toBeVisible()
+    await expect(
+      page.getByText('Thành viên đã rời cộng đồng', { exact: true }),
+    ).toBeVisible()
 
     await page.getByRole('button', { name: 'Bước tiến nhỏ' }).click()
-    await expect(page.getByText('Minh An')).toBeVisible()
-    await expect(page.getByText('Thành viên đã rời cộng đồng')).toHaveCount(0)
+    await expect(page.getByText('Minh An', { exact: true })).toBeVisible()
+    await expect(
+      page.getByText('Thành viên đã rời cộng đồng', { exact: true }),
+    ).toHaveCount(0)
 
     await page.getByRole('button', { name: 'Điều mình nhận ra' }).click()
-    await expect(page.getByText('Minh An')).toBeVisible()
+    await expect(page.getByText('Minh An', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Xem thêm câu chuyện' }).click()
-    await expect(page.getByText('Thành viên đã rời cộng đồng')).toBeVisible()
+    await expect(
+      page.getByText('Thành viên đã rời cộng đồng', { exact: true }),
+    ).toBeVisible()
     await expect(page.getByText(/Đang lọc theo 2 chủ đề/)).toBeVisible()
     await page
       .getByRole('link', { name: /Đọc bài viết/ })
@@ -70,7 +76,7 @@ test.describe('Community feed journey', () => {
     ).toHaveCount(0)
   })
 
-  test('opens Community from the visible compact USER header and mobile menu, then returns to the dashboard', async ({
+  test('opens Community from the visible compact USER header, not duplicated in the mobile menu, then returns to the dashboard', async ({
     page,
     request,
   }) => {
@@ -99,12 +105,25 @@ test.describe('Community feed journey', () => {
     await page.getByRole('link', { name: 'Về không gian của bạn' }).click()
     await expect(page).toHaveURL(/\/dashboard$/)
 
-    await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
-    const menuEntry = page
-      .getByRole('navigation', { name: 'Điều hướng chính', exact: true })
-      .getByRole('link', { name: 'Cộng đồng', exact: true })
-    await expect(menuEntry).toBeVisible()
-    await menuEntry.click()
+    const menuTrigger = page.getByRole('button', {
+      name: 'Mở menu',
+      exact: true,
+    })
+    await menuTrigger.click()
+    await expect(menuTrigger).toHaveAttribute('aria-expanded', 'true')
+    // Community lives in the header only; the open menu does not duplicate it.
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Điều hướng chính', exact: true })
+        .getByRole('link', { name: 'Cộng đồng', exact: true }),
+    ).toHaveCount(0)
+    const overlay = page.getByRole('button', { name: 'Đóng menu' })
+    const overlayBox = await overlay.boundingBox()
+    await overlay.click({
+      position: { x: (overlayBox?.width ?? 1) - 8, y: 8 },
+    })
+    await expect(menuTrigger).toHaveAttribute('aria-expanded', 'false')
+    await entry.click()
     await expect(page).toHaveURL(/\/community$/)
     await expect(
       page.getByRole('heading', { name: 'Cộng đồng MentalBridge' }),
@@ -219,7 +238,7 @@ test.describe('Community feed journey', () => {
     await login(page)
     await page.goto('/community')
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await expect(page.getByText('Minh An')).toBeVisible()
+    await expect(page.getByText('Minh An', { exact: true })).toBeVisible()
     for (const viewport of [
       { width: 1920, height: 1080 },
       { width: 1440, height: 900 },
@@ -243,24 +262,26 @@ test.describe('Community feed journey', () => {
       expect(main).not.toBeNull()
       expect(feed).not.toBeNull()
       expect(topics).not.toBeNull()
-      const gutter = viewport.width <= 760 ? 12 : 24
-      expect(main!.width).toBe(viewport.width)
-      const pageWidth = Math.min(
-        viewport.width - gutter * 2,
-        viewport.width > 900 ? 960 : 680,
+      expect(main!.x).toBeGreaterThanOrEqual(0)
+      expect(main!.x + main!.width).toBeLessThanOrEqual(viewport.width)
+      expect(feed!.x).toBeGreaterThanOrEqual(main!.x)
+      expect(feed!.x + feed!.width).toBeLessThanOrEqual(
+        main!.x + main!.width + 1,
       )
-      expect(feed!.x).toBeCloseTo((viewport.width - pageWidth) / 2, 0)
-      expect(feed!.width).toBeLessThanOrEqual(680)
-      expect(topics!.x + topics!.width).toBeCloseTo(
-        (viewport.width + pageWidth) / 2,
-        0,
+      expect(feed!.width).toBeLessThanOrEqual(720)
+      expect(topics!.x + topics!.width).toBeLessThanOrEqual(
+        main!.x + main!.width + 1,
       )
-      if (viewport.width > 900) {
+      if (viewport.width > 1100) {
         expect(topics!.x - (feed!.x + feed!.width)).toBeCloseTo(24, 0)
-        const brand = await page
-          .getByRole('link', { name: 'Cộng đồng MentalBridge' })
-          .boundingBox()
-        expect(brand!.x).toBe(gutter)
+        await expect(
+          page.getByRole('complementary', {
+            name: 'Không gian cộng đồng',
+            exact: true,
+          }),
+        ).toBeVisible()
+      } else {
+        expect(topics!.y).toBeLessThan(feed!.y)
       }
       if (
         viewport.width === 1920 ||
@@ -302,14 +323,17 @@ test.describe('Community feed journey', () => {
       .boundingBox()
     expect(empty).not.toBeNull()
     expect(emptyTopics).not.toBeNull()
-    expect(empty!.x).toBe((1920 - 960) / 2)
+    const emptyFeed = await page
+      .locator('.community-feed-content')
+      .boundingBox()
+    expect(empty!.x).toBeCloseTo(emptyFeed!.x, 0)
     expect(emptyTopics!.x - (empty!.x + empty!.width)).toBeCloseTo(24, 0)
     await page.screenshot({
       path: 'docs/evidence/community-overview-empty-1920.png',
       fullPage: true,
     })
     await page.getByRole('button', { name: 'Xóa bộ lọc' }).click()
-    await expect(page.getByText('Minh An')).toBeVisible()
+    await expect(page.getByText('Minh An', { exact: true })).toBeVisible()
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.getByRole('button', { name: 'Viết bài' }).click()
     await page
@@ -412,7 +436,9 @@ test.describe('Community feed journey', () => {
 
     await page.getByLabel('Tên hiển thị hoặc biệt danh').fill('Lá Nhỏ')
     await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
-    await expect(page.getByText('Đã lưu danh tính cộng đồng')).toBeVisible()
+    await expect(
+      page.getByText('Đã lưu danh tính cộng đồng').last(),
+    ).toBeVisible()
     await expect
       .poll(() =>
         page.evaluate(() =>

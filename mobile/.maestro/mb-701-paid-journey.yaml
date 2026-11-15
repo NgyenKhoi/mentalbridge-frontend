@@ -47,8 +47,4 @@ name: MB-701 authorized paid plan preview
     direction: DOWN
 - tapOn: 'Tiếp tục với kế hoạch hỗ trợ'
 - assertVisible: 'Kế hoạch hỗ trợ'
-- scrollUntilVisible:
-    element: 'Tạo phương án để xem lại'
-    direction: DOWN
-- tapOn: 'Tạo phương án để xem lại'
 - assertVisible: 'Phương án để bạn xem lại'

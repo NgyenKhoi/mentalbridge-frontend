@@ -1,8 +1,10 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { MamCardButton } from './MamCardButton'
+import { MAM_SUMMON_EVENT } from './mam-summon-request'
 import { useMamSuppress } from './mam-suppression'
 
 function Card({
@@ -83,5 +85,57 @@ describe('MamCardButton focus when Mầm goes away', () => {
       ).toBeNull(),
     )
     expect(screen.getByRole('heading', { hidden: true })).not.toHaveFocus()
+  })
+})
+
+// MB-814: the card icon is hidden until focus, but stays a real button.
+describe('MamCardButton hiddenUntilFocus', () => {
+  it('keeps the same name and summon action, with the visually-hidden class', () => {
+    const asked = vi.fn()
+    window.addEventListener(MAM_SUMMON_EVENT, asked)
+    render(
+      <section data-mam="">
+        <h3>Thở chậm 3 phút</h3>
+        <MamCardButton
+          hiddenUntilFocus
+          label="Mầm giải thích: Thở chậm 3 phút"
+        />
+        <MamCardButton label="Mầm giải thích: Hít thở" />
+      </section>,
+    )
+    const quiet = screen.getByRole('button', {
+      name: 'Mầm giải thích: Thở chậm 3 phút',
+    })
+    const plain = screen.getByRole('button', {
+      name: 'Mầm giải thích: Hít thở',
+    })
+    // The hidden-until-focus rule lives in the variant class only.
+    expect(quiet.className).toMatch(/hiddenUntilFocus/)
+    expect(plain.className).not.toMatch(/hiddenUntilFocus/)
+    expect(quiet).toHaveAttribute('data-mam-trigger')
+
+    fireEvent.click(quiet)
+    expect(asked).toHaveBeenCalledTimes(1)
+    expect(
+      (asked.mock.calls[0]![0] as CustomEvent<{ source: HTMLElement }>).detail
+        .source,
+    ).toBe(quiet)
+    window.removeEventListener(MAM_SUMMON_EVENT, asked)
+  })
+
+  it('is reachable with Tab, and focus stays where the keyboard put it', async () => {
+    const user = userEvent.setup()
+    render(
+      <section data-mam="">
+        <button type="button">Để hôm khác</button>
+        <MamCardButton hiddenUntilFocus label="Mầm giải thích: Thở chậm" />
+      </section>,
+    )
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Để hôm khác' })).toHaveFocus()
+    await user.tab()
+    expect(
+      screen.getByRole('button', { name: 'Mầm giải thích: Thở chậm' }),
+    ).toHaveFocus()
   })
 })

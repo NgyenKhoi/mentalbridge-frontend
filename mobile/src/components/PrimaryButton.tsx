@@ -1,4 +1,10 @@
-import { Pressable, StyleSheet, Text } from 'react-native'
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  type StyleProp,
+  type TextStyle,
+} from 'react-native'
 
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
@@ -7,11 +13,15 @@ export function PrimaryButton({
   label,
   onPress,
   testID,
+  tone = 'default',
+  labelStyle,
 }: Readonly<{
   disabled?: boolean
   label: string
   onPress: () => void
   testID?: string
+  tone?: 'default' | 'light' | 'darkPill'
+  labelStyle?: StyleProp<TextStyle>
 }>) {
   return (
     <Pressable
@@ -22,11 +32,21 @@ export function PrimaryButton({
       testID={testID}
       style={({ pressed }) => [
         styles.button,
+        tone === 'light' && styles.lightButton,
+        tone === 'darkPill' && styles.darkPill,
         disabled && styles.disabled,
         pressed && styles.pressed,
       ]}
     >
-      <Text style={styles.label}>{label}</Text>
+      <Text
+        style={[
+          styles.label,
+          tone === 'light' && styles.lightLabel,
+          labelStyle,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   )
 }
@@ -42,6 +62,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
   },
+  darkPill: {
+    alignSelf: 'stretch',
+    borderRadius: radii.pill,
+    backgroundColor: '#174A32',
+  },
+  lightButton: {
+    alignSelf: 'stretch',
+    borderRadius: radii.pill,
+    backgroundColor: colors.tealPale,
+  },
+  lightLabel: { color: colors.tealDeep, textAlign: 'center' },
   pressed: {
     opacity: 0.82,
   },

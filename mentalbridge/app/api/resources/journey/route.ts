@@ -14,7 +14,7 @@ import {
 import { contentResourceJourneyClient } from '@/lib/content/content-client'
 import { isLocalDate } from '@/lib/content/content-validation'
 import { careErrorResponse } from '@/lib/care/bff-response'
-import { careClient } from '@/lib/care/care-client'
+import { supportPlanActionClient } from '@/lib/care/support-plan-action-client'
 
 function validTimeZone(value: string) {
   if (value.length < 1 || value.length > 64) return false
@@ -54,14 +54,24 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  let plan: Awaited<ReturnType<typeof careClient.currentSupportPlan>>
+  let plan: Awaited<ReturnType<typeof supportPlanActionClient.resourceActions>>
   try {
-    plan = await careClient.currentSupportPlan(user.accessToken, correlationId)
+    plan = await supportPlanActionClient.resourceActions(
+      user.accessToken,
+      localDate,
+      correlationId,
+    )
   } catch (error) {
     return carryContentSession(careErrorResponse(error, correlationId), user)
   }
 
-  if (plan.status !== 'ACTIVE' || !plan.activatedAt) {
+  if (
+    plan.planState !== 'ACTIVE' ||
+    !plan.supportPlanId ||
+    plan.supportPlanVersion === undefined ||
+    !plan.activatedAt ||
+    !plan.targetDomains
+  ) {
     return carryContentSession(
       localProblem(
         409,
@@ -73,12 +83,9 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const domains = [
-    ...new Set(plan.templateFamilies.map((item) => item.targetDomain)),
-  ]
-  const selectedResourceIds = plan.slots.flatMap((slot) =>
-    slot.selectedResource ? [slot.selectedResource.resourceId] : [],
-  )
+  const selectedResourceIds = [
+    ...new Set(plan.actions.map((action) => action.resource.resourceId)),
+  ].slice(0, 12)
 
   try {
     const journey = await contentResourceJourneyClient.materialize(
@@ -88,10 +95,10 @@ export async function GET(request: NextRequest) {
         timeZone,
         supportPlan: {
           supportPlanId: plan.supportPlanId,
-          version: plan.version,
+          version: plan.supportPlanVersion,
           status: 'ACTIVE',
           activatedAt: plan.activatedAt,
-          domains,
+          domains: plan.targetDomains,
           selectedResourceIds,
         },
       },

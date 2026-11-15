@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   AppState,
+  Alert,
   AccessibilityInfo,
   Keyboard,
   KeyboardAvoidingView,
@@ -16,7 +17,11 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 import type { ChatSession } from './chat-session'
-import type { Eligibility } from './chat-contract'
+import type {
+  ChatMessage,
+  ChatReportReason,
+  Eligibility,
+} from './chat-contract'
 
 export function phaseCopy(phase: Eligibility['phase']) {
   switch (phase) {
@@ -88,6 +93,38 @@ export function ChatScreen({
     )
       setDraft('')
     setBusy(false)
+  }
+  function confirmDelete(message: ChatMessage) {
+    Alert.alert(
+      'Xóa tin nhắn này?',
+      'Nội dung sẽ được thay bằng thông báo đã xóa và không thể khôi phục trong cuộc trò chuyện.',
+      [
+        { text: 'Giữ lại', style: 'cancel' },
+        {
+          text: 'Xóa tin nhắn',
+          style: 'destructive',
+          onPress: () => void session.remove(message.messageId),
+        },
+      ],
+    )
+  }
+  function chooseReportReason(message: ChatMessage) {
+    const report = (reason: ChatReportReason) =>
+      void session.report(message.messageId, reason)
+    Alert.alert('Báo cáo tin nhắn', 'Chọn lý do phù hợp nhất.', [
+      { text: 'Quấy rối', onPress: () => report('HARASSMENT') },
+      {
+        text: 'Lo ngại quyền riêng tư',
+        onPress: () => report('PRIVACY_CONCERN'),
+      },
+      {
+        text: 'Lo ngại an toàn',
+        onPress: () => report('SELF_HARM_OR_CRISIS_CONCERN'),
+      },
+      { text: 'Tin rác', onPress: () => report('SPAM') },
+      { text: 'Lý do khác', onPress: () => report('OTHER') },
+      { text: 'Hủy', style: 'cancel' },
+    ])
   }
   const headline = state.eligibility
     ? phaseCopy(state.eligibility.phase)
@@ -169,8 +206,10 @@ export function ChatScreen({
               <Text style={styles.sender}>
                 {item.senderId === subject ? 'Bạn' : 'Người tham gia'}
               </Text>
-              <Text selectable style={styles.body}>
-                {item.content}
+              <Text selectable={item.state === 'VISIBLE'} style={styles.body}>
+                {item.state === 'DELETED'
+                  ? 'Tin nhắn này đã được xóa.'
+                  : item.content}
               </Text>
               <Text style={styles.meta}>
                 Đã lưu trên hệ thống ·{' '}
@@ -179,6 +218,26 @@ export function ChatScreen({
                   minute: '2-digit',
                 }).format(new Date(item.sentAt))}
               </Text>
+              {item.state === 'VISIBLE' && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    item.senderId === subject
+                      ? 'Xóa tin nhắn của bạn'
+                      : 'Báo cáo tin nhắn'
+                  }
+                  onPress={() =>
+                    item.senderId === subject
+                      ? confirmDelete(item)
+                      : chooseReportReason(item)
+                  }
+                  style={styles.messageAction}
+                >
+                  <Text style={styles.link}>
+                    {item.senderId === subject ? 'Xóa tin nhắn' : 'Báo cáo'}
+                  </Text>
+                </Pressable>
+              )}
             </View>
           ))}
           {state.pending.map((item) => (
@@ -302,6 +361,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   own: { alignSelf: 'flex-end', backgroundColor: colors.tealPale },
+  messageAction: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-end',
+  },
   sender: {
     color: colors.tealDeep,
     fontSize: typography.eyebrow,

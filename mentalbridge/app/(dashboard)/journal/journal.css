@@ -1525,6 +1525,57 @@ dialog.journal-modal-layer {
 .journal-detail > small {
   color: var(--ink-soft);
 }
+.journal-dialog.journal-dialog-reader {
+  display: flex;
+  flex-direction: column;
+  width: min(1280px, calc(100vw - 64px));
+  height: min(820px, calc(100dvh - 64px));
+  max-height: calc(100dvh - 64px);
+  border-radius: 24px;
+  overflow: hidden;
+}
+.journal-dialog.journal-dialog-reader-expanded {
+  width: calc(100vw - 32px);
+  height: calc(100dvh - 32px);
+  max-height: calc(100dvh - 32px);
+}
+.journal-dialog-window-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.journal-dialog-window-actions .journal-dialog-expand-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--teal-deep);
+  cursor: pointer;
+  transition: background 180ms ease;
+}
+.journal-dialog-expand-btn:hover {
+  background: var(--teal-pale);
+}
+.journal-dialog-expand-btn:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 3px;
+}
+@media (max-width: 860px) {
+  .journal-dialog.journal-dialog-reader,
+  .journal-dialog.journal-dialog-reader-expanded {
+    width: 100vw;
+    height: 96dvh;
+    max-height: 96dvh;
+    border-radius: 24px 24px 0 0;
+  }
+  .journal-dialog-window-actions .journal-dialog-expand-btn {
+    display: none;
+  }
+}
 .journal-modal-error {
   margin: 1rem 1.5rem 0;
   padding: 0.8rem;

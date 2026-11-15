@@ -343,14 +343,18 @@ export default function SpecialistDiscovery({
         </Link>
       )}
       {/* Hero Section */}
-      <header className={styles.hero}>
-        <div className={styles.heroDecor} aria-hidden="true">
+      <header className={styles.hero} data-user-page-header>
+        <div
+          className={styles.heroDecor}
+          aria-hidden="true"
+          data-user-page-decoration
+        >
           <div className={styles.decorCircle1} />
           <div className={styles.decorCircle2} />
           <div className={styles.decorCircle3} />
         </div>
-        <div className={styles.heroContent}>
-          <div className={styles.heroBadge}>
+        <div className={styles.heroContent} data-user-page-heading>
+          <div className={styles.heroBadge} data-user-page-kicker>
             <span className={styles.greenDot} />
             <span>Kết nối trực tuyến</span>
           </div>
@@ -374,7 +378,9 @@ export default function SpecialistDiscovery({
                 <strong className={styles.statNumber}>
                   {loading ? '—' : `${items.length} chuyên gia`}
                 </strong>
-                <span className={styles.statLabel}>Đang có lịch trống</span>
+                <span className={styles.statLabel}>
+                  Hồ sơ đã được phê duyệt
+                </span>
               </div>
             </div>
 
@@ -632,7 +638,7 @@ export default function SpecialistDiscovery({
       ) : !error && visibleItems.length === 0 ? (
         <section className={styles.state}>
           <h2>Chưa có chuyên gia phù hợp</h2>
-          <p>Hãy đổi bộ lọc hoặc quay lại sau khi có lịch mới.</p>
+          <p>Hãy đổi bộ lọc hoặc quay lại sau khi có hồ sơ được phê duyệt.</p>
           <button type="button" onClick={resetFilters}>
             Xóa bộ lọc
           </button>

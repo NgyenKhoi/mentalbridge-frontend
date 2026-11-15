@@ -2,6 +2,7 @@ import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
+  Emotion,
   EmotionCheckIn,
   EmotionCheckInProgress,
   EmotionCheckInList,
@@ -30,12 +31,12 @@ const progress: EmotionCheckInProgress = {
   label: 'SELF_REPORTED_EMOTION',
   interpretation: 'FACTUAL_COUNTS_NOT_DIAGNOSIS_OR_RECOVERY',
 }
-function record(localDate: string): EmotionCheckIn {
+function record(localDate: string, emotion: Emotion = 'GOOD'): EmotionCheckIn {
   return {
     id: '40000000-0000-4000-8000-000000000001',
     localDate,
     timezone: 'Asia/Ho_Chi_Minh',
-    emotion: 'GOOD',
+    emotion,
     intensity: 4,
     factors: ['sleep'],
     note: 'private context must not appear',
@@ -135,5 +136,52 @@ describe('HomeEmotionWeek', () => {
     expect(
       await screen.findByLabelText('2026-10-22 · Hôm nay: Tốt'),
     ).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Dành chỗ cho những điều đang tốt' }),
+    ).toBeVisible()
+    expect(
+      screen.getByText(
+        'Bạn đã dành thời gian ghi nhận cảm xúc 2/7 ngày gần đây.',
+      ),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Viết vài dòng cho mình' }),
+    ).toHaveAttribute('href', '/journal')
+    expect(
+      screen.queryByText('private context must not appear'),
+    ).not.toBeInTheDocument()
+    vi.mocked(listEmotionCheckIns).mockResolvedValue(list([]))
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('mb:emotion-check-in-updated'))
+    })
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Dành một phút để lắng nghe mình',
+      }),
+    ).toBeVisible()
+    expect(screen.queryByText('Hôm nay: Tốt')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Viết vài dòng cho mình' }),
+    ).not.toBeInTheDocument()
   })
+
+  it.each([
+    ['GREAT', 'Một khoảnh khắc đáng trân trọng'],
+    ['GOOD', 'Dành chỗ cho những điều đang tốt'],
+    ['OKAY', 'Cứ đi theo nhịp của bạn'],
+    ['LOW', 'Hôm nay, hãy nhẹ nhàng với mình'],
+    ['VERY_LOW', 'Bạn không cần gồng mình một mình'],
+  ] as const)(
+    'offers a supportive message for a saved %s check-in',
+    async (emotion, title) => {
+      vi.mocked(listEmotionCheckIns).mockResolvedValue(
+        list([record('2026-10-22', emotion)]),
+      )
+      render(<HomeEmotionWeek />)
+      expect(await screen.findByRole('heading', { name: title })).toBeVisible()
+      expect(
+        screen.queryByText('private context must not appear'),
+      ).not.toBeInTheDocument()
+    },
+  )
 })

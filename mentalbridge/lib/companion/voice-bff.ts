@@ -16,6 +16,8 @@ import {
   validResponse,
   validConsentCommand,
   validEmptyCommand,
+  validStartCommand,
+  validContextHandoffCommand,
   voiceId,
   publicVoiceCode,
   type Responses,
@@ -57,6 +59,13 @@ function resource(method: string, parts: string[]): Resource | null {
         path: '/api/v1/ai-companion/voice-sessions',
         schema: 'session',
         status: 202,
+      }
+    if (method === 'POST' && name === 'context-handoffs')
+      return {
+        owner: 'journal',
+        path: '/api/v1/ai-companion/voice-context-handoffs',
+        schema: 'handoff',
+        status: 200,
       }
   }
   if (name !== 'sessions' || !voiceId(id)) return null
@@ -101,17 +110,22 @@ export async function voiceBff(request: NextRequest, parts: string[]) {
     carryJournalSession(response, user)
   let body: unknown
   const key = request.headers.get('Idempotency-Key')
+  const starting = parts.length === 1 && parts[0] === 'sessions'
   if (request.method === 'POST') {
     try {
-      body = await readBoundedJson(request, 1024)
+      body = await readBoundedJson(request, starting ? 4608 : 1024)
     } catch {
       return respond(problem(422, 'INVALID_REQUEST'))
     }
     if (
-      !voiceId(key) ||
+      !(selected.schema === 'handoff' ? !key || voiceId(key) : voiceId(key)) ||
       !(selected.schema === 'consent'
         ? validConsentCommand(body)
-        : validEmptyCommand(body))
+        : selected.schema === 'handoff'
+          ? validContextHandoffCommand(body)
+          : starting
+            ? validStartCommand(body)
+            : validEmptyCommand(body))
     )
       return respond(problem(422, 'INVALID_REQUEST'))
   }
@@ -140,7 +154,7 @@ export async function voiceBff(request: NextRequest, parts: string[]) {
           ...(request.method === 'POST'
             ? {
                 'Content-Type': 'application/json',
-                'Idempotency-Key': key ?? '',
+                ...(key ? { 'Idempotency-Key': key } : {}),
               }
             : {}),
         },

@@ -35,7 +35,7 @@ export function eligibility(
       reservedSeconds: 0,
     },
     checkedAt: new Date().toISOString(),
-    voiceConsentVersion: 'ai-voice-processing-capstone-v1',
+    voiceConsentVersion: 'ai-voice-processing-capstone-v2',
     ...patch,
   }
 }
@@ -67,9 +67,9 @@ export const connection = (): Connection => ({
 })
 export const disclosure: Disclosure = {
   consentType: 'AI_VOICE_PROCESSING',
-  consentVersion: 'ai-voice-processing-capstone-v1',
+  consentVersion: 'ai-voice-processing-capstone-v2',
   language: 'vi-VN',
   disclosureText:
-    'LiveKit xử lý âm thanh và STT/TTS; Claude qua AWS Bedrock có thể xử lý liên vùng. Không ghi âm hoặc lưu bản chép lời. Metadata tối thiểu giữ 30 ngày từ lúc tạo. Không lấy nhật ký hay lịch sử AI Text.',
+    'LiveKit xử lý âm thanh và STT/TTS; Claude qua AWS Bedrock có thể xử lý liên vùng. Không ghi âm hoặc lưu bản chép lời. Metadata tối thiểu giữ 30 ngày từ lúc tạo. Bạn có thể chọn dùng tối đa hai lượt trao đổi gần đây từ cuộc trò chuyện đã chọn; không tự lấy nhật ký hoặc dữ liệu riêng khác.',
   publishedAt: '2026-10-23T00:00:00Z',
 }

@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/reminder-overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the USER's current reminder facts and bounded eligibility estimates
+         * @description Owner is derived only from the authenticated USER. No actor, date or timezone override is accepted. Reuses persisted notification preferences and the note-free Journal/Emotion projection. Today contains only enabled Journal/ Emotion categories with factual DUE/COMPLETED states; notification read status is never activity completion. Previews are estimates for the current local day, not scheduled jobs or guaranteed sends. Appointment email keeps its separate delivery ledger and requires owner revalidation before sending; no eligibility time is inferred from that ledger. Unsupported categories are explicit. No producer, claim, provider call or domain mutation runs on this read. Existing GET/PATCH notification-preferences remains the sole settings boundary, with its existing validation and strong If-Match.
+         */
+        get: operations["getReminderOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -599,6 +619,27 @@ export interface paths {
         patch: operations["updateNotificationPreferences"];
         trace?: never;
     };
+    "/api/v1/push-devices/{installationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description App-generated installation UUID; it is not a hardware identifier. */
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Idempotently register or rotate the authenticated owner's push device */
+        put: operations["registerPushDevice"];
+        post?: never;
+        /** Revoke an owned installation after sign-out or push opt-out */
+        delete: operations["revokePushDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -710,7 +751,7 @@ export interface components {
         /** @enum {string} */
         NotificationPriority: "LOW" | "NORMAL" | "HIGH";
         /** @enum {string} */
-        NotificationActionType: "OPEN_JOURNAL" | "OPEN_MESSAGES" | "OPEN_APPOINTMENTS" | "OPEN_SPECIALIST_APPOINTMENTS" | "OPEN_RESOURCES" | "OPEN_ASSESSMENTS" | "OPEN_RESOURCE" | "OPEN_COMMUNITY_POST" | "OPEN_COMMUNITY_CONVERSATION" | "OPEN_COMMUNITY_REQUEST" | "OPEN_COMMUNITY_INVITATION" | "OPEN_SUPPORT_GUIDE";
+        NotificationActionType: "OPEN_JOURNAL" | "OPEN_MESSAGES" | "OPEN_APPOINTMENTS" | "OPEN_APPOINTMENT" | "OPEN_SPECIALIST_APPOINTMENTS" | "OPEN_RESOURCES" | "OPEN_ASSESSMENTS" | "OPEN_RESOURCE" | "OPEN_COMMUNITY_POST" | "OPEN_COMMUNITY_CONVERSATION" | "OPEN_COMMUNITY_REQUEST" | "OPEN_COMMUNITY_INVITATION" | "OPEN_SUPPORT_GUIDE";
         NotificationAction: {
             type: components["schemas"]["NotificationActionType"];
             /** Format: uuid */
@@ -750,7 +791,7 @@ export interface components {
         NotificationChannels: {
             inApp: boolean;
             email: boolean;
-            /** @description Persisted preference only; push delivery remains deferred until mobile device registration. */
+            /** @description Owner opt-in; delivery also requires an active permitted registration and enabled provider worker. */
             push: boolean;
         };
         NotificationChannelsPatch: {
@@ -833,6 +874,33 @@ export interface components {
             version: number;
             /** Format: date-time */
             updatedAt: string;
+        };
+        PushDeviceRegistrationRequest: {
+            /** @enum {string} */
+            platform: "ANDROID" | "IOS";
+            /** @enum {string} */
+            provider: "EXPO";
+            providerToken: string;
+            /** @enum {string} */
+            permissionStatus: "GRANTED" | "DENIED";
+            appVersion?: string;
+        };
+        PushDeviceRegistration: {
+            /** Format: uuid */
+            installationId: string;
+            /** @enum {string} */
+            platform: "ANDROID" | "IOS";
+            /** @enum {string} */
+            provider: "EXPO";
+            /** @enum {string} */
+            permissionStatus: "GRANTED" | "DENIED";
+            /** @enum {string} */
+            status: "ACTIVE" | "DISABLED" | "REVOKED" | "INVALID";
+            appVersion: string | null;
+            /** Format: date-time */
+            lastRegisteredAt: string;
+            /** Format: int64 */
+            version: number;
         };
         NotificationPreferencePatch: {
             notificationsEnabled?: boolean;
@@ -1568,6 +1636,47 @@ export interface components {
             suppressed: number;
             invalidated: number;
         };
+        ReminderOverview: {
+            /** @constant */
+            schemaVersion: "1.0";
+            /** Format: date-time */
+            asOf: string;
+            /** Format: date */
+            localDate: string;
+            timeZone: string;
+            preferences: components["schemas"]["NotificationPreferences"];
+            today: components["schemas"]["ReminderActivity"][];
+            previews: components["schemas"]["ReminderPreview"][];
+            unavailableCategories: ("SUPPORT_PLAN" | "RESOURCES" | "ASSESSMENT" | "PUSH")[];
+        };
+        ReminderActivity: {
+            id: string;
+            /** @enum {string} */
+            category: "JOURNAL" | "EMOTION_CHECK_IN";
+            /** @enum {string} */
+            status: "DUE" | "COMPLETED";
+            /** @enum {string} */
+            action: "OPEN_JOURNAL" | "OPEN_EMOTION_CHECK_IN";
+        };
+        ReminderPreview: {
+            /** @enum {string} */
+            kind: "JOURNAL_REMINDER" | "EMOTION_CHECKIN_REMINDER" | "DAILY_DIGEST" | "RESOURCE_REMINDER" | "APPOINTMENT_EMAIL";
+            /** @enum {string} */
+            channel: "IN_APP" | "EMAIL";
+            /** @enum {string} */
+            state: "ELIGIBLE" | "SCHEDULED" | "QUIET_HOURS" | "PAUSED" | "DISABLED" | "COMPLETED" | "NOT_NEEDED" | "ALREADY_DELIVERED" | "IN_PROGRESS" | "UNAVAILABLE";
+            /** Format: date-time */
+            nextEligibleAt: string | null;
+            /** @constant */
+            estimate: true;
+            latestDelivery: null | components["schemas"]["ReminderDeliveryFact"];
+        };
+        ReminderDeliveryFact: {
+            /** @enum {string} */
+            state: "PENDING" | "PROCESSING" | "CLAIMED" | "DELIVERED" | "FAILED" | "CANCELLED" | "INVALIDATED" | "SUPPRESSED" | "EXPIRED" | "UNKNOWN";
+            /** Format: date-time */
+            recordedAt: string;
+        };
     };
     responses: {
         /** @description Authentication is required or the credential is invalid */
@@ -1594,6 +1703,23 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The authenticated owner exceeded the bounded push-device command rate */
+        PushDeviceRateLimited: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "https://mentalbridge.io/errors/PUSH_DEVICE_RATE_LIMITED",
+                 *       "title": "Push device request rate exceeded",
+                 *       "status": 429,
+                 *       "code": "PUSH_DEVICE_RATE_LIMITED"
+                 *     }
+                 */
                 "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
@@ -1761,6 +1887,68 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getReminderOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current owner facts and at most five reminder previews */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReminderOverview"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description USER role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Preferences changed while composing the overview; retry the read */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Query parameters are unsupported */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Preferences, delivery storage or current activity authority unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     getLive: {
         parameters: {
             query?: never;
@@ -3029,6 +3217,63 @@ export interface operations {
             412: components["responses"]["PreferenceVersionMismatch"];
             422: components["responses"]["ValidationError"];
             428: components["responses"]["PreferenceVersionRequired"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    registerPushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description App-generated installation UUID; it is not a hardware identifier. */
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushDeviceRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Current owner-scoped device registration without its provider token */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDeviceRegistration"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["PushDeviceRateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    revokePushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description App-generated installation UUID; it is not a hardware identifier. */
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Device registration is revoked or was already revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["PushDeviceRateLimited"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

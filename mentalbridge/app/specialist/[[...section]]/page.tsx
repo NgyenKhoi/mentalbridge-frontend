@@ -42,6 +42,7 @@ export default async function SpecialistWorkspace({
   return (
     <RoleWorkspace
       key={account.accountId}
+      accountId={account.accountId}
       sectionKey={requestedSection}
       workspaces={resolveWorkspaces(account.roles) ?? []}
       selectedAppointmentId={selectedAppointmentId}

@@ -1,6 +1,8 @@
 import { StrictMode } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { MamDockSlot } from '@/features/mam/MamDockSlot'
+import { setMamHidden, setMamMotionOff } from '@/features/mam/mam-preferences'
 import {
   connection,
   disclosure,
@@ -13,13 +15,34 @@ import type { Media, MediaEvents } from './media'
 import type { VoiceSession } from './contract'
 import VoiceDialog from './VoiceDialog'
 
-function fixture(value = eligibility(), patch: Partial<VoiceSession> = {}) {
+// MB-815: the real character needs a canvas and WASM; the dialog only drives its props.
+vi.mock('@/features/mam/MamCharacter', () => ({
+  MamCharacter: (props: {
+    size: number
+    behavior?: string
+    reducedMotion?: boolean
+  }) => (
+    <span
+      data-testid="mam-character"
+      data-behavior={props.behavior}
+      data-size={props.size}
+      data-reduced={String(props.reducedMotion)}
+    />
+  ),
+}))
+
+function fixture(
+  value = eligibility(),
+  patch: Partial<VoiceSession> = {},
+  conversation?: { conversationId: string; title: string },
+) {
   const bound = connection()
   const current = session({ hardStopAt: bound.hardStopAt, ...patch })
   const api = {
     eligibility: vi.fn().mockResolvedValue(value),
     disclosure: vi.fn(),
     consent: vi.fn(),
+    contextHandoff: vi.fn(),
     create: vi.fn().mockResolvedValue(current),
     connection: vi.fn().mockResolvedValue(bound),
     session: vi.fn().mockResolvedValue(current),
@@ -43,14 +66,24 @@ function fixture(value = eligibility(), patch: Partial<VoiceSession> = {}) {
   }
   const controller = new VoiceController(api, () => media)
   const close = vi.fn()
-  render(
+  const dialog = (open: boolean) => (
     <VoiceDialog
-      open
+      open={open}
       onOpenChange={close}
       createController={() => controller}
-    />,
+      conversation={conversation}
+    />
   )
-  return { api, media, controller, current, close, events: () => events }
+  const view = render(dialog(true))
+  return {
+    api,
+    media,
+    controller,
+    current,
+    close,
+    events: () => events,
+    rerender: (open: boolean) => view.rerender(dialog(open)),
+  }
 }
 afterEach(() => {
   vi.restoreAllMocks()
@@ -58,6 +91,104 @@ afterEach(() => {
   vi.useRealTimers()
 })
 describe('accessible AI Voice dialog', () => {
+  const selectedConversation = {
+    conversationId: '33333333-3333-4333-8333-333333333333',
+    title: 'Cuộc trò chuyện được chọn',
+  }
+  it('leaves Text continuity unchecked and starts voice-only until explicitly selected', async () => {
+    const f = fixture(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+      {},
+      selectedConversation,
+    )
+    expect(await screen.findByRole('checkbox')).not.toBeChecked()
+    expect(f.api.contextHandoff).not.toHaveBeenCalled()
+    expect(f.media.permission).not.toHaveBeenCalled()
+    expect(f.api.create).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu cuộc gọi' }))
+    expect(
+      await screen.findByText('Cuộc gọi không dùng tin nhắn trước đó.'),
+    ).toBeVisible()
+    expect(f.api.contextHandoff).not.toHaveBeenCalled()
+    expect(f.api.create).toHaveBeenCalledWith(expect.any(String))
+    await act(async () => f.controller.end())
+  })
+  it('waits for the selected-chat ticket and authoritative attachment before claiming continuity', async () => {
+    const f = fixture(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+      { contextMode: 'TEXT_HANDOFF' },
+      selectedConversation,
+    )
+    let release:
+      | ((value: {
+          handoffToken: string
+          expiresAt: string
+          selectedPairs: number
+          policyVersion: string
+        }) => void)
+      | undefined
+    f.api.contextHandoff.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve
+      }),
+    )
+    fireEvent.click(await screen.findByRole('checkbox'))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Tiếp tục bằng giọng nói' }),
+    )
+    await waitFor(() =>
+      expect(f.api.contextHandoff).toHaveBeenCalledWith(
+        selectedConversation.conversationId,
+      ),
+    )
+    expect(f.media.permission).not.toHaveBeenCalled()
+    expect(f.api.create).not.toHaveBeenCalled()
+    expect(
+      screen.queryByText('Đã chuẩn bị bối cảnh từ cuộc trò chuyện bạn chọn.'),
+    ).not.toBeInTheDocument()
+    await act(async () => {
+      release?.({
+        handoffToken: 'synthetic-ticket'.repeat(4),
+        expiresAt: new Date(Date.now() + 120_000).toISOString(),
+        selectedPairs: 1,
+        policyVersion: 'text-voice-handoff-v1',
+      })
+    })
+    expect(
+      await screen.findByText(
+        'Đã chuẩn bị bối cảnh từ cuộc trò chuyện bạn chọn.',
+      ),
+    ).toBeVisible()
+    expect(f.api.create).toHaveBeenCalledWith(expect.any(String), {
+      handoffToken: 'synthetic-ticket'.repeat(4),
+    })
+    expect(f.api.create).toHaveBeenCalledTimes(1)
+    await act(async () => f.controller.end())
+  })
+  it('requires a new explicit voice-only choice after handoff denial before opening the microphone', async () => {
+    const f = fixture(
+      eligibility('PLUS', { textContextHandoffEnabled: true }),
+      {},
+      selectedConversation,
+    )
+    f.api.contextHandoff.mockRejectedValue(new Error('synthetic denial'))
+    fireEvent.click(await screen.findByRole('checkbox'))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Tiếp tục bằng giọng nói' }),
+    )
+    const withoutText = await screen.findByRole('button', {
+      name: 'Gọi không dùng tin nhắn',
+    })
+    expect(f.media.permission).not.toHaveBeenCalled()
+    expect(f.api.create).not.toHaveBeenCalled()
+    fireEvent.click(withoutText)
+    expect(
+      await screen.findByText('Cuộc gọi không dùng tin nhắn trước đó.'),
+    ).toBeVisible()
+    expect(f.api.contextHandoff).toHaveBeenCalledTimes(1)
+    expect(f.api.create).toHaveBeenCalledWith(expect.any(String))
+    await act(async () => f.controller.end())
+  })
   it('presents FREE as a locked preview and leaves text continuation available', async () => {
     const f = fixture(eligibility('FREE'))
     expect(
@@ -209,25 +340,56 @@ describe('accessible AI Voice dialog', () => {
   })
   it('announces media states, keeps safety visible, mutes and ends with server confirmation', async () => {
     const f = fixture()
+    expect(
+      await screen.findByText(
+        'Tự kết thúc sau 60 giây không có lời nói được nhận diện.',
+      ),
+    ).toBeVisible()
     fireEvent.click(
       await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
     )
     await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+    expect(
+      screen.getByText(
+        'Tự kết thúc sau 60 giây không có lời nói được nhận diện.',
+      ),
+    ).toBeVisible()
     act(() => f.events()?.hint('thinking'))
     expect(screen.getByRole('status')).toHaveTextContent('AI đang nghĩ')
     expect(
       screen.getByRole('link', { name: 'Cần trợ giúp ngay' }),
     ).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Tắt micro' }))
+    const mute = screen.getByRole('button', { name: 'Tắt micro' })
+    expect(mute).toHaveAttribute('title', 'Tắt micro')
+    expect(mute.textContent).toBe('')
+    expect(mute.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    fireEvent.click(mute)
     expect(
       await screen.findByRole('button', { name: 'Bật micro' }),
     ).toHaveAttribute('aria-pressed', 'true')
     act(() => f.events()?.reconnecting())
     expect(screen.getByRole('status')).toHaveTextContent('Đang kết nối lại')
-    fireEvent.click(screen.getByRole('button', { name: 'Kết thúc' }))
+    const end = screen.getByRole('button', { name: 'Kết thúc' })
+    expect(end).toHaveAttribute('title', 'Kết thúc')
+    expect(end.textContent).toBe('')
+    fireEvent.click(end)
     expect(await screen.findByText('Đã kết thúc')).toBeVisible()
     expect(f.media.close).toHaveBeenCalled()
     expect(f.api.end).toHaveBeenCalled()
+  })
+  it('keeps the icon-only audio recovery control named and actionable', async () => {
+    const f = fixture()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
+    )
+    await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+    act(() => f.events()?.audioBlocked())
+    const audio = screen.getByRole('button', { name: 'Bật âm thanh' })
+    expect(audio).toHaveAttribute('title', 'Bật âm thanh')
+    expect(audio.textContent).toBe('')
+    fireEvent.click(audio)
+    await waitFor(() => expect(f.media.audio).toHaveBeenCalledOnce())
+    await act(async () => f.controller.end())
   })
   it.each(['agent-first', 'session-first'])(
     'invites speech only after both active session and fresh listening hint, %s',
@@ -294,4 +456,244 @@ describe('accessible AI Voice dialog', () => {
     ).toBeVisible()
     expect(controller.snapshot().phase).toBe('ready')
   })
+})
+
+describe('Mầm in the AI voice call', () => {
+  afterEach(() => window.localStorage.clear())
+  const character = () => screen.queryByTestId('mam-character')
+  const stage = () => document.querySelector('[data-mam-behavior]')
+  const badge = () => document.querySelector('[class*="micBadge"]')
+  const status = () => screen.getByRole('status')
+  function matchMedia(os = false, compact = false) {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('reduced-motion') ? os : compact,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+  }
+  async function call(patch: Partial<VoiceSession> = {}, slotted = true) {
+    matchMedia()
+    if (slotted) render(<MamDockSlot />)
+    const f = fixture(eligibility(), patch)
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
+    )
+    await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+    return f
+  }
+  const expectMam = (behavior: string, text: string) => {
+    expect(character()).toHaveAttribute('data-behavior', behavior)
+    expect(stage()).toHaveAttribute('data-mam-behavior', behavior)
+    expect(status()).toHaveTextContent(text)
+  }
+
+  it('keeps the Sparkles mark while the eligibility check loads', () => {
+    matchMedia()
+    render(<MamDockSlot />)
+    fixture()
+    expect(screen.getByText('Đang kiểm tra quyền gọi AI…')).toBeVisible()
+    expect(character()).toBeNull()
+  })
+
+  it('stays idle and says preparing, whatever the agent hint says', async () => {
+    const f = await call({ state: 'CONNECTING' })
+    for (const hint of ['speaking', 'thinking', 'listening'] as const) {
+      act(() => f.events()?.hint(hint))
+      expectMam('idle', 'Đang chuẩn bị cuộc gọi')
+    }
+    await act(async () => f.controller.end())
+  })
+
+  it.each([
+    ['listening', 'idle', 'Mầm đang lắng nghe'],
+    ['thinking', 'thinking', 'Mầm đang nghĩ'],
+    ['speaking', 'speaking', 'Mầm đang nói'],
+    ['idle', 'idle', 'Đang chờ Mầm'],
+    ['initializing', 'idle', 'Đang chờ Mầm'],
+    ['unavailable', 'idle', 'Đang chờ Mầm'],
+  ] as const)(
+    'maps hint %s to %s with "%s" and no dim',
+    async (hint, behavior, text) => {
+      const f = await call()
+      act(() => f.events()?.hint(hint))
+      expectMam(behavior, text)
+      expect(stage()).toHaveAttribute('data-dim', 'false')
+      expect(badge()).toBeNull()
+      await act(async () => f.controller.end())
+    },
+  )
+
+  it('MB-820 plays gentle for comfort only while speaking, with unchanged copy and stage state', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    expectMam('gentle', 'Mầm đang nói')
+    expect(stage()).toHaveAttribute('data-state', 'speaking')
+    expect(screen.getByRole('status')).not.toHaveTextContent(/gentle|comfort/i)
+    expect(document.querySelectorAll('[aria-live]')).toHaveLength(1)
+    act(() => f.events()?.hint('speaking', 'neutral'))
+    expectMam('speaking', 'Mầm đang nói')
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    act(() => f.events()?.hint('thinking', 'comfort'))
+    expectMam('thinking', 'Mầm đang nghĩ')
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    act(() => f.events()?.hint('unavailable'))
+    expectMam('idle', 'Đang chờ Mầm')
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    act(() => f.events()?.reconnecting())
+    expectMam('idle', 'Đang kết nối lại')
+    expect(stage()).toHaveAttribute('data-dim', 'true')
+    await act(async () => f.controller.end())
+  })
+
+  it('MB-820 never shows comfort while preparing', async () => {
+    const f = await call({ state: 'CONNECTING' })
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    expectMam('idle', 'Đang chuẩn bị cuộc gọi')
+    await act(async () => f.controller.end())
+  })
+
+  it('MB-820 passes gentle with reducedMotion so the renderer stays on the static pose', async () => {
+    setMamMotionOff(true)
+    const f = await call()
+    act(() => f.events()?.hint('speaking', 'comfort'))
+    expect(character()).toHaveAttribute('data-behavior', 'gentle')
+    expect(character()).toHaveAttribute('data-reduced', 'true')
+    expect(stage()).toHaveAttribute('data-reduced', 'true')
+    await act(async () => f.controller.end())
+  })
+
+  it('unmounts Mầm when a retained dialog closes mid-call (R1-1)', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking'))
+    expect(character()).toHaveAttribute('data-behavior', 'speaking')
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Đóng và kết thúc cuộc gọi' }),
+    )
+    expect(f.close).toHaveBeenCalledWith(false)
+    // The parent keeps the dialog mounted with open=false, as VoiceEntry does.
+    f.rerender(false)
+    expect(character()).toBeNull()
+  })
+
+  it('unmounts Mầm when the call ends normally', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking'))
+    await act(async () => f.controller.end())
+    expect(character()).toBeNull()
+  })
+
+  it('names Mầm in the helper copy too, never mixing AI and Mầm', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking'))
+    expect(
+      screen.getByText('Vui lòng chờ Mầm sẵn sàng trước khi nói.'),
+    ).toBeInTheDocument()
+    act(() => f.events()?.hint('unavailable'))
+    expect(
+      screen.getByText(/Chưa nhận được trạng thái mới từ Mầm\./),
+    ).toBeInTheDocument()
+    await act(async () => f.controller.end())
+  })
+
+  it('dims only while reconnecting, as idle', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking'))
+    act(() => f.events()?.reconnecting())
+    expectMam('idle', 'Đang kết nối lại')
+    expect(stage()).toHaveAttribute('data-dim', 'true')
+    await act(async () => f.controller.end())
+  })
+
+  it('is idle while ending', async () => {
+    const f = await call()
+    act(() => f.events()?.hint('speaking'))
+    let confirm: (value: VoiceSession) => void = () => undefined
+    f.api.end.mockReturnValue(
+      new Promise<VoiceSession>((resolve) => (confirm = resolve)),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Kết thúc' }))
+    await screen.findByText('Đang xác nhận kết thúc')
+    expectMam('idle', 'Đang xác nhận kết thúc')
+    await act(async () => confirm(session({ ...f.current, state: 'ENDED' })))
+  })
+
+  it.each([
+    ['speaking', 'speaking'],
+    ['listening', 'idle'],
+  ] as const)(
+    'keeps following the hint when muted while %s, with a badge',
+    async (hint, behavior) => {
+      const f = await call()
+      act(() => f.events()?.hint(hint))
+      fireEvent.click(screen.getByRole('button', { name: 'Tắt micro' }))
+      await screen.findByRole('button', { name: 'Bật micro' })
+      expectMam(behavior, 'Micro đang tắt')
+      expect(badge()).toHaveAttribute('aria-hidden', 'true')
+      await act(async () => f.controller.end())
+    },
+  )
+
+  it('marks the character as decoration and keeps one live region', async () => {
+    const f = await call()
+    expect(character()?.closest('[aria-hidden="true"]')).not.toBeNull()
+    expect(document.querySelectorAll('[aria-live]')).toHaveLength(1)
+    await act(async () => f.controller.end())
+  })
+
+  it.each([
+    ['the flag is off', false, () => undefined],
+    ['the user hid Mầm', true, () => setMamHidden(true)],
+  ])(
+    'keeps the Sparkles mark and "AI" strings when %s',
+    async (_case, slotted, arrange) => {
+      arrange()
+      const f = await call({}, slotted)
+      act(() => f.events()?.hint('thinking'))
+      expect(character()).toBeNull()
+      expect(stage()).toBeNull()
+      expect(status()).toHaveTextContent('AI đang nghĩ')
+      act(() => f.events()?.hint('unavailable'))
+      expect(status()).toHaveTextContent('Đang chờ AI')
+      fireEvent.click(screen.getByRole('button', { name: 'Tắt micro' }))
+      await screen.findByRole('button', { name: 'Bật micro' })
+      expect(badge()).toBeNull()
+      await act(async () => f.controller.end())
+    },
+  )
+
+  it.each([
+    ['motion is full', () => undefined, false, 'false'],
+    ['the user reduced motion', () => setMamMotionOff(true), false, 'true'],
+    ['the OS reduces motion', () => undefined, true, 'true'],
+  ])('passes reducedMotion when %s', async (_case, arrange, os, expected) => {
+    arrange()
+    render(<MamDockSlot />)
+    matchMedia(os)
+    const f = fixture()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
+    )
+    await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+    expect(character()).toHaveAttribute('data-reduced', expected)
+    expect(stage()).toHaveAttribute('data-reduced', expected)
+    await act(async () => f.controller.end())
+  })
+
+  it.each([
+    [false, '164'],
+    [true, '116'],
+  ])(
+    'sizes the character by breakpoint (compact %s)',
+    async (compact, size) => {
+      render(<MamDockSlot />)
+      matchMedia(false, compact)
+      const f = fixture()
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Bắt đầu cuộc gọi' }),
+      )
+      await waitFor(() => expect(f.media.connect).toHaveBeenCalled())
+      expect(character()).toHaveAttribute('data-size', size)
+      await act(async () => f.controller.end())
+    },
+  )
 })

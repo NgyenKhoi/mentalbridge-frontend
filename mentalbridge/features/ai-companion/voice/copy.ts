@@ -1,4 +1,6 @@
 export const voiceCopy: Record<string, string> = {
+  CONTEXT_HANDOFF_UNAVAILABLE:
+    'Chưa thể dùng tin nhắn cho cuộc gọi này. Cuộc gọi chưa được mở. Bạn có thể chọn gọi mà không dùng tin nhắn.',
   MIC_DENIED:
     'Micro chưa được cho phép. Bạn có thể cho phép micro trong cài đặt trình duyệt, rồi thử lại.',
   MIC_UNAVAILABLE:

@@ -64,10 +64,49 @@ describe('createMamControls', () => {
     controls.setBehavior('explaining')
     expect(values.behaviorState.value).toBe('explaining')
 
+    controls.setBehavior('speaking')
+    expect(values.behaviorState.value).toBe('speaking')
+
+    controls.setBehavior('sleep')
+    expect(values.behaviorState.value).toBe('sleep')
+
     controls.setBehavior('celebrate_hero' as MamLoopingBehavior)
     controls.setBehavior('sad' as MamLoopingBehavior)
-    expect(values.behaviorState.value).toBe('explaining')
+    expect(values.behaviorState.value).toBe('sleep')
     expect(fired).toEqual([])
+  })
+
+  it('sets the looping dangle but never a new one-shot from a plain set', () => {
+    const { port, values, fired } = fakeViewModel()
+    const controls = createMamControls(port)
+    controls.setBehavior('dangle')
+    expect(values.behaviorState.value).toBe('dangle')
+    for (const kind of ['nod', 'giggle', 'drowsy', 'wake', 'point'])
+      controls.setBehavior(kind as MamLoopingBehavior)
+    expect(values.behaviorState.value).toBe('dangle')
+    expect(fired).toEqual([])
+  })
+
+  it('plays every new one-shot through playOnce, and refuses the loop', () => {
+    const { port, values, fired } = fakeViewModel()
+    const controls = createMamControls(port)
+    for (const kind of [
+      'drowsy',
+      'wake',
+      'giggle',
+      'tickled',
+      'nod',
+      'stretch',
+      'look_around',
+      'scratch',
+      'point',
+    ] as const) {
+      expect(controls.playOnce(kind)).toBe(true)
+      expect(values.behaviorState.value).toBe(kind)
+    }
+    expect(fired).toHaveLength(9)
+    expect(controls.playOnce('dangle' as 'nod')).toBe(false)
+    expect(fired).toHaveLength(9)
   })
 
   it('plays a one-shot only on command, with the tier cleared first', () => {
@@ -147,6 +186,18 @@ describe('createMamControls', () => {
       'rest',
       'sad',
       'happy',
+      'sleep',
+      'speaking',
+      'drowsy',
+      'wake',
+      'giggle',
+      'tickled',
+      'dangle',
+      'nod',
+      'stretch',
+      'look_around',
+      'scratch',
+      'point',
     ])
   })
 })

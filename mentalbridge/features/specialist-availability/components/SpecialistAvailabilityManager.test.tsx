@@ -47,6 +47,27 @@ vi.mock('../api/browser-client', () => ({
   },
 }))
 
+async function openCreation() {
+  await userEvent
+    .setup()
+    .click(screen.getByRole('button', { name: 'Thêm khung giờ' }))
+  return screen.findByRole('dialog', { name: 'Thêm khung giờ' })
+}
+
+async function closeCreation() {
+  fireEvent.click(
+    within(screen.getByRole('dialog', { name: 'Thêm khung giờ' })).getByRole(
+      'button',
+      { name: 'Đóng' },
+    ),
+  )
+  await waitFor(() =>
+    expect(
+      screen.queryByRole('dialog', { name: 'Thêm khung giờ' }),
+    ).not.toBeInTheDocument(),
+  )
+}
+
 describe('SpecialistAvailabilityManager', () => {
   it('publishes the current-minute slot while its sixty-minute window is still active', async () => {
     const clock = vi
@@ -56,6 +77,7 @@ describe('SpecialistAvailabilityManager', () => {
       const user = userEvent.setup()
       render(<SpecialistAvailabilityManager />)
       await screen.findByText('Chat trong ứng dụng')
+      await openCreation()
       fireEvent.change(screen.getByLabelText('Ngày'), {
         target: { value: '2099-01-03' },
       })
@@ -109,6 +131,7 @@ describe('SpecialistAvailabilityManager', () => {
     render(<SpecialistAvailabilityManager />)
 
     expect(await screen.findByText('Chat trong ứng dụng')).toBeInTheDocument()
+    await openCreation()
     expect(screen.getByText(/Video chưa sẵn sàng/)).toBeInTheDocument()
     expect(
       screen.getByRole('radio', { name: 'Video trong ứng dụng' }),
@@ -122,6 +145,7 @@ describe('SpecialistAvailabilityManager', () => {
     const user = userEvent.setup()
     render(<SpecialistAvailabilityManager />)
     await screen.findByText('Chat trong ứng dụng')
+    await openCreation()
 
     await user.type(screen.getByLabelText('Ngày'), '2099-01-03')
     await user.type(screen.getByLabelText('Giờ bắt đầu'), '09:30')
@@ -176,6 +200,7 @@ describe('SpecialistAvailabilityManager', () => {
     const user = userEvent.setup()
     render(<SpecialistAvailabilityManager />)
     await screen.findByText('Chat trong ứng dụng')
+    await openCreation()
 
     await user.type(screen.getByLabelText('Ngày'), '2099-01-03')
     await user.type(screen.getByLabelText('Giờ bắt đầu'), '09:30')
@@ -243,6 +268,7 @@ describe('SpecialistAvailabilityManager', () => {
     const user = userEvent.setup()
     render(<SpecialistAvailabilityManager />)
     await screen.findByText('Chat trong ứng dụng')
+    await openCreation()
     fireEvent.change(screen.getByLabelText('Ngày'), {
       target: { value: '2099-01-03' },
     })
@@ -266,6 +292,7 @@ describe('SpecialistAvailabilityManager', () => {
     const user = userEvent.setup()
     render(<SpecialistAvailabilityManager />)
     await screen.findByText('Chat trong ứng dụng')
+    await openCreation()
     fireEvent.change(screen.getByLabelText('Giờ bắt đầu'), {
       target: { value: '09:00' },
     })
@@ -306,6 +333,7 @@ describe('SpecialistAvailabilityManager', () => {
   it('prevents past, overlapping and invalid-timezone publication without losing entered values', async () => {
     render(<SpecialistAvailabilityManager />)
     await screen.findByText('Chat trong ứng dụng')
+    await openCreation()
     fireEvent.change(screen.getByLabelText('Ngày'), {
       target: { value: '2099-01-02' },
     })
@@ -349,11 +377,14 @@ describe('SpecialistAvailabilityManager', () => {
     const user = userEvent.setup()
     render(<SpecialistAvailabilityManager />)
     await screen.findByText('Chat trong ứng dụng')
+    await openCreation()
     fireEvent.change(screen.getByLabelText('Ngày'), {
       target: { value: '2099-01-03' },
     })
     api.list.mockRejectedValueOnce(new Error('network unavailable'))
+    await closeCreation()
     await user.click(screen.getByRole('button', { name: 'Tải lại' }))
+    await openCreation()
     expect(
       await screen.findByText('Chưa thể cập nhật danh sách'),
     ).toBeInTheDocument()
@@ -373,6 +404,7 @@ describe('SpecialistAvailabilityManager', () => {
     expect(
       screen.queryByText('Chưa có khung giờ nào được xuất bản'),
     ).not.toBeInTheDocument()
+    await openCreation()
     expect(
       screen.getByRole('button', { name: 'Xuất bản khung giờ' }),
     ).toBeDisabled()
@@ -388,6 +420,7 @@ describe('SpecialistAvailabilityManager', () => {
     const user = userEvent.setup()
     render(<SpecialistAvailabilityManager />)
     await screen.findByText('Chat trong ứng dụng')
+    await openCreation()
     fireEvent.change(screen.getByLabelText('Ngày'), {
       target: { value: '2099-01-03' },
     })
@@ -412,13 +445,16 @@ describe('SpecialistAvailabilityManager', () => {
     let resolveRead!: (value: unknown) => void
     render(<SpecialistAvailabilityManager />)
     await screen.findByText('Chat trong ứng dụng')
+    await openCreation()
     api.list.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           resolveRead = resolve
         }),
     )
+    await closeCreation()
     await user.click(screen.getByRole('button', { name: 'Tải lại' }))
+    await openCreation()
     const created = {
       ...activeSlot,
       id: '20000000-0000-4000-8000-000000000001',
@@ -459,6 +495,7 @@ describe('SpecialistAvailabilityManager', () => {
     const user = userEvent.setup()
     render(<SpecialistAvailabilityManager />)
     await screen.findByText('Chat trong ứng dụng')
+    await openCreation()
     api.list.mockRejectedValueOnce(
       new AvailabilityBrowserError(
         403,
@@ -466,7 +503,9 @@ describe('SpecialistAvailabilityManager', () => {
         'Forbidden',
       ),
     )
+    await closeCreation()
     await user.click(screen.getByRole('button', { name: 'Tải lại' }))
+    await openCreation()
     expect(
       await screen.findByText(/Tài khoản hiện tại không có quyền/),
     ).toBeInTheDocument()
@@ -480,6 +519,7 @@ describe('SpecialistAvailabilityManager', () => {
     const user = userEvent.setup()
     render(<SpecialistAvailabilityManager />)
     await screen.findByText('Chat trong ứng dụng')
+    await openCreation()
     fireEvent.change(screen.getByLabelText('Ngày'), {
       target: { value: '2099-01-03' },
     })
@@ -490,6 +530,27 @@ describe('SpecialistAvailabilityManager', () => {
     expect(screen.getByLabelText('Ngày')).toHaveValue('')
     expect(screen.getByLabelText('Giờ bắt đầu')).toHaveValue('')
     expect(screen.getByLabelText('Ngày')).toHaveFocus()
+    expect(api.publish).not.toHaveBeenCalled()
+  })
+
+  it('keeps creation hidden initially and retains the draft after closing and reopening', async () => {
+    render(<SpecialistAvailabilityManager />)
+    await screen.findByText('Chat trong ứng dụng')
+    expect(
+      screen.queryByRole('dialog', { name: 'Thêm khung giờ' }),
+    ).not.toBeInTheDocument()
+    await openCreation()
+    fireEvent.change(screen.getByLabelText('Ngày'), {
+      target: { value: '2099-01-03' },
+    })
+    fireEvent.change(screen.getByLabelText('Giờ bắt đầu'), {
+      target: { value: '09:30' },
+    })
+    await closeCreation()
+    expect(screen.getByRole('button', { name: 'Thêm khung giờ' })).toHaveFocus()
+    await openCreation()
+    expect(screen.getByLabelText('Ngày')).toHaveValue('2099-01-03')
+    expect(screen.getByLabelText('Giờ bắt đầu')).toHaveValue('09:30')
     expect(api.publish).not.toHaveBeenCalled()
   })
 })

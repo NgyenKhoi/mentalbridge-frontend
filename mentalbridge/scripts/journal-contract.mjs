@@ -3,6 +3,7 @@ import { access, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import openapiTS, { astToString, COMMENT_HEADER } from 'openapi-typescript'
+import { load as loadYaml } from 'js-yaml'
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const snapshotPath = path.join(
@@ -93,40 +94,62 @@ async function check(expected) {
 const argumentsSet = new Set(process.argv.slice(2))
 if (argumentsSet.has('--sync')) await syncSnapshot()
 const generated = await generate()
-const voiceTarget = JSON.parse(
+const journalVoice = loadYaml(await readFile(snapshotPath, 'utf8'))
+const careVoice = loadYaml(
   await readFile(
-    path.resolve(
-      path.dirname(snapshotPath),
-      '../proposals/companion-voice-v1.openapi.json',
-    ),
+    path.join(appRoot, 'contracts/openapi/care-service-v1.yaml'),
     'utf8',
   ),
 )
-const publicVoiceNames = [
-  'Eligibility',
-  'VoiceQuota',
-  'Session',
-  'Connection',
-  'EmptyCommand',
-  'VoiceConsent',
-  'VoiceConsentCommand',
-  'VoiceDisclosure',
-  'Problem',
-]
+const publicVoiceSources = {
+  Eligibility: [journalVoice, 'VoiceEligibility'],
+  VoiceQuota: [journalVoice, 'VoiceQuota'],
+  Session: [journalVoice, 'VoiceSession'],
+  Connection: [journalVoice, 'VoiceConnection'],
+  EmptyCommand: [journalVoice, 'VoiceEmptyCommand'],
+  StartCommand: [journalVoice, 'VoiceStartCommand'],
+  ContextHandoffCommand: [journalVoice, 'VoiceContextHandoffCommand'],
+  ContextHandoff: [journalVoice, 'VoiceContextHandoff'],
+  VoiceConsent: [careVoice, 'VoiceConsent'],
+  VoiceConsentCommand: [careVoice, 'VoiceConsentCommand'],
+  VoiceDisclosure: [careVoice, 'VoiceDisclosure'],
+  Problem: [journalVoice, 'VoiceProblem'],
+}
+const schemaNames = new Map(
+  Object.entries(publicVoiceSources).map(([name, [, source]]) => [
+    source,
+    name,
+  ]),
+)
+const publicSchema = (name, document, source) => {
+  const schema = document?.components?.schemas?.[source]
+  if (!schema) throw new Error(`Missing active public Voice schema: ${name}`)
+  return JSON.parse(
+    JSON.stringify(schema).replaceAll(
+      /#\/components\/schemas\/([A-Za-z0-9_-]+)/g,
+      (_match, ref) => {
+        const target = schemaNames.get(ref)
+        if (!target)
+          throw new Error(`Unpublished public Voice schema reference: ${ref}`)
+        return `#/$defs/${target}`
+      },
+    ),
+  )
+}
 const voiceSchema =
   JSON.stringify(
     {
       $id: 'mentalbridge-voice-public',
       $defs: Object.fromEntries(
-        publicVoiceNames.map((name) => [
+        Object.entries(publicVoiceSources).map(([name, [document, source]]) => [
           name,
-          voiceTarget.components.schemas[name],
+          publicSchema(name, document, source),
         ]),
       ),
     },
     null,
     2,
-  ).replaceAll('#/components/schemas/', '#/$defs/') + '\n'
+  ) + '\n'
 if (argumentsSet.has('--check')) {
   if (
     !(await exists(voiceGeneratedPath)) ||

@@ -938,9 +938,9 @@ export default function NotificationsPage() {
 
   return (
     <div className="notifications-page">
-      <header className="notifications-hero">
-        <div>
-          <span>Trung tâm thông báo</span>
+      <header className="notifications-hero" data-user-page-header>
+        <div data-user-page-heading>
+          <span data-user-page-kicker>Trung tâm thông báo</span>
           <h1>Thông báo của bạn</h1>
           <p>
             Theo dõi những cập nhật quan trọng và chọn cách MentalBridge liên hệ

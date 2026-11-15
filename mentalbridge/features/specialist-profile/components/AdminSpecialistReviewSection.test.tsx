@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminSpecialistReviewSection from './AdminSpecialistReviewSection'
@@ -28,6 +28,9 @@ const api = vi.hoisted(() => ({
   suspend: vi.fn(),
   restore: vi.fn(),
   pendingCredentialDocuments: vi.fn(),
+  adminSpecialistCredentialDocuments: vi.fn(),
+  adminCredentialFile: vi.fn(),
+  reviewCredential: vi.fn(),
 }))
 vi.mock('../api/browser-client', () => ({ browserConsultation: api }))
 
@@ -35,6 +38,7 @@ describe('AdminSpecialistReviewSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     api.pendingCredentialDocuments.mockResolvedValue({ data: [] })
+    api.adminSpecialistCredentialDocuments.mockResolvedValue({ data: [] })
     api.profiles.mockResolvedValue({
       data: { items: [profile], count: 1 },
       etag: null,
@@ -44,6 +48,74 @@ describe('AdminSpecialistReviewSection', () => {
       data: { ...profile, approvalStatus: 'APPROVED' },
       etag: '"2"',
     })
+  })
+
+  it('shows the submitted original as pending and records only a manual decision', async () => {
+    const document = {
+      id: '10000000-0000-4000-8000-000000000001',
+      specialistAccountId: profile.accountId,
+      title: 'Giấy phép thử nghiệm',
+      issuer: 'Đơn vị thử nghiệm',
+      issueYear: 2020,
+      fileName: 'cchn-gia.pdf',
+      verificationStatus: 'PENDING',
+      createdAt: '2026-10-17T00:00:00Z',
+      version: 2,
+    }
+    const rejected = { ...document, verificationStatus: 'REJECTED' }
+    api.adminSpecialistCredentialDocuments.mockResolvedValue({
+      data: [document],
+    })
+    api.adminCredentialFile.mockResolvedValue({
+      data: { url: 'https://files.example.test/original.pdf' },
+    })
+    api.reviewCredential.mockImplementation(async () => {
+      api.adminSpecialistCredentialDocuments.mockResolvedValue({
+        data: [rejected],
+      })
+      return { data: rejected }
+    })
+
+    const user = userEvent.setup()
+    render(<AdminSpecialistReviewSection />)
+    const review = within(
+      await screen.findByRole('region', { name: /Giấy tờ của chuyên gia/ }),
+    )
+    expect(await review.findByText('Đang chờ xác minh')).toBeInTheDocument()
+    expect(api.adminSpecialistCredentialDocuments).toHaveBeenCalledWith(
+      profile.accountId,
+    )
+    expect(screen.queryByText(/khớp 100%|áp dụng kết luận AI/i)).toBeNull()
+    expect(api.reviewCredential).not.toHaveBeenCalled()
+
+    await user.click(review.getByRole('button', { name: 'Xem tệp' }))
+    const dialog = within(screen.getByRole('dialog'))
+    expect(
+      await dialog.findByTitle(`Tệp gốc ${document.title}`),
+    ).toHaveAttribute('src', 'https://files.example.test/original.pdf')
+    await user.click(dialog.getByRole('button', { name: 'Từ chối' }))
+    expect(api.reviewCredential).toHaveBeenCalledWith(document.id, 'reject', 2)
+    expect(await review.findByText('Đã từ chối')).toBeInTheDocument()
+    expect(api.approve).not.toHaveBeenCalled()
+  })
+
+  it('keeps the pending profile visible if approval fails', async () => {
+    api.approve.mockRejectedValueOnce(new Error('Dữ liệu đã thay đổi.'))
+    const user = userEvent.setup()
+    render(<AdminSpecialistReviewSection />)
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Phê duyệt hồ sơ' }),
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Dữ liệu đã thay đổi.',
+    )
+    expect(
+      screen.getByRole('heading', { name: profile.displayName }),
+    ).toBeVisible()
+    expect(
+      screen.queryByText('Đã phê duyệt và kích hoạt hồ sơ chuyên gia.'),
+    ).toBeNull()
   })
 
   it('inspects and rejects a pending profile with a closed reason', async () => {

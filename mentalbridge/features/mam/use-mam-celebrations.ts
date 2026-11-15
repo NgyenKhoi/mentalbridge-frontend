@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import type { MamOneShotCommand } from './MamCharacter'
-import type { MamOneShot } from './mam-contract'
+import { MAM_ONE_SHOT_MS } from './mam-contract'
 import {
   MAM_AWARD_READ_EVENT,
   mamAppearanceText,
@@ -21,12 +21,6 @@ import { useMamAwardReads } from './use-mam-award-reads'
 
 // Margin after a computed deadline, so the retry lands on the open side of it.
 const RETRY_MARGIN_MS = 50
-// The asset writes `idle` at 1.3 / 1.0 / 1.6 s (ADR "Control contract").
-const ONE_SHOT_MS: Record<MamOneShot, number> = {
-  light_success: 1400,
-  celebrate_soft: 1100,
-  celebrate_hero: 1700,
-}
 
 interface Active {
   appearance: MamAppearance
@@ -160,7 +154,7 @@ export function useMamCelebrations({
             ? { ...current, phase: 'bubble' }
             : null,
       )
-    }, ONE_SHOT_MS[playing.appearance.oneShot])
+    }, MAM_ONE_SHOT_MS[playing.appearance.oneShot])
     return () => {
       clearTimeout(timer)
       if (!delivered)

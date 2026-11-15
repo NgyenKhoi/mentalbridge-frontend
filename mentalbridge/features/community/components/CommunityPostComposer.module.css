@@ -7,6 +7,152 @@
   border-radius: var(--radius-panel);
   background: var(--surface);
 }
+
+.quickComposer {
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  scroll-margin-top: 88px;
+}
+.quickEditor {
+  display: flex;
+  min-height: 112px;
+  gap: var(--space-3);
+}
+.quickMark {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--teal-deep);
+}
+.quickEditor textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 100px;
+  padding: var(--space-2) 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  resize: vertical;
+}
+.quickEditor textarea::placeholder {
+  color: var(--ink-faint);
+  opacity: 1;
+}
+.quickMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.625rem;
+}
+.quickMeta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.quickIdentity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: var(--space-3) 0;
+  border: 0;
+}
+.quickIdentity legend {
+  padding: 0 0 4px;
+  color: var(--ink-soft);
+  font-size: 0.6875rem;
+}
+.quickIdentity label {
+  display: flex;
+  min-height: 36px;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.quickIdentity label:has(:checked) {
+  background: var(--surface-soft);
+  border-color: var(--teal-pale);
+  color: var(--teal-deep);
+}
+.quickIdentity input {
+  accent-color: var(--teal);
+}
+.quickTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+}
+.quickTools > button,
+.quickTools > a {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.6875rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.quickTools > .quickContinue {
+  margin-left: auto;
+  padding-inline: 16px;
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+  color: var(--surface);
+  font-weight: 600;
+}
+.quickTools > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.quickUnavailable {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+@media (max-width: 760px) {
+  .quickComposer {
+    padding: var(--space-3);
+  }
+  .quickIdentity label {
+    min-height: 44px;
+    font-size: 0.6875rem;
+  }
+  .quickTools > button,
+  .quickTools > a {
+    min-height: 44px;
+  }
+  .quickTools > .quickContinue {
+    flex: 1;
+  }
+}
 .launcher > div {
   flex: 1;
   min-width: 0;

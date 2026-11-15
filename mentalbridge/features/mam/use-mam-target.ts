@@ -63,6 +63,17 @@ export const isMamTargetMounted = (element: Element) => elements.has(element)
 
 export const getMamPageTarget = () => pageTarget
 
+const hasElementTarget = () => elements.size > 0
+
+/** True while at least one element target is registered (the tip needs a card). */
+export function useHasMamElementTarget() {
+  return useSyncExternalStore(
+    subscribeMamTargets,
+    hasElementTarget,
+    () => false,
+  )
+}
+
 export const getMamResolver = (target: MamTarget) => resolvers.get(target)
 
 // The registered resolver always calls the latest one, so a re-render never

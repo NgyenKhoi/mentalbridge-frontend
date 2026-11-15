@@ -13,17 +13,32 @@ export type CompanionConversationContext = Readonly<{
   updatedAt: string
 }>
 
+// Server-resolved navigation (ADR 0049); the web owns hrefs and labels.
+export type CompanionSuggestion = Readonly<{
+  destination:
+    | 'RESOURCE'
+    | 'RESOURCE_LIBRARY'
+    | 'JOURNAL'
+    | 'EMOTION_CHECK_IN'
+    | 'SUPPORT_PLAN'
+    | 'SPECIALIST_DISCOVERY'
+  resourceId: string | null
+  resourceTitle: string | null
+}>
+
 export type CompanionMessage = Readonly<{
   messageId: string
   role: 'USER' | 'ASSISTANT'
   content: string
   createdAt: string
   contextKinds: CompanionContextKind[]
+  suggestion?: CompanionSuggestion | null
 }>
 
 export type CompanionConversation = Readonly<{
   conversationId: string
   title: string
+  titleVersion?: string
   context: CompanionConversationContext
   messages: CompanionMessage[]
   createdAt: string
@@ -34,6 +49,7 @@ export type CompanionConversation = Readonly<{
 export type CompanionConversationSummary = Readonly<{
   conversationId: string
   title: string
+  titleVersion?: string
   createdAt: string
   updatedAt: string
   expiresAt: string
@@ -41,7 +57,7 @@ export type CompanionConversationSummary = Readonly<{
 
 export type CompanionQuota = Readonly<{
   plan: 'FREE' | 'PLUS' | 'PREMIUM'
-  policyVersion: 'companion-quota-v1'
+  policyVersion: 'companion-quota-v1' | 'companion-quota-v2'
   remaining: number | null
   resetAt: string
   limitDisplayed: boolean
@@ -49,12 +65,15 @@ export type CompanionQuota = Readonly<{
 
 export type CompanionSend = Readonly<{
   conversationId: string
+  title?: string
+  titleVersion?: string
   userMessageId: string
   assistantMessageId: string
   assistant: string
   createdAt: string
   contextKinds: CompanionContextKind[]
   quota: CompanionQuota
+  suggestion?: CompanionSuggestion | null
 }>
 
 export type CompanionSendInput = Readonly<{

@@ -18,6 +18,7 @@ test('specialist publishes a current-minute slot without an advance wait', async
   await page.getByRole('button', { name: 'Đăng nhập' }).click()
   await expect(page).toHaveURL(/\/specialist\/dashboard$/)
   await page.goto('/specialist/availability')
+  await page.getByRole('button', { name: 'Thêm khung giờ' }).click()
   await page.getByLabel('Ngày', { exact: true }).fill('2099-01-03')
   await page.getByLabel('Giờ bắt đầu', { exact: true }).fill('09:30')
   await page.getByLabel('Múi giờ hiển thị').fill('Asia/Ho_Chi_Minh')
@@ -51,6 +52,7 @@ test('specialist publishes and withdraws a mobile 60-minute chat slot', async ({
     page.getByRole('heading', { name: 'Lịch khả dụng trực tuyến' }),
   ).toBeVisible()
   await expect(page.getByText('Chat trong ứng dụng').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Thêm khung giờ' }).click()
   await expect(page.getByText(/Video chưa sẵn sàng/)).toBeVisible()
   await expect(
     page.getByRole('radio', { name: 'Video trong ứng dụng' }),

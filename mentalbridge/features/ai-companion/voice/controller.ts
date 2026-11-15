@@ -5,8 +5,14 @@ import {
   type Connection,
   type Eligibility,
   type VoiceSession,
+  type VoiceStartCommand,
 } from './contract'
-import { LiveKitVoiceMedia, type Hint, type Media } from './media'
+import {
+  LiveKitVoiceMedia,
+  type Expression,
+  type Hint,
+  type Media,
+} from './media'
 
 export type VoiceView = Readonly<{
   phase:
@@ -21,10 +27,13 @@ export type VoiceView = Readonly<{
   eligibility?: Eligibility
   session?: VoiceSession
   hint: Hint
+  expression: Expression
   muted: boolean
   audioBlocked: boolean
   error?: string
   uncertain: boolean
+  contextAttached: boolean
+  handoffFailed: boolean
 }>
 type Api = typeof voiceClient
 const codeOf = (error: unknown) =>
@@ -38,15 +47,20 @@ export class VoiceController {
   private view: VoiceView = {
     phase: 'loading',
     hint: 'unavailable',
+    expression: 'neutral',
     muted: false,
     audioBlocked: false,
     uncertain: false,
+    contextAttached: false,
+    handoffFailed: false,
   }
   private readonly listeners = new Set<() => void>()
   private epoch = 0
   private disposed = false
   private media: Media | undefined
   private createKey: string | undefined
+  private createBody: VoiceStartCommand = {}
+  private handoffExpiresAt: number | undefined
   private endKey: string | undefined
   private preview: AbortController | undefined
   private polling: ReturnType<typeof setInterval> | undefined
@@ -67,7 +81,12 @@ export class VoiceController {
   }
   private update(patch: Partial<VoiceView>) {
     if (this.disposed) return
-    this.view = { ...this.view, ...patch }
+    // Any hint change drops the expression unless the same snapshot carries one (MB-820 reset rule).
+    this.view = {
+      ...this.view,
+      ...(patch.hint !== undefined && { expression: 'neutral' }),
+      ...patch,
+    }
     for (const listener of this.listeners) listener()
   }
   private current(epoch: number) {
@@ -92,7 +111,7 @@ export class VoiceController {
         })
     }
   }
-  async start() {
+  async start(conversationId?: string) {
     if (
       ['starting', 'connected', 'reconnecting', 'ending'].includes(
         this.view.phase,
@@ -102,7 +121,12 @@ export class VoiceController {
       return
     const epoch = ++this.epoch
     this.preview?.abort()
-    this.update({ phase: 'starting', error: undefined, hint: 'initializing' })
+    this.update({
+      phase: 'starting',
+      error: undefined,
+      hint: 'initializing',
+      handoffFailed: false,
+    })
     const media = this.makeMedia()
     this.media?.close()
     this.media = media
@@ -117,23 +141,59 @@ export class VoiceController {
           return
         }
       }
+      if (!this.createKey) {
+        this.createBody = {}
+        this.handoffExpiresAt = undefined
+        if (conversationId) {
+          if (!this.view.eligibility?.textContextHandoffEnabled)
+            throw new VoiceError('CONTEXT_HANDOFF_UNAVAILABLE')
+          try {
+            const handoff = await this.api.contextHandoff(conversationId)
+            if (!this.current(epoch)) return
+            this.handoffExpiresAt = Date.parse(handoff.expiresAt)
+            if (this.handoffExpiresAt <= Date.now())
+              throw new VoiceError('CONTEXT_HANDOFF_UNAVAILABLE')
+            this.createBody = { handoffToken: handoff.handoffToken }
+          } catch {
+            throw new VoiceError('CONTEXT_HANDOFF_UNAVAILABLE')
+          }
+        }
+      }
       await media.permission()
       if (!this.current(epoch)) {
         media.close()
         return
       }
+      if (
+        !this.createKey &&
+        this.handoffExpiresAt !== undefined &&
+        this.handoffExpiresAt <= Date.now()
+      )
+        throw new VoiceError('CONTEXT_HANDOFF_UNAVAILABLE')
       const key = this.createKey ?? crypto.randomUUID()
       this.createKey = key
-      const session = await this.api.create(key)
+      const session =
+        'handoffToken' in this.createBody
+          ? await this.api.create(key, this.createBody)
+          : await this.api.create(key)
       if (!this.current(epoch)) {
         media.close()
         await this.api.end(session.voiceSessionId, crypto.randomUUID())
         return
       }
       this.update({ session, uncertain: false })
+      const attached = session.contextMode === 'TEXT_HANDOFF'
+      if (attached !== 'handoffToken' in this.createBody)
+        throw new VoiceError('INVALID_RESPONSE')
+      this.clearContextIntent()
+      this.update({ contextAttached: attached })
       if (terminal(session)) {
         media.close()
-        this.update({ phase: 'ended', hint: 'unavailable' })
+        this.update({
+          phase: 'ended',
+          hint: 'unavailable',
+          contextAttached: false,
+        })
         return
       }
       const connection = await this.api.connection(
@@ -146,8 +206,9 @@ export class VoiceController {
       }
       this.verifyConnection(connection, session)
       await media.connect(connection, {
-        hint: (hint) => {
-          if (this.current(epoch)) this.update({ hint })
+        hint: (hint, expression) => {
+          if (this.current(epoch))
+            this.update({ hint, expression: expression ?? 'neutral' })
         },
         reconnecting: () => {
           if (this.current(epoch))
@@ -183,9 +244,15 @@ export class VoiceController {
             this.view.uncertain ||
             ((code === 'OUTCOME_UNKNOWN' || code === 'INVALID_RESPONSE') &&
               !!this.createKey),
+          handoffFailed:
+            code === 'CONTEXT_HANDOFF_UNAVAILABLE' && !this.createKey,
           hint: 'unavailable',
         })
     }
+  }
+  private clearContextIntent() {
+    this.createBody = {}
+    this.handoffExpiresAt = undefined
   }
   private verifyConnection(connection: Connection, session: VoiceSession) {
     if (
@@ -202,6 +269,11 @@ export class VoiceController {
     try {
       const current = await this.api.session(session.voiceSessionId)
       if (!this.current(epoch)) return
+      if (
+        (current.contextMode ?? 'VOICE_ONLY') !==
+        (session.contextMode ?? 'VOICE_ONLY')
+      )
+        throw new VoiceError('INVALID_RESPONSE')
       if (terminal(current) || current.state === 'ENDING') {
         await this.end()
         return
@@ -256,7 +328,9 @@ export class VoiceController {
       if (!this.current(epoch)) return
       if (
         session.voiceSessionId !== previous.voiceSessionId ||
-        session.hardStopAt !== previous.hardStopAt
+        session.hardStopAt !== previous.hardStopAt ||
+        (session.contextMode ?? 'VOICE_ONLY') !==
+          (previous.contextMode ?? 'VOICE_ONLY')
       )
         throw new VoiceError('INVALID_RESPONSE')
       this.update({ session })
@@ -265,7 +339,12 @@ export class VoiceController {
         clearInterval(this.polling)
         this.createKey = undefined
         this.endKey = undefined
-        this.update({ phase: 'ended', hint: 'unavailable' })
+        this.clearContextIntent()
+        this.update({
+          phase: 'ended',
+          hint: 'unavailable',
+          contextAttached: false,
+        })
       } else if (session.state === 'ENDING' && this.view.phase !== 'ending')
         await this.end()
     } catch (error) {
@@ -281,15 +360,22 @@ export class VoiceController {
   }
   private async fail(error: string) {
     this.media?.close()
+    this.clearContextIntent()
     await this.end(error)
   }
   async end(error?: string) {
     ++this.epoch
     this.preview?.abort()
     this.media?.close()
+    this.clearContextIntent()
     const session = this.view.session
     if (!session || terminal(session)) {
-      this.update({ phase: 'ended', error, hint: 'unavailable' })
+      this.update({
+        phase: 'ended',
+        error,
+        hint: 'unavailable',
+        contextAttached: false,
+      })
       return
     }
     this.update({ phase: 'ending', error, hint: 'unavailable' })
@@ -307,6 +393,7 @@ export class VoiceController {
         clearInterval(this.polling)
         this.createKey = undefined
         this.endKey = undefined
+        this.update({ contextAttached: false })
       } else this.poll()
     } catch {
       this.update({ phase: 'ending', error: error ?? 'OUTCOME_UNKNOWN' })
@@ -320,6 +407,7 @@ export class VoiceController {
     this.preview?.abort()
     clearInterval(this.polling)
     this.media?.close()
+    this.clearContextIntent()
     const session = this.view.session
     if (session && !terminal(session))
       void this.api

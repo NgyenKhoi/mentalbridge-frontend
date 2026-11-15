@@ -105,3 +105,19 @@ The approved Identity integration is documented in
   accessibility regressions, contract drift, and accidental browser exposure.
 - A handoff must name the Jira story, summarize changed behavior/files, list
   verification results, and identify remaining risks or follow-up stories.
+
+## Code Review Rules
+
+These rules drive the automatic Codex review on GitHub pull requests. Review logic, BFF and API boundaries, contracts, security and privacy, state handling, and tests. Do not review UI/UX, visual design, layout, styling, animation or copy tone; the UI author owns that review. Do not report formatting, naming or speculative refactors; CI runs format, lint, type and contract checks.
+
+Every finding names `path:line`, the concrete input or state that fails, and the fix.
+
+- **P0:** a token, refresh token, service URL or secret reachable from the browser (`NEXT_PUBLIC_*`, client props, browser storage, logs, error bodies); a BFF route handler or server call for a protected operation without authentication or role authorization (login, registration and anonymous-session creation are public by design); fields sent to or read from a backend that are not in its OpenAPI (browser-facing BFF envelopes may reshape them); a hand-edited `*.generated.ts` or synced OpenAPI copy; private health data (journal or chat text, assessment answers) written to logs, analytics or URLs; or a change that makes a required gate fail.
+- **P1:** a BFF route that does not validate input or map backend problem responses; a missing loading, empty, error, unauthorized, forbidden or dependency-down state in a changed data flow; a silent catch, `any` or unchecked type assertion on backend data; a stale optimistic update or a lost `If-Match`/`Idempotency-Key` on a mutation; or a risky path without a test.
+
+### Checks
+
+- Apply "Ownership and boundaries" and "Next.js and code rules" above, and the review gates in `mentalbridge/docs/review-and-testing.md` except their visual and journey items.
+- Server and client boundary: `"use client"` stays on the smallest interactive boundary; modules with secrets or privileged calls are server-only.
+- Contracts: the backend OpenAPI is the source of truth; generated contracts change only through `npm run contracts:sync`.
+- Mobile (`mobile/`) PRs get the same logic, contract and security review; their release checks are deferred and are not required on `dev`.

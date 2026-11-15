@@ -54,7 +54,11 @@
           "format": "date-time"
         },
         "voiceConsentVersion": {
-          "const": "ai-voice-processing-capstone-v1"
+          "const": "ai-voice-processing-capstone-v2"
+        },
+        "textContextHandoffEnabled": {
+          "type": "boolean",
+          "description": "Optional capability hint; absent or false means handoff is disabled, not an authorization grant."
         },
         "maxSessionSeconds": {
           "type": "integer",
@@ -246,6 +250,10 @@
         "deliveredSession"
       ],
       "properties": {
+        "contextMode": {
+          "const": "TEXT_HANDOFF",
+          "description": "Present only after server-bound selected Text context; absence means voice-only."
+        },
         "voiceSessionId": {
           "type": "string",
           "format": "uuid"
@@ -379,6 +387,60 @@
       "required": [],
       "properties": {}
     },
+    "StartCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "handoffToken": {
+          "type": "string",
+          "minLength": 40,
+          "maxLength": 4096
+        }
+      }
+    },
+    "ContextHandoffCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conversationId"
+      ],
+      "properties": {
+        "conversationId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "ContextHandoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoffToken",
+        "expiresAt",
+        "selectedPairs",
+        "policyVersion"
+      ],
+      "properties": {
+        "handoffToken": {
+          "type": "string",
+          "minLength": 40,
+          "maxLength": 4096,
+          "description": "Opaque one-session capability; no Text content; keep in RAM and never log or cache."
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "selectedPairs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "policyVersion": {
+          "const": "text-voice-handoff-v1"
+        }
+      }
+    },
     "VoiceConsent": {
       "type": "object",
       "additionalProperties": false,
@@ -393,7 +455,12 @@
           "const": "AI_VOICE_PROCESSING"
         },
         "consentVersion": {
-          "const": "ai-voice-processing-capstone-v1"
+          "type": "string",
+          "enum": [
+            "ai-voice-processing-capstone-v1",
+            "ai-voice-processing-capstone-v2"
+          ],
+          "description": "v2 for current reads/new decisions; v1 only for an exact immutable historical POST replay, always current=false."
         },
         "current": {
           "type": "boolean"
@@ -472,7 +539,12 @@
       ],
       "properties": {
         "consentVersion": {
-          "const": "ai-voice-processing-capstone-v1"
+          "type": "string",
+          "enum": [
+            "ai-voice-processing-capstone-v1",
+            "ai-voice-processing-capstone-v2"
+          ],
+          "description": "New decisions require v2. v1 is accepted only when the owner-scoped idempotency key and exact historical intent already exist; it never appends/restores a grant."
         },
         "granted": {
           "type": "boolean"
@@ -494,7 +566,7 @@
           "const": "AI_VOICE_PROCESSING"
         },
         "consentVersion": {
-          "const": "ai-voice-processing-capstone-v1"
+          "const": "ai-voice-processing-capstone-v2"
         },
         "language": {
           "const": "vi-VN"

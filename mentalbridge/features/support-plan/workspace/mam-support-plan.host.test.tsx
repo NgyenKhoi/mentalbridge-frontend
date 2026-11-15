@@ -137,8 +137,10 @@ describe('SupportPlan Mầm Care requests across the host boundary', () => {
     )
     window.localStorage.clear()
     window.sessionStorage.clear()
+    // These cover the explanation flow; reduced motion keeps the bubble beside
+    // the card with no climb (MB-814), which has its own tests in features/mam.
     window.matchMedia = vi.fn((query: string) => ({
-      matches: false,
+      matches: query.includes('prefers-reduced-motion'),
       media: query,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),

@@ -59,13 +59,45 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 112px;
+  height: clamp(144px, 13vw, 180px);
   flex-shrink: 0;
-  padding-top: 12px;
+  overflow: hidden;
+  isolation: isolate;
 }
 
-.art svg {
-  transition: transform var(--motion-medium) var(--ease-standard);
+.artImage {
+  object-fit: cover;
+  transform: scale(1.01);
+  transition: transform 800ms cubic-bezier(0.2, 0.65, 0.25, 1);
+}
+.artLight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgb(255 247 210 / 28%) 48%,
+    transparent 75%
+  );
+  opacity: 0;
+  transform: translateX(-45%);
+}
+.art .artSparkles {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  color: #fff7d9;
+  stroke: currentColor;
+  stroke-width: 0.65;
+  stroke-linecap: round;
+  opacity: 0;
+  transform: translateY(5px);
+  transition:
+    opacity 350ms ease,
+    transform 600ms ease;
 }
 
 .art0 {
@@ -85,16 +117,18 @@
 
 .tag {
   position: absolute;
+  z-index: 2;
   top: 12px;
   left: 12px;
   max-width: calc(100% - 24px);
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  background: var(--surface-glass);
+  background: color-mix(in srgb, var(--surface) 93%, transparent);
   color: var(--teal-deep);
   font-size: 11px;
   line-height: 1.4;
   font-weight: 600;
+  box-shadow: 0 2px 12px rgb(25 48 36 / 6%);
 }
 
 .resourceBody {
@@ -128,6 +162,16 @@
   color: var(--teal-deep);
   font-size: 13px;
   font-weight: 600;
+}
+.resourceAction > div {
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+.resource:focus-visible .artImage {
+  transform: scale(1.065);
+}
+.resource:focus-visible .artSparkles {
+  opacity: 0.85;
+  transform: none;
 }
 
 .appointment,
@@ -327,8 +371,31 @@
     box-shadow: var(--elevation-2);
   }
 
-  .resource:hover .art svg {
-    transform: scale(1.06);
+  .resource:hover .artImage {
+    transform: scale(1.065) translateY(-2px);
+  }
+  .resource:hover .artSparkles {
+    opacity: 0.85;
+    transform: none;
+  }
+  .resource:hover .artLight {
+    animation: resource-sunlight 1100ms ease-out both;
+  }
+  .resource:hover .resourceAction > div {
+    transform: translateX(4px);
+  }
+}
+@keyframes resource-sunlight {
+  0% {
+    opacity: 0;
+    transform: translateX(-45%);
+  }
+  45% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(45%);
   }
 }
 
@@ -403,13 +470,30 @@
   }
 
   .resource,
-  .art svg {
+  .artImage,
+  .artSparkles,
+  .resourceAction > div {
     transition: none;
   }
 
   .resource:hover,
   .resource:active,
-  .resource:hover .art svg {
+  .resource:hover .artImage,
+  .resource:focus-visible .artImage,
+  .resource:hover .artSparkles,
+  .resource:hover .resourceAction > div {
     transform: none;
   }
+  .artLight {
+    display: none;
+  }
+}
+:global([data-home-motion='off']) .artImage,
+:global([data-home-motion='off']) .artSparkles,
+:global([data-home-motion='off']) .resourceAction > div {
+  transition: none;
+  transform: none;
+}
+:global([data-home-motion='off']) .artLight {
+  display: none;
 }

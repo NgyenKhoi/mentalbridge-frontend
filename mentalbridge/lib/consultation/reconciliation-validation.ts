@@ -52,7 +52,14 @@ const shape =
     isRecord(value) &&
     Object.entries(fields).every(([key, check]) => check(value[key]))
 
-const provider = oneOf('FAKE', 'MOMO')
+const provider = oneOf('FAKE', 'MOMO', 'PAYOS')
+const reconciliation = {
+  reconciliationStatus: optional(
+    oneOf('PENDING', 'POLLING', 'NEEDS_REVIEW', 'COMPLETE'),
+  ),
+  nextReconciliationAt: optional(isInstant),
+  reviewRequiredAt: optional(isInstant),
+}
 const paymentProvider = oneOf('FAKE', 'MOMO', 'PAYOS')
 const payoutStatus = oneOf(
   'PENDING',
@@ -100,6 +107,8 @@ const payout = shape({
   failureCode: optional(isString),
   requestedAt: isInstant,
   completedAt: optional(isInstant),
+  closedAt: optional(isInstant),
+  ...reconciliation,
 })
 const credit = shape({
   creditId: isId,
@@ -127,6 +136,7 @@ export function parseAdminPayoutDetail(
         requestedAt: isInstant,
         confirmedAt: optional(isInstant),
         failedAt: optional(isInstant),
+        ...reconciliation,
       }),
     ),
     earnings: arrayOf(
@@ -210,9 +220,11 @@ export function parseAdminCommercialDiscrepancies(
         destinationHint: isString,
         amountVnd: isCount,
         currency: oneOf('VND'),
-        provider: isString,
+        provider: oneOf('FAKE', 'MOMO', 'PAYOS'),
         status: isString,
         failureCode: optional(isString),
+        reconciliationStatus: reconciliation.reconciliationStatus,
+        reviewRequiredAt: reconciliation.reviewRequiredAt,
         requestedAt: isInstant,
       }),
     ),

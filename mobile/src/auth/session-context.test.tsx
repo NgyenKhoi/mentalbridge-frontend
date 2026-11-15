@@ -157,4 +157,39 @@ describe('mobile session context', () => {
       ).toBeOnTheScreen()
     })
   })
+
+  it('transitions to unauthenticated immediately when logout starts before server revocation resolves', async () => {
+    const queryClient = createQueryClient()
+    const service = createSessionService()
+    let resolveLogout!: () => void
+    service.logout.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveLogout = resolve
+      }),
+    )
+    queryClient.setQueryData(['care-profile', 'account-1'], {
+      displayName: 'Sensitive profile',
+    })
+
+    await render(
+      <QueryClientProvider client={queryClient}>
+        <SessionProvider
+          initialSession={{ role: 'USER', subject: 'account-1' }}
+          service={service}
+        >
+          <SignOutHarness />
+        </SessionProvider>
+      </QueryClientProvider>,
+    )
+
+    await fireEvent.press(screen.getByRole('button', { name: 'authenticated' }))
+
+    expect(service.logout).toHaveBeenCalledTimes(1)
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    expect(
+      screen.getByRole('button', { name: 'unauthenticated' }),
+    ).toBeOnTheScreen()
+
+    resolveLogout()
+  })
 })

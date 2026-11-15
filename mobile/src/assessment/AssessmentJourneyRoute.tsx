@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { router, useLocalSearchParams } from 'expo-router'
+import { useEffect, useState } from 'react'
 
 import { createApiClient } from '@/api/api-client'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
@@ -11,41 +12,69 @@ import { createCombinedMeaningApi } from './combined-meaning-api'
 import { createNativeGuidedJourneyApi } from './native-guided-journey-api'
 
 export function AssessmentJourneyRoute() {
-  const { session, status } = useSession()
+  const { session, sessionGeneration, status } = useSession()
+  const params = useLocalSearchParams<{
+    purpose?: string
+    returnTo?: string
+  }>()
+  const reassessment = params?.purpose === 'REASSESSMENT'
   if (status !== 'authenticated' || !session) return null
-  return <SessionAssessmentRoute key={session.subject} />
+  return (
+    <SessionAssessmentRoute
+      key={`${session.subject}:${sessionGeneration ?? 0}:${reassessment ? 'REASSESSMENT' : 'INITIAL_CHECK'}`}
+      reassessment={reassessment}
+    />
+  )
 }
 
-function SessionAssessmentRoute() {
+function SessionAssessmentRoute({
+  reassessment,
+}: Readonly<{
+  reassessment: boolean
+}>) {
   const runtimeConfig = useRuntimeConfig()
-  const active = useRef(true)
-  useEffect(() => {
-    active.current = true
-    return () => {
-      active.current = false
-    }
-  }, [])
-  const [{ api, journeyApi }] = useState(() => {
+  const [{ api, journeyApi, setActive }] = useState(() => {
+    let active = true
     const client = createApiClient({
       config: runtimeConfig,
       getBearerToken: async () => {
-        if (!active.current) throw new Error('Authenticated session changed.')
+        if (!active) throw new Error('Authenticated session changed.')
         const token = await secureCredentialStore.getAccessToken()
-        if (!active.current || !token)
-          throw new Error('Authenticated session changed.')
+        if (!active || !token) throw new Error('Authenticated session changed.')
         return token
       },
     })
-    const api = createAssessmentApi(client)
+    const api = createAssessmentApi(
+      client,
+      reassessment ? 'REASSESSMENT' : 'INITIAL_CHECK',
+    )
     return {
       api,
-      journeyApi: createNativeGuidedJourneyApi(
-        api,
-        createCombinedMeaningApi(client),
-        () => active.current,
-      ),
+      setActive: (next: boolean) => {
+        active = next
+      },
+      journeyApi: reassessment
+        ? undefined
+        : createNativeGuidedJourneyApi(
+            api,
+            createCombinedMeaningApi(client),
+            () => active,
+          ),
     }
   })
+  useEffect(() => {
+    setActive(true)
+    return () => {
+      setActive(false)
+    }
+  }, [setActive])
 
-  return <AssessmentJourneyScreen api={api} journeyApi={journeyApi} />
+  return (
+    <AssessmentJourneyScreen
+      api={api}
+      {...(journeyApi ? { journeyApi } : {})}
+      reassessment={reassessment}
+      onReassessmentComplete={() => router.dismissTo('/(user)/reassessment')}
+    />
+  )
 }

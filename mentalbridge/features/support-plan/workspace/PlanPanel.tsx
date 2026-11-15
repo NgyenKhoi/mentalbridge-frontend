@@ -214,6 +214,7 @@ function PlanActionRow({
             )}
             {mam && explainable && (
               <MamCardButton
+                hiddenUntilFocus
                 label={`Mầm giải thích: ${action.presentation.title}`}
                 disabled={
                   mam.pendingActionId !== undefined &&

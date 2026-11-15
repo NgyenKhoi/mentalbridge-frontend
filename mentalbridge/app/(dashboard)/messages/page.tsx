@@ -1,4 +1,5 @@
-import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
+import SpecialistChatView from '@/features/appointments/components/SpecialistChatView'
+import './messages.css'
 
 export default async function MessagesPage({
   searchParams,
@@ -10,8 +11,16 @@ export default async function MessagesPage({
     ? query.appointmentId[0]
     : query.appointmentId
   return (
-    <div className="ref-still" data-page-motion="off">
-      <AppointmentMessagesWorkspace
+    <div
+      className="ref-still"
+      data-page-motion="off"
+      style={{
+        width: '100%',
+        height: 'calc(100dvh - 76px)',
+        overflow: 'hidden',
+      }}
+    >
+      <SpecialistChatView
         viewerRole="USER"
         initialAppointmentId={appointmentId}
       />

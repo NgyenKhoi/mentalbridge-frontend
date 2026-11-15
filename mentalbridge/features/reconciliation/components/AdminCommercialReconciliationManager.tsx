@@ -13,6 +13,22 @@ import type { AdminPaymentList } from '@/lib/consultation/billing-validation'
 import type { AdminPayoutList } from '@/lib/consultation/consultation-validation'
 import './admin-commercial-reconciliation.css'
 import { businessDateRange } from './business-date-range'
+import {
+  adminFailureLines,
+  adminPayoutStatusLabel,
+  maskedHint,
+  payoutProviderName,
+} from '@/features/specialist-earnings/payout-labels'
+
+const reviewSince = (p: {
+  reconciliationStatus?: string
+  reviewRequiredAt?: string | null
+}) =>
+  p.reconciliationStatus === 'NEEDS_REVIEW' && p.reviewRequiredAt
+    ? ` · Cần kiểm tra từ ${date(p.reviewRequiredAt)}`
+    : ''
+const failureLine = (code?: string | null) =>
+  code ? (adminFailureLines[code] ?? code) : 'N/A'
 
 const money = (value: number) =>
   new Intl.NumberFormat('vi-VN', {
@@ -583,9 +599,11 @@ export default function AdminCommercialReconciliationManager({
                             <span>{money(p.amountVnd)}</span>
                             <br />
                             <small>
-                              Đích: {p.destinationHint} | Mã lỗi:{' '}
-                              {p.failureCode || 'N/A'} | Yêu cầu lúc:{' '}
+                              Đích: {maskedHint(p.destinationHint)} (
+                              {payoutProviderName[p.provider]}) | Mã lỗi:{' '}
+                              {failureLine(p.failureCode)} | Yêu cầu lúc:{' '}
                               {date(p.requestedAt)}
+                              {reviewSince(p)}
                             </small>
                           </div>
                           <div>
@@ -965,7 +983,10 @@ export default function AdminCommercialReconciliationManager({
                             <div className="acr-item-row">
                               <span>Chi trả: {p.payoutId}</span>
                               <span className={statusBadgeClass(p.status)}>
-                                {p.status}
+                                {adminPayoutStatusLabel(
+                                  p.status,
+                                  p.reconciliationStatus,
+                                )}
                               </span>
                             </div>
                             <div className="acr-item-row">
@@ -973,7 +994,8 @@ export default function AdminCommercialReconciliationManager({
                                 Số tiền: <strong>{money(p.amountVnd)}</strong>
                               </span>
                               <span>
-                                Nơi nhận: {p.destinationHint} ({p.provider})
+                                Nơi nhận: {maskedHint(p.destinationHint)} (
+                                {payoutProviderName[p.provider]})
                               </span>
                             </div>
                             <small>
@@ -1341,14 +1363,27 @@ export default function AdminCommercialReconciliationManager({
                       {payouts.items.slice(0, 50).map((item) => (
                         <tr key={item.payoutId}>
                           <td>{item.payoutId}</td>
-                          <td>{item.destinationHint}</td>
+                          <td>
+                            {maskedHint(item.destinationHint)} (
+                            {payoutProviderName[item.provider]})
+                          </td>
                           <td>
                             <strong>{money(item.amountVnd)}</strong>
                           </td>
                           <td>
                             <span className={statusBadgeClass(item.status)}>
-                              {item.status}
+                              {adminPayoutStatusLabel(
+                                item.status,
+                                item.reconciliationStatus,
+                              )}
                             </span>
+                            {item.reconciliationStatus === 'NEEDS_REVIEW' &&
+                              item.reviewRequiredAt && (
+                                <small>
+                                  {' '}
+                                  Cần kiểm tra từ {date(item.reviewRequiredAt)}
+                                </small>
+                              )}
                           </td>
                           <td>{item.earningCount} khoản</td>
                           <td>{date(item.requestedAt)}</td>
@@ -1526,16 +1561,22 @@ export default function AdminCommercialReconciliationManager({
             <h2>Chi tiết chi trả: {selectedPayoutDetail.payout.payoutId}</h2>
             <p>
               Chuyên gia: {selectedPayoutDetail.payout.specialistAccountId} |
-              Nơi nhận: {selectedPayoutDetail.payout.destinationHint}
+              Nơi nhận:{' '}
+              {maskedHint(selectedPayoutDetail.payout.destinationHint)}
             </p>
             <p>
               Số tiền:{' '}
               <strong>{money(selectedPayoutDetail.payout.amountVnd)}</strong> |
-              Trạng thái: {selectedPayoutDetail.payout.status}
+              Trạng thái:{' '}
+              {adminPayoutStatusLabel(
+                selectedPayoutDetail.payout.status,
+                selectedPayoutDetail.payout.reconciliationStatus,
+              )}
+              {reviewSince(selectedPayoutDetail.payout)}
             </p>
             {selectedPayoutDetail.payout.failureCode && (
               <p style={{ color: '#b91c1c' }}>
-                Mã lỗi: {selectedPayoutDetail.payout.failureCode}
+                Mã lỗi: {failureLine(selectedPayoutDetail.payout.failureCode)}
               </p>
             )}
 
@@ -1550,15 +1591,19 @@ export default function AdminCommercialReconciliationManager({
               >
                 <div className="acr-item-row">
                   <span>
-                    Lần #{att.attemptNumber} ({att.provider})
+                    Lần #{att.attemptNumber} ({payoutProviderName[att.provider]}
+                    )
                   </span>
                   <span className={statusBadgeClass(att.status)}>
-                    {att.status}
+                    {adminPayoutStatusLabel(
+                      att.status,
+                      att.reconciliationStatus,
+                    )}
                   </span>
                 </div>
                 <small>
                   Tham chiếu: {att.providerReference || 'N/A'} | Mã lỗi:{' '}
-                  {att.failureCode || 'N/A'}
+                  {failureLine(att.failureCode)}
                 </small>
               </div>
             ))}

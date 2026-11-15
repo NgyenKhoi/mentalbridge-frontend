@@ -1491,4 +1491,44 @@ describe('mobile assessment and support-guide journey', () => {
       await rendered.unmount()
     },
   )
+
+  it('returns to reassessment on completion without entering the initial Guided Journey', async () => {
+    const onReassessmentComplete = jest.fn()
+    const ensureGuide = jest.fn()
+    const read = jest.fn()
+    const journeyApi = { ensureGuide, read } as unknown as ReturnType<
+      typeof createNativeGuidedJourneyApi
+    >
+    const api = assessmentApi({
+      getCurrentEpisode: jest.fn().mockResolvedValue({
+        ...completedEpisode,
+        purpose: 'REASSESSMENT',
+        status: 'IN_PROGRESS',
+        presentationEvaluationId: null,
+      }),
+    })
+
+    await render(
+      <AssessmentJourneyScreen
+        api={api}
+        journeyApi={journeyApi}
+        reassessment
+        onReassessmentComplete={onReassessmentComplete}
+      />,
+    )
+
+    expect(
+      await screen.findByText('Kiểm tra lại cho giai đoạn này'),
+    ).toBeOnTheScreen()
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Tiếp tục sàng lọc' }),
+    )
+
+    expect(onReassessmentComplete).toHaveBeenCalledTimes(1)
+    expect(api.completeEpisode).toHaveBeenCalledWith(completedEpisode.episodeId)
+    expect(ensureGuide).not.toHaveBeenCalled()
+    expect(read).not.toHaveBeenCalled()
+    expect(api.ensureEpisodeSupportGuide).not.toHaveBeenCalled()
+  })
 })

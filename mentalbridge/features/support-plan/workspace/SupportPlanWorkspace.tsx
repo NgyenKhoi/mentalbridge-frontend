@@ -93,6 +93,7 @@ import {
 import { WorkspaceLoading, WorkspaceMessage } from './WorkspaceStates'
 import '../components/support-plan.css'
 import './support-plan-workspace.css'
+import './support-plan-today.css'
 
 export type ReturnOrigin = Readonly<{
   kind: 'emotion' | 'journal' | 'resource'
@@ -1272,7 +1273,12 @@ export default function SupportPlanWorkspace({
 
   function header(subtitle?: string) {
     return (
-      <header className="mbw-header">
+      <header
+        className="mbw-header"
+        data-user-page-header
+        data-user-page-heading
+      >
+        <span data-user-page-kicker>Không gian của bạn</span>
         <h1>Kế hoạch của bạn</h1>
         {subtitle && <p className="mbw-lead">{subtitle}</p>}
       </header>
@@ -1292,8 +1298,11 @@ export default function SupportPlanWorkspace({
   const expiredNotice = access.status === 'expired' &&
     !safetyFirst &&
     loaded?.journey?.nextAction !== 'REVIEW_SAFETY_SUPPORT' && (
-      <p className="mbw-quiet">
-        Gói của bạn đã hết hạn. Kế hoạch này vẫn mở được; lập kế hoạch mới cần{' '}
+      <div className="mbw-expired-notice" role="status">
+        <p>
+          Gói của bạn đã hết hạn. Kế hoạch này vẫn mở được; lập kế hoạch mới cần{' '}
+          gia hạn gói.
+        </p>
         <Link
           className="lpp-inline-link"
           href="/subscription"
@@ -1301,8 +1310,7 @@ export default function SupportPlanWorkspace({
         >
           gia hạn Plus
         </Link>
-        .
-      </p>
+      </div>
     )
 
   const live = (
@@ -1543,8 +1551,9 @@ export default function SupportPlanWorkspace({
 
   return (
     <div className="mbw-page" data-page-motion="off">
-      <header className="mbw-header mbw-header-cycle">
-        <div className="mbw-header-main">
+      <header className="mbw-header mbw-header-cycle" data-user-page-header>
+        <div className="mbw-header-main" data-user-page-heading>
+          <span data-user-page-kicker>Không gian của bạn</span>
           <h1>Kế hoạch của bạn</h1>
           <p className="mbw-lead">
             {cycleLine(current.cycle) ??

@@ -7,6 +7,7 @@ import type {
   CompanionQuota,
   CompanionSend,
   CompanionSendInput,
+  CompanionSuggestion,
 } from './companion-contract'
 
 const uuid =
@@ -17,6 +18,11 @@ const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 const exact = (value: Record<string, unknown>, keys: string[]) =>
   Object.keys(value).every((key) => keys.includes(key))
+// MB-810 title fields are optional so pre-title responses still parse.
+const validTitle = (value: unknown) =>
+  typeof value === 'string' && value.length >= 1 && value.length <= 80
+const validTitleVersion = (value: unknown) =>
+  typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value)
 const dateTime = (value: unknown): value is string =>
   typeof value === 'string' &&
   rfc3339.test(value) &&
@@ -46,6 +52,35 @@ const parseContextSources = (
   return value as CompanionContextSources
 }
 
+const suggestionDestinations = new Set<CompanionSuggestion['destination']>([
+  'RESOURCE',
+  'RESOURCE_LIBRARY',
+  'JOURNAL',
+  'EMOTION_CHECK_IN',
+  'SUPPORT_PLAN',
+  'SPECIALIST_DISCOVERY',
+])
+
+// Absent or null means no button; RESOURCE alone carries an id and title.
+const validSuggestion = (value: unknown): boolean => {
+  if (value === undefined || value === null) return true
+  if (
+    !object(value) ||
+    !exact(value, ['destination', 'resourceId', 'resourceTitle']) ||
+    !suggestionDestinations.has(
+      value.destination as CompanionSuggestion['destination'],
+    )
+  )
+    return false
+  return value.destination === 'RESOURCE'
+    ? typeof value.resourceId === 'string' &&
+        uuid.test(value.resourceId) &&
+        typeof value.resourceTitle === 'string' &&
+        value.resourceTitle.length >= 1 &&
+        value.resourceTitle.length <= 200
+    : value.resourceId === null && value.resourceTitle === null
+}
+
 const parseQuota = (value: unknown): CompanionQuota | null => {
   if (
     !object(value) ||
@@ -57,7 +92,9 @@ const parseQuota = (value: unknown): CompanionQuota | null => {
       'limitDisplayed',
     ]) ||
     !['FREE', 'PLUS', 'PREMIUM'].includes(String(value.plan)) ||
-    value.policyVersion !== 'companion-quota-v1' ||
+    !['companion-quota-v1', 'companion-quota-v2'].includes(
+      String(value.policyVersion),
+    ) ||
     !dateTime(value.resetAt) ||
     typeof value.limitDisplayed !== 'boolean' ||
     (value.remaining !== null &&
@@ -79,6 +116,7 @@ export const parseConversation = (
     !exact(value, [
       'conversationId',
       'title',
+      'titleVersion',
       'context',
       'messages',
       'createdAt',
@@ -87,9 +125,9 @@ export const parseConversation = (
     ]) ||
     typeof value.conversationId !== 'string' ||
     !uuid.test(value.conversationId) ||
-    typeof value.title !== 'string' ||
-    value.title.length < 1 ||
-    value.title.length > 80 ||
+    !validTitle(value.title) ||
+    (value.titleVersion !== undefined &&
+      !validTitleVersion(value.titleVersion)) ||
     !object(value.context) ||
     !exact(value.context, ['sources', 'updatedAt']) ||
     !parseContextSources(value.context.sources) ||
@@ -110,6 +148,7 @@ export const parseConversation = (
         'content',
         'createdAt',
         'contextKinds',
+        'suggestion',
       ]) ||
       typeof message.messageId !== 'string' ||
       !uuid.test(message.messageId) ||
@@ -124,7 +163,8 @@ export const parseConversation = (
         (kind) =>
           typeof kind === 'string' &&
           contextKinds.has(kind as CompanionContextKind),
-      )
+      ) ||
+      !validSuggestion(message.suggestion)
     )
       return null
   }
@@ -147,15 +187,16 @@ export const parseConversationList = (
       !exact(item, [
         'conversationId',
         'title',
+        'titleVersion',
         'createdAt',
         'updatedAt',
         'expiresAt',
       ]) ||
       typeof item.conversationId !== 'string' ||
       !uuid.test(item.conversationId) ||
-      typeof item.title !== 'string' ||
-      item.title.length < 1 ||
-      item.title.length > 80 ||
+      !validTitle(item.title) ||
+      (item.titleVersion !== undefined &&
+        !validTitleVersion(item.titleVersion)) ||
       !dateTime(item.createdAt) ||
       !dateTime(item.updatedAt) ||
       !dateTime(item.expiresAt)
@@ -172,15 +213,21 @@ export const parseSend = (value: unknown): CompanionSend | null => {
     !object(value) ||
     !exact(value, [
       'conversationId',
+      'title',
+      'titleVersion',
       'userMessageId',
       'assistantMessageId',
       'assistant',
       'createdAt',
       'contextKinds',
       'quota',
+      'suggestion',
     ]) ||
     typeof value.conversationId !== 'string' ||
     !uuid.test(value.conversationId) ||
+    (value.title !== undefined && !validTitle(value.title)) ||
+    (value.titleVersion !== undefined &&
+      !validTitleVersion(value.titleVersion)) ||
     typeof value.userMessageId !== 'string' ||
     !uuid.test(value.userMessageId) ||
     typeof value.assistantMessageId !== 'string' ||
@@ -196,7 +243,8 @@ export const parseSend = (value: unknown): CompanionSend | null => {
         typeof kind === 'string' &&
         contextKinds.has(kind as CompanionContextKind),
     ) ||
-    !parseQuota(value.quota)
+    !parseQuota(value.quota) ||
+    !validSuggestion(value.suggestion)
   )
     return null
   return value as CompanionSend

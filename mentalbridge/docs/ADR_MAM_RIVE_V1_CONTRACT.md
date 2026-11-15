@@ -40,30 +40,33 @@ Owner direction (MB-766 discussion, 2026-10-26):
 
 ## Decision summary
 
-1. Freeze asset `mam-v03.riv` by SHA-256, and freeze its `MamControls` view
+1. Freeze asset `mam-v06.riv` by SHA-256, and freeze its `MamControls` view
    model exactly as built.
-2. V1 hosts use 10 of the 12 `behaviorState` values. `sad` and `rest` are
-   reserved.
+2. The dock uses 20 of the 24 `behaviorState` values (`sleep` was appended in
+   v0.4, MB-814; `speaking` in v0.5, MB-815, for the AI voice call only; ten
+   idle and touch states in v0.6, MB-818; `point` is played by the dock only for
+   the page "where to start" answer, MB-819). `sad` and `rest` are reserved.
 3. Only the MB-767 adapter writes to Rive. Features emit typed Mầm events.
    They never touch the runtime or the DOM of other features.
 4. Mầm is summon-first. Automatic behaviour is limited to source-verified award
-   celebrations and confirmed-save acknowledgements, within the budget below.
+   celebrations, confirmed-save acknowledgements (within the budget below) and
+   the one-time tip that teaches the summon gesture (MB-814).
 5. Release ships with the free MIT runtime and the CLI-built asset. No paid
    Rive plan is assumed. Production enablement is gated (see "Licensing and
    release gate").
 
 ## Frozen asset
 
-| Field                                     | Value                                                                                            |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| File                                      | `mam-v03.riv`, 80,826 bytes                                                                      |
-| SHA-256                                   | `2fbd1dacf9845f03e8710b61ab0110df616028467bd287fe9001a573a44e53a6`                               |
-| Built by                                  | Rive CLI 1.7.0, `rive <rig> --once` (unsigned, no login)                                         |
-| Rebuild                                   | Deterministic: rebuilding the rig on 2026-10-27 gave the same hash, with 0 errors and 0 warnings |
-| Artboard                                  | `companion_main`, 512×512, no artboard fill (transparent)                                        |
-| State machine                             | `MamBehaviorController`, layers `Behavior`, `Face`, `Attention`                                  |
-| View model                                | `MamControls`, instance `Default`                                                                |
-| Scripts / embedded images / fonts / audio | none (0 `Script` elements), so no signing is needed                                              |
+| Field                                     | Value                                                                                             |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| File                                      | `mam-v06.riv`, 145,399 bytes (v0.3 art, `sleep`, `speaking` and the MB-818 idle and touch states) |
+| SHA-256                                   | `6abc31b75f180fa58506e2ff1b48f9322818fe72652b20e8df9c03a0992ad644`                                |
+| Built by                                  | Rive CLI 1.7.0, `rive <rig> --once` (unsigned, no login)                                          |
+| Rebuild                                   | Deterministic: rebuilding on 2026-11-09 gave the same hash, with 0 errors and 0 warnings          |
+| Artboard                                  | `companion_main`, 512×512, no artboard fill (transparent)                                         |
+| State machine                             | `MamBehaviorController`, layers `Behavior`, `Face`, `Attention`, `Blink`                          |
+| View model                                | `MamControls`, instance `Default`                                                                 |
+| Scripts / embedded images / fonts / audio | none (0 `Script` elements), so no signing is needed                                               |
 
 Source of truth for the art is the generator in `creative/mam-rive/`:
 `build.mjs`, `source/mam_v03_rive_layers.svg` and `rig/rive.yaml`. Hand edits to
@@ -72,15 +75,17 @@ version and needs a new visual QA pass.
 
 MB-767 lands the asset in the web repository:
 
-- `public/mam/mam-v03.riv` holds the file with the hash above. Budget: at most
-  100 KB.
+- `public/mam/mam-v06.riv` holds the file with the hash above. Budget: at most
+  160 KB (raised from 100 KB for MB-818; v0.6 is 145,399 bytes, v0.5 was 99,394).
+  The runtime and the asset still load lazily and share one load promise.
 - `design-source/mam-rive/` holds the generator inputs. Next.js does not serve
   this folder.
 - The static fallback is a transparent SVG of the v0.3 `idle` pose, generated
   from the same `build.mjs` art tree. The v0.4 PNG in `creative/mam-companion/`
   is different art and is not used.
-- The Rive runtime and its WASM load lazily, and only on routes where the dock
-  is visible. They never enter the initial route bundle.
+- The Rive runtime and its WASM load lazily, and only where Mầm renders: on
+  routes where the dock is visible, and inside the AI voice call view while a
+  call is in progress (MB-815). They never enter the initial route bundle.
 
 The earlier
 `creative/mam-companion/` POC and the inline "Mầm An" SVG loading mascots
@@ -89,15 +94,15 @@ contract and stay unchanged.
 
 ## Control contract
 
-| Property             | Type                                                                                                                                                                               | Rule                                                                                         |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `behaviorState`      | enum `MamBehavior` (12 values, IDs fixed in this order: `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy`) | Looping poses blend in 260 ms (`sad` 600 ms). The face layer switches in 0 ms                |
-| `attentionDirection` | number −1…1, clamped                                                                                                                                                               | Moves only the pupils. Measured ±6 artboard px at the extremes                               |
-| `celebrationTier`    | enum `none, soft, hero`                                                                                                                                                            | Picks a celebration when `behaviorState` is not itself a one-shot                            |
-| `playOnce`           | trigger                                                                                                                                                                            | Required to start any one-shot. Setting a one-shot enum value alone plays nothing (verified) |
-| `returnToDock`       | trigger                                                                                                                                                                            | Interrupts and returns to `idle`                                                             |
-| `reducedMotion`      | boolean                                                                                                                                                                            | `true` routes to the static `rest` pose and blocks every one-shot                            |
-| `isVisible`          | boolean                                                                                                                                                                            | `false` hides the character and its shadow. It takes priority over everything else           |
+| Property             | Type                                                                                                                                                                                                                                                                                  | Rule                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `behaviorState`      | enum `MamBehavior` (24 values, IDs fixed in this order: `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy, sleep, speaking, drowsy, wake, giggle, tickled, dangle, nod, stretch, look_around, scratch, point`) | Looping poses blend in 260 ms (`sad` 600 ms). The face layer switches in 0 ms                |
+| `attentionDirection` | number −1…1, clamped                                                                                                                                                                                                                                                                  | Moves only the pupils. Measured ±6 artboard px at the extremes                               |
+| `celebrationTier`    | enum `none, soft, hero`                                                                                                                                                                                                                                                               | Picks a celebration when `behaviorState` is not itself a one-shot                            |
+| `playOnce`           | trigger                                                                                                                                                                                                                                                                               | Required to start any one-shot. Setting a one-shot enum value alone plays nothing (verified) |
+| `returnToDock`       | trigger                                                                                                                                                                                                                                                                               | Interrupts and returns to `idle`                                                             |
+| `reducedMotion`      | boolean                                                                                                                                                                                                                                                                               | `true` routes to the static `rest` pose and blocks every one-shot                            |
+| `isVisible`          | boolean                                                                                                                                                                                                                                                                               | `false` hides the character and its shadow. It takes priority over everything else           |
 
 One-shots last 1.2 s (`light_success`), 0.9 s (`celebrate_soft`) and 1.5 s
 (`celebrate_hero`). When one finishes, the asset writes `behaviorState=idle` and
@@ -105,22 +110,81 @@ One-shots last 1.2 s (`light_success`), 0.9 s (`celebrate_soft`) and 1.5 s
 1.6 s respectively. The adapter must read those values back. It must not assume
 its last write is still current.
 
+The `Blink` layer (v0.6) blinks the eyes for 0.2 s while `behaviorState` is `idle`
+(visible, not reduced), then waits a random 3, 4, 5 or 6 s (state-machine
+`random`) before the next blink. The host does nothing for it. The asset writes
+`behaviorState=idle` when any one-shot ends, as for the three above.
+
+Only `dangle` is a new looping state (host-set for a whole drag). The nine other
+v0.6 states are one-shots started with `behaviorState` plus `playOnce` (tier
+`none`); none has a route to another one-shot, so a host cuts a running one with
+`returnToDock` before it starts the next (the adapter does this two frames
+apart). `reducedMotion` and `isVisible` block them like the others.
+
+| New state     | ID  | Class    | Length | Pose (within the v0.3 sheet)                                                   |
+| ------------- | --- | -------- | ------ | ------------------------------------------------------------------------------ |
+| `drowsy`      | 14  | one-shot | 2.5 s  | Upright yawn, arms up, lids droop, ends on the `sleep` face                    |
+| `wake`        | 15  | one-shot | 1.2 s  | Blanket off, rubs both eyes, big stretch, eyes open                            |
+| `giggle`      | 16  | one-shot | 0.8 s  | Short wiggle, happy eyes, open mouth                                           |
+| `tickled`     | 17  | one-shot | 1.6 s  | Bigger wiggle, flapping arms, wide laugh                                       |
+| `dangle`      | 18  | loop     | 0.8 s  | Lifted, arms out and up, feet kicking, wide eyes                               |
+| `nod`         | 19  | one-shot | 0.7 s  | Two quick bows with happy eyes. No sparkle, no arms                            |
+| `stretch`     | 20  | one-shot | 1.8 s  | Arms wide, eyes squeezed, small shake-off                                      |
+| `look_around` | 21  | one-shot | 2.2 s  | Eyes and head sweep left, then right, then back                                |
+| `scratch`     | 22  | one-shot | 1.6 s  | Right hand scratches the head, puzzled brows                                   |
+| `point`       | 23  | one-shot | 1.6 s  | Right arm points sideways with small taps. Page "where to start" only (MB-819) |
+
 ### V1 behaviour vocabulary
 
-| `behaviorState`  | V1 meaning (a UI event, never the user's mood)                                               | Set by                                   |
-| ---------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `idle`           | Available in the dock                                                                        | default, `returnToDock`                  |
-| `curious`        | User summoned Mầm on a target; the starter menu is open                                      | summon                                   |
-| `thinking`       | An explicit request is pending                                                               | request started                          |
-| `explaining`     | An explanation bubble is shown                                                               | request succeeded                        |
-| `listening`      | Mầm offered an optional next step and waits for the user's choice                            | offer shown                              |
-| `gentle`         | Sensitive or failed-request context: calm template text                                      | request failed, sensitive review surface |
-| `happy`          | A verified-award bubble is open                                                              | celebration bubble                       |
-| `light_success`  | One-shot: a confirmed save or a Content-verified Bingo item                                  | confirmed source event                   |
-| `celebrate_soft` | One-shot: a verified achievement (not the day's hero)                                        | celebration scheduler                    |
-| `celebrate_hero` | One-shot: the first verified achievement of the day                                          | celebration scheduler                    |
-| `sad`            | **Reserved; not used in V1.** It must never mirror the user's emotion, journal or assessment | none                                     |
-| `rest`           | **Reserved for the asset's reduced-motion pose.** Hosts do not set it                        | asset                                    |
+| `behaviorState`                     | V1 meaning (a UI event, never the user's mood)                                                              | Set by                                                                        |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `idle`                              | Available in the dock                                                                                       | default, `returnToDock`                                                       |
+| `curious`                           | User summoned Mầm on a target; the starter menu is open                                                     | summon                                                                        |
+| `thinking`                          | An explicit request is pending                                                                              | request started                                                               |
+| `explaining`                        | An explanation bubble is shown                                                                              | request succeeded                                                             |
+| `listening`                         | Mầm offered an optional next step and waits for the user's choice                                           | offer shown                                                                   |
+| `gentle`                            | Sensitive or failed-request context: calm template text                                                     | request failed, sensitive review surface; voice call `comfort` reply (MB-820) |
+| `happy`                             | A verified-award bubble is open                                                                             | celebration bubble                                                            |
+| `sleep`                             | Host-set only after 60 s idle and the `drowsy` yawn, never in reduced motion, never reflects user data      | idle timer                                                                    |
+| `drowsy`, `wake`                    | One-shots of the sleep sequence: the upright yawn before lying down; the wake-up on a click                 | travel controller (MB-818)                                                    |
+| `giggle`, `tickled`                 | One-shots: reactions to the user's own pokes on the awake dock                                              | dock click (MB-818)                                                           |
+| `dangle`                            | Loop: held by the pointer for the whole drag                                                                | travel controller (MB-818)                                                    |
+| `stretch`, `look_around`, `scratch` | One-shots: rare idle life while docked and calm                                                             | idle timer (MB-818)                                                           |
+| `nod`                               | One-shot: a confirmed SupportPlan save. Same for every content, never a celebration                         | confirmed save (MB-818)                                                       |
+| `point`                             | One-shot: Mầm perched on the card a page "where to start" answer names, once per answer (MB-819)            | page answer climb                                                             |
+| `speaking`                          | Mầm's voice-call reply audio is playing (agent state `speaking`). Voice call only. Never reflects user data | AI voice call dialog (never the dock)                                         |
+| `light_success`                     | One-shot: a confirmed save or a Content-verified Bingo item                                                 | confirmed source event                                                        |
+| `celebrate_soft`                    | One-shot: a verified achievement (not the day's hero)                                                       | celebration scheduler                                                         |
+| `celebrate_hero`                    | One-shot: the first verified achievement of the day                                                         | celebration scheduler                                                         |
+| `sad`                               | **Reserved; not used in V1.** It must never mirror the user's emotion, journal or assessment                | none                                                                          |
+| `rest`                              | **Reserved for the asset's reduced-motion pose.** Hosts do not set it                                       | asset                                                                         |
+
+The AI voice call sets only `idle` (preparing, the user's turn, waiting,
+reconnecting, ending), `thinking`, `speaking` and, for a comforting reply,
+`gentle` (MB-820, below); under reduced motion the asset shows `rest`. The call
+never sets any other value, and the dock never sets `speaking`. The `speaking`
+mouth cycles on a fixed timeline: it is not synchronised to the audio.
+
+Voice expression (MB-820). The admitted voice Agent may publish the LiveKit
+participant attribute `mb.mam.expression` with exactly `neutral` or `comfort`.
+The web call maps it while the call is `speaking`: `comfort` to `gentle`,
+`neutral`, empty, missing or any other value (including `warm` and `encourage`)
+to `speaking`. Rules:
+
+- The attribute is read only from the exact admitted Agent participant, from the
+  same attribute snapshot as `lk.agent.state`, including an expression-only
+  change. `comfort` counts only while the fresh `lk.agent.state` is
+  `speaking`; an expression-only change never renews state freshness.
+- The web resets the expression to neutral itself on leaving `speaking`, Agent
+  disconnect, room reconnect or disconnect, the 30 s freshness timeout, dialog
+  close and a new session. The Agent's clear write is best effort and cannot be
+  sent after a reconnect or disconnect, so the web never waits for it.
+- The tag is decorative: only the Rive pose changes. It is never announced, never
+  changes the status text, halo, ring or mute badge, and never reflects mood,
+  risk or journal content. Under reduced motion the static pose stays.
+- `warm` (`happy`) and `encourage` (`explaining`) are a named follow-up. They
+  stay unpublished and unmapped until a Care-owned trusted safety source exists;
+  no keyword detector may stand in for it (owner decision, 2026-11-09).
 
 SupportPlan Companion states map onto this vocabulary as follows:
 
@@ -166,8 +230,24 @@ When inputs conflict, the first matching rule wins:
 6. A queued celebration, released only by the budget.
 7. `idle`.
 
-Gaze (`attentionDirection`) points toward the active anchor. It returns to 0
-when Mầm is in the dock. Gaze never follows the pointer continuously.
+One approved one-shot may play while the answer bubble is open (MB-819): `point`,
+once per page "where to start" answer, after Mầm has perched on the resolved card
+(see "User-initiated travel"). It is not a loop, mood or risk signal. It stops with
+`returnToDock` when the answer closes, the card is lost, the route changes, a
+no-interrupt zone opens, reduced motion turns on or the renderer fails (a perched
+Mầm never yields to page actions), and an older climb never plays it on a later answer. Idle, poke,
+gaze and every other one-shot stay blocked while an answer bubble is open.
+
+Gaze (`attentionDirection`): an active anchor wins and the eyes point to it.
+Otherwise (MB-818) a mouse or pen within about 320 px of the dock eases the eyes
+sideways (horizontal only, clamped −1…1, 160 px to one side is full). The host
+writes at most once per animation frame, from one passive `pointermove` listener
+that exists only while the dock is eligible, and the eyes return to 0 after 2 s
+without pointer movement. There is no gaze tracking during a summon, a perch, a
+drag or throw, a no-interrupt zone, with the menu, a notice or an answer bubble
+open, while muted, asleep, dizzy or in reduced motion, nor for touch pointers or
+while a text field has focus. Eligible means the same conditions as the idle
+actions below.
 
 ## Ownership
 
@@ -184,18 +264,18 @@ when Mầm is in the dock. Gaze never follows the pointer continuously.
 
 ## Event taxonomy
 
-| Event                                      | Producer                                                   | Payload                                                              | Effect                                                                                         |
-| ------------------------------------------ | ---------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `mam.summon`                               | registered target via context menu, keyboard or long-press | `targetId`, `surface`, intents                                       | Mầm moves to the anchor, `curious`, starter menu                                               |
-| `mam.request.started`                      | starter chosen                                             | `intent`, context IDs                                                | `thinking`, polite status                                                                      |
-| `mam.request.succeeded`                    | Care response                                              | text, optional next-step offer                                       | `explaining`. If an offer exists, then `listening` after the text                              |
-| `mam.request.failed`                       | timeout, quota, policy or network failure                  | reason code                                                          | `gentle` plus approved template copy, never an invented answer                                 |
-| `mam.offer.accepted`                       | user                                                       | target surface                                                       | Shows the next step (see "Explanation sources in V1"). Mầm suggests only after the user agrees |
-| `mam.dismiss`                              | Esc, close, outside click, route change                    | —                                                                    | `returnToDock`. Focus returns to the target                                                    |
-| `mam.save.confirmed`                       | feature, after the authoritative response                  | source reference                                                     | `light_success` in place, no bubble                                                            |
-| `mam.award.verified`                       | MB-774 reward watcher                                      | presentation key (see "Award keys"), kind, `unlockedAt`/`verifiedAt` | Enqueue in the celebration scheduler                                                           |
-| `mam.suppress.enter` / `mam.suppress.exit` | sensitive surfaces                                         | zone                                                                 | Start or end suppression                                                                       |
-| `mam.pref.changed`                         | user                                                       | `hidden`, `muted`, `motion`                                          | Apply immediately                                                                              |
+| Event                                      | Producer                                                                                 | Payload                                                              | Effect                                                                                         |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `mam.summon`                               | registered target via context menu, keyboard, long-press or a drop of Mầm on it (MB-819) | `targetId`, `surface`, intents                                       | Mầm moves to the anchor, `curious`, starter menu                                               |
+| `mam.request.started`                      | starter chosen                                                                           | `intent`, context IDs                                                | `thinking`, polite status                                                                      |
+| `mam.request.succeeded`                    | Care response                                                                            | text, optional next-step offer                                       | `explaining`. If an offer exists, then `listening` after the text                              |
+| `mam.request.failed`                       | timeout, quota, policy or network failure                                                | reason code                                                          | `gentle` plus approved template copy, never an invented answer                                 |
+| `mam.offer.accepted`                       | user                                                                                     | target surface                                                       | Shows the next step (see "Explanation sources in V1"). Mầm suggests only after the user agrees |
+| `mam.dismiss`                              | Esc, close, outside click, route change                                                  | —                                                                    | `returnToDock`. Focus returns to the target                                                    |
+| `mam.save.confirmed`                       | feature, after the authoritative response                                                | source reference                                                     | SupportPlan: `nod` in place (MB-818), no bubble. Other sources keep `light_success`            |
+| `mam.award.verified`                       | MB-774 reward watcher                                                                    | presentation key (see "Award keys"), kind, `unlockedAt`/`verifiedAt` | Enqueue in the celebration scheduler                                                           |
+| `mam.suppress.enter` / `mam.suppress.exit` | sensitive surfaces                                                                       | zone                                                                 | Start or end suppression                                                                       |
+| `mam.pref.changed`                         | user                                                                                     | `hidden`, `muted`, `motion`                                          | Apply immediately                                                                              |
 
 ### Explanation sources in V1
 
@@ -206,11 +286,11 @@ surfaces `TODAY` and `PLAN`, and returns a deterministic template when the
 provider is unavailable. Policy v1 states that additive intent or context
 changes require a v2. V1 therefore uses these sources:
 
-| Starter (Vietnamese label)                      | Where                                                                          | Source                                                                                                                                                                                                                                                                                                 |
-| ----------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| "Mầm giải thích" on a plan action               | SupportPlan Today and Plan action cards                                        | Care endpoint above (`EXPLAIN_ACTION`)                                                                                                                                                                                                                                                                 |
-| "Mầm giải thích" on any other registered target | SupportPlan Progress/Adjust sections, dashboard cards, reviewed Resource cards | Reviewed deterministic copy that the target's descriptor declares per component type. No model call                                                                                                                                                                                                    |
-| "Nên bắt đầu từ đâu?"                           | SupportPlan, after any explanation, or from the dock                           | The Today focus that `selectTodayFocus` (`features/support-plan/workspace/workspace-model.ts:126`) already derives from Care's plan and occurrences: resume, review due, or the earliest open occurrence. Template text plus a `NAVIGATE` focus or link to that card. No model call and no new ranking |
+| Starter (Vietnamese label)                      | Where                                                                          | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| "Mầm giải thích" on a plan action               | SupportPlan Today and Plan action cards                                        | Care endpoint above (`EXPLAIN_ACTION`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| "Mầm giải thích" on any other registered target | SupportPlan Progress/Adjust sections, dashboard cards, reviewed Resource cards | Reviewed deterministic copy that the target's descriptor declares per component type. No model call                                                                                                                                                                                                                                                                                                                                                                                                          |
+| "Nên bắt đầu từ đâu?"                           | SupportPlan, after any explanation, or from the dock                           | The Today focus that `selectTodayFocus` (`features/support-plan/workspace/workspace-model.ts:126`) already derives from Care's plan and occurrences: resume, review due, or the earliest open occurrence. Template text plus a `NAVIGATE` focus or link to that card. No model call and no new ranking. From the dock on `/dashboard` and `/support-plan` the rule, copy and `focusKind` are unchanged; MB-819 only adds the climb onto the resolved card when it is on screen (see "User-initiated travel") |
 
 Generated phrasing for `SUGGEST_NEXT_STEP`, `EXPLAIN_FOCUS`,
 `EXPLAIN_REVIEW_OPTION` or `SUMMARIZE_PROGRESS` needs Care backend and policy
@@ -233,6 +313,14 @@ intent or context fails closed.
   iOS fires no `contextmenu` event. Moving more than 10 px or starting a text
   selection cancels the press. The dock button remains the touch path that
   always works.
+- Drop (MB-819): releasing a dragged Mầm over a registered element target is one
+  more pointer route into the same starter menu, with that element as the target
+  and the release point as the anchor. It is not an immediate answer request: the
+  user still chooses a starter, and the climb, bubble, answer source, focus
+  restoration and repeat-summon rules are the ones above. Native controls (links,
+  inputs, editable text) under the pointer and a text selection inside the
+  target never accept a drop, exactly as for right-click. The keyboard and
+  screen-reader paths do not change (the drag has no keyboard equivalent).
 - The dock button also offers "Hỏi Mầm về trang này" for the current surface.
 - The menu lists only approved starters, for example "Mầm giải thích" and
   "Nên bắt đầu từ đâu?". Each is a button with an accessible name.
@@ -240,6 +328,146 @@ intent or context fails closed.
   (same as policy v1).
 - One bubble at a time. While a request is pending, a repeated summon shares
   the pending state.
+
+### User-initiated travel (MB-814)
+
+The dock is Mầm's home, not its only place. These user actions move the one
+character away from it, and nothing else does:
+
+- **Summon climb.** An element-target summon makes Mầm leave the dock, climb up
+  from behind the summoned card's top edge and answer beside its head. The
+  character layer is clipped at the card's top edge (the card's `z-index` is
+  never raised) and at the bottom of the sticky app header, so Mầm never draws
+  over the header. The page first scrolls the smallest amount that leaves
+  `0.64·S + 16 px` above the card's top edge; focus never moves. While perched,
+  Mầm follows the card on scroll and resize. If the card unmounts, goes
+  offscreen or its top edge rises above that room, the bubble closes and Mầm
+  returns home without the thanks beat. A page-level target (no element) keeps
+  the dock bubble, except for the pointing answer below.
+- **Drag and throw.** On the docked character, a pointer drag of 6 px or more
+  (mouse, pen or touch) carries Mầm. Released over a registered target it is a
+  drop (below); released anywhere else it tosses Mầm upward with damping, it
+  bounces and hops back to the dock. A press under 6 px is a tap. This is play:
+  there is no keyboard equivalent, and it is unavailable while perched, away,
+  suppressed, dizzy, with the answer bubble open, before the renderer is ready or
+  in reduced motion. Mầm travels above page content but below toasts and the
+  crisis widget.
+- **Drop on a card (MB-819).** While Mầm is carried, the host hit-tests the
+  latest pointer position (client coordinates, at most once per frame, and again
+  when the page scrolls) through the dock, which holds the pointer capture. Only
+  a registered element target matches: never the dock or its bubbles, the
+  page-level targets, a hidden or unmounted card, or a native control. The
+  matching card carries one temporary marker, `data-mam-drop`, separate from
+  `data-mam-active`. It draws a 3 px dashed outline in solid `--teal` (no alpha, at
+  least 3:1 on the card surfaces) offset 1 px, so it stays inside a 4 px gutter:
+  no layout, no animation, a visual cue only with no accessible name or role. It follows the
+  pointer from card to card and is removed on leaving the card, on release, on
+  pointer cancel, on Escape, when a gate falls (route change, modal, a
+  no-interrupt zone, reduced motion, hide, dizzy, a renderer failure) and when the
+  host unmounts. The release is hit-tested again, so a stale ring never decides.
+  Over a card the drag ends without a throw: the ring goes, Mầm drops out of
+  sight where it was let go and then climbs the card like a summon, and the same
+  starter menu opens beside it. When that menu closes, focus returns to the dock
+  (a right-click returns it to the control it came from). The click that ends a
+  drag is swallowed. Pointer
+  cancel and Escape keep today's behaviour (throw, or snap home) and never
+  summon: a release that still arrives after Escape or a fallen gate (the pointer
+  stays captured) summons nothing and moves no ring.
+- **Point to the card (MB-819).** The page-level "Nên bắt đầu từ đâu?" on
+  `/dashboard` and `/support-plan` keeps its rule, its reviewed text, its
+  `focusKind` and its "go to the card" action. When its answer arrives with a
+  `focusKind`, the host resolves that registered element. If it is mounted,
+  painted, its top edge is on screen below the sticky header (the usual small
+  clearance scroll is allowed) and the bubble fits beside Mầm (a screen too
+  narrow for that would put it above, over Mầm's head), Mầm climbs onto it exactly as for a summon, the
+  same answer bubble opens beside Mầm and `point` plays once, after Mầm has
+  perched. Mầm perches at the right end of the card's top edge, or, when text or
+  a control is drawn where its head would rise, at the nearest spot to the left
+  that is clear (the bubble keeps its room beside it). While Mầm travels, focus
+  waits on the dock; once perched it is on the bubble's action, but only while
+  focus is still Mầm's (nothing, the dock or a Mầm bubble): a user who moved to a
+  page control keeps it, and a later Escape does not pull it back to the dock. The summon stays the page's (the answer is not the card's
+  `EXPLAIN`); the card only wears `data-mam-active`. If the card is not
+  mounted or not on screen, the answer has no `focusKind`, the request failed,
+  the renderer is not ready, or reduced motion or a no-interrupt zone applies,
+  the answer shows at the dock as before: no climb, no `point`, no scroll.
+  The same applies when that eligibility falls after the answer came (reduced
+  motion in the OS or in Mầm, a no-interrupt zone, a failing renderer), during or
+  after the climb: the answer, intent and action stay, the card lead is retired
+  for good and the bubble sits at the dock; turning motion back on never climbs
+  for that answer. Choosing another starter from the card's bubble sends Mầm home and answers at
+  the dock. The card leaving the page, scrolling out of reach, Escape or a close
+  ends the answer and cancels `point`. There is no check-in branch.
+
+Gaze is unchanged: the drag tilt is physics, not gaze, and `attentionDirection`
+still points at the active anchor. A route change, a modal, suppression or
+reduced motion snaps a travelling Mầm home with no animation; Escape does the
+same during a throw or hop, and retreats a perched Mầm normally. The no-interrupt
+zones below are unchanged.
+
+### One-time tip (MB-814)
+
+The tip is the second automatic appearance, once per device
+(`mentalbridge_mam_tip_seen`, localStorage). It shows 1.4 s after load when
+Mầm is shown and not away or suppressed, "Mầm tự lên tiếng" is on and the page
+has at least one registered element target. Mầm hops once (no hop in reduced
+motion) and says how to summon on a card: right-click on a fine pointer,
+long-press on a coarse pointer. The tip never takes focus, and it is marked
+seen when shown. The dock menu lead repeats the same guidance permanently, so
+the path survives a skipped tip.
+
+Mầm's per-card button stays in the DOM with its name and action, but is
+visually hidden until `:focus-visible`; the dock button remains the touch path
+that always works.
+
+### Idle life and touch (MB-818)
+
+All of this is Rive motion plus transform and opacity in the host; no layout
+property animates. It runs only while Mầm is docked, visible, the renderer is
+ready and nothing blocks it: reduced motion (OS or the Mầm motion preference), a
+no-interrupt zone or hidden dock, a failed renderer, the answer bubble, a
+celebration or save nod, and a summon, throw or drag. The autonomous parts (gaze,
+idle actions) also need "Mầm tự lên tiếng" on, Mầm awake, the menu and notices
+closed and nothing playing. Any of these turning true drops what is pending; a
+pending timer is never queued to fire later.
+
+- **Blink** is in the asset (see "Control contract").
+- **Idle actions.** One of `stretch`, `look_around`, `scratch` (never the same
+  twice in a row) at a random 25–45 s interval, at most 2 per rolling minute,
+  never while a text field has focus. A skipped slot is not made up later.
+- **Poke.** A pointer click or tap on the awake dock plays `giggle`. Only the
+  first click of a 1.5 s window toggles the menu as before; further clicks in the
+  window are pokes only (`giggle` again), and the third plays `tickled` once and
+  starts a 10 s cool-down, in which clicks play nothing (the menu toggles once per
+  window as usual). The menu may be open for a giggle; the answer bubble never is.
+  A keyboard or screen-reader activation (no pointer) just toggles the menu, and
+  where Mầm cannot react (reduced motion and the gates above) every click toggles.
+  A click on a sleeping Mầm only wakes it.
+- **Drag and throw.** The looping `dangle` is held for the whole drag. A fast
+  throw (pointer 1,400 px/s or more) bounces and lands with a bigger squash and a
+  short shake-off. Nothing here ever uses the dizzy look.
+- **Acknowledgement.** The SupportPlan confirmed-save event plays `nod` (about
+  0.7 s) in place of `light_success`, for every content, under the same gates as
+  before. The emotion check-in save still has no Mầm reaction, and `light_success`
+  stays for the other sources.
+
+### Sleep and dizzy (MB-814)
+
+- **Sleep** is a quiet exit, not an appearance. After 60 s without input, a
+  docked, visible, unsuppressed Mầm with nothing open plays the upright
+  `drowsy` yawn (2.5 s; any input during it keeps Mầm awake), then lies down;
+  the host sets the looping `sleep` state as the lie-down starts, which draws the
+  closed eyes, breathing and blanket, and floats "z z Z". It never sleeps in
+  reduced motion. Only an interaction with Mầm (tap, drag, summon, a
+  celebration) wakes it; other page input does not. A tap plays `wake` (1.2 s)
+  in place of the old `curious` step; the hop, squash and `happy` beat stay.
+- **Dizzy** means only that Mầm itself is broken: a load error, a contract
+  mismatch or a lost canvas context. It lasts until the page reloads, is drawn
+  by the host (swirl eyes and orbiting stars, static in reduced motion) and
+  disables climbing, dragging, sleeping and celebrating. A tap or a summon opens
+  a short dock bubble saying Mầm cannot help right now, with "Đã hiểu" and
+  "Ẩn Mầm". Dizzy never reflects user data, mood or a failed explanation
+  request. A device without canvas or WebAssembly is unsupported, not dizzy.
 
 ### No-interrupt zones
 
@@ -265,18 +493,20 @@ document keep the static, inert dock.
 
 ### Surface matrix
 
-| Surface                                                                                                                                                                                                                        | Dock                       | Summon                                                                                                         | Automatic                                                                  |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `/dashboard` (outside the emotion check-in entry)                                                                                                                                                                              | yes                        | registered cards, deterministic copy; saved emotion check-in card button (MB-771, same copy for every emotion) | celebrations within budget; none on emotion check-in save                  |
-| `/support-plan` (Today, Plan, Progress, Adjust)                                                                                                                                                                                | yes                        | registered targets, per "Explanation sources in V1"                                                            | confirmed-save `light_success` only. No award celebrations under policy v1 |
-| `/resources`, `/resources/[resourceId]`                                                                                                                                                                                        | yes                        | reviewed Resource cards (MB-770), deterministic copy                                                           | Bingo `light_success`; celebrations within budget                          |
-| `/achievements`                                                                                                                                                                                                                | yes                        | none in V1                                                                                                     | celebrations within budget                                                 |
-| `/support-guides`, `/support-guides/[supportGuideId]`                                                                                                                                                                          | yes                        | none in V1                                                                                                     | none                                                                       |
-| `/journal` list view                                                                                                                                                                                                           | static dock                | none (MB-771)                                                                                                  | none; no save reaction (MB-771)                                            |
-| Journal authoring, `/assessment/*`, `/assessments`, `/initial-check`, `/safety-directory`, `/subscription`, checkout, appointment booking, `/messages`, community routes, `/ai-companion`, admin, specialist, anonymous routes | hidden (`isVisible=false`) | none                                                                                                           | none                                                                       |
+| Surface                                                                                                                                                                                                                        | Dock                         | Summon                                                                                                                                                                                                           | Automatic                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/dashboard` (outside the emotion check-in entry)                                                                                                                                                                              | yes                          | registered cards, deterministic copy, also by dropping Mầm on a card (MB-819); saved emotion check-in card button (MB-771, same copy for every emotion); page start answer points at the next-step card (MB-819) | celebrations within budget; none on emotion check-in save                                                                                                  |
+| `/support-plan` (Today, Plan, Progress, Adjust)                                                                                                                                                                                | yes                          | registered targets, per "Explanation sources in V1", also by drop (MB-819); page start answer points at the mounted Today focus card (MB-819)                                                                    | confirmed-save `nod` only (MB-818). No award celebrations under policy v1                                                                                  |
+| `/resources`, `/resources/[resourceId]`                                                                                                                                                                                        | yes                          | reviewed Resource cards (MB-770), deterministic copy                                                                                                                                                             | Bingo `light_success`; celebrations within budget                                                                                                          |
+| `/achievements`                                                                                                                                                                                                                | yes                          | none in V1                                                                                                                                                                                                       | celebrations within budget                                                                                                                                 |
+| `/support-guides`, `/support-guides/[supportGuideId]`                                                                                                                                                                          | yes                          | none in V1                                                                                                                                                                                                       | none                                                                                                                                                       |
+| `/journal` list view                                                                                                                                                                                                           | static dock                  | none (MB-771)                                                                                                                                                                                                    | none; no save reaction (MB-771)                                                                                                                            |
+| Journal authoring, `/assessment/*`, `/assessments`, `/initial-check`, `/safety-directory`, `/subscription`, checkout, appointment booking, `/messages`, community routes, `/ai-companion`, admin, specialist, anonymous routes | hidden (`isVisible=false`)   | none                                                                                                                                                                                                             | none                                                                                                                                                       |
+| AI voice call dialog (opened from `/ai-companion`; only when `MAM_WEB_ENABLED` is on and Mầm is not hidden)                                                                                                                    | none (the dock stays hidden) | none                                                                                                                                                                                                             | none. The character is driven only by call state: `idle`, `thinking`, `speaking` (`gentle` for a `comfort` reply, MB-820), and `rest` under reduced motion |
 
-`/ai-companion` already has its own conversation surface, so a second character
-there would duplicate it.
+`/ai-companion` keeps a hidden dock, no summon and no automatic appearance. Its
+text chat has no character. The AI voice call uses Mầm as its face instead of
+adding a second character (MB-815).
 
 Since MB-772 the global dock shows on exact `/support-plan` when
 `MAM_WEB_ENABLED` is on, and the page then drops the legacy SupportPlan
@@ -388,8 +618,10 @@ Budget, per device and local day:
   It contains no "come back tomorrow" pressure.
 
 Explicit summons have no Mầm-side cap. Server quota and rate policy still apply.
-Confirmed-save `light_success` is direct feedback to the user's own action. It
-does not use the budget but obeys hidden, muted, motion and suppression.
+Confirmed-save feedback (the SupportPlan `nod`, a Bingo `light_success`) is direct
+feedback to the user's own action. It does not use the budget but obeys hidden,
+muted, motion and suppression. Idle actions, pokes and the drag pose are not
+celebrations and do not use it either.
 
 ## User controls
 
@@ -398,10 +630,11 @@ does not use the budget but obeys hidden, muted, motion and suppression.
 | Hide Mầm       | `isVisible=false`, no automatic events. Summon is off until shown again               | Per device. MB-768 chooses the storage key, following the existing `mentalbridge_support_plan_companion_*` pattern |
 | Mute           | No automatic appearances and no live-region announcements. Requested text still shows | Session (policy v1). Cross-session needs the preference contract MB-653 names                                      |
 | Animations off | `reducedMotion=true`. The OS `prefers-reduced-motion` setting forces it on            | Per device                                                                                                         |
+| Tip seen       | The one-time tip (MB-814) never shows again                                           | Per device                                                                                                         |
 
 MB-768 stores them as `mentalbridge_mam_hidden` (localStorage),
 `mentalbridge_mam_session_muted` (sessionStorage) and `mentalbridge_mam_motion`
-(localStorage). A hidden Mầm leaves a 44 px "Hiện Mầm" handle in the dock
+(localStorage). The tip uses `mentalbridge_mam_tip_seen` (localStorage). A hidden Mầm leaves a 44 px "Hiện Mầm" handle in the dock
 corner.
 
 Controls are reachable from the dock by keyboard. Hiding Mầm never hides
@@ -422,7 +655,8 @@ authoritative plan, safety, save, validation or error feedback.
   - Mầm sits below toasts (`z-index` 100200) and below `CrisisSupportWidget`
     (120000).
   - It never covers the crisis widget, primary actions, sticky composers or a
-    focused element.
+    focused element. While Mầm is dragged or thrown the dock layer rises to
+    `z-index` 5000, still below toasts and the crisis widget.
   - Native modal dialogs render in the top layer above it.
   - The desktop dock sits bottom-left, because the crisis widget sits
     bottom-right. Below 900 px the 72 px dock also sits bottom-left, 16 px
@@ -437,14 +671,18 @@ authoritative plan, safety, save, validation or error feedback.
 
 ## Failure and fallback
 
-| Case                                               | Behaviour                                                                                                                      |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Asset fetch or decode fails, or WASM init fails    | Static SVG Mầm with the same text and controls. No retry loop. The page is never blocked                                       |
-| Runtime unsupported or canvas context lost         | Same static fallback                                                                                                           |
-| Rive WASM                                          | Self-hosted from the app origin, never fetched from a third-party CDN at runtime. A future CSP must allow `'wasm-unsafe-eval'` |
-| Explanation request fails, times out or hits quota | `gentle` plus approved template text for that intent. Mầm never invents an answer                                              |
-| Route change during a request or bubble            | Request result discarded, `returnToDock`                                                                                       |
-| Flag off                                           | Host not mounted. Existing SupportPlan Companion UI unchanged                                                                  |
+| Case                                                                                                                                                               | Behaviour                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Asset fetch or decode fails, or WASM init fails                                                                                                                    | Static SVG Mầm with the same text and controls, plus the host-drawn dizzy overlay (MB-814). No retry loop. The page is never blocked  |
+| Contract mismatch or canvas context lost                                                                                                                           | Same as above: dizzy, until reload                                                                                                    |
+| Runtime unsupported (no canvas or WebAssembly)                                                                                                                     | Static SVG Mầm with the same text and controls. Not dizzy: a capability gap is not a fault                                            |
+| Rive WASM                                                                                                                                                          | Self-hosted from the app origin, never fetched from a third-party CDN at runtime. A future CSP must allow `'wasm-unsafe-eval'`        |
+| Explanation request fails, times out or hits quota                                                                                                                 | `gentle` plus approved template text for that intent. Mầm never invents an answer                                                     |
+| Route change during a request or bubble                                                                                                                            | Request result discarded, `returnToDock`                                                                                              |
+| Page start answer whose card is unmounted, off screen or too narrow for a side bubble, no `focusKind`, failed request, unready renderer or reduced motion (MB-819) | The dock answer as before: same text and "go to the card" action, no climb, no `point`, no scroll                                     |
+| Drop target lost or gate closed while carrying (MB-819)                                                                                                            | Ring removed; release is a throw (or a snap home), never a summon                                                                     |
+| Flag off                                                                                                                                                           | Host not mounted. Existing SupportPlan Companion UI unchanged                                                                         |
+| Voice call dialog, any fallback reason (MB-815)                                                                                                                    | Static idle image only: no dizzy overlay or message. The call and its status line work without Mầm. The dock rows above are unchanged |
 
 ## Licensing and release gate
 
@@ -496,8 +734,9 @@ Decision:
 
 ## Out of scope
 
-- AI Voice and LiveKit (MB-754), lip sync and visemes (`talk` is a static
-  mouth), video, specialist consultation.
+- Voice-call expressions beyond `neutral` and `comfort` (`warm` and `encourage`
+  wait for a Care-owned safety source), lip sync and visemes (`talk` is a static mouth; the `speaking`
+  mouth is not audio-synced), video, specialist consultation.
 - Autonomous Care, Journal or Content mutations.
 - New reward rules, XP, achievements or streaks.
 - Sentiment profiling, and reading raw Journal, emotion, assessment or chat

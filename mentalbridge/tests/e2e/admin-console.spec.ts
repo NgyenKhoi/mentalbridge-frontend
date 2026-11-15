@@ -57,6 +57,7 @@ test.describe('consolidated admin console', () => {
     })
     const expectedRoutes = [
       '/admin/dashboard',
+      '/admin/retention',
       '/admin/accounts',
       '/admin/specialists',
       '/admin/content',

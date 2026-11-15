@@ -54,6 +54,18 @@ async function syncSnapshot() {
   }
 
   await copyFile(sourcePath, snapshotPath)
+  const source = await readFile(sourcePath, 'utf8')
+  const fragments = new Set(
+    [...source.matchAll(/\$ref:\s*['"]?\.\/([a-z0-9-]+\.json)#/g)].map(
+      (match) => match[1],
+    ),
+  )
+  for (const fragment of fragments) {
+    await copyFile(
+      path.join(path.dirname(sourcePath), fragment),
+      path.join(path.dirname(snapshotPath), fragment),
+    )
+  }
   console.log(`Synced Community OpenAPI snapshot from ${sourcePath}`)
 }
 

@@ -1,0 +1,1063 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  width: 96vw;
+  max-width: 1380px;
+  height: 92vh;
+  background: #ffffff;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  border: 1px solid #e2e8f0;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.titleArea {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.iconBox {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #064e3b;
+  color: #34d399;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.titleLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.titleLine h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.verifiedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.cksChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  margin-left: 8px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toolBtn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.zoomDisplay {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  min-width: 44px;
+  text-align: center;
+}
+
+.bodyGrid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+/* Left Canvas */
+.canvasArea {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: auto;
+  background: radial-gradient(#e2e8f0 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.diplomaPaper {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  background: #fffdf9;
+  border: 3px double #d97706;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+  padding: 36px 44px;
+  border-radius: 4px;
+  transition: transform 0.2s ease;
+  user-select: none;
+}
+
+.diplomaInner {
+  border: 1px solid #f59e0b;
+  padding: 24px 32px;
+  position: relative;
+  background: #ffffff;
+}
+
+.matchRegionPill {
+  position: absolute;
+  top: -14px;
+  left: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #059669;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+}
+
+.diplomaHeader {
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.ministryLine {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #1e293b;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.universityLine {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #0369a1;
+  margin: 4px 0 12px;
+  text-transform: uppercase;
+}
+
+.diplomaTitle {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #b45309;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 10px 0 4px;
+}
+
+.diplomaSubtitle {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.08em;
+  margin-bottom: 14px;
+}
+
+.recognizeLine {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #334155;
+  text-transform: uppercase;
+  margin: 10px 0 6px;
+}
+
+.recipientName {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 8px 0;
+  font-family: serif;
+}
+
+.personalInfo {
+  font-size: 0.78rem;
+  color: #475569;
+  margin: 6px 0 12px;
+}
+
+.majorStatement {
+  font-size: 0.8rem;
+  color: #334155;
+  margin: 6px 0;
+}
+
+.majorName {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #059669;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 6px 0 12px;
+}
+
+.graduationRank {
+  font-size: 0.78rem;
+  color: #334155;
+  margin: 8px 0;
+}
+
+.diplomaFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 24px;
+  padding-top: 12px;
+}
+
+.codeBlock {
+  font-size: 0.68rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.signatureBlock {
+  text-align: center;
+  width: 220px;
+}
+
+.dateCity {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: #475569;
+  margin-bottom: 4px;
+}
+
+.rectorTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: uppercase;
+}
+
+.stampUniversityCircle {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  border: 2px solid #ef4444;
+  color: #dc2626;
+  font-size: 0.52rem;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 6px auto;
+  opacity: 0.85;
+  transform: rotate(-6deg);
+  background: rgba(254, 226, 226, 0.2);
+}
+
+.signatureScript {
+  font-family: 'Brush Script MT', cursive, sans-serif;
+  font-size: 1.3rem;
+  color: #1d4ed8;
+  margin-top: -24px;
+  transform: rotate(-3deg);
+}
+
+.watermark {
+  position: absolute;
+  top: 45%;
+  left: 20%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: rgba(148, 163, 184, 0.2);
+  letter-spacing: 0.15em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.sealPill {
+  position: absolute;
+  bottom: -14px;
+  right: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  color: #059669;
+  border: 1px solid #bbf7d0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Right Panel */
+.sidePanel {
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sideHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 12px;
+}
+
+.sideHeader h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shaBadge {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.checkCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.checkCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.checkCardTitle {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.statusTag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.statusTagGreen {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.comparisonRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  font-size: 0.78rem;
+}
+
+.compCol small {
+  display: block;
+  font-size: 0.68rem;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.compCol strong {
+  color: #0f172a;
+}
+
+.checklistTitle {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 0.04em;
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.checkItem input {
+  margin-top: 2px;
+  accent-color: #059669;
+}
+
+.auditDisclaimer {
+  font-size: 0.7rem;
+  color: #64748b;
+  line-height: 1.4;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+/* Footer */
+.footerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  gap: 12px;
+}
+
+.footerLeft,
+.footerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btnSecondary:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.btnDangerText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #dc2626;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btnDangerText:hover {
+  background: #fee2e2;
+}
+
+.btnPrimaryGreen {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: #059669;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+  transition: all 0.15s ease;
+}
+
+.btnPrimaryGreen:hover {
+  background: #047857;
+}
+
+
+/* ==========================================================================
+   AI Verification Suite Styles (PaddleOCR + Forensics + Extend Verify + CSDL)
+   ========================================================================== */
+.viewModeNav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.viewModeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.viewModeBtn:hover {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+.viewModeBtnActive {
+  background: #ffffff !important;
+  color: #059669 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.elaOverlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(30, 27, 75, 0.75) 0%, rgba(15, 23, 42, 0.88) 100%);
+  mix-blend-mode: hard-light;
+  pointer-events: none;
+  z-index: 10;
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 12px;
+}
+
+.elaTag {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 750;
+  padding: 4px 10px;
+  border-radius: 6px;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ocrBoundingBox {
+  position: absolute;
+  border: 2px dashed #0284c7;
+  background: rgba(14, 165, 233, 0.08);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 15;
+  transition: all 0.2s ease;
+}
+
+.ocrBoxTag {
+  position: absolute;
+  top: -10px;
+  left: 4px;
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+}
+
+.panelTabsNav {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.panelTabBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 2px;
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #64748b;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.panelTabBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.panelTabBtnActive {
+  background: #ecfdf5 !important;
+  color: #065f46 !important;
+  border-color: #a7f3d0 !important;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.15);
+}
+
+.tabContentScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.statGridRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.statCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.statValue {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #059669;
+}
+
+.statDesc {
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.checkListItemRow {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.checkListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.checkListTitle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.checkListScore {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.checkListDetail {
+  font-size: 0.72rem;
+  color: #475569;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ==========================================================================
+   Panel Heading & Structure
+   ========================================================================== */
+.panelHead {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.panelHeading {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #064e3b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panelSubheading {
+  margin: 4px 0 0 0;
+  font-size: 0.74rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.panelInner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.panelTabs,
+.panelTabsNav {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   1:1 Comparison Block (TRƯỜNG DỮ LIỆU & ĐỐI SOÁT 1:1)
+   ========================================================================== */
+.compareBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.compareHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #475569;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.compareHeaderBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  border-radius: 9999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.compareList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compareRow {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left: 3.5px solid #059669;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.compareRow:hover {
+  border-color: #cbd5e1;
+  border-left-color: #047857;
+  background: #fafcfb;
+  box-shadow: 0 2px 6px rgba(14, 74, 55, 0.06);
+}
+
+.compareRowHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.compareField {
+  font-size: 0.8rem;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.fieldMatchBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #065f46;
+  background: #ecfdf5;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid #a7f3d0;
+  white-space: nowrap;
+}
+
+.compareValues {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid #f1f5f9;
+}
+
+.valDecl,
+.valOcr {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.775rem;
+  line-height: 1.4;
+}
+
+.valBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  padding: 1px 5px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.valBadgeOcr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  padding: 1px 5px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.valText {
+  color: #1e293b;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.checkCardDesc {
+  font-size: 0.74rem;
+  color: #475569;
+  line-height: 1.5;
+  margin: 4px 0 0 0;
+}
+
+/* ==========================================================================
+   Panel Footer & Action Buttons
+   ========================================================================== */
+.panelFooter {
+  padding: 14px 18px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.checklistRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.actionButtons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: #0E4A37;
+  border: 1px solid #0E4A37;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(14, 74, 55, 0.25);
+  transition: all 0.15s ease;
+  flex: 1;
+  white-space: nowrap;
+}
+
+.btnPrimary:hover {
+  background: #0b3a2b;
+  border-color: #0b3a2b;
+}
+
+.btnClose {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btnClose:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
