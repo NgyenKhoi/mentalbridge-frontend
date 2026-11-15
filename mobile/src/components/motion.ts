@@ -3,6 +3,7 @@ import type Animated from 'react-native-reanimated'
 import {
   Easing,
   useReducedMotion,
+  withDelay,
   withTiming,
   type EntryExitAnimationFunction,
 } from 'react-native-reanimated'
@@ -22,6 +23,24 @@ export const revealEntering: EntryExitAnimationFunction = () => {
   }
 }
 
+/** revealEntering after `step * 40` ms. */
+const staggeredReveal = (step: number): EntryExitAnimationFunction => {
+  const delay = step * 40
+  return () => {
+    'worklet'
+    const timing = { duration: 200 }
+    return {
+      initialValues: { opacity: 0, transform: [{ translateY: 8 }] },
+      animations: {
+        opacity: withDelay(delay, withTiming(1, timing)),
+        transform: [{ translateY: withDelay(delay, withTiming(0, timing)) }],
+      },
+    }
+  }
+}
+// Steps past the fifth share the last delay, so a long screen never waits.
+const staggeredReveals = [0, 1, 2, 3, 4, 5].map(staggeredReveal)
+
 type ViewMotion = Pick<
   ComponentProps<typeof Animated.View>,
   'entering' | 'exiting' | 'layout'
@@ -34,3 +53,13 @@ export function useMotionProps(props: ViewMotion): ViewMotion {
 }
 
 export const useRevealProps = () => useMotionProps({ entering: revealEntering })
+
+/** Entrance for the `step`-th block of a screen, 40 ms after the previous one. */
+export function useStaggerProps(step: number, enabled = true): ViewMotion {
+  const motion = useMotionProps({
+    entering:
+      staggeredReveals[Math.min(step, staggeredReveals.length - 1)] ??
+      revealEntering,
+  })
+  return enabled ? motion : {}
+}

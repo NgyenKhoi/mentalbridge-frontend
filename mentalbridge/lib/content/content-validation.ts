@@ -978,9 +978,12 @@ export function parseNotificationPreferences(
       'contentGroups',
       'quietHours',
       'email',
+      'dailyReminderTime',
       'version',
       'updatedAt',
     ]) ||
+    typeof item.dailyReminderTime !== 'string' ||
+    !TIME.test(item.dailyReminderTime) ||
     typeof item.notificationsEnabled !== 'boolean' ||
     !booleanObject(item.channels, ['inApp', 'email', 'push'], true) ||
     !booleanObject(
@@ -993,6 +996,7 @@ export function parseNotificationPreferences(
         'appointmentMessage',
         'resourceSystem',
         'communityInteraction',
+        'supportPlanReminder',
       ],
       true,
     ) ||
@@ -1039,7 +1043,11 @@ export function parseNotificationPreferencePatch(
       'contentGroups',
       'quietHours',
       'email',
+      'dailyReminderTime',
     ]) ||
+    (item.dailyReminderTime !== undefined &&
+      (typeof item.dailyReminderTime !== 'string' ||
+        !TIME.test(item.dailyReminderTime))) ||
     (item.notificationsEnabled !== undefined &&
       typeof item.notificationsEnabled !== 'boolean') ||
     (item.channels !== undefined &&
@@ -1055,6 +1063,7 @@ export function parseNotificationPreferencePatch(
           'appointmentMessage',
           'resourceSystem',
           'communityInteraction',
+          'supportPlanReminder',
         ],
         false,
       ))
@@ -1183,6 +1192,7 @@ const NOTIFICATION_KINDS = new Set([
   'ASSESSMENT_RESULT_AVAILABLE',
   'SUPPORT_GUIDE_AVAILABLE',
   'ACCOUNT_STATUS',
+  'SUPPORT_PLAN_DAILY_REMINDER',
 ])
 const NOTIFICATION_PRIORITIES = new Set(['LOW', 'NORMAL', 'HIGH'])
 const TARGETLESS_NOTIFICATION_ACTIONS: Readonly<Record<string, string>> = {
@@ -1191,6 +1201,7 @@ const TARGETLESS_NOTIFICATION_ACTIONS: Readonly<Record<string, string>> = {
   OPEN_APPOINTMENTS: '/appointments',
   OPEN_RESOURCES: '/resources',
   OPEN_ASSESSMENTS: '/assessments',
+  OPEN_SUPPORT_PLAN: '/support-plan',
   OPEN_SPECIALIST_APPOINTMENTS: '/specialist/appointments',
 }
 const COMMUNITY_CHAT_NOTIFICATION_ACTIONS: Readonly<

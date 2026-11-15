@@ -35,6 +35,17 @@ describe('push destination', () => {
     ).toEqual({ pathname: '/(user)/journal' })
   })
 
+  it('opens the support plan for the plan reminder, USER only', () => {
+    const plan = data(
+      'SUPPORT_PLAN_DAILY_REMINDER',
+      action('OPEN_SUPPORT_PLAN', null, '/support-plan'),
+    )
+    expect(pushDestination(plan, 'USER')).toEqual({
+      pathname: '/(user)/support-plan',
+    })
+    expect(pushDestination(plan, 'SPECIALIST')).toEqual(specialistInbox)
+  })
+
   it('opens a resource and the resource list', () => {
     expect(
       pushDestination(

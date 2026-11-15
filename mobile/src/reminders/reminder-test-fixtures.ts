@@ -24,7 +24,9 @@ export function reminderUiFixtureResponse(): ReminderResponse {
         appointmentMessage: true,
         resourceSystem: true,
         communityInteraction: true,
+        supportPlanReminder: true,
       },
+      dailyReminderTime: '20:00',
       quietHours: {
         enabled: false,
         start: '22:00',

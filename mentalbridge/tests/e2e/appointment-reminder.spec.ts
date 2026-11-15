@@ -31,6 +31,7 @@ test('MB-550 saves and reloads the one-email opt-in independently of the digest'
       appointmentMessage: true,
       resourceSystem: true,
       communityInteraction: true,
+      supportPlanReminder: true,
     },
     quietHours: {
       enabled: true,
@@ -46,6 +47,7 @@ test('MB-550 saves and reloads the one-email opt-in independently of the digest'
       dailyDigestTime: '19:00',
       resourceReminderTime: '18:30',
     },
+    dailyReminderTime: '20:00',
     version: 0,
     updatedAt: '2029-01-01T00:00:00.000Z',
   }

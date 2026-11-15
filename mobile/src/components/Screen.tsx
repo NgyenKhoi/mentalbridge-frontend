@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { colors, spacing } from '@/theme/tokens'
 
+const SAFETY_BUTTON_CLEARANCE = 96
+
 export function Screen({
   children,
   scrollRef,
@@ -11,6 +13,7 @@ export function Screen({
   layout = 'form',
   footer,
   backgroundColor,
+  clearSafetyButton,
 }: Readonly<{
   children: ReactNode
   footer?: ReactNode
@@ -18,6 +21,8 @@ export function Screen({
   scrollRef?: Ref<ScrollView>
   contentRef?: Ref<View>
   layout?: 'form' | 'dashboard'
+  // Reserves bottom space so the floating "Cần hỗ trợ ngay" button never covers the last row (dashboard does this already).
+  clearSafetyButton?: boolean
 }>) {
   return (
     <SafeAreaView
@@ -29,6 +34,7 @@ export function Screen({
         contentContainerStyle={[
           styles.content,
           layout === 'dashboard' && styles.dashboardContent,
+          clearSafetyButton && styles.clearSafetyButton,
         ]}
         keyboardShouldPersistTaps="handled"
       >
@@ -67,8 +73,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
-    paddingBottom: 96,
+    paddingBottom: SAFETY_BUTTON_CLEARANCE,
   },
+  clearSafetyButton: { paddingBottom: SAFETY_BUTTON_CLEARANCE },
   dashboardColumn: {
     maxWidth: 760,
   },

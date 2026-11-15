@@ -40,6 +40,7 @@ const preferences = {
     appointmentMessage: true,
     resourceSystem: true,
     communityInteraction: true,
+    supportPlanReminder: true,
   },
   quietHours: {
     enabled: false,
@@ -55,6 +56,7 @@ const preferences = {
     dailyDigestTime: '19:00',
     resourceReminderTime: '18:30',
   },
+  dailyReminderTime: '20:00',
   version: 0,
   updatedAt: '2026-09-26T00:00:00.000Z',
 }
@@ -466,6 +468,64 @@ describe('Content response validation', () => {
     expect(
       parseNotification({ ...notification, read: true, readAt: null }),
     ).toBeNull()
+  })
+
+  it('accepts only the exact targetless plan reminder action', () => {
+    const planReminder = {
+      ...notification,
+      kind: 'SUPPORT_PLAN_DAILY_REMINDER',
+      action: {
+        type: 'OPEN_SUPPORT_PLAN',
+        targetId: null,
+        href: '/support-plan',
+      },
+    }
+    expect(parseNotification(planReminder)).toEqual(planReminder)
+    expect(
+      parseNotification({
+        ...planReminder,
+        action: { ...planReminder.action, href: '/support-plan/x' },
+      }),
+    ).toBeNull()
+    expect(
+      parseNotification({
+        ...planReminder,
+        action: {
+          ...planReminder.action,
+          targetId: '423e4567-e89b-42d3-a456-426614174000',
+        },
+      }),
+    ).toBeNull()
+  })
+
+  it('requires the reminder time and plan group in preferences and checks them in patches', () => {
+    expect(parseNotificationPreferences(preferences)).toEqual(preferences)
+    expect(
+      parseNotificationPreferences({
+        ...preferences,
+        dailyReminderTime: undefined,
+      }),
+    ).toBeNull()
+    expect(
+      parseNotificationPreferences({ ...preferences, dailyReminderTime: '7h' }),
+    ).toBeNull()
+    expect(
+      parseNotificationPreferences({
+        ...preferences,
+        contentGroups: { ...preferences.contentGroups, supportPlanReminder: 1 },
+      }),
+    ).toBeNull()
+    expect(
+      parseNotificationPreferencePatch({ dailyReminderTime: '07:30' }),
+    ).toEqual({ dailyReminderTime: '07:30' })
+    expect(
+      parseNotificationPreferencePatch({ dailyReminderTime: '24:00' }),
+    ).toBeNull()
+    expect(
+      parseNotificationPreferencePatch({
+        contentGroups: { supportPlanReminder: false },
+      }),
+    ).toEqual({ contentGroups: { supportPlanReminder: false } })
   })
 
   it('requires pagination continuation state to agree', () => {

@@ -19,6 +19,7 @@ export const notificationActionSchema = z.strictObject({
     'OPEN_COMMUNITY_INVITATION',
     'OPEN_SPECIALIST_APPOINTMENTS',
     'OPEN_SUPPORT_GUIDE',
+    'OPEN_SUPPORT_PLAN',
   ]),
   targetId: z.uuid().nullable(),
   href: z.string().regex(/^\//).max(256),
@@ -42,6 +43,7 @@ export const notificationKindSchema = z.enum([
   'COMMUNITY_INVITATION',
   'ASSESSMENT_RESULT_AVAILABLE',
   'SUPPORT_GUIDE_AVAILABLE',
+  'SUPPORT_PLAN_DAILY_REMINDER',
   'ACCOUNT_STATUS',
 ])
 export const notificationSchema = z
@@ -82,6 +84,7 @@ export const groupsSchema = z.strictObject({
   appointmentMessage: z.boolean(),
   resourceSystem: z.boolean(),
   communityInteraction: z.boolean(),
+  supportPlanReminder: z.boolean(),
 })
 export const quietHoursSchema = z.strictObject({
   enabled: z.boolean(),
@@ -101,6 +104,7 @@ export const preferencesSchema = z.strictObject({
   notificationsEnabled: z.boolean(),
   channels: channelsSchema,
   contentGroups: groupsSchema,
+  dailyReminderTime: clockTimeSchema,
   quietHours: quietHoursSchema,
   email: emailSchema,
   version: z.number().int().nonnegative().safe(),
@@ -111,6 +115,7 @@ export const preferencePatchSchema = z
     notificationsEnabled: z.boolean().optional(),
     channels: channelsSchema.partial().optional(),
     contentGroups: groupsSchema.partial().optional(),
+    dailyReminderTime: clockTimeSchema.optional(),
     quietHours: quietHoursSchema.partial().optional(),
     email: emailSchema.partial().optional(),
   })
