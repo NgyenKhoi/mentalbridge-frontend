@@ -39,6 +39,7 @@ export type ExpiredUnresolvedCheckoutAttempt = Readonly<{
   idempotencyKey: string
   status: 'preparing' | 'uncertain'
   paymentId?: string | undefined
+  payment?: PlanPayment | undefined
   createdAtMs: number
   expiredAtMs: number
 }>
@@ -132,6 +133,7 @@ export function getCheckoutAttempt(
         idempotencyKey: currentCheckoutAttempt.idempotencyKey,
         status: currentCheckoutAttempt.status,
         paymentId: currentCheckoutAttempt.paymentId,
+        payment: currentCheckoutAttempt.payment,
         createdAtMs: currentCheckoutAttempt.createdAtMs,
         expiredAtMs: nowMs,
       }
@@ -323,6 +325,8 @@ export function markExpiredUnresolvedCheckoutAttempt(
   subjectOrRecord: string | ExpiredUnresolvedCheckoutAttempt,
   planVersionId?: string,
   idempotencyKey?: string,
+  paymentId?: string,
+  payment?: PlanPayment,
 ): void {
   if (typeof subjectOrRecord === 'string') {
     expiredUnresolvedSubjects.add(subjectOrRecord)
@@ -332,6 +336,8 @@ export function markExpiredUnresolvedCheckoutAttempt(
         planVersionId,
         idempotencyKey,
         status: 'uncertain',
+        paymentId,
+        payment,
         createdAtMs: Date.now(),
         expiredAtMs: Date.now(),
       })

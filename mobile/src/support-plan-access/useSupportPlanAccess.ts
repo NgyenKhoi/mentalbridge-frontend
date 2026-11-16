@@ -574,10 +574,13 @@ export function useSupportPlanAccess(
       : null
 
   const currentSubjectAttempt = getCheckoutAttempt(subject)
+  const currentExpiredAttempt = getExpiredUnresolvedCheckoutAttempt(subject)
   const activeSubjectPayment =
     subject && scopedPayment?.subject === subject
       ? scopedPayment.value
-      : (currentSubjectAttempt?.payment ?? null)
+      : (currentSubjectAttempt?.payment ??
+        currentExpiredAttempt?.payment ??
+        null)
 
   const paymentItems = activeVerifiedPaymentHistory?.items ?? []
   const mergedPayments = activeSubjectPayment
@@ -696,13 +699,21 @@ export function useSupportPlanAccess(
     try {
       const intent = getPendingUpgradeIntent(capturedSubject)
       const attempt = getCheckoutAttempt(capturedSubject)
+      const expiredAttempt =
+        getExpiredUnresolvedCheckoutAttempt(capturedSubject)
       const explicitlyTrackedPaymentId =
-        intent?.paymentId ?? attempt?.paymentId ?? null
+        intent?.paymentId ??
+        attempt?.paymentId ??
+        expiredAttempt?.paymentId ??
+        null
       // Never auto-correlate any `/payments` PENDING row onto an `uncertain` attempt
       // or `idempotencyKey`. When local attempt/intent state was lost (restart / TTL),
       // surface and check the server pending payment only for safe recovery.
+      const hasExpiredUnresolved =
+        hasExpiredUnresolvedCheckoutAttempt(capturedSubject)
       const recoveryPendingPaymentId =
         !explicitlyTrackedPaymentId &&
+        !hasExpiredUnresolved &&
         attempt?.status !== 'uncertain' &&
         attempt?.status !== 'preparing' &&
         !intent &&
@@ -788,11 +799,29 @@ export function useSupportPlanAccess(
             if (attempt?.paymentId === reconciled.paymentId) {
               markCheckoutAttemptTerminal(capturedSubject, reconciled.paymentId)
             }
+            if (
+              expiredAttempt?.paymentId &&
+              expiredAttempt.paymentId === reconciled.paymentId
+            ) {
+              clearExpiredUnresolvedCheckoutAttempt(
+                capturedSubject,
+                expiredAttempt.planVersionId,
+              )
+            }
           } else if (
             reconciled.status === 'SUCCEEDED' &&
             explicitlyTrackedPaymentId === reconciled.paymentId
           ) {
             settledTrackedPayment = reconciled
+            if (
+              expiredAttempt?.paymentId &&
+              expiredAttempt.paymentId === reconciled.paymentId
+            ) {
+              clearExpiredUnresolvedCheckoutAttempt(
+                capturedSubject,
+                expiredAttempt.planVersionId,
+              )
+            }
           }
         } catch (error) {
           if (!isCurrentContext()) return
@@ -1250,11 +1279,6 @@ export function useSupportPlanAccess(
               }
 
               if (exactMatchedPayment.status === 'PENDING') {
-                hadUncertainAttemptRef.current = false
-                clearExpiredUnresolvedCheckoutAttempt(
-                  capturedSubject,
-                  planVersionId,
-                )
                 const nextScoped: SubjectScoped<PlanPayment> = {
                   subject: capturedSubject,
                   value: exactMatchedPayment,
@@ -1292,17 +1316,8 @@ export function useSupportPlanAccess(
                 (item) => item.status === 'PENDING',
               )
               if (unresolvedPending) {
-                hadUncertainAttemptRef.current = false
-                clearExpiredUnresolvedCheckoutAttempt(
-                  capturedSubject,
-                  planVersionId,
-                )
-                const nextScoped: SubjectScoped<PlanPayment> = {
-                  subject: capturedSubject,
-                  value: unresolvedPending,
-                }
-                scopedPaymentRef.current = nextScoped
-                setScopedPayment(nextScoped)
+                // Payment B PENDING blocks creating a new checkout, but does NOT become payment of A,
+                // and does NOT clear Attempt A!
                 setScopedCheckoutError({
                   subject: capturedSubject,
                   value: {
