@@ -906,6 +906,17 @@ export interface components {
             requiredSignalTerms: string[];
             forbiddenClaims: string[];
         };
+        /** @description Exact approval that must already exist in the server-owned MB-369 curated registry; client self-attestation is rejected. */
+        BenchmarkPrivacyApproval: {
+            /** @constant */
+            registry: "MB369_CURATED_REGISTRY";
+            /** Format: uuid */
+            approvalId: string;
+            approvedBy: string;
+            /** Format: date-time */
+            approvedAt: string;
+            contentSha256: string;
+        };
         CreateGovernedBenchmarkDataset: {
             datasetId: string;
             version: string;
@@ -919,11 +930,13 @@ export interface components {
             license: "CC0-1.0";
             description: string;
             cases: components["schemas"]["GovernedBenchmarkCase"][];
+            privacyApproval: components["schemas"]["BenchmarkPrivacyApproval"];
         };
         CreateGovernedBenchmarkDatasetVersion: {
             version: string;
             description: string;
             cases: components["schemas"]["GovernedBenchmarkCase"][];
+            privacyApproval: components["schemas"]["BenchmarkPrivacyApproval"];
         };
         GovernedBenchmarkDataset: {
             datasetId: string;
@@ -944,6 +957,7 @@ export interface components {
             /** Format: date-time */
             archivedAt: string | null;
             previousVersion: string | null;
+            privacyApproval: components["schemas"]["BenchmarkPrivacyApproval"];
         };
         GovernedBenchmarkDatasetDetail: components["schemas"]["GovernedBenchmarkDataset"] & {
             cases: components["schemas"]["GovernedBenchmarkCase"][];
@@ -984,8 +998,12 @@ export interface components {
             datasetVersion: string;
             datasetSha256: string;
             promptVersion: string;
+            rubricVersion: string;
+            rubricSha256: string;
             /** @enum {string} */
             status: "RUNNING" | "COMPLETED" | "FAILED";
+            /** @enum {string|null} */
+            failureClassification: "ALL_CASES_PROVIDER_FAILED" | "EXECUTION_FAILED" | null;
             candidates: components["schemas"]["GovernedBenchmarkCandidate"][];
             aggregates: components["schemas"]["GovernedBenchmarkAggregate"][];
             /** Format: date-time */
@@ -1018,6 +1036,8 @@ export interface components {
                 sha256: string;
             };
             promptVersion: string;
+            rubricVersion: string;
+            rubricSha256: string;
             candidates: components["schemas"]["GovernedBenchmarkCandidate"][];
             /** Format: date-time */
             startedAt: string;
@@ -1025,6 +1045,8 @@ export interface components {
             completedAt: string | null;
             /** @enum {string} */
             status: "RUNNING" | "COMPLETED" | "FAILED";
+            /** @enum {string|null} */
+            failureClassification: "ALL_CASES_PROVIDER_FAILED" | "EXECUTION_FAILED" | null;
             aggregates: components["schemas"]["GovernedBenchmarkAggregate"][];
         };
         VoiceTurn: {
@@ -2713,13 +2735,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Completed benchmark receipt. */
-            201: {
+            /** @description Authoritative asynchronous benchmark job accepted; poll the run resource until terminal. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BenchmarkExecutionReceipt"];
+                    "application/json": components["schemas"]["GovernedBenchmarkRun"];
                 };
             };
             400: components["responses"]["BadRequest"];

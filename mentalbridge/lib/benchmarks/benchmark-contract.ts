@@ -6,6 +6,14 @@ export type BenchmarkCase = Readonly<{
   forbiddenClaims: readonly string[]
 }>
 
+export type BenchmarkPrivacyApproval = Readonly<{
+  registry: 'MB369_CURATED_REGISTRY'
+  approvalId: string
+  approvedBy: string
+  approvedAt: string
+  contentSha256: string
+}>
+
 export type BenchmarkDataset = Readonly<{
   datasetId: string
   version: string
@@ -19,6 +27,7 @@ export type BenchmarkDataset = Readonly<{
   registeredAt: string
   archivedAt: string | null
   previousVersion: string | null
+  privacyApproval: BenchmarkPrivacyApproval
   cases?: readonly BenchmarkCase[]
 }>
 
@@ -43,7 +52,10 @@ export type BenchmarkRun = Readonly<{
   datasetVersion: string
   datasetSha256: string
   promptVersion: string
+  rubricVersion: string
+  rubricSha256: string
   status: 'RUNNING' | 'COMPLETED' | 'FAILED'
+  failureClassification: 'ALL_CASES_PROVIDER_FAILED' | 'EXECUTION_FAILED' | null
   candidates: readonly Readonly<{ provider: string; model: string }>[]
   aggregates: readonly BenchmarkAggregate[]
   startedAt: string
@@ -59,6 +71,7 @@ export type CreateBenchmarkDataset = Readonly<{
   license: 'CC0-1.0'
   description: string
   cases: readonly BenchmarkCase[]
+  privacyApproval: BenchmarkPrivacyApproval
 }>
 
 export type RunBenchmark = Readonly<{

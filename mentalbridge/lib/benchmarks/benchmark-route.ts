@@ -64,7 +64,12 @@ export async function proxyBenchmark(
       ...(key ? { idempotencyKey: key } : {}),
       ...(body === undefined ? {} : { body }),
     })
-    const status = mutation && segments.at(-1) !== 'archive' ? 201 : 200
+    const status =
+      method === 'POST' && segments.length === 1 && segments[0] === 'runs'
+        ? 202
+        : mutation && segments.at(-1) !== 'archive'
+          ? 201
+          : 200
     return carryAdminSession(
       successResponse(result, correlationId, status),
       actor,

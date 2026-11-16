@@ -7,6 +7,7 @@ import type {
   BenchmarkRun,
 } from '@/lib/benchmarks/benchmark-contract'
 import { benchmarkApi } from './benchmark-api'
+import { parseBenchmarkCasesText } from './benchmark-validation'
 import styles from './AdminBenchmarkGovernance.module.css'
 
 const sampleCase: BenchmarkCase = {
@@ -26,9 +27,17 @@ export default function AdminBenchmarkGovernance() {
   const [runs, setRuns] = useState<BenchmarkRun[]>([])
   const [selected, setSelected] = useState<BenchmarkDataset | null>(null)
   const [cases, setCases] = useState<readonly BenchmarkCase[]>([sampleCase])
+  const [casesText, setCasesText] = useState(
+    JSON.stringify([sampleCase], null, 2),
+  )
+  const [casesError, setCasesError] = useState('')
   const [datasetId, setDatasetId] = useState('')
   const [version, setVersion] = useState('v1')
   const [description, setDescription] = useState('')
+  const [approvalId, setApprovalId] = useState('')
+  const [approvedBy, setApprovedBy] = useState('')
+  const [approvedAt, setApprovedAt] = useState('')
+  const [contentSha256, setContentSha256] = useState('')
   const [provider, setProvider] = useState<'GEMINI' | 'OPENAI' | 'BEDROCK'>(
     'GEMINI',
   )
@@ -36,13 +45,19 @@ export default function AdminBenchmarkGovernance() {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const commandKeys = useRef(new Map<string, string>())
+  const [archiveCandidate, setArchiveCandidate] =
+    useState<BenchmarkDataset | null>(null)
+  const mounted = useRef(true)
+  const commandKeys = useRef(
+    new Map<string, { fingerprint: string; key: string }>(),
+  )
 
-  const keyFor = (action: string) => {
+  const keyFor = (action: string, payload: unknown) => {
+    const fingerprint = JSON.stringify(payload)
     const current = commandKeys.current.get(action)
-    if (current) return current
+    if (current?.fingerprint === fingerprint) return current.key
     const key = crypto.randomUUID()
-    commandKeys.current.set(action, key)
+    commandKeys.current.set(action, { fingerprint, key })
     return key
   }
   const complete = (action: string) => commandKeys.current.delete(action)
@@ -55,6 +70,15 @@ export default function AdminBenchmarkGovernance() {
       ])
       setDatasets(nextDatasets)
       setRuns(nextRuns)
+      setSelected((current) => {
+        if (!current) return null
+        const refreshed = nextDatasets.find(
+          (item) =>
+            item.datasetId === current.datasetId &&
+            item.version === current.version,
+        )
+        return refreshed ? { ...current, ...refreshed } : null
+      })
       setError('')
     } catch (cause) {
       setDatasets([])
@@ -69,8 +93,12 @@ export default function AdminBenchmarkGovernance() {
   }, [])
 
   useEffect(() => {
+    mounted.current = true
     const timer = window.setTimeout(() => void load(), 0)
-    return () => window.clearTimeout(timer)
+    return () => {
+      mounted.current = false
+      window.clearTimeout(timer)
+    }
   }, [load])
 
   const inspect = async (item: BenchmarkDataset) => {
@@ -79,8 +107,14 @@ export default function AdminBenchmarkGovernance() {
       const detail = await benchmarkApi.dataset(item.datasetId, item.version)
       setSelected(detail)
       setCases(detail.cases)
+      setCasesText(JSON.stringify(detail.cases, null, 2))
+      setCasesError('')
       setDatasetId(detail.datasetId)
       setDescription(detail.description)
+      setApprovalId(detail.privacyApproval.approvalId)
+      setApprovedBy(detail.privacyApproval.approvedBy)
+      setApprovedAt(detail.privacyApproval.approvedAt)
+      setContentSha256(detail.privacyApproval.contentSha256)
       setVersion(
         `v${Number.parseInt(detail.version.replace(/\D/g, ''), 10) + 1 || 2}`,
       )
@@ -96,29 +130,36 @@ export default function AdminBenchmarkGovernance() {
 
   const save = async () => {
     const action = selected ? `version:${selected.datasetId}` : 'create'
+    const privacyApproval = {
+      registry: 'MB369_CURATED_REGISTRY' as const,
+      approvalId,
+      approvedBy,
+      approvedAt,
+      contentSha256,
+    }
+    const versionPayload = { version, description, cases, privacyApproval }
+    const createPayload = {
+      datasetId,
+      version,
+      workload: 'EXACT_REVISION' as const,
+      language: 'vi' as const,
+      source: 'MENTALBRIDGE_SYNTHETIC_V1' as const,
+      license: 'CC0-1.0' as const,
+      description,
+      cases,
+      privacyApproval,
+    }
     setBusy(true)
     try {
       if (selected) {
         await benchmarkApi.createVersion(
           selected.datasetId,
           selected.version,
-          { version, description, cases },
-          keyFor(action),
+          versionPayload,
+          keyFor(action, versionPayload),
         )
       } else {
-        await benchmarkApi.create(
-          {
-            datasetId,
-            version,
-            workload: 'EXACT_REVISION',
-            language: 'vi',
-            source: 'MENTALBRIDGE_SYNTHETIC_V1',
-            license: 'CC0-1.0',
-            description,
-            cases,
-          },
-          keyFor(action),
-        )
+        await benchmarkApi.create(createPayload, keyFor(action, createPayload))
       }
       complete(action)
       setNotice(
@@ -141,10 +182,30 @@ export default function AdminBenchmarkGovernance() {
 
   const archive = async (item: BenchmarkDataset) => {
     const action = `archive:${item.datasetId}:${item.version}`
+    const payload = { datasetId: item.datasetId, version: item.version }
     setBusy(true)
     try {
-      await benchmarkApi.archive(item.datasetId, item.version, keyFor(action))
+      const archived = await benchmarkApi.archive(
+        item.datasetId,
+        item.version,
+        keyFor(action, payload),
+      )
       complete(action)
+      setArchiveCandidate(null)
+      setDatasets((current) =>
+        current.map((candidate) =>
+          candidate.datasetId === archived.datasetId &&
+          candidate.version === archived.version
+            ? archived
+            : candidate,
+        ),
+      )
+      setSelected((current) =>
+        current?.datasetId === archived.datasetId &&
+        current.version === archived.version
+          ? { ...current, ...archived }
+          : current,
+      )
       setNotice('Đã lưu trữ phiên bản; lịch sử kiểm toán vẫn được giữ lại.')
       await load()
     } catch (cause) {
@@ -154,26 +215,72 @@ export default function AdminBenchmarkGovernance() {
     }
   }
 
+  const reconcileRun = async (accepted: BenchmarkRun, action: string) => {
+    let current = accepted
+    for (let attempt = 0; attempt < 60 && mounted.current; attempt += 1) {
+      if (current.status !== 'RUNNING') {
+        complete(action)
+        const successful = current.aggregates.reduce(
+          (total, aggregate) => total + aggregate.successCount,
+          0,
+        )
+        if (current.status === 'COMPLETED' && successful > 0) {
+          setNotice('Benchmark đã hoàn tất với provenance và rubric được ghim.')
+          setError('')
+        } else {
+          setNotice('')
+          setError(
+            current.failureClassification === 'ALL_CASES_PROVIDER_FAILED'
+              ? 'Benchmark thất bại: tất cả provider đều không tạo được kết quả đánh giá.'
+              : 'Benchmark kết thúc ở trạng thái FAILED; không ghi nhận đây là phép đo chất lượng thành công.',
+          )
+        }
+        return
+      }
+      if (attempt > 0)
+        await new Promise((resolve) => window.setTimeout(resolve, 1_000))
+      try {
+        current = await benchmarkApi.runDetail(current.runId)
+        if (!mounted.current) return
+        setRuns((items) => [
+          current,
+          ...items.filter((item) => item.runId !== current.runId),
+        ])
+      } catch {
+        setNotice(
+          'Benchmark vẫn đang được đối soát; giữ nguyên mã lệnh để thử lại an toàn.',
+        )
+        return
+      }
+    }
+  }
+
   const run = async () => {
     if (!selected) return
     const action = `run:${selected.datasetId}:${selected.version}:${provider}:${model}`
+    const payload = {
+      datasetId: selected.datasetId,
+      datasetVersion: selected.version,
+      provider,
+      model,
+    }
     setBusy(true)
     try {
-      await benchmarkApi.run(
-        {
-          datasetId: selected.datasetId,
-          datasetVersion: selected.version,
-          provider,
-          model,
-        },
-        keyFor(action),
+      const accepted = await benchmarkApi.run(payload, keyFor(action, payload))
+      setRuns((current) => [
+        accepted,
+        ...current.filter((item) => item.runId !== accepted.runId),
+      ])
+      setNotice(
+        'Benchmark đã được tiếp nhận; đang đối soát trạng thái có thẩm quyền.',
       )
-      complete(action)
-      setNotice('Benchmark đã hoàn tất với provenance được ghim chính xác.')
-      await load()
+      setError('')
+      void reconcileRun(accepted, action)
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'Benchmark thất bại an toàn.',
+        cause instanceof Error
+          ? `${cause.message}. Trạng thái có thể chưa rõ; hãy tải lại để đối soát.`
+          : 'Trạng thái benchmark chưa rõ; hãy tải lại để đối soát.',
       )
     } finally {
       setBusy(false)
@@ -253,7 +360,7 @@ export default function AdminBenchmarkGovernance() {
                 {!item.archivedAt && (
                   <button
                     type="button"
-                    onClick={() => void archive(item)}
+                    onClick={() => setArchiveCandidate(item)}
                     disabled={busy}
                   >
                     Lưu trữ
@@ -297,15 +404,50 @@ export default function AdminBenchmarkGovernance() {
             Ca kiểm thử (JSON)
             <textarea
               rows={9}
-              value={JSON.stringify(cases, null, 2)}
+              value={casesText}
               onChange={(event) => {
+                const raw = event.target.value
+                setCasesText(raw)
                 try {
-                  setCases(JSON.parse(event.target.value) as BenchmarkCase[])
-                  setError('')
-                } catch {
-                  setError('JSON ca kiểm thử chưa hợp lệ.')
+                  setCases(parseBenchmarkCasesText(raw))
+                  setCasesError('')
+                } catch (cause) {
+                  setCasesError(
+                    cause instanceof Error
+                      ? cause.message
+                      : 'BENCHMARK_CASES_INVALID_SCHEMA',
+                  )
                 }
               }}
+            />
+          </label>
+          {casesError && <p role="alert">{casesError}</p>}
+          <label>
+            Mã phê duyệt dữ liệu tổng hợp
+            <input
+              value={approvalId}
+              onChange={(event) => setApprovalId(event.target.value)}
+            />
+          </label>
+          <label>
+            Người phê duyệt
+            <input
+              value={approvedBy}
+              onChange={(event) => setApprovedBy(event.target.value)}
+            />
+          </label>
+          <label>
+            Thời điểm phê duyệt (ISO)
+            <input
+              value={approvedAt}
+              onChange={(event) => setApprovedAt(event.target.value)}
+            />
+          </label>
+          <label>
+            SHA-256 nội dung đã phê duyệt
+            <input
+              value={contentSha256}
+              onChange={(event) => setContentSha256(event.target.value)}
             />
           </label>
           <div className={styles.actions}>
@@ -313,19 +455,59 @@ export default function AdminBenchmarkGovernance() {
               type="button"
               onClick={() => void save()}
               disabled={
-                busy || !datasetId || !description || cases.length === 0
+                busy ||
+                !datasetId ||
+                !description ||
+                Boolean(casesError) ||
+                cases.length === 0 ||
+                !approvalId ||
+                !approvedBy ||
+                !approvedAt ||
+                !/^[0-9a-f]{64}$/.test(contentSha256)
               }
             >
               Lưu bất biến
             </button>
             {selected && (
-              <button type="button" onClick={() => setSelected(null)}>
+              <button
+                type="button"
+                onClick={() => {
+                  commandKeys.current.delete(`version:${selected.datasetId}`)
+                  setSelected(null)
+                }}
+              >
                 Hủy
               </button>
             )}
           </div>
         </section>
       </div>
+
+      {archiveCandidate && (
+        <section className={styles.card} role="dialog" aria-modal="true">
+          <h2>Xác nhận lưu trữ</h2>
+          <p>
+            Lưu trữ {archiveCandidate.datasetId} · {archiveCandidate.version}?
+            Phiên bản sẽ không thể chạy benchmark mới.
+          </p>
+          <div className={styles.actions}>
+            <button
+              type="button"
+              onClick={() => void archive(archiveCandidate)}
+              disabled={busy}
+            >
+              Xác nhận lưu trữ
+            </button>
+            <button
+              type="button"
+              onClick={() => setArchiveCandidate(null)}
+              disabled={busy}
+            >
+              Hủy
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className={styles.card} aria-labelledby="run-title">
         <h2 id="run-title">Chạy benchmark được ghim</h2>

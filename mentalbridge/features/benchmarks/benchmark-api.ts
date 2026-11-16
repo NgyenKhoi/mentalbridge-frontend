@@ -1,13 +1,21 @@
 import type {
   BenchmarkCase,
   BenchmarkDataset,
-  BenchmarkRun,
+  BenchmarkPrivacyApproval,
   CreateBenchmarkDataset,
   RunBenchmark,
 } from '@/lib/benchmarks/benchmark-contract'
+import {
+  parseBenchmarkDataset,
+  parseBenchmarkExport,
+  parseBenchmarkRun,
+  parseDatasetPage,
+  parseRunPage,
+} from './benchmark-validation'
 
 async function request<T>(
   path: string,
+  parse: (value: unknown) => T,
   options?: Readonly<{ body?: unknown; key?: string }>,
 ): Promise<T> {
   const response = await fetch(`/api/admin/ai-benchmarks/${path}`, {
@@ -31,18 +39,22 @@ async function request<T>(
     const problem = body as { code?: string; title?: string }
     throw new Error(problem.code ?? problem.title ?? 'BENCHMARK_REQUEST_FAILED')
   }
-  return body as T
+  return parse(body)
 }
 
 export const benchmarkApi = {
-  datasets: () =>
-    request<{ data: BenchmarkDataset[] }>('datasets').then((page) => page.data),
+  datasets: () => request('datasets', parseDatasetPage),
   dataset: (datasetId: string, version: string) =>
-    request<BenchmarkDataset & { cases: readonly BenchmarkCase[] }>(
+    request(
       `datasets/${encodeURIComponent(datasetId)}/versions/${encodeURIComponent(version)}`,
+      (value) => {
+        const dataset = parseBenchmarkDataset(value)
+        if (!dataset.cases) throw new Error('BENCHMARK_MALFORMED_RESPONSE')
+        return dataset as BenchmarkDataset & { cases: readonly BenchmarkCase[] }
+      },
     ),
   create: (body: CreateBenchmarkDataset, key: string) =>
-    request<BenchmarkDataset>('datasets', { body, key }),
+    request('datasets', parseBenchmarkDataset, { body, key }),
   createVersion: (
     datasetId: string,
     sourceVersion: string,
@@ -50,24 +62,26 @@ export const benchmarkApi = {
       version: string
       description: string
       cases: readonly BenchmarkCase[]
+      privacyApproval: BenchmarkPrivacyApproval
     }>,
     key: string,
   ) =>
-    request<BenchmarkDataset>(
+    request(
       `datasets/${encodeURIComponent(datasetId)}/versions/${encodeURIComponent(sourceVersion)}`,
+      parseBenchmarkDataset,
       { body, key },
     ),
   archive: (datasetId: string, version: string, key: string) =>
-    request<BenchmarkDataset>(
+    request(
       `datasets/${encodeURIComponent(datasetId)}/versions/${encodeURIComponent(version)}/archive`,
+      parseBenchmarkDataset,
       { body: {}, key },
     ),
-  runs: () =>
-    request<{ data: BenchmarkRun[] }>('runs').then((page) => page.data),
+  runs: () => request('runs', parseRunPage),
   run: (body: RunBenchmark, key: string) =>
-    request<BenchmarkRun>('runs', { body, key }),
+    request('runs', parseBenchmarkRun, { body, key }),
+  runDetail: (runId: string) =>
+    request(`runs/${encodeURIComponent(runId)}`, parseBenchmarkRun),
   exportRun: (runId: string) =>
-    request<Record<string, unknown>>(
-      `runs/${encodeURIComponent(runId)}/export`,
-    ),
+    request(`runs/${encodeURIComponent(runId)}/export`, parseBenchmarkExport),
 }
