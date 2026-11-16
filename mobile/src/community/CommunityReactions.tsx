@@ -18,6 +18,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
 import { emphasisEasing } from '@/components/motion'
 import { PressableScale } from '@/components/PressableScale'
 import { Txt } from '@/theme/dashboard'
@@ -28,9 +30,14 @@ import { reactionKind, reactionKinds } from './community-reactions'
 import { communityColors } from './community-theme'
 
 const EMPTY_HEART = '🤍'
-const TRAY_ITEM = 46
+const TRAY_ITEM = 40
 const TRAY_PAD = 8
-const TRAY_WIDTH = TRAY_ITEM * reactionKinds.length + TRAY_PAD * 2
+const TRAY_GAP = 2
+// Seven items: 7*40 + 6*2 + 16 = 308 dp, inside a 360 dp screen with its 8 dp margins.
+const TRAY_WIDTH =
+  TRAY_ITEM * reactionKinds.length +
+  TRAY_GAP * (reactionKinds.length - 1) +
+  TRAY_PAD * 2
 const TRAY_HEIGHT = TRAY_ITEM + 12
 
 /** Scale pop when `key` becomes a new non-null value (not on first render, not under reduced motion). */
@@ -120,6 +127,7 @@ function TrayItem({
         accessibilityRole="button"
         accessibilityLabel={kind.label}
         accessibilityState={{ selected }}
+        hitSlop={2}
         scaleTo={1.25}
         onPress={onPick}
         style={styles.trayItem}
@@ -136,13 +144,15 @@ function ReactionTray({
   onPick,
   onClose,
 }: Readonly<{
-  origin: { x: number; y: number }
+  origin: { x: number; y: number; h: number }
   reaction: Reaction | null
   onPick: (value: Reaction) => void
   onClose: () => void
 }>) {
   const reduceMotion = useReducedMotion()
   const { width } = useWindowDimensions()
+  const insets = useSafeAreaInsets()
+  const above = origin.y - TRAY_HEIGHT - 6
   const open = useSharedValue(reduceMotion ? 1 : 0)
   useEffect(() => {
     if (!reduceMotion)
@@ -171,8 +181,9 @@ function ReactionTray({
         style={[
           styles.tray,
           {
-            left: Math.min(Math.max(origin.x, 8), width - TRAY_WIDTH - 8),
-            top: Math.max(origin.y - TRAY_HEIGHT - 6, 8),
+            left: Math.max(8, Math.min(origin.x, width - TRAY_WIDTH - 8)),
+            // No room above the button: open below it.
+            top: above < insets.top + 8 ? origin.y + origin.h + 6 : above,
           },
           style,
         ]}
@@ -193,7 +204,7 @@ function ReactionTray({
 
 /**
  * Emoji reaction button. Tap sets or clears the viewer's SUPPORT, a long press (about 380 ms)
- * opens the three-emoji tray, and screen readers get the same choices as accessibility actions.
+ * opens the seven-emoji tray, and screen readers get the same choices as accessibility actions.
  * `small` is the comment variant: no count, a lighter pop and no floating burst.
  */
 export function ReactionControl({
@@ -217,7 +228,11 @@ export function ReactionControl({
 }>) {
   const small = size === 'small'
   const reduceMotion = useReducedMotion()
-  const [tray, setTray] = useState<{ x: number; y: number } | null>(null)
+  const [tray, setTray] = useState<{
+    x: number
+    y: number
+    h: number
+  } | null>(null)
   const [burst, setBurst] = useState<{ id: number; emoji: string } | null>(null)
   const burstId = useRef(0)
   const was = useRef(reaction)
@@ -225,7 +240,8 @@ export function ReactionControl({
   useEffect(() => {
     if (reaction && reaction !== was.current && !small && !reduceMotion) {
       burstId.current += 1
-      setBurst({ id: burstId.current, emoji: reactionKind(reaction).emoji })
+      const emoji = reactionKind(reaction)?.emoji
+      if (emoji) setBurst({ id: burstId.current, emoji })
       const timer = setTimeout(() => setBurst(null), 1300)
       was.current = reaction
       return () => clearTimeout(timer)
@@ -233,14 +249,16 @@ export function ReactionControl({
     was.current = reaction
   }, [reaction, small, reduceMotion])
   const suffix = target ? ` cho ${target}` : ''
-  const label = reaction
-    ? `Bạn đã thả: ${reactionKind(reaction).label}${suffix}`
+  const chosen = reaction ? reactionKind(reaction) : undefined
+  const label = chosen
+    ? `Bạn đã thả: ${chosen.label}${suffix}`
     : `Thả cảm xúc${suffix}`
   const open = (event?: GestureResponderEvent) => {
     const touch = event?.nativeEvent
     setTray({
       x: touch ? touch.pageX - touch.locationX : 12,
       y: touch ? touch.pageY - touch.locationY : 320,
+      h: small ? 32 : 42,
     })
   }
   return (
@@ -286,7 +304,7 @@ export function ReactionControl({
             pop,
           ]}
         >
-          {reaction ? reactionKind(reaction).emoji : EMPTY_HEART}
+          {chosen?.emoji ?? EMPTY_HEART}
         </Animated.Text>
         {!small && (
           <Txt style={[styles.count, tone === 'dark' && styles.countRail]}>
@@ -353,7 +371,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     elevation: 10,
     flexDirection: 'row',
-    gap: 2,
+    gap: TRAY_GAP,
     padding: spacing.sm - 2,
     paddingHorizontal: TRAY_PAD,
     position: 'absolute',

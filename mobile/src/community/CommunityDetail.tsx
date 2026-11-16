@@ -598,7 +598,7 @@ export function CommunityDetail({
     topicQuery.data?.map((topic) => [topic.code, topic.label]),
   )
   const emoji = post.viewerState.reaction
-    ? reactionKind(post.viewerState.reaction).emoji
+    ? (reactionKind(post.viewerState.reaction)?.emoji ?? null)
     : null
   return frame(
     <IconButton

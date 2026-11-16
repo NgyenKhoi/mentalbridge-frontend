@@ -6,22 +6,21 @@ export const reactionKinds: readonly {
   emoji: string
   label: string
 }[] = [
-  { value: 'SUPPORT', emoji: '❤️', label: 'Mình ở đây' },
-  { value: 'RELATE', emoji: '🤗', label: 'Mình đồng cảm' },
-  { value: 'THANK_YOU', emoji: '🥰', label: 'Cảm ơn bạn' },
+  { value: 'LIKE', emoji: '👍', label: 'Thích' },
+  { value: 'SUPPORT', emoji: '❤️', label: 'Thương' },
+  { value: 'THANK_YOU', emoji: '🥰', label: 'Cảm ơn' },
+  { value: 'RELATE', emoji: '🤗', label: 'Ôm' },
+  { value: 'EMPATHY', emoji: '😢', label: 'Đồng cảm' },
+  { value: 'CHEER', emoji: '💪', label: 'Cố lên' },
+  { value: 'GROWTH', emoji: '🌱', label: 'Đang lớn lên' },
 ]
 
+/** Undefined for a kind this build does not know; callers render the neutral state. */
 export const reactionKind = (value: Reaction) =>
-  reactionKinds.find((kind) => kind.value === value) ?? reactionKinds[0]!
+  reactionKinds.find((kind) => kind.value === value)
 
 /** Shown in the comment input bar; tapping one inserts it into the text. */
-export const quickEmoji = [
-  ...reactionKinds.map((kind) => kind.emoji),
-  '👏',
-  '🌱',
-  '💪',
-  '🥹',
-]
+export const quickEmoji = reactionKinds.map((kind) => kind.emoji)
 
 /** Reaction total after the viewer moves from `previous` to `next`. */
 export const nextReactionCount = (

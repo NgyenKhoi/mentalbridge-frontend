@@ -21,6 +21,35 @@ import CommunityInteractions from './CommunityInteractions'
 describe('CommunityInteractions', () => {
   beforeEach(() => vi.resetAllMocks())
 
+  it('offers all seven reactions, Like first, and sends a new kind', async () => {
+    const user = userEvent.setup()
+    api.putReaction.mockResolvedValue({ postId: 'post-1', reaction: 'GROWTH' })
+    render(
+      <CommunityInteractions
+        postId="post-1"
+        viewerState={{ reaction: null, bookmarked: false }}
+        reactionCount={3}
+      />,
+    )
+
+    const group = screen.getByRole('group')
+    expect(
+      Array.from(group.querySelectorAll('button')).map((button) =>
+        button.getAttribute('aria-label'),
+      ),
+    ).toEqual([
+      'Thích',
+      'Thương',
+      'Cảm ơn',
+      'Ôm',
+      'Đồng cảm',
+      'Cố lên',
+      'Đang lớn lên',
+    ])
+    await user.click(screen.getByRole('button', { name: 'Đang lớn lên' }))
+    expect(api.putReaction).toHaveBeenCalledWith('post-1', 'GROWTH')
+  })
+
   it('keeps the same logical reaction available after an ambiguous failure retry', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
@@ -36,7 +65,7 @@ describe('CommunityInteractions', () => {
       />,
     )
 
-    const support = screen.getByRole('button', { name: /Đồng hành/ })
+    const support = screen.getByRole('button', { name: /Thương/ })
     await user.click(support)
     expect(await screen.findByRole('alert')).toHaveTextContent('thử lại')
     expect(support).toHaveAttribute('aria-pressed', 'false')
@@ -69,12 +98,12 @@ describe('CommunityInteractions', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: /Mình cũng vậy/ }))
+    await user.click(screen.getByRole('button', { name: /Ôm/ }))
     expect(api.deleteReaction).toHaveBeenCalledWith('post-1')
     expect(screen.getByText('0 lượt')).toBeVisible()
-    expect(
-      screen.getByRole('button', { name: /Mình cũng vậy/ }),
-    ).not.toHaveAttribute('data-reaction-feedback')
+    expect(screen.getByRole('button', { name: /Ôm/ })).not.toHaveAttribute(
+      'data-reaction-feedback',
+    )
 
     await user.click(screen.getByRole('button', { name: 'Lưu bài' }))
     expect(api.putBookmark).toHaveBeenCalledWith('post-1')
@@ -98,15 +127,15 @@ describe('CommunityInteractions', () => {
       />,
     )
 
-    expect(
-      screen.getByRole('button', { name: 'Đồng hành' }),
-    ).not.toHaveAttribute('data-reaction-feedback')
-    const thanks = screen.getByRole('button', { name: 'Cảm ơn bạn' })
+    expect(screen.getByRole('button', { name: 'Thương' })).not.toHaveAttribute(
+      'data-reaction-feedback',
+    )
+    const thanks = screen.getByRole('button', { name: 'Cảm ơn' })
     await user.click(thanks)
     expect(api.putReaction).toHaveBeenCalledWith('post-1', 'THANK_YOU')
     expect(thanks).toHaveAttribute('aria-pressed', 'true')
     expect(thanks).toHaveAttribute('data-reaction-feedback', 'committed')
-    expect(screen.getByRole('button', { name: 'Đồng hành' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Thương' })).toHaveAttribute(
       'aria-pressed',
       'false',
     )
@@ -137,7 +166,7 @@ describe('CommunityInteractions', () => {
       />,
     )
 
-    const support = screen.getByRole('button', { name: 'Đồng hành' })
+    const support = screen.getByRole('button', { name: 'Thương' })
     await user.click(support)
     expect(screen.getByRole('status')).toHaveTextContent(
       'Đang gửi lời đồng hành',
@@ -171,10 +200,10 @@ describe('CommunityInteractions', () => {
       />,
     )
 
-    const thanks = screen.getByRole('button', { name: 'Cảm ơn bạn' })
+    const thanks = screen.getByRole('button', { name: 'Cảm ơn' })
     await user.click(thanks)
     expect(screen.getByRole('alert')).toHaveTextContent('gửi lời đồng hành')
-    expect(screen.getByRole('button', { name: 'Đồng hành' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Thương' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -203,12 +232,13 @@ describe('CommunityInteractions', () => {
         reactionCount={7}
       />,
     )
-    expect(
-      screen.getByRole('button', { name: 'Mình cũng vậy' }),
-    ).toHaveAttribute('aria-pressed', 'true')
-    expect(
-      screen.getByRole('button', { name: 'Mình cũng vậy' }),
-    ).not.toHaveAttribute('data-reaction-feedback')
+    expect(screen.getByRole('button', { name: 'Ôm' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: 'Ôm' })).not.toHaveAttribute(
+      'data-reaction-feedback',
+    )
     expect(screen.getByRole('button', { name: 'Đã lưu' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -226,7 +256,7 @@ describe('CommunityInteractions', () => {
         reactionCount={3}
       />,
     )
-    await user.click(screen.getByRole('button', { name: 'Đồng hành' }))
+    await user.click(screen.getByRole('button', { name: 'Thương' }))
     rerender(
       <CommunityInteractions
         postId="post-1"
@@ -242,7 +272,7 @@ describe('CommunityInteractions', () => {
         reactionCount={4}
       />,
     )
-    expect(screen.getByRole('button', { name: 'Đồng hành' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Thương' })).toHaveAttribute(
       'data-reaction-feedback',
       'committed',
     )
@@ -265,7 +295,7 @@ describe('CommunityInteractions', () => {
         reactionCount={3}
       />,
     )
-    await user.click(screen.getByRole('button', { name: 'Đồng hành' }))
+    await user.click(screen.getByRole('button', { name: 'Thương' }))
     rerender(
       <CommunityInteractions
         postId="post-2"
@@ -277,12 +307,13 @@ describe('CommunityInteractions', () => {
       finishRequest?.({ postId: 'post-1', reaction: 'SUPPORT' }),
     )
     expect(screen.getByText('7 lượt')).toBeVisible()
-    expect(
-      screen.getByRole('button', { name: 'Mình cũng vậy' }),
-    ).toHaveAttribute('aria-pressed', 'true')
-    expect(
-      screen.getByRole('button', { name: 'Đồng hành' }),
-    ).not.toHaveAttribute('data-reaction-feedback')
+    expect(screen.getByRole('button', { name: 'Ôm' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: 'Thương' })).not.toHaveAttribute(
+      'data-reaction-feedback',
+    )
   })
 
   it('supports keyboard activation with the same committed feedback', async () => {
@@ -296,10 +327,11 @@ describe('CommunityInteractions', () => {
       />,
     )
     await user.tab()
-    expect(screen.getByRole('button', { name: 'Đồng hành' })).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Thương' })).toHaveFocus()
     await user.keyboard('[Space]')
     expect(screen.getByText('1 lượt')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Đồng hành' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Thương' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )

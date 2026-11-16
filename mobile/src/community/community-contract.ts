@@ -34,7 +34,15 @@ export const avatarSchema = z.enum([
   'CLOUD',
   'SPROUT',
 ])
-export const reactionSchema = z.enum(['SUPPORT', 'RELATE', 'THANK_YOU'])
+export const reactionSchema = z.enum([
+  'SUPPORT',
+  'RELATE',
+  'THANK_YOU',
+  'LIKE',
+  'EMPATHY',
+  'CHEER',
+  'GROWTH',
+])
 export const reportReasonSchema = z.enum([
   'HARASSMENT',
   'PRIVACY_OR_DOXXING',

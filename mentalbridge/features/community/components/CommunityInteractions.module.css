@@ -9,6 +9,7 @@
 
 .reactions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);
   min-width: 0;
@@ -26,6 +27,7 @@
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
+  touch-action: manipulation;
   transition:
     color var(--motion-fast) var(--ease-standard),
     border-color var(--motion-fast) var(--ease-standard),
@@ -52,11 +54,6 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.icon > svg:first-child {
-  width: 100%;
-  height: 100%;
 }
 
 .celebrating {
@@ -88,8 +85,9 @@
   animation: reaction-seeds var(--motion-medium) var(--ease-standard);
 }
 
-.mobileLabel {
-  display: none;
+.emoji {
+  font-size: 1.0625rem;
+  line-height: 1;
 }
 
 .reactions button.selected,
@@ -114,8 +112,15 @@
 
 .reactions button:focus-visible,
 .bookmark:focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
   box-shadow: var(--focus-ring);
+}
+
+@media (forced-colors: active) {
+  .reactions button:focus-visible,
+  .bookmark:focus-visible {
+    outline-color: Highlight;
+  }
 }
 
 .reactions button:disabled,
@@ -194,6 +199,7 @@
 @media (max-width: 640px) {
   .reactions {
     width: 100%;
+    gap: 0;
   }
 
   .reactions button {
@@ -204,16 +210,19 @@
     font-size: 0.8125rem;
   }
 
-  .desktopLabel {
+  .label {
     display: none;
-  }
-
-  .mobileLabel {
-    display: inline;
   }
 
   .bookmark {
     margin-left: auto;
+  }
+}
+
+@media (max-width: 340px) {
+  .reactions button {
+    flex: 1 1 40px;
+    min-width: 44px;
   }
 }
 
