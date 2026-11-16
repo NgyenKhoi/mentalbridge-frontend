@@ -35,6 +35,7 @@ import {
   clearPendingUpgradeIntent,
   consumePendingUpgradeIntent,
   getCheckoutAttempt,
+  getExpiredUnresolvedCheckoutAttempt,
   getInFlightCheckout,
   getPendingUpgradeIntent,
   hasExpiredUnresolvedCheckoutAttempt,
@@ -179,6 +180,9 @@ export function useSupportPlanAccess(
   const isMountedRef = useRef(true)
   const lifecycleEpochRef = useRef(0)
   const activeSubjectRef = useRef<string | null>(subject)
+  const offlineRef = useRef(offline)
+  const safetyOverrideRef = useRef(safetyOverride)
+  const latestPaymentRef = useRef<PlanPayment | null>(null)
 
   const prevSubjectRef = useRef<string | null>(subject)
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
@@ -585,6 +589,12 @@ export function useSupportPlanAccess(
       ]
     : paymentItems
   const latestPayment = selectLatestRelevantPayment(mergedPayments)
+
+  useEffect(() => {
+    offlineRef.current = offline
+    safetyOverrideRef.current = safetyOverride
+    latestPaymentRef.current = latestPayment
+  }, [latestPayment, offline, safetyOverride])
 
   const hasUnresolvedLocalAttempt =
     currentSubjectAttempt?.status === 'uncertain' ||
@@ -1082,10 +1092,14 @@ export function useSupportPlanAccess(
 
     const capturedSubject = subject
     const capturedEpoch = lifecycleEpochRef.current
+    const capturedGen = verificationGenRef.current
     const isCurrentContext = () =>
       isMountedRef.current &&
       lifecycleEpochRef.current === capturedEpoch &&
-      activeSubjectRef.current === capturedSubject
+      activeSubjectRef.current === capturedSubject &&
+      verificationGenRef.current === capturedGen &&
+      !offlineRef.current &&
+      !safetyOverrideRef.current
 
     checkoutLockRef.current = true
     setScopedExternalNotice(null)
@@ -1114,6 +1128,11 @@ export function useSupportPlanAccess(
         existingAttempt?.status === 'uncertain' ||
         existingAttempt?.status === 'preparing'
 
+      let expiredAttempt = getExpiredUnresolvedCheckoutAttempt(
+        capturedSubject,
+        planVersionId,
+      )
+
       // When creating a new checkout attempt (not replaying an in-session uncertain/preparing
       // Idempotency-Key), enforce authoritative entitlement + live payment history verification
       // at submit time to prevent cold-start and TOCTOU duplicate checkouts.
@@ -1122,7 +1141,7 @@ export function useSupportPlanAccess(
         const liveEntitlementAccess =
           liveEntitlement &&
           liveEntitlement.subject === capturedSubject &&
-          liveEntitlement.generation === verificationGenRef.current
+          liveEntitlement.generation === capturedGen
             ? planAccessFrom(liveEntitlement.value)
             : 'unavailable'
         if (
@@ -1143,16 +1162,18 @@ export function useSupportPlanAccess(
 
         // If an earlier uncertain/preparing attempt's TTL expired in-session, verify `/payments`
         // from the server before minting any new idempotencyKey so a charge is never duplicated.
-        if (
+        const hasUnresolvedExpiry =
           hadUncertainAttemptRef.current ||
-          hasExpiredUnresolvedCheckoutAttempt(capturedSubject)
-        ) {
+          Boolean(expiredAttempt) ||
+          hasExpiredUnresolvedCheckoutAttempt(capturedSubject, planVersionId)
+
+        if (hasUnresolvedExpiry) {
           try {
             const refreshedHistory = await api.getPaymentHistory()
             if (!isCurrentContext()) return
             const verifiedHistory: VerifiedPaymentHistoryState = {
               subject: capturedSubject,
-              generation: verificationGenRef.current,
+              generation: capturedGen,
               value: refreshedHistory,
             }
             verifiedPaymentHistoryRef.current = verifiedHistory
@@ -1161,12 +1182,42 @@ export function useSupportPlanAccess(
               supportPlanAccessKey(capturedSubject, 'payments'),
               refreshedHistory,
             )
+
+            // 1. Succeeded payment check
+            const succeededPayment = refreshedHistory.items.find(
+              (item) =>
+                item.status === 'SUCCEEDED' &&
+                ((expiredAttempt?.paymentId &&
+                  item.paymentId === expiredAttempt.paymentId) ||
+                  item.planVersionId === planVersionId),
+            )
+            if (succeededPayment) {
+              hadUncertainAttemptRef.current = false
+              clearExpiredUnresolvedCheckoutAttempt(
+                capturedSubject,
+                planVersionId,
+              )
+              const nextScoped: SubjectScoped<PlanPayment> = {
+                subject: capturedSubject,
+                value: succeededPayment,
+              }
+              scopedPaymentRef.current = nextScoped
+              setScopedPayment(nextScoped)
+              setScopedCheckoutError(null)
+              await reconcileStatus()
+              return
+            }
+
+            // 2. Pending payment check
             const unresolvedPending = refreshedHistory.items.find(
               (item) => item.status === 'PENDING',
             )
             if (unresolvedPending) {
               hadUncertainAttemptRef.current = false
-              clearExpiredUnresolvedCheckoutAttempt(capturedSubject)
+              clearExpiredUnresolvedCheckoutAttempt(
+                capturedSubject,
+                planVersionId,
+              )
               const nextScoped: SubjectScoped<PlanPayment> = {
                 subject: capturedSubject,
                 value: unresolvedPending,
@@ -1184,17 +1235,63 @@ export function useSupportPlanAccess(
               })
               return
             }
-            hadUncertainAttemptRef.current = false
-            clearExpiredUnresolvedCheckoutAttempt(capturedSubject)
+
+            // 3. Terminal failure check (FAILED or CHARGEBACK)
+            const terminalFailed = refreshedHistory.items.find(
+              (item) =>
+                (item.status === 'FAILED' || item.status === 'CHARGEBACK') &&
+                ((expiredAttempt?.paymentId &&
+                  item.paymentId === expiredAttempt.paymentId) ||
+                  item.planVersionId === planVersionId),
+            )
+            if (terminalFailed) {
+              hadUncertainAttemptRef.current = false
+              clearExpiredUnresolvedCheckoutAttempt(
+                capturedSubject,
+                planVersionId,
+              )
+              expiredAttempt = null
+            } else {
+              // 4. Payment not found in history (unresolved / eventual consistency)
+              const isUserExplicitRetry =
+                scopedCheckoutError?.subject === capturedSubject &&
+                scopedCheckoutError.value.code === 'CHECKOUT_RECOVERY_REQUIRED'
+
+              if (!isUserExplicitRetry) {
+                setScopedCheckoutError({
+                  subject: capturedSubject,
+                  value: {
+                    code: 'CHECKOUT_RECOVERY_REQUIRED',
+                    message:
+                      'Giao dịch trước đó chưa được máy chủ xác nhận kết thúc. Vui lòng đối chiếu hoặc xác nhận thử lại để gửi lại giao dịch cũ thay vì tạo giao dịch mới.',
+                    uncertain: true,
+                  },
+                })
+                return
+              }
+
+              if (!expiredAttempt?.idempotencyKey) {
+                setScopedCheckoutError({
+                  subject: capturedSubject,
+                  value: {
+                    code: 'CHECKOUT_RECOVERY_REQUIRED',
+                    message:
+                      'Không tìm thấy mã giao dịch trước đó để thử lại an toàn. Vui lòng kiểm tra lại thanh toán với Consultation.',
+                    uncertain: false,
+                  },
+                })
+                return
+              }
+            }
           } catch {
             if (!isCurrentContext()) return
             setScopedCheckoutError({
               subject: capturedSubject,
               value: {
-                code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
+                code: 'PAYMENT_HISTORY_UNAVAILABLE',
                 message:
-                  'Không thể kiểm tra lịch sử giao dịch sau khi phiên thử lại hết hạn. Vui lòng đối chiếu lại thanh toán trước khi thử mở giao dịch mới.',
-                uncertain: false,
+                  'Không thể kiểm tra lịch sử giao dịch sau khi phiên trước hết hạn. Vui lòng đối chiếu lại thanh toán trước khi thử mở giao dịch mới.',
+                uncertain: true,
               },
             })
             return
@@ -1218,7 +1315,7 @@ export function useSupportPlanAccess(
         if (
           !liveHistory ||
           liveHistory.subject !== capturedSubject ||
-          liveHistory.generation !== verificationGenRef.current ||
+          liveHistory.generation !== capturedGen ||
           paymentsQuery.isLoading ||
           paymentsQuery.isFetching ||
           reconcileLockRef.current
@@ -1259,13 +1356,40 @@ export function useSupportPlanAccess(
         }
       }
 
+      // Re-validate context and live entitlement immediately before firing checkout mutation.
+      if (!isCurrentContext()) return
+
+      const preMutationEntitlement = verifiedEntitlementRef.current
+      const preMutationAccess =
+        preMutationEntitlement &&
+        preMutationEntitlement.subject === capturedSubject &&
+        preMutationEntitlement.generation === capturedGen
+          ? planAccessFrom(preMutationEntitlement.value)
+          : 'unavailable'
+
+      if (preMutationAccess !== 'free' && preMutationAccess !== 'expired') {
+        setScopedCheckoutError({
+          subject: capturedSubject,
+          value: {
+            code: 'ENTITLEMENT_UNAVAILABLE',
+            message:
+              'Quyền gói đã thay đổi hoặc chưa được xác minh từ Consultation. Không thể tiếp tục giao dịch.',
+            uncertain: false,
+          },
+        })
+        return
+      }
+
       const idempotencyKey =
         existingAttempt &&
         (existingAttempt.status === 'uncertain' ||
           existingAttempt.status === 'preparing')
           ? existingAttempt.idempotencyKey
-          : randomUUID()
-      const expectedPaymentId = existingAttempt?.paymentId
+          : expiredAttempt?.idempotencyKey
+            ? expiredAttempt.idempotencyKey
+            : randomUUID()
+      const expectedPaymentId =
+        existingAttempt?.paymentId ?? expiredAttempt?.paymentId
 
       saveCheckoutAttempt({
         subject: capturedSubject,
@@ -1278,6 +1402,9 @@ export function useSupportPlanAccess(
       const settlementPromise =
         (async (): Promise<CheckoutSettlementOutcome> => {
           try {
+            if (!isCurrentContext()) {
+              return { kind: 'aborted' }
+            }
             const payment = await checkoutMutation.mutateAsync({
               planVersionId,
               idempotencyKey,
@@ -1417,6 +1544,7 @@ export function useSupportPlanAccess(
     queryClient,
     reconcileStatus,
     safetyOverride,
+    scopedCheckoutError,
     setIsJoiningInFlight,
     setScopedCheckoutError,
     setScopedExternalNotice,
@@ -1443,30 +1571,65 @@ export function useSupportPlanAccess(
       })
       return
     }
-    setPendingUpgradeIntent({
-      subject,
-      paymentId: latestPayment.paymentId,
-      origin: validatedOrigin,
-    })
+
+    const capturedSubject = subject
+    const capturedEpoch = lifecycleEpochRef.current
+    const capturedPaymentId = latestPayment.paymentId
+    const targetUrl = latestPayment.checkoutUrl
+
     try {
-      const supported = await Linking.canOpenURL(latestPayment.checkoutUrl)
+      const supported = await Linking.canOpenURL(targetUrl)
+
+      if (
+        !isMountedRef.current ||
+        lifecycleEpochRef.current !== capturedEpoch ||
+        activeSubjectRef.current !== capturedSubject ||
+        latestPaymentRef.current?.paymentId !== capturedPaymentId ||
+        offlineRef.current
+      ) {
+        return
+      }
+
       if (!supported) {
         setScopedExternalNotice({
-          subject,
+          subject: capturedSubject,
           value:
             'Thiết bị không mở được trình duyệt ngoài cho PayOS. Vui lòng chuyển khoản bằng thông tin VietQR bên dưới.',
         })
         return
       }
-      await Linking.openURL(latestPayment.checkoutUrl)
+
+      setPendingUpgradeIntent({
+        subject: capturedSubject,
+        paymentId: capturedPaymentId,
+        origin: validatedOrigin,
+      })
+
+      await Linking.openURL(targetUrl)
+
+      if (
+        !isMountedRef.current ||
+        lifecycleEpochRef.current !== capturedEpoch ||
+        activeSubjectRef.current !== capturedSubject
+      ) {
+        return
+      }
+
       setScopedExternalNotice({
-        subject,
+        subject: capturedSubject,
         value:
           'Đã mở trang thanh toán PayOS. Sau khi hoàn tất, vui lòng quay lại ứng dụng MentalBridge để đối chiếu với Consultation.',
       })
     } catch {
+      if (
+        !isMountedRef.current ||
+        lifecycleEpochRef.current !== capturedEpoch ||
+        activeSubjectRef.current !== capturedSubject
+      ) {
+        return
+      }
       setScopedExternalNotice({
-        subject,
+        subject: capturedSubject,
         value:
           'Không thể mở trang PayOS lúc này. Bạn có thể chuyển khoản bằng thông tin VietQR bên dưới rồi bấm kiểm tra lại.',
       })

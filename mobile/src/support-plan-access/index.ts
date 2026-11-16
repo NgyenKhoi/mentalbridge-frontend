@@ -90,6 +90,7 @@ export {
   clearPendingUpgradeIntent,
   consumePendingUpgradeIntent,
   getCheckoutAttempt,
+  getExpiredUnresolvedCheckoutAttempt,
   getInFlightCheckout,
   getPendingUpgradeIntent,
   hasExpiredUnresolvedCheckoutAttempt,
@@ -102,6 +103,7 @@ export {
   setPendingUpgradeIntent,
   type CheckoutAttemptRecord,
   type CheckoutAttemptStatus,
+  type ExpiredUnresolvedCheckoutAttempt,
   type InFlightCheckoutRecord,
   type PendingUpgradeIntent,
 } from './upgrade-intent-store'

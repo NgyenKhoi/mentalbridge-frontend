@@ -33,10 +33,24 @@ export type InFlightCheckoutRecord<T = unknown> = Readonly<{
   promise: Promise<T>
 }>
 
+export type ExpiredUnresolvedCheckoutAttempt = Readonly<{
+  subject: string
+  planVersionId: string
+  idempotencyKey: string
+  status: 'preparing' | 'uncertain'
+  paymentId?: string | undefined
+  createdAtMs: number
+  expiredAtMs: number
+}>
+
 let currentIntent: PendingUpgradeIntent | null = null
 let currentCheckoutAttempt: CheckoutAttemptRecord | null = null
 let currentInFlightCheckout: InFlightCheckoutRecord | null = null
 const expiredUnresolvedSubjects = new Set<string>()
+const expiredUnresolvedAttempts = new Map<
+  string,
+  ExpiredUnresolvedCheckoutAttempt
+>()
 
 /**
  * Stores ephemeral in-memory upgrade return intent scoped to a single authenticated
@@ -112,6 +126,19 @@ export function getCheckoutAttempt(
       currentCheckoutAttempt.status === 'preparing' ||
       currentCheckoutAttempt.status === 'uncertain'
     ) {
+      const record: ExpiredUnresolvedCheckoutAttempt = {
+        subject: currentCheckoutAttempt.subject,
+        planVersionId: currentCheckoutAttempt.planVersionId,
+        idempotencyKey: currentCheckoutAttempt.idempotencyKey,
+        status: currentCheckoutAttempt.status,
+        paymentId: currentCheckoutAttempt.paymentId,
+        createdAtMs: currentCheckoutAttempt.createdAtMs,
+        expiredAtMs: nowMs,
+      }
+      expiredUnresolvedAttempts.set(
+        `${record.subject}:${record.planVersionId}`,
+        record,
+      )
       expiredUnresolvedSubjects.add(currentCheckoutAttempt.subject)
     }
     currentCheckoutAttempt = null
@@ -206,6 +233,7 @@ export function clearCheckoutAttempt(subject?: string | null): void {
     currentCheckoutAttempt = null
     currentInFlightCheckout = null
     expiredUnresolvedSubjects.clear()
+    expiredUnresolvedAttempts.clear()
     return
   }
   if (currentCheckoutAttempt?.subject === subject) {
@@ -215,6 +243,11 @@ export function clearCheckoutAttempt(subject?: string | null): void {
     currentInFlightCheckout = null
   }
   expiredUnresolvedSubjects.delete(subject)
+  for (const key of Array.from(expiredUnresolvedAttempts.keys())) {
+    if (key.startsWith(`${subject}:`)) {
+      expiredUnresolvedAttempts.delete(key)
+    }
+  }
 }
 
 export function getInFlightCheckout<T = unknown>(
@@ -256,23 +289,89 @@ export function clearInFlightCheckout(
   currentInFlightCheckout = null
 }
 
-export function hasExpiredUnresolvedCheckoutAttempt(
+export function getExpiredUnresolvedCheckoutAttempt(
   subject: string | null | undefined,
-): boolean {
-  if (!subject) return false
-  return expiredUnresolvedSubjects.has(subject)
+  planVersionId?: string | null,
+): ExpiredUnresolvedCheckoutAttempt | null {
+  if (!subject) return null
+  if (planVersionId) {
+    return expiredUnresolvedAttempts.get(`${subject}:${planVersionId}`) ?? null
+  }
+  for (const [key, value] of expiredUnresolvedAttempts.entries()) {
+    if (key.startsWith(`${subject}:`)) {
+      return value
+    }
+  }
+  return null
 }
 
-export function markExpiredUnresolvedCheckoutAttempt(subject: string): void {
-  expiredUnresolvedSubjects.add(subject)
+export function hasExpiredUnresolvedCheckoutAttempt(
+  subject: string | null | undefined,
+  planVersionId?: string | null,
+): boolean {
+  if (!subject) return false
+  if (planVersionId) {
+    return expiredUnresolvedAttempts.has(`${subject}:${planVersionId}`)
+  }
+  return (
+    expiredUnresolvedSubjects.has(subject) ||
+    getExpiredUnresolvedCheckoutAttempt(subject) !== null
+  )
+}
+
+export function markExpiredUnresolvedCheckoutAttempt(
+  subjectOrRecord: string | ExpiredUnresolvedCheckoutAttempt,
+  planVersionId?: string,
+  idempotencyKey?: string,
+): void {
+  if (typeof subjectOrRecord === 'string') {
+    expiredUnresolvedSubjects.add(subjectOrRecord)
+    if (planVersionId && idempotencyKey) {
+      expiredUnresolvedAttempts.set(`${subjectOrRecord}:${planVersionId}`, {
+        subject: subjectOrRecord,
+        planVersionId,
+        idempotencyKey,
+        status: 'uncertain',
+        createdAtMs: Date.now(),
+        expiredAtMs: Date.now(),
+      })
+    }
+  } else {
+    expiredUnresolvedSubjects.add(subjectOrRecord.subject)
+    expiredUnresolvedAttempts.set(
+      `${subjectOrRecord.subject}:${subjectOrRecord.planVersionId}`,
+      subjectOrRecord,
+    )
+  }
 }
 
 export function clearExpiredUnresolvedCheckoutAttempt(
   subject?: string | null,
+  planVersionId?: string | null,
 ): void {
   if (!subject) {
     expiredUnresolvedSubjects.clear()
+    expiredUnresolvedAttempts.clear()
+    return
+  }
+  if (planVersionId) {
+    expiredUnresolvedAttempts.delete(`${subject}:${planVersionId}`)
+    let hasRemaining = false
+    for (const key of expiredUnresolvedAttempts.keys()) {
+      if (key.startsWith(`${subject}:`)) {
+        hasRemaining = true
+        break
+      }
+    }
+    if (!hasRemaining) {
+      expiredUnresolvedSubjects.delete(subject)
+    }
     return
   }
   expiredUnresolvedSubjects.delete(subject)
+  for (const key of Array.from(expiredUnresolvedAttempts.keys())) {
+    if (key.startsWith(`${subject}:`)) {
+      expiredUnresolvedAttempts.delete(key)
+    }
+  }
 }
