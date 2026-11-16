@@ -34,6 +34,10 @@ vi.mock('./AdminContentSection', () => ({
   default: () => <section aria-label="content-authority" />,
 }))
 
+vi.mock('@/features/benchmarks/AdminBenchmarkGovernance', () => ({
+  default: () => <section aria-label="benchmarks-authority" />,
+}))
+
 vi.mock(
   '@/features/community/components/AdminCommunityModerationSection',
   () => ({
@@ -93,7 +97,7 @@ describe('AdminWorkspace', () => {
       name: 'Điều hướng quản trị',
     })
 
-    expect(within(navigation).getAllByRole('link')).toHaveLength(10)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(11)
     expect(
       within(navigation)
         .getAllByRole('link')
@@ -103,6 +107,7 @@ describe('AdminWorkspace', () => {
       '/admin/accounts',
       '/admin/specialists',
       '/admin/content',
+      '/admin/benchmarks',
       '/admin/moderation',
       '/admin/appointments',
       '/admin/disputes',
@@ -135,8 +140,8 @@ describe('AdminWorkspace', () => {
       within(navigation).getByRole('link', { name: 'Ý kiến & Phản hồi' }),
     ).toHaveAttribute('href', '/admin/feedback')
     expect(
-      within(navigation).queryByRole('link', { name: /assessment|AI/i }),
-    ).not.toBeInTheDocument()
+      within(navigation).getByRole('link', { name: 'Benchmark AI' }),
+    ).toHaveAttribute('href', '/admin/benchmarks')
   })
 
   it('combines the authoritative operations and journey projections on the dashboard', () => {
@@ -155,6 +160,7 @@ describe('AdminWorkspace', () => {
     ['retention', 'retention-authority'],
     ['specialists', 'specialists-authority'],
     ['content', 'content-authority'],
+    ['benchmarks', 'benchmarks-authority'],
     ['moderation', 'moderation-authority'],
     ['appointments', 'appointments-authority'],
     ['disputes', 'disputes-authority'],
