@@ -1,9 +1,19 @@
 import { useRef, useState } from 'react'
 import { randomUUID } from 'expo-crypto'
-import { Pressable, StyleSheet, Text } from 'react-native'
+import { StyleSheet } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
-import { colors, radii, spacing, typography } from '@/theme/tokens'
+import { Txt } from '@/theme/dashboard'
+import { radii, spacing, typography } from '@/theme/tokens'
+
+import { communityColors } from './community-theme'
+
+// Primitives live in their own files; chat screens import them from here.
+export * from './community-avatar'
+export * from './community-primitives'
+export * from './community-skeleton'
+export { BottomSheet } from './CommunityBottomSheet'
+export { CommunityTabBar, type CommunityTab } from './CommunityTabBar'
 
 export function communityMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -25,12 +35,17 @@ export function communityMessage(error: unknown) {
 
 export function useCommandKey() {
   const command = useRef<{ body: string; key: string } | null>(null)
-  return (body: unknown) => {
+  const next = (body: unknown) => {
     const signature = JSON.stringify(body)
     if (!command.current || command.current.body !== signature)
       command.current = { body: signature, key: randomUUID() }
     return command.current.key
   }
+  // Call after an acknowledged success so identical text sent again is a new command, not a replay.
+  next.done = () => {
+    command.current = null
+  }
+  return next
 }
 
 export function useCommunityAction() {
@@ -54,45 +69,11 @@ export function useCommunityAction() {
   return { busy, error, run }
 }
 
-export function CommunityButton({
-  label,
-  onPress,
-  disabled = false,
-  selected,
-  testID,
-}: Readonly<{
-  label: string
-  onPress: () => void
-  disabled?: boolean
-  selected?: boolean
-  testID?: string
-}>) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{
-        disabled,
-        ...(selected === undefined ? {} : { selected }),
-      }}
-      disabled={disabled}
-      testID={testID}
-      onPress={onPress}
-      style={[
-        communityStyles.button,
-        selected && communityStyles.selected,
-        disabled && communityStyles.disabled,
-      ]}
-    >
-      <Text style={communityStyles.buttonText}>{label}</Text>
-    </Pressable>
-  )
-}
-
 export function CommunityMessage({ children }: Readonly<{ children: string }>) {
   return (
-    <Text accessibilityLiveRegion="polite" style={communityStyles.message}>
+    <Txt accessibilityLiveRegion="polite" style={communityStyles.message}>
       {children}
-    </Text>
+    </Txt>
   )
 }
 
@@ -100,66 +81,51 @@ export const communityStyles = StyleSheet.create({
   column: { gap: spacing.lg },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   title: {
-    color: colors.ink,
+    color: communityColors.ink,
     fontSize: typography.heading,
     lineHeight: typography.headingLineHeight,
     fontWeight: '700',
   },
   heading: {
-    color: colors.ink,
+    color: communityColors.ink,
     fontSize: 20,
     lineHeight: 28,
     fontWeight: '700',
   },
   body: {
-    color: colors.ink,
+    color: communityColors.ink,
     fontSize: typography.body,
     lineHeight: typography.bodyLineHeight,
   },
   muted: {
-    color: colors.inkSoft,
+    color: communityColors.inkSoft,
     fontSize: typography.body,
     lineHeight: typography.bodyLineHeight,
   },
   message: {
-    color: colors.tealDeep,
+    color: communityColors.primaryDeep,
     fontSize: typography.body,
     lineHeight: typography.bodyLineHeight,
     paddingVertical: spacing.md,
   },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: communityColors.background,
     borderRadius: radii.panel,
     padding: spacing.lg,
     gap: spacing.md,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: communityColors.line,
   },
   input: {
-    color: colors.ink,
-    backgroundColor: colors.surface,
-    borderColor: colors.inkSoft,
+    color: communityColors.ink,
+    backgroundColor: communityColors.background,
+    borderColor: communityColors.inkSoft,
     borderWidth: 1,
     borderRadius: radii.control,
     minHeight: 48,
     padding: spacing.md,
     fontSize: typography.body,
     textAlignVertical: 'top',
-  },
-  button: {
-    borderWidth: 1,
-    borderColor: colors.tealDeep,
-    borderRadius: radii.control,
-    minHeight: 48,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  selected: { backgroundColor: colors.tealPale },
-  buttonText: {
-    color: colors.tealDeep,
-    fontSize: typography.body,
-    fontWeight: '600',
   },
   disabled: { opacity: 0.55 },
   media: { width: '100%', height: 220, borderRadius: radii.control },

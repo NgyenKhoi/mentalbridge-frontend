@@ -22,7 +22,7 @@ name: MB-692 private group invitation membership and departed link source
     direction: DOWN
 - tapOn: 'Rời nhóm'
 - tapOn: 'Xác nhận thay đổi'
-- assertVisible: 'Trò chuyện cộng đồng'
+- assertVisible: 'Cuộc trò chuyện mới'
 - openLink: 'mentalbridge:///community-chat?conversationId=${MAESTRO_MB_COMMUNITY_GROUP_ID}'
 - extendedWaitUntil:
     visible: 'Chưa thể xác nhận kết nối hoặc quyền truy cập.*'
