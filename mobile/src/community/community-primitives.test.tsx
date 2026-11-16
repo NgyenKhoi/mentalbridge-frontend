@@ -87,7 +87,7 @@ describe('ReactionControl', () => {
     await render(control('RELATE', onChange))
     expect(screen.getByText('🤗')).toBeOnTheScreen()
     await fireEvent.press(
-      screen.getByRole('button', { name: 'Bạn đã thả: Mình đồng cảm' }),
+      screen.getByRole('button', { name: 'Bạn đã thả: Ôm' }),
     )
     expect(onChange).toHaveBeenCalledWith(null)
   })
@@ -98,42 +98,71 @@ describe('ReactionControl', () => {
       screen.getByRole('button', { name: 'Thả cảm xúc' }),
       'longPress',
     )
-    await fireEvent.press(screen.getByRole('button', { name: 'Mình đồng cảm' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Ôm' }))
     expect(onChange).toHaveBeenLastCalledWith('RELATE')
-    expect(screen.queryByRole('button', { name: 'Cảm ơn bạn' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Cảm ơn' })).toBeNull()
     await fireEvent(
       screen.getByRole('button', { name: 'Thả cảm xúc' }),
       'longPress',
     )
-    await fireEvent.press(screen.getByRole('button', { name: 'Cảm ơn bạn' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Cảm ơn' }))
     expect(onChange).toHaveBeenLastCalledWith('THANK_YOU')
+  })
+  it('offers all seven kinds in the tray and a new kind sets its value', async () => {
+    const onChange = jest.fn()
+    await render(control(null, onChange))
+    await fireEvent(
+      screen.getByRole('button', { name: 'Thả cảm xúc' }),
+      'longPress',
+    )
+    for (const name of [
+      'Thích',
+      'Thương',
+      'Cảm ơn',
+      'Ôm',
+      'Đồng cảm',
+      'Cố lên',
+      'Đang lớn lên',
+    ])
+      expect(screen.getByRole('button', { name })).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('button', { name: 'Đang lớn lên' }))
+    expect(onChange).toHaveBeenLastCalledWith('GROWTH')
   })
   it('closes the tray on an outside tap without changing anything', async () => {
     const onChange = jest.fn()
     await render(control('SUPPORT', onChange))
     await fireEvent(
-      screen.getByRole('button', { name: 'Bạn đã thả: Mình ở đây' }),
+      screen.getByRole('button', { name: 'Bạn đã thả: Thương' }),
       'longPress',
     )
     expect(
-      screen.getByRole('button', { name: 'Mình ở đây' }).props
-        .accessibilityState.selected,
+      screen.getByRole('button', { name: 'Thương' }).props.accessibilityState
+        .selected,
     ).toBe(true)
     await fireEvent.press(screen.getByLabelText('Đóng khay cảm xúc', hidden))
-    expect(screen.queryByRole('button', { name: 'Mình đồng cảm' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ôm' })).toBeNull()
     expect(onChange).not.toHaveBeenCalled()
   })
-  it('exposes the three choices and clear as accessibility actions', async () => {
+  it('exposes the seven choices and clear as accessibility actions', async () => {
     const onChange = jest.fn()
     await render(control('SUPPORT', onChange))
     const button = screen.getByRole('button', {
-      name: 'Bạn đã thả: Mình ở đây',
+      name: 'Bạn đã thả: Thương',
     })
     expect(
       button.props.accessibilityActions.map(
         (action: { label: string }) => action.label,
       ),
-    ).toEqual(['Mình ở đây', 'Mình đồng cảm', 'Cảm ơn bạn', 'Bỏ cảm xúc'])
+    ).toEqual([
+      'Thích',
+      'Thương',
+      'Cảm ơn',
+      'Ôm',
+      'Đồng cảm',
+      'Cố lên',
+      'Đang lớn lên',
+      'Bỏ cảm xúc',
+    ])
     await fireEvent(button, 'accessibilityAction', {
       nativeEvent: { actionName: 'react-THANK_YOU' },
     })
@@ -159,7 +188,7 @@ describe('ReactionControl', () => {
     expect(sequence).not.toHaveBeenCalled()
     expect(screen.getAllByText('❤️')).toHaveLength(1)
     expect(
-      screen.getByRole('button', { name: 'Bạn đã thả: Mình ở đây' }).props
+      screen.getByRole('button', { name: 'Bạn đã thả: Thương' }).props
         .accessibilityState.selected,
     ).toBe(true)
   })
