@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -174,11 +174,13 @@ describe('FeedbackProvider', () => {
   it('cancels a pending confirmation when privileged state is revoked', async () => {
     const user = userEvent.setup()
     const decision = vi.fn()
-    let revoke = () => undefined
+    const captureRevoke = vi.fn<(cancel: () => void) => void>()
 
     function AuthorizationHarness() {
       const { cancelConfirm, confirm } = useFeedback()
-      revoke = cancelConfirm
+      useEffect(() => {
+        captureRevoke(cancelConfirm)
+      }, [cancelConfirm])
       return (
         <button
           onClick={() =>
@@ -198,12 +200,15 @@ describe('FeedbackProvider', () => {
         <AuthorizationHarness />
       </FeedbackProvider>,
     )
+    await waitFor(() => expect(captureRevoke).toHaveBeenCalled())
     await user.click(
       screen.getByRole('button', { name: 'Open protected action' }),
     )
     expect(screen.getByRole('dialog')).toBeVisible()
 
-    act(() => revoke())
+    const revoke = captureRevoke.mock.calls.at(-1)?.[0]
+    expect(revoke).toBeDefined()
+    act(() => revoke?.())
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(decision).toHaveBeenCalledWith(false)
