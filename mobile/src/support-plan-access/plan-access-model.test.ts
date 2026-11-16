@@ -9,16 +9,20 @@ import {
 import {
   CARE_OWNERSHIP_INTEGRATION_BLOCKER,
   CARE_OWNERSHIP_STATES,
-  attestCareOwnershipFromApiResponse,
   canOpenHostedCheckoutUrl,
   careOwnedPlanProofSchema,
+  careSupportPlanV3Schema,
+  createCareOwnershipAdapter,
   guideOriginSchema,
+  invalidateCareOwnershipForSubject,
   isAllowedCheckoutUrl,
   planPaymentSchema,
   resolveCareOwnershipFromApi,
   sanitizeGuideOrigin,
   serviceCreditEntitlementSchema,
+  validateCareSupportPlanV3Snapshot,
   verifyCareOwnership,
+  type CareOwnershipAdapter,
 } from './support-plan-access-contract'
 import {
   GUIDE_ID,
@@ -26,8 +30,10 @@ import {
   PAYMENT_ID_2,
   PLUS_PLAN_VERSION_ID,
   PREMIUM_PLAN_VERSION_ID,
+  SUPPORT_PLAN_ID_2,
   USER_A_SUBJECT,
   USER_B_SUBJECT,
+  makeCareOwnershipAdapter,
   makeCareSupportPlanHistoryResponse,
   makeCareSupportPlanResponse,
   makeCatalogue,
@@ -496,29 +502,84 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
         USER_A_SUBJECT,
       ),
     ).toBe('UNAVAILABLE')
-    // Attested proof derived from validated Care API response grants VERIFIED_OWNED for matching subject only.
-    const attestedProof = attestCareOwnershipFromApiResponse({
-      authenticatedSubject: USER_A_SUBJECT,
-      currentPlan: null,
-      history: makeCareSupportPlanHistoryResponse([
-        makeCareSupportPlanResponse(),
-      ]),
+
+    // Client-generated CanonicalSupportPlan v3 passes schema validation but NEVER grants ownership.
+    const clientGeneratedV3Plan = makeCareSupportPlanResponse()
+    expect(
+      careSupportPlanV3Schema.safeParse(clientGeneratedV3Plan).success,
+    ).toBe(true)
+    expect(
+      validateCareSupportPlanV3Snapshot({
+        currentPlan: clientGeneratedV3Plan,
+      }),
+    ).toEqual({
+      valid: true,
+      hasCurrentPlan: true,
+      hasCurrentDraft: false,
+      hasHistory: false,
     })
+    expect(verifyCareOwnership(clientGeneratedV3Plan, USER_A_SUBJECT)).toBe(
+      'UNAVAILABLE',
+    )
+
+    // Unregistered adapter object passed to resolveCareOwnershipFromApi fails closed.
+    const unregisteredProof = await resolveCareOwnershipFromApi(
+      { subject: USER_A_SUBJECT } as unknown as CareOwnershipAdapter,
+      USER_A_SUBJECT,
+    )
+    expect(unregisteredProof.status).toBe('UNAVAILABLE')
+
+    // Trusted Care v3 adapter grants VERIFIED_OWNED for matching active subject only,
+    // and revokes proof immediately when subject/session changes.
+    let activeSubject: string | null = USER_A_SUBJECT
+    const historyAdapter = createCareOwnershipAdapter(
+      {
+        getCurrent: async () => {
+          throw { status: 404, code: 'HTTP_404' }
+        },
+        getDraft: async () => {
+          throw { status: 404, code: 'HTTP_404' }
+        },
+        getHistory: async () =>
+          makeCareSupportPlanHistoryResponse([
+            makeCareSupportPlanResponse({
+              supportPlanId: SUPPORT_PLAN_ID_2,
+              status: 'COMPLETED',
+              representationMode: 'V2_RESOURCE_ADAPTER',
+            }),
+          ]),
+      },
+      {
+        subject: USER_A_SUBJECT,
+        getActiveSubject: () => activeSubject,
+      },
+    )
+    const attestedProof = await resolveCareOwnershipFromApi(
+      historyAdapter,
+      USER_A_SUBJECT,
+    )
     expect(verifyCareOwnership(attestedProof, USER_A_SUBJECT)).toBe(
       'VERIFIED_OWNED',
     )
     expect(verifyCareOwnership(attestedProof, USER_B_SUBJECT)).toBe(
       'UNAVAILABLE',
     )
-    const resolvedFromApi = await resolveCareOwnershipFromApi(
-      {
-        getCurrent: async () => makeCareSupportPlanResponse(),
-      },
+
+    // Session sign-out or subject change revokes previously minted proof.
+    activeSubject = null
+    expect(verifyCareOwnership(attestedProof, USER_A_SUBJECT)).toBe(
+      'UNAVAILABLE',
+    )
+    activeSubject = USER_A_SUBJECT
+    const freshProof = await resolveCareOwnershipFromApi(
+      makeCareOwnershipAdapter(USER_A_SUBJECT),
       USER_A_SUBJECT,
     )
-    expect(verifyCareOwnership(resolvedFromApi, USER_A_SUBJECT)).toBe(
+    expect(verifyCareOwnership(freshProof, USER_A_SUBJECT)).toBe(
       'VERIFIED_OWNED',
     )
+    invalidateCareOwnershipForSubject(USER_A_SUBJECT)
+    expect(verifyCareOwnership(freshProof, USER_A_SUBJECT)).toBe('UNAVAILABLE')
   })
 
   it('isolates ephemeral upgrade intent and checkout idempotency attempts per subject and TTL', () => {

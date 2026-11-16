@@ -21,18 +21,23 @@ import { ApiError } from '@/api/api-error'
 import { SupportPlanAccessGate } from './SupportPlanAccessGate'
 import type { SupportPlanAccessApi } from './support-plan-access-api'
 import {
-  attestCareOwnershipFromApiResponse,
   careOwnedPlanProofSchema,
+  createCareOwnershipAdapter,
+  invalidateCareOwnershipForSubject,
   resolveCareOwnershipFromApi,
+  verifyCareOwnership,
   type CareOwnedPlanProof,
+  type CareOwnershipAdapter,
 } from './support-plan-access-contract'
 import {
   GUIDE_ID,
   PAYMENT_ID_1,
   PAYMENT_ID_2,
   PLUS_PLAN_VERSION_ID,
+  SUPPORT_PLAN_ID_2,
   USER_A_SUBJECT,
   USER_B_SUBJECT,
+  makeCareOwnershipAdapter,
   makeCareSupportPlanHistoryResponse,
   makeCareSupportPlanResponse,
   makeCatalogue,
@@ -272,7 +277,7 @@ describe('SupportPlanAccessGate', () => {
       <QueryClientProvider client={makeQueryClient()}>
         <SupportPlanAccessGate
           api={expiredApi}
-          careOwnership={makeVerifiedCareOwnership(USER_A_SUBJECT)}
+          careOwnership={await makeVerifiedCareOwnership(USER_A_SUBJECT)}
           subject={USER_A_SUBJECT}
         >
           {() => <Text testID="owned-history-child">Owned Plan History</Text>}
@@ -628,7 +633,7 @@ describe('SupportPlanAccessGate', () => {
               }),
             ),
           })}
-          careOwnership={makeVerifiedCareOwnership(USER_A_SUBJECT)}
+          careOwnership={await makeVerifiedCareOwnership(USER_A_SUBJECT)}
           subject={USER_A_SUBJECT}
         >
           {(ctx) => (
@@ -1212,7 +1217,7 @@ describe('MB-703 R1 — Cached PLUS entitlement fail-closed lifecycle', () => {
       <QueryClientProvider client={seededClient}>
         <SupportPlanAccessGate
           api={pendingThenFailApi}
-          careOwnership={makeVerifiedCareOwnership(USER_A_SUBJECT)}
+          careOwnership={await makeVerifiedCareOwnership(USER_A_SUBJECT)}
           offline
           subject={USER_A_SUBJECT}
         >
@@ -1424,12 +1429,13 @@ describe('MB-703 R1 — Cached PLUS entitlement fail-closed lifecycle', () => {
       )
 
     const api = makeApi({ getEntitlement })
+    const verifiedCare = await makeVerifiedCareOwnership(USER_A_SUBJECT)
     let triggerRetry: (() => Promise<void>) | undefined
     function RetryHarness() {
       const controller = useSupportPlanAccess({
         api,
         subject: USER_A_SUBJECT,
-        careOwnership: makeVerifiedCareOwnership(USER_A_SUBJECT),
+        careOwnership: verifiedCare,
       })
       triggerRetry = controller.retryEntitlementCheck
       return (
@@ -2011,7 +2017,7 @@ describe('MB-703 R3 — Verified Care ownership & read-only contract', () => {
         <SupportPlanAccessGate
           api={expiredApi}
           autoContinue
-          careOwnership={makeVerifiedCareOwnership(USER_A_SUBJECT, {
+          careOwnership={await makeVerifiedCareOwnership(USER_A_SUBJECT, {
             hasCurrentPlan: false,
             hasHistory: true,
           })}
@@ -2046,7 +2052,7 @@ describe('MB-703 R3 — Verified Care ownership & read-only contract', () => {
         <SupportPlanAccessGate
           api={unavailableApi}
           autoContinue
-          careOwnership={makeVerifiedCareOwnership(USER_A_SUBJECT)}
+          careOwnership={await makeVerifiedCareOwnership(USER_A_SUBJECT)}
           onContinueToPlan={onContinueToPlan}
           subject={USER_A_SUBJECT}
         >
@@ -2103,7 +2109,7 @@ describe('MB-703 R3 — Verified Care ownership & read-only contract', () => {
         <SupportPlanAccessGate
           api={expiredApi}
           autoContinue
-          careOwnership={makeVerifiedCareOwnership(USER_B_SUBJECT)}
+          careOwnership={await makeVerifiedCareOwnership(USER_B_SUBJECT)}
           onContinueToPlan={onContinueToPlan}
           subject={USER_A_SUBJECT}
         >
@@ -2129,7 +2135,7 @@ describe('MB-703 R3 — Verified Care ownership & read-only contract', () => {
               subject: USER_A_SUBJECT,
               source: 'FAKE_SOURCE',
               hasCurrentPlan: true,
-            } as unknown as ReturnType<typeof makeVerifiedCareOwnership>
+            } as unknown as CareOwnedPlanProof
           }
           onContinueToPlan={onContinueToPlan}
           subject={USER_A_SUBJECT}
@@ -2164,7 +2170,7 @@ describe('MB-703 R3 — Verified Care ownership & read-only contract', () => {
         <SupportPlanAccessGate
           api={plusApi}
           autoContinue
-          careOwnership={makeVerifiedCareOwnership(USER_A_SUBJECT)}
+          careOwnership={await makeVerifiedCareOwnership(USER_A_SUBJECT)}
           onContinueToPlan={onContinueToPlan}
           safetyOverride
           subject={USER_A_SUBJECT}
@@ -2194,7 +2200,7 @@ describe('MB-703 R3 — Verified Care ownership & read-only contract', () => {
       <QueryClientProvider client={makeQueryClient()}>
         <SupportPlanAccessGate
           api={unauthorizedApi}
-          careOwnership={makeVerifiedCareOwnership(USER_A_SUBJECT)}
+          careOwnership={await makeVerifiedCareOwnership(USER_A_SUBJECT)}
           onContinueToPlan={onContinueToPlan}
           subject={USER_A_SUBJECT}
         >
@@ -2213,7 +2219,7 @@ describe('MB-703 R3 — Verified Care ownership & read-only contract', () => {
       <QueryClientProvider client={makeQueryClient()}>
         <SupportPlanAccessGate
           api={plusApi}
-          careOwnership={makeVerifiedCareOwnership(USER_A_SUBJECT)}
+          careOwnership={await makeVerifiedCareOwnership(USER_A_SUBJECT)}
           subject={null}
         >
           {() => <Text testID="r3-nosubj-child">Hidden</Text>}
@@ -2768,7 +2774,7 @@ describe('MB-703 P2 — In-flight preparing attempt survival across remount & si
   })
 })
 
-describe('MB-703 P3 — Non-forgeable Care API ownership boundary', () => {
+describe('MB-703 S1/S2/S3 — Care v3 Contract & Ownership Security Boundary', () => {
   afterEach(() => {
     cleanup()
     for (const client of activeClients.splice(0)) {
@@ -2777,22 +2783,165 @@ describe('MB-703 P3 — Non-forgeable Care API ownership boundary', () => {
     jest.restoreAllMocks()
     clearPendingUpgradeIntent()
     clearCheckoutAttempt()
+    invalidateCareOwnershipForSubject()
   })
 
-  it('P3.1, P3.2, P3.3: rejects schema-valid forged proof objects, wrong-subject Care responses, and unknown ownership fail-closed without rendering private Plan', async () => {
-    const expiredApi = makeApi({
-      getEntitlement: jest.fn().mockResolvedValue(
-        makeEntitlement({
-          accountId: USER_A_SUBJECT,
-          packageCode: 'PLUS',
-          entitlementState: 'EXPIRED',
-          supportPlanEnabled: false,
-        }),
-      ),
-    })
-    const onContinueToPlan = jest.fn()
+  it('S1.1–S1.5: verifies NATIVE_V3 current, V2_RESOURCE_ADAPTER, current DRAFT, terminal history (including paginated cursor pages), and empty current/draft/history -> NONE', async () => {
+    const notFound = () => Promise.reject({ status: 404, code: 'HTTP_404' })
 
-    // Forged object literal that 100% passes careOwnedPlanProofSchema.safeParse MUST still be rejected!
+    // 1. Valid NATIVE_V3 current ACTIVE Plan -> VERIFIED_OWNED
+    const nativeCurrentAdapter = makeCareOwnershipAdapter(USER_A_SUBJECT, {
+      getCurrent: () =>
+        Promise.resolve(
+          makeCareSupportPlanResponse({
+            status: 'ACTIVE',
+            representationMode: 'NATIVE_V3',
+          }),
+        ),
+      getDraft: notFound,
+      getHistory: () => Promise.resolve(makeCareSupportPlanHistoryResponse([])),
+    })
+    const nativeCurrentProof = await resolveCareOwnershipFromApi(
+      nativeCurrentAdapter,
+      USER_A_SUBJECT,
+    )
+    expect(nativeCurrentProof.status).toBe('VERIFIED_OWNED')
+    expect(verifyCareOwnership(nativeCurrentProof, USER_A_SUBJECT)).toBe(
+      'VERIFIED_OWNED',
+    )
+
+    // 2. Valid V2_RESOURCE_ADAPTER PAUSED Plan -> VERIFIED_OWNED
+    const v2Adapter = makeCareOwnershipAdapter(USER_A_SUBJECT, {
+      getCurrent: () =>
+        Promise.resolve(
+          makeCareSupportPlanResponse({
+            status: 'PAUSED',
+            representationMode: 'V2_RESOURCE_ADAPTER',
+          }),
+        ),
+      getDraft: notFound,
+      getHistory: () => Promise.resolve(makeCareSupportPlanHistoryResponse([])),
+    })
+    const v2Proof = await resolveCareOwnershipFromApi(v2Adapter, USER_A_SUBJECT)
+    expect(v2Proof.status).toBe('VERIFIED_OWNED')
+    expect(verifyCareOwnership(v2Proof, USER_A_SUBJECT)).toBe('VERIFIED_OWNED')
+
+    // 3. Valid current DRAFT -> VERIFIED_OWNED
+    const draftAdapter = makeCareOwnershipAdapter(USER_A_SUBJECT, {
+      getCurrent: notFound,
+      getDraft: () =>
+        Promise.resolve(
+          makeCareSupportPlanResponse({
+            status: 'DRAFT',
+            representationMode: 'NATIVE_V3',
+          }),
+        ),
+      getHistory: () => Promise.resolve(makeCareSupportPlanHistoryResponse([])),
+    })
+    const draftProof = await resolveCareOwnershipFromApi(
+      draftAdapter,
+      USER_A_SUBJECT,
+    )
+    expect(draftProof.status).toBe('VERIFIED_OWNED')
+    expect(verifyCareOwnership(draftProof, USER_A_SUBJECT)).toBe(
+      'VERIFIED_OWNED',
+    )
+
+    // 4. Valid terminal history (COMPLETED / SUPERSEDED / DISCARDED + pagination preservation) -> VERIFIED_OWNED
+    const getHistoryPaginated = jest
+      .fn()
+      .mockResolvedValueOnce(
+        makeCareSupportPlanHistoryResponse([], {
+          hasMore: true,
+          nextCursor: 'cursor-page-2',
+        }),
+      )
+      .mockResolvedValueOnce(
+        makeCareSupportPlanHistoryResponse(
+          [
+            makeCareSupportPlanResponse({
+              supportPlanId: SUPPORT_PLAN_ID_2,
+              status: 'SUPERSEDED',
+              representationMode: 'V2_RESOURCE_ADAPTER',
+            }),
+          ],
+          { hasMore: false, nextCursor: null },
+        ),
+      )
+    const historyAdapter = makeCareOwnershipAdapter(USER_A_SUBJECT, {
+      getCurrent: notFound,
+      getDraft: notFound,
+      getHistory: getHistoryPaginated,
+    })
+    const historyProof = await resolveCareOwnershipFromApi(
+      historyAdapter,
+      USER_A_SUBJECT,
+    )
+    expect(getHistoryPaginated).toHaveBeenNthCalledWith(1)
+    expect(getHistoryPaginated).toHaveBeenNthCalledWith(2, 'cursor-page-2')
+    expect(historyProof.status).toBe('VERIFIED_OWNED')
+    expect(verifyCareOwnership(historyProof, USER_A_SUBJECT)).toBe(
+      'VERIFIED_OWNED',
+    )
+
+    // 5. Empty current (404) + empty draft (404) + empty history -> NONE
+    const emptyAdapter = makeCareOwnershipAdapter(USER_A_SUBJECT, {
+      getCurrent: notFound,
+      getDraft: notFound,
+      getHistory: () =>
+        Promise.resolve(
+          makeCareSupportPlanHistoryResponse([], {
+            hasMore: false,
+            nextCursor: null,
+          }),
+        ),
+    })
+    const emptyProof = await resolveCareOwnershipFromApi(
+      emptyAdapter,
+      USER_A_SUBJECT,
+    )
+    expect(emptyProof.status).toBe('NONE')
+    expect(verifyCareOwnership(emptyProof, USER_A_SUBJECT)).toBe('NONE')
+  })
+
+  it('S1.6, S2.7, S2.8, S2.9, S2.10: fails closed on malformed v3 response, forged proof/navigation/client-generated Plan, wrong subject/account switch, Care 401/403/503, and stale async response after sign-out', async () => {
+    const notFound = () => Promise.reject({ status: 404, code: 'HTTP_404' })
+
+    // 6. Malformed v3 response (e.g. legacy v1 payload or wrong status on current) -> UNAVAILABLE
+    const malformedV1Adapter = makeCareOwnershipAdapter(USER_A_SUBJECT, {
+      getCurrent: () =>
+        Promise.resolve({
+          supportPlanId: SUPPORT_PLAN_ID_2,
+          status: 'ACTIVE',
+          version: 1,
+          slots: [{ slotId: 'slot-1' }],
+        }),
+      getDraft: notFound,
+      getHistory: () => Promise.resolve(makeCareSupportPlanHistoryResponse([])),
+    })
+    const malformedProof = await resolveCareOwnershipFromApi(
+      malformedV1Adapter,
+      USER_A_SUBJECT,
+    )
+    expect(malformedProof.status).toBe('UNAVAILABLE')
+
+    const wrongStatusOnCurrentAdapter = makeCareOwnershipAdapter(
+      USER_A_SUBJECT,
+      {
+        getCurrent: () =>
+          Promise.resolve(makeCareSupportPlanResponse({ status: 'DRAFT' })),
+        getDraft: notFound,
+        getHistory: () =>
+          Promise.resolve(makeCareSupportPlanHistoryResponse([])),
+      },
+    )
+    const wrongStatusProof = await resolveCareOwnershipFromApi(
+      wrongStatusOnCurrentAdapter,
+      USER_A_SUBJECT,
+    )
+    expect(wrongStatusProof.status).toBe('UNAVAILABLE')
+
+    // 7. Plain forged proof, navigation params, or client-generated Plan -> UNAVAILABLE
     const forgedSchemaValidObject: CareOwnedPlanProof = {
       status: 'VERIFIED_OWNED',
       subject: USER_A_SUBJECT,
@@ -2803,81 +2952,115 @@ describe('MB-703 P3 — Non-forgeable Care API ownership boundary', () => {
     expect(
       careOwnedPlanProofSchema.safeParse(forgedSchemaValidObject).success,
     ).toBe(true)
-
-    const vForged = await render(
-      <QueryClientProvider client={makeQueryClient()}>
-        <SupportPlanAccessGate
-          api={expiredApi}
-          autoContinue
-          careOwnership={forgedSchemaValidObject}
-          onContinueToPlan={onContinueToPlan}
-          subject={USER_A_SUBJECT}
-        >
-          {() => <Text testID="p3-forged-private-plan">Private Plan</Text>}
-        </SupportPlanAccessGate>
-      </QueryClientProvider>,
+    expect(verifyCareOwnership(forgedSchemaValidObject, USER_A_SUBJECT)).toBe(
+      'UNAVAILABLE',
     )
-    await waitFor(() => {
-      expect(screen.getByTestId('support-plan-access-unavailable')).toBeTruthy()
-    })
-    expect(screen.getByText('Mã: CARE_OWNERSHIP_UNAVAILABLE')).toBeTruthy()
-    expect(screen.queryByTestId('p3-forged-private-plan')).toBeNull()
-    expect(onContinueToPlan).not.toHaveBeenCalled()
-    await vForged.unmount()
-
-    // Care API response carrying another user's accountId/subject fails closed.
-    const crossUserProof = attestCareOwnershipFromApiResponse({
-      authenticatedSubject: USER_A_SUBJECT,
-      currentPlan: makeCareSupportPlanResponse({ accountId: USER_B_SUBJECT }),
-    })
-    expect(crossUserProof.status).toBe('UNAVAILABLE')
-
-    // Unknown ownership (empty snapshot or failed Care API reader) fails closed.
-    const unknownProof = attestCareOwnershipFromApiResponse({
-      authenticatedSubject: USER_A_SUBJECT,
-    })
-    expect(unknownProof.status).toBe('UNAVAILABLE')
-
-    const failedReaderProof = await resolveCareOwnershipFromApi(
-      {
-        getCurrent: jest.fn().mockRejectedValue(
-          new ApiError({
-            status: 503,
-            code: 'HTTP_503',
-            message: 'Care 503',
-          }),
-        ),
-        getHistory: jest.fn().mockRejectedValue(
-          new ApiError({
-            status: 503,
-            code: 'HTTP_503',
-            message: 'Care 503',
-          }),
-        ),
-      },
+    expect(
+      verifyCareOwnership(
+        { source: 'GUIDE', guideId: GUIDE_ID },
+        USER_A_SUBJECT,
+      ),
+    ).toBe('UNAVAILABLE')
+    expect(
+      verifyCareOwnership(makeCareSupportPlanResponse(), USER_A_SUBJECT),
+    ).toBe('UNAVAILABLE')
+    const unregisteredAdapterProof = await resolveCareOwnershipFromApi(
+      { subject: USER_A_SUBJECT } as unknown as CareOwnershipAdapter,
       USER_A_SUBJECT,
     )
-    expect(failedReaderProof.status).toBe('UNAVAILABLE')
+    expect(unregisteredAdapterProof.status).toBe('UNAVAILABLE')
+
+    // 8. Wrong subject & account switch invalidation -> UNAVAILABLE
+    const userBProof = await makeVerifiedCareOwnership(USER_B_SUBJECT)
+    expect(verifyCareOwnership(userBProof, USER_A_SUBJECT)).toBe('UNAVAILABLE')
+
+    // 9. Care 401 / 403 / 503 -> fail-closed UNAVAILABLE
+    for (const status of [401, 403, 503]) {
+      const errorAdapter = makeCareOwnershipAdapter(USER_A_SUBJECT, {
+        getCurrent: () =>
+          Promise.reject(
+            new ApiError({
+              status,
+              code: `HTTP_${status}`,
+              message: `Care ${status}`,
+            }),
+          ),
+        getDraft: notFound,
+        getHistory: () =>
+          Promise.resolve(makeCareSupportPlanHistoryResponse([])),
+      })
+      const errorProof = await resolveCareOwnershipFromApi(
+        errorAdapter,
+        USER_A_SUBJECT,
+      )
+      expect(errorProof.status).toBe('UNAVAILABLE')
+    }
+
+    // 10. Stale async Care response completing after sign-out -> does NOT grant ownership
+    let activeSessionSubject: string | null = USER_A_SUBJECT
+    let sessionGeneration = 1
+    let resolveDeferredCurrent: ((value: unknown) => void) | undefined
+    const staleAdapter = createCareOwnershipAdapter(
+      {
+        getCurrent: () =>
+          new Promise((resolve) => {
+            resolveDeferredCurrent = resolve
+          }),
+        getDraft: notFound,
+        getHistory: () =>
+          Promise.resolve(makeCareSupportPlanHistoryResponse([])),
+      },
+      {
+        subject: USER_A_SUBJECT,
+        getActiveSubject: () => activeSessionSubject,
+        getSessionGeneration: () => sessionGeneration,
+      },
+    )
+
+    const inFlightPromise = resolveCareOwnershipFromApi(
+      staleAdapter,
+      USER_A_SUBJECT,
+    )
+    // User signs out before Care response arrives
+    activeSessionSubject = null
+    sessionGeneration += 1
+    invalidateCareOwnershipForSubject(USER_A_SUBJECT)
+
+    resolveDeferredCurrent?.(
+      makeCareSupportPlanResponse({
+        status: 'ACTIVE',
+        representationMode: 'NATIVE_V3',
+      }),
+    )
+    const staleProof = await inFlightPromise
+    expect(staleProof.status).toBe('UNAVAILABLE')
+    expect(verifyCareOwnership(staleProof, USER_A_SUBJECT)).toBe('UNAVAILABLE')
   })
 
-  it('P3.4 & P3.5: accepts Care ownership attested from authenticated Care API reader for read-only continuity with canCreatePlan=false and no autoContinue', async () => {
-    const attestedFromReader = await resolveCareOwnershipFromApi(
+  it('S2.11, S2.12, S2.13: Consultation 503 + verified Care-owned via careOwnershipAdapter enters read-only with canCreatePlan=false and no autoContinue, while safetyOverride takes absolute priority', async () => {
+    const notFound = () => Promise.reject({ status: 404, code: 'HTTP_404' })
+    let currentSubject: string | null = USER_A_SUBJECT
+
+    const trustedAdapter = createCareOwnershipAdapter(
       {
-        getCurrent: jest
-          .fn()
-          .mockRejectedValue({ status: 404, code: 'HTTP_404' }),
-        getCurrentDraft: jest
-          .fn()
-          .mockRejectedValue({ status: 404, code: 'HTTP_404' }),
-        getHistory: jest
-          .fn()
-          .mockResolvedValue(
-            makeCareSupportPlanHistoryResponse([makeCareSupportPlanResponse()]),
+        getCurrent: notFound,
+        getDraft: notFound,
+        getHistory: () =>
+          Promise.resolve(
+            makeCareSupportPlanHistoryResponse([
+              makeCareSupportPlanResponse({
+                supportPlanId: SUPPORT_PLAN_ID_2,
+                status: 'COMPLETED',
+                representationMode: 'NATIVE_V3',
+              }),
+            ]),
           ),
       },
-      USER_A_SUBJECT,
+      {
+        subject: USER_A_SUBJECT,
+        getActiveSubject: () => currentSubject,
+      },
     )
-    expect(attestedFromReader.status).toBe('VERIFIED_OWNED')
 
     const unavailableConsultationApi = makeApi({
       getEntitlement: jest
@@ -2888,18 +3071,18 @@ describe('MB-703 P3 — Non-forgeable Care API ownership boundary', () => {
     })
     const onContinueToPlan = jest.fn()
 
-    await render(
+    // 11 & 12: Consultation 503 + verified Care-owned -> read-only, canCreatePlan=false, autoContinue=true does NOT auto-navigate
+    const vReadOnly = await render(
       <QueryClientProvider client={makeQueryClient()}>
         <SupportPlanAccessGate
           api={unavailableConsultationApi}
           autoContinue
-          careOwnership={attestedFromReader}
-          offline
+          careOwnershipAdapter={trustedAdapter}
           onContinueToPlan={onContinueToPlan}
           subject={USER_A_SUBJECT}
         >
           {(ctx) => (
-            <Text testID="p3-verified-readonly">
+            <Text testID="s2-verified-readonly">
               {`MODE:${ctx.accessMode}:CREATE:${ctx.canCreatePlan}:VERIFIED_CARE:${ctx.careOwnershipVerified}`}
             </Text>
           )}
@@ -2914,6 +3097,29 @@ describe('MB-703 P3 — Non-forgeable Care API ownership boundary', () => {
         ),
       ).toBeTruthy()
     })
+    expect(onContinueToPlan).not.toHaveBeenCalled()
+    await vReadOnly.unmount()
+
+    // 13: Safety override takes absolute priority over verified Care ownership
+    await render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <SupportPlanAccessGate
+          api={unavailableConsultationApi}
+          autoContinue
+          careOwnershipAdapter={trustedAdapter}
+          onContinueToPlan={onContinueToPlan}
+          safetyOverride
+          subject={USER_A_SUBJECT}
+        >
+          {() => <Text testID="s2-safety-hidden">Hidden</Text>}
+        </SupportPlanAccessGate>
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('support-plan-safety-override')).toBeTruthy()
+    })
+    expect(screen.queryByTestId('s2-safety-hidden')).toBeNull()
     expect(onContinueToPlan).not.toHaveBeenCalled()
   })
 })

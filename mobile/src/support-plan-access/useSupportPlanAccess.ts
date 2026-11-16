@@ -17,9 +17,12 @@ import {
 import type { SupportPlanAccessApi } from './support-plan-access-api'
 import {
   canOpenHostedCheckoutUrl,
+  invalidateCareOwnershipForSubject,
+  resolveCareOwnershipFromApi,
   sanitizeGuideOrigin,
   verifyCareOwnership,
   type CareOwnedPlanProof,
+  type CareOwnershipAdapter,
   type GuideOrigin,
   type PlanPayment,
   type PlanPaymentHistory,
@@ -48,6 +51,7 @@ export type UseSupportPlanAccessOptions = Readonly<{
   api: SupportPlanAccessApi | null
   safetyOverride?: boolean | undefined
   careOwnership?: CareOwnedPlanProof | undefined
+  careOwnershipAdapter?: CareOwnershipAdapter | null | undefined
   /**
    * @deprecated Unverified boolean hints fail closed to `UNAVAILABLE` unless paired
    * with a valid `careOwnership` proof for the active `subject`.
@@ -74,6 +78,12 @@ type VerifiedPaymentHistoryState = Readonly<{
   value: PlanPaymentHistory
 }>
 
+type VerifiedCareProofState = Readonly<{
+  subject: string
+  generation: number
+  value: CareOwnedPlanProof
+}>
+
 type CheckoutSettlementOutcome =
   | Readonly<{ kind: 'aborted' }>
   | Readonly<{ kind: 'success'; payment: PlanPayment }>
@@ -85,7 +95,7 @@ type CheckoutSettlementOutcome =
 
 function supportPlanAccessKey(
   subject: string | null,
-  scope: 'entitlement' | 'catalogue' | 'payments',
+  scope: 'entitlement' | 'catalogue' | 'payments' | 'care-ownership',
 ) {
   return ['support-plan-access', subject ?? 'anonymous', scope] as const
 }
@@ -158,16 +168,12 @@ export function useSupportPlanAccess(
     api,
     safetyOverride = false,
     careOwnership,
+    careOwnershipAdapter,
     hasOwnedPlanOrHistory,
     offline = false,
     origin,
   } = options
   const validatedOrigin = sanitizeGuideOrigin(origin)
-  const verifiedCareOwnership = verifyCareOwnership(
-    careOwnership,
-    subject,
-    hasOwnedPlanOrHistory,
-  )
 
   const queryClient = useQueryClient()
   const isMountedRef = useRef(true)
@@ -182,6 +188,7 @@ export function useSupportPlanAccess(
   const verificationGenRef = useRef(0)
   const entitlementReqSeqRef = useRef(0)
   const paymentsReqSeqRef = useRef(0)
+  const careOwnershipReqSeqRef = useRef(0)
   const verifiedEntitlementRef = useRef<VerifiedEntitlementState | null>(null)
   const verifiedPaymentHistoryRef = useRef<VerifiedPaymentHistoryState | null>(
     null,
@@ -195,6 +202,8 @@ export function useSupportPlanAccess(
     useState<VerifiedEntitlementState | null>(null)
   const [verifiedPaymentHistory, setVerifiedPaymentHistory] =
     useState<VerifiedPaymentHistoryState | null>(null)
+  const [verifiedCareProof, setVerifiedCareProof] =
+    useState<VerifiedCareProofState | null>(null)
   const [scopedPayment, setScopedPayment] =
     useState<SubjectScoped<PlanPayment> | null>(null)
   const [scopedCheckoutError, setScopedCheckoutError] =
@@ -213,12 +222,19 @@ export function useSupportPlanAccess(
     verificationGenRef.current += 1
     entitlementReqSeqRef.current += 1
     paymentsReqSeqRef.current += 1
+    careOwnershipReqSeqRef.current += 1
     verifiedEntitlementRef.current = null
     verifiedPaymentHistoryRef.current = null
     setVerificationGen(verificationGenRef.current)
     setVerifiedEntitlement(null)
     setVerifiedPaymentHistory(null)
-  }, [setVerificationGen, setVerifiedEntitlement, setVerifiedPaymentHistory])
+    setVerifiedCareProof(null)
+  }, [
+    setVerificationGen,
+    setVerifiedCareProof,
+    setVerifiedEntitlement,
+    setVerifiedPaymentHistory,
+  ])
 
   useEffect(() => {
     isMountedRef.current = true
@@ -227,6 +243,7 @@ export function useSupportPlanAccess(
       lifecycleEpochRef.current += 1
       entitlementReqSeqRef.current += 1
       paymentsReqSeqRef.current += 1
+      careOwnershipReqSeqRef.current += 1
     }
   }, [])
 
@@ -238,11 +255,16 @@ export function useSupportPlanAccess(
       verificationGenRef.current += 1
       entitlementReqSeqRef.current += 1
       paymentsReqSeqRef.current += 1
+      careOwnershipReqSeqRef.current += 1
       verifiedEntitlementRef.current = null
       verifiedPaymentHistoryRef.current = null
       scopedPaymentRef.current = null
       pendingForegroundReconcileRef.current = false
       hadUncertainAttemptRef.current = false
+      invalidateCareOwnershipForSubject(previousSubject)
+      if (!subject) {
+        invalidateCareOwnershipForSubject()
+      }
       if (previousSubject) {
         clearPendingUpgradeIntent(previousSubject)
         clearCheckoutAttempt(previousSubject)
@@ -253,6 +275,7 @@ export function useSupportPlanAccess(
       setVerificationGen(verificationGenRef.current)
       setVerifiedEntitlement(null)
       setVerifiedPaymentHistory(null)
+      setVerifiedCareProof(null)
       setScopedPayment(null)
       setScopedCheckoutError(null)
       setScopedExternalNotice(null)
@@ -271,6 +294,66 @@ export function useSupportPlanAccess(
   }, [queryClient, subject])
 
   const queriesEnabled = Boolean(subject && api && !safetyOverride)
+  const careOwnershipQueryEnabled = Boolean(
+    subject && careOwnershipAdapter && !careOwnership && !safetyOverride,
+  )
+
+  const careOwnershipQuery = useQuery({
+    queryKey: supportPlanAccessKey(subject, 'care-ownership'),
+    enabled: careOwnershipQueryEnabled,
+    retry: false,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    queryFn: async () => {
+      if (!careOwnershipAdapter || !subject) {
+        return Object.freeze({ status: 'UNAVAILABLE' as const })
+      }
+      const capturedSubject = subject
+      const capturedEpoch = lifecycleEpochRef.current
+      const capturedGen = verificationGenRef.current
+      const reqSeq = (careOwnershipReqSeqRef.current += 1)
+
+      const proof = await resolveCareOwnershipFromApi(
+        careOwnershipAdapter,
+        capturedSubject,
+      )
+
+      const stillCurrent =
+        isMountedRef.current &&
+        lifecycleEpochRef.current === capturedEpoch &&
+        activeSubjectRef.current === capturedSubject &&
+        verificationGenRef.current === capturedGen &&
+        careOwnershipReqSeqRef.current === reqSeq
+
+      if (stillCurrent) {
+        setVerifiedCareProof({
+          subject: capturedSubject,
+          generation: capturedGen,
+          value: proof,
+        })
+      }
+      return proof
+    },
+  })
+
+  const activeAdapterCareProof =
+    subject &&
+    verifiedCareProof &&
+    verifiedCareProof.subject === subject &&
+    verifiedCareProof.generation === verificationGen
+      ? verifiedCareProof.value
+      : undefined
+
+  const isCareOwnershipAdapterPending =
+    careOwnershipQueryEnabled &&
+    !activeAdapterCareProof &&
+    (careOwnershipQuery.isLoading || careOwnershipQuery.isFetching)
+
+  const verifiedCareOwnership = verifyCareOwnership(
+    careOwnership ?? activeAdapterCareProof,
+    subject,
+    hasOwnedPlanOrHistory,
+  )
 
   useEffect(() => {
     if (!subject) return
@@ -546,14 +629,15 @@ export function useSupportPlanAccess(
   const resolved = resolveSupportPlanAccessState({
     safetyOverride,
     loading:
-      queriesEnabled &&
-      !offline &&
-      !activeVerifiedEntitlement &&
-      !entitlementError &&
-      (entitlementQuery.isLoading ||
-        entitlementQuery.isFetching ||
-        isReconciling ||
-        isRetrying),
+      (queriesEnabled &&
+        !offline &&
+        !activeVerifiedEntitlement &&
+        !entitlementError &&
+        (entitlementQuery.isLoading ||
+          entitlementQuery.isFetching ||
+          isReconciling ||
+          isRetrying)) ||
+      (isCareOwnershipAdapterPending && verifiedPlanStatus !== 'paid'),
     offline,
     entitlement: canTrustEntitlement ? activeVerifiedEntitlement : null,
     errorCode: resolvedErrorCode,

@@ -4,10 +4,16 @@ import { z } from 'zod'
 import { ApiError, toApiError } from '@/api/api-error'
 
 import {
+  careCurrentSupportPlanV3Schema,
+  careDraftSupportPlanV3Schema,
+  careSupportPlanHistoryV3Schema,
+  createCareOwnershipAdapter,
   planPaymentHistorySchema,
   planPaymentSchema,
   serviceCreditEntitlementSchema,
   servicePlanCatalogueSchema,
+  type CareOwnershipAdapter,
+  type CareOwnershipSessionBinding,
   type PlanPayment,
   type PlanPaymentHistory,
   type ServiceCreditEntitlement,
@@ -172,4 +178,86 @@ export function createSupportPlanAccessApi(
       return parsed.data
     },
   }
+}
+
+/**
+ * Creates a session-bound `CareOwnershipAdapter` backed directly by the app's single
+ * authenticated Care `AxiosInstance` (`GET /api/v2/support-plans/current`,
+ * `GET /api/v2/support-plans/current-draft`, `GET /api/v2/support-plans/history`).
+ *
+ * Compatible with MB-702 `createSupportPlanActionApi(client)` (`getCurrent`, `getDraft`,
+ * `getHistory`) while preserving strict Care v3 schema validation and session binding.
+ */
+export function createHttpCareOwnershipAdapter(
+  client: AxiosInstance,
+  sessionBinding: CareOwnershipSessionBinding | string,
+): CareOwnershipAdapter {
+  const cursorSchema = z.string().min(1).max(256)
+  return createCareOwnershipAdapter(
+    {
+      async getCurrent() {
+        let data: unknown
+        try {
+          data = (await client.get('/api/v2/support-plans/current')).data
+        } catch (error) {
+          throw toApiError(error)
+        }
+        const parsed = careCurrentSupportPlanV3Schema.safeParse(data)
+        if (!parsed.success) {
+          throw invalidContract(
+            'CARE_SUPPORT_PLAN_CONTRACT_MISMATCH',
+            'Dữ liệu Kế hoạch hỗ trợ hiện tại từ Care không đúng định dạng v3.',
+            parsed.error,
+          )
+        }
+        return parsed.data
+      },
+
+      async getDraft() {
+        let data: unknown
+        try {
+          data = (await client.get('/api/v2/support-plans/current-draft')).data
+        } catch (error) {
+          throw toApiError(error)
+        }
+        const parsed = careDraftSupportPlanV3Schema.safeParse(data)
+        if (!parsed.success) {
+          throw invalidContract(
+            'CARE_SUPPORT_PLAN_DRAFT_CONTRACT_MISMATCH',
+            'Dữ liệu bản nháp Kế hoạch hỗ trợ từ Care không đúng định dạng v3.',
+            parsed.error,
+          )
+        }
+        return parsed.data
+      },
+
+      async getHistory(cursor?: string) {
+        const validCursor =
+          cursor === undefined ? undefined : cursorSchema.parse(cursor)
+        let data: unknown
+        try {
+          data = (
+            await client.get('/api/v2/support-plans/history', {
+              params: {
+                limit: 10,
+                ...(validCursor ? { cursor: validCursor } : {}),
+              },
+            })
+          ).data
+        } catch (error) {
+          throw toApiError(error)
+        }
+        const parsed = careSupportPlanHistoryV3Schema.safeParse(data)
+        if (!parsed.success) {
+          throw invalidContract(
+            'CARE_SUPPORT_PLAN_HISTORY_CONTRACT_MISMATCH',
+            'Lịch sử Kế hoạch hỗ trợ từ Care không đúng định dạng v3.',
+            parsed.error,
+          )
+        }
+        return parsed.data
+      },
+    },
+    sessionBinding,
+  )
 }

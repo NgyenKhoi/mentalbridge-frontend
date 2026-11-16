@@ -16,6 +16,7 @@ import type { VerifiedPlanAccessContext } from './plan-access-model'
 import type { SupportPlanAccessApi } from './support-plan-access-api'
 import type {
   CareOwnedPlanProof,
+  CareOwnershipAdapter,
   GuideOrigin,
 } from './support-plan-access-contract'
 import { useSupportPlanAccess } from './useSupportPlanAccess'
@@ -25,6 +26,7 @@ export type SupportPlanAccessGateProps = Readonly<{
   api: SupportPlanAccessApi | null
   safetyOverride?: boolean | undefined
   careOwnership?: CareOwnedPlanProof | undefined
+  careOwnershipAdapter?: CareOwnershipAdapter | null | undefined
   /**
    * @deprecated Unverified boolean hints fail closed to `UNAVAILABLE` unless paired
    * with a valid `careOwnership` proof for the active `subject`.
@@ -74,6 +76,7 @@ export function SupportPlanAccessGate({
   api,
   safetyOverride = false,
   careOwnership,
+  careOwnershipAdapter,
   hasOwnedPlanOrHistory,
   offline = false,
   origin,
@@ -91,6 +94,7 @@ export function SupportPlanAccessGate({
     api,
     safetyOverride,
     careOwnership,
+    careOwnershipAdapter,
     hasOwnedPlanOrHistory,
     offline,
     origin,

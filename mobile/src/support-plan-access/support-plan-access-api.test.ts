@@ -2,12 +2,21 @@ import type { AxiosInstance } from 'axios'
 
 import { ApiError } from '@/api/api-error'
 
-import { createSupportPlanAccessApi } from './support-plan-access-api'
+import {
+  createHttpCareOwnershipAdapter,
+  createSupportPlanAccessApi,
+} from './support-plan-access-api'
+import {
+  resolveCareOwnershipFromApi,
+  verifyCareOwnership,
+} from './support-plan-access-contract'
 import {
   PAYMENT_ID_1,
   PLUS_PLAN_VERSION_ID,
   USER_A_SUBJECT,
   USER_B_SUBJECT,
+  makeCareSupportPlanHistoryResponse,
+  makeCareSupportPlanResponse,
   makeCatalogue,
   makeEntitlement,
   makePayment,
@@ -90,5 +99,49 @@ describe('createSupportPlanAccessApi', () => {
     await expect(api.getPayment(PAYMENT_ID_1)).rejects.toMatchObject({
       code: 'PAYMENT_IDENTITY_MISMATCH',
     })
+  })
+
+  it('creates an authenticated Care v3 HTTP ownership adapter hitting /api/v2/support-plans/current, current-draft, and history', async () => {
+    const client = makeAxiosMock()
+    const adapter = createHttpCareOwnershipAdapter(client, {
+      subject: USER_A_SUBJECT,
+      getActiveSubject: () => USER_A_SUBJECT,
+    })
+
+    client.get.mockImplementation((url: string) => {
+      if (url === '/api/v2/support-plans/current') {
+        return Promise.resolve({
+          data: makeCareSupportPlanResponse({
+            status: 'ACTIVE',
+            representationMode: 'NATIVE_V3',
+          }),
+        })
+      }
+      if (url === '/api/v2/support-plans/current-draft') {
+        return Promise.reject(
+          new ApiError({
+            status: 404,
+            code: 'HTTP_404',
+            message: 'Draft not found',
+          }),
+        )
+      }
+      if (url === '/api/v2/support-plans/history') {
+        return Promise.resolve({
+          data: makeCareSupportPlanHistoryResponse([]),
+        })
+      }
+      return Promise.reject(new Error(`Unexpected URL: ${url}`))
+    })
+
+    const proof = await resolveCareOwnershipFromApi(adapter, USER_A_SUBJECT)
+    expect(client.get).toHaveBeenCalledWith('/api/v2/support-plans/current')
+    expect(client.get).toHaveBeenCalledWith(
+      '/api/v2/support-plans/current-draft',
+    )
+    expect(client.get).toHaveBeenCalledWith('/api/v2/support-plans/history', {
+      params: { limit: 10 },
+    })
+    expect(verifyCareOwnership(proof, USER_A_SUBJECT)).toBe('VERIFIED_OWNED')
   })
 })
