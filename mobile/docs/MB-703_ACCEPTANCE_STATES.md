@@ -40,6 +40,8 @@
 
 ---
 
+**Standalone MB-703 security hardening:** `verifyCareOwnership` rejects unregistered `NONE` / `VERIFIED_OWNED` objects and checks both the subject epoch and global sign-out epoch for every registered proof. `invalidateCareOwnershipForSubject()` revokes previously issued proofs (including when the same subject signs in again). The MB-702 integration must still call invalidation on sign-out and bind live subject/session-generation callbacks; no Care route wiring is claimed here.
+
 ## 4. Post-Merge Integration Boundary (`MB-701` & `MB-702`)
 
 Once PR #266 (`MB-701`) and PR #292 (`MB-702`) are merged into `dev`, wire MB-703 at two explicit boundaries without duplicating entitlement/payment logic:

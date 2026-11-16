@@ -582,6 +582,63 @@ describe('support-plan-access contracts and fail-closed state machine', () => {
     expect(verifyCareOwnership(freshProof, USER_A_SUBJECT)).toBe('UNAVAILABLE')
   })
 
+  it('S2: globally revokes issued owned and NONE proofs on sign-out, even after re-login with the same subject', async () => {
+    // No live-session callbacks: global invalidation must still revoke these proofs.
+    const ownedAdapter = makeCareOwnershipAdapter(USER_A_SUBJECT)
+    const ownedBeforeLogout = await resolveCareOwnershipFromApi(
+      ownedAdapter,
+      USER_A_SUBJECT,
+    )
+    const notFound = () => Promise.reject({ status: 404, code: 'HTTP_404' })
+    const emptyAdapter = makeCareOwnershipAdapter(USER_A_SUBJECT, {
+      getCurrent: notFound,
+      getDraft: notFound,
+      getHistory: async () => makeCareSupportPlanHistoryResponse([]),
+    })
+    const noneBeforeLogout = await resolveCareOwnershipFromApi(
+      emptyAdapter,
+      USER_A_SUBJECT,
+    )
+
+    expect(verifyCareOwnership(ownedBeforeLogout, USER_A_SUBJECT)).toBe(
+      'VERIFIED_OWNED',
+    )
+    expect(verifyCareOwnership(noneBeforeLogout, USER_A_SUBJECT)).toBe('NONE')
+    // Schema-valid but unregistered NONE must not masquerade as an API result.
+    expect(
+      verifyCareOwnership(
+        Object.freeze({
+          status: 'NONE',
+          subject: USER_A_SUBJECT,
+          source: 'CARE_AUTHENTICATED_READ',
+          hasCurrentPlan: false,
+          hasHistory: false,
+        }),
+        USER_A_SUBJECT,
+      ),
+    ).toBe('UNAVAILABLE')
+
+    invalidateCareOwnershipForSubject()
+    expect(verifyCareOwnership(ownedBeforeLogout, USER_A_SUBJECT)).toBe(
+      'UNAVAILABLE',
+    )
+    expect(verifyCareOwnership(noneBeforeLogout, USER_A_SUBJECT)).toBe(
+      'UNAVAILABLE',
+    )
+
+    // A new authenticated owner read in the new epoch is allowed, never old proof reuse.
+    const ownedAfterLogin = await resolveCareOwnershipFromApi(
+      makeCareOwnershipAdapter(USER_A_SUBJECT),
+      USER_A_SUBJECT,
+    )
+    expect(verifyCareOwnership(ownedAfterLogin, USER_A_SUBJECT)).toBe(
+      'VERIFIED_OWNED',
+    )
+    expect(verifyCareOwnership(ownedBeforeLogout, USER_A_SUBJECT)).toBe(
+      'UNAVAILABLE',
+    )
+  })
+
   it('isolates ephemeral upgrade intent and checkout idempotency attempts per subject and TTL', () => {
     setPendingUpgradeIntent({
       subject: USER_A_SUBJECT,

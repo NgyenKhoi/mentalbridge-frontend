@@ -1093,44 +1093,49 @@ export function verifyCareOwnership(
     return 'UNAVAILABLE'
   }
 
-  if (data.status === 'NONE') {
-    const noneAttestation = verifiedCareProofRegistry.get(proof)
-    if (
-      unverifiedOwnedHint === true ||
-      (noneAttestation &&
-        (!normalizedSubject || noneAttestation.subject !== normalizedSubject))
-    ) {
-      return 'UNAVAILABLE'
-    }
-    return 'NONE'
-  }
-
-  if (unverifiedOwnedHint === false) {
-    return 'UNAVAILABLE'
-  }
-
+  // A parsed object is never ownership evidence on its own (including NONE).
+  // Every issued proof is tied to the global sign-out epoch and subject epoch.
   const attestation = verifiedCareProofRegistry.get(proof)
-  const hasOwnedArtifact =
-    data.hasCurrentPlan === true || data.hasHistory === true
-
   if (
     !attestation ||
     !Object.isFrozen(proof) ||
-    attestation.status !== 'VERIFIED_OWNED' ||
     !normalizedSubject ||
     attestation.subject !== normalizedSubject ||
     data.subject !== normalizedSubject ||
-    getSubjectOwnershipEpoch(normalizedSubject) !== attestation.subjectEpoch ||
+    attestation.globalEpoch !== globalCareOwnershipEpoch ||
+    attestation.subjectEpoch !== getSubjectOwnershipEpoch(normalizedSubject) ||
     (attestation.getActiveSubject &&
       attestation.getActiveSubject() !== normalizedSubject) ||
     (attestation.getSessionGeneration &&
       attestation.sessionGeneration !== undefined &&
       attestation.getSessionGeneration() !== attestation.sessionGeneration) ||
     attestation.source !== 'CARE_AUTHENTICATED_READ' ||
-    data.source !== 'CARE_AUTHENTICATED_READ' ||
-    !hasOwnedArtifact ||
-    (attestation.hasCurrentPlan !== Boolean(data.hasCurrentPlan) &&
-      attestation.hasHistory !== Boolean(data.hasHistory)) ||
+    data.source !== 'CARE_AUTHENTICATED_READ'
+  ) {
+    return 'UNAVAILABLE'
+  }
+
+  if (data.status === 'NONE') {
+    if (
+      unverifiedOwnedHint === true ||
+      attestation.status !== 'NONE' ||
+      data.hasCurrentPlan !== false ||
+      data.hasHistory !== false ||
+      attestation.hasCurrentPlan ||
+      attestation.hasHistory ||
+      attestation.verifiedPlanIds.length !== 0
+    ) {
+      return 'UNAVAILABLE'
+    }
+    return 'NONE'
+  }
+
+  if (
+    unverifiedOwnedHint === false ||
+    attestation.status !== 'VERIFIED_OWNED' ||
+    !(data.hasCurrentPlan === true || data.hasHistory === true) ||
+    attestation.hasCurrentPlan !== Boolean(data.hasCurrentPlan) ||
+    attestation.hasHistory !== Boolean(data.hasHistory) ||
     attestation.verifiedPlanIds.length === 0
   ) {
     return 'UNAVAILABLE'
