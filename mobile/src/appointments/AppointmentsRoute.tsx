@@ -10,9 +10,11 @@ import { createConsultationBriefApi } from '@/consultation-brief/consultation-br
 import { createDiscoveryApi } from '@/discovery/discovery-api'
 import { secureCredentialStore } from '@/security/credential-store'
 import { createUserSummaryApi } from '@/user-summary/user-summary-api'
+import { createSubscriptionApi } from '@/subscription/subscription-api'
 import { createVideoApi } from '@/video/video-api'
 
 import { createAppointmentApi } from './appointment-api'
+import { createAppointmentRatingApi } from './appointment-rating-api'
 import { AppointmentsScreen } from './AppointmentsScreen'
 
 function AccountAppointmentsRoute({
@@ -28,10 +30,12 @@ function AccountAppointmentsRoute({
     return {
       client,
       api: createAppointmentApi(client, subject),
+      rating: createAppointmentRatingApi(client),
       dispute: createAppointmentDisputeApi(client),
       consultationBrief: createConsultationBriefApi(client),
       discovery: createDiscoveryApi(client),
       sessionSummary: createUserSummaryApi(client, subject),
+      subscription: createSubscriptionApi(client),
       video: createVideoApi(client),
     }
   })
@@ -49,6 +53,7 @@ function AccountAppointmentsRoute({
   return (
     <AppointmentsScreen
       api={binding.api}
+      ratingApi={binding.rating}
       initialAppointmentId={
         typeof appointmentId === 'string' ? appointmentId : null
       }
@@ -56,6 +61,7 @@ function AccountAppointmentsRoute({
       consultationBriefApi={binding.consultationBrief}
       discovery={binding.discovery}
       sessionSummaryApi={binding.sessionSummary}
+      subscriptionApi={binding.subscription}
       videoApi={binding.video}
       onBack={() => router.back()}
     />

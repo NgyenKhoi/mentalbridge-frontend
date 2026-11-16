@@ -1,0 +1,22 @@
+appId: com.mentalbridge.mobile
+tags:
+  - mb-698
+  - mb-709
+  - authored-not-run
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'Đăng nhập'
+- tapOn: 'Email'
+- inputText: ${MB698_USER_EMAIL}
+- tapOn: 'Mật khẩu'
+- inputText: ${MB698_USER_PASSWORD}
+- tapOn: 'Đăng nhập'
+- tapOn: 'Lịch tư vấn'
+- tapOn:
+    id: 'appointment-open-detail'
+    index: 0
+- assertVisible: 'Đánh giá buổi tư vấn'
+- tapOn: '5 sao'
+- tapOn: 'Gửi đánh giá'
+- assertVisible: 'Đã lưu đánh giá theo trạng thái mới nhất từ hệ thống.'

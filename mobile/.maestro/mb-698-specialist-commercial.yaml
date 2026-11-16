@@ -1,0 +1,17 @@
+appId: com.mentalbridge.mobile
+tags:
+  - mb-698
+  - mb-712
+  - authored-not-run
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'Đăng nhập'
+- tapOn: 'Email'
+- inputText: ${MB698_SPECIALIST_EMAIL}
+- tapOn: 'Mật khẩu'
+- inputText: ${MB698_SPECIALIST_PASSWORD}
+- tapOn: 'Đăng nhập'
+- assertVisible: 'Đánh giá và tài chính'
+- assertVisible: 'Đánh giá đã công bố'
+- assertVisible: 'Số dư do hệ thống xác nhận'

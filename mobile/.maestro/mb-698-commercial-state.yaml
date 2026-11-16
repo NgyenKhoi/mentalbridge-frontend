@@ -1,0 +1,18 @@
+appId: com.mentalbridge.mobile
+tags:
+  - mb-698
+  - mb-711
+  - authored-not-run
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'Đăng nhập'
+- tapOn: 'Email'
+- inputText: ${MB698_USER_EMAIL}
+- tapOn: 'Mật khẩu'
+- inputText: ${MB698_USER_PASSWORD}
+- tapOn: 'Đăng nhập'
+- tapOn: 'Lịch tư vấn'
+- assertVisible: 'Gói dịch vụ và thanh toán'
+- assertVisible: 'Quyền đặt lịch chỉ được mở theo lượt tư vấn mà máy chủ xác nhận ở phía trên.'
+- assertVisible: 'Plus'

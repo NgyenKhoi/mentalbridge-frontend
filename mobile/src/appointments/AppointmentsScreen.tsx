@@ -22,11 +22,15 @@ import {
 } from '@/discovery/discovery-model'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 import type { UserSummaryApi } from '@/user-summary/user-summary-api'
+import type { SubscriptionApi } from '@/subscription/subscription-api'
+import { SubscriptionCommercialPanel } from '@/subscription/SubscriptionCommercialPanel'
 import { UserSessionSummaryPanel } from '@/user-summary/UserSessionSummaryPanel'
 import { VideoConsultationPanel } from '@/video/VideoConsultationPanel'
 import type { VideoApi } from '@/video/video-api'
 
 import type { AppointmentApi } from './appointment-api'
+import type { AppointmentRatingApi } from './appointment-rating-api'
+import { AppointmentRatingPanel } from './AppointmentRatingPanel'
 import type { Appointment, CreditAccount } from './appointment-contract'
 import {
   ambiguous,
@@ -47,11 +51,13 @@ import {
 type Props = Readonly<{
   initialAppointmentId?: string | null
   api: AppointmentApi
+  ratingApi?: AppointmentRatingApi
   disputeApi?: AppointmentDisputeApi
   consultationBriefApi?: ConsultationBriefApi
   discovery: DiscoveryApi
   onBack: () => void
   sessionSummaryApi?: UserSummaryApi
+  subscriptionApi?: SubscriptionApi
   videoApi?: VideoApi
   initialSelection?: SlotSelection | undefined
   originatingPlanActionId?: string | undefined
@@ -136,6 +142,7 @@ function AppointmentFacts({ item }: Readonly<{ item: Appointment }>) {
 }
 function AccountAppointmentsScreen({
   api,
+  ratingApi,
   disputeApi,
   consultationBriefApi,
   discovery,
@@ -144,6 +151,7 @@ function AccountAppointmentsScreen({
   initialAppointmentId = null,
   originatingPlanActionId,
   sessionSummaryApi,
+  subscriptionApi,
   supportEvaluationId,
   videoApi,
   subject,
@@ -476,6 +484,13 @@ function AccountAppointmentsScreen({
             )
           )}
         </View>
+        {subscriptionApi && (
+          <SubscriptionCommercialPanel
+            api={subscriptionApi}
+            currentPackageCode={credits.data?.packageCode}
+            subject={subject}
+          />
+        )}
         {review ? (
           <View style={styles.panel} testID="appointment-review">
             <Text accessibilityRole="header" style={styles.subtitle}>
@@ -648,6 +663,13 @@ function AccountAppointmentsScreen({
                       api={sessionSummaryApi}
                       appointmentId={item.id}
                       userAccountId={subject}
+                    />
+                  )}
+                  {item.sessionOutcome === 'COMPLETED' && ratingApi && (
+                    <AppointmentRatingPanel
+                      key={`rating:${item.id}`}
+                      api={ratingApi}
+                      appointmentId={item.id}
                     />
                   )}
                   {disputeApi &&

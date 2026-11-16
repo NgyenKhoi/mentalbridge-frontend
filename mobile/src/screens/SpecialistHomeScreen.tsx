@@ -5,9 +5,13 @@ import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import type { SpecialistCommercialApi } from '@/specialist-commercial/specialist-commercial-api'
+import { SpecialistCommercialPanel } from '@/specialist-commercial/SpecialistCommercialPanel'
 
-export function SpecialistHomeScreen() {
-  const { signOut } = useSession()
+export function SpecialistHomeScreen({
+  commercialApi,
+}: Readonly<{ commercialApi?: SpecialistCommercialApi }>) {
+  const { signOut, session } = useSession()
 
   return (
     <Screen>
@@ -19,6 +23,12 @@ export function SpecialistHomeScreen() {
         Quản lý lịch hẹn được giao, chuẩn bị cho phiên tư vấn và cập nhật hồ sơ,
         lịch làm việc của bạn từ một nơi.
       </Text>
+      {commercialApi && session?.role === 'SPECIALIST' ? (
+        <SpecialistCommercialPanel
+          api={commercialApi}
+          subject={session.subject}
+        />
+      ) : null}
       <View style={styles.actions}>
         <PrimaryButton
           label="Mở lịch hẹn tư vấn"
