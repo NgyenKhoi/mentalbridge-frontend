@@ -235,6 +235,11 @@ export const reactionResultSchema = z.strictObject({
   postId: id,
   reaction: reactionSchema,
 })
+export const commentReactionSchema = z.strictObject({
+  commentId: id,
+  reaction: reactionSchema.nullable(),
+  reactionCount: version,
+})
 export const etagSchema = z
   .string()
   .regex(/^"(0|[1-9]\d*)"$/)
@@ -255,6 +260,7 @@ export type CommentPage = z.infer<typeof commentPageSchema>
 export type CommunityProfile = z.infer<typeof profileSchema>
 export type ProfileWrite = z.infer<typeof profileWriteSchema>
 export type Reaction = z.infer<typeof reactionSchema>
+export type CommentReaction = z.infer<typeof commentReactionSchema>
 export type ReportWrite = z.infer<typeof reportWriteSchema>
 export type UploadWrite = z.infer<typeof uploadWriteSchema>
 export type UploadIntent = z.infer<typeof uploadIntentSchema>

@@ -48,3 +48,14 @@ jest.mock('expo-notifications', () => ({
   getLastNotificationResponse: jest.fn(() => null),
   clearLastNotificationResponse: jest.fn(),
 }))
+
+// expo-font cannot resolve expo-asset under jest (nested install); icons render as an empty Text keyed by glyph name.
+jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => {
+  const { createElement } = jest.requireActual('react')
+  const { Text } = jest.requireActual('react-native')
+  return {
+    __esModule: true,
+    default: ({ name, ...props }: { name: string }) =>
+      createElement(Text, { ...props, testID: `icon-${name}` }),
+  }
+})
