@@ -12,37 +12,22 @@ import {
 import type { CommunityViewerState } from '@/lib/community/community-validation'
 import styles from './CommunityInteractions.module.css'
 
+// Same kinds, order, emoji and labels as the mobile tray (mobile/src/community/community-reactions.ts).
 const REACTIONS: ReadonlyArray<{
   value: SupportiveReaction
+  emoji: string
   label: string
-  mobileLabel: string
-  icon: 'support' | 'relate' | 'thanks'
 }> = [
-  {
-    value: 'SUPPORT',
-    label: 'Đồng hành',
-    mobileLabel: 'Đồng hành',
-    icon: 'support',
-  },
-  {
-    value: 'RELATE',
-    label: 'Mình cũng vậy',
-    mobileLabel: 'Đồng cảm',
-    icon: 'relate',
-  },
-  {
-    value: 'THANK_YOU',
-    label: 'Cảm ơn bạn',
-    mobileLabel: 'Cảm ơn',
-    icon: 'thanks',
-  },
+  { value: 'LIKE', emoji: '👍', label: 'Thích' },
+  { value: 'SUPPORT', emoji: '❤️', label: 'Thương' },
+  { value: 'THANK_YOU', emoji: '🥰', label: 'Cảm ơn' },
+  { value: 'RELATE', emoji: '🤗', label: 'Ôm' },
+  { value: 'EMPATHY', emoji: '😢', label: 'Đồng cảm' },
+  { value: 'CHEER', emoji: '💪', label: 'Cố lên' },
+  { value: 'GROWTH', emoji: '🌱', label: 'Đang lớn lên' },
 ]
 
-function InteractionIcon({
-  name,
-}: Readonly<{
-  name: 'support' | 'relate' | 'thanks' | 'bookmark'
-}>) {
+function BookmarkIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -53,22 +38,7 @@ function InteractionIcon({
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      {name === 'support' && (
-        <>
-          <path d="m8.2 12.5 2.1 2.1a2 2 0 0 0 2.8 0l3.6-3.6" />
-          <path d="m3.5 10.5 3.2-3.2 3 1 2.3-1.8 2.2 1.6 3.1-.8 3.2 3.2-5.8 7.2a3.5 3.5 0 0 1-5.4.1L3.5 10.5Z" />
-        </>
-      )}
-      {name === 'relate' && (
-        <>
-          <path d="M12 20V8" />
-          <path d="M12 13c-4.2 0-6.5-2.2-6.5-6.5 4.3 0 6.5 2.2 6.5 6.5ZM12 16c4.2 0 6.5-2.2 6.5-6.5-4.3 0-6.5 2.2-6.5 6.5Z" />
-        </>
-      )}
-      {name === 'thanks' && (
-        <path d="M20.5 9.4c0 4.4-5.2 8-8.5 10.1C8.7 17.4 3.5 13.8 3.5 9.4A4.4 4.4 0 0 1 12 7.8a4.4 4.4 0 0 1 8.5 1.6Z" />
-      )}
-      {name === 'bookmark' && <path d="M6.5 4.5h11v15L12 16.1l-5.5 3.4v-15Z" />}
+      <path d="M6.5 4.5h11v15L12 16.1l-5.5 3.4v-15Z" />
     </svg>
   )
 }
@@ -189,6 +159,7 @@ function CommunityInteractionState({
             disabled={pending !== undefined}
             onClick={() => void chooseReaction(reaction.value)}
             aria-label={reaction.label}
+            title={reaction.label}
             data-reaction-feedback={
               feedback === reaction.value ? 'committed' : undefined
             }
@@ -198,7 +169,7 @@ function CommunityInteractionState({
               aria-hidden="true"
               onAnimationEnd={() => setFeedback(undefined)}
             >
-              <InteractionIcon name={reaction.icon} />
+              <span className={styles.emoji}>{reaction.emoji}</span>
               {feedback === reaction.value && (
                 <svg className={styles.sparkles} viewBox="0 0 32 32">
                   <path d="M5 6v4M3 8h4M26 3v4M24 5h4" />
@@ -207,8 +178,7 @@ function CommunityInteractionState({
                 </svg>
               )}
             </span>
-            <span className={styles.desktopLabel}>{reaction.label}</span>
-            <span className={styles.mobileLabel}>{reaction.mobileLabel}</span>
+            <span className={styles.label}>{reaction.label}</span>
           </button>
         ))}
       </div>
@@ -222,7 +192,7 @@ function CommunityInteractionState({
         disabled={pending !== undefined}
         onClick={() => void toggleBookmark()}
       >
-        <InteractionIcon name="bookmark" />
+        <BookmarkIcon />
         {state.bookmarked ? 'Đã lưu' : 'Lưu bài'}
       </button>
       {pending && (

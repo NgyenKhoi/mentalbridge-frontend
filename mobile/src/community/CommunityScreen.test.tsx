@@ -456,7 +456,7 @@ describe('mobile Community peer-support journey', () => {
     await openPost()
     await press('Thả cảm xúc')
     expect(
-      await screen.findByRole('button', { name: 'Bạn đã thả: Mình ở đây' }),
+      await screen.findByRole('button', { name: 'Bạn đã thả: Thương' }),
     ).toBeOnTheScreen()
     expect(screen.getByText('1 lời động viên')).toBeOnTheScreen()
     expect(screen.getByLabelText('0 bình luận')).toBeOnTheScreen()
@@ -469,7 +469,7 @@ describe('mobile Community peer-support journey', () => {
     )
     expect(community.react).toHaveBeenCalledWith(fixturePostId, 'SUPPORT')
     expect(community.detail).toHaveBeenCalledTimes(1)
-    await press('Bạn đã thả: Mình ở đây')
+    await press('Bạn đã thả: Thương')
     await waitFor(() =>
       expect(community.react).toHaveBeenLastCalledWith(fixturePostId, null),
     )
@@ -483,15 +483,15 @@ describe('mobile Community peer-support journey', () => {
       screen.getByRole('button', { name: 'Thả cảm xúc' }),
       'longPress',
     )
-    await press('Mình đồng cảm')
+    await press('Ôm')
     await waitFor(() =>
       expect(community.react).toHaveBeenCalledWith(fixturePostId, 'RELATE'),
     )
     expect(
-      await screen.findByRole('button', { name: 'Bạn đã thả: Mình đồng cảm' }),
+      await screen.findByRole('button', { name: 'Bạn đã thả: Ôm' }),
     ).toBeOnTheScreen()
     expect(await screen.findByText('1')).toBeOnTheScreen()
-    await press('Bạn đã thả: Mình đồng cảm')
+    await press('Bạn đã thả: Ôm')
     await waitFor(() =>
       expect(community.react).toHaveBeenLastCalledWith(fixturePostId, null),
     )
@@ -655,7 +655,7 @@ describe('mobile Community peer-support journey', () => {
       await fireEvent.press(await screen.findByRole('button', { name: label }))
       expect(
         await screen.findByRole('button', {
-          name: 'Bạn đã thả: Mình ở đây cho bình luận của Bạn cùng cộng đồng',
+          name: 'Bạn đã thả: Thương cho bình luận của Bạn cùng cộng đồng',
         }),
       ).toBeOnTheScreen()
       await waitFor(() =>
@@ -665,7 +665,7 @@ describe('mobile Community peer-support journey', () => {
         ),
       )
       expect(await screen.findByLabelText('1 cảm xúc')).toBeOnTheScreen()
-      await press('Bạn đã thả: Mình ở đây cho bình luận của Bạn cùng cộng đồng')
+      await press('Bạn đã thả: Thương cho bình luận của Bạn cùng cộng đồng')
       await waitFor(() =>
         expect(community.clearCommentReaction).toHaveBeenCalledWith(commentId),
       )
@@ -755,11 +755,11 @@ describe('mobile Community peer-support journey', () => {
       'Cố lên',
     )
     await press('Chèn 🥰')
-    await press('Chèn 👏')
+    await press('Chèn 🤗')
     expect(screen.getByLabelText('Nội dung bình luận').props.value).toBe(
-      'Cố lên🥰👏',
+      'Cố lên🥰🤗',
     )
-    expect(screen.queryByRole('button', { name: 'Chèn 🙏' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Chèn 👏' })).toBeNull()
   })
   it('does not show the identity note on a named post', async () => {
     await mount(api())

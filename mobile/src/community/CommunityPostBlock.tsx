@@ -164,7 +164,7 @@ export function PostMedia({
           importantForAccessibility="no"
           style={[styles.big, style]}
         >
-          {reactionKind('SUPPORT').emoji}
+          {reactionKind('SUPPORT')?.emoji}
         </Animated.Text>
       </View>
     </Pressable>

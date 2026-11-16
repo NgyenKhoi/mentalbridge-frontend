@@ -116,7 +116,7 @@ describe('Community v1.11 public boundary', () => {
     expect(
       postDetailSchema.safeParse({
         ...fixturePost,
-        viewerState: { reaction: 'LIKE', bookmarked: false },
+        viewerState: { reaction: 'ANGRY', bookmarked: false },
       }).success,
     ).toBe(false)
   })
@@ -230,7 +230,7 @@ describe('Community v1.11 public boundary', () => {
         .success,
     ).toBe(true)
     expect(
-      commentReactionSchema.safeParse({ ...value, reaction: 'LIKE' }).success,
+      commentReactionSchema.safeParse({ ...value, reaction: 'ANGRY' }).success,
     ).toBe(false)
     expect(
       commentReactionSchema.safeParse({ ...value, reactionCount: -1 }).success,
