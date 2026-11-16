@@ -16,6 +16,11 @@ export const ADMIN_SECTIONS = {
   content: {
     label: 'Tài nguyên tự chăm sóc',
   },
+  benchmarks: {
+    label: 'Benchmark AI',
+    description:
+      'Quản trị bộ dữ liệu tổng hợp, phiên bản bất biến và báo cáo benchmark.',
+  },
   moderation: {
     label: 'Kiểm duyệt Community',
   },

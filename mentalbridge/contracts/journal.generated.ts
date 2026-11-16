@@ -4,6 +4,111 @@
  */
 
 export interface paths {
+    "/api/v1/admin/ai-benchmarks/datasets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List approved synthetic evaluation dataset versions. */
+        get: operations["listGovernedBenchmarkDatasets"];
+        put?: never;
+        /** Register one immutable synthetic evaluation dataset version. */
+        post: operations["createGovernedBenchmarkDataset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-benchmarks/datasets/{datasetId}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect one synthetic dataset version and its approved cases. */
+        get: operations["inspectGovernedBenchmarkDataset"];
+        put?: never;
+        /** Create a new immutable version from an existing dataset lineage. */
+        post: operations["createGovernedBenchmarkDatasetVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-benchmarks/datasets/{datasetId}/versions/{version}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive a version while retaining it for historical audit. */
+        post: operations["archiveGovernedBenchmarkDatasetVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-benchmarks/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List benchmark runs with pinned provenance and aggregate outcomes. */
+        get: operations["listGovernedBenchmarkRuns"];
+        put?: never;
+        /** Run an approved provider model against one active pinned dataset version. */
+        post: operations["runGovernedBenchmark"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-benchmarks/runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect one benchmark run and its aggregate provenance. */
+        get: operations["inspectGovernedBenchmarkRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-benchmarks/runs/{runId}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export aggregate synthetic benchmark evidence without case text, secrets, or personal data. */
+        get: operations["exportGovernedBenchmarkRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/ai-companion/voice-sessions/{voiceSessionId}/turns": {
         parameters: {
             query?: never;
@@ -793,6 +898,135 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        GovernedBenchmarkCase: {
+            id: string;
+            /** @description Approved synthetic evaluation input; production personal-health content is prohibited. */
+            text: string;
+            acceptableSuggestedActions: ("NONE" | "OFFER_RESOURCE_EXPLANATION" | "GUIDE_APPROVED_ACTIVITY" | "REQUEST_ALLOWED_ALTERNATIVE" | "REQUEST_PLAN_REVIEW" | "OPEN_PROFESSIONAL_SUPPORT" | "OPEN_SAFETY_GUIDANCE")[];
+            requiredSignalTerms: string[];
+            forbiddenClaims: string[];
+        };
+        CreateGovernedBenchmarkDataset: {
+            datasetId: string;
+            version: string;
+            /** @constant */
+            workload: "EXACT_REVISION";
+            /** @constant */
+            language: "vi";
+            /** @constant */
+            source: "MENTALBRIDGE_SYNTHETIC_V1";
+            /** @constant */
+            license: "CC0-1.0";
+            description: string;
+            cases: components["schemas"]["GovernedBenchmarkCase"][];
+        };
+        CreateGovernedBenchmarkDatasetVersion: {
+            version: string;
+            description: string;
+            cases: components["schemas"]["GovernedBenchmarkCase"][];
+        };
+        GovernedBenchmarkDataset: {
+            datasetId: string;
+            version: string;
+            /** @constant */
+            workload: "EXACT_REVISION";
+            /** @constant */
+            language: "vi";
+            /** @constant */
+            source: "MENTALBRIDGE_SYNTHETIC_V1";
+            /** @constant */
+            license: "CC0-1.0";
+            description: string;
+            sha256: string;
+            caseCount: number;
+            /** Format: date-time */
+            registeredAt: string;
+            /** Format: date-time */
+            archivedAt: string | null;
+            previousVersion: string | null;
+        };
+        GovernedBenchmarkDatasetDetail: components["schemas"]["GovernedBenchmarkDataset"] & {
+            cases: components["schemas"]["GovernedBenchmarkCase"][];
+        };
+        RunGovernedBenchmark: {
+            datasetId: string;
+            datasetVersion: string;
+            /** @enum {string} */
+            provider: "GEMINI" | "OPENAI" | "BEDROCK";
+            model: string;
+        };
+        GovernedBenchmarkCandidate: {
+            /** @enum {string} */
+            provider: "GEMINI" | "OPENAI" | "BEDROCK";
+            model: string;
+        } & {
+            [key: string]: unknown;
+        };
+        GovernedBenchmarkAggregate: {
+            /** @enum {string} */
+            provider: "GEMINI" | "OPENAI" | "BEDROCK";
+            model: string;
+            caseCount: number;
+            successCount: number;
+            errorCount: number;
+            qualityPassRate: number;
+            safetyPassRate: number;
+            averageQualityScore: number;
+            averageLatencyMs: number | null;
+            totalInputTokens: number;
+            totalOutputTokens: number;
+            totalEstimatedCostMicroUsd: number;
+        };
+        GovernedBenchmarkRun: {
+            /** Format: uuid */
+            runId: string;
+            datasetId: string;
+            datasetVersion: string;
+            datasetSha256: string;
+            promptVersion: string;
+            /** @enum {string} */
+            status: "RUNNING" | "COMPLETED" | "FAILED";
+            candidates: components["schemas"]["GovernedBenchmarkCandidate"][];
+            aggregates: components["schemas"]["GovernedBenchmarkAggregate"][];
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+        };
+        BenchmarkExecutionReceipt: {
+            /** Format: uuid */
+            runId: string;
+            aggregates: components["schemas"]["GovernedBenchmarkAggregate"][];
+            failures: ({
+                caseId: string;
+                /** @enum {string} */
+                provider: "GEMINI" | "OPENAI" | "BEDROCK";
+                model: string;
+                errorClassification: string;
+            } & {
+                [key: string]: unknown;
+            })[];
+        };
+        GovernedBenchmarkExport: {
+            /** @constant */
+            exportVersion: "benchmark-aggregate-v1";
+            /** Format: uuid */
+            runId: string;
+            dataset: {
+                datasetId: string;
+                version: string;
+                sha256: string;
+            };
+            promptVersion: string;
+            candidates: components["schemas"]["GovernedBenchmarkCandidate"][];
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** @enum {string} */
+            status: "RUNNING" | "COMPLETED" | "FAILED";
+            aggregates: components["schemas"]["GovernedBenchmarkAggregate"][];
+        };
         VoiceTurn: {
             /** Format: uuid */
             attemptId: string;
@@ -2255,6 +2489,10 @@ export interface components {
         };
     };
     parameters: {
+        BenchmarkDatasetId: string;
+        BenchmarkDatasetVersion: string;
+        /** @description Stable per-admin command key; changed intent returns a conflict. */
+        BenchmarkCommandKey: string;
         /** @description Calendar day computed in the IANA timezone stored at creation. */
         LocalDate: string;
         EmotionLimit: number;
@@ -2289,6 +2527,259 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listGovernedBenchmarkDatasets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded dataset catalogue. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GovernedBenchmarkDataset"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createGovernedBenchmarkDataset: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable per-admin command key; changed intent returns a conflict. */
+                "Idempotency-Key": components["parameters"]["BenchmarkCommandKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGovernedBenchmarkDataset"];
+            };
+        };
+        responses: {
+            /** @description Dataset version registered. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkDataset"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    inspectGovernedBenchmarkDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                datasetId: components["parameters"]["BenchmarkDatasetId"];
+                version: components["parameters"]["BenchmarkDatasetVersion"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dataset version detail. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkDatasetDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createGovernedBenchmarkDatasetVersion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable per-admin command key; changed intent returns a conflict. */
+                "Idempotency-Key": components["parameters"]["BenchmarkCommandKey"];
+            };
+            path: {
+                datasetId: components["parameters"]["BenchmarkDatasetId"];
+                version: components["parameters"]["BenchmarkDatasetVersion"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGovernedBenchmarkDatasetVersion"];
+            };
+        };
+        responses: {
+            /** @description New immutable version registered. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkDataset"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    archiveGovernedBenchmarkDatasetVersion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable per-admin command key; changed intent returns a conflict. */
+                "Idempotency-Key": components["parameters"]["BenchmarkCommandKey"];
+            };
+            path: {
+                datasetId: components["parameters"]["BenchmarkDatasetId"];
+                version: components["parameters"]["BenchmarkDatasetVersion"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived dataset version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkDataset"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listGovernedBenchmarkRuns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded benchmark run history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GovernedBenchmarkRun"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    runGovernedBenchmark: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable per-admin command key; changed intent returns a conflict. */
+                "Idempotency-Key": components["parameters"]["BenchmarkCommandKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunGovernedBenchmark"];
+            };
+        };
+        responses: {
+            /** @description Completed benchmark receipt. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenchmarkExecutionReceipt"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["BadRequest"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    inspectGovernedBenchmarkRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Benchmark run. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkRun"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    exportGovernedBenchmarkRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregate benchmark evidence export. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkExport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     generateAuthorizedVoiceTurn: {
         parameters: {
             query?: never;
