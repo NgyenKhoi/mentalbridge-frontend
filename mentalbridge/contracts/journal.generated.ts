@@ -1151,6 +1151,8 @@ export interface components {
             attemptId: string;
             /** Format: uuid */
             dispatchId: string;
+            /** @description Optional MB-862 policy binding; required for measurement attempts. Missing/mismatched capability denies before media. */
+            measurementHash?: string;
         };
         VoiceAgentLease: {
             /** Format: uuid */
@@ -1165,6 +1167,12 @@ export interface components {
             hardStopAt: string;
             /** @constant */
             policyVersion: "companion-voice-policy-v1";
+            measurement?: {
+                configHash: string;
+                ttsCharacters: number;
+                /** Format: uuid */
+                voiceId: string;
+            };
         };
         VoiceWorkerSignal: {
             /** @constant */
