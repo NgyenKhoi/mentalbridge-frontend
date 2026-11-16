@@ -3305,7 +3305,7 @@ describe('MB-703 S1/S2/S3 — Care v3 Contract & Ownership Security Boundary', (
       expect(startCheckout.mock.calls[0][1]).not.toBe('idemp-c1-failed-key')
     })
 
-    it('C2.1: revalidates lifecycle: AppState background/foreground during async history preflight aborts before POST', async () => {
+    it('C2.1 / D3: revalidates lifecycle: AppState background/foreground during async history preflight aborts before POST', async () => {
       let resolveHistory: (val: PlanPaymentHistory) => void = () => {}
       const historyPromise = new Promise<PlanPaymentHistory>((resolve) => {
         resolveHistory = resolve
@@ -3355,15 +3355,17 @@ describe('MB-703 S1/S2/S3 — Care v3 Contract & Ownership Security Boundary', (
 
       // Trigger startPlusUpgrade
       await fireEvent.press(screen.getByTestId('locked-preview-upgrade-button'))
+      // Verify async preflight started before AppState change
       expect(getPaymentHistory).toHaveBeenCalledTimes(2)
 
       // While history is in-flight, simulate AppState resume (background -> active)
-      // which increments verificationGenRef
+      // which realistically triggers the transition and increments verificationGenRef
       await act(async () => {
+        appStateListener?.('background')
         appStateListener?.('active')
       })
 
-      // Now history resolves
+      // Now history resolves after invalidation
       await act(async () => {
         resolveHistory({
           items: [],
@@ -3586,6 +3588,746 @@ describe('MB-703 S1/S2/S3 — Care v3 Contract & Ownership Security Boundary', (
 
       // Linking.openURL MUST NOT be called on unmounted component!
       expect(openURL).not.toHaveBeenCalled()
+    })
+
+    describe('MB-703 D1, D2: Exact Payment Correlation & Safety Override Navigation', () => {
+      it('D1.1: unrelated FAILED payment for same planVersionId does not terminate expired attempt; blocks with CHECKOUT_RECOVERY_REQUIRED and reuses original key on retry', async () => {
+        let nowMs = 1_000_000
+        jest.spyOn(Date, 'now').mockImplementation(() => nowMs)
+
+        saveCheckoutAttempt({
+          subject: USER_A_SUBJECT,
+          planVersionId: PLUS_PLAN_VERSION_ID,
+          idempotencyKey: 'idemp-d1-1-key',
+          paymentId: PAYMENT_ID_1,
+          status: 'uncertain',
+          nowMs,
+        })
+        nowMs += 31 * 60 * 1000
+
+        const startCheckout = jest.fn().mockResolvedValue(
+          makePayment({
+            paymentId: PAYMENT_ID_1,
+            planVersionId: PLUS_PLAN_VERSION_ID,
+            status: 'PENDING',
+          }),
+        )
+        const getPaymentHistory = jest.fn().mockResolvedValue({
+          items: [
+            makePayment({
+              paymentId: PAYMENT_ID_2,
+              planVersionId: PLUS_PLAN_VERSION_ID,
+              status: 'FAILED',
+            }),
+          ],
+          count: 1,
+          generatedAt: '2026-11-15T10:35:00Z',
+        })
+        const getPayment = jest.fn().mockRejectedValue(
+          new ApiError({
+            status: 404,
+            code: 'PAYMENT_NOT_FOUND',
+            message: 'Payment not found',
+          }),
+        )
+        const api = makeApi({ startCheckout, getPaymentHistory, getPayment })
+
+        await render(
+          <QueryClientProvider client={makeQueryClient()}>
+            <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+          </QueryClientProvider>,
+        )
+
+        await waitFor(() => {
+          expect(
+            screen.getByTestId('locked-preview-upgrade-button'),
+          ).toBeTruthy()
+        })
+
+        // Press 1: Unrelated FAILED payment must NOT terminate attempt. Must block with CHECKOUT_RECOVERY_REQUIRED
+        await fireEvent.press(
+          screen.getByTestId('locked-preview-upgrade-button'),
+        )
+        await waitFor(() => {
+          expect(
+            screen.getByText('Mã: CHECKOUT_RECOVERY_REQUIRED'),
+          ).toBeTruthy()
+        })
+        expect(startCheckout).not.toHaveBeenCalled()
+
+        // Press 2: User explicitly retries: must reuse the original idempotency key
+        await fireEvent.press(
+          screen.getByTestId('locked-preview-upgrade-button'),
+        )
+        await waitFor(() => {
+          expect(startCheckout).toHaveBeenCalledTimes(1)
+        })
+        expect(startCheckout).toHaveBeenCalledWith(
+          PLUS_PLAN_VERSION_ID,
+          'idemp-d1-1-key',
+        )
+      })
+
+      it('D1.2: unrelated SUCCEEDED payment for same planVersionId does not settle expired attempt; blocks with CHECKOUT_RECOVERY_REQUIRED', async () => {
+        let nowMs = 1_000_000
+        jest.spyOn(Date, 'now').mockImplementation(() => nowMs)
+
+        saveCheckoutAttempt({
+          subject: USER_A_SUBJECT,
+          planVersionId: PLUS_PLAN_VERSION_ID,
+          idempotencyKey: 'idemp-d1-2-key',
+          paymentId: PAYMENT_ID_1,
+          status: 'uncertain',
+          nowMs,
+        })
+        nowMs += 31 * 60 * 1000
+
+        const startCheckout = jest.fn()
+        const getPaymentHistory = jest.fn().mockResolvedValue({
+          items: [
+            makePayment({
+              paymentId: PAYMENT_ID_2,
+              planVersionId: PLUS_PLAN_VERSION_ID,
+              status: 'SUCCEEDED',
+            }),
+          ],
+          count: 1,
+          generatedAt: '2026-11-15T10:35:00Z',
+        })
+        const getPayment = jest.fn().mockRejectedValue(
+          new ApiError({
+            status: 404,
+            code: 'PAYMENT_NOT_FOUND',
+            message: 'Payment not found',
+          }),
+        )
+        const api = makeApi({ startCheckout, getPaymentHistory, getPayment })
+
+        await render(
+          <QueryClientProvider client={makeQueryClient()}>
+            <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+          </QueryClientProvider>,
+        )
+
+        await waitFor(() => {
+          expect(
+            screen.getByTestId('locked-preview-upgrade-button'),
+          ).toBeTruthy()
+        })
+
+        await fireEvent.press(
+          screen.getByTestId('locked-preview-upgrade-button'),
+        )
+        await waitFor(() => {
+          expect(
+            screen.getByText('Mã: CHECKOUT_RECOVERY_REQUIRED'),
+          ).toBeTruthy()
+        })
+        expect(startCheckout).not.toHaveBeenCalled()
+      })
+
+      it('D1.3: unrelated CHARGEBACK payment for same planVersionId does not settle attempt; blocks with CHECKOUT_RECOVERY_REQUIRED', async () => {
+        let nowMs = 1_000_000
+        jest.spyOn(Date, 'now').mockImplementation(() => nowMs)
+
+        saveCheckoutAttempt({
+          subject: USER_A_SUBJECT,
+          planVersionId: PLUS_PLAN_VERSION_ID,
+          idempotencyKey: 'idemp-d1-3-key',
+          paymentId: PAYMENT_ID_1,
+          status: 'uncertain',
+          nowMs,
+        })
+        nowMs += 31 * 60 * 1000
+
+        const startCheckout = jest.fn()
+        const getPaymentHistory = jest.fn().mockResolvedValue({
+          items: [
+            makePayment({
+              paymentId: PAYMENT_ID_2,
+              planVersionId: PLUS_PLAN_VERSION_ID,
+              status: 'CHARGEBACK',
+            }),
+          ],
+          count: 1,
+          generatedAt: '2026-11-15T10:35:00Z',
+        })
+        const getPayment = jest.fn().mockRejectedValue(
+          new ApiError({
+            status: 404,
+            code: 'PAYMENT_NOT_FOUND',
+            message: 'Payment not found',
+          }),
+        )
+        const api = makeApi({ startCheckout, getPaymentHistory, getPayment })
+
+        await render(
+          <QueryClientProvider client={makeQueryClient()}>
+            <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+          </QueryClientProvider>,
+        )
+
+        await waitFor(() => {
+          expect(
+            screen.getByTestId('locked-preview-upgrade-button'),
+          ).toBeTruthy()
+        })
+
+        await fireEvent.press(
+          screen.getByTestId('locked-preview-upgrade-button'),
+        )
+        await waitFor(() => {
+          expect(
+            screen.getByText('Mã: CHECKOUT_RECOVERY_REQUIRED'),
+          ).toBeTruthy()
+        })
+        expect(startCheckout).not.toHaveBeenCalled()
+      })
+
+      it('D1.4: unknown paymentId (attempt has only idempotencyKey): unrelated history items do not guess settlement; blocks with CHECKOUT_RECOVERY_REQUIRED and replays original key', async () => {
+        let nowMs = 1_000_000
+        jest.spyOn(Date, 'now').mockImplementation(() => nowMs)
+
+        saveCheckoutAttempt({
+          subject: USER_A_SUBJECT,
+          planVersionId: PLUS_PLAN_VERSION_ID,
+          idempotencyKey: 'idemp-d1-4-key',
+          paymentId: undefined,
+          status: 'uncertain',
+          nowMs,
+        })
+        nowMs += 31 * 60 * 1000
+
+        const startCheckout = jest.fn().mockResolvedValue(
+          makePayment({
+            paymentId: PAYMENT_ID_1,
+            planVersionId: PLUS_PLAN_VERSION_ID,
+            status: 'PENDING',
+          }),
+        )
+        const getPaymentHistory = jest.fn().mockResolvedValue({
+          items: [
+            makePayment({
+              paymentId: PAYMENT_ID_2,
+              planVersionId: PLUS_PLAN_VERSION_ID,
+              status: 'FAILED',
+            }),
+          ],
+          count: 1,
+          generatedAt: '2026-11-15T10:35:00Z',
+        })
+        const api = makeApi({ startCheckout, getPaymentHistory })
+
+        await render(
+          <QueryClientProvider client={makeQueryClient()}>
+            <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+          </QueryClientProvider>,
+        )
+
+        await waitFor(() => {
+          expect(
+            screen.getByTestId('locked-preview-upgrade-button'),
+          ).toBeTruthy()
+        })
+
+        // Press 1: blocks with CHECKOUT_RECOVERY_REQUIRED
+        await fireEvent.press(
+          screen.getByTestId('locked-preview-upgrade-button'),
+        )
+        await waitFor(() => {
+          expect(
+            screen.getByText('Mã: CHECKOUT_RECOVERY_REQUIRED'),
+          ).toBeTruthy()
+        })
+        expect(startCheckout).not.toHaveBeenCalled()
+
+        // Press 2: explicit retry reuses original key
+        await fireEvent.press(
+          screen.getByTestId('locked-preview-upgrade-button'),
+        )
+        await waitFor(() => {
+          expect(startCheckout).toHaveBeenCalledTimes(1)
+        })
+        expect(startCheckout).toHaveBeenCalledWith(
+          PLUS_PLAN_VERSION_ID,
+          'idemp-d1-4-key',
+        )
+      })
+
+      it('D1.5: exact paymentId failure via GET /api/v1/payments/{paymentId} proves terminal failure and mints fresh attempt with new key', async () => {
+        let nowMs = 1_000_000
+        jest.spyOn(Date, 'now').mockImplementation(() => nowMs)
+
+        saveCheckoutAttempt({
+          subject: USER_A_SUBJECT,
+          planVersionId: PLUS_PLAN_VERSION_ID,
+          idempotencyKey: 'idemp-d1-5-key',
+          paymentId: PAYMENT_ID_1,
+          status: 'uncertain',
+          nowMs,
+        })
+        nowMs += 31 * 60 * 1000
+
+        const startCheckout = jest.fn().mockResolvedValue(
+          makePayment({
+            paymentId: PAYMENT_ID_2,
+            planVersionId: PLUS_PLAN_VERSION_ID,
+            status: 'PENDING',
+          }),
+        )
+        const getPaymentHistory = jest.fn().mockResolvedValue({
+          items: [],
+          count: 0,
+          generatedAt: '2026-11-15T10:35:00Z',
+        })
+        const getPayment = jest.fn().mockResolvedValue(
+          makePayment({
+            paymentId: PAYMENT_ID_1,
+            planVersionId: PLUS_PLAN_VERSION_ID,
+            status: 'FAILED',
+          }),
+        )
+        const api = makeApi({ startCheckout, getPaymentHistory, getPayment })
+
+        await render(
+          <QueryClientProvider client={makeQueryClient()}>
+            <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+          </QueryClientProvider>,
+        )
+
+        await waitFor(() => {
+          expect(
+            screen.getByTestId('locked-preview-upgrade-button'),
+          ).toBeTruthy()
+        })
+
+        await fireEvent.press(
+          screen.getByTestId('locked-preview-upgrade-button'),
+        )
+
+        await waitFor(() => {
+          expect(startCheckout).toHaveBeenCalledTimes(1)
+        })
+        expect(getPayment).toHaveBeenCalledWith(PAYMENT_ID_1)
+        // Rotated key because terminal failure of that exact attempt was proven
+        expect(startCheckout.mock.calls[0][1]).not.toBe('idemp-d1-5-key')
+      })
+
+      it('D1.6: exact paymentId SUCCEEDED via getPayment reconciles Consultation entitlement and never activates Care Plan directly', async () => {
+        let nowMs = 1_000_000
+        jest.spyOn(Date, 'now').mockImplementation(() => nowMs)
+
+        saveCheckoutAttempt({
+          subject: USER_A_SUBJECT,
+          planVersionId: PLUS_PLAN_VERSION_ID,
+          idempotencyKey: 'idemp-d1-6-key',
+          paymentId: PAYMENT_ID_1,
+          status: 'uncertain',
+          nowMs,
+        })
+        nowMs += 31 * 60 * 1000
+
+        const startCheckout = jest.fn()
+        const getPaymentHistory = jest.fn().mockResolvedValue({
+          items: [],
+          count: 0,
+          generatedAt: '2026-11-15T10:35:00Z',
+        })
+        const getPayment = jest.fn().mockResolvedValue(
+          makePayment({
+            paymentId: PAYMENT_ID_1,
+            planVersionId: PLUS_PLAN_VERSION_ID,
+            status: 'SUCCEEDED',
+          }),
+        )
+        const getEntitlement = jest
+          .fn()
+          .mockResolvedValueOnce(makeEntitlement())
+          .mockResolvedValue(
+            makeEntitlement({
+              packageCode: 'PLUS',
+              entitlementState: 'ACTIVE',
+              supportPlanEnabled: true,
+            }),
+          )
+        const api = makeApi({
+          startCheckout,
+          getPaymentHistory,
+          getPayment,
+          getEntitlement,
+        })
+
+        await render(
+          <QueryClientProvider client={makeQueryClient()}>
+            <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+          </QueryClientProvider>,
+        )
+
+        await waitFor(() => {
+          expect(
+            screen.getByTestId('locked-preview-upgrade-button'),
+          ).toBeTruthy()
+        })
+
+        await fireEvent.press(
+          screen.getByTestId('locked-preview-upgrade-button'),
+        )
+
+        // Never activates Care Plan directly or calls startCheckout
+        expect(startCheckout).not.toHaveBeenCalled()
+        expect(getPayment).toHaveBeenCalledWith(PAYMENT_ID_1)
+        // Consultation entitlement was queried to verify active status
+        expect(getEntitlement).toHaveBeenCalled()
+        // Attempt cleared
+        expect(
+          getExpiredUnresolvedCheckoutAttempt(
+            USER_A_SUBJECT,
+            PLUS_PLAN_VERSION_ID,
+          ),
+        ).toBeNull()
+      })
+
+      it('D1.7: getPayment returns 500 error: surfaces PAYMENT_HISTORY_UNAVAILABLE with uncertain: true and blocks checkout POST', async () => {
+        let nowMs = 1_000_000
+        jest.spyOn(Date, 'now').mockImplementation(() => nowMs)
+
+        saveCheckoutAttempt({
+          subject: USER_A_SUBJECT,
+          planVersionId: PLUS_PLAN_VERSION_ID,
+          idempotencyKey: 'idemp-d1-7-key',
+          paymentId: PAYMENT_ID_1,
+          status: 'uncertain',
+          nowMs,
+        })
+        nowMs += 31 * 60 * 1000
+
+        const startCheckout = jest.fn()
+        const getPaymentHistory = jest.fn().mockResolvedValue({
+          items: [],
+          count: 0,
+          generatedAt: '2026-11-15T10:35:00Z',
+        })
+        const getPayment = jest.fn().mockRejectedValue(
+          new ApiError({
+            status: 500,
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Payment service unavailable',
+          }),
+        )
+        const api = makeApi({ startCheckout, getPaymentHistory, getPayment })
+
+        await render(
+          <QueryClientProvider client={makeQueryClient()}>
+            <SupportPlanAccessGate api={api} subject={USER_A_SUBJECT} />
+          </QueryClientProvider>,
+        )
+
+        await waitFor(() => {
+          expect(
+            screen.getByTestId('locked-preview-upgrade-button'),
+          ).toBeTruthy()
+        })
+
+        await fireEvent.press(
+          screen.getByTestId('locked-preview-upgrade-button'),
+        )
+        await waitFor(() => {
+          expect(
+            screen.getByText('Mã: PAYMENT_HISTORY_UNAVAILABLE'),
+          ).toBeTruthy()
+        })
+        expect(startCheckout).not.toHaveBeenCalled()
+      })
+
+      it('D2.1: safety override enabled while canOpenURL is pending aborts and does NOT call Linking.openURL or set pending intent', async () => {
+        let resolveCanOpen: (val: boolean) => void = () => {}
+        const canOpenPromise = new Promise<boolean>((resolve) => {
+          resolveCanOpen = resolve
+        })
+
+        const canOpen = jest
+          .spyOn(Linking, 'canOpenURL')
+          .mockImplementation(() => canOpenPromise)
+        const openURL = jest
+          .spyOn(Linking, 'openURL')
+          .mockResolvedValue(undefined as unknown as void)
+        canOpen.mockClear()
+        openURL.mockClear()
+
+        let controllerRef: ReturnType<typeof useSupportPlanAccess> | undefined
+        function Probe({
+          api,
+          subject,
+          safetyOverride = false,
+        }: {
+          api: SupportPlanAccessApi
+          subject: string | null
+          safetyOverride?: boolean
+        }) {
+          const controller = useSupportPlanAccess({
+            api,
+            subject,
+            safetyOverride,
+          })
+          controllerRef = controller
+          return <Text testID="probe">{subject ?? 'none'}</Text>
+        }
+
+        const pendingPayOSPayment = makePayment({
+          paymentId: PAYMENT_ID_1,
+          provider: 'PAYOS',
+          status: 'PENDING',
+          checkoutUrl: 'https://pay.payos.vn/web/checkout-session-d2-1',
+        })
+
+        const api = makeApi({
+          getPaymentHistory: jest.fn().mockResolvedValue({
+            items: [pendingPayOSPayment],
+            count: 1,
+            generatedAt: '2026-11-15T10:00:00Z',
+          }),
+        })
+
+        const { rerender } = await render(
+          <QueryClientProvider client={makeQueryClient()}>
+            <Probe api={api} subject={USER_A_SUBJECT} safetyOverride={false} />
+          </QueryClientProvider>,
+        )
+
+        await waitFor(() => {
+          expect(controllerRef?.activePayment?.paymentId).toBe(PAYMENT_ID_1)
+        })
+
+        // Start opening URL
+        void controllerRef?.openHostedCheckoutUrl()
+        expect(canOpen).toHaveBeenCalledTimes(1)
+
+        // Turn on safety override while canOpenURL is awaiting!
+        await rerender(
+          <QueryClientProvider client={makeQueryClient()}>
+            <Probe api={api} subject={USER_A_SUBJECT} safetyOverride={true} />
+          </QueryClientProvider>,
+        )
+
+        // Now canOpenURL resolves true
+        await act(async () => {
+          resolveCanOpen(true)
+        })
+
+        // Linking.openURL MUST NOT be called because safety override was enabled!
+        expect(openURL).not.toHaveBeenCalled()
+        expect(getPendingUpgradeIntent(USER_A_SUBJECT)).toBeNull()
+      })
+
+      it('D2.2: safety override enabled initially aborts openHostedCheckoutUrl() immediately without calling canOpenURL', async () => {
+        const canOpen = jest
+          .spyOn(Linking, 'canOpenURL')
+          .mockResolvedValue(true)
+        const openURL = jest
+          .spyOn(Linking, 'openURL')
+          .mockResolvedValue(undefined as unknown as void)
+        canOpen.mockClear()
+        openURL.mockClear()
+
+        let controllerRef: ReturnType<typeof useSupportPlanAccess> | undefined
+        function Probe({
+          api,
+          subject,
+        }: {
+          api: SupportPlanAccessApi
+          subject: string | null
+        }) {
+          const controller = useSupportPlanAccess({
+            api,
+            subject,
+            safetyOverride: true,
+          })
+          controllerRef = controller
+          return <Text testID="probe">{subject ?? 'none'}</Text>
+        }
+
+        const pendingPayOSPayment = makePayment({
+          paymentId: PAYMENT_ID_1,
+          provider: 'PAYOS',
+          status: 'PENDING',
+          checkoutUrl: 'https://pay.payos.vn/web/checkout-session-d2-2',
+        })
+
+        const api = makeApi({
+          getPaymentHistory: jest.fn().mockResolvedValue({
+            items: [pendingPayOSPayment],
+            count: 1,
+            generatedAt: '2026-11-15T10:00:00Z',
+          }),
+        })
+
+        await render(
+          <QueryClientProvider client={makeQueryClient()}>
+            <Probe api={api} subject={USER_A_SUBJECT} />
+          </QueryClientProvider>,
+        )
+
+        await act(async () => {
+          await controllerRef?.openHostedCheckoutUrl()
+        })
+
+        expect(canOpen).not.toHaveBeenCalled()
+        expect(openURL).not.toHaveBeenCalled()
+        expect(getPendingUpgradeIntent(USER_A_SUBJECT)).toBeNull()
+      })
+
+      it('D2.3: payment URL or provider changed during canOpenURL await aborts and does NOT open stale URL', async () => {
+        let resolveCanOpen: (val: boolean) => void = () => {}
+        const canOpenPromise = new Promise<boolean>((resolve) => {
+          resolveCanOpen = resolve
+        })
+
+        const canOpen = jest
+          .spyOn(Linking, 'canOpenURL')
+          .mockImplementation(() => canOpenPromise)
+        const openURL = jest
+          .spyOn(Linking, 'openURL')
+          .mockResolvedValue(undefined as unknown as void)
+        canOpen.mockClear()
+        openURL.mockClear()
+
+        let controllerRef: ReturnType<typeof useSupportPlanAccess> | undefined
+        function Probe({
+          api,
+          subject,
+        }: {
+          api: SupportPlanAccessApi
+          subject: string | null
+        }) {
+          const controller = useSupportPlanAccess({ api, subject })
+          controllerRef = controller
+          return <Text testID="probe">{subject ?? 'none'}</Text>
+        }
+
+        const paymentV1 = makePayment({
+          paymentId: PAYMENT_ID_1,
+          provider: 'PAYOS',
+          status: 'PENDING',
+          checkoutUrl: 'https://pay.payos.vn/web/v1',
+        })
+        const paymentV2 = makePayment({
+          paymentId: PAYMENT_ID_2,
+          provider: 'PAYOS',
+          status: 'PENDING',
+          checkoutUrl: 'https://pay.payos.vn/web/v2',
+        })
+
+        let currentHistory = {
+          items: [paymentV1],
+          count: 1,
+          generatedAt: '2026-11-15T10:00:00Z',
+        }
+        const api = makeApi({
+          getPaymentHistory: jest
+            .fn()
+            .mockImplementation(() => Promise.resolve(currentHistory)),
+        })
+
+        const queryClient = makeQueryClient()
+        await render(
+          <QueryClientProvider client={queryClient}>
+            <Probe api={api} subject={USER_A_SUBJECT} />
+          </QueryClientProvider>,
+        )
+
+        await waitFor(() => {
+          expect(controllerRef?.activePayment?.paymentId).toBe(PAYMENT_ID_1)
+        })
+
+        // Start opening URL for paymentV1
+        void controllerRef?.openHostedCheckoutUrl()
+        expect(canOpen).toHaveBeenCalledWith('https://pay.payos.vn/web/v1')
+
+        // Payment updates to paymentV2 before canOpenURL finishes
+        currentHistory = {
+          items: [paymentV2],
+          count: 1,
+          generatedAt: '2026-11-15T10:01:00Z',
+        }
+        await act(async () => {
+          await queryClient.refetchQueries({
+            queryKey: ['support-plan-access', USER_A_SUBJECT, 'payments'],
+          })
+        })
+        expect(controllerRef?.activePayment?.paymentId).toBe(PAYMENT_ID_2)
+
+        // Resolve canOpenURL for paymentV1
+        await act(async () => {
+          resolveCanOpen(true)
+        })
+
+        // Must NOT open stale v1 URL!
+        expect(openURL).not.toHaveBeenCalledWith('https://pay.payos.vn/web/v1')
+      })
+
+      it('D2.4: normal path opens PayOS URL, sets pending intent, and surfaces external notice', async () => {
+        const canOpen = jest
+          .spyOn(Linking, 'canOpenURL')
+          .mockResolvedValue(true)
+        const openURL = jest
+          .spyOn(Linking, 'openURL')
+          .mockResolvedValue(undefined as unknown as void)
+        canOpen.mockClear()
+        openURL.mockClear()
+
+        let controllerRef: ReturnType<typeof useSupportPlanAccess> | undefined
+        function Probe({
+          api,
+          subject,
+        }: {
+          api: SupportPlanAccessApi
+          subject: string | null
+        }) {
+          const controller = useSupportPlanAccess({ api, subject })
+          controllerRef = controller
+          return <Text testID="probe">{subject ?? 'none'}</Text>
+        }
+
+        const pendingPayOSPayment = makePayment({
+          paymentId: PAYMENT_ID_1,
+          provider: 'PAYOS',
+          status: 'PENDING',
+          checkoutUrl: 'https://pay.payos.vn/web/normal-flow',
+        })
+
+        const api = makeApi({
+          getPaymentHistory: jest.fn().mockResolvedValue({
+            items: [pendingPayOSPayment],
+            count: 1,
+            generatedAt: '2026-11-15T10:00:00Z',
+          }),
+        })
+
+        await render(
+          <QueryClientProvider client={makeQueryClient()}>
+            <Probe api={api} subject={USER_A_SUBJECT} />
+          </QueryClientProvider>,
+        )
+
+        await waitFor(() => {
+          expect(controllerRef?.activePayment?.paymentId).toBe(PAYMENT_ID_1)
+        })
+
+        await act(async () => {
+          await controllerRef?.openHostedCheckoutUrl()
+        })
+
+        expect(canOpen).toHaveBeenCalledWith(
+          'https://pay.payos.vn/web/normal-flow',
+        )
+        expect(openURL).toHaveBeenCalledWith(
+          'https://pay.payos.vn/web/normal-flow',
+        )
+        const intent = getPendingUpgradeIntent(USER_A_SUBJECT)
+        expect(intent).not.toBeNull()
+        expect(intent?.paymentId).toBe(PAYMENT_ID_1)
+        expect(controllerRef?.externalCheckoutNotice).toBeTruthy()
+      })
     })
   })
 })

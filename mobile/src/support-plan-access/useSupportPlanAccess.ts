@@ -1183,76 +1183,139 @@ export function useSupportPlanAccess(
               refreshedHistory,
             )
 
-            // 1. Succeeded payment check
-            const succeededPayment = refreshedHistory.items.find(
-              (item) =>
-                item.status === 'SUCCEEDED' &&
-                ((expiredAttempt?.paymentId &&
-                  item.paymentId === expiredAttempt.paymentId) ||
-                  item.planVersionId === planVersionId),
-            )
-            if (succeededPayment) {
-              hadUncertainAttemptRef.current = false
-              clearExpiredUnresolvedCheckoutAttempt(
-                capturedSubject,
-                planVersionId,
-              )
-              const nextScoped: SubjectScoped<PlanPayment> = {
-                subject: capturedSubject,
-                value: succeededPayment,
+            // D1: Exact payment correlation. Never match unrelated payments just because of same planVersionId!
+            let exactMatchedPayment: PlanPayment | null = null
+            if (expiredAttempt?.paymentId) {
+              const targetPaymentId = expiredAttempt.paymentId
+              exactMatchedPayment =
+                refreshedHistory.items.find(
+                  (item) =>
+                    item.paymentId === targetPaymentId &&
+                    item.planVersionId === planVersionId,
+                ) ?? null
+
+              if (!exactMatchedPayment) {
+                try {
+                  const singlePayment = await api.getPayment(targetPaymentId)
+                  if (!isCurrentContext()) return
+                  const singleAccountId = (
+                    singlePayment as { accountId?: unknown }
+                  ).accountId
+                  if (
+                    singlePayment.paymentId === targetPaymentId &&
+                    singlePayment.planVersionId === planVersionId &&
+                    (!singleAccountId || singleAccountId === capturedSubject)
+                  ) {
+                    exactMatchedPayment = singlePayment
+                  }
+                } catch (singleError) {
+                  if (!isCurrentContext()) return
+                  const apiErr =
+                    singleError instanceof ApiError
+                      ? singleError
+                      : toApiError(singleError)
+                  if (apiErr.status !== 404) {
+                    setScopedCheckoutError({
+                      subject: capturedSubject,
+                      value: {
+                        code: 'PAYMENT_HISTORY_UNAVAILABLE',
+                        message:
+                          'Không thể kiểm tra lịch sử giao dịch sau khi phiên trước hết hạn. Vui lòng đối chiếu lại thanh toán trước khi thử mở giao dịch mới.',
+                        uncertain: true,
+                      },
+                    })
+                    return
+                  }
+                }
               }
-              scopedPaymentRef.current = nextScoped
-              setScopedPayment(nextScoped)
-              setScopedCheckoutError(null)
-              await reconcileStatus()
-              return
             }
 
-            // 2. Pending payment check
-            const unresolvedPending = refreshedHistory.items.find(
-              (item) => item.status === 'PENDING',
-            )
-            if (unresolvedPending) {
-              hadUncertainAttemptRef.current = false
-              clearExpiredUnresolvedCheckoutAttempt(
-                capturedSubject,
-                planVersionId,
-              )
-              const nextScoped: SubjectScoped<PlanPayment> = {
-                subject: capturedSubject,
-                value: unresolvedPending,
+            if (exactMatchedPayment) {
+              if (exactMatchedPayment.status === 'SUCCEEDED') {
+                hadUncertainAttemptRef.current = false
+                clearExpiredUnresolvedCheckoutAttempt(
+                  capturedSubject,
+                  planVersionId,
+                )
+                const nextScoped: SubjectScoped<PlanPayment> = {
+                  subject: capturedSubject,
+                  value: exactMatchedPayment,
+                }
+                scopedPaymentRef.current = nextScoped
+                setScopedPayment(nextScoped)
+                setScopedCheckoutError(null)
+                // Note: verifies entitlement from Consultation; never self-activates Care Plan!
+                await reconcileStatus()
+                return
               }
-              scopedPaymentRef.current = nextScoped
-              setScopedPayment(nextScoped)
-              setScopedCheckoutError({
-                subject: capturedSubject,
-                value: {
-                  code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
-                  message:
-                    'Trên máy chủ đang có giao dịch nâng cấp Plus chưa hoàn tất. Vui lòng đối chiếu thanh toán thay vì mở giao dịch mới.',
-                  uncertain: false,
-                },
-              })
-              return
-            }
 
-            // 3. Terminal failure check (FAILED or CHARGEBACK)
-            const terminalFailed = refreshedHistory.items.find(
-              (item) =>
-                (item.status === 'FAILED' || item.status === 'CHARGEBACK') &&
-                ((expiredAttempt?.paymentId &&
-                  item.paymentId === expiredAttempt.paymentId) ||
-                  item.planVersionId === planVersionId),
-            )
-            if (terminalFailed) {
-              hadUncertainAttemptRef.current = false
-              clearExpiredUnresolvedCheckoutAttempt(
-                capturedSubject,
-                planVersionId,
-              )
-              expiredAttempt = null
+              if (exactMatchedPayment.status === 'PENDING') {
+                hadUncertainAttemptRef.current = false
+                clearExpiredUnresolvedCheckoutAttempt(
+                  capturedSubject,
+                  planVersionId,
+                )
+                const nextScoped: SubjectScoped<PlanPayment> = {
+                  subject: capturedSubject,
+                  value: exactMatchedPayment,
+                }
+                scopedPaymentRef.current = nextScoped
+                setScopedPayment(nextScoped)
+                setScopedCheckoutError({
+                  subject: capturedSubject,
+                  value: {
+                    code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
+                    message:
+                      'Trên máy chủ đang có giao dịch nâng cấp Plus chưa hoàn tất. Vui lòng đối chiếu thanh toán thay vì mở giao dịch mới.',
+                    uncertain: false,
+                  },
+                })
+                return
+              }
+
+              if (
+                exactMatchedPayment.status === 'FAILED' ||
+                exactMatchedPayment.status === 'CHARGEBACK'
+              ) {
+                // Exact payment failure verified from Consultation: clear attempt and rotate key
+                hadUncertainAttemptRef.current = false
+                clearExpiredUnresolvedCheckoutAttempt(
+                  capturedSubject,
+                  planVersionId,
+                )
+                expiredAttempt = null
+              }
             } else {
-              // 4. Payment not found in history (unresolved / eventual consistency)
+              // No exact matched payment found:
+              // Check if ANY payment on server is PENDING
+              const unresolvedPending = refreshedHistory.items.find(
+                (item) => item.status === 'PENDING',
+              )
+              if (unresolvedPending) {
+                hadUncertainAttemptRef.current = false
+                clearExpiredUnresolvedCheckoutAttempt(
+                  capturedSubject,
+                  planVersionId,
+                )
+                const nextScoped: SubjectScoped<PlanPayment> = {
+                  subject: capturedSubject,
+                  value: unresolvedPending,
+                }
+                scopedPaymentRef.current = nextScoped
+                setScopedPayment(nextScoped)
+                setScopedCheckoutError({
+                  subject: capturedSubject,
+                  value: {
+                    code: 'PENDING_PAYMENT_RECOVERY_REQUIRED',
+                    message:
+                      'Trên máy chủ đang có giao dịch nâng cấp Plus chưa hoàn tất. Vui lòng đối chiếu thanh toán thay vì mở giao dịch mới.',
+                    uncertain: false,
+                  },
+                })
+                return
+              }
+
+              // Settlement is unproven: do NOT guess from unrelated history rows!
               const isUserExplicitRetry =
                 scopedCheckoutError?.subject === capturedSubject &&
                 scopedCheckoutError.value.code === 'CHECKOUT_RECOVERY_REQUIRED'
@@ -1555,7 +1618,17 @@ export function useSupportPlanAccess(
   ])
 
   const openHostedCheckoutUrl = useCallback(async () => {
-    if (!subject || !latestPayment?.checkoutUrl || offline) return
+    if (
+      !subject ||
+      !latestPayment?.checkoutUrl ||
+      offline ||
+      offlineRef.current ||
+      safetyOverride ||
+      safetyOverrideRef.current
+    ) {
+      return
+    }
+
     if (
       !canOpenHostedCheckoutUrl(
         latestPayment.checkoutUrl,
@@ -1576,17 +1649,25 @@ export function useSupportPlanAccess(
     const capturedEpoch = lifecycleEpochRef.current
     const capturedPaymentId = latestPayment.paymentId
     const targetUrl = latestPayment.checkoutUrl
+    const capturedProvider = latestPayment.provider
 
     try {
       const supported = await Linking.canOpenURL(targetUrl)
 
-      if (
-        !isMountedRef.current ||
-        lifecycleEpochRef.current !== capturedEpoch ||
-        activeSubjectRef.current !== capturedSubject ||
-        latestPaymentRef.current?.paymentId !== capturedPaymentId ||
-        offlineRef.current
-      ) {
+      const livePayment = latestPaymentRef.current
+      const isContextStillValid =
+        isMountedRef.current &&
+        lifecycleEpochRef.current === capturedEpoch &&
+        activeSubjectRef.current === capturedSubject &&
+        !offlineRef.current &&
+        !safetyOverrideRef.current &&
+        livePayment !== null &&
+        livePayment.paymentId === capturedPaymentId &&
+        livePayment.checkoutUrl === targetUrl &&
+        livePayment.provider === capturedProvider &&
+        canOpenHostedCheckoutUrl(livePayment.checkoutUrl, livePayment.provider)
+
+      if (!isContextStillValid) {
         return
       }
 
@@ -1610,7 +1691,9 @@ export function useSupportPlanAccess(
       if (
         !isMountedRef.current ||
         lifecycleEpochRef.current !== capturedEpoch ||
-        activeSubjectRef.current !== capturedSubject
+        activeSubjectRef.current !== capturedSubject ||
+        safetyOverrideRef.current ||
+        offlineRef.current
       ) {
         return
       }
@@ -1624,7 +1707,9 @@ export function useSupportPlanAccess(
       if (
         !isMountedRef.current ||
         lifecycleEpochRef.current !== capturedEpoch ||
-        activeSubjectRef.current !== capturedSubject
+        activeSubjectRef.current !== capturedSubject ||
+        safetyOverrideRef.current ||
+        offlineRef.current
       ) {
         return
       }
@@ -1637,6 +1722,7 @@ export function useSupportPlanAccess(
   }, [
     latestPayment,
     offline,
+    safetyOverride,
     setScopedExternalNotice,
     subject,
     validatedOrigin,
