@@ -1,5 +1,6 @@
 import {
   authorSchema,
+  commentReactionSchema,
   commentSchema,
   feedPageSchema,
   postDetailSchema,
@@ -220,5 +221,22 @@ describe('Community v1.11 public boundary', () => {
       expect(
         uploadIntentSchema.safeParse({ ...intent, uploadUrl: url }).success,
       ).toBe(false)
+  })
+  it('accepts only the comment reaction shape with a known kind and a non-negative count', () => {
+    const value = { commentId: fixturePostId, reaction: null, reactionCount: 0 }
+    expect(commentReactionSchema.parse(value)).toEqual(value)
+    expect(
+      commentReactionSchema.safeParse({ ...value, reaction: 'SUPPORT' })
+        .success,
+    ).toBe(true)
+    expect(
+      commentReactionSchema.safeParse({ ...value, reaction: 'LIKE' }).success,
+    ).toBe(false)
+    expect(
+      commentReactionSchema.safeParse({ ...value, reactionCount: -1 }).success,
+    ).toBe(false)
+    expect(
+      commentReactionSchema.safeParse({ ...value, extra: 1 }).success,
+    ).toBe(false)
   })
 })

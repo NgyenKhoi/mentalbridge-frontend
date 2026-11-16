@@ -2,8 +2,10 @@ import { Stack, usePathname } from 'expo-router'
 import { StyleSheet, View } from 'react-native'
 
 import { useSession } from '@/auth/session-context'
+import { CommunityInboxBanner } from '@/community-chat/CommunityInboxBanner'
 import { readRuntimeConfig } from '@/config/runtime-config'
 import { CrisisSupportWidget } from '@/crisis-support/CrisisSupportWidget'
+import { useSafetyButtonLift } from '@/crisis-support/safety-button-lift'
 import { getRouteGuards } from '@/navigation/route-policy'
 import { AppProviders } from '@/providers/AppProviders'
 import { SessionStatusScreen } from '@/screens/SessionStatusScreen'
@@ -14,6 +16,7 @@ export function RootNavigator() {
   const { retryRestore, session, status } = useSession()
 
   const pathname = usePathname()
+  const footerLift = useSafetyButtonLift()
 
   let content
 
@@ -45,8 +48,11 @@ export function RootNavigator() {
   return (
     <View style={styles.root}>
       {content}
+      {session?.role === 'USER' && (
+        <CommunityInboxBanner subject={session.subject} />
+      )}
       <CrisisSupportWidget
-        bottomOffset={session && pathname === '/user' ? 76 : 0}
+        bottomOffset={session && pathname === '/user' ? 76 : footerLift}
       />
     </View>
   )

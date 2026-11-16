@@ -6,6 +6,7 @@ import { ApiError } from '@/api/api-error'
 import {
   commandKeySchema,
   commentPageSchema,
+  commentReactionSchema,
   commentSchema,
   commentWriteSchema,
   etagSchema,
@@ -22,6 +23,7 @@ import {
   uploadIntentSchema,
   uploadWriteSchema,
   type CommentPage,
+  type CommentReaction,
   type CommunityComment,
   type CommunityPage,
   type CommunityTopic,
@@ -58,6 +60,12 @@ export interface CommunityApi {
     key: string,
   ): Promise<CommunityComment>
   react(postId: string, reaction: Reaction | null): Promise<void>
+  commentReaction(commentId: string): Promise<CommentReaction>
+  setCommentReaction(
+    commentId: string,
+    reaction: Reaction,
+  ): Promise<CommentReaction>
+  clearCommentReaction(commentId: string): Promise<void>
   bookmark(postId: string, saved: boolean): Promise<void>
   report(body: ReportWrite, key: string): Promise<void>
   block(profileId: string): Promise<void>
@@ -214,6 +222,27 @@ export function createCommunityApi(client: AxiosInstance): CommunityApi {
         identity(result.postId, postId)
         identity(result.reaction, reaction)
       }
+    },
+    async commentReaction(commentId) {
+      const response = await client.get(
+        `${root}/comments/${pathId(commentId)}/reaction`,
+      )
+      const result = commentReactionSchema.parse(response.data)
+      identity(result.commentId, commentId)
+      return result
+    },
+    async setCommentReaction(commentId, reaction) {
+      const response = await client.put(
+        `${root}/comments/${pathId(commentId)}/reaction`,
+        { reaction: reactionSchema.parse(reaction) },
+      )
+      const result = commentReactionSchema.parse(response.data)
+      identity(result.commentId, commentId)
+      identity(result.reaction ?? '', reaction)
+      return result
+    },
+    async clearCommentReaction(commentId) {
+      await client.delete(`${root}/comments/${pathId(commentId)}/reaction`)
     },
     async bookmark(postId, saved) {
       const path = `${root}/posts/${pathId(postId)}/bookmark`
