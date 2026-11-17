@@ -1,0 +1,28 @@
+# STATUS: NOT_RUN (MB-703 standalone boundary; physical Android & PayOS return deep-link wiring pending)
+appId: com.mentalbridge.mobile
+name: MB-703 PayOS checkout, pending lock, and foreground return reconciliation
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_FREE_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_FREE_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- assertVisible:
+    id: 'locked-preview-upgrade-button'
+- tapOn:
+    id: 'locked-preview-upgrade-button'
+- assertVisible:
+    id: 'locked-preview-payment-status'
+- tapOn:
+    id: 'locked-preview-reconcile-button'
+- assertVisible: 'Thanh toán PayOS đang chờ xác nhận'

@@ -1,0 +1,33 @@
+# STATUS: NOT_RUN (MB-703 standalone boundary; physical Android execution pending post-MB-701/702 wiring and MB-666 staging milestone)
+appId: com.mentalbridge.mobile
+name: MB-703 FREE and EXPIRED native locked 14-day preview journey
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_FREE_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_FREE_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- assertVisible:
+    id: 'locked-preview-example-banner'
+- assertVisible: 'Ví dụ minh hoạ, không phải kế hoạch của bạn'
+- tapOn:
+    id: 'locked-preview-sample-item-sample-breathe'
+- assertVisible: '5/5 việc đã làm'
+- tapOn:
+    id: 'locked-preview-tab-progress'
+- assertVisible: 'Không hiển thị điểm phục hồi hay dự đoán điều trị.'
+- tapOn:
+    id: 'locked-preview-tab-review'
+- assertVisible: 'Nhìn lại chu kỳ mẫu'
+- tapOn:
+    id: 'locked-preview-resources-cta'
