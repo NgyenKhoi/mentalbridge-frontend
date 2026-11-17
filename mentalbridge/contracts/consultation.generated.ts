@@ -482,6 +482,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/subscriptions/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the authenticated owner's latest authoritative subscription lifecycle state. NONE means there is no managed subscription. Cancellation state is never inferred from a client entitlement cache. */
+        get: operations["getOwnSubscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subscriptions/{subscriptionId}/cancellation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Cancels one ACTIVE owner subscription idempotently. Paid access ends immediately with no downgrade or refund. Unused credits and future appointments are revoked atomically; at most one already-started appointment may finish before the lifecycle becomes CANCELLED. */
+        post: operations["cancelOwnSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payments": {
         parameters: {
             query?: never;
@@ -1567,7 +1601,10 @@ export interface components {
             verificationState: "PENDING_VERIFICATION" | "VERIFIED" | "EVIDENCE_REVIEW";
             /** @enum {string} */
             appointmentStatus: "SESSION_ENDED" | "COMPLETED";
-            /** @enum {string} */
+            /**
+             * @description State of the credit for this appointment. AVAILABLE means the credit is no longer bound to this appointment (released, transferred or adjusted back), even when a later booking holds it again.
+             * @enum {string}
+             */
             creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
             /** Format: uuid */
             completionFactId: string | null;
@@ -1693,6 +1730,51 @@ export interface components {
         CreatePlanCheckout: {
             /** Format: uuid */
             planVersionId: string;
+        };
+        /** @enum {string} */
+        SubscriptionLifecycleState: "NONE" | "PENDING_PAYMENT" | "ACTIVE" | "CANCEL_PENDING_SESSION_END" | "CANCELLED" | "ENDED";
+        OwnSubscription: {
+            /** Format: uuid */
+            subscriptionId: string | null;
+            /** @enum {string} */
+            planCode: "FREE" | "PLUS" | "PREMIUM";
+            status: components["schemas"]["SubscriptionLifecycleState"];
+            /** Format: date-time */
+            currentPeriodStart: string | null;
+            /** Format: date-time */
+            currentPeriodEnd: string | null;
+            /** Format: date-time */
+            cancellationRequestedAt: string | null;
+            /** Format: date-time */
+            paidAccessEndedAt: string | null;
+            /** Format: uuid */
+            liveAppointmentId: string | null;
+            /** Format: date-time */
+            liveSessionEndsAt: string | null;
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        SubscriptionCancellation: {
+            /** Format: uuid */
+            subscriptionId: string;
+            /** @enum {string} */
+            planCode: "PLUS" | "PREMIUM";
+            /** @enum {string} */
+            status: "CANCEL_PENDING_SESSION_END" | "CANCELLED";
+            /** Format: date-time */
+            currentPeriodEnd: string;
+            /** Format: date-time */
+            cancellationRequestedAt: string;
+            /** Format: date-time */
+            paidAccessEndedAt: string;
+            /** Format: uuid */
+            liveAppointmentId: string | null;
+            /** Format: date-time */
+            liveSessionEndsAt: string | null;
+            cancelledAppointments: number;
+            revokedCredits: number;
+            /** Format: date-time */
+            generatedAt: string;
         };
         /**
          * @description Authoritative payment state. Fresh confirmed PAYOS and FAKE checkout carries all QR transfer fields; they may be absent or null for legacy, non-QR or unconfirmed attempts. amount equals amountVnd and expiredAt equals expiresAt as an RFC3339 instant. Hosted URLs are optional fallbacks and are not required for an in-app QR flow.
@@ -1934,7 +2016,7 @@ export interface components {
         /** @enum {string} */
         CreditSource: "DEFAULT_FREE" | "DEMO" | "PAID";
         /** @enum {string} */
-        CreditLedgerEventType: "PROVISIONED" | "HELD" | "CONSUMED" | "RELEASED" | "FORFEITED";
+        CreditLedgerEventType: "PROVISIONED" | "HELD" | "CONSUMED" | "RELEASED" | "FORFEITED" | "ADJUSTED_RELEASED" | "REVOKED";
         /** @enum {string} */
         ConsultationCreditPolicyVersion: "consultation-credit-v1" | "consultation-credit-v2";
         ServiceCreditBalance: {
@@ -3883,8 +3965,11 @@ export interface components {
             /** @enum {string|null} */
             sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
             sessionOutcomeReasonCode: string | null;
-            /** @enum {string} */
-            settlementState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            /**
+             * @description State of the credit for this appointment. AVAILABLE means the credit is no longer bound to this appointment (released, transferred or adjusted back), even when a later booking holds it again.
+             * @enum {string}
+             */
+            settlementState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED" | "REVOKED";
             /** Format: date-time */
             updatedAt: string;
             /** Format: int64 */
@@ -3906,7 +3991,7 @@ export interface components {
             nextCursor: string | null;
         };
         /** @enum {string} */
-        AppointmentCancellationCreditOutcome: "RELEASED" | "FORFEITED" | "TRANSFERRED_TO_REPLACEMENT";
+        AppointmentCancellationCreditOutcome: "RELEASED" | "FORFEITED" | "TRANSFERRED_TO_REPLACEMENT" | "REVOKED";
         AppointmentHistoryEntry: {
             /** Format: uuid */
             eventId: string;
@@ -3919,7 +4004,7 @@ export interface components {
             /** Format: uuid */
             actorId: string | null;
             /** @enum {string} */
-            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED" | "SESSION_ACTIVITY_OBSERVED" | "SCHEDULED_WINDOW_ENDED" | "EVIDENCE_REQUIREMENTS_MET" | "SPECIALIST_VIDEO_END_CONFIRMED" | "VIDEO_MANUAL_REVIEW_REQUIRED";
+            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "OWNER_SUBSCRIPTION_CANCELLED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED" | "SESSION_ACTIVITY_OBSERVED" | "SCHEDULED_WINDOW_ENDED" | "EVIDENCE_REQUIREMENTS_MET" | "SPECIALIST_VIDEO_END_CONFIRMED" | "VIDEO_MANUAL_REVIEW_REQUIRED";
             creditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
             /** Format: date-time */
             occurredAt: string;
@@ -3964,8 +4049,11 @@ export interface components {
             participantCheckedIn: boolean;
             /** @enum {string|null} */
             sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
-            /** @enum {string} */
-            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            /**
+             * @description State of the credit for this appointment. AVAILABLE means the credit is no longer bound to this appointment (released, transferred or adjusted back), even when a later booking holds it again.
+             * @enum {string}
+             */
+            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED" | "REVOKED";
             /** Format: date-time */
             scheduledStartAt: string;
             /** Format: date-time */
@@ -4119,7 +4207,7 @@ export interface components {
             /** Format: date-time */
             cancelledAt: string | null;
             /** @enum {string|null} */
-            cancellationReason: "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_SUSPENDED" | null;
+            cancellationReason: "USER_CANCELLED" | "USER_RESCHEDULED" | "OWNER_SUBSCRIPTION_CANCELLED" | "SPECIALIST_SUSPENDED" | null;
             /** @enum {string|null} */
             cancellationActor: "USER" | "ADMIN" | null;
             cancellationCreditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
@@ -4134,8 +4222,11 @@ export interface components {
             sessionSettledAt: string | null;
             /** Format: uuid */
             completionFactId: string | null;
-            /** @enum {string} */
-            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            /**
+             * @description State of the credit for this appointment. AVAILABLE means the credit is no longer bound to this appointment (released, transferred or adjusted back), even when a later booking holds it again.
+             * @enum {string}
+             */
+            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED" | "REVOKED";
             history: components["schemas"]["AppointmentHistoryEntry"][];
             /** Format: int64 */
             version: number;
@@ -5458,6 +5549,58 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["ConflictProblem"];
             503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    getOwnSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest owner subscription state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnSubscription"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    cancelOwnSubscription: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                subscriptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative accepted or replayed cancellation state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionCancellation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
         };
     };
     listOwnPlanPayments: {

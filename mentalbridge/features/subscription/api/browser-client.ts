@@ -3,6 +3,8 @@ import type {
   AdminPaymentList,
   PlanPaymentHistory,
   ServicePlanCatalogue,
+  OwnSubscription,
+  SubscriptionCancellation,
 } from '@/lib/consultation/billing-validation'
 
 export class SubscriptionBrowserError extends Error {
@@ -66,6 +68,28 @@ export const browserSubscription = {
         },
         body: JSON.stringify({ planVersionId }),
       }),
+    )
+  },
+  async current() {
+    return responseJson<OwnSubscription>(
+      await fetch('/api/consultation/subscriptions/current', {
+        cache: 'no-store',
+      }),
+    )
+  },
+  async cancel(subscriptionId: string, idempotencyKey: string) {
+    return responseJson<SubscriptionCancellation>(
+      await fetch(
+        `/api/consultation/subscriptions/${encodeURIComponent(subscriptionId)}/cancellation`,
+        {
+          method: 'POST',
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/json, application/problem+json',
+            'Idempotency-Key': idempotencyKey,
+          },
+        },
+      ),
     )
   },
 }

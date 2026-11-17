@@ -1605,11 +1605,11 @@
       },
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/assessment/components/ReassessmentJourney.test.tsx",
-        "scenario": "uses Care periods and a Journal job to render four separate dimensions",
+        "source": "mentalbridge/features/assessment/components/ReassessmentReview.test.tsx",
+        "scenario": "says a reassessment is needed when the context is incomplete",
         "assertions": [
-          "name: 'Bắt đầu đánh giá lại'",
-          "api.createReassessmentSelfReport).toHaveBeenCalledWith"
+          "name: 'Làm bài đánh giá lại'",
+          "'/initial-check?purpose=reassessment&returnTo=plan-review'"
         ]
       }
     },
@@ -1618,11 +1618,11 @@
       "sourceTitle": "View Progress Comparison",
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/assessment/components/ReassessmentJourney.test.tsx",
-        "scenario": "uses Care periods and a Journal job to render four separate dimensions",
+        "source": "mentalbridge/features/assessment/components/ReassessmentReview.test.tsx",
+        "scenario": "shows a skeleton first then every section for a sufficient and consented review",
         "assertions": [
-          "screen.findByText('1. Thay đổi sàng lọc')",
-          "screen.getByText('4. Trải nghiệm tự báo cáo')"
+          "screen.getByRole('list', { name: 'Tóm tắt kỳ này' })",
+          "expect(strip).toHaveTextContent('5bài nhật kýkỳ trước 4')"
         ]
       },
       "mobile": {
@@ -1753,11 +1753,11 @@
       },
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/assessment/components/ReassessmentJourney.test.tsx",
-        "scenario": "uses Care periods and a Journal job to render four separate dimensions",
+        "source": "mentalbridge/features/assessment/components/ReassessmentReview.test.tsx",
+        "scenario": "shows a skeleton first then every section for a sufficient and consented review",
         "assertions": [
-          "screen.findByText('1. Thay đổi sàng lọc')",
-          "rawDelta: -2"
+          "screen.getByRole('button', { name: 'Xem điểm chi tiết' })",
+          "screen.getByText('Trầm cảm (PHQ-9)')"
         ]
       }
     },

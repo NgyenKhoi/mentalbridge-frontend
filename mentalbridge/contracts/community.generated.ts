@@ -1391,7 +1391,7 @@ export interface components {
             content: string;
         };
         /** @enum {string} */
-        SupportiveReaction: "SUPPORT" | "RELATE" | "THANK_YOU";
+        SupportiveReaction: "SUPPORT" | "RELATE" | "THANK_YOU" | "LIKE" | "EMPATHY" | "CHEER" | "GROWTH";
         CommunityViewerState: {
             reaction: components["schemas"]["SupportiveReaction"] | null;
             /** @description True only when the authenticated owner bookmarked this post; another viewer's bookmark state is never exposed. */
@@ -1523,7 +1523,7 @@ export interface components {
             /** Format: uuid */
             commentId: string;
             /** @enum {string|null} */
-            reaction: null | "SUPPORT" | "RELATE" | "THANK_YOU";
+            reaction: null | "SUPPORT" | "RELATE" | "THANK_YOU" | "LIKE" | "EMPATHY" | "CHEER" | "GROWTH";
             reactionCount: number;
         };
         AuthorizationResult: {
@@ -3551,7 +3551,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    reaction: "SUPPORT" | "RELATE" | "THANK_YOU";
+                    reaction: "SUPPORT" | "RELATE" | "THANK_YOU" | "LIKE" | "EMPATHY" | "CHEER" | "GROWTH";
                 };
             };
         };

@@ -39,30 +39,8 @@ import {
   dashboardColors as colors,
   DashboardFontContext,
 } from '@/theme/dashboard'
+import { useDashboardFonts } from '@/theme/dashboard-fonts'
 import { radii, spacing, typography } from '@/theme/tokens'
-
-function useDashboardFonts() {
-  const [loaded, setLoaded] = useState(false)
-  useEffect(() => {
-    let active = true
-    // Older development builds can keep rendering with the system fonts.
-    void import('expo-font')
-      .then(({ loadAsync }) =>
-        loadAsync({
-          DashboardSans: require('../../assets/fonts/PlusJakartaSans.ttf'),
-          DashboardSerif: require('../../assets/fonts/Lora.ttf'),
-        }),
-      )
-      .then(() => {
-        if (active) setLoaded(true)
-      })
-      .catch(() => undefined)
-    return () => {
-      active = false
-    }
-  }, [])
-  return loaded
-}
 
 function openCompanion() {
   void Linking.openURL(

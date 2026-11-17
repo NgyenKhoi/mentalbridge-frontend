@@ -40,6 +40,9 @@ describe('Assessment history page', () => {
       http.get('http://localhost/api/care/screening-episodes/history', () =>
         HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
       ),
+      http.get('http://localhost/api/care/reassessment-summaries/list', () =>
+        HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
+      ),
       http.get('http://localhost/api/care/reassessment-self-reports', () =>
         HttpResponse.json(
           { code: 'REASSESSMENT_SELF_REPORT_NOT_FOUND' },
@@ -146,18 +149,16 @@ describe('Assessment history page', () => {
     const historyTab = screen.getByRole('tab', { name: 'Lịch sử sàng lọc' })
     historyTab.focus()
     await userEvent.keyboard('{End}')
-    expect(screen.getByRole('tab', { name: 'Đánh giá lại' })).toHaveFocus()
-    expect(screen.getByRole('tab', { name: 'Đánh giá lại' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'Nhìn lại' })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'Nhìn lại' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
     expect(
-      screen.getByRole('heading', {
-        name: 'Hiểu những thay đổi của bạn qua bốn góc nhìn',
-      }),
+      await screen.findByRole('heading', { name: 'Nhìn lại 14 ngày' }),
     ).toBeVisible()
     expect(
-      screen.getByRole('link', { name: 'Bắt đầu lượt đánh giá lại' }),
+      screen.getByRole('link', { name: 'Làm bài đánh giá lại' }),
     ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
     await userEvent.keyboard('{Home}')
     expect(historyTab).toHaveFocus()
@@ -186,6 +187,9 @@ describe('Assessment history page', () => {
         HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
       ),
       http.get('http://localhost/api/care/support-evaluations/history', () =>
+        HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
+      ),
+      http.get('http://localhost/api/care/reassessment-summaries/list', () =>
         HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
       ),
       http.get('http://localhost/api/care/reassessment-self-reports', () =>

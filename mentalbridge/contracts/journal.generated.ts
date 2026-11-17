@@ -1594,6 +1594,7 @@ export interface components {
             userMessageId: string;
             /** Format: uuid */
             assistantMessageId: string;
+            /** @description FREE replies stay at most 500 characters; PLUS and PREMIUM Text replies may reach 900 (MB-869). */
             assistant: string;
             /** Format: date-time */
             createdAt: string;
@@ -2040,8 +2041,11 @@ export interface components {
             /** @enum {string} */
             provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK";
             model: string;
-            /** @constant */
-            promptVersion: "longitudinal-v1";
+            /**
+             * @description longitudinal-v2 signal labels are short Vietnamese user-facing phrases; stored longitudinal-v1 rows keep their original labels.
+             * @enum {string}
+             */
+            promptVersion: "longitudinal-v1" | "longitudinal-v2";
             /** @constant */
             schemaVersion: 1;
             /** Format: date-time */

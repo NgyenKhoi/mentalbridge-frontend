@@ -188,6 +188,7 @@ function readyJourney(overrides: Partial<GuidedJourney> = {}): GuidedJourney {
     nextAction: 'START_PLAN_PROPOSAL',
     currentSupportPlanId: null,
     entitlementStatus: 'VERIFIED',
+    latestScreening: null,
     ...overrides,
   }
 }

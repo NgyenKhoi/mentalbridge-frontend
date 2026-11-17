@@ -17,6 +17,7 @@ import {
   parseCommunityCommentPage,
   parseCreateCommentRequest,
   parseUpdateCommentRequest,
+  parsePutReactionRequest,
 } from './community-validation'
 
 const post = {
@@ -562,5 +563,21 @@ describe('Community response validation', () => {
       parseUpdateCommentRequest({ content: 'Đã chỉnh sửa.' }),
     ).not.toBeNull()
     expect(parseUpdateCommentRequest({ content: ' '.repeat(3) })).toBeNull()
+  })
+})
+
+describe('parsePutReactionRequest', () => {
+  it('accepts the seven supportive reactions and nothing else', () => {
+    for (const reaction of [
+      'SUPPORT',
+      'RELATE',
+      'THANK_YOU',
+      'LIKE',
+      'EMPATHY',
+      'CHEER',
+      'GROWTH',
+    ])
+      expect(parsePutReactionRequest({ reaction })).toEqual({ reaction })
+    expect(parsePutReactionRequest({ reaction: 'ANGRY' })).toBeNull()
   })
 })

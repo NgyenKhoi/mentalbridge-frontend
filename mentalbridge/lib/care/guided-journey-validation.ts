@@ -40,6 +40,30 @@ function nullableDateTime(value: unknown): value is string | null {
   )
 }
 
+// Absent means an older Care that predates the field; the Home then falls back to the initial-check fields.
+function parseLatestScreening(
+  value: unknown,
+): GuidedJourney['latestScreening'] | undefined {
+  if (value === undefined || value === null) return null
+  if (
+    !isRecord(value) ||
+    !isUuid(value.episodeId) ||
+    !['INITIAL_CHECK', 'REASSESSMENT'].includes(String(value.purpose)) ||
+    typeof value.completedAt !== 'string' ||
+    !nullableDateTime(value.completedAt) ||
+    !isUuid(value.presentationEvaluationId) ||
+    !isUuid(value.supportEvaluationId)
+  )
+    return undefined
+  return {
+    episodeId: value.episodeId,
+    purpose: value.purpose as 'INITIAL_CHECK' | 'REASSESSMENT',
+    completedAt: value.completedAt,
+    presentationEvaluationId: value.presentationEvaluationId,
+    supportEvaluationId: value.supportEvaluationId,
+  }
+}
+
 export function parseGuidedJourney(value: unknown): GuidedJourney | null {
   if (
     !isRecord(value) ||
@@ -63,6 +87,8 @@ export function parseGuidedJourney(value: unknown): GuidedJourney | null {
   ) {
     return null
   }
+  const latestScreening = parseLatestScreening(value.latestScreening)
+  if (latestScreening === undefined) return null
   const stage = value.stage as GuidedJourney['stage']
   const completed = stage !== 'ASSESSMENT_REQUIRED'
   const nextAction = value.nextAction as GuidedJourney['nextAction']
@@ -98,5 +124,6 @@ export function parseGuidedJourney(value: unknown): GuidedJourney | null {
     nextAction,
     currentSupportPlanId: value.currentSupportPlanId,
     entitlementStatus,
+    latestScreening,
   }
 }

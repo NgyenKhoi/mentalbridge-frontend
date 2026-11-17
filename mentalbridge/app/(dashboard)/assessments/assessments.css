@@ -1780,6 +1780,11 @@
     gap: 12px;
   }
 
+  /* The shell gives the heading flex: 1 1 400px, which becomes a 400px-tall gap in a column. */
+  .ref-shell .assessment-page-header > [data-user-page-heading] {
+    flex: 0 0 auto;
+  }
+
   .assessment-desktop-label {
     display: none;
   }

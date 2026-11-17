@@ -24,6 +24,7 @@ import type {
   ReassessmentContext,
   ReassessmentSummary,
   ReassessmentSummaryCreateRequest,
+  ReassessmentSummaryHistoryPage,
 } from './care-contract'
 import type { InitialCheckState } from '@/features/initial-check/api/initial-check-contract'
 import type {
@@ -386,4 +387,13 @@ export function assessmentErrorMessage(error: unknown) {
   }
 
   return 'Không thể hoàn tất bài sàng lọc lúc này. Câu trả lời chưa được xác nhận là đã lưu; vui lòng thử lại.'
+}
+
+export async function listReassessmentSummaries(limit = 10, cursor?: string) {
+  return (
+    await browserApiClient.get<ReassessmentSummaryHistoryPage>(
+      '/care/reassessment-summaries/list',
+      { params: { limit, ...(cursor ? { cursor } : {}) } },
+    )
+  ).data
 }

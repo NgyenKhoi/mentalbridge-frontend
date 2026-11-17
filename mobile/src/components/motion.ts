@@ -23,6 +23,28 @@ export const revealEntering: EntryExitAnimationFunction = () => {
   }
 }
 
+/** Floating banner: slides down 12 px and fades in over 220 ms. */
+export const bannerEntering: EntryExitAnimationFunction = () => {
+  'worklet'
+  const timing = { duration: 220, easing: emphasisEasing }
+  return {
+    initialValues: { opacity: 0, transform: [{ translateY: -12 }] },
+    animations: {
+      opacity: withTiming(1, timing),
+      transform: [{ translateY: withTiming(0, timing) }],
+    },
+  }
+}
+
+/** Banner leaves by fading only. */
+export const bannerExiting: EntryExitAnimationFunction = () => {
+  'worklet'
+  return {
+    initialValues: { opacity: 1 },
+    animations: { opacity: withTiming(0, { duration: 160 }) },
+  }
+}
+
 /** revealEntering after `step * 40` ms. */
 const staggeredReveal = (step: number): EntryExitAnimationFunction => {
   const delay = step * 40
