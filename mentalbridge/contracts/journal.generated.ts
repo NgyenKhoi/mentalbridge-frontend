@@ -895,6 +895,8 @@ export interface components {
             attemptId: string;
             /** Format: uuid */
             dispatchId: string;
+            /** @description Optional MB-862 policy binding; required for measurement attempts. Missing/mismatched capability denies before media. */
+            measurementHash?: string;
         };
         VoiceAgentLease: {
             /** Format: uuid */
@@ -909,6 +911,12 @@ export interface components {
             hardStopAt: string;
             /** @constant */
             policyVersion: "companion-voice-policy-v1";
+            measurement?: {
+                configHash: string;
+                ttsCharacters: number;
+                /** Format: uuid */
+                voiceId: string;
+            };
         };
         VoiceWorkerSignal: {
             /** @constant */
@@ -1330,6 +1338,7 @@ export interface components {
             userMessageId: string;
             /** Format: uuid */
             assistantMessageId: string;
+            /** @description FREE replies stay at most 500 characters; PLUS and PREMIUM Text replies may reach 900 (MB-869). */
             assistant: string;
             /** Format: date-time */
             createdAt: string;
@@ -1776,8 +1785,11 @@ export interface components {
             /** @enum {string} */
             provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK";
             model: string;
-            /** @constant */
-            promptVersion: "longitudinal-v1";
+            /**
+             * @description longitudinal-v2 signal labels are short Vietnamese user-facing phrases; stored longitudinal-v1 rows keep their original labels.
+             * @enum {string}
+             */
+            promptVersion: "longitudinal-v1" | "longitudinal-v2";
             /** @constant */
             schemaVersion: 1;
             /** Format: date-time */
