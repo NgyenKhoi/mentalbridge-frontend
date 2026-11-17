@@ -183,6 +183,61 @@ function apiFixture(responses: unknown[]) {
 }
 
 describe('Native SupportPlan mobile transport', () => {
+  it('calls the Care initial-proposal command with source and idempotency key', async () => {
+    const draft = { ...planFixture(), status: 'DRAFT' }
+    const { api, requests } = apiFixture([draft])
+    expect(
+      await api.ensureInitial(actionId, 'mb-initial-proposal-test-01'),
+    ).toEqual(draft)
+    expect(requests[0]?.url).toBe('/api/v2/support-plans/initial-proposal')
+    expect(JSON.parse(requests[0]?.data)).toEqual({
+      sourceSupportEvaluationId: actionId,
+    })
+    expect(requests[0]?.headers.get('Idempotency-Key')).toBe(
+      'mb-initial-proposal-test-01',
+    )
+  })
+  it('reads Care current and draft plans with approved checklist mapping provenance', async () => {
+    const symptomMapping = {
+      reassessmentSummaryId: planId,
+      selfReportId: actionId,
+      selfReportRevision: 1,
+      currentPeriod: {
+        startAt: '2026-10-01T00:00:00Z',
+        endAt: '2026-10-14T00:00:00Z',
+      },
+      catalogRevision: 'catalog-v1',
+      mappingRevision: 'mapping-v1',
+      selectedCodes: ['SLEEP_DIFFICULTY'],
+      resourceReasons: [
+        {
+          code: 'SLEEP_DIFFICULTY',
+          slotId: 'slot-1',
+          resourceId: planId,
+          contentVersion: '1',
+          publicationId: actionId,
+          role: 'PRIMARY',
+          eligibilityPolicyVersion: 'v1',
+          reasonCode: 'SELF_REPORTED_SYMPTOM_MATCH',
+        },
+      ],
+    }
+    const current = { ...planFixture(), symptomMapping }
+    const draft = { ...current, status: 'DRAFT' }
+    const { api, requests } = apiFixture([current, draft])
+    expect((await api.getCurrent()).symptomMapping).toEqual(symptomMapping)
+    expect((await api.getDraft()).symptomMapping).toEqual(symptomMapping)
+    expect(requests.map((request) => request.url)).toEqual([
+      '/api/v2/support-plans/current',
+      '/api/v2/support-plans/current-draft',
+    ])
+    expect(
+      canonicalSupportPlanSchema.safeParse({
+        ...current,
+        symptomMapping: { ...symptomMapping, selectedCodes: ['NOT_A_CODE'] },
+      }).success,
+    ).toBe(false)
+  })
   it('uses the exact completed reassessment episode for native replacement discovery', async () => {
     const episode = {
       episodeId: actionId,
@@ -376,6 +431,22 @@ describe('Native SupportPlan mobile transport', () => {
       'native-activate-retry-01',
     )
   })
+  it.each([
+    'ACTIVE',
+    'PAUSED',
+    'COMPLETED',
+    'SUPERSEDED',
+    'DISCARDED',
+  ] as const)(
+    'accepts the current %s state returned by a proposal command replay',
+    async (status) => {
+      const replay = { ...planFixture(), status }
+      const { api } = apiFixture([replay])
+      expect(await api.propose(actionId, 'native-proposal-retry-01')).toEqual(
+        replay,
+      )
+    },
+  )
   it('reconciles an exact occurrence without a caller fact or payload, keeping source deletion separate', async () => {
     const result = reconciliationFixture()
     const { api, requests } = apiFixture([result])
