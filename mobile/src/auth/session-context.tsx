@@ -22,6 +22,7 @@ export type SessionStatus =
 
 type SessionContextValue = Readonly<{
   session: AppSession | null
+  sessionGeneration?: number
   status: SessionStatus
   notice: string | null
   signIn(email: string, password: string): Promise<void>
@@ -65,11 +66,13 @@ export function SessionProvider({
   children,
   service,
   initialSession,
+  initialAccessExpiresAt,
   beforeSignOut,
 }: Readonly<{
   children: ReactNode
   service: SessionService
   initialSession?: AppSession | null
+  initialAccessExpiresAt?: string | null
   // Runs while the access token is still valid, e.g. to revoke this phone's push device.
   beforeSignOut?: () => Promise<void>
 }>) {
@@ -77,38 +80,65 @@ export function SessionProvider({
   const [session, setSession] = useState<AppSession | null>(
     initialSession ?? null,
   )
+  const [sessionGeneration, setSessionGeneration] = useState(0)
   const [status, setStatus] = useState<SessionStatus>(
     initialSession ? 'authenticated' : 'restoring',
   )
   const [notice, setNotice] = useState<string | null>(null)
-  const accessExpiresAt = useRef<string | null>(null)
+  const accessExpiresAt = useRef<string | null>(initialAccessExpiresAt ?? null)
+  const generationRef = useRef(0)
+  const lastLogoutGenerationRef = useRef(0)
+  const pendingBeforeSignOutRef = useRef<Promise<void> | null>(null)
 
-  const applyAuthenticated = useCallback((value: AuthenticatedSession) => {
-    accessExpiresAt.current = value.accessExpiresAt
-    setSession(value.session)
-    setStatus('authenticated')
+  const nextGeneration = useCallback(() => {
+    const next = generationRef.current + 1
+    generationRef.current = next
+    return next
   }, [])
 
-  const applyUnauthenticated = useCallback(() => {
-    accessExpiresAt.current = null
-    resetCompanionSessionPreferences()
-    queryClient.clear()
-    setSession(null)
-    setStatus('unauthenticated')
-  }, [queryClient])
+  const applyNewSession = useCallback(
+    (value: AuthenticatedSession, generation = nextGeneration()) => {
+      setSessionGeneration(generation)
+      resetCompanionSessionPreferences()
+      queryClient.clear()
+      accessExpiresAt.current = value.accessExpiresAt
+      setSession(value.session)
+      setStatus('authenticated')
+    },
+    [nextGeneration, queryClient],
+  )
+
+  const applyUnauthenticated = useCallback(
+    (generation = generationRef.current) => {
+      setSessionGeneration(generation)
+      accessExpiresAt.current = null
+      resetCompanionSessionPreferences()
+      queryClient.clear()
+      setSession(null)
+      setStatus('unauthenticated')
+    },
+    [queryClient],
+  )
 
   const retryRestore = useCallback(async () => {
+    const restoreGeneration = nextGeneration()
     setSession(null)
     setStatus('restoring')
     try {
       const restored = await service.restore()
-      if (restored) applyAuthenticated(restored)
-      else applyUnauthenticated()
+      if (generationRef.current !== restoreGeneration) return
+      if (restored) {
+        applyNewSession(restored, restoreGeneration)
+      } else {
+        lastLogoutGenerationRef.current = restoreGeneration
+        applyUnauthenticated(restoreGeneration)
+      }
     } catch {
+      if (generationRef.current !== restoreGeneration) return
       setSession(null)
       setStatus('unavailable')
     }
-  }, [applyAuthenticated, applyUnauthenticated, service])
+  }, [applyNewSession, applyUnauthenticated, nextGeneration, service])
 
   useEffect(() => {
     if (initialSession) return
@@ -117,8 +147,13 @@ export function SessionProvider({
   }, [initialSession, retryRestore])
 
   useEffect(() => {
-    if (status !== 'authenticated' || !accessExpiresAt.current) return
+    if (status !== 'authenticated' || !session || !accessExpiresAt.current) {
+      return
+    }
 
+    const expectedGeneration = generationRef.current
+    const expectedSubject = session.subject
+    const expectedRole = session.role
     const delay = Math.max(
       0,
       Date.parse(accessExpiresAt.current) - Date.now() - REFRESH_EARLY_MS,
@@ -127,39 +162,95 @@ export function SessionProvider({
       void service
         .refresh()
         .then((refreshed) => {
-          if (refreshed) applyAuthenticated(refreshed)
-          else applyUnauthenticated()
+          if (generationRef.current !== expectedGeneration) return
+          if (refreshed) {
+            if (
+              refreshed.session.subject === expectedSubject &&
+              refreshed.session.role === expectedRole
+            ) {
+              accessExpiresAt.current = refreshed.accessExpiresAt
+              setSession(refreshed.session)
+              setStatus('authenticated')
+            } else {
+              applyNewSession(refreshed)
+            }
+          } else {
+            const unauthGen = nextGeneration()
+            lastLogoutGenerationRef.current = unauthGen
+            applyUnauthenticated(unauthGen)
+          }
         })
         .catch(() => {
+          if (generationRef.current !== expectedGeneration) return
+          nextGeneration()
           setSession(null)
           setStatus('unavailable')
         })
     }, delay)
 
     return () => clearTimeout(timer)
-  }, [applyAuthenticated, applyUnauthenticated, service, session, status])
+  }, [
+    applyNewSession,
+    applyUnauthenticated,
+    nextGeneration,
+    service,
+    session,
+    status,
+  ])
 
   const value = useMemo<SessionContextValue>(
     () => ({
       session,
+      sessionGeneration,
       status,
       notice,
       async signIn(email, password) {
+        const signInGeneration = nextGeneration()
         setNotice(null)
-        const authenticated = await service.signIn(email, password)
-        applyAuthenticated(authenticated)
+        if (pendingBeforeSignOutRef.current) {
+          await pendingBeforeSignOutRef.current
+          if (generationRef.current !== signInGeneration) return
+        }
+        try {
+          const authenticated = await service.signIn(email, password)
+          if (generationRef.current !== signInGeneration) {
+            if (generationRef.current === lastLogoutGenerationRef.current) {
+              await service.logout().catch(() => undefined)
+            }
+            return
+          }
+          applyNewSession(authenticated, signInGeneration)
+        } catch (error) {
+          if (generationRef.current !== signInGeneration) {
+            return
+          }
+          throw error
+        }
       },
       async signOut() {
-        await runBeforeSignOut(beforeSignOut)
+        const logoutGeneration = nextGeneration()
+        lastLogoutGenerationRef.current = logoutGeneration
+        setNotice(null)
+        applyUnauthenticated(logoutGeneration)
+        if (beforeSignOut) {
+          const hookPromise = runBeforeSignOut(beforeSignOut)
+          pendingBeforeSignOutRef.current = hookPromise
+          try {
+            await hookPromise
+          } finally {
+            if (pendingBeforeSignOutRef.current === hookPromise) {
+              pendingBeforeSignOutRef.current = null
+            }
+          }
+        }
         try {
           await service.logout()
-          setNotice(null)
         } catch {
-          setNotice(
-            'Phiên đã được xóa khỏi thiết bị nhưng chưa thể xác nhận thu hồi trên máy chủ.',
-          )
-        } finally {
-          applyUnauthenticated()
+          if (generationRef.current === logoutGeneration) {
+            setNotice(
+              'Phiên đã được xóa khỏi thiết bị nhưng chưa thể xác nhận thu hồi trên máy chủ.',
+            )
+          }
         }
       },
       retryRestore,
@@ -174,18 +265,22 @@ export function SessionProvider({
         service.resetPassword(challenge, newPassword),
       async changePassword(currentPassword, newPassword) {
         await service.changePassword(currentPassword, newPassword)
+        const unauthGen = nextGeneration()
+        lastLogoutGenerationRef.current = unauthGen
         setNotice(null)
-        applyUnauthenticated()
+        applyUnauthenticated(unauthGen)
       },
     }),
     [
-      applyAuthenticated,
+      applyNewSession,
       applyUnauthenticated,
       beforeSignOut,
+      nextGeneration,
       notice,
       retryRestore,
       service,
       session,
+      sessionGeneration,
       status,
     ],
   )

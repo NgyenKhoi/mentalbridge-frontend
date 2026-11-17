@@ -1,0 +1,63 @@
+appId: com.mentalbridge.mobile
+name: MB-701 first use, interrupted assessment, saved Guide and Resource return
+---
+# TEST_AUTHORED_NOT_RUN; NOT_EXECUTABLE_YET until MB-666 provides a disposable
+# FREE USER fixture with no episode or plan, negative item 9, an eligible Guide
+# resource and an available exact Combined Meaning response. Uses the existing
+# protected MAESTRO_MB_USER_EMAIL / MAESTRO_MB_USER_PASSWORD credentials.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Bắt đầu sàng lọc'
+- tapOn: 'Bắt đầu sàng lọc'
+- assertVisible: 'Bài PHQ-9'
+- repeat:
+    times: 8
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Bài GAD-7'
+- stopApp
+- launchApp:
+    clearState: false
+- assertVisible: 'Tiếp tục sàng lọc'
+- tapOn: 'Tiếp tục sàng lọc'
+- tapOn: 'Tiếp tục sàng lọc'
+- assertVisible: 'Bài GAD-7'
+- repeat:
+    times: 6
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Ý nghĩa của kết quả'
+- tapOn: 'Tiếp tục'
+- assertVisible: 'Gợi ý hỗ trợ sau sàng lọc'
+- assertNotVisible: 'Tạo gợi ý'
+- assertNotVisible: 'Tiếp tục với kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element: 'Bắt đầu với bài tập đầu tiên'
+    direction: DOWN
+- tapOn: 'Bắt đầu với bài tập đầu tiên'
+- assertNotVisible: 'Tiếp tục hành trình'
+- back
+- scrollUntilVisible:
+    element: 'Bắt đầu với bài tập đầu tiên'
+    direction: DOWN
+- assertVisible: 'Bắt đầu với bài tập đầu tiên'

@@ -354,4 +354,337 @@ describe('Identity mobile session lifecycle', () => {
     ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' })
     expect(credentials.clear).not.toHaveBeenCalled()
   })
+
+  it('does not persist or retain credentials when a pending signIn completes after logout', async () => {
+    let currentStored: StoredCredentials | null = null
+    const credentials: jest.Mocked<CredentialStore> = {
+      clear: jest.fn(async () => {
+        currentStored = null
+      }),
+      getAccessToken: jest.fn(async () => currentStored?.accessToken ?? null),
+      getCredentials: jest.fn(async () => currentStored),
+      getRefreshToken: jest.fn(async () => currentStored?.refreshToken ?? null),
+      setCredentials: jest.fn(async (value) => {
+        currentStored = value
+      }),
+    }
+    const api = createApi()
+    const service = createSessionService({
+      api,
+      credentials,
+      createIdempotencyKey: () => '22222222-2222-4222-8222-222222222222',
+      now: () => now,
+    })
+
+    let resolveLogin!: (value: TokenPair) => void
+    api.login.mockReturnValue(
+      new Promise<TokenPair>((resolve) => {
+        resolveLogin = resolve
+      }),
+    )
+    api.logout.mockResolvedValue()
+
+    const signInPromise = service.signIn('user@example.com', 'correct-password')
+    await service.logout()
+
+    resolveLogin(tokenPair)
+    await expect(signInPromise).rejects.toMatchObject({
+      code: 'INVALID_SESSION_ACCOUNT',
+    })
+    expect(currentStored).toBeNull()
+    expect(credentials.setCredentials).not.toHaveBeenCalled()
+    expect(api.logout).toHaveBeenCalledWith(refreshToken)
+  })
+
+  it('preserves new signIn credentials when an earlier pending logout completes later', async () => {
+    let currentStored: StoredCredentials | null = activeCredentials
+    const credentials: jest.Mocked<CredentialStore> = {
+      clear: jest.fn(async () => {
+        currentStored = null
+      }),
+      getAccessToken: jest.fn(async () => currentStored?.accessToken ?? null),
+      getCredentials: jest.fn(async () => currentStored),
+      getRefreshToken: jest.fn(async () => currentStored?.refreshToken ?? null),
+      setCredentials: jest.fn(async (value) => {
+        currentStored = value
+      }),
+    }
+    const api = createApi()
+    const service = createSessionService({
+      api,
+      credentials,
+      createIdempotencyKey: () => '22222222-2222-4222-8222-222222222222',
+      now: () => now,
+    })
+
+    let resolveLogout!: () => void
+    api.logout.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveLogout = resolve
+      }),
+    )
+    api.login.mockResolvedValue(rotatedTokenPair)
+    api.getCurrentAccount.mockResolvedValue(userAccount)
+
+    const logoutPromise = service.logout()
+    await Promise.resolve()
+
+    await expect(
+      service.signIn('user@example.com', 'correct-password'),
+    ).resolves.toMatchObject({
+      session: { role: 'USER', subject: userAccount.accountId },
+    })
+    expect(currentStored).toEqual({
+      ...activeCredentials,
+      accessToken: 'access-token-2',
+      refreshToken: rotatedRefreshToken,
+    })
+
+    resolveLogout()
+    await logoutPromise
+
+    expect(currentStored).toEqual({
+      ...activeCredentials,
+      accessToken: 'access-token-2',
+      refreshToken: rotatedRefreshToken,
+    })
+  })
+
+  it('does not write rotated credentials when a pending refresh completes after logout', async () => {
+    let currentStored: StoredCredentials | null = activeCredentials
+    const credentials: jest.Mocked<CredentialStore> = {
+      clear: jest.fn(async () => {
+        currentStored = null
+      }),
+      getAccessToken: jest.fn(async () => currentStored?.accessToken ?? null),
+      getCredentials: jest.fn(async () => currentStored),
+      getRefreshToken: jest.fn(async () => currentStored?.refreshToken ?? null),
+      setCredentials: jest.fn(async (value) => {
+        currentStored = value
+      }),
+    }
+    const api = createApi()
+    const service = createSessionService({
+      api,
+      credentials,
+      createIdempotencyKey: () => '22222222-2222-4222-8222-222222222222',
+      now: () => now,
+    })
+
+    let resolveRefresh!: (value: TokenPair) => void
+    api.refresh.mockReturnValue(
+      new Promise<TokenPair>((resolve) => {
+        resolveRefresh = resolve
+      }),
+    )
+    api.logout.mockResolvedValue()
+
+    const refreshPromise = service.refresh()
+    await Promise.resolve()
+    await service.logout()
+    expect(currentStored).toBeNull()
+
+    resolveRefresh(rotatedTokenPair)
+    await expect(refreshPromise).resolves.toBeNull()
+    expect(currentStored).toBeNull()
+    expect(credentials.setCredentials).not.toHaveBeenCalled()
+  })
+
+  it('clears credentials when logout starts while setCredentials(A) is pending', async () => {
+    let currentStored: StoredCredentials | null = null
+    let resolveWriteA!: () => void
+    const credentials: jest.Mocked<CredentialStore> = {
+      clear: jest.fn(async () => {
+        currentStored = null
+      }),
+      getAccessToken: jest.fn(async () => currentStored?.accessToken ?? null),
+      getCredentials: jest.fn(async () => currentStored),
+      getRefreshToken: jest.fn(async () => currentStored?.refreshToken ?? null),
+      setCredentials: jest.fn(
+        (value) =>
+          new Promise<void>((resolve) => {
+            resolveWriteA = () => {
+              currentStored = value
+              resolve()
+            }
+          }),
+      ),
+    }
+    const api = createApi()
+    const service = createSessionService({
+      api,
+      credentials,
+      createIdempotencyKey: () => '22222222-2222-4222-8222-222222222222',
+      now: () => now,
+    })
+
+    api.login.mockResolvedValue(tokenPair)
+    api.logout.mockResolvedValue()
+
+    const signInA = service.signIn('user@example.com', 'correct-password')
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const logoutPromise = service.logout()
+    resolveWriteA()
+
+    await expect(signInA).rejects.toMatchObject({
+      code: 'INVALID_SESSION_ACCOUNT',
+    })
+    await logoutPromise
+    expect(currentStored).toBeNull()
+  })
+
+  it('keeps only session B credentials when setCredentials(A) is pending across logout and signIn(B)', async () => {
+    let currentStored: StoredCredentials | null = null
+    let resolveWriteA!: () => void
+    let firstWrite = true
+    const credentials: jest.Mocked<CredentialStore> = {
+      clear: jest.fn(async () => {
+        currentStored = null
+      }),
+      getAccessToken: jest.fn(async () => currentStored?.accessToken ?? null),
+      getCredentials: jest.fn(async () => currentStored),
+      getRefreshToken: jest.fn(async () => currentStored?.refreshToken ?? null),
+      setCredentials: jest.fn((value) => {
+        if (firstWrite) {
+          firstWrite = false
+          return new Promise<void>((resolve) => {
+            resolveWriteA = () => {
+              currentStored = value
+              resolve()
+            }
+          })
+        }
+        currentStored = value
+        return Promise.resolve()
+      }),
+    }
+    const api = createApi()
+    const service = createSessionService({
+      api,
+      credentials,
+      createIdempotencyKey: () => '22222222-2222-4222-8222-222222222222',
+      now: () => now,
+    })
+
+    api.login
+      .mockResolvedValueOnce(tokenPair)
+      .mockResolvedValueOnce(rotatedTokenPair)
+    api.getCurrentAccount.mockResolvedValue(userAccount)
+    api.logout.mockResolvedValue()
+
+    const signInA = service.signIn('a@example.com', 'correct-password')
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const logoutA = service.logout()
+    const signInB = service.signIn('b@example.com', 'correct-password')
+
+    resolveWriteA()
+
+    await expect(signInA).rejects.toMatchObject({
+      code: 'INVALID_SESSION_ACCOUNT',
+    })
+    await logoutA
+    await expect(signInB).resolves.toMatchObject({
+      session: { role: 'USER', subject: userAccount.accountId },
+    })
+    expect(currentStored).toEqual({
+      ...activeCredentials,
+      accessToken: 'access-token-2',
+      refreshToken: rotatedRefreshToken,
+    })
+  })
+
+  it('serializes a pending credential clear from session A before writing session B credentials', async () => {
+    let currentStored: StoredCredentials | null = activeCredentials
+    let resolveClearA!: () => void
+    const credentials: jest.Mocked<CredentialStore> = {
+      clear: jest.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveClearA = () => {
+              currentStored = null
+              resolve()
+            }
+          }),
+      ),
+      getAccessToken: jest.fn(async () => currentStored?.accessToken ?? null),
+      getCredentials: jest.fn(async () => currentStored),
+      getRefreshToken: jest.fn(async () => currentStored?.refreshToken ?? null),
+      setCredentials: jest.fn(async (value) => {
+        currentStored = value
+      }),
+    }
+    const api = createApi()
+    const service = createSessionService({
+      api,
+      credentials,
+      createIdempotencyKey: () => '22222222-2222-4222-8222-222222222222',
+      now: () => now,
+    })
+
+    api.login.mockResolvedValue(rotatedTokenPair)
+    api.getCurrentAccount.mockResolvedValue(userAccount)
+    api.logout.mockResolvedValue()
+
+    const logoutA = service.logout()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const signInB = service.signIn('b@example.com', 'correct-password')
+    resolveClearA()
+
+    await Promise.all([logoutA, signInB])
+    expect(currentStored).toEqual({
+      ...activeCredentials,
+      accessToken: 'access-token-2',
+      refreshToken: rotatedRefreshToken,
+    })
+  })
+
+  it('clears rotated credentials when logout starts while refresh setCredentials is pending', async () => {
+    let currentStored: StoredCredentials | null = activeCredentials
+    let resolveRefreshWrite!: () => void
+    const credentials: jest.Mocked<CredentialStore> = {
+      clear: jest.fn(async () => {
+        currentStored = null
+      }),
+      getAccessToken: jest.fn(async () => currentStored?.accessToken ?? null),
+      getCredentials: jest.fn(async () => currentStored),
+      getRefreshToken: jest.fn(async () => currentStored?.refreshToken ?? null),
+      setCredentials: jest.fn(
+        (value) =>
+          new Promise<void>((resolve) => {
+            resolveRefreshWrite = () => {
+              currentStored = value
+              resolve()
+            }
+          }),
+      ),
+    }
+    const api = createApi()
+    const service = createSessionService({
+      api,
+      credentials,
+      createIdempotencyKey: () => '22222222-2222-4222-8222-222222222222',
+      now: () => now,
+    })
+
+    api.refresh.mockResolvedValue(rotatedTokenPair)
+    api.logout.mockResolvedValue()
+
+    const refreshPromise = service.refresh()
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const logoutPromise = service.logout()
+    resolveRefreshWrite()
+
+    await expect(refreshPromise).resolves.toBeNull()
+    await logoutPromise
+    expect(currentStored).toBeNull()
+  })
 })

@@ -33,59 +33,79 @@ async function clearCredentialSlots() {
   ])
 }
 
+let storageQueue: Promise<unknown> = Promise.resolve()
+let mutationEpoch = 0
+
+function enqueueStorageOp<T>(operation: () => Promise<T>): Promise<T> {
+  const next = storageQueue.then(operation, operation)
+  storageQueue = next.then(
+    () => undefined,
+    () => undefined,
+  )
+  return next
+}
+
 export const secureCredentialStore: CredentialStore = {
   getAccessToken() {
-    return SecureStore.getItemAsync(ACCESS_TOKEN_KEY, secureStoreOptions)
+    return enqueueStorageOp(() =>
+      SecureStore.getItemAsync(ACCESS_TOKEN_KEY, secureStoreOptions),
+    )
   },
   getRefreshToken() {
-    return SecureStore.getItemAsync(REFRESH_TOKEN_KEY, secureStoreOptions)
+    return enqueueStorageOp(() =>
+      SecureStore.getItemAsync(REFRESH_TOKEN_KEY, secureStoreOptions),
+    )
   },
-  async getCredentials() {
-    const [accessToken, accessExpiresAt, refreshToken, refreshExpiresAt] =
-      await Promise.all([
-        SecureStore.getItemAsync(ACCESS_TOKEN_KEY, secureStoreOptions),
-        SecureStore.getItemAsync(ACCESS_EXPIRES_AT_KEY, secureStoreOptions),
-        SecureStore.getItemAsync(REFRESH_TOKEN_KEY, secureStoreOptions),
-        SecureStore.getItemAsync(REFRESH_EXPIRES_AT_KEY, secureStoreOptions),
-      ])
+  getCredentials() {
+    return enqueueStorageOp(async () => {
+      const [accessToken, accessExpiresAt, refreshToken, refreshExpiresAt] =
+        await Promise.all([
+          SecureStore.getItemAsync(ACCESS_TOKEN_KEY, secureStoreOptions),
+          SecureStore.getItemAsync(ACCESS_EXPIRES_AT_KEY, secureStoreOptions),
+          SecureStore.getItemAsync(REFRESH_TOKEN_KEY, secureStoreOptions),
+          SecureStore.getItemAsync(REFRESH_EXPIRES_AT_KEY, secureStoreOptions),
+        ])
 
-    if (
-      !accessToken ||
-      !accessExpiresAt ||
-      !refreshToken ||
-      !refreshExpiresAt
-    ) {
-      return null
-    }
+      if (
+        !accessToken ||
+        !accessExpiresAt ||
+        !refreshToken ||
+        !refreshExpiresAt
+      ) {
+        return null
+      }
 
-    return { accessToken, accessExpiresAt, refreshToken, refreshExpiresAt }
+      return { accessToken, accessExpiresAt, refreshToken, refreshExpiresAt }
+    })
   },
-  async setCredentials(value) {
-    try {
-      await SecureStore.setItemAsync(
-        ACCESS_TOKEN_KEY,
-        value.accessToken,
-        secureStoreOptions,
-      )
-      await SecureStore.setItemAsync(
-        ACCESS_EXPIRES_AT_KEY,
-        value.accessExpiresAt,
-        secureStoreOptions,
-      )
-      await SecureStore.setItemAsync(
-        REFRESH_TOKEN_KEY,
-        value.refreshToken,
-        secureStoreOptions,
-      )
-      await SecureStore.setItemAsync(
-        REFRESH_EXPIRES_AT_KEY,
-        value.refreshExpiresAt,
-        secureStoreOptions,
-      )
-    } catch (error) {
+  setCredentials(value) {
+    const opEpoch = ++mutationEpoch
+    return enqueueStorageOp(async () => {
+      if (opEpoch !== mutationEpoch) return
+      try {
+        const entries: readonly (readonly [string, string])[] = [
+          [ACCESS_TOKEN_KEY, value.accessToken],
+          [ACCESS_EXPIRES_AT_KEY, value.accessExpiresAt],
+          [REFRESH_TOKEN_KEY, value.refreshToken],
+          [REFRESH_EXPIRES_AT_KEY, value.refreshExpiresAt],
+        ]
+        for (const [key, itemValue] of entries) {
+          await SecureStore.setItemAsync(key, itemValue, secureStoreOptions)
+          if (opEpoch !== mutationEpoch) {
+            await clearCredentialSlots()
+            return
+          }
+        }
+      } catch (error) {
+        await clearCredentialSlots()
+        throw error
+      }
+    })
+  },
+  clear() {
+    ++mutationEpoch
+    return enqueueStorageOp(async () => {
       await clearCredentialSlots()
-      throw error
-    }
+    })
   },
-  clear: clearCredentialSlots,
 }

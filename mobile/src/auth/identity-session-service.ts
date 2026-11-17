@@ -76,15 +76,78 @@ export function createSessionService({
   createIdempotencyKey,
   now = Date.now,
 }: SessionServiceOptions): SessionService {
-  async function persistTokenPair(pair: TokenPair): Promise<StoredCredentials> {
-    const stored = {
-      accessToken: pair.accessToken,
-      accessExpiresAt: new Date(now() + pair.expiresIn * 1000).toISOString(),
-      refreshToken: pair.refreshToken,
-      refreshExpiresAt: pair.refreshExpiresAt,
-    }
-    await credentials.setCredentials(stored)
-    return stored
+  let authEpoch = 0
+  let latestClearEpoch = 0
+  let persistedEpoch = 0
+  let credentialQueue: Promise<unknown> = Promise.resolve()
+
+  function runCredentialOp<T>(operation: () => Promise<T>): Promise<T> {
+    const next = credentialQueue.then(operation, operation)
+    credentialQueue = next.then(
+      () => undefined,
+      () => undefined,
+    )
+    return next
+  }
+
+  function readCredentials(opEpoch: number): Promise<StoredCredentials | null> {
+    return runCredentialOp(async () => {
+      if (opEpoch !== authEpoch) return null
+      const stored = await credentials.getCredentials()
+      if (opEpoch !== authEpoch) return null
+      if (!stored) {
+        await credentials.clear()
+        persistedEpoch = 0
+        return null
+      }
+      return stored
+    })
+  }
+
+  function clearIfCurrent(opEpoch: number): Promise<void> {
+    return runCredentialOp(async () => {
+      if (opEpoch === authEpoch || persistedEpoch === opEpoch) {
+        await credentials.clear()
+        if (persistedEpoch <= opEpoch) {
+          persistedEpoch = 0
+        }
+      }
+    })
+  }
+
+  function clearIfSupersededByClear(opEpoch: number): Promise<void> {
+    return runCredentialOp(async () => {
+      if (
+        persistedEpoch === opEpoch ||
+        (latestClearEpoch > opEpoch && persistedEpoch <= latestClearEpoch)
+      ) {
+        await credentials.clear()
+        persistedEpoch = 0
+      }
+    })
+  }
+
+  function persistTokenPair(
+    pair: TokenPair,
+    opEpoch: number,
+  ): Promise<StoredCredentials | null> {
+    return runCredentialOp(async () => {
+      if (opEpoch !== authEpoch) return null
+      const stored = {
+        accessToken: pair.accessToken,
+        accessExpiresAt: new Date(now() + pair.expiresIn * 1000).toISOString(),
+        refreshToken: pair.refreshToken,
+        refreshExpiresAt: pair.refreshExpiresAt,
+      }
+      await credentials.setCredentials(stored)
+      if (opEpoch !== authEpoch) {
+        await credentials.clear()
+        persistedEpoch = 0
+        return null
+      }
+      persistedEpoch = opEpoch
+      return stored
+    })
   }
 
   async function resolveAccount(
@@ -99,9 +162,10 @@ export function createSessionService({
 
   async function rotate(
     stored: StoredCredentials,
+    opEpoch: number,
   ): Promise<AuthenticatedSession | null> {
     if (Date.parse(stored.refreshExpiresAt) <= now()) {
-      await credentials.clear()
+      await clearIfCurrent(opEpoch)
       return null
     }
 
@@ -110,20 +174,26 @@ export function createSessionService({
         stored.refreshToken,
         createIdempotencyKey(),
       )
-      const rotated = await persistTokenPair(pair)
+      const rotated = await persistTokenPair(pair, opEpoch)
+      if (!rotated) return null
       try {
-        return await resolveAccount(rotated)
+        const resolved = await resolveAccount(rotated)
+        if (opEpoch !== authEpoch) {
+          await clearIfSupersededByClear(opEpoch)
+          return null
+        }
+        return resolved
       } catch (error) {
         if (isRejectedAccount(error)) {
           await api.logout(rotated.refreshToken).catch(() => undefined)
-          await credentials.clear()
+          await clearIfCurrent(opEpoch)
           return null
         }
         throw error
       }
     } catch (error) {
       if (isRejectedCredential(error)) {
-        await credentials.clear()
+        await clearIfCurrent(opEpoch)
         return null
       }
       throw error
@@ -132,54 +202,77 @@ export function createSessionService({
 
   return {
     async signIn(email, password) {
+      const opEpoch = ++authEpoch
       const pair = await api.login({ email, password })
-      const stored = await persistTokenPair(pair)
+      const stored = await persistTokenPair(pair, opEpoch)
+      if (!stored) {
+        await api.logout(pair.refreshToken).catch(() => undefined)
+        throw invalidSession(
+          'Sign-in was superseded by another session operation.',
+        )
+      }
 
       try {
-        return await resolveAccount(stored)
+        const resolved = await resolveAccount(stored)
+        if (opEpoch !== authEpoch) {
+          await api.logout(pair.refreshToken).catch(() => undefined)
+          await clearIfSupersededByClear(opEpoch)
+          throw invalidSession(
+            'Sign-in was superseded by another session operation.',
+          )
+        }
+        return resolved
       } catch (error) {
         await api.logout(pair.refreshToken).catch(() => undefined)
-        await credentials.clear()
+        await clearIfCurrent(opEpoch)
         throw error
       }
     },
     async restore() {
-      const stored = await credentials.getCredentials()
-      if (!stored) {
-        await credentials.clear()
-        return null
-      }
+      const opEpoch = ++authEpoch
+      const stored = await readCredentials(opEpoch)
+      if (!stored) return null
 
       if (Date.parse(stored.accessExpiresAt) - ACCESS_EXPIRY_SKEW_MS <= now()) {
-        return rotate(stored)
+        return rotate(stored, opEpoch)
       }
 
       try {
-        return await resolveAccount(stored)
+        const resolved = await resolveAccount(stored)
+        if (opEpoch !== authEpoch) {
+          await clearIfSupersededByClear(opEpoch)
+          return null
+        }
+        return resolved
       } catch (error) {
         if (isRejectedAccount(error)) {
           await api.logout(stored.refreshToken).catch(() => undefined)
-          await credentials.clear()
+          await clearIfCurrent(opEpoch)
           return null
         }
-        if (isRejectedCredential(error)) return rotate(stored)
+        if (isRejectedCredential(error)) return rotate(stored, opEpoch)
         throw error
       }
     },
     async refresh() {
-      const stored = await credentials.getCredentials()
-      if (!stored) {
-        await credentials.clear()
-        return null
-      }
-      return rotate(stored)
+      const opEpoch = authEpoch
+      const stored = await readCredentials(opEpoch)
+      if (!stored) return null
+      return rotate(stored, opEpoch)
     },
     async logout() {
-      const stored = await credentials.getCredentials()
-      try {
-        if (stored) await api.logout(stored.refreshToken)
-      } finally {
+      const opEpoch = ++authEpoch
+      latestClearEpoch = opEpoch
+      const stored = await runCredentialOp(async () => {
+        if (persistedEpoch > opEpoch) return null
+        const current = await credentials.getCredentials()
+        if (persistedEpoch > opEpoch) return null
         await credentials.clear()
+        persistedEpoch = 0
+        return current
+      })
+      if (stored) {
+        await api.logout(stored.refreshToken)
       }
     },
     async registerUser(email, password, idempotencyKey) {
@@ -202,7 +295,9 @@ export function createSessionService({
     },
     async changePassword(currentPassword, newPassword) {
       await api.changePassword({ currentPassword, newPassword })
-      await credentials.clear()
+      const opEpoch = ++authEpoch
+      latestClearEpoch = opEpoch
+      await clearIfCurrent(opEpoch)
     },
   }
 }
