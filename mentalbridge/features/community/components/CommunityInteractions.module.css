@@ -8,14 +8,13 @@
 }
 
 .reactions {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1);
   min-width: 0;
 }
 
-.reactions button,
+.main,
 .bookmark {
   min-height: 44px;
   padding: 0 10px;
@@ -35,11 +34,16 @@
     transform var(--motion-instant) var(--ease-standard);
 }
 
-.reactions button {
+.main {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  /* Fits the longest label ("Đang lớn lên") so the count and bookmark do not shift. */
+  min-width: 8.5rem;
+  justify-content: center;
   white-space: nowrap;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .icon,
@@ -90,7 +94,11 @@
   line-height: 1;
 }
 
-.reactions button.selected,
+.empty {
+  opacity: 0.6;
+}
+
+.main.selected,
 .bookmark.selected {
   color: var(--teal-deep);
   border-color: var(--teal);
@@ -98,32 +106,25 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .reactions button:not(.selected):hover:not(:disabled),
+  .main:not(.selected):hover:not(:disabled),
   .bookmark:not(.selected):hover:not(:disabled) {
     color: var(--teal-deep);
     background: var(--bg);
   }
 }
 
-.reactions button:active:not(:disabled),
+.main:active:not(:disabled),
 .bookmark:active:not(:disabled) {
   transform: translateY(1px);
 }
 
-.reactions button:focus-visible,
+.main:focus-visible,
 .bookmark:focus-visible {
   outline: 2px solid transparent;
   box-shadow: var(--focus-ring);
 }
 
-@media (forced-colors: active) {
-  .reactions button:focus-visible,
-  .bookmark:focus-visible {
-    outline-color: Highlight;
-  }
-}
-
-.reactions button:disabled,
+.main:disabled,
 .bookmark:disabled {
   cursor: wait;
   opacity: 0.65;
@@ -140,6 +141,107 @@
   align-items: center;
   gap: 6px;
   margin-left: auto;
+}
+
+/* Seven-emoji tray: floats above the reaction button, or below it near the top. */
+.tray {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transform-origin: 24px 100%;
+}
+
+.tray.below {
+  top: calc(100% + 6px);
+  bottom: auto;
+  transform-origin: 24px 0;
+}
+
+.item {
+  position: relative;
+}
+
+.item button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.item button.current {
+  background: var(--teal-pale);
+}
+
+.item button:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus-ring);
+}
+
+.trayEmoji {
+  display: inline-block;
+  font-size: 1.75rem;
+  line-height: 1;
+  transition: transform var(--motion-fast) var(--ease-emphasis);
+}
+
+.item button:hover .trayEmoji,
+.item button:focus-visible .trayEmoji {
+  transform: translateY(-6px) scale(1.3);
+}
+
+.tip {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  color: var(--surface);
+  background: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.below .tip {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+.item:hover .tip,
+.item:focus-within .tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (forced-colors: active) {
+  .main:focus-visible,
+  .bookmark:focus-visible,
+  .item button:focus-visible {
+    outline-color: Highlight;
+  }
+
+  .tray {
+    border: 1px solid CanvasText;
+  }
 }
 
 .error,
@@ -196,44 +298,44 @@
   }
 }
 
-@media (max-width: 640px) {
-  .reactions {
-    width: 100%;
-    gap: 0;
-  }
-
-  .reactions button {
-    flex: 1 1 0;
-    min-width: 0;
-    justify-content: center;
+/* 7 x 40 + gaps + padding = 300px inside a 375px card; 7 x 34 = 258px for a 320px screen. */
+@media (max-width: 400px) {
+  .tray {
     padding-inline: 4px;
-    font-size: 0.8125rem;
   }
 
-  .label {
-    display: none;
-  }
-
-  .bookmark {
-    margin-left: auto;
+  .item button {
+    width: 40px;
   }
 }
 
-@media (max-width: 340px) {
-  .reactions button {
-    flex: 1 1 40px;
-    min-width: 44px;
+@media (max-width: 360px) {
+  .tray {
+    gap: 0;
+    padding-inline: 2px;
+  }
+
+  .item button {
+    width: 34px;
+  }
+
+  .trayEmoji {
+    font-size: 1.5rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reactions button,
-  .bookmark {
+  .main,
+  .bookmark,
+  .trayEmoji,
+  .tip {
     transition: none;
   }
 
-  .reactions button:active:not(:disabled),
-  .bookmark:active:not(:disabled) {
+  .main:active:not(:disabled),
+  .bookmark:active:not(:disabled),
+  .item button:hover .trayEmoji,
+  .item button:focus-visible .trayEmoji {
     transform: none;
   }
 
