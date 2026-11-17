@@ -35,6 +35,13 @@ vi.mock('./AdminContentSection', () => ({
 }))
 
 vi.mock(
+  '@/features/safety-directory-admin/components/AdminSafetyDirectoryManager',
+  () => ({
+    default: () => <section aria-label="safety-directory-authority" />,
+  }),
+)
+
+vi.mock(
   '@/features/community/components/AdminCommunityModerationSection',
   () => ({
     default: () => <section aria-label="moderation-authority" />,
@@ -93,7 +100,7 @@ describe('AdminWorkspace', () => {
       name: 'Điều hướng quản trị',
     })
 
-    expect(within(navigation).getAllByRole('link')).toHaveLength(10)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(11)
     expect(
       within(navigation)
         .getAllByRole('link')
@@ -103,6 +110,7 @@ describe('AdminWorkspace', () => {
       '/admin/accounts',
       '/admin/specialists',
       '/admin/content',
+      '/admin/safety-directory',
       '/admin/moderation',
       '/admin/appointments',
       '/admin/disputes',
@@ -155,6 +163,7 @@ describe('AdminWorkspace', () => {
     ['retention', 'retention-authority'],
     ['specialists', 'specialists-authority'],
     ['content', 'content-authority'],
+    ['safety-directory', 'safety-directory-authority'],
     ['moderation', 'moderation-authority'],
     ['appointments', 'appointments-authority'],
     ['disputes', 'disputes-authority'],

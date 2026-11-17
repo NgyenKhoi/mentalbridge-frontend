@@ -1,0 +1,275 @@
+.shell {
+  display: grid;
+  gap: 20px;
+  color: #183b38;
+}
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 24px;
+  border: 1px solid #d8e6e1;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f6fbf8, #edf7f3);
+}
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: 1.55rem;
+}
+.hero p {
+  margin: 0;
+  max-width: 720px;
+  color: #526b67;
+  line-height: 1.55;
+}
+.primary,
+.secondary,
+.danger {
+  min-height: 42px;
+  border-radius: 10px;
+  padding: 0 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.primary {
+  border: 1px solid #176e62;
+  background: #176e62;
+  color: white;
+}
+.secondary {
+  border: 1px solid #a9c4bd;
+  background: white;
+  color: #18584f;
+}
+.danger {
+  border: 1px solid #bd554d;
+  background: #fff7f6;
+  color: #9a342d;
+}
+.primary:disabled,
+.secondary:disabled,
+.danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.toolbar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.toolbar input,
+.toolbar select {
+  min-height: 42px;
+  border: 1px solid #b9cec8;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: white;
+  color: inherit;
+}
+.toolbar input {
+  flex: 1;
+  min-width: 220px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.4fr);
+  gap: 18px;
+}
+.panel {
+  border: 1px solid #d8e3df;
+  border-radius: 16px;
+  background: white;
+  overflow: hidden;
+}
+.panelHeader {
+  padding: 16px 18px;
+  border-bottom: 1px solid #e4ece9;
+}
+.panelHeader h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 650px;
+  overflow: auto;
+}
+.itemButton {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #edf2f0;
+  padding: 16px 18px;
+  text-align: left;
+  background: white;
+  color: inherit;
+  cursor: pointer;
+}
+.itemButton:hover,
+.itemButton:focus-visible,
+.selected {
+  background: #eef8f4;
+  outline: none;
+}
+.itemTitle {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 750;
+}
+.meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  color: #637773;
+  font-size: 0.84rem;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #e7f1ed;
+  color: #205c53;
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+.detail {
+  padding: 20px;
+  display: grid;
+  gap: 18px;
+}
+.detail h2 {
+  margin: 0;
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.fact {
+  padding: 12px;
+  border-radius: 10px;
+  background: #f7faf9;
+  overflow-wrap: anywhere;
+}
+.fact strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.76rem;
+  color: #647b76;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.state {
+  padding: 36px 20px;
+  text-align: center;
+  color: #5b716c;
+}
+.error {
+  padding: 14px 16px;
+  border: 1px solid #efc4bf;
+  border-radius: 12px;
+  background: #fff5f4;
+  color: #8d3029;
+}
+.form {
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.field {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid #b9cec8;
+  border-radius: 9px;
+  padding: 10px 11px;
+  font: inherit;
+  color: inherit;
+  background: white;
+  box-sizing: border-box;
+}
+.field textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+.wide {
+  grid-column: 1 / -1;
+}
+.coverageEditor {
+  display: grid;
+  gap: 12px;
+}
+.coverageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.coverageGroup {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #d8e3df;
+  border-radius: 12px;
+}
+.coverageGroup legend {
+  padding: 0 6px;
+  font-weight: 750;
+}
+.coverageGroup > button {
+  justify-self: start;
+}
+.hint {
+  margin: 0;
+  color: #607570;
+  font-size: 0.84rem;
+  font-weight: 400;
+}
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .list {
+    max-height: 360px;
+  }
+}
+@media (max-width: 600px) {
+  .hero {
+    flex-direction: column;
+  }
+  .hero button {
+    width: 100%;
+  }
+  .fields,
+  .facts,
+  .coverageGroup {
+    grid-template-columns: 1fr;
+  }
+  .wide {
+    grid-column: auto;
+  }
+}
