@@ -21,6 +21,7 @@ type FeedbackContextValue = Readonly<{
   showNotificationToast: (toast: ToastInput) => string
   dismissToast: (id: string) => void
   confirm: (request: ConfirmDialogRequest) => Promise<boolean>
+  cancelConfirm: () => void
 }>
 
 const fallbackFeedback: FeedbackContextValue = {
@@ -28,6 +29,7 @@ const fallbackFeedback: FeedbackContextValue = {
   showNotificationToast: () => '',
   dismissToast: () => undefined,
   confirm: async () => true,
+  cancelConfirm: () => undefined,
 }
 
 const FeedbackContext = createContext<FeedbackContextValue>(fallbackFeedback)
@@ -89,6 +91,11 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const cancelConfirm = useCallback(
+    () => resolveConfirm(false),
+    [resolveConfirm],
+  )
+
   useEffect(
     () => () => {
       for (const timer of timers.current.values()) window.clearTimeout(timer)
@@ -103,8 +110,9 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       showNotificationToast: (toast) => enqueue('notification', toast),
       dismissToast,
       confirm,
+      cancelConfirm,
     }),
-    [confirm, dismissToast, enqueue],
+    [cancelConfirm, confirm, dismissToast, enqueue],
   )
 
   return (
