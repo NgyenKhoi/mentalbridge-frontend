@@ -14,7 +14,7 @@
 - BFF routes: current reassessment summary, replacement review, and replacement confirmation.
 - Runtime validation: `parseSupportPlanReplacementReview` rejects malformed Care responses.
 - Generated types and the committed Care OpenAPI snapshot are synchronized with the backend contract.
-- `ReassessmentJourney` links the completed snapshot to the SupportPlan review; no client-side re-scoring or outcome inference is present.
+- `ReassessmentReview` links the completed snapshot to the SupportPlan review; no client-side re-scoring or outcome inference is present.
 
 ## Verification
 

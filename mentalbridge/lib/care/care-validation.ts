@@ -30,6 +30,7 @@ import type {
   ReassessmentSelfReport,
   ReassessmentContext,
   ReassessmentSummary,
+  ReassessmentSummaryHistoryPage,
 } from '@/features/assessment/api/care-contract'
 import type {
   ValidationResult,
@@ -1222,6 +1223,72 @@ export function parseReassessmentContext(
 const nonNegativeInteger = (value: unknown) =>
   Number.isSafeInteger(value) && Number(value) >= 0
 
+const JOURNAL_DIRECTIONS = new Set([
+  'MORE_FREQUENT',
+  'LESS_FREQUENT',
+  'SIMILAR',
+  'INSUFFICIENT_DATA',
+])
+const PERIODS = new Set(['PREVIOUS', 'CURRENT'])
+
+const labelList = (value: unknown) =>
+  Array.isArray(value) &&
+  value.length <= 24 &&
+  value.every((item) => typeof item === 'string' && item.length <= 64)
+
+const screeningPoint = (value: unknown) =>
+  isRecord(value) &&
+  SCREENING_LEVELS.has(value.screeningLevel as ScreeningLevel) &&
+  nonNegativeInteger(value.totalScore)
+
+/** The fields the reassessment review renders; a malformed one is an upstream error, not a crash. */
+function reassessmentRenderedFieldsValid(value: Record<string, unknown>) {
+  const screening = value.screening as { trends: unknown[] }
+  const journal = value.journalContext as Record<string, unknown>
+  const engagement = value.supportPlanEngagement as Record<string, unknown>
+  const coverage = journal.dataCoverage
+  return (
+    screening.trends.every((trend) => {
+      const item = trend as Record<string, unknown>
+      return (
+        screeningPoint(item.current) &&
+        (item.previous == null || screeningPoint(item.previous)) &&
+        (item.rawDelta == null || Number.isSafeInteger(item.rawDelta))
+      )
+    }) &&
+    (journal.unavailableReason == null ||
+      typeof journal.unavailableReason === 'string') &&
+    labelList(journal.recurringThemes) &&
+    labelList(journal.helpfulPatterns) &&
+    (journal.changesComparedWithPreviousPeriod as unknown[]).every(
+      (change) =>
+        isRecord(change) &&
+        typeof change.signal === 'string' &&
+        change.signal.length <= 64 &&
+        JOURNAL_DIRECTIONS.has(String(change.direction)),
+    ) &&
+    (coverage == null ||
+      (isRecord(coverage) &&
+        nonNegativeInteger(coverage.previousPeriodJournalEntryCount) &&
+        nonNegativeInteger(coverage.currentPeriodJournalEntryCount) &&
+        typeof coverage.sufficientForComparison === 'boolean')) &&
+    (engagement.sources === undefined ||
+      (Array.isArray(engagement.sources) &&
+        engagement.sources.every(
+          (source) =>
+            isRecord(source) &&
+            isUuid(source.occurrenceId) &&
+            PERIODS.has(String(source.period)) &&
+            ['COMPLETED', 'SKIPPED'].includes(String(source.state)) &&
+            (source.sourceResourceId == null ||
+              isUuid(source.sourceResourceId)) &&
+            (source.barrierCode == null ||
+              typeof source.barrierCode === 'string') &&
+            isDateTime(source.scheduledAt),
+        )))
+  )
+}
+
 export function parseReassessmentSummary(
   value: unknown,
 ): ReassessmentSummary | null {
@@ -1272,13 +1339,31 @@ export function parseReassessmentSummary(
   )
     return null
 
+  if (!reassessmentRenderedFieldsValid(value)) return null
+
   if (value.summaryVersion === 'reassessment-summary-v2') {
     if (
       !isRecord(value.selfReportedExperience) ||
       !REASSESSMENT_STATES.has(String(value.selfReportedExperience.state)) ||
       !isRecord(value.activityReflection) ||
       !REASSESSMENT_STATES.has(String(value.activityReflection.state)) ||
-      !Array.isArray(value.activityReflection.sources)
+      !Array.isArray(value.activityReflection.sources) ||
+      !value.activityReflection.sources.every(
+        (source) =>
+          isRecord(source) &&
+          isUuid(source.occurrenceId) &&
+          PERIODS.has(String(source.period)) &&
+          (source.helpfulness == null ||
+            [
+              'NOT_HELPFUL',
+              'A_LITTLE_HELPFUL',
+              'HELPFUL',
+              'VERY_HELPFUL',
+            ].includes(String(source.helpfulness))) &&
+          (source.reflection == null ||
+            typeof source.reflection === 'string') &&
+          isDateTime(source.engagementUpdatedAt),
+      )
     )
       return null
     const source = value.selfReportedExperience.source
@@ -1292,4 +1377,27 @@ export function parseReassessmentSummary(
       return null
   }
   return value as ReassessmentSummary
+}
+
+export function parseReassessmentSummaryHistoryPage(
+  value: unknown,
+): ReassessmentSummaryHistoryPage | null {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.items) ||
+    value.items.length > 50 ||
+    typeof value.hasMore !== 'boolean' ||
+    (value.nextCursor !== null &&
+      (typeof value.nextCursor !== 'string' ||
+        value.nextCursor.length < 1 ||
+        value.nextCursor.length > 256))
+  )
+    return null
+  const items = value.items.map(parseReassessmentSummary)
+  if (items.some((item) => item === null)) return null
+  return {
+    items: items as ReassessmentSummary[],
+    nextCursor: value.nextCursor,
+    hasMore: value.hasMore,
+  }
 }

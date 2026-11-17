@@ -234,7 +234,7 @@ function HarnessApp() {
               className={`assessment-tab-btn ${activeTab === 'reassessment' ? 'active' : ''}`}
               onClick={() => setActiveTab('reassessment')}
             >
-              Đánh giá lại
+              Nhìn lại
             </button>
           </div>
 

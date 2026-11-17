@@ -188,5 +188,23 @@ describe('Journal boundary validation', () => {
         result: { ...result, provider: 'UNAPPROVED' },
       }),
     ).toBeNull()
+    // longitudinal-v2 (Vietnamese signal labels) succeeds; v1 above stays readable.
+    const v2 = {
+      ...job,
+      result: {
+        ...result,
+        promptVersion: 'longitudinal-v2',
+        changesComparedWithPreviousPeriod: [
+          { signal: 'Giấc ngủ', direction: 'SIMILAR' },
+        ],
+      },
+    }
+    expect(parseLongitudinalAnalysisJob(v2)).toEqual(v2)
+    expect(
+      parseLongitudinalAnalysisJob({
+        ...job,
+        result: { ...result, promptVersion: 'longitudinal-v3' },
+      }),
+    ).toBeNull()
   })
 })

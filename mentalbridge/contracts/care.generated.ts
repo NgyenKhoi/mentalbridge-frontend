@@ -465,7 +465,12 @@ export interface paths {
          *     PHQ-9 item-9 safety evidence first, then a stored professional-support pathway,
          *     then an existing current plan or draft, then PLUS/PREMIUM plan proposal while the
          *     episode evaluation is still current-policy compatible, otherwise the Guide's
-         *     reviewed resources. Entitlement is checked only when needed; when it
+         *     reviewed resources. latestScreening is the newest COMPLETED screening episode of
+         *     either purpose (INITIAL_CHECK or REASSESSMENT, by completedAt then episodeId);
+         *     nextAction is decided from that episode's SupportEvaluation, while stage,
+         *     episodeId, episodeCompletedAt, presentationEvaluationId and supportGuideId keep
+         *     the initial-check meaning. Open episodes never become latestScreening.
+         *     Entitlement is checked only when needed; when it
          *     cannot be verified the response fails closed to the always-available resource step
          *     with entitlementStatus UNAVAILABLE. A missing published support policy is not
          *     hidden: it returns 503 SUPPORT_POLICY_UNAVAILABLE so clients offer retry. Responses carry Cache-Control no-store and no
@@ -699,6 +704,14 @@ export interface paths {
          *     dimension while the local dimensions remain available. Sparse local or
          *     journal evidence is INSUFFICIENT_DATA. Dimensions are never collapsed into
          *     a global improvement, recovery, or wellness score.
+         *     A request without journalJobId or journalAnalysisId is accepted only while
+         *     Care's own effective L2 AI_CONTEXT_PROCESSING consent is missing: Care then
+         *     persists a v2 snapshot whose journal dimension is UNAVAILABLE with
+         *     CONSENT_REVOKED (latest L2 decision withdrawn) or CONSENT_REQUIRED (no
+         *     current effective L2, including missing L1). With effective L2 the same
+         *     request returns 400 INVALID_JOURNAL_EVIDENCE_REFERENCE. Sending both
+         *     references is always 400. Idempotent replay is checked before consent, so an
+         *     identical retry returns the original snapshot.
          */
         post: operations["composeOwnReassessmentSummary"];
         delete?: never;
@@ -2419,6 +2432,7 @@ export interface components {
             previousPeriod: components["schemas"]["ReassessmentPeriod"];
             currentPeriod: components["schemas"]["ReassessmentPeriod"];
         };
+        /** @description At most one Journal evidence reference. Omitting both is valid only while effective L2 AI_CONTEXT_PROCESSING consent is missing (journal dimension UNAVAILABLE, CONSENT_REQUIRED or CONSENT_REVOKED); otherwise 400 INVALID_JOURNAL_EVIDENCE_REFERENCE. */
         ReassessmentSummaryCreateRequest: {
             /** Format: uuid */
             phq9AssessmentId: string;
@@ -2426,7 +2440,7 @@ export interface components {
             gad7AssessmentId: string;
             /**
              * Format: uuid
-             * @description Deprecated MB-386 v1 compatibility input. Exactly one Journal evidence reference is required.
+             * @description Deprecated MB-386 v1 compatibility input. Never combined with journalJobId.
              */
             journalAnalysisId?: string;
             /**
@@ -2441,7 +2455,7 @@ export interface components {
              * @description Optional explicit owner self-report for the exact current period. Omission produces INSUFFICIENT_DATA and is never inferred from other evidence.
              */
             selfReportId?: string;
-        } & (unknown | unknown);
+        };
         /**
          * @description Non-diagnostic comparison of how the current period has felt to the user.
          * @enum {string}
@@ -2589,7 +2603,7 @@ export interface components {
         };
         ReassessmentJournalProvenance: {
             /** @enum {string} */
-            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI";
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK";
             model: string;
             promptVersion: string;
             schemaVersion: number;
@@ -2602,7 +2616,7 @@ export interface components {
             unavailableReason: "SOURCE_NOT_FOUND" | "CONSENT_REQUIRED" | "CONSENT_REVOKED" | "CONSENT_UNAVAILABLE" | "ENTITLEMENT_UNAVAILABLE" | "ENTITLEMENT_CHANGED" | "AUTHORIZATION_CONTEXT_LOST" | "SOURCE_REVISION_CHANGED" | "SOURCE_DELETED" | "PROVIDER_TIMEOUT" | "PROVIDER_UNAVAILABLE" | "INVALID_PROVIDER_RESULT" | "INTERNAL_ERROR" | "DEPENDENCY_UNAVAILABLE" | "INVALID_PROJECTION" | null;
             /**
              * Format: uuid
-             * @description Present for canonical v2 snapshots, including failed jobs.
+             * @description Present for canonical v2 snapshots, including failed jobs; absent when the snapshot was composed without a journal reference because L2 consent was missing.
              */
             jobId?: string | null;
             /**
@@ -3015,7 +3029,7 @@ export interface components {
             presentationEvaluationId: string | null;
             /** Format: uuid */
             supportGuideId: string | null;
-            /** @description Null only for ASSESSMENT_REQUIRED. */
+            /** @description Decided from the latestScreening episode's SupportEvaluation. With ASSESSMENT_REQUIRED it is REVIEW_SAFETY_SUPPORT when the latest completed reassessment is safety-positive, otherwise null. */
             nextAction: ("REVIEW_SAFETY_SUPPORT" | "FIND_SPECIALIST" | "OPEN_CURRENT_PLAN" | "REVIEW_PLAN_DRAFT" | "START_PLAN_PROPOSAL" | "EXPLORE_GUIDE_RESOURCES") | null;
             /**
              * Format: uuid
@@ -3024,6 +3038,19 @@ export interface components {
             currentSupportPlanId: string | null;
             /** @enum {string} */
             entitlementStatus: "NOT_REQUIRED" | "VERIFIED" | "UNAVAILABLE";
+            /** @description Newest COMPLETED screening episode of either purpose; null when none is completed. Initial check and reassessment remain separate journeys (ADR 0023). */
+            latestScreening: components["schemas"]["GuidedJourneyLatestScreening"] | null;
+        };
+        GuidedJourneyLatestScreening: {
+            /** Format: uuid */
+            episodeId: string;
+            purpose: components["schemas"]["ScreeningEpisodePurpose"];
+            /** Format: date-time */
+            completedAt: string;
+            /** Format: uuid */
+            presentationEvaluationId: string;
+            /** Format: uuid */
+            supportEvaluationId: string;
         };
         HomeNextStep: {
             /** @constant */

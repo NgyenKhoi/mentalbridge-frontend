@@ -28,6 +28,7 @@ import type {
   ReassessmentContext,
   ReassessmentSummary,
   ReassessmentSummaryCreateRequest,
+  ReassessmentSummaryHistoryPage,
   GuidedJourney,
   HomeNextStep,
   ScreeningEpisode,
@@ -92,6 +93,7 @@ import {
   parseReassessmentSelfReport,
   parseReassessmentContext,
   parseReassessmentSummary,
+  parseReassessmentSummaryHistoryPage,
   parseScreeningEpisode,
   parseScreeningEpisodeEvaluationOutcome,
 } from './care-validation'
@@ -871,6 +873,23 @@ export const careClient = {
       idempotencyKey,
       body: request,
       parseSuccess: parseReassessmentSummary,
+    })
+  },
+
+  reassessmentSummaryHistory(
+    accessToken: string,
+    cursor: string | undefined,
+    limit: number,
+    correlationId: string,
+  ): Promise<ReassessmentSummaryHistoryPage> {
+    const query = new URLSearchParams({ limit: String(limit) })
+    if (cursor) query.set('cursor', cursor)
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/reassessment-summaries?${query}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseReassessmentSummaryHistoryPage,
     })
   },
 

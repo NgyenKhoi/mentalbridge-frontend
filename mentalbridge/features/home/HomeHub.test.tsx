@@ -20,6 +20,9 @@ vi.mock('next/navigation', () => ({
 vi.mock('./browser-home-next-step', () => ({ getHomeNextStep: vi.fn() }))
 vi.mock('./home-destination', () => ({ homeDestination: vi.fn() }))
 vi.mock('./HomeScreeningNotice', () => ({ HomeScreeningNotice: () => null }))
+vi.mock('./HomeReviewEntry', () => ({
+  HomeReviewEntry: () => <div>review-entry</div>,
+}))
 vi.mock('./HomeGreeting', () => ({
   HomeGreeting: () => (
     <header data-testid="home-greeting">Chào buổi sáng</header>
@@ -238,6 +241,22 @@ describe('HomeHub', () => {
         ).toHaveAttribute('href', '/support-plan')
     },
   )
+
+  it('shows the review entry on the ordinary Home and hides it on the safety Home', async () => {
+    const ordinary = render(<HomeHub />)
+    await screen.findByRole('link', { name: 'Bắt đầu kiểm tra ban đầu' })
+    expect(screen.getByText('review-entry')).toBeInTheDocument()
+    ordinary.unmount()
+
+    vi.mocked(getHomeNextStep).mockResolvedValue(
+      homeNextStepFixture({
+        journey: homeJourneyFixture({ nextAction: 'REVIEW_SAFETY_SUPPORT' }),
+      }),
+    )
+    render(<HomeHub />)
+    await screen.findByRole('link', { name: 'Xem nơi hỗ trợ' })
+    expect(screen.queryByText('review-entry')).not.toBeInTheDocument()
+  })
 
   it('reads fresh owner state after leaving and returning Home', async () => {
     const view = render(<HomeHub />)
