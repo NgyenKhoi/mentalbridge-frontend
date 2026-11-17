@@ -152,7 +152,10 @@ const longitudinalEvidence = (value: unknown) =>
     String(value.provider),
   ) &&
   boundedString(value.model, 128) &&
-  value.promptVersion === 'longitudinal-v1' &&
+  // v2 labels are Vietnamese phrases; stored v1 analyses stay readable.
+  ['longitudinal-v1', 'longitudinal-v2'].includes(
+    String(value.promptVersion),
+  ) &&
   value.schemaVersion === 1 &&
   dateTime(value.createdAt)
 

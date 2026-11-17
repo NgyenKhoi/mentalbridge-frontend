@@ -13,11 +13,38 @@ const ready = {
   nextAction: 'START_PLAN_PROPOSAL',
   currentSupportPlanId: null,
   entitlementStatus: 'VERIFIED',
+  latestScreening: null,
 } as const
 
 describe('parseGuidedJourney', () => {
   it('accepts the Care pointer and drops unknown fields', () => {
     expect(parseGuidedJourney({ ...ready, rawAnswers: [1, 2] })).toEqual(ready)
+  })
+
+  it('keeps the latest completed screening of either purpose', () => {
+    const latestScreening = {
+      episodeId: '10000000-0000-4000-8000-000000000669',
+      purpose: 'REASSESSMENT',
+      completedAt: '2026-10-20T03:00:00Z',
+      presentationEvaluationId: '20000000-0000-4000-8000-000000000669',
+      supportEvaluationId: '20000000-0000-4000-8000-000000000670',
+    }
+    expect(parseGuidedJourney({ ...ready, latestScreening })).toEqual({
+      ...ready,
+      latestScreening,
+    })
+  })
+
+  it('treats an absent latestScreening as null for an older Care and rejects a malformed one', () => {
+    expect(
+      parseGuidedJourney({ ...ready, latestScreening: undefined }),
+    ).toEqual(ready)
+    expect(
+      parseGuidedJourney({
+        ...ready,
+        latestScreening: { episodeId: 'not-a-uuid', purpose: 'REASSESSMENT' },
+      }),
+    ).toBeNull()
   })
 
   it('accepts the no-completed-check state with only null context', () => {

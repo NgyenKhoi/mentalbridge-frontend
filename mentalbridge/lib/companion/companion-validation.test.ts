@@ -165,6 +165,11 @@ describe('AI Companion suggestion and quota v2', () => {
       expect(parseConversation(conversation({ suggestion }))).toBeNull()
     }
   })
+
+  it('accepts a paid-tier assistant reply up to 900 characters (MB-869)', () => {
+    expect(parseSend({ ...send, assistant: 'ệ'.repeat(900) })).not.toBeNull()
+    expect(parseSend({ ...send, assistant: 'ệ'.repeat(901) })).toBeNull()
+  })
 })
 
 describe('AI Companion encrypted title fields (MB-810)', () => {

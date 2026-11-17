@@ -149,7 +149,7 @@
 /* Sub-header Phase Bar / Top Indicator */
 .oj-top-indicator,
 .oj-subbar {
-  max-width: 860px;
+  max-width: min(100%, 1200px);
   width: 100%;
   margin: 28px auto 16px;
   padding: 0 4px;
@@ -226,7 +226,7 @@
 
 /* Narrow Container */
 .oj-container-narrow {
-  max-width: 860px;
+  max-width: min(100%, 1200px);
   width: 100%;
   margin: 0 auto;
   padding: 0 16px;
@@ -253,7 +253,7 @@
 
 /* Main Card */
 .oj-main {
-  max-width: 860px;
+  max-width: min(100%, 1200px);
   width: 100%;
   margin: 0 auto 48px;
   padding: 0 16px;
@@ -1699,7 +1699,7 @@
 
 /* Bottom HIPAA Badges Footer */
 .oj-footer {
-  max-width: 860px;
+  max-width: min(100%, 1200px);
   width: 100%;
   margin: 0 auto 36px;
   padding: 0 16px;
@@ -1834,4 +1834,74 @@
   border-top: 1px solid #e5ede8;
   display: flex;
   justify-content: flex-end;
+}
+
+/* ========================================================== */
+/* Laptop width: the flow uses 1200px; reading text keeps 68ch */
+/* ========================================================== */
+.onboarding-journey-container .oj-card p,
+.onboarding-journey-container .oj-card-subtitle,
+.onboarding-journey-container .oj-score-summary,
+.onboarding-journey-container .oj-clinical-desc,
+.onboarding-journey-container .oj-resource-desc {
+  max-width: 68ch;
+}
+
+.onboarding-journey-container .care-questionnaire {
+  width: min(100%, 1040px);
+}
+
+@media (min-width: 1024px) {
+  .onboarding-journey-container .care-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .onboarding-journey-container .oj-scale-segment {
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+
+/* Step 3 plan failure and step 4 reassessment review */
+.oj-plan-error {
+  max-width: 500px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fdf1ec;
+  color: #8a3f26;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.oj-review-next {
+  justify-content: center;
+  text-decoration: none;
+}
+
+@media (max-width: 480px) {
+  .oj-review-next {
+    width: 100%;
+  }
+}
+
+/* Header never scrolls the page sideways: the stepper wraps under the brand and scrolls inside itself. */
+@media (max-width: 960px) {
+  .oj-header {
+    height: auto;
+    min-height: 68px;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 10px 16px;
+  }
+
+  .oj-stepper {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .oj-step-item,
+  .oj-step-dot {
+    flex-shrink: 0;
+  }
 }
