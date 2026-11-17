@@ -1,0 +1,101 @@
+appId: com.mentalbridge.mobile
+name: MB-715 SPECIALIST Android LiveKit control journey
+---
+# Requires one disposable synthetic SPECIALIST whose only upcoming assignment
+# is the same confirmed IN_APP_VIDEO fixture used by the USER flow and is inside
+# its ACTIVE window. Run both role flows concurrently on separate devices.
+# This flow deliberately cancels the completion review: provider attendance,
+# the final completion command, and credit settlement require separate evidence.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: sign-in-email-input
+- inputText: '${MAESTRO_MB_VIDEO_SPECIALIST_EMAIL}'
+- hideKeyboard
+- tapOn:
+    id: sign-in-password-input
+- inputText: '${MAESTRO_MB_VIDEO_SPECIALIST_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: sign-in-submit
+    retryTapIfNoChange: true
+- assertVisible: 'Không gian chuyên môn của bạn'
+- tapOn: 'Mở lịch hẹn tư vấn'
+- assertVisible: 'Lịch hẹn được giao cho bạn'
+- tapOn: 'Sắp tới · 1'
+- tapOn:
+    text: 'Xem chi tiết'
+    index: 0
+- assertVisible: 'Chuẩn bị và tiếp nối phiên tư vấn'
+- assertVisible: 'Tư vấn video trong ứng dụng'
+- scrollUntilVisible:
+    element:
+      text: 'Mở phiên tư vấn video'
+    direction: DOWN
+- tapOn: 'Mở phiên tư vấn video'
+- extendedWaitUntil:
+    visible: 'Phiên tư vấn đã mở. Hãy tham gia khi sẵn sàng.'
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: 'Kiểm tra camera và micro'
+    direction: DOWN
+- tapOn: 'Kiểm tra camera và micro'
+- extendedWaitUntil:
+    visible: 'Thiết bị đã mở trên máy, chưa kết nối với người còn lại.'
+    timeout: 30000
+- tapOn: 'Dừng kiểm tra thiết bị'
+- scrollUntilVisible:
+    element:
+      text: 'Tham gia phiên tư vấn'
+    direction: DOWN
+- tapOn: 'Tham gia phiên tư vấn'
+- extendedWaitUntil:
+    visible: 'Đã kết nối với người còn lại'
+    timeout: 120000
+- scrollUntilVisible:
+    element:
+      text: 'Micro: Đang tắt'
+    direction: DOWN
+- tapOn: 'Micro: Đang tắt'
+- extendedWaitUntil:
+    visible: 'Micro: Đang bật'
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: 'Camera: Đang tắt'
+    direction: DOWN
+- tapOn: 'Camera: Đang tắt'
+- extendedWaitUntil:
+    visible: 'Camera: Đang bật'
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: 'Micro: Đang bật'
+    direction: DOWN
+- tapOn: 'Micro: Đang bật'
+- scrollUntilVisible:
+    element:
+      text: 'Camera: Đang bật'
+    direction: DOWN
+- tapOn: 'Camera: Đang bật'
+
+# Exercise the irreversible-control review without submitting the completion.
+- scrollUntilVisible:
+    element:
+      text: 'Xác nhận kết thúc buổi tư vấn'
+    direction: DOWN
+- tapOn: 'Xác nhận kết thúc buổi tư vấn'
+- assertVisible: 'Buổi tư vấn đã kết thúc?'
+- assertVisible: 'Kết thúc và gửi xác nhận'
+- tapOn: 'Tiếp tục tư vấn'
+- assertNotVisible: 'Buổi tư vấn đã kết thúc?'
+- scrollUntilVisible:
+    element:
+      text: 'Rời cuộc gọi'
+    direction: DOWN
+- tapOn: 'Rời cuộc gọi'
+- extendedWaitUntil:
+    visible: 'Tham gia phiên tư vấn'
+    timeout: 30000
