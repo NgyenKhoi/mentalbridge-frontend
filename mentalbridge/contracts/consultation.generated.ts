@@ -1567,7 +1567,10 @@ export interface components {
             verificationState: "PENDING_VERIFICATION" | "VERIFIED" | "EVIDENCE_REVIEW";
             /** @enum {string} */
             appointmentStatus: "SESSION_ENDED" | "COMPLETED";
-            /** @enum {string} */
+            /**
+             * @description State of the credit for this appointment. AVAILABLE means the credit is no longer bound to this appointment (released, transferred or adjusted back), even when a later booking holds it again.
+             * @enum {string}
+             */
             creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
             /** Format: uuid */
             completionFactId: string | null;
@@ -3883,7 +3886,10 @@ export interface components {
             /** @enum {string|null} */
             sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
             sessionOutcomeReasonCode: string | null;
-            /** @enum {string} */
+            /**
+             * @description State of the credit for this appointment. AVAILABLE means the credit is no longer bound to this appointment (released, transferred or adjusted back), even when a later booking holds it again.
+             * @enum {string}
+             */
             settlementState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
             /** Format: date-time */
             updatedAt: string;
@@ -3964,7 +3970,10 @@ export interface components {
             participantCheckedIn: boolean;
             /** @enum {string|null} */
             sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
-            /** @enum {string} */
+            /**
+             * @description State of the credit for this appointment. AVAILABLE means the credit is no longer bound to this appointment (released, transferred or adjusted back), even when a later booking holds it again.
+             * @enum {string}
+             */
             creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
             /** Format: date-time */
             scheduledStartAt: string;
@@ -4134,7 +4143,10 @@ export interface components {
             sessionSettledAt: string | null;
             /** Format: uuid */
             completionFactId: string | null;
-            /** @enum {string} */
+            /**
+             * @description State of the credit for this appointment. AVAILABLE means the credit is no longer bound to this appointment (released, transferred or adjusted back), even when a later booking holds it again.
+             * @enum {string}
+             */
             creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
             history: components["schemas"]["AppointmentHistoryEntry"][];
             /** Format: int64 */
