@@ -21,6 +21,7 @@ export function homeJourneyFixture(
     nextAction: 'EXPLORE_GUIDE_RESOURCES',
     currentSupportPlanId: null,
     entitlementStatus: 'VERIFIED',
+    latestScreening: null,
     ...changes,
   }
 }

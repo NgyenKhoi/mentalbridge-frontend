@@ -14,6 +14,7 @@ const journey = {
   nextAction: 'OPEN_CURRENT_PLAN',
   currentSupportPlanId: '40000000-0000-4000-8000-000000000672',
   entitlementStatus: 'NOT_REQUIRED',
+  latestScreening: null,
 } as const
 const plan = {
   supportPlanId: journey.currentSupportPlanId,

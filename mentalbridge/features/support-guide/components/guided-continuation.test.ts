@@ -21,6 +21,7 @@ function journey(
     nextAction,
     currentSupportPlanId: null,
     entitlementStatus: 'NOT_REQUIRED',
+    latestScreening: null,
   }
 }
 

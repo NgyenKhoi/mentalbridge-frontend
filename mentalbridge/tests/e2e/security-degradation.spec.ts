@@ -574,6 +574,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
         appointmentMessage: true,
         resourceSystem: true,
         communityInteraction: true,
+        supportPlanReminder: true,
       },
       quietHours: {
         enabled: true,
@@ -589,6 +590,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
         dailyDigestTime: '19:00',
         resourceReminderTime: '18:30',
       },
+      dailyReminderTime: '20:00',
       version,
       updatedAt: '2026-09-26T00:00:00.000Z',
     }

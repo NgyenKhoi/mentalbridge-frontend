@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 
 import { useFeedback } from '@/components/ui/FeedbackProvider'
+import { ApiError } from '@/lib/api/api-error'
 import {
   getCareProfile,
   saveCareProfile,
@@ -35,6 +36,8 @@ import {
   submitInitialCheckAssessment,
   createInitialCheckEvaluation,
 } from '@/features/assessment/api/browser-care'
+import { ReassessmentReview } from '@/features/assessment/components/ReassessmentReview'
+import { getHomeNextStep } from '@/features/home/browser-home-next-step'
 import {
   proposeSupportPlanDraft,
   activateSupportPlan,
@@ -204,6 +207,21 @@ export default function OnboardingAssessmentJourney({
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(1)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const isReassessment = purpose === 'REASSESSMENT'
+  // The keys and the proposed draft survive a failed attempt until a confirmed outcome, so "Thử lại"
+  // replays the same propose/activate calls (a commit whose response timed out is not repeated).
+  const pendingPlan = useRef<{
+    proposeKey: string
+    activateKey: string
+    draft?: { supportPlanId: string; version: number }
+  } | null>(null)
+  const [planFailed, setPlanFailed] = useState(false)
+  // Step 4 of a reassessment: the primary action waits until Care says whether a plan is in use.
+  const [hasPlan, setHasPlan] = useState(false)
+  const [planState, setPlanState] = useState<'loading' | 'known' | 'failed'>(
+    'loading',
+  )
+  const [planAttempt, setPlanAttempt] = useState(0)
   const [profileVersion, setProfileVersion] = useState<number | undefined>(
     undefined,
   )
@@ -617,30 +635,67 @@ export default function OnboardingAssessmentJourney({
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Handle Step 4 Support Plan Generation
+  // INITIAL_CHECK creates and activates the first plan. A reassessment never touches
+  // the plan: the user reviews the last 14 days and decides about the plan afterwards.
   const handleGenerateSupportPlan = async () => {
+    setPlanFailed(false)
     setSubmitting(true)
     try {
-      const draft = await proposeSupportPlanDraft(
-        crypto.randomUUID(),
-        purpose,
-      ).catch(() => null)
-      if (draft && draft.supportPlanId) {
+      if (!isReassessment) {
+        const pending = (pendingPlan.current ??= {
+          proposeKey: crypto.randomUUID(),
+          activateKey: crypto.randomUUID(),
+        })
+        if (!pending.draft) {
+          const draft = await proposeSupportPlanDraft(
+            pending.proposeKey,
+            purpose,
+          )
+          pending.draft = {
+            supportPlanId: draft.supportPlanId,
+            version: draft.version,
+          }
+        }
         await activateSupportPlan(
-          draft.supportPlanId,
-          draft.version,
-          crypto.randomUUID(),
-        ).catch(() => undefined)
+          pending.draft.supportPlanId,
+          pending.draft.version,
+          pending.activateKey,
+        )
+        pendingPlan.current = null
       }
       setCurrentStep(4)
       window.scrollTo({ top: 0, behavior: 'smooth' })
-    } catch {
-      setCurrentStep(4)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch (error) {
+      // A definite rejection (not a timeout or rate limit) ends the pending attempt; the next one starts fresh.
+      if (
+        error instanceof ApiError &&
+        error.status !== undefined &&
+        error.status >= 400 &&
+        error.status < 500 &&
+        error.status !== 408 &&
+        error.status !== 429
+      )
+        pendingPlan.current = null
+      setPlanFailed(true)
     } finally {
       setSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    if (currentStep !== 4 || !isReassessment || planReview) return
+    let active = true
+    getHomeNextStep()
+      .then((home) => {
+        if (!active) return
+        setHasPlan(home.plan != null)
+        setPlanState('known')
+      })
+      .catch(() => active && setPlanState('failed'))
+    return () => {
+      active = false
+    }
+  }, [currentStep, isReassessment, planReview, planAttempt])
 
   // Finish journey & enter dashboard
   const handleFinishToDashboard = () => {
@@ -776,7 +831,7 @@ export default function OnboardingAssessmentJourney({
           </div>
           <span className="oj-step-dot">•</span>
           <div className={`oj-step-item ${currentStep === 4 ? 'active' : ''}`}>
-            <span>4. Kế hoạch hỗ trợ</span>
+            <span>{isReassessment ? '4. Nhìn lại' : '4. Kế hoạch hỗ trợ'}</span>
           </div>
         </nav>
 
@@ -1549,15 +1604,25 @@ export default function OnboardingAssessmentJourney({
               >
                 <Sparkles size={18} />
                 <span>
-                  {submitting
-                    ? 'Đang cá nhân hóa kế hoạch hỗ trợ…'
-                    : 'Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa ngay →'}
+                  {isReassessment
+                    ? 'Xem nhìn lại 14 ngày →'
+                    : submitting
+                      ? 'Đang cá nhân hóa kế hoạch hỗ trợ…'
+                      : planFailed
+                        ? 'Thử lại tạo kế hoạch hỗ trợ →'
+                        : 'Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa ngay →'}
                 </span>
               </button>
+              {planFailed && (
+                <div className="oj-plan-error" role="alert">
+                  Chưa tạo được kế hoạch hỗ trợ. Kết quả sàng lọc của bạn vẫn
+                  được lưu. Bạn hãy thử lại.
+                </div>
+              )}
               <span className="oj-cta-note">
-                Dựa trên kết quả PHQ-9 ({phq9Score}đ) và GAD-7 ({gad7Score}đ),
-                hệ thống sẽ thiết lập lộ trình 14 ngày phù hợp với nhịp sống của
-                bạn.
+                {isReassessment
+                  ? 'Kết quả này sẽ được đặt cạnh những gì bạn đã chia sẻ trong 14 ngày qua. Kế hoạch của bạn chưa thay đổi.'
+                  : `Dựa trên kết quả PHQ-9 (${phq9Score}đ) và GAD-7 (${gad7Score}đ), hệ thống sẽ thiết lập lộ trình 14 ngày phù hợp với nhịp sống của bạn.`}
               </span>
             </div>
           </div>
@@ -1566,7 +1631,66 @@ export default function OnboardingAssessmentJourney({
         {/* ================================================================= */}
         {/* STEP 4: KẾ HOẠCH HỖ TRỢ VÀ HOÀN TẤT VỀ DASHBOARD                   */}
         {/* ================================================================= */}
-        {currentStep === 4 && (
+        {currentStep === 4 && isReassessment && (
+          <div className="oj-container-narrow">
+            <div className="oj-top-indicator">
+              <span className="oj-step-counter">
+                Bước 4/4: Nhìn lại 14 ngày
+              </span>
+              <div className="oj-step-info-right">
+                <div className="oj-progress-pill">
+                  <div className="oj-progress-fill" style={{ width: '100%' }} />
+                </div>
+                <span className="oj-percent-text">100%</span>
+              </div>
+            </div>
+            <ReassessmentReview
+              variant="flow"
+              planReview={planReview}
+              footer={
+                planReview || planState === 'known' ? (
+                  <Link
+                    href={
+                      hasPlan || planReview
+                        ? '/support-plan?review=open'
+                        : '/dashboard'
+                    }
+                    className="oj-btn-primary oj-btn-large oj-review-next"
+                  >
+                    {hasPlan || planReview
+                      ? 'Xem lại kế hoạch →'
+                      : 'Về trang tổng quan →'}
+                  </Link>
+                ) : planState === 'failed' ? (
+                  <div className="oj-plan-error" role="alert">
+                    Chưa kiểm tra được kế hoạch của bạn.{' '}
+                    <button
+                      type="button"
+                      className="oj-text-action-btn"
+                      onClick={() => {
+                        setPlanState('loading')
+                        setPlanAttempt((value) => value + 1)
+                      }}
+                    >
+                      Thử lại
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    aria-busy="true"
+                    className="oj-btn-primary oj-btn-large oj-review-next"
+                  >
+                    Đang kiểm tra kế hoạch…
+                  </button>
+                )
+              }
+            />
+          </div>
+        )}
+
+        {currentStep === 4 && !isReassessment && (
           <div className="oj-container-narrow">
             <div className="oj-top-indicator">
               <span className="oj-badge-dot">• HOÀN THÀNH TIẾN TRÌNH</span>

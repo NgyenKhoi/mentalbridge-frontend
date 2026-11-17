@@ -19,9 +19,12 @@ export function HomeScreeningNotice({
   const headingId = useId()
   const [state, setState] = useState<NoticeState | null>(null)
   const [attempt, setAttempt] = useState(0)
-  const evaluationId = journey.presentationEvaluationId
-  const episodeId = journey.episodeId
-  const completedAt = journey.episodeCompletedAt
+  // The newest completed screening of either purpose; the initial-check fields are the fallback.
+  const latest = journey.latestScreening
+  const evaluationId =
+    latest?.presentationEvaluationId ?? journey.presentationEvaluationId
+  const episodeId = latest?.episodeId ?? journey.episodeId
+  const completedAt = latest?.completedAt ?? journey.episodeCompletedAt
 
   useEffect(() => {
     if (!evaluationId || !episodeId || !completedAt) return

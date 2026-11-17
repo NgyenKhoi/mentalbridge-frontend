@@ -52,7 +52,9 @@ export function preferences(version = 0): VersionedPreferences {
         appointmentMessage: true,
         resourceSystem: true,
         communityInteraction: true,
+        supportPlanReminder: true,
       },
+      dailyReminderTime: '20:00',
       quietHours: {
         enabled: false,
         start: '22:00',

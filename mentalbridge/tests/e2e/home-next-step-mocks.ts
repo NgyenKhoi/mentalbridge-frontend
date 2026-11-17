@@ -182,6 +182,7 @@ export function homeWorld(state: HomeAcceptanceState = 'do-today'): HomeWorld {
             nextAction === 'START_PLAN_PROPOSAL'
           ? 'VERIFIED'
           : 'NOT_REQUIRED',
+    latestScreening: null,
   }
   if (state === 'plan-emotion-origin') {
     resources.current = nativeSupportPlanFixture()

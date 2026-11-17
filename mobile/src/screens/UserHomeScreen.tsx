@@ -1,11 +1,17 @@
 import * as Linking from 'expo-linking'
 import { skipToken, useQuery } from '@tanstack/react-query'
-import { router, useFocusEffect, type Href } from 'expo-router'
+import {
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+  type Href,
+} from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
   Pressable,
+  type ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,8 +20,11 @@ import {
   View,
 } from 'react-native'
 
+import { useReducedMotion } from 'react-native-reanimated'
+
 import type { AppointmentApi } from '@/appointments/appointment-api'
 import { matchesFilter } from '@/appointments/appointment-model'
+import type { EmotionApi } from '@/emotion/emotion-api'
 import type { DiscoveryApi } from '@/discovery/discovery-api'
 import { supportAreaLabels } from '@/discovery/discovery-model'
 import { loadCareProfile, type CareProfileApi } from '@/profile/profile-api'
@@ -23,48 +32,15 @@ import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import type { HomeApi } from '@/home/home-api'
+import { HomeEmotionSection } from '@/home/HomeEmotionSection'
+import { PushInviteCard } from '@/home/PushInviteCard'
 import { homePresentation } from '@/home/home-model'
 import {
-  colors as baseColors,
-  radii,
-  spacing,
-  typography,
-} from '@/theme/tokens'
-
-const colors = {
-  ...baseColors,
-  surfaceSoft: '#F2F4F2',
-  ink: '#1A1C1E',
-  inkSoft: '#5B6470',
-  inkFaint: '#596573',
-  teal: '#1F5C3F',
-  tealDeep: '#174A32',
-  tealPale: '#D9F3E4',
-  line: 'rgba(26, 28, 30, 0.07)',
-}
-
-function useDashboardFonts() {
-  const [loaded, setLoaded] = useState(false)
-  useEffect(() => {
-    let active = true
-    // Older development builds can keep rendering with the system fonts.
-    void import('expo-font')
-      .then(({ loadAsync }) =>
-        loadAsync({
-          DashboardSans: require('../../assets/fonts/PlusJakartaSans.ttf'),
-          DashboardSerif: require('../../assets/fonts/Lora.ttf'),
-        }),
-      )
-      .then(() => {
-        if (active) setLoaded(true)
-      })
-      .catch(() => undefined)
-    return () => {
-      active = false
-    }
-  }, [])
-  return loaded
-}
+  dashboardColors as colors,
+  DashboardFontContext,
+} from '@/theme/dashboard'
+import { useDashboardFonts } from '@/theme/dashboard-fonts'
+import { radii, spacing, typography } from '@/theme/tokens'
 
 function openCompanion() {
   void Linking.openURL(
@@ -153,13 +129,6 @@ const quickActions = [
     hint: 'Thảo luận',
     tint: { backgroundColor: '#E7F2F9', color: '#1D526A' },
   },
-  {
-    label: 'Ghi nhận cảm xúc',
-    href: '/(user)/emotion',
-    mark: '♡',
-    hint: 'Check-in',
-    tint: { backgroundColor: '#EFECFA', color: '#4D4081' },
-  },
 ] as const
 
 const navigation = [
@@ -169,8 +138,6 @@ const navigation = [
   { label: 'Chuyên gia', mark: '✚', href: '/(user)/specialists' },
   { label: 'Cá nhân', mark: '◎', href: '/(user)/profile' },
 ] as const
-
-const weekdays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
 
 function SecondaryAction({
   label,
@@ -207,11 +174,13 @@ export function UserHomeScreen({
   profileApi,
   appointmentApi,
   discoveryApi,
+  emotionApi,
 }: Readonly<{
   api: HomeApi
   profileApi?: Pick<CareProfileApi, 'getProfile'>
   appointmentApi?: Pick<AppointmentApi, 'list'> | undefined
   discoveryApi?: Pick<DiscoveryApi, 'detail'>
+  emotionApi?: EmotionApi
 }>) {
   const fontsLoaded = useDashboardFonts()
   const styles = fontsLoaded ? webFontStyles : systemFontStyles
@@ -220,6 +189,11 @@ export function UserHomeScreen({
   const [search, setSearch] = useState('')
   const [showMore, setShowMore] = useState(false)
   const firstFocus = useRef(true)
+  const scrollRef = useRef<ScrollView>(null)
+  const { focus } = useLocalSearchParams<{ focus?: string }>()
+  const reduceMotion = useReducedMotion()
+  const [sectionY, setSectionY] = useState<number | null>(null)
+  const [highlight, setHighlight] = useState(false)
   const timeZone = deviceTimeZone()
   const query = useQuery({
     queryKey: ['home-next-step', session?.subject, timeZone],
@@ -238,6 +212,20 @@ export function UserHomeScreen({
       void refetchHome()
     }, [refetchHome]),
   )
+
+  // A push tap opens `?focus=emotion`: scroll the section to the top once the
+  // next-step card has settled, tint the check-in card, then drop the param.
+  useEffect(() => {
+    if (focus !== 'emotion' || sectionY === null || query.isFetching) return
+    const frame = requestAnimationFrame(() => {
+      // The content column starts 16 px below the scroll top, so y is already
+      // "section top minus 16".
+      scrollRef.current?.scrollTo({ y: sectionY, animated: !reduceMotion })
+      setHighlight(true)
+      router.setParams({ focus: undefined })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [focus, sectionY, query.isFetching, reduceMotion])
 
   const presentation = query.data ? homePresentation(query.data) : null
   const today = new Date()
@@ -292,7 +280,6 @@ export function UserHomeScreen({
     .map((area) => supportAreaLabels[area])
     .join(', ')
   const displayName = profile.data?.displayName
-  const dayIndex = (today.getDay() + 6) % 7
   const visibleActions = quickActions.filter(({ label }) =>
     label
       .toLocaleLowerCase('vi')
@@ -303,6 +290,7 @@ export function UserHomeScreen({
 
   return (
     <Screen
+      scrollRef={scrollRef}
       layout="dashboard"
       backgroundColor="#F8FAF8"
       footer={
@@ -392,43 +380,6 @@ export function UserHomeScreen({
               </Pressable>
             )}
           </View>
-          <View style={styles.weekCard}>
-            <View style={styles.sectionHeader}>
-              <Text accessibilityRole="header" style={styles.weekTitle}>
-                Nhịp điệu tuần
-              </Text>
-              {plan?.cycleDay != null && plan.cycleLengthDays != null && (
-                <Text style={styles.cycle}>
-                  Chu kỳ {plan.cycleDay}/{plan.cycleLengthDays} ngày
-                </Text>
-              )}
-            </View>
-            <View style={styles.weekRow}>
-              {weekdays.map((label, index) => {
-                const date = new Date(
-                  today.getFullYear(),
-                  today.getMonth(),
-                  today.getDate() + index - dayIndex,
-                )
-                const active = index === dayIndex
-                return (
-                  <View
-                    key={label}
-                    style={[styles.day, active && styles.dayActive]}
-                  >
-                    <Text style={[styles.dayLabel, active && styles.lightText]}>
-                      {active ? 'Nay' : label}
-                    </Text>
-                    <Text
-                      style={[styles.dayNumber, active && styles.lightText]}
-                    >
-                      {date.getDate()}
-                    </Text>
-                  </View>
-                )
-              })}
-            </View>
-          </View>
         </>
       )}
 
@@ -506,6 +457,11 @@ export function UserHomeScreen({
                 </Pressable>
               </View>
             ) : null}
+            {plan?.cycleDay != null && plan.cycleLengthDays != null && (
+              <Text style={styles.cycle}>
+                Chu kỳ {plan.cycleDay}/{plan.cycleLengthDays} ngày
+              </Text>
+            )}
             <Text
               style={[styles.cardEyebrow, featured && styles.featuredEyebrow]}
             >
@@ -567,6 +523,27 @@ export function UserHomeScreen({
           </>
         ) : null}
       </View>
+
+      {!safety && emotionApi && session ? (
+        <DashboardFontContext.Provider
+          value={fontsLoaded ? 'DashboardSans' : undefined}
+        >
+          <View
+            testID="home-emotion-anchor"
+            onLayout={(event) => setSectionY(event.nativeEvent.layout.y)}
+          >
+            <HomeEmotionSection api={emotionApi} highlight={highlight} />
+          </View>
+        </DashboardFontContext.Provider>
+      ) : null}
+
+      {!safety && session ? (
+        <DashboardFontContext.Provider
+          value={fontsLoaded ? 'DashboardSans' : undefined}
+        >
+          <PushInviteCard />
+        </DashboardFontContext.Provider>
+      ) : null}
 
       {!safety && (
         <View style={styles.quickSection}>
@@ -1115,15 +1092,6 @@ const dashboardStyles = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  weekCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.shell,
-    borderColor: colors.line,
-    borderWidth: 1,
-    padding: spacing.md,
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
   sectionHeader: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1131,8 +1099,8 @@ const dashboardStyles = {
     alignItems: 'center',
     gap: spacing.sm,
   },
-  weekTitle: { color: colors.ink, fontSize: 16, fontWeight: '700' },
   cycle: {
+    alignSelf: 'flex-start',
     color: colors.tealDeep,
     backgroundColor: colors.tealPale,
     borderRadius: radii.pill,
@@ -1141,20 +1109,6 @@ const dashboardStyles = {
     fontSize: 12,
     fontWeight: '700',
   },
-  weekRow: { flexDirection: 'row', gap: spacing.xs },
-  day: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 56,
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: radii.control,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs,
-  },
-  dayActive: { backgroundColor: colors.tealDeep },
-  dayLabel: { color: colors.inkSoft, fontSize: 11, fontWeight: '600' },
-  dayNumber: { color: colors.ink, fontSize: 14, fontWeight: '700' },
   lightText: { color: colors.white },
   featured: { backgroundColor: '#174E3E', borderRadius: radii.shell },
   featuredEyebrow: {
@@ -1474,10 +1428,7 @@ const webFontStyles = StyleSheet.create({
   pageTitle: { ...dashboardStyles.pageTitle, ...sans },
   searchInput: { ...dashboardStyles.searchInput, ...sans },
   searchMark: { ...dashboardStyles.searchMark, ...sans },
-  weekTitle: { ...dashboardStyles.weekTitle, ...sans },
   cycle: { ...dashboardStyles.cycle, ...sans },
-  dayLabel: { ...dashboardStyles.dayLabel, ...sans },
-  dayNumber: { ...dashboardStyles.dayNumber, ...sans },
   featuredEyebrow: { ...dashboardStyles.featuredEyebrow, ...sans },
   featuredTitle: { ...dashboardStyles.featuredTitle, ...serif },
   cardEyebrow: { ...dashboardStyles.cardEyebrow, ...sans },

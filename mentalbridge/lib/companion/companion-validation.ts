@@ -234,7 +234,7 @@ export const parseSend = (value: unknown): CompanionSend | null => {
     !uuid.test(value.assistantMessageId) ||
     typeof value.assistant !== 'string' ||
     value.assistant.length < 1 ||
-    value.assistant.length > 500 ||
+    value.assistant.length > 900 ||
     !dateTime(value.createdAt) ||
     !Array.isArray(value.contextKinds) ||
     value.contextKinds.length > 4 ||

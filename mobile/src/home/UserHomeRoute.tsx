@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { createDiscoveryApi } from '@/discovery/discovery-api'
+import { createEmotionApi } from '@/emotion/emotion-api'
 import { createAppointmentApi } from '@/appointments/appointment-api'
 import { useSession } from '@/auth/session-context'
 import { createCareProfileApi } from '@/profile/profile-api'
@@ -22,6 +23,7 @@ export function UserHomeRoute() {
     return {
       client,
       discovery: createDiscoveryApi(client),
+      emotion: createEmotionApi(client),
       home: createHomeApi(client),
       profile: createCareProfileApi(client),
     }
@@ -32,6 +34,7 @@ export function UserHomeRoute() {
       api={services.home}
       profileApi={services.profile}
       discoveryApi={services.discovery}
+      emotionApi={services.emotion}
       appointmentApi={
         session
           ? createAppointmentApi(services.client, session.subject)

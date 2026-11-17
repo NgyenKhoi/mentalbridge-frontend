@@ -134,4 +134,38 @@ describe('direct public Community API', () => {
       { headers: { 'Idempotency-Key': key } },
     )
   })
+  it('reads, sets and clears the comment reaction on the comment path and checks the echoed identity', async () => {
+    const { api, get, put, delete: remove } = setup()
+    const commentId = fixturePostId
+    get.mockResolvedValue({
+      data: { commentId, reaction: null, reactionCount: 0 },
+    })
+    expect(await api.commentReaction(commentId)).toEqual({
+      commentId,
+      reaction: null,
+      reactionCount: 0,
+    })
+    expect(get).toHaveBeenCalledWith(
+      `/api/v1/community/comments/${commentId}/reaction`,
+    )
+    put.mockResolvedValue({
+      data: { commentId, reaction: 'RELATE', reactionCount: 3 },
+    })
+    expect(
+      (await api.setCommentReaction(commentId, 'RELATE')).reactionCount,
+    ).toBe(3)
+    expect(put).toHaveBeenCalledWith(
+      `/api/v1/community/comments/${commentId}/reaction`,
+      { reaction: 'RELATE' },
+    )
+    put.mockResolvedValue({
+      data: { commentId, reaction: 'SUPPORT', reactionCount: 3 },
+    })
+    await expect(api.setCommentReaction(commentId, 'RELATE')).rejects.toThrow()
+    await api.clearCommentReaction(commentId)
+    expect(remove).toHaveBeenCalledWith(
+      `/api/v1/community/comments/${commentId}/reaction`,
+    )
+    await expect(api.commentReaction('not-a-uuid')).rejects.toThrow()
+  })
 })

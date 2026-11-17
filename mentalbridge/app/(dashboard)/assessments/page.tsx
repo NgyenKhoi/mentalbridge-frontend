@@ -12,7 +12,7 @@ import { getAssessmentHistory } from '@/features/assessment/api/browser-care'
 import { IndividualAssessmentHistory } from '@/features/assessment/components/IndividualAssessmentHistory'
 import { ScreeningEpisodeHistory } from '@/features/assessment/components/ScreeningEpisodeHistory'
 import { SupportEvaluationHistory } from '@/features/assessment/components/SupportEvaluationHistory'
-import { ReassessmentJourney } from '@/features/assessment/components/ReassessmentJourney'
+import { ReassessmentReviewTab } from '@/features/assessment/components/ReassessmentReviewTab'
 
 import './assessments.css'
 
@@ -39,7 +39,9 @@ function AssessmentsContent() {
   const [error, setError] = useState(false)
   const [isCrisisOpen, setIsCrisisOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<AssessmentTab>(() =>
-    searchParams?.get('tab') === 'reassessment' ? 'reassessment' : 'history',
+    ['reassessment', 'review'].includes(searchParams?.get('tab') ?? '')
+      ? 'reassessment'
+      : 'history',
   )
   const tabListRef = useRef<HTMLDivElement | null>(null)
 
@@ -173,7 +175,7 @@ function AssessmentsContent() {
             onClick={() => setActiveTab('reassessment')}
             onKeyDown={(event) => handleTabKeyDown(event, 'reassessment')}
           >
-            Đánh giá lại
+            Nhìn lại
           </button>
         </div>
 
@@ -237,7 +239,10 @@ function AssessmentsContent() {
           hidden={activeTab !== 'reassessment'}
           className="assessment-tabpanel"
         >
-          <ReassessmentJourney planReview={planReview} />
+          {/* Mounted only while open so the page never loads or starts a review in the background. */}
+          {activeTab === 'reassessment' && (
+            <ReassessmentReviewTab planReview={planReview} />
+          )}
         </section>
       </div>
 

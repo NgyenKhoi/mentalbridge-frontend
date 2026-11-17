@@ -834,7 +834,7 @@ describe('/api/community read BFF', () => {
       request(`http://localhost/api/community/posts/${postId}/reaction`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ reaction: 'LIKE' }),
+        body: JSON.stringify({ reaction: 'ANGRY' }),
       }),
       { params: Promise.resolve({ postId }) },
     )
