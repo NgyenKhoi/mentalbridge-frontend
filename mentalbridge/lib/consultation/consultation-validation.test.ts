@@ -366,6 +366,21 @@ describe('Consultation contract validation', () => {
       history: [],
     }
     expect(parseServiceCreditAccount(free)).toEqual(free)
+    const cancelledAccount = {
+      ...free,
+      history: [
+        {
+          ...account.history[0],
+          eventType: 'REVOKED',
+          source: 'PAID',
+          packageCode: 'PLUS',
+          appointmentId: null,
+        },
+      ],
+    }
+    expect(parseServiceCreditAccount(cancelledAccount)).toEqual(
+      cancelledAccount,
+    )
     expect(
       parseServiceCreditAccount({ ...free, supportPlanEnabled: true }),
     ).toBeNull()
@@ -450,6 +465,38 @@ describe('Consultation contract validation', () => {
             actorId: null,
           },
         ],
+      }),
+    ).not.toBeNull()
+    const subscriptionCancelled = {
+      ...appointment,
+      status: 'CANCELLED',
+      cancelledAt: '2026-09-23T04:00:00Z',
+      cancellationReason: 'OWNER_SUBSCRIPTION_CANCELLED',
+      cancellationActor: 'USER',
+      cancellationCreditOutcome: 'REVOKED',
+      creditState: 'REVOKED',
+      history: [
+        ...appointment.history,
+        {
+          eventId: '4b33a40f-f4d8-41a1-83da-65cf6c457766',
+          fromStatus: 'REQUESTED',
+          toStatus: 'CANCELLED',
+          actorType: 'USER',
+          actorId: '7fe3a890-3d31-48d0-bf1a-4d81bbcef4b8',
+          reason: 'OWNER_SUBSCRIPTION_CANCELLED',
+          creditOutcome: 'REVOKED',
+          occurredAt: '2026-09-23T04:00:00Z',
+        },
+      ],
+    }
+    expect(parseAppointment(subscriptionCancelled)).toEqual(
+      subscriptionCancelled,
+    )
+    expect(
+      parseAppointmentList({
+        items: [subscriptionCancelled],
+        count: 1,
+        generatedAt: '2026-09-23T04:00:01Z',
       }),
     ).not.toBeNull()
     const videoCompleted = {

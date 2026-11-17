@@ -49,6 +49,7 @@ const CREDIT_LABELS: Record<Appointment['creditState'], string> = {
   HELD: 'Lượt tư vấn vẫn được giữ cho lịch hẹn',
   CONSUMED: 'Lượt tư vấn đã được sử dụng',
   FORFEITED: 'Lượt tư vấn không còn hiệu lực',
+  REVOKED: 'Lượt tư vấn đã bị thu hồi khi chủ gói hủy đăng ký',
 }
 
 const RELOAD_CODES = new Set([

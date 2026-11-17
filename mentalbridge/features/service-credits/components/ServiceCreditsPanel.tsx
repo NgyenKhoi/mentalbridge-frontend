@@ -29,6 +29,7 @@ const EVENT_LABELS = {
   RELEASED: 'Đã hoàn lại',
   FORFEITED: 'Đã hết hiệu lực',
   ADJUSTED_RELEASED: 'Đã trả lại sau xem xét',
+  REVOKED: 'Đã thu hồi khi hủy gói',
 } as const
 
 function formatInstant(value: string | null) {
