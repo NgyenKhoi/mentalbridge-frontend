@@ -58,6 +58,41 @@ describe('HomeScreeningNotice', () => {
     },
   )
 
+  it('reads the latest screening, so a mild reassessment after a severe initial check shows no notice', async () => {
+    const episodeId = '10000000-0000-4000-8000-000000000999'
+    const reassessment = combinedMeaningFixture({
+      supportEvaluationId: '20000000-0000-4000-8000-000000000999',
+      episodeId,
+    })
+    vi.mocked(getCombinedScreeningMeaning).mockResolvedValue({
+      ...reassessment,
+      evidence: reassessment.evidence.map((item) => ({
+        ...item,
+        totalScore: 6,
+        screeningLevel: 'MILD',
+      })),
+    })
+    const { container } = render(
+      <HomeScreeningNotice
+        journey={{
+          ...journey,
+          latestScreening: {
+            episodeId,
+            purpose: 'REASSESSMENT',
+            completedAt: reassessment.episodeCompletedAt!,
+            presentationEvaluationId: reassessment.supportEvaluationId,
+            supportEvaluationId: reassessment.supportEvaluationId,
+          },
+        }}
+      />,
+    )
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
+    expect(getCombinedScreeningMeaning).toHaveBeenCalledWith(
+      reassessment.supportEvaluationId,
+      expect.anything(),
+    )
+  })
+
   it('does not read or display a warning before an episode is completed', () => {
     const { container } = render(
       <HomeScreeningNotice

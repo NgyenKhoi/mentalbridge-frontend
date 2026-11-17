@@ -879,6 +879,10 @@
     align-items: flex-start;
     flex-direction: column;
   }
+  /* The shell gives the heading flex: 1 1 400px, which becomes a tall gap in a column. */
+  .ref-shell .notifications-hero > [data-user-page-heading] {
+    flex: 0 0 auto;
+  }
   .notifications-hero-mark {
     display: none;
   }

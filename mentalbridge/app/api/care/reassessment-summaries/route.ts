@@ -41,7 +41,8 @@ function composeRequest(
   if (
     !isUuid(body.phq9AssessmentId) ||
     !isUuid(body.gad7AssessmentId) ||
-    !isUuid(body.journalJobId) ||
+    // Omitted only while journal consent is missing; Care decides whether that is allowed.
+    (body.journalJobId !== undefined && !isUuid(body.journalJobId)) ||
     body.journalAnalysisId !== undefined ||
     (body.selfReportId !== undefined && !isUuid(body.selfReportId)) ||
     !previousPeriod ||
@@ -51,7 +52,9 @@ function composeRequest(
   return {
     phq9AssessmentId: body.phq9AssessmentId,
     gad7AssessmentId: body.gad7AssessmentId,
-    journalJobId: body.journalJobId,
+    ...(typeof body.journalJobId === 'string'
+      ? { journalJobId: body.journalJobId }
+      : {}),
     previousPeriod,
     currentPeriod,
     ...(typeof body.selfReportId === 'string'
