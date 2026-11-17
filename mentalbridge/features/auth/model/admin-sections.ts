@@ -19,6 +19,11 @@ export const ADMIN_SECTIONS = {
   'safety-directory': {
     label: 'Thư mục hỗ trợ an toàn',
   },
+  benchmarks: {
+    label: 'Benchmark AI',
+    description:
+      'Quản trị bộ dữ liệu tổng hợp, phiên bản bất biến và báo cáo benchmark.',
+  },
   moderation: {
     label: 'Kiểm duyệt Community',
   },

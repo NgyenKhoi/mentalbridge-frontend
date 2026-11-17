@@ -9,6 +9,7 @@ import {
   Users,
   UserCheck,
   BookOpen,
+  BrainCircuit,
   ShieldCheck,
   Calendar,
   Scale,
@@ -42,6 +43,7 @@ import AdminCommercialReconciliationManager from '@/features/reconciliation/comp
 import AdminFeedbackManager from '@/features/feedback/components/AdminFeedbackManager'
 import AdminRetentionGovernance from '@/features/retention/components/AdminRetentionGovernance'
 import AdminSafetyDirectoryManager from '@/features/safety-directory-admin/components/AdminSafetyDirectoryManager'
+import AdminBenchmarkGovernance from '@/features/benchmarks/AdminBenchmarkGovernance'
 import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
 import type { Workspace } from '../model/workspace'
 
@@ -75,6 +77,11 @@ export const SECTIONS = {
   'safety-directory': {
     label: 'Thư mục hỗ trợ an toàn',
     icon: MapPinned,
+  },
+  benchmarks: {
+    label: 'Benchmark AI',
+    description: 'Quản trị bộ dữ liệu tổng hợp và báo cáo đánh giá AI.',
+    icon: BrainCircuit,
   },
   moderation: {
     label: 'Kiểm duyệt Community',
@@ -147,6 +154,8 @@ function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
       return <AdminContentSection />
     case 'safety-directory':
       return <AdminSafetyDirectoryManager />
+    case 'benchmarks':
+      return <AdminBenchmarkGovernance />
     case 'moderation':
       return <AdminCommunityModerationSection />
     case 'appointments':

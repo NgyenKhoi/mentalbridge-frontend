@@ -1,0 +1,122 @@
+.shell {
+  display: grid;
+  gap: 1rem;
+  color: #18352f;
+}
+.header,
+.card {
+  background: #fff;
+  border: 1px solid #d9e5df;
+  border-radius: 18px;
+  padding: 1.25rem;
+  box-shadow: 0 10px 30px rgba(24, 53, 47, 0.06);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+.header h1,
+.card h2 {
+  margin: 0.15rem 0 0.5rem;
+}
+.eyebrow {
+  margin: 0;
+  color: #257563;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(340px, 1.1fr);
+  gap: 1rem;
+}
+.list,
+.item {
+  display: grid;
+  gap: 0.55rem;
+}
+.item {
+  border-bottom: 1px solid #e4ece8;
+  padding: 0.75rem 0;
+}
+.item > button:first-child {
+  text-align: left;
+  background: transparent;
+  color: #174f43;
+  padding: 0;
+}
+.shell label {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.7rem 0;
+  font-weight: 650;
+}
+.shell input,
+.shell textarea,
+.shell select {
+  width: 100%;
+  border: 1px solid #b9cec6;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+  background: #fbfdfc;
+}
+.shell button {
+  border: 0;
+  border-radius: 10px;
+  background: #1d6657;
+  color: white;
+  padding: 0.65rem 0.9rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.shell button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.actions {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.error,
+.notice {
+  margin: 0;
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+}
+.error {
+  background: #fff0ef;
+  color: #932d28;
+}
+.notice {
+  background: #e8f6f0;
+  color: #145648;
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.shell table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.shell th,
+.shell td {
+  border-bottom: 1px solid #e4ece8;
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .header {
+    flex-direction: column;
+  }
+}
