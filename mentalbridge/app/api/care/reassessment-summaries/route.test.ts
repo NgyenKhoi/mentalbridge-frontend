@@ -78,6 +78,26 @@ describe('/api/care/reassessment-summaries', () => {
     )
   })
 
+  it('forwards a composition without a journal reference', async () => {
+    care.composeReassessmentSummary.mockResolvedValue({ summaryId: 'summary' })
+    const withoutJob = { ...body, journalJobId: undefined }
+    const response = await POST(request('POST', withoutJob))
+    expect(response.status).toBe(201)
+    expect(care.composeReassessmentSummary).toHaveBeenCalledWith(
+      'access-token',
+      withoutJob,
+      'reassessment-summary-browser-01',
+      expect.any(String),
+    )
+  })
+
+  it('rejects a malformed journal job id', async () => {
+    const response = await POST(
+      request('POST', { ...body, journalJobId: 'not-a-uuid' }),
+    )
+    expect(response.status).toBe(400)
+  })
+
   it('rejects a browser-supplied analysis id', async () => {
     const response = await POST(
       request('POST', {

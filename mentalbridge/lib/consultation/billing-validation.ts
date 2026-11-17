@@ -3,6 +3,9 @@ import type { components } from '@/contracts/consultation.generated'
 type PricingPolicy = components['schemas']['CommercialPricingPolicy']
 export type AdminPaymentList = components['schemas']['AdminPaymentList']
 export type PlanPaymentHistory = components['schemas']['PlanPaymentHistory']
+export type OwnSubscription = components['schemas']['OwnSubscription']
+export type SubscriptionCancellation =
+  components['schemas']['SubscriptionCancellation']
 
 export type PlanCode = 'FREE' | 'PLUS' | 'PREMIUM'
 export type PaymentProvider = 'FAKE' | 'MOMO' | 'PAYOS'
@@ -339,6 +342,116 @@ export function parseCheckoutInput(value: unknown): { planVersionId: string } {
     throw new Error('planVersionId')
   }
   return { planVersionId: input.planVersionId }
+}
+
+export function parseOwnSubscription(value: unknown): OwnSubscription | null {
+  const subscription = record(value)
+  if (
+    !subscription ||
+    !exactKeys(subscription, [
+      'subscriptionId',
+      'planCode',
+      'status',
+      'currentPeriodStart',
+      'currentPeriodEnd',
+      'cancellationRequestedAt',
+      'paidAccessEndedAt',
+      'liveAppointmentId',
+      'liveSessionEndsAt',
+      'generatedAt',
+    ]) ||
+    !(
+      subscription.subscriptionId === null || uuid(subscription.subscriptionId)
+    ) ||
+    !['FREE', 'PLUS', 'PREMIUM'].includes(String(subscription.planCode)) ||
+    ![
+      'NONE',
+      'PENDING_PAYMENT',
+      'ACTIVE',
+      'CANCEL_PENDING_SESSION_END',
+      'CANCELLED',
+      'ENDED',
+    ].includes(String(subscription.status)) ||
+    !(
+      subscription.currentPeriodStart === null ||
+      instant(subscription.currentPeriodStart)
+    ) ||
+    !(
+      subscription.currentPeriodEnd === null ||
+      instant(subscription.currentPeriodEnd)
+    ) ||
+    !(
+      subscription.cancellationRequestedAt === null ||
+      instant(subscription.cancellationRequestedAt)
+    ) ||
+    !(
+      subscription.paidAccessEndedAt === null ||
+      instant(subscription.paidAccessEndedAt)
+    ) ||
+    !(
+      subscription.liveAppointmentId === null ||
+      uuid(subscription.liveAppointmentId)
+    ) ||
+    !(
+      subscription.liveSessionEndsAt === null ||
+      instant(subscription.liveSessionEndsAt)
+    ) ||
+    !instant(subscription.generatedAt)
+  )
+    return null
+  if (
+    (subscription.status === 'NONE' &&
+      (subscription.subscriptionId !== null ||
+        subscription.planCode !== 'FREE')) ||
+    (subscription.status !== 'NONE' && !uuid(subscription.subscriptionId))
+  )
+    return null
+  return subscription as OwnSubscription
+}
+
+export function parseSubscriptionCancellation(
+  value: unknown,
+): SubscriptionCancellation | null {
+  const cancellation = record(value)
+  if (
+    !cancellation ||
+    !exactKeys(cancellation, [
+      'subscriptionId',
+      'planCode',
+      'status',
+      'currentPeriodEnd',
+      'cancellationRequestedAt',
+      'paidAccessEndedAt',
+      'liveAppointmentId',
+      'liveSessionEndsAt',
+      'cancelledAppointments',
+      'revokedCredits',
+      'generatedAt',
+    ]) ||
+    !uuid(cancellation.subscriptionId) ||
+    !['PLUS', 'PREMIUM'].includes(String(cancellation.planCode)) ||
+    !['CANCEL_PENDING_SESSION_END', 'CANCELLED'].includes(
+      String(cancellation.status),
+    ) ||
+    !instant(cancellation.currentPeriodEnd) ||
+    !instant(cancellation.cancellationRequestedAt) ||
+    !instant(cancellation.paidAccessEndedAt) ||
+    !(
+      cancellation.liveAppointmentId === null ||
+      uuid(cancellation.liveAppointmentId)
+    ) ||
+    !(
+      cancellation.liveSessionEndsAt === null ||
+      instant(cancellation.liveSessionEndsAt)
+    ) ||
+    !Number.isSafeInteger(cancellation.cancelledAppointments) ||
+    Number(cancellation.cancelledAppointments) < 0 ||
+    !Number.isSafeInteger(cancellation.revokedCredits) ||
+    Number(cancellation.revokedCredits) < 0 ||
+    !instant(cancellation.generatedAt)
+  )
+    return null
+  return cancellation as SubscriptionCancellation
 }
 
 export function parseAdminPaymentList(value: unknown): AdminPaymentList | null {

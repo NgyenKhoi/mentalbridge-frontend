@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 import { CommunityRoute } from './CommunityRoute'
 import { fixturePostId } from './community-fixtures'
 import { router } from 'expo-router'
@@ -8,7 +8,7 @@ const mockCreate = jest.fn(() => ({
 let mockParams: { postId?: string | string[] } = {}
 const mockProps = jest.fn()
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), back: jest.fn() },
+  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
   Stack: { Screen: () => null },
   useLocalSearchParams: () => mockParams,
 }))
@@ -42,12 +42,13 @@ it('passes a UUID notification post target to the existing authoritative detail 
     expect.objectContaining({ initialPostId: fixturePostId }),
   )
 })
-it('binds Community inbox and available-peer handoffs to the narrow native route', async () => {
+it('replaces the screen with the chat inbox for the Tin nhắn tab and pushes available-peer handoffs', async () => {
   await render(<CommunityRoute />)
   const props: { onChat: () => void; onPeerChat: (id: string) => void } =
     mockProps.mock.calls[0]?.[0]
   props.onChat()
-  expect(router.push).toHaveBeenCalledWith('/(user)/community-chat')
+  expect(router.replace).toHaveBeenCalledWith('/(user)/community-chat')
+  expect(router.push).not.toHaveBeenCalled()
   props.onPeerChat(fixturePostId)
   expect(router.push).toHaveBeenCalledWith({
     pathname: '/(user)/community-chat',
@@ -65,7 +66,8 @@ it.each(['not-an-id', ['bad', fixturePostId]])(
     expect(
       screen.getByText('Liên kết bài chia sẻ không hợp lệ.'),
     ).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Quay lại' })).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('button', { name: 'Quay lại' }))
+    expect(router.back).toHaveBeenCalledTimes(1)
     expect(mockCreate).not.toHaveBeenCalled()
     expect(mockProps).not.toHaveBeenCalled()
   },

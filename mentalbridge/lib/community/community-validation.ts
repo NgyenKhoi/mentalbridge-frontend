@@ -108,6 +108,10 @@ const SUPPORTIVE_REACTIONS = new Set<SupportiveReaction>([
   'SUPPORT',
   'RELATE',
   'THANK_YOU',
+  'LIKE',
+  'EMPATHY',
+  'CHEER',
+  'GROWTH',
 ])
 const REPORT_TARGET_TYPES = new Set(['POST', 'COMMENT'])
 const REPORT_REASONS = new Set([

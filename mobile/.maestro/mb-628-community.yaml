@@ -14,7 +14,8 @@ name: MB-628 real Community create interact report and block
     retryTapIfNoChange: true
 - assertVisible: 'Chào mừng bạn quay lại'
 - tapOn: 'Mở cộng đồng'
-- tapOn: 'Danh tính cộng đồng'
+- tapOn: 'Trang của tôi'
+- tapOn: 'Sửa danh tính'
 - tapOn: 'Tên hiển thị cộng đồng'
 - inputText: 'MB628 synthetic member'
 - hideKeyboard
@@ -33,6 +34,7 @@ name: MB-628 real Community create interact report and block
       text: 'Quay lại cộng đồng'
     direction: UP
 - tapOn: 'Quay lại cộng đồng'
+- tapOn: 'Bảng tin'
 - tapOn: 'Viết chia sẻ'
 - tapOn:
     id: 'community-post-content'
@@ -59,10 +61,11 @@ name: MB-628 real Community create interact report and block
 - assertVisible: 'Bài viết ẩn danh.*'
 - scrollUntilVisible:
     element:
-      text: 'Mình ở đây'
+      text: 'Thả cảm xúc'
     direction: DOWN
-- tapOn: 'Mình ở đây'
-- assertVisible: '0 bình luận · 1 lời động viên'
+- tapOn: 'Thả cảm xúc'
+- assertVisible: 'Bạn đã thả: Mình ở đây'
+- assertVisible: '1 lời động viên'
 - scrollUntilVisible:
     element:
       text: 'Lưu bài viết'
@@ -133,23 +136,25 @@ name: MB-628 real Community create interact report and block
       text: 'Xác nhận chặn tác giả'
     direction: DOWN
 - tapOn: 'Xác nhận chặn tác giả'
-- assertVisible: 'Cộng đồng đồng hành'
+- assertVisible: 'Cộng đồng'
 - assertNotVisible:
     id: 'community-open-${MAESTRO_MB_COMMUNITY_PEER_POST_ID}'
 - launchApp
 - assertVisible: 'Chào mừng bạn quay lại'
 - tapOn: 'Mở cộng đồng'
-- tapOn: 'Bài đã lưu'
+- tapOn: 'Trang của tôi'
+- assertVisible: 'Bài đã lưu'
 - scrollUntilVisible:
     element:
       text: 'MB628 synthetic mobile story.'
     direction: DOWN
-- tapOn: 'Mở chia sẻ'
+- tapOn: 'Mở chia sẻ của.*'
 - assertVisible: 'MB628 synthetic mobile story.'
 - assertVisible: 'Bài viết ẩn danh.*'
 - scrollUntilVisible:
     element:
-      text: '1 bình luận · 1 lời động viên'
+      text: '1 lời động viên'
     direction: DOWN
-- assertVisible: '1 bình luận · 1 lời động viên'
+- assertVisible: '1 lời động viên'
+- assertVisible: '1 bình luận'
 - assertVisible: 'Bỏ lưu bài viết'

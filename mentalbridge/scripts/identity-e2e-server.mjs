@@ -1717,7 +1717,17 @@ const server = createServer(async (request, response) => {
       const viewerKey = `${actor.accountId}:${post.postId}`
       if (request.method === 'PUT') {
         const body = await readBody(request)
-        if (!['SUPPORT', 'RELATE', 'THANK_YOU'].includes(body.reaction)) {
+        if (
+          ![
+            'LIKE',
+            'SUPPORT',
+            'THANK_YOU',
+            'RELATE',
+            'EMPATHY',
+            'CHEER',
+            'GROWTH',
+          ].includes(body.reaction)
+        ) {
           problem(response, 400, 'VALIDATION_FAILED', 'Reaction is invalid')
           return
         }

@@ -108,8 +108,12 @@ import {
   parseServicePlanCatalogue,
   parseAdminPaymentList,
   parsePlanPaymentHistory,
+  parseOwnSubscription,
+  parseSubscriptionCancellation,
   type PlanPayment,
   type ServicePlanCatalogue,
+  type OwnSubscription,
+  type SubscriptionCancellation,
 } from './billing-validation'
 
 const MAX_RESPONSE_BYTES = 128 * 1024
@@ -1063,6 +1067,30 @@ export const consultationClient = {
       body: { planVersionId },
       idempotencyKey,
       parse: parsePlanPayment,
+    })
+  },
+  ownSubscription(token: string, correlationId: string) {
+    return request<OwnSubscription>({
+      method: 'GET',
+      path: '/api/v1/subscriptions/current',
+      token,
+      correlationId,
+      parse: parseOwnSubscription,
+    })
+  },
+  cancelSubscription(
+    token: string,
+    correlationId: string,
+    subscriptionId: string,
+    idempotencyKey: string,
+  ) {
+    return request<SubscriptionCancellation>({
+      method: 'POST',
+      path: `/api/v1/subscriptions/${encodeURIComponent(subscriptionId)}/cancellation`,
+      token,
+      correlationId,
+      idempotencyKey,
+      parse: parseSubscriptionCancellation,
     })
   },
   own(token: string, correlationId: string) {

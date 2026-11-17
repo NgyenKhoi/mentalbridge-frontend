@@ -15,6 +15,7 @@ import { HomeQuickActions } from './HomeQuickActions'
 import { HomeEmotionSection } from './HomeEmotionSection'
 import { HomeResources } from './HomeResources'
 import { HomeUpcomingAppointment } from './HomeUpcomingAppointment'
+import { HomeReviewEntry } from './HomeReviewEntry'
 import { HomeScreeningNotice } from './HomeScreeningNotice'
 import { getHomeNextStep } from './browser-home-next-step'
 import { homeDestination } from './home-destination'
@@ -162,6 +163,7 @@ export function HomeHub() {
           )
         )}
       </div>
+      {home && !planEmotion && !safety && <HomeReviewEntry />}
       {!planEmotion && (
         <HomeEmotionSection onPersisted={reload} motionOff={safety} />
       )}

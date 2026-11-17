@@ -30,6 +30,7 @@ module.exports = {
   useAnimatedStyle: (factory) => factory(),
   // Records the completion callback instead of running it, so tests finish an animation on demand.
   withTiming: jest.fn((value) => value),
+  withSequence: jest.fn((...values) => values[values.length - 1]),
   runOnJS: (fn) => fn,
   withDelay: (_delay, value) => value,
   Easing: builder,

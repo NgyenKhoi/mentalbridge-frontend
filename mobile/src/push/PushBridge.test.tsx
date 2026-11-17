@@ -177,9 +177,31 @@ describe('PushBridge', () => {
     expect(refreshPushOnStart).toHaveBeenCalledTimes(1)
 
     await act(async () => {
-      addTokenListener.mock.calls.at(-1)?.[0]({} as never)
+      addTokenListener.mock.calls.at(-1)?.[0]({
+        type: 'android',
+        data: 'token-a',
+      })
     })
     expect(refreshPushOnStart).toHaveBeenCalledTimes(2)
+  })
+
+  // Android emits the token event on every token fetch, including the fetch inside registration.
+  it('does not re-register when the token event repeats the same token', async () => {
+    signIn()
+    await render(<PushBridge />, { wrapper })
+    await waitFor(() => expect(refreshPushOnStart).toHaveBeenCalledTimes(1))
+    const emit = (data: string) =>
+      act(async () => {
+        addTokenListener.mock.calls.at(-1)?.[0]({ type: 'android', data })
+      })
+
+    await emit('token-a')
+    await emit('token-a')
+    await emit('token-a')
+    expect(refreshPushOnStart).toHaveBeenCalledTimes(2)
+
+    await emit('token-b')
+    expect(refreshPushOnStart).toHaveBeenCalledTimes(3)
   })
 
   it('re-checks the device once per return to the foreground', async () => {
