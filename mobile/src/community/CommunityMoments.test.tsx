@@ -6,7 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native'
-import { BackHandler } from 'react-native'
+import { AppState } from 'react-native'
 
 import type { AssessmentApi } from '@/assessment/assessment-api'
 import type { AppSession } from '@/auth/session'
@@ -44,13 +44,26 @@ const mockPlayer = {
   muted: false,
   timeUpdateEventInterval: 0,
   duration: 10,
+  status: 'readyToPlay',
   play: jest.fn(),
   pause: jest.fn(),
-  addListener: jest.fn((event: string, handler: (payload: unknown) => void) => {
-    mockListeners[event] = handler
-    return { remove: jest.fn() }
-  }),
+  replaceAsync: jest.fn().mockResolvedValue(undefined),
 }
+jest.mock('expo-router', () => ({
+  useFocusEffect: (callback: () => void) =>
+    jest.requireActual('react').useEffect(callback, [callback]),
+}))
+// useEvent keeps the last payload in state so tests can fire player events.
+jest.mock('expo', () => ({
+  useEvent: (_player: unknown, event: string, initial: unknown) => {
+    const react = jest.requireActual('react')
+    const [value, setValue] = react.useState(initial)
+    react.useEffect(() => {
+      mockListeners[event] = setValue
+    }, [event])
+    return value
+  },
+}))
 jest.mock('expo-video', () => ({
   useVideoPlayer: (_source: unknown, setup?: (player: unknown) => void) => {
     setup?.(mockPlayer)
@@ -147,7 +160,13 @@ async function mount(community: CommunityApi) {
 }
 const press = (name: string | RegExp) =>
   fireEvent.press(screen.getByRole('button', { name }))
-const openMoment = (name: string) => press(`Mở khoảnh khắc của ${name}`)
+// The reels list renders only once the viewer has been laid out.
+const openMoment = async (name: string) => {
+  await press(`Mở khoảnh khắc của ${name}`)
+  await fireEvent(screen.getByTestId('community-reels'), 'layout', {
+    nativeEvent: { layout: { width: 400, height: 800 } },
+  })
+}
 
 describe('moments source', () => {
   it('keeps posts with a video and no sensitive warning', () => {
@@ -164,8 +183,13 @@ describe('moments source', () => {
 })
 
 describe('moments strip and viewer', () => {
+  beforeAll(() => {
+    // RN's jest setup stubs currentState as a function; the viewer reads a string.
+    Object.assign(AppState, { currentState: 'active' })
+  })
   beforeEach(() => {
     mockPlayer.muted = false
+    mockPlayer.status = 'readyToPlay'
     mockPlayer.play.mockClear()
     mockPlayer.pause.mockClear()
   })
@@ -183,78 +207,82 @@ describe('moments strip and viewer', () => {
     await mount(api())
     await screen.findByText(textOnly.contentPreview)
     await openMoment('Cúc')
-    expect(screen.getByText('2 / 2')).toBeOnTheScreen()
+    expect(screen.getByText('2/2')).toBeOnTheScreen()
     expect(screen.getByText(videoC.contentPreview)).toBeOnTheScreen()
-    expect(screen.getByLabelText('Tạm dừng video')).toBeOnTheScreen()
-    await press('Đóng khoảnh khắc')
-    expect(screen.queryByText('2 / 2')).toBeNull()
+    expect(screen.getAllByLabelText('Tạm dừng video')[0]).toBeOnTheScreen()
+    await press('Đóng Reels')
+    expect(screen.queryByText('2/2')).toBeNull()
     expect(screen.getByText(textOnly.contentPreview)).toBeOnTheScreen()
   })
   it('closes on Android back', async () => {
-    const listen = jest.spyOn(BackHandler, 'addEventListener')
     await mount(api())
     await screen.findByText(textOnly.contentPreview)
     await openMoment('An')
-    const handler = listen.mock.calls.at(-1)?.[1] as () => boolean
-    await act(async () => expect(handler()).toBe(true))
-    expect(screen.queryByText('1 / 2')).toBeNull()
+    expect(screen.getByText('1/2')).toBeOnTheScreen()
+    // The viewer is a Modal: Android back reaches it through onRequestClose.
+    let node = screen.getByTestId('community-reels').parent
+    while (node && !node.props.onRequestClose) node = node.parent
+    await act(async () => node!.props.onRequestClose())
+    expect(screen.queryByText('1/2')).toBeNull()
   })
-  it('starts muted and toggles sound with the selected state', async () => {
+  it('starts muted and toggles sound', async () => {
     await mount(api())
     await screen.findByText(textOnly.contentPreview)
     await openMoment('An')
     expect(mockPlayer.muted).toBe(true)
-    await press('Bật âm thanh')
+    await fireEvent.press(screen.getAllByLabelText('Bật tiếng video')[0]!)
     expect(mockPlayer.muted).toBe(false)
-    expect(
-      screen.getByRole('button', { name: 'Tắt âm thanh' }).props
-        .accessibilityState,
-    ).toEqual({ selected: true })
+    expect(screen.getAllByLabelText('Tắt tiếng video')[0]).toBeOnTheScreen()
   })
   it('pauses and resumes on a tap of the video', async () => {
     await mount(api())
     await screen.findByText(textOnly.contentPreview)
     await openMoment('An')
-    await fireEvent.press(screen.getByLabelText('Tạm dừng video'))
+    await fireEvent.press(screen.getAllByLabelText('Tạm dừng video')[0]!)
     expect(mockPlayer.pause).toHaveBeenCalled()
-    await fireEvent.press(screen.getByLabelText('Phát video'))
-    expect(mockPlayer.play.mock.calls.length).toBeGreaterThan(1)
+    mockPlayer.play.mockClear()
+    await fireEvent.press(screen.getAllByLabelText('Phát video')[0]!)
+    expect(mockPlayer.play).toHaveBeenCalled()
   })
   it('opens the post detail from the comment button', async () => {
     await mount(api())
     await screen.findByText(textOnly.contentPreview)
     await openMoment('Cúc')
-    await press('7 bình luận')
+    await fireEvent.press(screen.getAllByLabelText('Bình luận video')[0]!)
     expect(
       await screen.findByRole('header', { name: 'Bài viết' }),
     ).toBeOnTheScreen()
-    expect(screen.queryByText('2 / 2')).toBeNull()
+    expect(screen.queryByText('2/2')).toBeNull()
   })
   it('reacts and saves through the shared post commands', async () => {
-    const community = api()
+    // Each command re-reads the post, so detail must answer with the same post.
+    const community = api({
+      detail: jest.fn().mockResolvedValue({ post: videoA, etag: null }),
+    })
     await mount(community)
     await screen.findByText(textOnly.contentPreview)
     await openMoment('An')
-    await fireEvent.press(
-      screen.getAllByRole('button', { name: 'Thả cảm xúc' })[0]!,
-    )
+    await fireEvent.press(screen.getAllByLabelText('Đồng cảm với video')[0]!)
     await waitFor(() =>
-      expect(community.react).toHaveBeenCalledWith('post-a', 'SUPPORT'),
+      expect(community.react).toHaveBeenCalledWith('post-a', 'RELATE'),
     )
-    await press('Lưu bài viết')
+    await fireEvent.press(screen.getAllByLabelText('Lưu video')[0]!)
     await waitFor(() =>
       expect(community.bookmark).toHaveBeenCalledWith('post-a', true),
     )
   })
-  it('shows a retryable error tile when the video fails to play', async () => {
+  it('shows a retryable error tile when the video fails to load', async () => {
     await mount(api())
     await screen.findByText(textOnly.contentPreview)
     await openMoment('An')
     await act(async () => mockListeners.statusChange?.({ status: 'error' }))
-    expect(screen.getByText('Chưa phát được video này.')).toBeOnTheScreen()
+    expect(screen.getByText('Chưa tải được video này.')).toBeOnTheScreen()
     await press('Thử lại')
-    expect(screen.queryByText('Chưa phát được video này.')).toBeNull()
-    expect(screen.getByLabelText('Tạm dừng video')).toBeOnTheScreen()
+    await act(async () =>
+      mockListeners.statusChange?.({ status: 'readyToPlay' }),
+    )
+    expect(screen.queryByText('Chưa tải được video này.')).toBeNull()
+    expect(screen.getAllByLabelText('Tạm dừng video')[0]).toBeOnTheScreen()
   })
   it('hints that a video post becomes a moment, unless it carries a warning', async () => {
     await mount(api())
@@ -278,7 +306,7 @@ describe('moments strip and viewer', () => {
       screen.getByRole('header', { name: 'Khoảnh khắc' }),
     ).toBeOnTheScreen()
     await openMoment('An')
-    expect(screen.getByText('1 / 2')).toBeOnTheScreen()
+    expect(screen.getByText('1/2')).toBeOnTheScreen()
   })
   it('shows the empty state with a create action when the feed has no video', async () => {
     await mount(api({ feed: jest.fn().mockResolvedValue(page([textOnly])) }))
