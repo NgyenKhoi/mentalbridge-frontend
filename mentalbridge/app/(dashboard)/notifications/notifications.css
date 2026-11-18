@@ -493,6 +493,10 @@
   color: var(--ink-faint);
   font-size: 9.5px;
 }
+.notification-category-list small + small {
+  margin-top: 4px;
+  font-size: 11px;
+}
 .notification-switch {
   position: relative;
   flex: none;

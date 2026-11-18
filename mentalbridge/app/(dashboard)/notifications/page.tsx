@@ -169,11 +169,13 @@ function Toggle({
   onChange,
   label,
   disabled = false,
+  describedBy,
 }: {
   checked: boolean
   onChange: () => void
   label: string
   disabled?: boolean
+  describedBy?: string
 }) {
   return (
     <button
@@ -182,6 +184,7 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      aria-describedby={describedBy}
       disabled={disabled}
       onClick={onChange}
     >
@@ -816,6 +819,11 @@ export default function NotificationsPage() {
                       không được gửi. Đổi hoặc hủy lịch sẽ hủy nhắc lịch cũ.
                       Không gộp vào bản tổng hợp hằng ngày.
                     </small>
+                    {!preferences.channels.email && (
+                      <small id="appointment-reminder-email-hint">
+                        Bật kênh Email ở trên để nhận nhắc lịch qua email.
+                      </small>
+                    )}
                   </div>
                   <Toggle
                     checked={preferences.email.appointmentRemindersEnabled}
@@ -831,6 +839,11 @@ export default function NotificationsPage() {
                     }
                     label="Nhắc lịch hẹn qua email"
                     disabled={disabled || !preferences.channels.email}
+                    describedBy={
+                      preferences.channels.email
+                        ? undefined
+                        : 'appointment-reminder-email-hint'
+                    }
                   />
                 </article>
               )}

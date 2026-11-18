@@ -90,46 +90,19 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.15s ease;
+  position: relative;
+}
+/* 44px hit area without changing the 30px look */
+.iconBtn::before,
+.drawerToggleBtn::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
 }
 .iconBtn:hover {
   background: #f8fafc;
   color: #1e293b;
   border-color: #cbd5e1;
-}
-
-.filterTabs {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px;
-  background-color: rgba(241, 245, 249, 0.85);
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #64748b;
-}
-
-.filterTabBtn {
-  flex: 1;
-  padding: 5px 0;
-  text-align: center;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: all 0.15s ease;
-}
-.filterTabBtn:hover {
-  color: #0f172a;
-}
-.filterTabBtnActive {
-  background: #ffffff;
-  color: #174e3e;
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .sessionStream {
@@ -219,6 +192,12 @@
   padding: 2px 7px;
   border-radius: 9999px;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.headerNameRow .statusPill {
+  flex-shrink: 0;
 }
 .statusPillCompleted {
   color: #15803d;
@@ -330,17 +309,6 @@
   flex-shrink: 0;
 }
 
-.onlineDot {
-  width: 9px;
-  height: 9px;
-  border-radius: 9999px;
-  background-color: #10b981;
-  border: 2px solid #ffffff;
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-}
-
 .headerIdentity {
   display: flex;
   flex-direction: column;
@@ -356,14 +324,17 @@
   flex-wrap: nowrap;
 }
 
-.headerName {
-  font-size: 0.95rem;
-  font-weight: 700;
+/* The shell sizes every .ref-content h1 as a page title with !important; this is a panel title. */
+.chatHeader .headerNameRow h1.headerName {
+  font-size: 20px !important;
+  font-weight: 600;
   color: #071b15;
   font-family: 'Newsreader', Georgia, serif;
   margin: 0;
   white-space: nowrap;
-  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
   line-height: 1.25;
 }
 
@@ -1010,23 +981,6 @@
   border-color: #d5e7de;
 }
 
-.btnRateSession {
-  width: 100%;
-  padding: 8px 12px;
-  background-color: #174e3e;
-  color: #ffffff;
-  border: none;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(23, 78, 62, 0.15);
-}
-.btnRateSession:hover {
-  background-color: #123e32;
-}
-
 .btnViewInvoice {
   width: 100%;
   padding: 8px 12px;
@@ -1193,29 +1147,6 @@
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-}
-
-/* Star rating interactive widget */
-.starRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 14px 0;
-}
-
-.starBtn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  font-size: 1.75rem;
-  color: #cbd5e1;
-  transition: all 0.15s ease;
-}
-.starBtn:hover,
-.starBtnActive {
-  color: #f59e0b;
-  transform: scale(1.1);
 }
 
 @media (max-width: 1024px) {

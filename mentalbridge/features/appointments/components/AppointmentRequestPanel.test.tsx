@@ -236,6 +236,74 @@ describe('AppointmentRequestPanel', () => {
     ).toHaveTextContent(formatSlotTimeInSnapshotTimezone(slotStart, slotEnd))
   })
 
+  it('shows five free slots first and expands or collapses the rest of the day', async () => {
+    const slots = Array.from({ length: 7 }, (_, index) => ({
+      ...slot,
+      id: `123e4567-e89b-42d3-a456-42661417410${index}`,
+      startAt: `2099-01-02T0${index + 1}:00:00Z`,
+      endAt: `2099-01-02T0${index + 2}:00:00Z`,
+    }))
+    appointmentClient.slots.mockResolvedValue({
+      items: slots,
+      count: 7,
+      generatedAt: '2099-01-01T00:00:00Z',
+      videoEnabled: false,
+    })
+    appointmentClient.list.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2099-01-01T00:00:00Z',
+    })
+    const user = userEvent.setup()
+    render(<AppointmentRequestPanel />)
+
+    const region = await screen.findByRole('region', { name: 'Đặt hẹn nhanh' })
+    const options = () =>
+      within(region).getAllByRole('button', { name: /Slot specialist/ })
+    await waitFor(() => expect(options()).toHaveLength(5))
+
+    await user.click(
+      within(region).getByRole('button', { name: 'Xem thêm 2 khung giờ' }),
+    )
+    expect(options()).toHaveLength(7)
+
+    // A chosen slot beyond the first five stays visible once collapsed.
+    await user.click(options()[6])
+    const collapse = within(region).getByRole('button', {
+      name: 'Thu gọn danh sách khung giờ',
+    })
+    expect(collapse).toHaveAttribute('aria-expanded', 'true')
+    await user.click(collapse)
+    expect(options()).toHaveLength(6)
+    expect(options()[5]).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('labels an ended session by its outcome instead of "being summarised"', async () => {
+    appointmentClient.slots.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2099-01-01T00:00:00Z',
+      videoEnabled: false,
+    })
+    appointmentClient.list.mockResolvedValue({
+      items: [
+        {
+          ...appointment,
+          status: 'SESSION_ENDED',
+          sessionOutcome: 'USER_NO_SHOW',
+        },
+      ],
+      count: 1,
+      generatedAt: '2099-01-01T00:00:00Z',
+    })
+    render(<AppointmentRequestPanel />)
+
+    expect((await screen.findAllByText('Bạn vắng mặt')).length).toBeGreaterThan(
+      0,
+    )
+    expect(screen.queryByText('Đang tổng hợp kết quả')).not.toBeInTheDocument()
+  })
+
   it('filters the appointment list without hiding the next appointment context', async () => {
     const historicalAppointment = {
       ...appointment,
