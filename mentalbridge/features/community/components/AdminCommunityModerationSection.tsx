@@ -600,7 +600,7 @@ export default function AdminCommunityModerationSection() {
         <div className={styles.headerText}>
           <span className={styles.eyebrowBadge}>
             <ShieldCheck size={14} />
-            TRUNG TÂM KIỂM DUYỆT CỘNG ĐỒNG • CHUẨN AN TOÀN EMR &amp; HIPAA
+            TRUNG TÂM KIỂM DUYỆT CỘNG ĐỒNG
           </span>
           <h1 className={styles.title}>Kiểm duyệt &amp; Giám sát Cộng đồng</h1>
           <p className={styles.subtitle}>
@@ -1814,7 +1814,7 @@ export default function AdminCommunityModerationSection() {
                 <div className={styles.policyCardHeader}>
                   <Lock size={20} style={{ color: '#2563EB' }} />
                   <span className={styles.policyTitle}>
-                    3. Bảo mật Thông tin cá nhân &amp; HIPAA
+                    3. Bảo mật thông tin cá nhân
                   </span>
                 </div>
                 <p className={styles.policyDesc}>

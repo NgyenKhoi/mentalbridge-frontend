@@ -1235,7 +1235,7 @@ export default function AdminFeedbackManager() {
                       htmlFor="internal-note-input"
                       className="field-label-strong"
                     >
-                      Ghi chú nội bộ lâm sàng & kiểm toán (Bảo mật HIPAA):
+                      Ghi chú nội bộ lâm sàng & kiểm toán:
                     </label>
                     <span className="field-badge-private">
                       Chỉ lưu hành nội bộ

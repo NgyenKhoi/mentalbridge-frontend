@@ -179,25 +179,11 @@
 .consultation-notes-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 24px;
   padding: 20px 36px 32px;
   border-top: 1px solid rgba(27, 42, 34, 0.08);
   background: rgba(251, 252, 248, 0.95);
-}
-
-.consultation-notes-privacy {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--ink-faint);
-  font-size: 12px;
-}
-
-.consultation-notes-privacy svg {
-  width: 16px;
-  height: 16px;
-  color: var(--teal-deep);
 }
 
 .consultation-notes-actions {

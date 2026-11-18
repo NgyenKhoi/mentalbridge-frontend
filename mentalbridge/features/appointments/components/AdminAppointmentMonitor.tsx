@@ -169,7 +169,6 @@ function toExtendedAppointment(
       item.modality === 'IN_APP_VIDEO'
         ? 'Gọi Video y tế 60 phút'
         : 'Chat bảo mật 60 phút',
-    securityLevel: '🔒 Mã hóa đầu cuối 100%',
     timelineSteps: [
       {
         step: 1,
@@ -705,11 +704,9 @@ export default function AdminAppointmentMonitor() {
           <span className={styles.freshnessDot} aria-hidden="true" />
           Nguồn: Consultation · {dataState ?? 'CURRENT'}
         </strong>
-        <span>
-          {generatedAt
-            ? `Cập nhật ${new Date(generatedAt).toLocaleString('vi-VN')}`
-            : 'Hệ thống vận hành an toàn • Chuẩn y tế HIPAA'}
-        </span>
+        {generatedAt ? (
+          <span>Cập nhật {new Date(generatedAt).toLocaleString('vi-VN')}</span>
+        ) : null}
       </div>
 
       {/* ------------------------------------------------------------------
@@ -989,9 +986,6 @@ export default function AdminAppointmentMonitor() {
                   <strong className={styles.summaryBoxValue}>
                     {selectedItem.modalityDisplay}
                   </strong>
-                  <span className={styles.summaryBoxNoteGray}>
-                    {selectedItem.securityLevel}
-                  </span>
                 </div>
               </div>
             </div>
@@ -1198,25 +1192,10 @@ export default function AdminAppointmentMonitor() {
               <div>
                 <strong>Tiến trình tham vấn & Khuyến nghị:</strong>
                 <p style={{ margin: '4px 0', color: '#334155' }}>
-                  Phiên tham vấn đã hoàn thành an toàn qua kênh bảo mật E2EE.
-                  Thân chủ tiếp nhận liệu pháp nhận thức hành vi (CBT), thực
-                  hiện các bài tập điều hòa nhịp thở 4-7-8 và cam kết tham gia
-                  phiên định kỳ tiếp theo.
+                  Phiên tham vấn đã hoàn thành. Thân chủ tiếp nhận liệu pháp
+                  nhận thức hành vi (CBT), thực hiện các bài tập điều hòa nhịp
+                  thở 4-7-8 và cam kết tham gia phiên định kỳ tiếp theo.
                 </p>
-              </div>
-              <div
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  background: '#f0fdf4',
-                  border: '1px solid #bbf7d0',
-                  color: '#15803d',
-                  fontSize: '12px',
-                }}
-              >
-                🛡 Hồ sơ bệnh án đã được mã hóa theo tiêu chuẩn HIPAA & ISO
-                27001. Biên bản kiểm toán mã số AUD-SEC-
-                {selectedItem.appointmentId.slice(0, 8)}.
               </div>
             </div>
             <div className={styles.modalFoot}>

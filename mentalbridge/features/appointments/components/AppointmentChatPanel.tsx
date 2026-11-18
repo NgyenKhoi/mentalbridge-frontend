@@ -54,6 +54,7 @@ const creditText: Record<AppointmentChatEligibility['creditState'], string> = {
   CONSUMED: 'Credit đã được sử dụng cho buổi tư vấn hoàn thành.',
   FORFEITED: 'Credit đã bị trừ theo kết quả người dùng không tham gia.',
   AVAILABLE: 'Credit đã được hoàn lại để bạn có thể đặt lịch khác.',
+  REVOKED: 'Credit đã bị thu hồi khi chủ gói hủy đăng ký.',
 }
 
 const phaseLabel: Record<AppointmentChatEligibility['phase'], string> = {

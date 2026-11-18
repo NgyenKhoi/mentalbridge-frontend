@@ -18,7 +18,6 @@ import {
   RotateCcw,
   RotateCw,
   Share2,
-  Shield,
   ShieldCheck,
   Sparkles,
   Sprout,
@@ -1314,18 +1313,6 @@ export default function CommunityMemberProfile({
                   >
                     <Volume2 size={16} />
                   </button>
-                </div>
-              </div>
-
-              {/* Widget 4: Sanctuary Security Notice */}
-              <div className={styles.sanctuarySecurityCard}>
-                <Shield size={20} />
-                <div>
-                  <strong>Nguyên tắc an toàn Sanctuary</strong>
-                  <span>
-                    Mọi chia sẻ đều được bảo vệ bởi chuẩn mã hóa đầu cuối và sự
-                    tôn trọng tuyệt đối của các thành viên MentalBridge.
-                  </span>
                 </div>
               </div>
             </aside>

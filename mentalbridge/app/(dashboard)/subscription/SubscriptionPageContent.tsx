@@ -1,3 +1,5 @@
+'use client'
+
 import {
   ArrowUpRight,
   CalendarDays,
@@ -5,16 +7,20 @@ import {
   Leaf,
   ShieldCheck,
 } from 'lucide-react'
+import { useState } from 'react'
 
 import ServiceCreditsPanel from '@/features/service-credits/components/ServiceCreditsPanel'
 import PlanCheckoutPanel from '@/features/subscription/components/PlanCheckoutPanel'
+import SubscriptionCancellationPanel from '@/features/subscription/components/SubscriptionCancellationPanel'
 
 import './subscription-redesign.css'
 
 export default function SubscriptionPageContent() {
+  const [ownerStateRevision, setOwnerStateRevision] = useState(0)
+
   return (
     <div className="subscription-page svc-page">
-      <ServiceCreditsPanel />
+      <ServiceCreditsPanel key={`credits-${ownerStateRevision}`} />
 
       <header
         className="svc-intro"
@@ -31,7 +37,13 @@ export default function SubscriptionPageContent() {
         </p>
       </header>
 
-      <PlanCheckoutPanel />
+      <SubscriptionCancellationPanel
+        onConfirmedCancellation={() =>
+          setOwnerStateRevision((revision) => revision + 1)
+        }
+      />
+
+      <PlanCheckoutPanel key={`checkout-${ownerStateRevision}`} />
 
       <section className="svc-assurance" aria-labelledby="svc-assurance-title">
         <div className="svc-assurance-copy">

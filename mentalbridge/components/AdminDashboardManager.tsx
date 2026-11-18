@@ -177,7 +177,7 @@ export function ProductJourneyMetricsPanel({
                 </h2>
                 <p className="adm-funnel-subtitle">
                   Trực quan hóa luồng chuyển hóa liên tục qua 9 mốc trải nghiệm
-                  y tế, bảo mật tuyệt đối danh tính bệnh án.
+                  y tế.
                 </p>
               </div>
             </div>

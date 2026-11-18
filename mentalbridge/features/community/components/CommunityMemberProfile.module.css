@@ -1059,32 +1059,6 @@
   transform: scale(1.08);
 }
 
-/* Sanctuary Security Card */
-.sanctuarySecurityCard {
-  background: #f4f8f6;
-  border: 1px solid rgba(42, 157, 143, 0.2);
-  border-radius: 12px;
-  padding: 14px;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  color: #264b40;
-}
-
-.sanctuarySecurityCard svg {
-  color: #1b4332;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.sanctuarySecurityCard strong {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-
 /* --- Encouragement Modal Dialog --- */
 .encourageModal {
   padding: 24px;
