@@ -3,6 +3,16 @@ import { describe, expect, it, vi } from 'vitest'
 
 import RoleWorkspace from './RoleWorkspace'
 
+vi.mock('@/features/notifications/api/browser-notifications', () => ({
+  getNotifications: vi.fn().mockResolvedValue({
+    items: [],
+    nextCursor: null,
+    hasMore: false,
+    unreadCount: 0,
+  }),
+  markAllNotificationsRead: vi.fn(),
+  markNotificationRead: vi.fn(),
+}))
 vi.mock('next/font/google', () => ({
   Manrope: () => ({ variable: 'video-display' }),
 }))
@@ -104,10 +114,9 @@ describe('RoleWorkspace specialist production closure', () => {
       within(navigation).queryByRole('link', { name: /Notifications/i }),
     ).not.toBeInTheDocument()
     expect(screen.queryByText('3')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Thông báo' })).toHaveAttribute(
-      'href',
-      '/specialist/notifications',
-    )
+    expect(
+      screen.getByRole('button', { name: 'Thông báo' }),
+    ).toBeInTheDocument()
     expect(
       await within(screen.getByRole('complementary')).findByRole('button', {
         name: 'Chuyên gia từ hồ sơ',

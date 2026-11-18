@@ -745,6 +745,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/community/posts/{postId}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: components["parameters"]["PostId"];
+            };
+            cookie?: never;
+        };
+        /** @description Community display identities that reacted to a post the caller can see, newest first, at most 100. Profiles either side has blocked are omitted; account subjects are never exposed. */
+        get: operations["listCommunityPostReactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/community/posts/{postId}/bookmark": {
         parameters: {
             query?: never;
@@ -1404,6 +1423,20 @@ export interface components {
             /** Format: uuid */
             postId: string;
             reaction: components["schemas"]["SupportiveReaction"];
+        };
+        CommunityPostReactor: {
+            /** Format: uuid */
+            communityProfileId: string;
+            displayName: string;
+            avatarPreset: components["schemas"]["CommunityAvatarPreset"] | null;
+            reaction: components["schemas"]["SupportiveReaction"];
+            /** Format: date-time */
+            reactedAt: string;
+            self: boolean;
+        };
+        CommunityPostReactionList: {
+            items: components["schemas"]["CommunityPostReactor"][];
+            count: number;
         };
         /** @enum {string} */
         ReportReason: "HARASSMENT" | "PRIVACY_OR_DOXXING" | "MEDICAL_MISINFORMATION" | "SELF_HARM_OR_CRISIS_CONCERN" | "SPAM" | "SEXUAL_OR_VIOLENT_CONTENT" | "OTHER";
@@ -4597,6 +4630,31 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listCommunityPostReactions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: components["parameters"]["PostId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reactors of the post. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityPostReactionList"];
+                };
             };
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];

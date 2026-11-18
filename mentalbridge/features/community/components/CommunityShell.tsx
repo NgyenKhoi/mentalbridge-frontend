@@ -24,6 +24,7 @@ import {
   type CommunityProfile,
 } from '../api/browser-community'
 import CommunityAvatar from './CommunityAvatar'
+import NotificationBell from '@/components/NotificationBell'
 import { CommunityResourceShortcut } from './CommunityDiscovery'
 import styles from './CommunityShell.module.css'
 import { useCommunityInbox } from '@/features/community-chat/components/CommunityInboxProvider'
@@ -214,13 +215,12 @@ export default function CommunityShell({
           <Link className={styles.help} href="/safety-directory">
             <span /> Cần hỗ trợ ngay
           </Link>
-          <Link
+          <NotificationBell
+            viewAllHref="/notifications"
             className={styles.headerIcon}
-            href="/notifications"
-            aria-label="Thông báo"
           >
             <Bell size={19} />
-          </Link>
+          </NotificationBell>
           <Link
             className={styles.account}
             href="/community/profile"

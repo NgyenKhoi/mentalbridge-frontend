@@ -48,6 +48,9 @@ export type UpdateCommentRequest = components['schemas']['UpdateCommentRequest']
 export type SupportiveReaction = components['schemas']['SupportiveReaction']
 export type PutReactionRequest = components['schemas']['PutReactionRequest']
 export type CommunityReaction = components['schemas']['CommunityReaction']
+export type CommunityPostReactor = components['schemas']['CommunityPostReactor']
+export type CommunityPostReactionList =
+  components['schemas']['CommunityPostReactionList']
 export type ReportTargetType = components['schemas']['ReportTargetType']
 export type ReportReason = components['schemas']['ReportReason']
 export type CreateReportRequest = components['schemas']['CreateReportRequest']
@@ -705,6 +708,46 @@ export function parseCommunityReaction(
     return null
   }
   return reaction as CommunityReaction
+}
+
+export function parseCommunityPostReactionList(
+  value: unknown,
+): CommunityPostReactionList | null {
+  const list = record(value)
+  if (
+    !list ||
+    !exactKeys(list, ['items', 'count']) ||
+    !Array.isArray(list.items) ||
+    list.items.length > 100 ||
+    !Number.isSafeInteger(list.count) ||
+    Number(list.count) < 0 ||
+    Number(list.count) > 100
+  ) {
+    return null
+  }
+  const valid = list.items.every((entry) => {
+    const item = record(entry)
+    return (
+      item !== null &&
+      exactKeys(item, [
+        'communityProfileId',
+        'displayName',
+        'avatarPreset',
+        'reaction',
+        'reactedAt',
+        'self',
+      ]) &&
+      typeof item.communityProfileId === 'string' &&
+      UUID.test(item.communityProfileId) &&
+      text(item.displayName, 1, 80) &&
+      avatarPreset(item.avatarPreset) &&
+      typeof item.reaction === 'string' &&
+      SUPPORTIVE_REACTIONS.has(item.reaction as SupportiveReaction) &&
+      dateTime(item.reactedAt) &&
+      typeof item.self === 'boolean'
+    )
+  })
+  return valid ? (list as CommunityPostReactionList) : null
 }
 
 export function parseCreateMediaUploadIntent(

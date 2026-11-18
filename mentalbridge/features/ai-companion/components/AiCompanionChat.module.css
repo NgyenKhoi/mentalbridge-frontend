@@ -3,8 +3,11 @@
   isolation: isolate;
   display: grid;
   grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
-  height: calc(100dvh - 164px);
-  min-height: 620px;
+  /* Shell chrome around the page: 76px topbar + 28px top and 64px bottom content
+     padding, plus 2px slack so the document never scrolls. */
+  --companion-chrome: 170px;
+  height: calc(100dvh - var(--companion-chrome));
+  min-height: 420px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--teal) 18%, var(--line));
   border-radius: var(--radius-shell);
@@ -572,8 +575,8 @@
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 20px 22px;
-  scroll-behavior: smooth;
 }
 
 .welcome {
@@ -1736,8 +1739,8 @@
 @media (max-width: 760px) {
   .page {
     display: block;
-    height: calc(100dvh - 132px);
-    min-height: 560px;
+    height: calc(100dvh - var(--companion-chrome));
+    min-height: 420px;
     border-radius: 20px;
   }
 
@@ -1884,6 +1887,13 @@
   }
 }
 
+@media (max-width: 560px) {
+  .page {
+    /* Topbar shrinks to 68px, content padding to 22px / 44px. */
+    --companion-chrome: 136px;
+  }
+}
+
 @media (max-width: 480px) {
   .chatIdentity small {
     max-width: 128px;
@@ -1971,9 +1981,6 @@
   }
   .streamingToken {
     animation: none;
-  }
-  .messages {
-    scroll-behavior: auto;
   }
   .sidebarHeader > button,
   .empty > button,

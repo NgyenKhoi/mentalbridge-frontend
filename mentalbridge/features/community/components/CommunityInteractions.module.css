@@ -1,4 +1,5 @@
 .root {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -136,6 +137,49 @@
   white-space: nowrap;
 }
 
+.who {
+  display: contents;
+}
+
+.countButton {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+.countButton[aria-expanded='true'] {
+  color: var(--teal-deep);
+  background: var(--teal-pale);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .countButton:hover {
+    color: var(--teal-deep);
+    background: var(--bg);
+  }
+}
+
+.countButton:active {
+  transform: translateY(1px);
+}
+
+.countButton:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus-ring);
+}
+
 .bookmark {
   display: inline-flex;
   align-items: center;
@@ -235,6 +279,7 @@
 @media (forced-colors: active) {
   .main:focus-visible,
   .bookmark:focus-visible,
+  .countButton:focus-visible,
   .item button:focus-visible {
     outline-color: Highlight;
   }
@@ -327,6 +372,7 @@
 @media (prefers-reduced-motion: reduce) {
   .main,
   .bookmark,
+  .countButton,
   .trayEmoji,
   .tip {
     transition: none;
@@ -334,6 +380,7 @@
 
   .main:active:not(:disabled),
   .bookmark:active:not(:disabled),
+  .countButton:active,
   .item button:hover .trayEmoji,
   .item button:focus-visible .trayEmoji {
     transform: none;

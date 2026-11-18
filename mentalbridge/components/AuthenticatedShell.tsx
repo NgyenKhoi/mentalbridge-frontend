@@ -11,6 +11,7 @@ import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
 import { ApiError } from '@/lib/api/api-error'
 import OnboardingTour from '@/features/onboarding/OnboardingTour'
+import NotificationBell from '@/components/NotificationBell'
 import {
   ONBOARDING_NAV_TARGETS,
   requestOnboardingReplay,
@@ -593,10 +594,9 @@ export default function AuthenticatedShell({
                 </Svg>
               </Link>
             )}
-            <Link
-              href="/notifications"
+            <NotificationBell
+              viewAllHref="/notifications"
               className="ref-notify"
-              aria-label="Thông báo"
             >
               <Svg>
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -604,7 +604,7 @@ export default function AuthenticatedShell({
               {isProgressiveRelaxation && (
                 <span className="pmr-notify-dot" aria-hidden="true" />
               )}
-            </Link>
+            </NotificationBell>
             <Link
               href="/profile"
               className="ref-avatar"

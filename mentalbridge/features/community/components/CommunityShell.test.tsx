@@ -2,6 +2,16 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 const navigation = vi.hoisted(() => ({ pathname: '/community' }))
+vi.mock('@/features/notifications/api/browser-notifications', () => ({
+  getNotifications: vi.fn().mockResolvedValue({
+    items: [],
+    nextCursor: null,
+    hasMore: false,
+    unreadCount: 0,
+  }),
+  markAllNotificationsRead: vi.fn(),
+  markNotificationRead: vi.fn(),
+}))
 vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
 }))

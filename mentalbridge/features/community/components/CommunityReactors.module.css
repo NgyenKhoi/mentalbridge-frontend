@@ -1,0 +1,205 @@
+.popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  width: min(22rem, calc(100vw - 32px));
+  max-height: min(24rem, 70vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-3);
+  /* Floating overlay: edge and elevation are intentional. */
+  border: 1px solid var(--line); /* taste-skill-ignore */
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow); /* taste-skill-ignore */
+  transform-origin: 24px 0;
+}
+
+.popover:focus-visible,
+.close:focus-visible,
+.retry:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus-ring); /* taste-skill-ignore */
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  font-size: 0.9rem;
+}
+
+.close,
+.retry {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent; /* taste-skill-ignore: forced-colors edge */
+  border-radius: var(--radius-control);
+  color: var(--teal-deep);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .close:hover,
+  .retry:hover,
+  .row:hover {
+    background: var(--bg);
+  }
+}
+
+.close:active,
+.retry:active {
+  transform: translateY(1px);
+}
+
+.list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: 4px 6px;
+  border-radius: var(--radius-control);
+  transition: background var(--motion-fast) var(--ease-standard);
+  animation: reactor-in var(--motion-medium) var(--ease-standard) both;
+}
+
+.row:nth-child(2) {
+  animation-delay: 30ms;
+}
+
+.row:nth-child(n + 3) {
+  animation-delay: 60ms;
+}
+
+.row :global(.community-avatar) {
+  width: 36px;
+  height: 36px;
+  font-size: 0.95rem;
+}
+
+.row :global(.community-avatar) img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.who {
+  min-width: 0;
+  flex: 1;
+}
+
+.name {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta,
+.kind {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.kind {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) 6px;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.note p {
+  margin: 0;
+}
+
+/* Fixed-height rows so the popover does not jump when the list arrives. */
+.skeleton {
+  display: grid;
+  gap: 8px;
+}
+
+.skeleton span {
+  height: 40px;
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  animation: reactor-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes reactor-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes reactor-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (forced-colors: active) {
+  .popover {
+    border-color: CanvasText;
+  }
+
+  .popover:focus-visible,
+  .close:focus-visible,
+  .retry:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .skeleton span {
+    animation: none;
+  }
+
+  .close,
+  .retry,
+  .row {
+    transition: none;
+  }
+
+  .close:active,
+  .retry:active {
+    transform: none;
+  }
+}
