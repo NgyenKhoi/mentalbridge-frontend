@@ -15,7 +15,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { PrimaryButton } from '@/components/PrimaryButton'
-import { CrisisSupportWidget } from '@/crisis-support/CrisisSupportWidget'
 import { CRISIS_SUPPORT_CONTENT } from '@/crisis-support/crisis-support-content'
 import { colors, spacing } from '@/theme/tokens'
 
@@ -228,7 +227,6 @@ export function WelcomeScreen() {
               onPress={() => router.push('/assessment/anonymous')}
             />
           </View>
-          <CrisisSupportWidget />
         </>
       )}
     </SafeAreaView>

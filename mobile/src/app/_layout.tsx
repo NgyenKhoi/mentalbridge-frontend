@@ -57,26 +57,25 @@ export function RootNavigator() {
       {session?.role === 'USER' && (
         <CommunityInboxBanner subject={session.subject} />
       )}
-      {!(pathname === '/' && status === 'unauthenticated') &&
-        (pathname !== '/community' || status !== 'authenticated') && (
-          <CrisisSupportWidget
-            bottomOffset={
-              status === 'authenticated' &&
-              session?.role === 'USER' &&
-              isUserTabPath(pathname)
-                ? USER_TAB_BAR_HEIGHT +
-                  (pathname === '/journal'
-                    ? Math.max(screenActionHeight, footerLift)
-                    : 0)
-                : pathname === '/community-chat'
-                  ? USER_TAB_BAR_HEIGHT
-                  : pathname === '/messages' ||
-                      (pathname === '/ai-companion' && session?.role === 'USER')
-                    ? Math.max(screenActionHeight, footerLift)
-                    : footerLift
-            }
-          />
-        )}
+      {(pathname !== '/community' || status !== 'authenticated') && (
+        <CrisisSupportWidget
+          bottomOffset={
+            status === 'authenticated' &&
+            session?.role === 'USER' &&
+            isUserTabPath(pathname)
+              ? USER_TAB_BAR_HEIGHT +
+                (pathname === '/journal'
+                  ? Math.max(screenActionHeight, footerLift)
+                  : 0)
+              : pathname === '/community-chat'
+                ? USER_TAB_BAR_HEIGHT
+                : pathname === '/messages' ||
+                    (pathname === '/ai-companion' && session?.role === 'USER')
+                  ? Math.max(screenActionHeight, footerLift)
+                  : footerLift
+          }
+        />
+      )}
     </View>
   )
 }

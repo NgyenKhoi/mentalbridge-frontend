@@ -470,6 +470,11 @@ export function UserHomeScreen({
               </Pressable>
             </View>
           ) : null}
+          {plan?.cycleDay != null && plan.cycleLengthDays != null && (
+            <Text style={styles.cycle}>
+              Chu kỳ {plan.cycleDay}/{plan.cycleLengthDays} ngày
+            </Text>
+          )}
           <Text
             style={[styles.cardEyebrow, featured && styles.featuredEyebrow]}
           >
@@ -768,7 +773,7 @@ export function UserHomeScreen({
               </Pressable>
             </View>
           </View>
-          {!safety ? <PushInviteCard /> : null}{' '}
+          <PushInviteCard />
           <HomeShortcuts
             key={`home-shortcuts-${subject}`}
             subject={subject}
