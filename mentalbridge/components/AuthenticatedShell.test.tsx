@@ -5,6 +5,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
 const profileApi = vi.hoisted(() => ({ getCareProfile: vi.fn() }))
+vi.mock('@/features/notifications/api/browser-notifications', () => ({
+  getNotifications: vi.fn().mockResolvedValue({
+    items: [],
+    nextCursor: null,
+    hasMore: false,
+    unreadCount: 0,
+  }),
+  markAllNotificationsRead: vi.fn(),
+  markNotificationRead: vi.fn(),
+}))
 vi.mock('next/navigation', () => ({ usePathname: () => navigation.pathname }))
 vi.mock('@/features/assessment/api/browser-care', () => ({
   getCareProfile: profileApi.getCareProfile,
@@ -140,8 +150,8 @@ describe('AuthenticatedShell', () => {
 
     const topbar = screen.getByRole('banner')
     expect(
-      within(topbar).getByRole('link', { name: 'Thông báo' }),
-    ).toHaveAttribute('href', '/notifications')
+      within(topbar).getByRole('button', { name: 'Thông báo' }),
+    ).toBeInTheDocument()
     expect(within(topbar).getByRole('link', { name: /Hồ sơ/ })).toHaveAttribute(
       'href',
       '/profile',

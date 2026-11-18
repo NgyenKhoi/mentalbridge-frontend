@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 
+import { NOTIFICATIONS_UPDATED_EVENT } from '@/components/NotificationBell'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
@@ -187,6 +188,29 @@ export default function SpecialistAppointmentDecisionPanel({
       })
     return () => {
       active = false
+    }
+  }, [])
+
+  // A new booking notification (bell event) or a 30 s tick refreshes the list quietly.
+  useEffect(() => {
+    let active = true
+    const refresh = () => {
+      if (document.visibilityState !== 'visible' || commandBusy.current) return
+      appointmentBrowserClient
+        .assigned()
+        .then((data) => {
+          if (!active || commandBusy.current) return
+          setAppointments(data.items)
+          setGeneratedAt(data.generatedAt)
+        })
+        .catch(() => undefined)
+    }
+    const timer = window.setInterval(refresh, 30_000)
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, refresh)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, refresh)
     }
   }, [])
 

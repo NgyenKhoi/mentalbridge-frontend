@@ -18,6 +18,7 @@ import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
 import SpecialistOperationalAnalytics from '@/features/specialist-analytics/components/SpecialistOperationalAnalytics'
 import SpecialistNotificationCenter from '@/features/notifications/components/SpecialistNotificationCenter'
+import NotificationBell from '@/components/NotificationBell'
 import OnboardingTour from '@/features/onboarding/OnboardingTour'
 import {
   requestSpecialistOnboardingReplay,
@@ -98,9 +99,7 @@ export default function RoleWorkspace({
     beforeTour.current ??= shellState.current
     setTourActive(true)
     setSidebarCollapsed(false)
-    setMobileOpen(
-      inSidebar && window.matchMedia('(max-width: 980px)').matches,
-    )
+    setMobileOpen(inSidebar && window.matchMedia('(max-width: 980px)').matches)
   }, [])
   const endTour = useCallback(() => {
     const previous = beforeTour.current
@@ -231,9 +230,7 @@ export default function RoleWorkspace({
           </motion.span>
           <span className="role-brand-copy">
             <strong>MentalBridge</strong>
-            <small>
-              Specialist Workspace
-            </small>
+            <small>Specialist Workspace</small>
           </span>
         </Link>
         <button
@@ -275,10 +272,7 @@ export default function RoleWorkspace({
             </div>
           ))}
         </nav>
-        <WorkspaceSwitcher
-          workspaces={workspaces}
-          currentRole="SPECIALIST"
-        />
+        <WorkspaceSwitcher workspaces={workspaces} currentRole="SPECIALIST" />
         <div className="role-sidebar-foot">
           <SessionActions
             compact={sidebarCollapsed}
@@ -311,100 +305,87 @@ export default function RoleWorkspace({
         transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}
       >
         <header className="role-topbar role-topbar-specialist">
-            <div className="clinical-topbar-left">
-              <button
-                ref={menuButtonRef}
-                className="role-menu"
-                onClick={() => setMobileOpen(!mobileOpen)}
-                aria-label="Mở menu"
-              >
-                ☰
-              </button>
-              <div
-                className="clinical-breadcrumb"
-                aria-label="Đường dẫn điều hướng"
-                data-onboarding="specialist-welcome"
-              >
-                <span className="clinical-breadcrumb-parent">
-                  Không gian chuyên gia
-                </span>
-                <span className="clinical-breadcrumb-sep" aria-hidden="true">
-                  ›
-                </span>
-                <span className="clinical-breadcrumb-current">
-                  {sectionKey === 'dashboard'
-                    ? 'Không gian làm việc lâm sàng'
-                    : sectionLabel}
-                </span>
-              </div>
-              <div className="clinical-topbar-status-pill">
-                <span
-                  className="clinical-topbar-status-dot"
-                  aria-hidden="true"
-                />
-                <span>Không gian chuyên gia</span>
-              </div>
+          <div className="clinical-topbar-left">
+            <button
+              ref={menuButtonRef}
+              className="role-menu"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="Mở menu"
+            >
+              ☰
+            </button>
+            <div
+              className="clinical-breadcrumb"
+              aria-label="Đường dẫn điều hướng"
+              data-onboarding="specialist-welcome"
+            >
+              <span className="clinical-breadcrumb-parent">
+                Không gian chuyên gia
+              </span>
+              <span className="clinical-breadcrumb-sep" aria-hidden="true">
+                ›
+              </span>
+              <span className="clinical-breadcrumb-current">
+                {sectionKey === 'dashboard'
+                  ? 'Không gian làm việc lâm sàng'
+                  : sectionLabel}
+              </span>
             </div>
-            <div className="clinical-topbar-right">
-              <div className="clinical-search-wrapper">
-                <Search
-                  size={15}
-                  strokeWidth={1.75}
-                  className="clinical-search-icon"
-                />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  className="clinical-search-input"
-                  placeholder="Tìm kiếm hồ sơ, phiên hẹn..."
-                  aria-label="Tìm kiếm hồ sơ, phiên hẹn"
-                  disabled
-                  title="Tìm kiếm chưa khả dụng"
-                />
-                <kbd className="clinical-search-kbd">⌘K</kbd>
-              </div>
-
-              <Link
-                href="/specialist/notifications"
-                className="clinical-topbar-btn"
-                aria-label="Thông báo"
-                title="Thông báo"
-              >
-                <Bell size={17} strokeWidth={1.75} />
-              </Link>
-              <button
-                className="clinical-topbar-btn"
-                aria-label="Cài đặt & Trợ giúp"
+            <div className="clinical-topbar-status-pill">
+              <span className="clinical-topbar-status-dot" aria-hidden="true" />
+              <span>Không gian chuyên gia</span>
+            </div>
+          </div>
+          <div className="clinical-topbar-right">
+            <div className="clinical-search-wrapper">
+              <Search
+                size={15}
+                strokeWidth={1.75}
+                className="clinical-search-icon"
+              />
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="clinical-search-input"
+                placeholder="Tìm kiếm hồ sơ, phiên hẹn..."
+                aria-label="Tìm kiếm hồ sơ, phiên hẹn"
                 disabled
-                title="Trợ giúp trực tiếp chưa khả dụng"
-              >
-                <Headphones size={17} strokeWidth={1.75} />
-              </button>
-              <Link
-                href="/specialist/profile"
-                className="clinical-topbar-avatar"
-                aria-label="Hồ sơ chuyên gia"
-                title="Hồ sơ"
-              >
-                <User size={18} strokeWidth={1.75} />
-              </Link>
+                title="Tìm kiếm chưa khả dụng"
+              />
+              <kbd className="clinical-search-kbd">⌘K</kbd>
             </div>
-          </header>
+
+            <NotificationBell
+              viewAllHref="/specialist/notifications"
+              className="clinical-topbar-btn"
+            >
+              <Bell size={17} strokeWidth={1.75} />
+            </NotificationBell>
+            <button
+              className="clinical-topbar-btn"
+              aria-label="Cài đặt & Trợ giúp"
+              disabled
+              title="Trợ giúp trực tiếp chưa khả dụng"
+            >
+              <Headphones size={17} strokeWidth={1.75} />
+            </button>
+            <Link
+              href="/specialist/profile"
+              className="clinical-topbar-avatar"
+              aria-label="Hồ sơ chuyên gia"
+              title="Hồ sơ"
+            >
+              <User size={18} strokeWidth={1.75} />
+            </Link>
+          </div>
+        </header>
         <div
           className={`role-content${sectionKey === 'messages' ? ' role-content-messages' : ''}`}
         >
-          {sectionKey === 'dashboard' && (
-            <SpecialistDashboardManager />
-          )}
-          {sectionKey === 'analytics' && (
-            <SpecialistOperationalAnalytics />
-          )}
-          {sectionKey === 'profile' && (
-            <SpecialistProfileWorkspace />
-          )}
-          {sectionKey === 'availability' && (
-            <SpecialistAvailabilityManager />
-          )}
+          {sectionKey === 'dashboard' && <SpecialistDashboardManager />}
+          {sectionKey === 'analytics' && <SpecialistOperationalAnalytics />}
+          {sectionKey === 'profile' && <SpecialistProfileWorkspace />}
+          {sectionKey === 'availability' && <SpecialistAvailabilityManager />}
           {sectionKey === 'appointments' &&
             (videoAppointmentId ? (
               <VideoConsultationWorkspace
@@ -432,12 +413,8 @@ export default function RoleWorkspace({
               initialAppointmentId={selectedAppointmentId}
             />
           )}
-          {sectionKey === 'earnings' && (
-            <SpecialistEarningsManager />
-          )}
-          {sectionKey === 'notifications' && (
-            <SpecialistNotificationCenter />
-          )}
+          {sectionKey === 'earnings' && <SpecialistEarningsManager />}
+          {sectionKey === 'notifications' && <SpecialistNotificationCenter />}
         </div>
       </motion.main>
       {mobileOpen && (

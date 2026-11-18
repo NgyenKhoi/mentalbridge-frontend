@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { NOTIFICATIONS_UPDATED_EVENT } from '@/components/NotificationBell'
 import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import SpecialistAppointmentDecisionPanel from './SpecialistAppointmentDecisionPanel'
@@ -263,5 +264,27 @@ describe('SpecialistAppointmentDecisionPanel', () => {
       screen.queryByText('Chưa có yêu cầu lịch hẹn'),
     ).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Thử lại' })).toBeEnabled()
+  })
+  it('reloads the list quietly when a new notification arrives', async () => {
+    api.assigned
+      .mockResolvedValueOnce({
+        items: [],
+        count: 0,
+        generatedAt: '2099-09-25T02:00:00Z',
+      })
+      .mockResolvedValueOnce({
+        items: [requested],
+        count: 1,
+        generatedAt: '2099-09-25T02:00:30Z',
+      })
+    render(<SpecialistAppointmentDecisionPanel />)
+    await screen.findByText('Chưa có yêu cầu lịch hẹn')
+    act(() => {
+      window.dispatchEvent(new CustomEvent(NOTIFICATIONS_UPDATED_EVENT))
+    })
+    expect(
+      await screen.findByRole('button', { name: 'Xác nhận' }),
+    ).toBeEnabled()
+    expect(api.assigned).toHaveBeenCalledTimes(2)
   })
 })

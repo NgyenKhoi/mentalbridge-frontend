@@ -410,9 +410,6 @@
   font-size: 0.75rem;
   border-radius: 10px;
 }
-.actions > div > button {
-  background: transparent;
-}
 .listFooter {
   display: flex;
   align-items: center;
