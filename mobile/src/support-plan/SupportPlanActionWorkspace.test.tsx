@@ -13,6 +13,7 @@ import type { EmotionApi } from '@/emotion/emotion-api'
 import type { SupportPlanApi } from './support-plan-api'
 import type { SupportPlanActionApi } from './support-plan-action-api'
 import type { JournalReconciliation } from './support-plan-action-contract'
+import { planDayLabel } from './SupportPlanHeader'
 import type { JournalOriginInput } from './journal-plan-context'
 import {
   NativeProposalEntry,
@@ -39,6 +40,9 @@ jest.mock('@/auth/session-context', () => ({
     session: { subject: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', role: 'USER' },
     signOut: jest.fn(),
   }),
+}))
+jest.mock('@/theme/useDashboardFonts', () => ({
+  useDashboardFonts: () => false,
 }))
 jest.mock('./SupportPlanPersonalizationCard', () => ({
   SupportPlanPersonalizationCard: () => null,
@@ -727,6 +731,7 @@ it('only replaces a current v2 plan after authoritative reassessment comparison 
   )
   expect(owner.replace).not.toHaveBeenCalled()
   expect(owner.reviewReplacement).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByRole('tab', { name: 'Điều chỉnh' }))
   await fireEvent.press(
     screen.getByRole('button', { name: 'Kiểm tra và so sánh phương án' }),
   )
@@ -749,6 +754,7 @@ it('only replaces a current v2 plan after authoritative reassessment comparison 
 it('pause is confirmed and can be cancelled without mutating', async () => {
   const owner = api()
   await mount(native(owner))
+  await fireEvent.press(screen.getByRole('tab', { name: 'Kế hoạch' }))
   await fireEvent.press(
     await screen.findByRole('button', { name: 'Tạm dừng kế hoạch' }),
   )
@@ -758,13 +764,92 @@ it('pause is confirmed and can be cancelled without mutating', async () => {
   expect(owner.changeStatus).not.toHaveBeenCalled()
 })
 
+it('shows a due cycle and only pending earlier work from the owner response', async () => {
+  const f = homeEntryFixture('RESOURCE')
+  f.plan.cycle = {
+    cycleNumber: 2,
+    state: 'REVIEW_DUE',
+    currentDay: 14,
+    lengthDays: 14,
+    startedOn: '2026-09-30',
+    reviewDueOn: '2026-10-13',
+    timezone: 'Asia/Ho_Chi_Minh',
+  }
+  const earlier = {
+    ...f.occurrence,
+    localDate: '2026-10-12',
+    scheduledAt: '2026-10-12T04:00:00Z',
+    state: 'SCHEDULED' as const,
+    displayState: 'OVERDUE' as const,
+  }
+  const response = await f.owner.getOccurrences('2026-09-29', '2026-10-29')
+  f.owner.getOccurrences.mockResolvedValue({
+    ...response,
+    occurrences: [
+      earlier,
+      {
+        ...earlier,
+        occurrenceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        hidden: true,
+      },
+    ],
+  })
+  f.owner.getAdaptiveReview.mockRejectedValue(new Error('Unavailable'))
+  await mount(
+    <NativeSupportPlanScreen
+      api={f.owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={f.plan}
+      draft={null}
+      onChanged={jest.fn()}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+
+  expect(await screen.findByText('1 hoạt động')).toBeTruthy()
+  expect(
+    screen.getByLabelText('Ngày 14 trên 14 ngày trong chu kỳ'),
+  ).toBeTruthy()
+  expect(screen.getByText(f.action.presentation.title)).toBeTruthy()
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Xem lại kế hoạch' }),
+  )
+  expect(
+    screen.getByRole('tab', { name: 'Tiến triển', selected: true }),
+  ).toBeTruthy()
+  expect(f.owner.getAdaptiveReview).toHaveBeenCalledWith(
+    f.plan.supportPlanId,
+    f.plan.version,
+  )
+  expect(f.owner.getOccurrences).toHaveBeenCalledWith(
+    '2026-09-30',
+    '2026-10-20',
+  )
+  await fireEvent.press(
+    await screen.findByRole('button', { name: planDayLabel('2026-10-12') }),
+  )
+  expect(
+    screen.getByText('0 đã làm · 0 để hôm khác · 1 chưa làm'),
+  ).toBeOnTheScreen()
+})
+
 it('waits for owned terminal history and fails closed before choosing a representation', async () => {
   const owner = api()
   owner.getCurrent.mockRejectedValue(
-    new ApiError({ status: 404, code: 'NOT_FOUND', message: 'missing' }),
+    new ApiError({
+      status: 404,
+      code: 'SUPPORT_PLAN_CURRENT_NOT_FOUND',
+      message: 'missing',
+    }),
   )
   owner.getDraft.mockRejectedValue(
-    new ApiError({ status: 404, code: 'NOT_FOUND', message: 'missing' }),
+    new ApiError({
+      status: 404,
+      code: 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+      message: 'missing',
+    }),
   )
   let reject!: (error: Error) => void
   owner.getHistory.mockImplementationOnce(
@@ -783,9 +868,17 @@ it('waits for owned terminal history and fails closed before choosing a represen
     />,
   )
   await screen.findByLabelText('Đang xác định lịch sử kế hoạch')
+  expect(screen.getByRole('header', { name: 'Kế hoạch của bạn' })).toBeTruthy()
+  expect(
+    screen.getByRole('tab', { name: 'Hôm nay', selected: true }),
+  ).toBeTruthy()
   expect(screen.queryByText('Legacy resource plan retained')).toBeNull()
   await act(async () => reject(new Error('Unavailable')))
-  await screen.findByText(/Chưa thể xác định lịch sử kế hoạch/)
+  await screen.findByText(/Chưa thể tải lịch sử kế hoạch/)
+  await fireEvent.press(screen.getByRole('tab', { name: 'Điều chỉnh' }))
+  expect(
+    screen.queryByRole('button', { name: 'Tạo phương án để xem lại' }),
+  ).toBeNull()
   expect(screen.queryByText('Legacy resource plan retained')).toBeNull()
   expect(owner.propose).not.toHaveBeenCalled()
   owner.getHistory.mockResolvedValue({
@@ -801,13 +894,41 @@ it('waits for owned terminal history and fails closed before choosing a represen
   expect(owner.propose).not.toHaveBeenCalled()
 })
 
+it('treats an unclassified proxy 404 as an API failure, with the plan heading still visible', async () => {
+  const owner = api()
+  owner.getCurrent.mockRejectedValue(
+    new ApiError({ status: 404, code: 'HTTP_404', message: 'Not found' }),
+  )
+  await mount(
+    <SupportPlanActionWorkspace
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      origin={{ state: 'none' }}
+      now={now}
+    />,
+  )
+  await screen.findByText(/Chưa thể tải kế hoạch hỗ trợ/)
+  expect(screen.getByRole('header', { name: 'Kế hoạch của bạn' })).toBeTruthy()
+  expect(owner.getHistory).not.toHaveBeenCalled()
+  expect(owner.propose).not.toHaveBeenCalled()
+})
+
 it('chooses latest terminal representation rather than an older native entry', async () => {
   const owner = api()
   owner.getCurrent.mockRejectedValue(
-    new ApiError({ status: 404, code: 'NOT_FOUND', message: 'missing' }),
+    new ApiError({
+      status: 404,
+      code: 'SUPPORT_PLAN_CURRENT_NOT_FOUND',
+      message: 'missing',
+    }),
   )
   owner.getDraft.mockRejectedValue(
-    new ApiError({ status: 404, code: 'NOT_FOUND', message: 'missing' }),
+    new ApiError({
+      status: 404,
+      code: 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+      message: 'missing',
+    }),
   )
   owner.getHistory.mockResolvedValue({
     items: [
@@ -852,6 +973,7 @@ it('loads further owner history pages without replacing already visible entries'
       nextCursor: null,
     })
   await mount(native(owner))
+  await fireEvent.press(screen.getByRole('tab', { name: 'Tiến triển' }))
   await screen.findByText('Đã kết thúc')
   await fireEvent.press(
     screen.getByRole('button', { name: 'Xem thêm kế hoạch trước đây' }),

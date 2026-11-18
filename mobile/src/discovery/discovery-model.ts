@@ -10,7 +10,12 @@ export const supportAreaLabels = {
   DEPRESSIVE_SYMPTOMS: 'Khí sắc và trầm buồn',
   ANXIETY_SYMPTOMS: 'Lo âu',
 } as const
-export const languageLabels = { vi: 'Tiếng Việt', en: 'English' } as const
+export const languageLabels = {
+  vi: 'Tiếng Việt',
+  en: 'English',
+  zh: '中文',
+  fr: 'Français',
+} as const
 export const modalityLabels = {
   IN_APP_CHAT: 'Chat trong ứng dụng',
   IN_APP_VIDEO: 'Video trong ứng dụng',
@@ -59,7 +64,10 @@ export function explanationText(item: DiscoveryItem) {
     ...(explanation.ratingTieBreakerApplied
       ? ['Đánh giá chỉ phân định khi các yếu tố chính bằng nhau.']
       : []),
-  ].join(' ')
+    explanation.hasSelectableSlot
+      ? 'Có khung giờ 60 phút đang chọn được.'
+      : 'Hiện chưa có khung giờ chọn được.',
+  ]
 }
 
 export function discoveryError(error: unknown) {

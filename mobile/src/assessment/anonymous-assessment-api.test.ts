@@ -14,7 +14,7 @@ const session = {
 
 const assessment = {
   assessmentId: '20000000-0000-4000-8000-000000000721',
-  questionnaireDefinitionId: '30000000-0000-4000-8000-000000000721',
+  questionnaireDefinitionId: '30000000-0000-0000-0000-000000000721',
   instrument: 'PHQ9',
   questionnaireVersion: 'phq9-vi-vn-v1',
   privacyPolicyVersion: 'privacy-capstone-v3',

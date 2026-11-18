@@ -1,4 +1,8 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { randomUUID } from 'expo-crypto'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useRef, useState } from 'react'
@@ -18,9 +22,11 @@ import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import type { EmotionApi } from '@/emotion/emotion-api'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import { useDashboardFonts } from '@/theme/useDashboardFonts'
 import { SupportPlanCompanion } from '@/support-plan-companion/SupportPlanCompanion'
 
 import {
+  addPlanDays,
   emotionReconciliationMessage,
   localPlanDate,
   occurrenceWindow,
@@ -45,6 +51,13 @@ import { SupportPlanPersonalizationCard } from './SupportPlanPersonalizationCard
 import { SupportPlanScheduleEditor } from './SupportPlanScheduleEditor'
 import { SupportPlanScreen } from './SupportPlanScreen'
 import { AdaptiveReviewPanel } from './AdaptiveReviewPanel'
+import { PlanActivityHistory } from './PlanActivityHistory'
+import {
+  planDayLabel,
+  readPlanCycle,
+  SupportPlanHeader,
+  type PlanTab,
+} from './SupportPlanHeader'
 import {
   isSupportedJournalAction,
   journalReconciliationMessage,
@@ -61,6 +74,7 @@ const statusLabels: Record<CanonicalSupportPlan['status'], string> = {
   SUPERSEDED: 'Đã được thay thế',
   DISCARDED: 'Đã bỏ',
 }
+const planBackground = '#f5f9f6'
 const occurrenceLabels: Record<ActionOccurrence['displayState'], string> = {
   SCHEDULED: 'Chưa ghi nhận hoàn thành',
   OVERDUE: 'Chưa ghi nhận hoàn thành',
@@ -68,13 +82,37 @@ const occurrenceLabels: Record<ActionOccurrence['displayState'], string> = {
   SKIPPED: 'Đã bỏ qua',
   CANCELLED: 'Đã hủy theo trạng thái kế hoạch',
 }
-const optionalPlan = async (request: Promise<CanonicalSupportPlan>) => {
+const optionalPlan = async (
+  request: Promise<CanonicalSupportPlan>,
+  missingCode:
+    'SUPPORT_PLAN_CURRENT_NOT_FOUND' | 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+) => {
   try {
     return await request
   } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return null
+    if (
+      error instanceof ApiError &&
+      error.status === 404 &&
+      error.code === missingCode
+    )
+      return null
     throw error
   }
+}
+
+function useSupportPlanHistory(
+  api: SupportPlanActionApi,
+  subject: string | undefined,
+  enabled: boolean,
+) {
+  return useInfiniteQuery({
+    queryKey: ['support-plan-v3', subject, 'history-pages'],
+    enabled,
+    retry: false,
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => api.getHistory(pageParam),
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+  })
 }
 function message(error: unknown) {
   if (error instanceof ApiError) {
@@ -99,13 +137,17 @@ function message(error: unknown) {
   }
   return 'Chưa thể thực hiện thao tác này. Dữ liệu đã lưu vẫn được giữ để thử lại.'
 }
-function dateLabel(date: string) {
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(`${date}T00:00:00Z`))
+const activityTypes: Record<
+  ActionOccurrence['actionType'],
+  { label: string; icon: string }
+> = {
+  RESOURCE: { label: 'Tài nguyên', icon: '▤' },
+  JOURNAL: { label: 'Nhật ký', icon: '✎' },
+  EMOTION_CHECK_IN: { label: 'Ghi nhận cảm xúc', icon: '☼' },
+  ROUTINE_SELF_MANAGEMENT: { label: 'Hoạt động nhỏ', icon: '♧' },
+  PROFESSIONAL_SUPPORT: { label: 'Hỗ trợ chuyên gia', icon: '+' },
+  REASSESSMENT_SCREENING: { label: 'Đánh giá lại', icon: '▣' },
+  SELF_REPORT_REVIEW: { label: 'Xem lại ghi nhận', icon: '✓' },
 }
 
 function Secondary({
@@ -158,42 +200,41 @@ export function SupportPlanActionWorkspace({
 }: Props) {
   const { session, signOut } = useSession()
   const subject = session?.subject
+  const fontsLoaded = useDashboardFonts()
   const current = useQuery({
     queryKey: ['support-plan-v3', subject, 'current'],
     enabled: Boolean(subject),
     retry: false,
     refetchOnMount: 'always',
-    queryFn: () => optionalPlan(api.getCurrent()),
+    queryFn: () =>
+      optionalPlan(api.getCurrent(), 'SUPPORT_PLAN_CURRENT_NOT_FOUND'),
   })
   const draft = useQuery({
     queryKey: ['support-plan-v3', subject, 'draft'],
     enabled: Boolean(subject),
     retry: false,
     refetchOnMount: 'always',
-    queryFn: () => optionalPlan(api.getDraft()),
+    queryFn: () => optionalPlan(api.getDraft(), 'SUPPORT_PLAN_DRAFT_NOT_FOUND'),
   })
-  const terminalHistory = useQuery({
-    queryKey: ['support-plan-v3', subject, 'history'],
-    enabled: Boolean(
+  const terminalHistory = useSupportPlanHistory(
+    api,
+    subject,
+    Boolean(
       subject &&
       current.isSuccess &&
       draft.isSuccess &&
       !current.data &&
       !draft.data,
     ),
-    retry: false,
-    queryFn: () => api.getHistory(),
-  })
+  )
   const refresh = async () => {
     const [a, b] = await Promise.all([current.refetch(), draft.refetch()])
     if (a.isError || b.isError) throw new Error('Current plan unavailable')
   }
   if (!subject || current.isPending || draft.isPending)
     return (
-      <Screen>
-        <Text accessibilityRole="header" style={styles.title}>
-          Kế hoạch hỗ trợ
-        </Text>
+      <Screen layout="dashboard" backgroundColor={planBackground}>
+        <SupportPlanHeader fontsLoaded={fontsLoaded} />
         {subject ? (
           <ActivityIndicator
             accessibilityLabel="Đang tải kế hoạch hỗ trợ"
@@ -206,10 +247,8 @@ export function SupportPlanActionWorkspace({
     )
   if (current.isError || draft.isError)
     return (
-      <Screen>
-        <Text accessibilityRole="header" style={styles.title}>
-          Kế hoạch hỗ trợ
-        </Text>
+      <Screen layout="dashboard" backgroundColor={planBackground}>
+        <SupportPlanHeader fontsLoaded={fontsLoaded} />
         <Text accessibilityLiveRegion="polite" style={styles.body}>
           Chưa thể tải kế hoạch hỗ trợ. Không có kế hoạch nào bị thay đổi.
         </Text>
@@ -219,33 +258,12 @@ export function SupportPlanActionWorkspace({
         />
       </Screen>
     )
-  if (!current.data && !draft.data && terminalHistory.isPending)
-    return (
-      <Screen>
-        <ActivityIndicator
-          accessibilityLabel="Đang xác định lịch sử kế hoạch"
-          color={colors.tealDeep}
-        />
-      </Screen>
-    )
-  if (!current.data && !draft.data && terminalHistory.isError)
-    return (
-      <Screen>
-        <Text accessibilityLiveRegion="polite" style={styles.body}>
-          Chưa thể xác định lịch sử kế hoạch. Chưa có bản đề xuất nào được tạo.
-        </Text>
-        <PrimaryButton
-          label="Thử tải lại lịch sử"
-          onPress={() => void terminalHistory.refetch()}
-        />
-      </Screen>
-    )
+  const needsHistory = !current.data && !draft.data
   const native =
     current.data?.representationMode === 'NATIVE_V3' ||
     draft.data?.representationMode === 'NATIVE_V3' ||
-    (!current.data &&
-      !draft.data &&
-      terminalHistory.data?.items[0]?.representationMode !==
+    (needsHistory &&
+      terminalHistory.data?.pages[0]?.items[0]?.representationMode !==
         'V2_RESOURCE_ADAPTER')
   if (!native)
     return (
@@ -272,6 +290,7 @@ export function SupportPlanActionWorkspace({
       current={current.data ?? null}
       draft={draft.data ?? null}
       onChanged={refresh}
+      requireHistory={needsHistory}
       origin={origin}
       homeOrigin={homeOrigin}
       journalOrigin={journalOrigin}
@@ -358,6 +377,7 @@ type NativeProps = Readonly<{
   emotionApi: Pick<EmotionApi, 'getProgress'>
   current: CanonicalSupportPlan | null
   draft: CanonicalSupportPlan | null
+  requireHistory?: boolean
   onChanged: () => Promise<void>
   origin: OriginInput
   homeOrigin?: HomePlanOriginInput
@@ -372,6 +392,7 @@ export function NativeSupportPlanScreen({
   current,
   draft,
   onChanged,
+  requireHistory = false,
   origin,
   homeOrigin = noHomePlanOrigin,
   journalOrigin = noJournalOrigin,
@@ -379,6 +400,7 @@ export function NativeSupportPlanScreen({
 }: NativeProps) {
   const { session } = useSession()
   const subject = session?.subject
+  const queryClient = useQueryClient()
   const [notice, setNotice] = useState(''),
     [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false)
@@ -390,11 +412,29 @@ export function NativeSupportPlanScreen({
     running = useRef(false)
   const scrollRef = useRef<ScrollView>(null)
   const contentRef = useRef<View>(null)
+  const reviewTrigger = useRef<(() => void) | null>(null)
+  const fontsLoaded = useDashboardFonts()
+  const hasOrigin = [origin, homeOrigin, journalOrigin].some(
+    (entry) => entry.state !== 'none',
+  )
+  const [selectedTab, setSelectedTab] = useState<PlanTab>()
+  const tab =
+    selectedTab ?? (current || hasOrigin || requireHistory ? 'today' : 'adjust')
+  const [showAllEarlier, setShowAllEarlier] = useState(false)
+  const selectTab = (next: PlanTab) => {
+    setSelectedTab(next)
+    scrollRef.current?.scrollTo({ y: 0, animated: false })
+  }
+  useFocusEffect(
+    useCallback(() => {
+      if (hasOrigin) setSelectedTab('today')
+    }, [hasOrigin]),
+  )
   const focusReturnedActivity = useCallback((target: View, heading: Text) => {
     if (!contentRef.current) return
     target.measureLayout(contentRef.current, (_x, y) => {
       scrollRef.current?.scrollTo({
-        y: Math.max(0, y + spacing.xxxl - spacing.md),
+        y: Math.max(0, y + spacing.sm),
         animated: false,
       })
       // RN Web has no native accessibility-event bridge; native follows the
@@ -403,23 +443,39 @@ export function NativeSupportPlanScreen({
     })
   }, [])
   const plan = current ?? draft
+  const cycle = readPlanCycle(plan?.cycle)
+  const reviewDue =
+    current?.status === 'ACTIVE' && cycle?.state === 'REVIEW_DUE'
   const timezone =
+    cycle?.timezone ??
     current?.focuses
       .flatMap((x) => x.actions)
       .flatMap((x) => x.schedules)
-      .find((x) => x.status === 'ACTIVE')?.timezone ?? 'Asia/Ho_Chi_Minh'
+      .find((x) => x.status === 'ACTIVE')?.timezone ??
+    'Asia/Ho_Chi_Minh'
+  const localToday = localPlanDate(now(), timezone)
+  const cycleEnd = addPlanDays(localToday, 7)
+  const oldestAllowed = addPlanDays(cycleEnd, -30)
+  const cycleStart = cycle?.startedOn
+  const defaultWindow =
+    cycleStart && cycleStart <= localToday
+      ? {
+          from: cycleStart > oldestAllowed ? cycleStart : oldestAllowed,
+          through: cycleEnd,
+        }
+      : occurrenceWindow(now(), timezone)
   const window =
-    journalOrigin.state === 'valid'
+    tab !== 'progress' && journalOrigin.state === 'valid'
       ? {
           from: journalOrigin.value.localDate,
           through: journalOrigin.value.localDate,
         }
-      : homeOrigin.state === 'valid'
+      : tab !== 'progress' && homeOrigin.state === 'valid'
         ? {
             from: homeOrigin.value.localDate,
             through: homeOrigin.value.localDate,
           }
-        : occurrenceWindow(now(), timezone)
+        : defaultWindow
   const occurrences = useQuery({
     queryKey: [
       'support-plan-v3',
@@ -434,14 +490,12 @@ export function NativeSupportPlanScreen({
     refetchOnMount: 'always',
     queryFn: () => api.getOccurrences(window.from, window.through),
   })
-  const history = useInfiniteQuery({
-    queryKey: ['support-plan-v3', subject, 'history-pages'],
-    enabled: Boolean(subject),
-    retry: false,
-    initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) => api.getHistory(pageParam),
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-  })
+  const history = useSupportPlanHistory(
+    api,
+    subject,
+    Boolean(subject && !requireHistory),
+  )
+  const historyReady = !requireHistory || history.data !== undefined
   const historyItems = history.data?.pages.flatMap((page) => page.items) ?? []
   const progress = useQuery({
     queryKey: ['emotion-check-in', subject, 'progress', timezone],
@@ -454,10 +508,24 @@ export function NativeSupportPlanScreen({
     occurrences.data?.supportPlanId === current?.supportPlanId &&
     occurrences.data?.supportPlanStatus === current?.status &&
     occurrences.data?.representationMode === 'NATIVE_V3'
-  const items = matching ? (occurrences.data?.occurrences ?? []) : []
+  const items = matching
+    ? (occurrences.data?.occurrences.filter(
+        (item) =>
+          !item.hidden &&
+          actions.some(
+            (action) =>
+              action.actionId === item.actionId &&
+              action.actionType === item.actionType,
+          ),
+      ) ?? [])
+    : []
   const homeReturned =
     homeOrigin.state === 'valid'
-      ? resolveNativeHomePlanOrigin(current, occurrences.data, homeOrigin.value)
+      ? resolveNativeHomePlanOrigin(
+          current,
+          occurrences.data && { ...occurrences.data, occurrences: items },
+          homeOrigin.value,
+        )
       : null
   const returned =
     journalOrigin.state === 'valid'
@@ -484,6 +552,35 @@ export function NativeSupportPlanScreen({
         ...items.filter((x) => x.occurrenceId !== returned.occurrenceId),
       ]
     : items
+  const earlier = ordered
+    .filter(
+      (item) =>
+        item.occurrenceId !== returned?.occurrenceId &&
+        item.localDate < localToday &&
+        item.state === 'SCHEDULED' &&
+        actions.some(
+          (action) =>
+            action.actionId === item.actionId && action.status === 'ACTIVE',
+        ) &&
+        [
+          'RESOURCE',
+          'ROUTINE_SELF_MANAGEMENT',
+          'JOURNAL',
+          'EMOTION_CHECK_IN',
+        ].includes(item.actionType),
+    )
+    .sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt))
+  const earlierIds = new Set(earlier.map((item) => item.occurrenceId))
+  const todayItems = ordered.filter(
+    (item) =>
+      item.occurrenceId === returned?.occurrenceId ||
+      item.localDate === localToday,
+  )
+  const todayIds = new Set(todayItems.map((item) => item.occurrenceId))
+  const otherItems = ordered.filter(
+    (item) =>
+      !todayIds.has(item.occurrenceId) && !earlierIds.has(item.occurrenceId),
+  )
   const getKey = (signature: string) => {
     if (key.current?.signature !== signature)
       key.current = { signature, key: randomUUID() }
@@ -543,43 +640,111 @@ export function NativeSupportPlanScreen({
     review.proposedPlan.supportPlanId === draft.supportPlanId &&
     review.proposedPlan.version === draft.version,
   )
+  const renderActivity = (item: ActionOccurrence) => {
+    const action = actions.find((entry) => entry.actionId === item.actionId)
+    if (!current || !action) return null
+    const isReturned = returned?.occurrenceId === item.occurrenceId
+    return (
+      <NativeActivity
+        key={`${item.occurrenceId}:${item.version}`}
+        api={api}
+        occurrence={item}
+        plan={current}
+        title={action.presentation.title}
+        summary={action.presentation.summary ?? action.rationale}
+        purposeCode={action.purposeCode}
+        actionActive={action.status === 'ACTIVE'}
+        source={action.source}
+        fontsLoaded={fontsLoaded}
+        journalEligible={
+          isSupportedJournalAction(action) &&
+          action.schedules.some(
+            (schedule) =>
+              schedule.scheduleId === item.scheduleId &&
+              schedule.version === item.scheduleVersion,
+          ) &&
+          (item.state === 'COMPLETED' ||
+            (action.status === 'ACTIVE' &&
+              Boolean(action.activatedAt) &&
+              Boolean(current.activatedAt) &&
+              action.actionVersion === item.actionVersion))
+        }
+        returnSource={
+          !isReturned
+            ? null
+            : homeReturned?.occurrenceId === item.occurrenceId
+              ? 'home'
+              : journalOrigin.state === 'valid'
+                ? 'journal'
+                : 'emotion'
+        }
+        journalOrigin={
+          journalOrigin.state === 'valid' && isReturned
+            ? journalOrigin.value
+            : undefined
+        }
+        navigationBlocked={dirty || busy}
+        onReturnLayout={focusReturnedActivity}
+        onRefresh={() =>
+          queryClient.invalidateQueries(
+            {
+              queryKey: [
+                'support-plan-v3',
+                subject,
+                'occurrences',
+                current.supportPlanId,
+              ],
+            },
+            { throwOnError: true },
+          )
+        }
+        now={now}
+      />
+    )
+  }
   return (
-    <Screen scrollRef={scrollRef} contentRef={contentRef}>
-      <Secondary label="← Quay lại" onPress={() => router.back()} />
-      <Text style={styles.eyebrow}>CHĂM SÓC BẢN THÂN</Text>
-      <Text accessibilityRole="header" style={styles.title}>
-        Kế hoạch hỗ trợ
-      </Text>
-      <Text style={styles.body}>
-        Xem hoạt động tiếp theo và chủ động chọn nhịp phù hợp với bạn.
-      </Text>
+    <Screen
+      layout="dashboard"
+      backgroundColor={planBackground}
+      scrollRef={scrollRef}
+      contentRef={contentRef}
+    >
+      <SupportPlanHeader
+        cycle={cycle}
+        status={plan ? statusLabels[plan.status] : undefined}
+        tab={tab}
+        onTab={selectTab}
+        fontsLoaded={fontsLoaded}
+      />
+      {!historyReady && (
+        <View style={styles.panel}>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>
+            Lịch sử kế hoạch
+          </Text>
+          {history.isFetching ? (
+            <ActivityIndicator
+              accessibilityLabel="Đang xác định lịch sử kế hoạch"
+              color={colors.tealDeep}
+            />
+          ) : (
+            <>
+              <Text accessibilityLiveRegion="polite" style={styles.body}>
+                Chưa thể tải lịch sử kế hoạch. Hãy thử lại để xem các kế hoạch
+                đã lưu.
+              </Text>
+              <Secondary
+                label="Thử tải lại lịch sử"
+                onPress={() => void history.refetch()}
+              />
+            </>
+          )}
+        </View>
+      )}
       {notice ? (
         <Text accessibilityLiveRegion="polite" style={styles.notice}>
           {notice}
         </Text>
       ) : null}
-      {plan && subject ? (
-        <SupportPlanCompanion
-          api={api}
-          subject={subject}
-          plan={plan}
-          occurrences={ordered}
-          now={now}
-          {...(returned
-            ? { preferredOccurrenceId: returned.occurrenceId }
-            : {})}
-          interrupted={busy || dirty || confirmation !== null}
-        />
-      ) : null}
-      <SupportPlanPersonalizationCard
-        api={legacyApi}
-        subject={subject ?? ''}
-        onReviewPlan={() =>
-          setNotice(
-            'Lựa chọn mới đã được lưu. Kế hoạch hiện tại vẫn giữ nguyên cho đến khi bạn xem lại phương án.',
-          )
-        }
-      />
       {plan?.safety.guidanceCode === 'REVIEW_SAFETY_GUIDANCE' ? (
         <View style={styles.panel}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>
@@ -588,371 +753,615 @@ export function NativeSupportPlanScreen({
           <Text style={styles.body}>{plan.safety.guidance}</Text>
         </View>
       ) : null}
-      {current ? (
+      <View style={tab !== 'plan' && styles.hidden}>
+        {plan && subject ? (
+          <SupportPlanCompanion
+            api={api}
+            subject={subject}
+            plan={plan}
+            occurrences={ordered}
+            now={now}
+            {...(returned
+              ? { preferredOccurrenceId: returned.occurrenceId }
+              : {})}
+            interrupted={busy || dirty || confirmation !== null}
+          />
+        ) : null}
+        {current ? (
+          <View style={styles.panel}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>
+              Kế hoạch hiện tại
+            </Text>
+            <Text style={styles.state}>{statusLabels[current.status]}</Text>
+            {current.representationMode === 'V2_RESOURCE_ADAPTER' ? (
+              <Text style={styles.body}>
+                Các nội dung đã chọn vẫn được giữ nguyên trong khi bạn xem
+                phương án mới.
+              </Text>
+            ) : null}
+            {current.focuses.map((focus) => (
+              <View key={focus.focusId} style={styles.section}>
+                <Text style={styles.itemTitle}>{focus.title}</Text>
+                {focus.rationale ? (
+                  <Text style={styles.body}>{focus.rationale}</Text>
+                ) : null}
+                {focus.actions
+                  .filter(
+                    (x) =>
+                      x.actionType === 'PROFESSIONAL_SUPPORT' &&
+                      x.pathRole === 'PRIMARY',
+                  )
+                  .map((action) => (
+                    <View key={action.actionId}>
+                      <Text style={styles.itemTitle}>
+                        {action.presentation.title}
+                      </Text>
+                      <Text style={styles.body}>
+                        {action.presentation.summary}
+                      </Text>
+                      <PrimaryButton
+                        label="Tìm chuyên gia"
+                        onPress={() =>
+                          router.push({
+                            pathname: '/(user)/specialists',
+                            params: { planActionId: action.actionId },
+                          })
+                        }
+                      />
+                    </View>
+                  ))}
+              </View>
+            ))}
+            {current.representationMode === 'NATIVE_V3' ? (
+              <View style={styles.controls}>
+                <Secondary
+                  label={
+                    current.status === 'PAUSED'
+                      ? 'Tiếp tục kế hoạch'
+                      : 'Tạm dừng kế hoạch'
+                  }
+                  disabled={busy || dirty}
+                  onPress={() =>
+                    current.status === 'PAUSED'
+                      ? void run(
+                          () =>
+                            api.changeStatus(
+                              current.supportPlanId,
+                              current.version,
+                              'ACTIVE',
+                            ),
+                          'Đã tiếp tục kế hoạch.',
+                        )
+                      : setConfirmation('PAUSED')
+                  }
+                />
+                <Secondary
+                  label="Kết thúc kế hoạch"
+                  disabled={busy || dirty}
+                  onPress={() => setConfirmation('COMPLETED')}
+                />
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        {otherItems.length ? (
+          <View style={styles.section}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>
+              Lịch hoạt động
+            </Text>
+            {otherItems.map(renderActivity)}
+          </View>
+        ) : null}
+        {!current && historyReady ? (
+          <View style={styles.panel}>
+            <Text style={styles.body}>
+              {draft
+                ? 'Bạn có một kế hoạch đề xuất để xem lại.'
+                : 'Bạn chưa có kế hoạch đang thực hiện.'}
+            </Text>
+            <Secondary
+              label="Mở phần điều chỉnh"
+              onPress={() => selectTab('adjust')}
+            />
+          </View>
+        ) : null}
+      </View>
+      <View style={tab !== 'today' && styles.hidden}>
+        {reviewDue ? (
+          <View style={styles.reviewCard}>
+            <View style={styles.activityHeading}>
+              <View style={styles.activityIcon}>
+                <Text accessible={false} style={styles.iconInk}>
+                  ▣
+                </Text>
+              </View>
+              <View style={styles.flex}>
+                <Text
+                  accessibilityRole="header"
+                  style={[styles.reviewTitle, fontsLoaded && styles.serif]}
+                >
+                  Đến lúc cùng xem lại kế hoạch
+                </Text>
+                <Text style={[styles.deck, fontsLoaded && styles.sans]}>
+                  Cùng nhìn lại những gì bạn đã ghi nhận rồi chọn cách đi tiếp.
+                </Text>
+              </View>
+            </View>
+            <PrimaryButton
+              disabled={busy || dirty || confirmation !== null}
+              label="Xem lại kế hoạch →"
+              accessibilityLabel="Xem lại kế hoạch"
+              tone="darkPill"
+              onPress={() => {
+                selectTab('progress')
+                reviewTrigger.current?.()
+              }}
+            />
+            <PrimaryButton
+              label="Làm bài kiểm tra lại"
+              disabled={busy || dirty || confirmation !== null}
+              tone="light"
+              onPress={() => router.push('/(user)/reassessment')}
+            />
+          </View>
+        ) : null}
+        {current?.representationMode === 'NATIVE_V3' ? (
+          <View style={styles.section}>
+            {todayItems.length > 0 ? (
+              <Text accessibilityRole="header" style={styles.sectionTitle}>
+                Hoạt động hôm nay
+              </Text>
+            ) : null}
+            {origin.state === 'invalid' ||
+            homeOrigin.state === 'invalid' ||
+            journalOrigin.state === 'invalid' ||
+            ((origin.state === 'valid' ||
+              homeOrigin.state === 'valid' ||
+              journalOrigin.state === 'valid') &&
+              !occurrences.isPending &&
+              !returned) ? (
+              <>
+                <Text accessibilityLiveRegion="polite" style={styles.body}>
+                  Hoạt động đã thay đổi hoặc không còn trong kế hoạch hiện tại.
+                  Các mục bên dưới vẫn giữ nguyên.
+                </Text>
+                <Secondary
+                  label="Tải lại hoạt động"
+                  onPress={() => void occurrences.refetch()}
+                />
+              </>
+            ) : null}
+            {occurrences.isPending ? (
+              <ActivityIndicator
+                accessibilityLabel="Đang tải hoạt động"
+                color={colors.tealDeep}
+              />
+            ) : null}
+            {occurrences.isError || (!matching && !occurrences.isPending) ? (
+              <>
+                <Text accessibilityLiveRegion="polite" style={styles.body}>
+                  Chưa thể tải lịch hoạt động mới nhất. Không có hoạt động nào
+                  bị thay đổi.
+                </Text>
+                <Secondary
+                  label="Tải lại hoạt động"
+                  onPress={() => void occurrences.refetch()}
+                />
+              </>
+            ) : null}
+            {matching &&
+            !occurrences.isError &&
+            todayItems.length === 0 &&
+            !reviewDue ? (
+              <Text style={styles.body}>
+                Không có hoạt động nào được lên lịch hôm nay.
+              </Text>
+            ) : null}
+            {todayItems.map(renderActivity)}
+            {earlier.length > 0 ? (
+              <View style={styles.earlier}>
+                <View style={styles.earlierHeading}>
+                  <Text
+                    accessibilityRole="header"
+                    style={[styles.sectionTitle, fontsLoaded && styles.sans]}
+                  >
+                    Còn lại từ những ngày trước
+                  </Text>
+                  <Text style={styles.activityType}>
+                    {earlier.length} hoạt động
+                  </Text>
+                </View>
+                <Text style={styles.deck}>
+                  Bạn có thể hoàn thành theo nhịp của mình.
+                </Text>
+                <View style={styles.timeline}>
+                  {(showAllEarlier ? earlier : earlier.slice(0, 3)).map(
+                    (item) => (
+                      <View
+                        key={item.occurrenceId}
+                        style={styles.timelineEntry}
+                      >
+                        <View style={styles.timelineDot} />
+                        {renderActivity(item)}
+                      </View>
+                    ),
+                  )}
+                </View>
+                {earlier.length > 3 ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showAllEarlier }}
+                    onPress={() => setShowAllEarlier((value) => !value)}
+                    style={styles.earlierToggle}
+                  >
+                    <Text style={styles.deck}>
+                      {showAllEarlier
+                        ? 'Thu gọn hoạt động'
+                        : `Xem thêm ${earlier.length - 3} hoạt động  ›`}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        {!current && historyReady ? (
+          <View style={styles.panel}>
+            <Text style={styles.body}>
+              {draft
+                ? 'Bạn có một kế hoạch đề xuất để xem lại.'
+                : 'Bạn chưa có kế hoạch đang thực hiện.'}
+            </Text>
+            <Secondary
+              label="Mở phần điều chỉnh"
+              onPress={() => selectTab('adjust')}
+            />
+          </View>
+        ) : null}
+      </View>
+      <View style={tab !== 'progress' && styles.hidden}>
+        {tab === 'progress' &&
+          current &&
+          (matching ? (
+            <>
+              {occurrences.isError && (
+                <Secondary
+                  label="Chưa cập nhật được lịch hoạt động · Thử lại"
+                  onPress={() => void occurrences.refetch()}
+                />
+              )}
+              <PlanActivityHistory
+                key={current.supportPlanId}
+                plan={current}
+                cycle={cycle}
+                items={items}
+                today={localToday}
+                timezone={timezone}
+                window={window}
+              />
+            </>
+          ) : occurrences.isPending ? (
+            <ActivityIndicator
+              accessibilityLabel="Đang tải lịch sử hoạt động"
+              color={colors.tealDeep}
+            />
+          ) : (
+            <Secondary
+              label="Chưa tải được lịch sử hoạt động · Thử lại"
+              onPress={() => void occurrences.refetch()}
+            />
+          ))}
+        {current?.representationMode === 'NATIVE_V3' &&
+        (current.status === 'ACTIVE' || current.status === 'PAUSED') ? (
+          <AdaptiveReviewPanel
+            key={`${current.supportPlanId}:${current.version}`}
+            api={api}
+            current={current}
+            draft={draft}
+            disabled={busy || dirty || confirmation !== null}
+            onChanged={async () => {
+              await onChanged()
+              await Promise.all([occurrences.refetch(), history.refetch()])
+            }}
+            reviewTrigger={reviewTrigger}
+            onReassessment={() => router.push('/(user)/reassessment')}
+            onProfessionalSupport={() => router.push('/(user)/specialists')}
+          />
+        ) : null}
         <View style={styles.panel}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>
-            Kế hoạch hiện tại
+            Nhịp ghi nhận cảm xúc
           </Text>
-          <Text style={styles.state}>{statusLabels[current.status]}</Text>
-          {current.representationMode === 'V2_RESOURCE_ADAPTER' ? (
+          {progress.isPending && (
+            <ActivityIndicator
+              accessibilityLabel="Đang tải nhịp ghi nhận cảm xúc"
+              color={colors.tealDeep}
+            />
+          )}
+          {progress.data?.windows.map((item) => (
+            <Text key={item.days} style={styles.body}>
+              {item.days} ngày gần đây · Đã ghi nhận {item.checkedInDays}/
+              {item.days} ngày
+            </Text>
+          ))}
+          {progress.isError ? (
             <Text style={styles.body}>
-              Các nội dung đã chọn vẫn được giữ nguyên trong khi bạn xem phương
-              án mới.
+              Chưa tải được số ngày ghi nhận. Lịch hoạt động vẫn có thể sử dụng.
             </Text>
           ) : null}
-          {current.focuses.map((focus) => (
-            <View key={focus.focusId} style={styles.section}>
-              <Text style={styles.itemTitle}>{focus.title}</Text>
-              {focus.rationale ? (
-                <Text style={styles.body}>{focus.rationale}</Text>
-              ) : null}
-              {focus.actions
-                .filter(
-                  (x) =>
-                    x.actionType === 'PROFESSIONAL_SUPPORT' &&
-                    x.pathRole === 'PRIMARY',
-                )
-                .map((action) => (
-                  <View key={action.actionId}>
+          <Secondary
+            label="Tải lại số ngày ghi nhận"
+            onPress={() => void progress.refetch()}
+          />
+          <Secondary
+            label="Xem lịch sử sàng lọc"
+            onPress={() => router.push('/(user)/assessment')}
+          />
+          <Secondary
+            label="Mở Thống kê & Phân tích"
+            onPress={() => router.push('/(user)/analytics')}
+          />
+        </View>
+        {historyReady ? (
+          <View style={styles.section}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>
+              Kế hoạch trước đây
+            </Text>
+            {history.isPending ? (
+              <ActivityIndicator
+                accessibilityLabel="Đang tải lịch sử kế hoạch"
+                color={colors.tealDeep}
+              />
+            ) : null}
+            {history.isError ? (
+              <>
+                <Text style={styles.body}>Chưa thể tải lịch sử kế hoạch.</Text>
+                <Secondary
+                  label="Tải lại lịch sử"
+                  onPress={() => void history.refetch()}
+                />
+              </>
+            ) : null}
+            {historyItems.map((item) => (
+              <View style={styles.historyRow} key={item.supportPlanId}>
+                <Text style={styles.itemTitle}>
+                  {statusLabels[item.status]}
+                </Text>
+                <Text style={styles.body}>
+                  {new Intl.DateTimeFormat('vi-VN', {
+                    dateStyle: 'medium',
+                  }).format(new Date(item.updatedAt))}
+                </Text>
+                {item.focuses
+                  .flatMap((focus) => focus.actions)
+                  .map((action) => (
+                    <Text key={action.actionId} style={styles.body}>
+                      {action.presentation.title}
+                    </Text>
+                  ))}
+              </View>
+            ))}
+            {history.isSuccess && historyItems.length === 0 ? (
+              <Text style={styles.body}>
+                Chưa có kế hoạch đã kết thúc hoặc được thay thế.
+              </Text>
+            ) : null}
+            {history.hasNextPage ? (
+              <Secondary
+                label={
+                  history.isFetchingNextPage
+                    ? 'Đang tải lịch sử…'
+                    : 'Xem thêm kế hoạch trước đây'
+                }
+                disabled={history.isFetchingNextPage}
+                onPress={() => {
+                  if (!history.isFetchingNextPage) void history.fetchNextPage()
+                }}
+              />
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+      <View style={tab !== 'adjust' && styles.hidden}>
+        {historyReady ? (
+          <SupportPlanPersonalizationCard
+            api={legacyApi}
+            subject={subject ?? ''}
+            onReviewPlan={() => {
+              selectTab('plan')
+              setNotice(
+                'Lựa chọn mới đã được lưu. Kế hoạch hiện tại vẫn giữ nguyên cho đến khi bạn xem lại phương án.',
+              )
+            }}
+          />
+        ) : null}
+        {draft?.representationMode === 'NATIVE_V3' ? (
+          <View style={styles.panel}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>
+              Phương án để bạn xem lại
+            </Text>
+            {draft.focuses.map((focus) => (
+              <View key={focus.focusId} style={styles.section}>
+                <Text style={styles.itemTitle}>{focus.title}</Text>
+                {focus.actions.map((action) => (
+                  <View key={action.actionId} style={styles.section}>
                     <Text style={styles.itemTitle}>
                       {action.presentation.title}
                     </Text>
-                    <Text style={styles.body}>
-                      {action.presentation.summary}
-                    </Text>
-                    <PrimaryButton
-                      label="Tìm chuyên gia"
-                      onPress={() =>
-                        router.push({
-                          pathname: '/(user)/specialists',
-                          params: { planActionId: action.actionId },
-                        })
-                      }
-                    />
+                    {action.presentation.summary ? (
+                      <Text style={styles.body}>
+                        {action.presentation.summary}
+                      </Text>
+                    ) : null}
+                    {action.actionType === 'EMOTION_CHECK_IN' ? (
+                      <Text style={styles.body}>
+                        • Nhận biết điều bạn đang cảm nhận.{'\n'}• Ghi nhận theo
+                        nhịp bạn đã chọn; việc lưu cảm xúc không tự thay đổi kế
+                        hoạch.
+                      </Text>
+                    ) : null}
+                    {action.schedules
+                      .filter((x) => x.status === 'DRAFT')
+                      .map((schedule) => (
+                        <Text key={schedule.scheduleId} style={styles.body}>
+                          {schedule.recurrenceType === 'DAILY'
+                            ? 'Mỗi ngày'
+                            : schedule.recurrenceType === 'WEEKLY'
+                              ? 'Theo tuần'
+                              : 'Một lần'}{' '}
+                          ·{schedule.localTime.slice(0, 5)} ·
+                          {schedule.estimatedDurationMinutes} phút ·
+                          {schedule.timezone}
+                        </Text>
+                      ))}
                   </View>
                 ))}
-            </View>
-          ))}
-          {current.representationMode === 'NATIVE_V3' ? (
-            <View style={styles.controls}>
-              <Secondary
-                label={
-                  current.status === 'PAUSED'
-                    ? 'Tiếp tục kế hoạch'
-                    : 'Tạm dừng kế hoạch'
-                }
+              </View>
+            ))}
+            <SupportPlanScheduleEditor
+              plan={draft}
+              disabled={busy}
+              onDirtyChange={setDirty}
+              onSave={async (actionId, request, idempotencyKey) => {
+                await api.replaceSchedule(
+                  draft.supportPlanId,
+                  draft.version,
+                  actionId,
+                  request,
+                  idempotencyKey,
+                )
+                await onChanged()
+              }}
+              onReload={async () => {
+                await onChanged()
+                return api.getDraft()
+              }}
+            />
+            {dirty ? (
+              <Text style={styles.body}>
+                Lưu hoặc hoàn tác lịch đang chỉnh trước khi bắt đầu hay thay thế
+                kế hoạch.
+              </Text>
+            ) : null}
+            {!current ? (
+              <PrimaryButton
+                label={busy ? 'Đang bắt đầu…' : 'Bắt đầu kế hoạch'}
+                testID="native-plan-activate"
                 disabled={busy || dirty}
                 onPress={() =>
-                  current.status === 'PAUSED'
-                    ? void run(
-                        () =>
-                          api.changeStatus(
-                            current.supportPlanId,
-                            current.version,
-                            'ACTIVE',
-                          ),
-                        'Đã tiếp tục kế hoạch.',
-                      )
-                    : setConfirmation('PAUSED')
-                }
-              />
-              <Secondary
-                label="Kết thúc kế hoạch"
-                disabled={busy || dirty}
-                onPress={() => setConfirmation('COMPLETED')}
-              />
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-      {current?.representationMode === 'NATIVE_V3' ? (
-        <View style={styles.section}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>
-            Hoạt động gần đây và sắp tới
-          </Text>
-          {origin.state === 'invalid' ||
-          homeOrigin.state === 'invalid' ||
-          journalOrigin.state === 'invalid' ||
-          ((origin.state === 'valid' ||
-            homeOrigin.state === 'valid' ||
-            journalOrigin.state === 'valid') &&
-            !occurrences.isPending &&
-            !returned) ? (
-            <>
-              <Text accessibilityLiveRegion="polite" style={styles.body}>
-                Hoạt động đã thay đổi hoặc không còn trong kế hoạch hiện tại.
-                Các mục bên dưới vẫn giữ nguyên.
-              </Text>
-              <Secondary
-                label="Tải lại hoạt động"
-                onPress={() => void occurrences.refetch()}
-              />
-            </>
-          ) : null}
-          {occurrences.isPending ? (
-            <ActivityIndicator
-              accessibilityLabel="Đang tải hoạt động"
-              color={colors.tealDeep}
-            />
-          ) : null}
-          {occurrences.isError || (!matching && !occurrences.isPending) ? (
-            <>
-              <Text accessibilityLiveRegion="polite" style={styles.body}>
-                Chưa thể tải lịch hoạt động mới nhất. Không có hoạt động nào bị
-                thay đổi.
-              </Text>
-              <Secondary
-                label="Tải lại hoạt động"
-                onPress={() => void occurrences.refetch()}
-              />
-            </>
-          ) : null}
-          {matching && items.length === 0 ? (
-            <Text style={styles.body}>
-              Chưa có hoạt động trong khoảng thời gian này.
-            </Text>
-          ) : null}
-          {ordered.map((item) => {
-            const action = actions.find((x) => x.actionId === item.actionId)
-            return action ? (
-              <NativeActivity
-                key={`${item.occurrenceId}:${item.version}`}
-                api={api}
-                occurrence={item}
-                plan={current}
-                title={action.presentation.title}
-                summary={action.presentation.summary}
-                source={action.source}
-                journalEligible={
-                  isSupportedJournalAction(action) &&
-                  action.schedules.some(
-                    (schedule) =>
-                      schedule.scheduleId === item.scheduleId &&
-                      schedule.version === item.scheduleVersion,
-                  ) &&
-                  (item.state === 'COMPLETED' ||
-                    (action.status === 'ACTIVE' &&
-                      Boolean(action.activatedAt) &&
-                      Boolean(current.activatedAt) &&
-                      action.actionVersion === item.actionVersion))
-                }
-                returnSource={
-                  returned?.occurrenceId !== item.occurrenceId
-                    ? null
-                    : homeReturned?.occurrenceId === item.occurrenceId
-                      ? 'home'
-                      : journalOrigin.state === 'valid'
-                        ? 'journal'
-                        : 'emotion'
-                }
-                journalOrigin={
-                  journalOrigin.state === 'valid' &&
-                  returned?.occurrenceId === item.occurrenceId
-                    ? journalOrigin.value
-                    : undefined
-                }
-                navigationBlocked={dirty || busy}
-                onReturnLayout={focusReturnedActivity}
-                onRefresh={() => occurrences.refetch().then(() => undefined)}
-                now={now}
-              />
-            ) : null
-          })}
-        </View>
-      ) : null}
-      {current?.representationMode === 'NATIVE_V3' &&
-      (current.status === 'ACTIVE' || current.status === 'PAUSED') ? (
-        <AdaptiveReviewPanel
-          key={`${current.supportPlanId}:${current.version}`}
-          api={api}
-          current={current}
-          draft={draft}
-          disabled={busy || dirty || confirmation !== null}
-          onChanged={async () => {
-            await onChanged()
-            await Promise.all([occurrences.refetch(), history.refetch()])
-          }}
-          onReassessment={() => router.push('/(user)/reassessment')}
-          onProfessionalSupport={() => router.push('/(user)/specialists')}
-        />
-      ) : null}
-      {draft?.representationMode === 'NATIVE_V3' ? (
-        <View style={styles.panel}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>
-            Phương án để bạn xem lại
-          </Text>
-          {draft.focuses.map((focus) => (
-            <View key={focus.focusId} style={styles.section}>
-              <Text style={styles.itemTitle}>{focus.title}</Text>
-              {focus.actions.map((action) => (
-                <View key={action.actionId} style={styles.section}>
-                  <Text style={styles.itemTitle}>
-                    {action.presentation.title}
-                  </Text>
-                  {action.presentation.summary ? (
-                    <Text style={styles.body}>
-                      {action.presentation.summary}
-                    </Text>
-                  ) : null}
-                  {action.actionType === 'EMOTION_CHECK_IN' ? (
-                    <Text style={styles.body}>
-                      • Nhận biết điều bạn đang cảm nhận.{'\n'}• Ghi nhận theo
-                      nhịp bạn đã chọn; việc lưu cảm xúc không tự thay đổi kế
-                      hoạch.
-                    </Text>
-                  ) : null}
-                  {action.schedules
-                    .filter((x) => x.status === 'DRAFT')
-                    .map((schedule) => (
-                      <Text key={schedule.scheduleId} style={styles.body}>
-                        {schedule.recurrenceType === 'DAILY'
-                          ? 'Mỗi ngày'
-                          : schedule.recurrenceType === 'WEEKLY'
-                            ? 'Theo tuần'
-                            : 'Một lần'}{' '}
-                        ·{schedule.localTime.slice(0, 5)} ·
-                        {schedule.estimatedDurationMinutes} phút ·
-                        {schedule.timezone}
-                      </Text>
-                    ))}
-                </View>
-              ))}
-            </View>
-          ))}
-          <SupportPlanScheduleEditor
-            plan={draft}
-            disabled={busy}
-            onDirtyChange={setDirty}
-            onSave={async (actionId, request, idempotencyKey) => {
-              await api.replaceSchedule(
-                draft.supportPlanId,
-                draft.version,
-                actionId,
-                request,
-                idempotencyKey,
-              )
-              await onChanged()
-            }}
-            onReload={async () => {
-              await onChanged()
-              return api.getDraft()
-            }}
-          />
-          {dirty ? (
-            <Text style={styles.body}>
-              Lưu hoặc hoàn tác lịch đang chỉnh trước khi bắt đầu hay thay thế
-              kế hoạch.
-            </Text>
-          ) : null}
-          {!current ? (
-            <PrimaryButton
-              label={busy ? 'Đang bắt đầu…' : 'Bắt đầu kế hoạch'}
-              testID="native-plan-activate"
-              disabled={busy || dirty}
-              onPress={() =>
-                void run(
-                  () =>
-                    api.activate(
-                      draft.supportPlanId,
-                      draft.version,
-                      getKey(
-                        `activate:${draft.supportPlanId}:${draft.version}`,
+                  void run(
+                    () =>
+                      api.activate(
+                        draft.supportPlanId,
+                        draft.version,
+                        getKey(
+                          `activate:${draft.supportPlanId}:${draft.version}`,
+                        ),
                       ),
-                    ),
-                  'Kế hoạch hỗ trợ đã bắt đầu.',
-                )
-              }
-            />
-          ) : (
-            <>
-              <Text style={styles.body}>
-                Kế hoạch hiện tại chưa thay đổi. Cần có đánh giá lại và xem so
-                sánh trước khi chọn phương án này.
-              </Text>
-              <PrimaryButton
-                label="Kiểm tra và so sánh phương án"
-                disabled={busy || dirty}
-                onPress={() => void loadReview()}
+                    'Kế hoạch hỗ trợ đã bắt đầu.',
+                  )
+                }
               />
-              {reviewMatches && review ? (
-                <View style={styles.section}>
-                  <Text style={styles.body}>
-                    {review.outcome ===
-                    'CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE'
-                      ? 'Kế hoạch hiện tại vẫn phù hợp; phương án này không có thay đổi đáng kể.'
-                      : 'Phương án mới đã được kiểm tra. Bạn có thể giữ kế hoạch hiện tại hoặc chủ động thay thế; lịch sử cũ vẫn được lưu.'}
-                  </Text>
-                  {review.rationaleCodes.includes(
-                    'PROPOSED_PLAN_ADMISSIBLE',
-                  ) ? (
-                    <PrimaryButton
-                      label="Chọn phương án mới"
-                      disabled={busy || dirty}
-                      onPress={() =>
-                        void run(
-                          () =>
-                            api.replace(
-                              draft.supportPlanId,
-                              draft.version,
-                              {
-                                currentSupportPlanId: current.supportPlanId,
-                                currentVersion: current.version,
-                                reassessmentSummaryId:
-                                  review.reassessmentSummary.summaryId,
-                              },
-                              getKey(
-                                `replace:${draft.supportPlanId}:${draft.version}:${current.version}`,
+            ) : (
+              <>
+                <Text style={styles.body}>
+                  Kế hoạch hiện tại chưa thay đổi. Cần có đánh giá lại và xem so
+                  sánh trước khi chọn phương án này.
+                </Text>
+                <PrimaryButton
+                  label="Kiểm tra và so sánh phương án"
+                  disabled={busy || dirty}
+                  onPress={() => void loadReview()}
+                />
+                {reviewMatches && review ? (
+                  <View style={styles.section}>
+                    <Text style={styles.body}>
+                      {review.outcome ===
+                      'CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE'
+                        ? 'Kế hoạch hiện tại vẫn phù hợp; phương án này không có thay đổi đáng kể.'
+                        : 'Phương án mới đã được kiểm tra. Bạn có thể giữ kế hoạch hiện tại hoặc chủ động thay thế; lịch sử cũ vẫn được lưu.'}
+                    </Text>
+                    {review.rationaleCodes.includes(
+                      'PROPOSED_PLAN_ADMISSIBLE',
+                    ) ? (
+                      <PrimaryButton
+                        label="Chọn phương án mới"
+                        disabled={busy || dirty}
+                        onPress={() =>
+                          void run(
+                            () =>
+                              api.replace(
+                                draft.supportPlanId,
+                                draft.version,
+                                {
+                                  currentSupportPlanId: current.supportPlanId,
+                                  currentVersion: current.version,
+                                  reassessmentSummaryId:
+                                    review.reassessmentSummary.summaryId,
+                                },
+                                getKey(
+                                  `replace:${draft.supportPlanId}:${draft.version}:${current.version}`,
+                                ),
                               ),
-                            ),
-                          'Đã thay thế kế hoạch. Lịch sử trước đó vẫn được lưu.',
-                        )
-                      }
-                    />
-                  ) : null}
-                </View>
-              ) : null}
-            </>
-          )}
-          <Secondary
-            label="Bỏ bản đề xuất"
-            disabled={busy || dirty}
-            onPress={() => setConfirmation('DISCARDED')}
-          />
-        </View>
-      ) : null}
-      {current?.representationMode === 'NATIVE_V3' && !draft ? (
-        <View style={styles.panel}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>
-            Điều chỉnh nhịp hoạt động
-          </Text>
-          <SupportPlanScheduleEditor
-            plan={current}
-            disabled={busy || current.status !== 'ACTIVE'}
-            onDirtyChange={setDirty}
-            onSave={async (actionId, request, idempotencyKey) => {
-              await api.replaceSchedule(
-                current.supportPlanId,
-                current.version,
-                actionId,
-                request,
-                idempotencyKey,
-              )
-              await onChanged()
-              await occurrences.refetch()
-            }}
-            onReload={async () => {
-              await onChanged()
-              return api.getCurrent()
-            }}
-          />
-          {dirty ? (
-            <Text style={styles.body}>
-              Lưu hoặc hoàn tác lịch đang chỉnh trước khi thay đổi trạng thái kế
-              hoạch.
+                            'Đã thay thế kế hoạch. Lịch sử trước đó vẫn được lưu.',
+                          )
+                        }
+                      />
+                    ) : null}
+                  </View>
+                ) : null}
+              </>
+            )}
+            <Secondary
+              label="Bỏ bản đề xuất"
+              disabled={busy || dirty}
+              onPress={() => setConfirmation('DISCARDED')}
+            />
+          </View>
+        ) : null}
+        {current?.representationMode === 'NATIVE_V3' && !draft ? (
+          <View style={styles.panel}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>
+              Điều chỉnh nhịp hoạt động
             </Text>
-          ) : null}
-        </View>
-      ) : null}
+            <SupportPlanScheduleEditor
+              plan={current}
+              disabled={busy || current.status !== 'ACTIVE'}
+              onDirtyChange={setDirty}
+              onSave={async (actionId, request, idempotencyKey) => {
+                await api.replaceSchedule(
+                  current.supportPlanId,
+                  current.version,
+                  actionId,
+                  request,
+                  idempotencyKey,
+                )
+                await onChanged()
+                await occurrences.refetch()
+              }}
+              onReload={async () => {
+                await onChanged()
+                return api.getCurrent()
+              }}
+            />
+            {dirty ? (
+              <Text style={styles.body}>
+                Lưu hoặc hoàn tác lịch đang chỉnh trước khi thay đổi trạng thái
+                kế hoạch.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+        {!draft && historyReady ? (
+          <NativeProposalEntry
+            api={api}
+            current={current}
+            draft={draft}
+            onChanged={onChanged}
+            disabled={busy || dirty}
+          />
+        ) : null}
+      </View>
       {confirmation ? (
         <View style={styles.panel} accessibilityLiveRegion="polite">
           <Text accessibilityRole="header" style={styles.sectionTitle}>
@@ -1004,79 +1413,16 @@ export function NativeSupportPlanScreen({
           />
         </View>
       ) : null}
-      {!draft ? (
-        <NativeProposalEntry
-          api={api}
-          current={current}
-          draft={draft}
-          onChanged={onChanged}
-          disabled={busy || dirty}
-        />
+      {plan?.disclaimer ? (
+        <View style={styles.disclaimerBox}>
+          <Text accessible={false} style={styles.iconInk}>
+            ◇
+          </Text>
+          <Text style={[styles.deck, styles.flex, fontsLoaded && styles.sans]}>
+            {plan.disclaimer}
+          </Text>
+        </View>
       ) : null}
-      <View style={styles.panel}>
-        <Text accessibilityRole="header" style={styles.sectionTitle}>
-          Nhịp ghi nhận cảm xúc
-        </Text>
-        {progress.data ? (
-          <Text style={styles.body}>
-            Trong 7 ngày gần đây, bạn có{' '}
-            {progress.data.windows.find((x) => x.days === 7)?.checkedInDays ??
-              0}{' '}
-            ngày ghi nhận cảm xúc.
-          </Text>
-        ) : null}
-        {progress.isError ? (
-          <Text style={styles.body}>
-            Chưa tải được số ngày ghi nhận. Lịch hoạt động vẫn có thể sử dụng.
-          </Text>
-        ) : null}
-        <Secondary
-          label="Tải lại số ngày ghi nhận"
-          onPress={() => void progress.refetch()}
-        />
-      </View>
-      <View style={styles.section}>
-        <Text accessibilityRole="header" style={styles.sectionTitle}>
-          Kế hoạch trước đây
-        </Text>
-        {history.isError ? (
-          <>
-            <Text style={styles.body}>Chưa thể tải lịch sử kế hoạch.</Text>
-            <Secondary
-              label="Tải lại lịch sử"
-              onPress={() => void history.refetch()}
-            />
-          </>
-        ) : null}
-        {historyItems.map((item) => (
-          <View style={styles.historyRow} key={item.supportPlanId}>
-            <Text style={styles.itemTitle}>{statusLabels[item.status]}</Text>
-            <Text style={styles.body}>
-              {new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(
-                new Date(item.updatedAt),
-              )}
-            </Text>
-          </View>
-        ))}
-        {history.isSuccess && historyItems.length === 0 ? (
-          <Text style={styles.body}>
-            Chưa có kế hoạch đã kết thúc hoặc được thay thế.
-          </Text>
-        ) : null}
-        {history.hasNextPage ? (
-          <Secondary
-            label={
-              history.isFetchingNextPage
-                ? 'Đang tải lịch sử…'
-                : 'Xem thêm kế hoạch trước đây'
-            }
-            disabled={history.isFetchingNextPage}
-            onPress={() => {
-              if (!history.isFetchingNextPage) void history.fetchNextPage()
-            }}
-          />
-        ) : null}
-      </View>
     </Screen>
   )
 }
@@ -1087,7 +1433,10 @@ function NativeActivity({
   plan,
   title,
   summary,
+  purposeCode,
+  actionActive,
   source,
+  fontsLoaded,
   journalEligible,
   returnSource,
   journalOrigin,
@@ -1101,7 +1450,10 @@ function NativeActivity({
   plan: CanonicalSupportPlan
   title: string
   summary: string | null
+  purposeCode: string
+  actionActive: boolean
   source: CanonicalSupportPlan['focuses'][number]['actions'][number]['source']
+  fontsLoaded: boolean
   journalEligible: boolean
   returnSource: 'home' | 'journal' | 'emotion' | null
   journalOrigin?: JournalPlanOrigin | undefined
@@ -1185,7 +1537,13 @@ function NativeActivity({
     }
   }
   const change = async (state: 'COMPLETED' | 'SKIPPED') => {
-    if (running.current || plan.status !== 'ACTIVE') return
+    if (
+      running.current ||
+      navigationBlocked ||
+      !actionActive ||
+      plan.status !== 'ACTIVE'
+    )
+      return
     running.current = true
     setBusy(true)
     try {
@@ -1222,11 +1580,18 @@ function NativeActivity({
     occurrenceId: occurrence.occurrenceId,
     actionId: occurrence.actionId,
   }
+  const { label, icon } = purposeCode.includes('PSYCHOEDUCATION')
+    ? { label: 'Kiến thức tâm lý', icon: '▤' }
+    : purposeCode.includes('SLEEP')
+      ? { label: 'Giấc ngủ & nghỉ ngơi', icon: '☾' }
+      : purposeCode.includes('SUPPORT_ACTIVITY')
+        ? activityTypes.ROUTINE_SELF_MANAGEMENT
+        : activityTypes[occurrence.actionType]
   return (
     <View
       ref={activityRef}
       onLayout={focusReturn}
-      style={[styles.panel, emotion && styles.emotionPanel]}
+      style={styles.activityCard}
       testID={`plan-activity-${occurrence.occurrenceId}`}
     >
       {returned ? (
@@ -1238,26 +1603,52 @@ function NativeActivity({
               : 'Bạn vừa quay lại từ ghi nhận cảm xúc'}
         </Text>
       ) : null}
-      <Text style={styles.supporting}>
-        {dateLabel(occurrence.localDate)}
-        {schedule
-          ? ` · ${schedule.localTime.slice(0, 5)} · ${schedule.estimatedDurationMinutes} phút`
-          : ''}
-      </Text>
-      <Text
-        ref={headingRef}
-        accessible
-        accessibilityRole="header"
-        style={styles.sectionTitle}
-      >
-        {title}
-      </Text>
-      {summary ? <Text style={styles.body}>{summary}</Text> : null}
-      <Text accessibilityLiveRegion="polite" style={styles.state}>
-        {completed
-          ? 'Đã ghi nhận hoàn thành'
-          : occurrenceLabels[occurrence.displayState]}
-      </Text>
+      <View style={styles.activityMeta}>
+        <Text style={styles.activityType}>{label}</Text>
+        {schedule?.estimatedDurationMinutes != null ? (
+          <Text style={styles.activityDate}>
+            ◷ {schedule.estimatedDurationMinutes} phút
+          </Text>
+        ) : null}
+        <Text style={styles.activityDate}>
+          {planDayLabel(occurrence.localDate)}
+        </Text>
+      </View>
+      <View style={styles.activityHeading}>
+        <View style={styles.activityIcon}>
+          <Text accessible={false} style={styles.iconInk}>
+            {icon}
+          </Text>
+        </View>
+        <View style={styles.flex}>
+          <Text
+            ref={headingRef}
+            accessible
+            accessibilityRole="header"
+            style={[styles.itemTitle, fontsLoaded && styles.sans]}
+          >
+            {title}
+          </Text>
+          {summary ? (
+            <Text style={[styles.deck, fontsLoaded && styles.sans]}>
+              {summary}
+            </Text>
+          ) : null}
+          {completed ||
+          emotion ||
+          journal ||
+          occurrence.state !== 'SCHEDULED' ? (
+            <Text
+              accessibilityLiveRegion="polite"
+              style={styles.activityStatus}
+            >
+              {completed
+                ? 'Đã ghi nhận hoàn thành'
+                : occurrenceLabels[occurrence.displayState]}
+            </Text>
+          ) : null}
+        </View>
+      </View>
       {notice ? (
         <Text accessibilityLiveRegion="polite" style={styles.body}>
           {notice}
@@ -1292,7 +1683,7 @@ function NativeActivity({
             disabled={busy || !eligible}
             onPress={() => void check()}
           />
-          <Text style={styles.supporting}>
+          <Text style={styles.deck}>
             Lưu cảm xúc không tự hoàn thành hoạt động. Chọn kiểm tra để cập nhật
             đúng mục này.
           </Text>
@@ -1392,10 +1783,15 @@ function NativeActivity({
           ) : null}
         </>
       ) : (
-        <>
+        <View style={styles.activityActions}>
           {occurrence.actionType === 'RESOURCE' && source ? (
-            <Secondary
-              label={`Mở ${title}`}
+            <PrimaryButton
+              label="Mở nội dung"
+              accessibilityLabel={`Mở ${title}`}
+              leadingIcon="▷"
+              tone="darkPill"
+              labelStyle={styles.activityActionText}
+              disabled={navigationBlocked}
               onPress={() =>
                 router.push({
                   pathname: '/(user)/resources/[resourceId]',
@@ -1407,18 +1803,24 @@ function NativeActivity({
               }
             />
           ) : null}
-          {source?.ownerDomain === 'CONTENT' &&
+          {(source?.ownerDomain === 'CONTENT' ||
+            occurrence.actionType === 'ROUTINE_SELF_MANAGEMENT') &&
+          actionActive &&
           plan.status === 'ACTIVE' &&
           occurrence.state === 'SCHEDULED' ? (
             <>
-              <Secondary
-                label="Ghi nhận đã làm"
-                disabled={busy}
+              <PrimaryButton
+                label="Đã làm xong"
+                tone="light"
+                labelStyle={styles.activityActionText}
+                disabled={busy || navigationBlocked}
                 onPress={() => void change('COMPLETED')}
               />
-              <Secondary
-                label="Bỏ qua lần này"
-                disabled={busy}
+              <PrimaryButton
+                label="Để hôm khác"
+                tone="light"
+                labelStyle={styles.activityActionText}
+                disabled={busy || navigationBlocked}
                 onPress={() => void change('SKIPPED')}
               />
             </>
@@ -1429,7 +1831,7 @@ function NativeActivity({
               onPress={() => router.push('/(user)/appointments')}
             />
           ) : null}
-        </>
+        </View>
       )}
     </View>
   )
@@ -1467,7 +1869,6 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     lineHeight: typography.bodyLineHeight,
   },
-  supporting: { color: colors.inkSoft, fontSize: 14, lineHeight: 22 },
   notice: {
     color: colors.tealDeep,
     fontSize: typography.body,
@@ -1489,7 +1890,120 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginVertical: spacing.md,
   },
-  emotionPanel: { borderLeftWidth: 4, borderLeftColor: colors.teal },
+  hidden: { display: 'none' },
+  flex: { flex: 1 },
+  sans: { fontFamily: 'DashboardSans' },
+  serif: { fontFamily: 'DashboardSerif' },
+  deck: { color: colors.inkSoft, fontSize: 13, lineHeight: 20 },
+  reviewCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.panel,
+    borderWidth: 1,
+    borderColor: '#e4ede7',
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  reviewTitle: {
+    color: colors.ink,
+    fontSize: 19,
+    lineHeight: 26,
+    fontWeight: '600',
+  },
+  earlier: { gap: spacing.sm },
+  earlierHeading: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  timeline: {
+    marginTop: spacing.xs,
+    marginLeft: spacing.sm,
+    paddingLeft: spacing.md,
+    borderLeftWidth: 1,
+    borderLeftColor: colors.tealPale,
+    gap: spacing.md,
+  },
+  timelineEntry: { position: 'relative' },
+  timelineDot: {
+    width: 11,
+    height: 11,
+    position: 'absolute',
+    top: 20,
+    left: -18,
+    zIndex: 1,
+    borderRadius: radii.pill,
+    borderColor: colors.tealPale,
+    borderWidth: 2,
+    backgroundColor: colors.tealDeep,
+  },
+  earlierToggle: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.control,
+    backgroundColor: '#edf2ef',
+  },
+  activityCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.panel,
+    borderWidth: 1,
+    borderColor: '#e4ede7',
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  activityMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  activityType: {
+    borderRadius: radii.pill,
+    overflow: 'hidden',
+    backgroundColor: '#edf2ef',
+    color: colors.tealDeep,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    fontSize: 11,
+  },
+  activityDate: { color: colors.inkSoft, fontSize: 11 },
+  activityHeading: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  activityIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.control,
+    backgroundColor: '#edf2ef',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconInk: { color: colors.tealDeep, fontSize: 17 },
+  activityStatus: {
+    color: colors.tealDeep,
+    marginTop: spacing.xs,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  activityActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  activityActionText: { fontSize: 12 },
+  disclaimerBox: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    borderRadius: radii.control,
+    backgroundColor: '#edf2ef',
+    padding: spacing.lg,
+  },
   section: { gap: spacing.md, marginVertical: spacing.lg },
   controls: { gap: spacing.md, marginTop: spacing.md },
   secondary: {

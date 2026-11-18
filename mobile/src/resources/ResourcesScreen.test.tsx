@@ -23,6 +23,13 @@ let mockSession: AppSession | null = {
   role: 'USER',
 }
 const mockSignOut = jest.fn()
+jest.mock('./useResourceFonts', () => ({ useResourceFonts: () => false }))
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn(), replace: jest.fn() },
+  useFocusEffect: (callback: () => void) => {
+    jest.requireActual('react').useEffect(callback, [callback])
+  },
+}))
 
 jest.mock('@/auth/session-context', () => ({
   useSession: () => ({ session: mockSession, signOut: mockSignOut }),
@@ -132,13 +139,17 @@ describe('mobile reviewed resource catalogue', () => {
     )
 
     expect(
-      await screen.findByText('Hiểu các dấu hiệu thường gặp'),
+      await screen.findByRole('button', {
+        name: 'Mở Hiểu các dấu hiệu thường gặp',
+      }),
     ).toBeOnTheScreen()
     expect(screen.getByText('Đã hoàn thành')).toBeOnTheScreen()
     await fireEvent.press(
       screen.getByRole('button', { name: 'Tải thêm tài nguyên' }),
     )
-    expect(await screen.findByText('Video thở nhẹ')).toBeOnTheScreen()
+    expect(
+      await screen.findByRole('button', { name: 'Mở Video thở nhẹ' }),
+    ).toBeOnTheScreen()
     expect(listResources).toHaveBeenCalledWith(
       expect.objectContaining({
         cursor: '33333333-3333-4333-8333-333333333333',
@@ -205,9 +216,23 @@ describe('mobile reviewed resource catalogue', () => {
     await renderResources(<ResourcesScreen {...props(resourceApi)} />)
 
     expect(
-      await screen.findByText('Hiểu các dấu hiệu thường gặp'),
+      await screen.findByRole('button', {
+        name: 'Mở Hiểu các dấu hiệu thường gặp',
+      }),
     ).toBeOnTheScreen()
     expect(screen.getByText(/Chưa thể tải tiến độ/)).toBeOnTheScreen()
+  })
+
+  it('returns directly home through the provided action', async () => {
+    const onHome = jest.fn()
+    const resourceApi = api()
+    await renderResources(
+      <ResourcesScreen {...props(resourceApi)} onHome={onHome} />,
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: '⌂  Về trang chủ' }),
+    )
+    expect(onHome).toHaveBeenCalledTimes(1)
   })
 
   it('does not call owner APIs or expose resources to the wrong actor', async () => {

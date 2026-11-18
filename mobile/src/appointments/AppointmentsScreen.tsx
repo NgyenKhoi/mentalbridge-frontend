@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { randomUUID } from 'expo-crypto'
 import { router } from 'expo-router'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
+import { useForegroundRefresh } from '@/api/use-foreground-refresh'
 import type { AppointmentDisputeApi } from '@/appointment-dispute/appointment-dispute-api'
 import { AppointmentDisputePanel } from '@/appointment-dispute/AppointmentDisputePanel'
 import { useSession } from '@/auth/session-context'
@@ -37,6 +38,7 @@ import {
   changeCandidate,
   creditLabels,
   matchesFilter,
+  orderAppointmentsForDisplay,
   sameSlot,
   sessionLabels,
   statusLabels,
@@ -54,6 +56,7 @@ type Props = Readonly<{
   sessionSummaryApi?: UserSummaryApi
   videoApi?: VideoApi
   initialSelection?: SlotSelection | undefined
+  reviewInitialSelection?: boolean
   originatingPlanActionId?: string | undefined
   supportEvaluationId?: string | undefined
 }>
@@ -141,6 +144,7 @@ function AccountAppointmentsScreen({
   discovery,
   onBack,
   initialSelection,
+  reviewInitialSelection,
   initialAppointmentId = null,
   originatingPlanActionId,
   sessionSummaryApi,
@@ -175,6 +179,10 @@ function AccountAppointmentsScreen({
   const mounted = useRef(true)
   const listRefetch = list.refetch
   const creditRefetch = credits.refetch
+  useForegroundRefresh(() => {
+    if (!review && !inFlight.current && !list.isFetching)
+      void listRefetch({ cancelRefetch: false })
+  })
   useEffect(() => {
     mounted.current = true
     const subscription = AppState.addEventListener('change', (state) => {
@@ -270,6 +278,15 @@ function AccountAppointmentsScreen({
       if (mounted.current) setBusy(false)
     }
   }
+  const prepareInitial = useEffectEvent((selection: SlotSelection) => {
+    void prepare(selection, null)
+  })
+  useEffect(() => {
+    if (!reviewInitialSelection || !initialSelection) return
+    const timer = setTimeout(() => prepareInitial(initialSelection), 0)
+    return () => clearTimeout(timer)
+  }, [initialSelection, reviewInitialSelection])
+
   async function prepareCancel(item: Appointment) {
     if (inFlight.current || pending) return
     inFlight.current = true
@@ -395,10 +412,53 @@ function AccountAppointmentsScreen({
     changeCandidate(item, data)
   const FindSlotButton =
     initialSelection && !detailId ? Secondary : PrimaryButton
+  if (
+    reviewInitialSelection &&
+    review?.kind === 'request' &&
+    !review.replacement
+  ) {
+    const { slot, specialist } = review.selection
+    return (
+      <Screen layout="dashboard" backgroundColor="#F5FAF7">
+        <View style={styles.stack}>
+          <Secondary label="Chọn giờ khác" onPress={onBack} disabled={busy} />
+          <Text accessibilityRole="header" style={styles.title}>
+            Xác nhận đặt lịch
+          </Text>
+          <View style={styles.panel} testID="appointment-review">
+            <Text style={styles.subtitle}>{specialist.displayName}</Text>
+            <Text style={styles.body}>{slotLabel(slot)}</Text>
+            <Text style={styles.body}>
+              {modalityLabels[slot.modality]} · 60 phút
+            </Text>
+            <Text style={styles.body}>
+              1 lượt tư vấn · Còn {review.credits.balance.available} lượt khả
+              dụng
+            </Text>
+            <Text style={styles.muted}>
+              Lịch chỉ được xác nhận sau khi chuyên gia chấp thuận.
+            </Text>
+          </View>
+          {!!notice && (
+            <Text accessibilityLiveRegion="polite" style={styles.status}>
+              {notice}
+            </Text>
+          )}
+          <PrimaryButton
+            label={busy ? 'Đang gửi…' : 'Gửi yêu cầu đặt lịch'}
+            testID="appointment-confirm"
+            disabled={busy || pending !== null}
+            onPress={() => void execute()}
+          />
+        </View>
+      </Screen>
+    )
+  }
   if (choosing)
     return (
       <DiscoveryScreen
         api={discovery}
+        isRescheduling={replacement !== null}
         onBack={() => setChoosing(false)}
         onBook={(selection) => void prepare(selection, replacement)}
         {...(supportEvaluationId ? { supportEvaluationId } : {})}
@@ -756,14 +816,18 @@ function AccountAppointmentsScreen({
                   Bạn chưa có lịch hẹn. Hãy tìm giờ tư vấn khi muốn bắt đầu.
                 </Text>
               ) : (
-                !data.items.some((entry) => matchesFilter(entry, filter)) && (
+                !data.items.some((entry) =>
+                  matchesFilter(entry, filter, data.generatedAt),
+                ) && (
                   <Text style={styles.body}>
                     Chưa có lịch hẹn trong nhóm này. Hãy chọn nhóm khác.
                   </Text>
                 )
               )}
-              {data.items
-                .filter((entry) => matchesFilter(entry, filter))
+              {orderAppointmentsForDisplay(data.items)
+                .filter((entry) =>
+                  matchesFilter(entry, filter, data.generatedAt),
+                )
                 .map((entry) => (
                   <View key={entry.id} style={styles.row}>
                     <AppointmentFacts item={entry} />

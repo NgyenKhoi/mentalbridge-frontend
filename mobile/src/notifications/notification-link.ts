@@ -27,6 +27,14 @@ export function notificationDestination(
 ) {
   if (!action) return null
   if (role === 'SPECIALIST') return specialistNotificationDestination(action)
+  if (action.type === 'OPEN_APPOINTMENT') {
+    const id = z.uuid().safeParse(action.targetId)
+    if (!id.success || action.href !== `/appointments/${id.data}`) return null
+    return {
+      pathname: '/(user)/appointments' as const,
+      params: { appointmentId: id.data },
+    }
+  }
 
   if (
     action.type === 'OPEN_COMMUNITY_CONVERSATION' ||
@@ -72,14 +80,6 @@ export function notificationDestination(
           pathname: '/(user)/community' as const,
           params: { postId: action.targetId },
         }
-  }
-  if (action.type === 'OPEN_APPOINTMENT') {
-    // No appointment detail screen on mobile: open the list for the exact published path.
-    if (!action.targetId || !z.uuid().safeParse(action.targetId).success)
-      return null
-    return action.href === `/appointments/${action.targetId}`
-      ? { pathname: '/(user)/appointments' as const }
-      : null
   }
   if (action.targetId !== null) return null
   switch (action.type) {

@@ -28,7 +28,7 @@ import { CommunityFeedPost } from './CommunityFeedPost'
 import { CommunityMePanel } from './CommunityMePanel'
 import { CommunityMomentsPanel } from './CommunityMomentsPanel'
 import { CommunityMomentsStrip } from './CommunityMomentsStrip'
-import { CommunityMomentsViewer } from './CommunityMomentsViewer'
+import { CommunityReelsViewer } from './CommunityReelsViewer'
 import { CommunityPostMenu } from './CommunityPostMenu'
 import { CommunityProfileEditor } from './CommunityProfileEditor'
 import {
@@ -204,21 +204,33 @@ function AccountCommunityScreen({
   const profile = profileQuery.data?.profile
   const posts = query.data?.pages.flatMap((page) => page.items) ?? []
   const moments = momentsOf(posts)
-  const overlay =
-    viewer !== null && moments.length > 0 ? (
-      <CommunityMomentsViewer
-        moments={moments}
-        startIndex={viewer}
-        commands={commands}
-        onClose={closeViewer}
-        onOpenPost={openPost}
-        onLoadMore={
-          query.hasNextPage && !query.isFetchingNextPage
-            ? () => void query.fetchNextPage()
-            : undefined
-        }
-      />
-    ) : null
+  const reels = moments.flatMap((post) =>
+    post.media
+      .filter((media) => media.type === 'VIDEO')
+      .map((media) => ({
+        id: [post.postId, media.mediaId].join(':'),
+        media,
+        post,
+      })),
+  )
+  const initialReel =
+    viewer === null
+      ? undefined
+      : reels.find((reel) => reel.post.postId === moments[viewer]?.postId)
+  const overlay = initialReel ? (
+    <CommunityReelsViewer
+      items={reels}
+      initialId={initialReel.id}
+      api={api}
+      onClose={closeViewer}
+      onOpenPost={openPost}
+      onLoadMore={
+        query.hasNextPage && !query.isFetchingNextPage
+          ? () => void query.fetchNextPage()
+          : undefined
+      }
+    />
+  ) : null
   // The panel under the viewer stays mounted but silent for screen readers.
   const withViewer = (screen: ReactNode) => (
     <View style={local.fill}>

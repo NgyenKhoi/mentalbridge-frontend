@@ -10,10 +10,30 @@ import {
   appointmentLabel,
   changeCandidate,
   matchesFilter,
+  orderAppointmentsForDisplay,
   sessionLabels,
 } from './appointment-model'
 
 describe('MB-630 public appointment/credit contracts', () => {
+  it('shows the nearest active bookings first and history most recent first', () => {
+    const early = {
+      ...appointment,
+      status: 'CONFIRMED' as const,
+      scheduledStartAt: '2026-10-01T08:00:00Z',
+    }
+    const later = { ...appointment, scheduledStartAt: '2026-10-02T08:00:00Z' }
+    const old = { ...cancelled, scheduledStartAt: '2026-09-01T08:00:00Z' }
+    const recent = { ...cancelled, scheduledStartAt: '2026-09-02T08:00:00Z' }
+    expect(orderAppointmentsForDisplay([old, later, recent, early])).toEqual([
+      early,
+      later,
+      recent,
+      old,
+    ])
+    expect(matchesFilter(early, 'upcoming', early.scheduledStartAt)).toBe(true)
+    expect(matchesFilter(early, 'upcoming', early.scheduledEndAt)).toBe(false)
+    expect(matchesFilter(early, 'history', early.scheduledEndAt)).toBe(true)
+  })
   it('accepts current and historical completed video without substituting pending LiveKit policy', () => {
     const ended = {
       ...appointment,

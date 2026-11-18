@@ -487,7 +487,7 @@ describe('mobile assessment and support-guide journey', () => {
     await render(<AssessmentJourneyScreen api={api} />)
 
     await fireEvent.press(
-      await screen.findByRole('button', { name: /PHQ-9 · Tối thiểu/ }),
+      await screen.findByRole('button', { name: /PHQ-9.*Tối thiểu/ }),
     )
 
     expect(await screen.findByText('Xem lại PHQ-9')).toBeOnTheScreen()
@@ -519,7 +519,7 @@ describe('mobile assessment and support-guide journey', () => {
         'Tài khoản này không có quyền sử dụng hành trình sàng lọc cá nhân.',
       ),
     ).toBeOnTheScreen()
-    expect(screen.queryByText('Kết quả gần đây')).not.toBeOnTheScreen()
+    expect(screen.queryByText('Kết quả sàng lọc gần đây')).not.toBeOnTheScreen()
     await forbidden.unmount()
 
     const unavailableApi = assessmentApi({
