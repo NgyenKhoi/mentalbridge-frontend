@@ -32,7 +32,7 @@ vi.mock('@/features/resources/api/browser-resources', () => ({
   getResourceDetail: api.resource,
 }))
 vi.mock('./CommunityComments', () => ({
-  default: () => <section aria-label="Bình luận hỗ trợ" />,
+  default: () => <section aria-label="Bình luận" />,
 }))
 
 import CommunityPostDetail from './CommunityPostDetail'

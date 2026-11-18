@@ -118,6 +118,40 @@ describe('CommunityComments', () => {
     expect(onCountChange).toHaveBeenCalledWith(1)
   })
 
+  it('replies to a reply by targeting the root comment and mentioning the author', async () => {
+    const user = userEvent.setup()
+    const reply = {
+      ...root,
+      commentId: '40000000-0000-4000-8000-000000000002',
+      parentCommentId: root.commentId,
+      author: { ...root.author, displayName: 'Lá Nhỏ' },
+      content: 'Cảm ơn bạn đã chia sẻ.',
+    }
+    api.list.mockResolvedValue({
+      items: [root, reply],
+      nextCursor: null,
+      hasMore: false,
+    })
+    api.create.mockResolvedValue({
+      comment: { ...reply, commentId: '40000000-0000-4000-8000-000000000003' },
+      version: 0,
+    })
+    render(<CommunityComments postId={postId} onCountChange={vi.fn()} />)
+
+    await screen.findByText(reply.content)
+    await user.click(screen.getAllByRole('button', { name: 'Phản hồi' })[1])
+    const draft = screen.getByLabelText('Lời phản hồi của bạn')
+    expect(draft).toHaveValue('@Lá Nhỏ ')
+    await user.type(draft, 'Mình hiểu.')
+    await user.click(screen.getByRole('button', { name: 'Gửi phản hồi' }))
+
+    expect(api.create).toHaveBeenCalledWith(
+      postId,
+      { content: '@Lá Nhỏ Mình hiểu.', parentCommentId: root.commentId },
+      expect.any(String),
+    )
+  })
+
   it('reuses the create idempotency key after a committed request loses its response', async () => {
     const user = userEvent.setup()
     const onCountChange = vi.fn()

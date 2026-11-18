@@ -118,6 +118,11 @@ export default function CommunityComments({
 
   function beginReply(comment: CommunityComment) {
     setReplyingTo(comment)
+    // Replies to a reply attach to the root (one nesting level); mention who is answered.
+    if (comment.parentCommentId)
+      setContent((draft) =>
+        draft.trim() ? draft : `@${comment.author.displayName} `,
+      )
     setEditingId(null)
     requestAnimationFrame(() => composer.current?.focus())
   }
@@ -130,7 +135,9 @@ export default function CommunityComments({
     }
     const input = {
       content: normalized,
-      parentCommentId: replyingTo?.commentId ?? null,
+      parentCommentId: replyingTo
+        ? (replyingTo.parentCommentId ?? replyingTo.commentId)
+        : null,
     }
     const signature = JSON.stringify({ postId, ...input })
     if (
@@ -286,7 +293,7 @@ export default function CommunityComments({
       <header>
         <div>
           <span>Cùng lắng nghe</span>
-          <h2 id="comments-title">Bình luận hỗ trợ</h2>
+          <h2 id="comments-title">Bình luận</h2>
         </div>
         <p>
           Chia sẻ trải nghiệm của bạn, điều đã giúp bạn, hoặc một lời động viên.
@@ -396,15 +403,13 @@ export default function CommunityComments({
                   </div>
                   {!editing && comment.state === 'ACTIVE' && (
                     <div className="community-comment-actions">
-                      {!comment.parentCommentId && (
-                        <button
-                          type="button"
-                          disabled={submitting}
-                          onClick={() => beginReply(comment)}
-                        >
-                          Phản hồi
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={() => beginReply(comment)}
+                      >
+                        Phản hồi
+                      </button>
                       {own && (
                         <>
                           <button

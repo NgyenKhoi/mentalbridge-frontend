@@ -23,6 +23,7 @@ import type {
   ModerationCase,
   CreateModerationActionRequest,
   CommunityReaction,
+  CommunityPostReactionList,
   PutReactionRequest,
   SupportiveReaction,
 } from '@/lib/community/community-validation'
@@ -49,6 +50,7 @@ export type {
   ModerationCase,
   CreateModerationActionRequest,
   CommunityReaction,
+  CommunityPostReactionList,
   PutReactionRequest,
   SupportiveReaction,
 }
@@ -271,6 +273,13 @@ export async function putCommunityReaction(
   const response = await browserApiClient.put<CommunityReaction>(
     `/community/posts/${encodeURIComponent(postId)}/reaction`,
     { reaction },
+  )
+  return response.data
+}
+
+export async function getCommunityPostReactions(postId: string) {
+  const response = await browserApiClient.get<CommunityPostReactionList>(
+    `/community/posts/${encodeURIComponent(postId)}/reactions`,
   )
   return response.data
 }

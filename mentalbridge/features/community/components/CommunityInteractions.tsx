@@ -11,23 +11,11 @@ import {
   type SupportiveReaction,
 } from '@/features/community/api/browser-community'
 import type { CommunityViewerState } from '@/lib/community/community-validation'
+import CommunityReactors from './CommunityReactors'
+import { REACTIONS } from './community-reactions'
 import styles from './CommunityInteractions.module.css'
 
-// Same kinds, order, emoji and labels as the mobile tray (mobile/src/community/community-reactions.ts).
 // Like mobile: a tap sets or clears SUPPORT; hover, a long press or ArrowUp opens the seven-emoji tray.
-const REACTIONS: ReadonlyArray<{
-  value: SupportiveReaction
-  emoji: string
-  label: string
-}> = [
-  { value: 'LIKE', emoji: '👍', label: 'Thích' },
-  { value: 'SUPPORT', emoji: '❤️', label: 'Thương' },
-  { value: 'THANK_YOU', emoji: '🥰', label: 'Cảm ơn' },
-  { value: 'RELATE', emoji: '🤗', label: 'Ôm' },
-  { value: 'EMPATHY', emoji: '😢', label: 'Đồng cảm' },
-  { value: 'CHEER', emoji: '💪', label: 'Cố lên' },
-  { value: 'GROWTH', emoji: '🌱', label: 'Đang lớn lên' },
-]
 
 function BookmarkIcon() {
   return (
@@ -70,7 +58,9 @@ function CommunityInteractionState({
   const [tray, setTray] = useState<{ below: boolean; focus: boolean } | null>(
     null,
   )
+  const [showWho, setShowWho] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const whoRef = useRef<HTMLButtonElement>(null)
   const mainRef = useRef<HTMLButtonElement>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const longPressed = useRef(false)
@@ -372,8 +362,49 @@ function CommunityInteractionState({
           )}
         </AnimatePresence>
       </div>
-      <span className={styles.count} aria-live="polite">
-        {count} lượt
+      <span
+        className={styles.who}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            setShowWho(false)
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && showWho) {
+            event.stopPropagation()
+            setShowWho(false)
+            whoRef.current?.focus()
+          }
+        }}
+      >
+        {count > 0 ? (
+          <button
+            ref={whoRef}
+            type="button"
+            className={styles.countButton}
+            aria-haspopup="dialog"
+            aria-expanded={showWho}
+            aria-label={`Xem ai đã bày tỏ cảm xúc, ${count} lượt`}
+            onClick={() => setShowWho((open) => !open)}
+          >
+            {count} lượt
+          </button>
+        ) : (
+          <span className={styles.count} aria-live="polite">
+            0 lượt
+          </span>
+        )}
+        <AnimatePresence>
+          {showWho && (
+            <CommunityReactors
+              key={`${postId}:${count}`}
+              postId={postId}
+              onClose={() => {
+                setShowWho(false)
+                whoRef.current?.focus()
+              }}
+            />
+          )}
+        </AnimatePresence>
       </span>
       <button
         type="button"

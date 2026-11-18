@@ -14,6 +14,7 @@ const api = vi.hoisted(() => ({
   deleteReaction: vi.fn(),
   putBookmark: vi.fn(),
   deleteBookmark: vi.fn(),
+  reactions: vi.fn(),
 }))
 
 vi.mock('@/features/community/api/browser-community', () => ({
@@ -21,6 +22,7 @@ vi.mock('@/features/community/api/browser-community', () => ({
   deleteCommunityReaction: api.deleteReaction,
   putCommunityBookmark: api.putBookmark,
   deleteCommunityBookmark: api.deleteBookmark,
+  getCommunityPostReactions: api.reactions,
 }))
 
 import { MotionGlobalConfig } from 'framer-motion'
@@ -237,7 +239,11 @@ describe('CommunityInteractions', () => {
     expect(screen.getByText('3 lượt')).toBeVisible()
     expect(support).toHaveAttribute('aria-pressed', 'false')
     expect(support).not.toHaveAttribute('data-reaction-feedback')
-    for (const button of screen.getAllByRole('button')) {
+    // The read-only reactor list stays reachable while a command is pending.
+    const commandButtons = screen
+      .getAllByRole('button')
+      .filter((button) => !button.hasAttribute('aria-haspopup'))
+    for (const button of commandButtons) {
       expect(button).toBeDisabled()
       await user.click(button)
     }
@@ -399,5 +405,32 @@ describe('CommunityInteractions', () => {
       'aria-pressed',
       'true',
     )
+  })
+
+  it('opens the reactor list from the count only, and Escape returns focus', async () => {
+    const user = userEvent.setup()
+    api.reactions.mockResolvedValue({ items: [], count: 0 })
+    render(
+      <CommunityInteractions
+        postId="post-1"
+        viewerState={{ reaction: null, bookmarked: false }}
+        reactionCount={2}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Thương' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(api.reactions).not.toHaveBeenCalled()
+
+    const count = screen.getByRole('button', {
+      name: /Xem ai đã bày tỏ cảm xúc/,
+    })
+    await user.click(count)
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    expect(count).toHaveAttribute('aria-expanded', 'true')
+    await user.keyboard('{Escape}')
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    expect(count).toHaveFocus()
   })
 })
