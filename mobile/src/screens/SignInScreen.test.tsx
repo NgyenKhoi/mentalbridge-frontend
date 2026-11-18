@@ -13,6 +13,7 @@ const mockPush = jest.fn()
 const mockSignIn = jest.fn()
 
 jest.mock('expo-router', () => ({
+  useFocusEffect: jest.fn(),
   router: { push: (path: string) => mockPush(path) },
 }))
 
@@ -98,7 +99,7 @@ describe('USER sign-in screen', () => {
   it('links to USER registration without exposing an actor selector', async () => {
     await render(<SignInScreen />)
 
-    await fireEvent.press(screen.getByText('Tạo tài khoản cá nhân'))
+    await fireEvent.press(screen.getByText('Đăng ký ngay'))
 
     expect(mockPush).toHaveBeenCalledWith('./register')
   })

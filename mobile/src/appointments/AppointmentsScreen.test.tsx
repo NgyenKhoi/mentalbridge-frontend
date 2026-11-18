@@ -38,6 +38,9 @@ import { appointmentCommands, sessionLabels } from './appointment-model'
 import { AppointmentsScreen } from './AppointmentsScreen'
 
 let mockSession: AppSession | null = { subject, role: 'USER' }
+jest.mock('@/api/use-foreground-refresh', () => ({
+  useForegroundRefresh: jest.fn(),
+}))
 jest.mock('@/auth/session-context', () => ({
   useSession: () => ({ session: mockSession }),
 }))
@@ -115,6 +118,31 @@ async function mount(
   return { ...result, ...service, client, view }
 }
 
+it('opens verified discovery selection directly at confirmation without sending it', async () => {
+  const service = services()
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  })
+  const onBack = jest.fn()
+  await render(
+    <QueryClientProvider client={client}>
+      <AppointmentsScreen
+        api={service.api}
+        discovery={service.discovery}
+        initialSelection={selection}
+        reviewInitialSelection
+        onBack={onBack}
+      />
+    </QueryClientProvider>,
+  )
+  expect(
+    await screen.findByRole('header', { name: 'Xác nhận đặt lịch' }),
+  ).toBeOnTheScreen()
+  expect(service.api.request).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByRole('button', { name: 'Chọn giờ khác' }))
+  expect(onBack).toHaveBeenCalledTimes(1)
+})
+
 function completedAppointment(
   id = appointment.id,
   specialistDisplayName = appointment.specialistDisplayName,
@@ -175,13 +203,11 @@ async function reviewReplacement() {
       name: `Xem hồ sơ ${fixtureSpecialist.displayName}`,
     }),
   )
+  await fireEvent.press(await screen.findByRole('tab', { name: 'Lịch trống' }))
   await fireEvent.press(
     await screen.findByRole('button', {
       name: `Chọn ${slotLabel(selection.slot)}`,
     }),
-  )
-  await fireEvent.press(
-    await screen.findByRole('button', { name: 'Tiếp tục đặt lịch' }),
   )
   await screen.findByRole('button', { name: 'Gửi yêu cầu đổi lịch' })
 }

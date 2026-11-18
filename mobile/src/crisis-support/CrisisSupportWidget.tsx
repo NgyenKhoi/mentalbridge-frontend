@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -44,6 +45,7 @@ export function CrisisSupportWidget({
   bottomOffset?: number
 }) {
   const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
   const reducedMotion = useReducedMotion()
   const [open, setOpen] = useState(false)
   const [callingNumber, setCallingNumber] = useState<string | null>(null)
@@ -104,6 +106,10 @@ export function CrisisSupportWidget({
         onPress={show}
         style={({ pressed }) => [
           styles.trigger,
+          bottomOffset > 0 && styles.dashboardTrigger,
+          bottomOffset > 0 && {
+            right: Math.max(spacing.lg, (width - 560) / 2),
+          },
           {
             bottom:
               Math.max(insets.bottom, spacing.md) + spacing.md + bottomOffset,
@@ -112,10 +118,20 @@ export function CrisisSupportWidget({
         ]}
         testID="crisis-support-trigger"
       >
-        <Text accessibilityElementsHidden style={styles.triggerIcon}>
-          ♡
+        <Text
+          accessibilityElementsHidden
+          style={bottomOffset > 0 ? styles.sosBadge : styles.triggerIcon}
+        >
+          {bottomOffset > 0 ? 'SOS' : '♡'}
         </Text>
-        <Text style={styles.triggerText}>Cần hỗ trợ ngay</Text>
+        <Text
+          style={[
+            styles.triggerText,
+            bottomOffset > 0 && styles.dashboardTriggerText,
+          ]}
+        >
+          Cần hỗ trợ ngay
+        </Text>
       </Pressable>
 
       <Modal
@@ -263,6 +279,22 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     zIndex: 20,
   },
+  dashboardTrigger: {
+    backgroundColor: '#571B00',
+    borderColor: '#743112',
+    minHeight: 46,
+    paddingHorizontal: spacing.md,
+  },
+  sosBadge: {
+    color: '#571B00',
+    backgroundColor: '#FFDBCE',
+    borderRadius: radii.pill,
+    overflow: 'hidden',
+    padding: spacing.xs,
+    fontWeight: '800',
+    fontSize: 11,
+  },
+  dashboardTriggerText: { fontSize: 12, textTransform: 'uppercase' },
   triggerIcon: {
     color: colors.white,
     fontSize: 22,

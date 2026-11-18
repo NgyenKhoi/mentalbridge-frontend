@@ -76,6 +76,15 @@ export function createSessionService({
   createIdempotencyKey,
   now = Date.now,
 }: SessionServiceOptions): SessionService {
+  let pendingRotation: { token: string; key: string } | undefined
+  let sessionQueue: Promise<unknown> = Promise.resolve()
+
+  function serialize<T>(operation: () => Promise<T>): Promise<T> {
+    const result = sessionQueue.then(operation)
+    sessionQueue = result.catch(() => undefined)
+    return result
+  }
+
   async function persistTokenPair(pair: TokenPair): Promise<StoredCredentials> {
     const stored = {
       accessToken: pair.accessToken,
@@ -101,16 +110,21 @@ export function createSessionService({
     stored: StoredCredentials,
   ): Promise<AuthenticatedSession | null> {
     if (Date.parse(stored.refreshExpiresAt) <= now()) {
+      pendingRotation = undefined
       await credentials.clear()
       return null
     }
 
     try {
-      const pair = await api.refresh(
-        stored.refreshToken,
-        createIdempotencyKey(),
-      )
+      if (pendingRotation?.token !== stored.refreshToken) {
+        pendingRotation = {
+          token: stored.refreshToken,
+          key: createIdempotencyKey(),
+        }
+      }
+      const pair = await api.refresh(stored.refreshToken, pendingRotation.key)
       const rotated = await persistTokenPair(pair)
+      pendingRotation = undefined
       try {
         return await resolveAccount(rotated)
       } catch (error) {
@@ -123,6 +137,7 @@ export function createSessionService({
       }
     } catch (error) {
       if (isRejectedCredential(error)) {
+        pendingRotation = undefined
         await credentials.clear()
         return null
       }
@@ -130,8 +145,9 @@ export function createSessionService({
     }
   }
 
-  return {
+  const operations: SessionService = {
     async signIn(email, password) {
+      pendingRotation = undefined
       const pair = await api.login({ email, password })
       const stored = await persistTokenPair(pair)
 
@@ -175,6 +191,7 @@ export function createSessionService({
       return rotate(stored)
     },
     async logout() {
+      pendingRotation = undefined
       const stored = await credentials.getCredentials()
       try {
         if (stored) await api.logout(stored.refreshToken)
@@ -201,8 +218,19 @@ export function createSessionService({
       return api.resetPassword({ challenge, newPassword })
     },
     async changePassword(currentPassword, newPassword) {
+      pendingRotation = undefined
       await api.changePassword({ currentPassword, newPassword })
       await credentials.clear()
     },
+  }
+  return {
+    ...operations,
+    signIn: (email, password) =>
+      serialize(() => operations.signIn(email, password)),
+    restore: () => serialize(operations.restore),
+    refresh: () => serialize(operations.refresh),
+    logout: () => serialize(operations.logout),
+    changePassword: (current, next) =>
+      serialize(() => operations.changePassword(current, next)),
   }
 }

@@ -51,13 +51,38 @@ export function changeCandidate(item: Appointment, list: AppointmentList) {
   )
 }
 export type AppointmentFilter = 'all' | 'requested' | 'upcoming' | 'history'
-export function matchesFilter(item: Appointment, filter: AppointmentFilter) {
+export function matchesFilter(
+  item: Appointment,
+  filter: AppointmentFilter,
+  generatedAt?: string,
+) {
   if (filter === 'all') return true
   if (filter === 'requested') return item.status === 'REQUESTED'
-  const upcoming = ['CONFIRMED', 'IN_PROGRESS'].includes(item.status)
+  const ended =
+    generatedAt !== undefined &&
+    Date.parse(item.scheduledEndAt) <= Date.parse(generatedAt)
+  const upcoming = ['CONFIRMED', 'IN_PROGRESS'].includes(item.status) && !ended
   return filter === 'upcoming'
     ? upcoming
-    : !upcoming && item.status !== 'REQUESTED'
+    : ended || (!upcoming && item.status !== 'REQUESTED')
+}
+
+const liveStatuses: readonly Appointment['status'][] = [
+  'REQUESTED',
+  'CONFIRMED',
+  'IN_PROGRESS',
+  'SESSION_ENDED',
+]
+
+export function orderAppointmentsForDisplay(items: readonly Appointment[]) {
+  return [...items].sort((left, right) => {
+    const leftActive = liveStatuses.includes(left.status)
+    const rightActive = liveStatuses.includes(right.status)
+    if (leftActive !== rightActive) return leftActive ? -1 : 1
+    const difference =
+      Date.parse(left.scheduledStartAt) - Date.parse(right.scheduledStartAt)
+    return leftActive ? difference : -difference
+  })
 }
 export function appointmentError(error: unknown) {
   if (error instanceof ApiError) {

@@ -199,6 +199,38 @@ describe('Identity mobile session lifecycle', () => {
     expect(credentials.clear).not.toHaveBeenCalled()
   })
 
+  it('reuses the same refresh key after a timeout with an unknown outcome', async () => {
+    const api = createApi()
+    const credentials = createCredentialStore()
+    const createIdempotencyKey = jest.fn(() => 'refresh-attempt')
+    const service = createSessionService({
+      api,
+      credentials,
+      createIdempotencyKey,
+      now: () => now,
+    })
+    credentials.getCredentials.mockResolvedValue(activeCredentials)
+    api.refresh
+      .mockRejectedValueOnce(
+        new ApiError({ code: 'REQUEST_TIMEOUT', message: 'Timed out' }),
+      )
+      .mockResolvedValueOnce(rotatedTokenPair)
+    api.getCurrentAccount.mockResolvedValue(userAccount)
+
+    await expect(service.refresh()).rejects.toMatchObject({
+      code: 'REQUEST_TIMEOUT',
+    })
+    expect(credentials.clear).not.toHaveBeenCalled()
+    await expect(service.refresh()).resolves.toMatchObject({
+      session: { role: 'USER' },
+    })
+    expect(api.refresh.mock.calls).toEqual([
+      [refreshToken, 'refresh-attempt'],
+      [refreshToken, 'refresh-attempt'],
+    ])
+    expect(createIdempotencyKey).toHaveBeenCalledTimes(1)
+  })
+
   it('signs in the Identity-confirmed active, verified SPECIALIST without client role selection', async () => {
     const { api, credentials, service } = setup()
     api.login.mockResolvedValue(tokenPair)

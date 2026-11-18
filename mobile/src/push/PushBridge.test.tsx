@@ -113,7 +113,10 @@ describe('PushBridge', () => {
       }),
     )
 
-    expect(push).toHaveBeenCalledWith({ pathname: '/(user)/appointments' })
+    expect(push).toHaveBeenCalledWith({
+      pathname: '/(user)/appointments',
+      params: { appointmentId },
+    })
     expect(mockMarkRead).toHaveBeenCalledWith(notificationId)
   })
 

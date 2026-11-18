@@ -14,7 +14,8 @@ import { ReassessmentJourneyScreen } from './ReassessmentJourneyScreen'
 function AccountReassessmentRoute({
   config,
   subject,
-}: Readonly<{ config: RuntimeConfig; subject: string }>) {
+  embedded,
+}: Readonly<{ config: RuntimeConfig; subject: string; embedded: boolean }>) {
   const [refreshToken, setRefreshToken] = useState(0)
   const focusedOnce = useRef(false)
   const [binding] = useState(() => {
@@ -40,11 +41,15 @@ function AccountReassessmentRoute({
   return (
     <ReassessmentJourneyScreen
       {...binding}
+      embedded={embedded}
       refreshToken={refreshToken}
       onScreening={() =>
         router.push({
           pathname: '/(user)/assessment',
-          params: { purpose: 'REASSESSMENT', returnTo: 'reassessment' },
+          params: {
+            purpose: 'REASSESSMENT',
+            returnTo: embedded ? 'assessments' : 'reassessment',
+          },
         })
       }
       onReturnToPlan={() => router.dismissTo('/(user)/support-plan')}
@@ -52,11 +57,18 @@ function AccountReassessmentRoute({
   )
 }
 
-export function ReassessmentJourneyRoute() {
+export function ReassessmentJourneyRoute({
+  embedded = false,
+}: { embedded?: boolean } = {}) {
   const config = useRuntimeConfig()
   const { session } = useSession()
   const subject = session?.subject ?? ''
   return (
-    <AccountReassessmentRoute key={subject} config={config} subject={subject} />
+    <AccountReassessmentRoute
+      key={subject}
+      config={config}
+      subject={subject}
+      embedded={embedded}
+    />
   )
 }

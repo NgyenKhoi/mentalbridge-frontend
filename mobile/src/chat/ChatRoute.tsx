@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { randomUUID } from 'expo-crypto'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { Text, View } from 'react-native'
+import { Text } from 'react-native'
 import { z } from 'zod'
 import { createApiClient } from '@/api/api-client'
 import { useSession } from '@/auth/session-context'
@@ -11,12 +11,14 @@ import { Screen } from '@/components/Screen'
 import type { RuntimeConfig } from '@/config/runtime-config'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
 import { secureCredentialStore } from '@/security/credential-store'
-import { spacing, colors, typography } from '@/theme/tokens'
+import { createDiscoveryApi } from '@/discovery/discovery-api'
+import { supportAreaLabels } from '@/discovery/discovery-model'
 import { createChatApi, createChatAppointmentsApi } from './chat-api'
 import type { ChatRole } from './chat-contract'
 import { ChatSession } from './chat-session'
 import { createChatSocketFactory } from './chat-socket'
 import { ChatScreen } from './ChatScreen'
+import { ChatInbox } from './ChatInbox'
 
 function AccountChat({
   config,
@@ -44,6 +46,7 @@ function AccountChat({
       controller,
       interceptor,
       appointments: createChatAppointmentsApi(client, subject, role),
+      discovery: createDiscoveryApi(client),
       chat: appointmentId
         ? new ChatSession({
             api: createChatApi(client, subject, role, appointmentId),
@@ -67,9 +70,17 @@ function AccountChat({
   const appointments = useQuery({
     queryKey: ['chat-appointments', subject, role],
     queryFn: () => binding.appointments.list(),
-    enabled: !appointmentId,
     retry: false,
     staleTime: 0,
+  })
+  const selected = !appointments.isError
+    ? appointments.data?.items.find((item) => item.id === appointmentId)
+    : undefined
+  const specialist = useQuery({
+    queryKey: ['chat-specialist', subject, selected?.specialistAccountId],
+    enabled: role === 'USER' && Boolean(selected),
+    retry: false,
+    queryFn: () => binding.discovery.detail(selected!.specialistAccountId, {}),
   })
   if (binding.chat)
     return (
@@ -77,62 +88,51 @@ function AccountChat({
         session={binding.chat}
         subject={subject}
         onBack={() => router.back()}
+        counterpartName={
+          role === 'USER'
+            ? (selected?.specialistDisplayName ?? 'Chuyên gia')
+            : 'Người tham gia'
+        }
+        {...(selected ? { appointment: selected } : {})}
+        {...(specialist.data
+          ? {
+              specialty: specialist.data.supportAreas
+                .map((area) => supportAreaLabels[area])
+                .join(' · '),
+            }
+          : {})}
+        onViewAppointment={() =>
+          router.push({
+            pathname: './appointments',
+            params: { appointmentId: appointmentId! },
+          })
+        }
+        {...(role === 'USER'
+          ? {
+              onViewSummary: () =>
+                router.push({
+                  pathname: '/(user)/appointments',
+                  params: { appointmentId: appointmentId! },
+                }),
+              onBook: () => router.push('/(user)/specialists'),
+            }
+          : {})}
       />
     )
-  const items = !appointments.isError
-    ? appointments.data?.items.filter((item) => item.modality === 'IN_APP_CHAT')
-    : undefined
   return (
-    <Screen>
-      <View style={{ gap: spacing.lg }}>
-        <PrimaryButton label="Về trang trước" onPress={() => router.back()} />
-        <Text
-          accessibilityRole="header"
-          style={{ fontSize: typography.heading, color: colors.ink }}
-        >
-          Phiên trò chuyện
-        </Text>
-        <Text style={{ fontSize: typography.body, color: colors.ink }}>
-          Mỗi cuộc trò chuyện gắn với một lịch tư vấn. Quyền tham gia sẽ được
-          kiểm tra khi mở phiên.
-        </Text>
-        {appointments.isPending ? (
-          <Text>Đang tải lịch hẹn…</Text>
-        ) : appointments.isError ? (
-          <>
-            <Text>Chưa thể xác minh lịch hẹn của bạn.</Text>
-            <PrimaryButton
-              label="Tải lại lịch hẹn"
-              onPress={() => void appointments.refetch()}
-            />
-          </>
-        ) : items?.length === 0 ? (
-          <Text>Chưa có lịch tư vấn qua trò chuyện.</Text>
-        ) : (
-          items?.map((item) => (
-            <View key={item.id} style={{ gap: spacing.sm }}>
-              <Text style={{ fontSize: typography.body, color: colors.ink }}>
-                {item.specialistDisplayName} ·{' '}
-                {new Intl.DateTimeFormat('vi-VN', {
-                  dateStyle: 'short',
-                  timeStyle: 'short',
-                  timeZone: item.timezone,
-                }).format(new Date(item.scheduledStartAt))}
-              </Text>
-              <PrimaryButton
-                label="Mở phiên trò chuyện"
-                onPress={() =>
-                  router.push({
-                    pathname: './messages',
-                    params: { appointmentId: item.id },
-                  })
-                }
-              />
-            </View>
-          ))
-        )}
-      </View>
-    </Screen>
+    <ChatInbox
+      items={appointments.isError ? [] : (appointments.data?.items ?? [])}
+      loading={appointments.isPending}
+      failed={appointments.isError}
+      role={role}
+      onBack={() => router.back()}
+      onRetry={() => {
+        void appointments.refetch()
+      }}
+      onOpen={(id) =>
+        router.push({ pathname: './messages', params: { appointmentId: id } })
+      }
+    />
   )
 }
 export function ChatRoute() {

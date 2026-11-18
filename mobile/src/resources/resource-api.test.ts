@@ -5,6 +5,7 @@ import {
 } from 'axios'
 
 import { createResourceApi } from './resource-api'
+import { resourceProgressUpdateSchema } from './resource-contract'
 
 const summary = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -146,5 +147,40 @@ describe('Content mobile resources API contract', () => {
     await expect(
       createResourceApi(create({ adapter })).getResource(summary.id, 'vi-VN'),
     ).rejects.toBeDefined()
+  })
+
+  it('forwards actual practice evidence and the reviewed content version without stripping them', async () => {
+    let body: unknown
+    const adapter: AxiosAdapter = async (request) => {
+      body = JSON.parse(String(request.data))
+      return {
+        config: request,
+        data: progress,
+        headers: {},
+        status: 200,
+        statusText: 'OK',
+      }
+    }
+    const update = {
+      status: 'COMPLETED' as const,
+      completedActionIds: ['settle'],
+      resourceVersion: '4',
+      practiceSessionId: '22222222-2222-4222-8222-222222222222',
+      practiceStartedAt: '2026-10-07T01:00:00.000Z',
+      practiceDurationSeconds: 300,
+    }
+    await createResourceApi(create({ adapter })).saveProgress(
+      summary.id,
+      '2026-10-07',
+      update,
+    )
+    expect(body).toEqual(update)
+    expect(
+      resourceProgressUpdateSchema.safeParse({
+        status: 'COMPLETED',
+        completedActionIds: [],
+        practiceDurationSeconds: 300,
+      }).success,
+    ).toBe(false)
   })
 })

@@ -156,7 +156,10 @@ describe('push destination', () => {
         ),
         'USER',
       ),
-    ).toEqual({ pathname: '/(user)/appointments' })
+    ).toEqual({
+      pathname: '/(user)/appointments',
+      params: { appointmentId: target },
+    })
   })
 
   it('falls back to the inbox when the href does not match the action', () => {

@@ -29,7 +29,16 @@ export function AssessmentJourneyRoute() {
     <AssessmentJourneyScreen
       api={api}
       reassessment={reassessment}
-      onReassessmentComplete={() => router.dismissTo('/(user)/reassessment')}
+      onReassessmentComplete={() =>
+        router.dismissTo(
+          params.returnTo === 'assessments'
+            ? {
+                pathname: '/(user)/assessments',
+                params: { tab: 'reassessment' },
+              }
+            : '/(user)/reassessment',
+        )
+      }
     />
   )
 }

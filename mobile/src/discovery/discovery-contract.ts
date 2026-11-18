@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 import {
   availabilityModalitySchema,
-  specialistLanguageSchema,
   supportAreaSchema,
 } from '@/specialist/specialist-contract'
 
@@ -20,10 +19,11 @@ const timezone = z
   })
 const instant = z.iso.datetime({ offset: true })
 const unique = <T>(items: T[]) => new Set(items).size === items.length
+export const discoveryLanguageSchema = z.enum(['vi', 'en', 'zh', 'fr'])
 export const discoveryCriteriaSchema = z.strictObject({
   supportEvaluationId: z.uuid().optional(),
   supportArea: supportAreaSchema.optional(),
-  language: specialistLanguageSchema.optional(),
+  language: discoveryLanguageSchema.optional(),
   modality: availabilityModalitySchema.optional(),
   timezone: timezone.optional(),
 })
@@ -77,7 +77,7 @@ export const discoveryItemSchema = z
     displayName: z.string().min(1).max(120),
     bio: z.string().min(1).max(2000),
     supportAreas: z.array(supportAreaSchema).min(1).max(2).refine(unique),
-    languages: z.array(specialistLanguageSchema).min(1).max(2).refine(unique),
+    languages: z.array(discoveryLanguageSchema).min(1).max(4).refine(unique),
     yearsOfExperience: z.number().int().min(0).max(80),
     timezone,
     ratingAggregate: z
@@ -89,7 +89,6 @@ export const discoveryItemSchema = z
     explanation: discoveryExplanationSchema,
     selectableSlots: z
       .array(discoverySlotSchema)
-      .min(1)
       .max(20)
       .refine((slots) => unique(slots.map((slot) => slot.id))),
   })

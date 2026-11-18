@@ -54,7 +54,7 @@ describe('Consultation v1.12.0 public discovery boundary', () => {
         ...fixtureSpecialist,
         selectableSlots: [],
       }).success,
-    ).toBe(false)
+    ).toBe(true)
   })
   it('accepts capability-enabled video, rejects unsupported or disabled modalities', () => {
     const video = {

@@ -3,6 +3,8 @@ import { router } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
+import { ScreeningQuestion } from './ScreeningQuestion'
+
 import { ApiError } from '@/api/api-error'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
@@ -417,57 +419,20 @@ export function AnonymousAssessmentScreen({
   if (phase === 'question' && questionnaire && question) {
     const selectedValue = answers[question.questionId]
     return (
-      <Screen>
-        <Text style={styles.eyebrow}>
-          {instrumentLabels[questionnaire.instrument]} · CÂU {step + 1} /{' '}
-          {questionnaire.questions.length}
-        </Text>
-        <View style={styles.progressTrack}>
-          <View
-            style={[
-              styles.progressValue,
-              {
-                width: `${((step + 1) / questionnaire.questions.length) * 100}%`,
-              },
-            ]}
-          />
-        </View>
-        <Text accessibilityRole="header" style={styles.title}>
-          {question.prompt}
-        </Text>
-        <Text style={styles.description}>
-          Chọn câu trả lời đúng nhất với trải nghiệm của bạn trong{' '}
-          {questionnaire.referencePeriodDays} ngày gần đây.
-        </Text>
-
-        <View accessibilityRole="radiogroup" style={styles.answerList}>
-          {questionnaire.responseOptions.map((option) => {
-            const selected = option.value === selectedValue
-            return (
-              <Pressable
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selected }}
-                key={option.value}
-                onPress={() =>
-                  setAnswers((current) => ({
-                    ...current,
-                    [question.questionId]: option.value,
-                  }))
-                }
-                style={({ pressed }) => [
-                  styles.answer,
-                  selected && styles.answerSelected,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <View
-                  style={[styles.radio, selected && styles.radioSelected]}
-                />
-                <Text style={styles.answerLabel}>{option.label}</Text>
-              </Pressable>
-            )
-          })}
-        </View>
+      <Screen key={step}>
+        <Text style={styles.eyebrow}>SÀNG LỌC ẨN DANH</Text>
+        <ScreeningQuestion
+          questionnaire={questionnaire}
+          step={step}
+          selected={selectedValue}
+          busy={working}
+          onSelect={(value) =>
+            setAnswers((current) => ({
+              ...current,
+              [question.questionId]: value,
+            }))
+          }
+        />
 
         <Text style={styles.smallText}>
           Câu trả lời chỉ nằm trong bộ nhớ của lượt này cho đến khi bạn chủ động
@@ -592,7 +557,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   title: {
-    color: colors.ink,
+    color: colors.tealDeep,
     fontSize: typography.heading,
     fontWeight: '700',
     lineHeight: typography.headingLineHeight,
@@ -684,49 +649,6 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     lineHeight: 24,
   },
-  progressTrack: {
-    backgroundColor: colors.tealPale,
-    borderRadius: radii.pill,
-    height: 8,
-    marginBottom: spacing.xl,
-    overflow: 'hidden',
-  },
-  progressValue: { backgroundColor: colors.teal, height: '100%' },
-  answerList: { gap: spacing.md, marginBottom: spacing.lg },
-  answer: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.line,
-    borderRadius: radii.control,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.md,
-    minHeight: 56,
-    padding: spacing.lg,
-  },
-  answerSelected: {
-    backgroundColor: colors.surfaceSoft,
-    borderColor: colors.teal,
-    borderWidth: 2,
-  },
-  radio: {
-    borderColor: colors.inkFaint,
-    borderRadius: radii.pill,
-    borderWidth: 2,
-    height: 22,
-    width: 22,
-  },
-  radioSelected: {
-    backgroundColor: colors.teal,
-    borderColor: colors.teal,
-    borderWidth: 6,
-  },
-  answerLabel: {
-    color: colors.ink,
-    flex: 1,
-    fontSize: typography.body,
-    lineHeight: 24,
-  },
   actions: { alignItems: 'flex-start', gap: spacing.md, marginTop: spacing.lg },
   secondaryButton: {
     alignItems: 'center',
@@ -748,6 +670,8 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.55 },
   pressed: { opacity: 0.78 },
   resultPanel: {
+    borderColor: colors.line,
+    borderWidth: 1,
     alignItems: 'flex-start',
     backgroundColor: colors.surfaceSoft,
   },

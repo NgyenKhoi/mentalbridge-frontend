@@ -26,6 +26,7 @@ function AccountDiscoveryRoute({
   subject: string
 }>) {
   const [selection, setSelection] = useState<SlotSelection | undefined>()
+  const [returnProfileId, setReturnProfileId] = useState<string>()
   const [binding] = useState(() => {
     const client = createApiClient({
       config,
@@ -53,15 +54,21 @@ function AccountDiscoveryRoute({
       api={binding.appointments}
       discovery={binding.api}
       initialSelection={selection}
+      reviewInitialSelection
       originatingPlanActionId={originatingPlanActionId}
       supportEvaluationId={supportEvaluationId}
-      onBack={() => setSelection(undefined)}
+      onBack={() => {
+        setReturnProfileId(selection.specialist.specialistAccountId)
+        setSelection(undefined)
+      }}
     />
   ) : (
     <DiscoveryScreen
       api={binding.api}
+      appointmentApi={binding.appointments}
       onBack={() => router.back()}
       onBook={setSelection}
+      {...(returnProfileId ? { returnProfileId } : {})}
       {...(supportEvaluationId ? { supportEvaluationId } : {})}
     />
   )

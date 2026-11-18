@@ -1,4 +1,11 @@
-import { useEffect, useState, type ReactNode, type Ref } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -6,6 +13,7 @@ import { setSafetyButtonLift } from '@/crisis-support/safety-button-lift'
 import { colors, spacing } from '@/theme/tokens'
 
 const SAFETY_BUTTON_CLEARANCE = 96
+export const ScreenBottomInsetContext = createContext(true)
 
 export function Screen({
   children,
@@ -13,12 +21,14 @@ export function Screen({
   contentRef,
   layout = 'form',
   footer,
+  bottomActions,
   header,
   backgroundColor,
   clearSafetyButton,
 }: Readonly<{
   children: ReactNode
   footer?: ReactNode
+  bottomActions?: ReactNode
   // Stays fixed above the scrolling content.
   header?: ReactNode
   backgroundColor?: string
@@ -31,6 +41,7 @@ export function Screen({
 }>) {
   // Context insets pad the first frame of a fresh mount; native SafeAreaView reports them a frame or two late.
   const insets = useSafeAreaInsets()
+  const includeBottomInset = useContext(ScreenBottomInsetContext)
   const hasFooter = Boolean(footer)
   const [liftOwner] = useState(() => ({}))
   useEffect(() => {
@@ -43,7 +54,7 @@ export function Screen({
         {
           paddingTop: insets.top,
           paddingRight: insets.right,
-          paddingBottom: insets.bottom,
+          paddingBottom: includeBottomInset ? insets.bottom : 0,
           paddingLeft: insets.left,
         },
         backgroundColor && { backgroundColor },
@@ -80,6 +91,7 @@ export function Screen({
           {footer}
         </View>
       ) : null}
+      {bottomActions}
     </View>
   )
 }

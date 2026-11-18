@@ -1,5 +1,5 @@
 import { randomUUID } from 'expo-crypto'
-import { useRef, useState } from 'react'
+import { useImperativeHandle, useRef, useState, type Ref } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -175,6 +175,7 @@ export function AdaptiveReviewPanel({
   onChanged,
   onReassessment,
   onProfessionalSupport,
+  reviewTrigger,
 }: Readonly<{
   api: SupportPlanActionApi
   current: CanonicalSupportPlan
@@ -183,6 +184,7 @@ export function AdaptiveReviewPanel({
   onChanged: () => Promise<void>
   onReassessment: () => void
   onProfessionalSupport: () => void
+  reviewTrigger?: Ref<() => void>
 }>) {
   const [review, setReview] = useState<AdaptiveReview | null>(null)
   const [choice, setChoice] = useState<string | null>(null)
@@ -330,6 +332,10 @@ export function AdaptiveReviewPanel({
       setLoading(false)
     }
   }
+
+  useImperativeHandle(reviewTrigger, () => () => {
+    if (!disabled && !review) void load()
+  })
 
   function choose(option: AdaptiveReviewOption) {
     setChoice(option.optionId)
