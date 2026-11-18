@@ -22,6 +22,7 @@ import { ApiError } from '@/lib/api/api-error'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
 import {
+  appointmentStatusLabel,
   matchesAppointmentFilter,
   nextAppointment,
   orderSpecialistAppointments,
@@ -33,17 +34,6 @@ import { SessionSummaryPanel } from './SessionSummaryPanel'
 import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 
 type Decision = 'accept' | 'reject'
-
-const STATUS_LABELS: Record<Appointment['status'], string> = {
-  REQUESTED: 'Chờ phản hồi',
-  CONFIRMED: 'Đã xác nhận',
-  IN_PROGRESS: 'Đang diễn ra',
-  SESSION_ENDED: 'Đang tổng hợp kết quả',
-  COMPLETED: 'Đã hoàn thành',
-  REJECTED: 'Đã từ chối',
-  EXPIRED: 'Đã hết hạn',
-  CANCELLED: 'Đã hủy',
-}
 
 const CREDIT_LABELS: Record<Appointment['creditState'], string> = {
   AVAILABLE: 'Lượt tư vấn đã được hoàn lại',
@@ -490,7 +480,7 @@ export default function SpecialistAppointmentDecisionPanel({
                   className={styles.status}
                   data-status={appointment.status}
                 >
-                  {STATUS_LABELS[appointment.status]}
+                  {appointmentStatusLabel(appointment, 'SPECIALIST')}
                 </span>
                 <span className={styles.compactModality}>
                   {appointment.modality === 'IN_APP_VIDEO'
@@ -773,7 +763,7 @@ export default function SpecialistAppointmentDecisionPanel({
                 </div>
                 <div>
                   <span>Trạng thái</span>
-                  <strong>{STATUS_LABELS[next.status]}</strong>
+                  <strong>{appointmentStatusLabel(next, 'SPECIALIST')}</strong>
                 </div>
               </div>
               {next.modality === 'IN_APP_CHAT' ? (

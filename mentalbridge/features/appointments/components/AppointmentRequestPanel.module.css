@@ -992,6 +992,34 @@
   flex-shrink: 0;
 }
 
+.slotList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Two classes beat the shell's `.ref-shell button` font rules without !important. */
+.slotSelectSection .slotMoreBtn {
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--teal-deep);
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.slotSelectSection .slotMoreBtn:hover {
+  background: var(--surface-soft);
+}
+
+.slotSelectSection .slotMoreBtn:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 2px;
+}
+
 .confirmSlotBtn {
   width: 100%;
   border: none;

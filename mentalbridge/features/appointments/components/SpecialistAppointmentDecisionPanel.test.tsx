@@ -95,6 +95,27 @@ describe('SpecialistAppointmentDecisionPanel', () => {
     })
   })
 
+  it.each([
+    [null, 'Đang xác nhận kết quả'],
+    ['USER_NO_SHOW', 'Khách hàng vắng mặt'],
+    ['SPECIALIST_NO_SHOW', 'Bạn vắng mặt'],
+  ] as const)(
+    'labels an ended session with outcome %s as "%s"',
+    async (sessionOutcome, label) => {
+      api.assigned.mockResolvedValueOnce({
+        items: [{ ...requested, status: 'SESSION_ENDED', sessionOutcome }],
+        count: 1,
+        generatedAt: '2099-09-25T03:00:01Z',
+      })
+      render(<SpecialistAppointmentDecisionPanel />)
+
+      expect((await screen.findAllByText(label)).length).toBeGreaterThan(0)
+      expect(
+        screen.queryByText('Đang tổng hợp kết quả'),
+      ).not.toBeInTheDocument()
+    },
+  )
+
   it('shows the real pending request and its decision deadline', async () => {
     render(<SpecialistAppointmentDecisionPanel />)
 
