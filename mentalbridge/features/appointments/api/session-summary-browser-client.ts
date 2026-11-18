@@ -1,6 +1,7 @@
 import { browserApiClient } from '@/lib/api/browser-client'
 import type {
   PublishSessionSummaryInput,
+  ReusableSessionSummaryList,
   SessionSummary,
   SessionSummaryList,
   UpdateAgreedNextStepInput,
@@ -13,6 +14,13 @@ export const sessionSummaryBrowserClient = {
     return (
       await browserApiClient.get<SessionSummaryList>(
         `${prefix}/appointments/${encodeURIComponent(appointmentId)}/session-summaries`,
+      )
+    ).data
+  },
+  async reusable(appointmentId: string) {
+    return (
+      await browserApiClient.get<ReusableSessionSummaryList>(
+        `/consultation/specialist/appointments/${encodeURIComponent(appointmentId)}/reusable-session-summaries`,
       )
     ).data
   },

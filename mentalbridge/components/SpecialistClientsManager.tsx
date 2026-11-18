@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import type { SpecialistClientContinuityItem } from '@/features/appointments/api/consultation-brief-contract'
 import { consultationBriefBrowserClient } from '@/features/appointments/api/consultation-brief-browser-client'
 import { SessionSummaryPanel } from '@/features/appointments/components/SessionSummaryPanel'
+import { PriorSessionSummaries } from '@/features/appointments/components/PriorSessionSummaries'
 import { SpecialistConsultationBrief } from '@/features/appointments/components/SpecialistConsultationBrief'
 import { ApiError } from '@/lib/api/api-error'
 import styles from './SpecialistClientsManager.module.css'
@@ -581,6 +582,13 @@ export default function SpecialistClientsManager({
                           Kiểm tra lại quyền xem
                         </button>
                       </div>
+                    )}
+                    {(selectedAppointment.status === 'CONFIRMED' ||
+                      selectedAppointment.status === 'IN_PROGRESS') && (
+                      <PriorSessionSummaries
+                        key={`prior-${selectedAppointment.appointmentId}`}
+                        appointmentId={selectedAppointment.appointmentId}
+                      />
                     )}
                   </>
                 )}

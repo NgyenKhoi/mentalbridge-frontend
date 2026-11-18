@@ -2,6 +2,10 @@ import type { components } from '@/contracts/consultation.generated'
 
 export type SessionSummary = components['schemas']['SessionSummary']
 export type SessionSummaryList = components['schemas']['SessionSummaryList']
+export type ReusableSessionSummary =
+  components['schemas']['ReusableSessionSummary']
+export type ReusableSessionSummaryList =
+  components['schemas']['ReusableSessionSummaryList']
 export type PublishSessionSummaryInput =
   components['schemas']['PublishSessionSummaryRequest']
 export type SessionSummaryReuseConsentInput =
@@ -159,6 +163,45 @@ export function parseSessionSummaryList(
     items: items as SessionSummary[],
     count: Number(list.count),
     generatedAt: list.generatedAt,
+  }
+}
+
+export function parseReusableSessionSummaryList(
+  value: unknown,
+): ReusableSessionSummaryList | null {
+  const list = object(value)
+  if (
+    !list ||
+    !Array.isArray(list.items) ||
+    !Number.isInteger(list.count) ||
+    !instant(list.generatedAt)
+  )
+    return null
+  const items = list.items.map((value): ReusableSessionSummary | null => {
+    const item = object(value)
+    const summary = item ? parseSessionSummary(item.summary) : null
+    if (
+      !item ||
+      !summary ||
+      !instant(item.sessionStartedAt) ||
+      typeof item.specialistDisplayName !== 'string' ||
+      item.specialistDisplayName.length < 1 ||
+      typeof item.sameSpecialist !== 'boolean'
+    )
+      return null
+    return {
+      summary,
+      sessionStartedAt: item.sessionStartedAt,
+      specialistDisplayName: item.specialistDisplayName,
+      sameSpecialist: item.sameSpecialist,
+    }
+  })
+  if (items.some((item) => item === null) || list.count !== items.length)
+    return null
+  return {
+    items: items as ReusableSessionSummary[],
+    count: Number(list.count),
+    generatedAt: list.generatedAt as string,
   }
 }
 

@@ -97,6 +97,8 @@ import {
 import {
   parseSessionSummary,
   parseSessionSummaryList,
+  parseReusableSessionSummaryList,
+  type ReusableSessionSummaryList,
   type PublishSessionSummaryInput,
   type SessionSummary,
   type SessionSummaryList,
@@ -856,6 +858,19 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseSessionSummaryList,
+    })
+  },
+  specialistReusableSessionSummaries(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+  ) {
+    return request<ReusableSessionSummaryList>({
+      method: 'GET',
+      path: `/api/v1/specialist/appointments/${encodeURIComponent(appointmentId)}/reusable-session-summaries`,
+      token,
+      correlationId,
+      parse: parseReusableSessionSummaryList,
     })
   },
   publishSessionSummary(

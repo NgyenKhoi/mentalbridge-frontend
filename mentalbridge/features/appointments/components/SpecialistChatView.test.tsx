@@ -108,7 +108,10 @@ describe('SpecialistChatView', () => {
       count: 1,
       generatedAt: '2026-10-01T17:00:00Z',
     })
+    appointmentApi.saveRating.mockResolvedValue({ rating: 5, version: 3 })
     appointmentApi.rating.mockResolvedValue({
+      rating: 5,
+      version: 2,
       score: 5,
       specialistAccountId: 'fff240fb-44b2-4d95-aa23-31ef3b903e5c',
       ratedAt: '2026-10-01T17:30:00Z',
@@ -280,9 +283,13 @@ describe('SpecialistChatView', () => {
     const submitBtn = screen.getByRole('button', { name: /Gửi đánh giá/i })
     fireEvent.click(submitBtn)
 
-    expect(appointmentApi.saveRating).toHaveBeenCalledWith(
-      testAppointment.id,
-      5,
+    // An edit carries the current rating version as If-Match (RATING_VERSION_REQUIRED otherwise).
+    await waitFor(() =>
+      expect(appointmentApi.saveRating).toHaveBeenCalledWith(
+        testAppointment.id,
+        5,
+        2,
+      ),
     )
   })
 

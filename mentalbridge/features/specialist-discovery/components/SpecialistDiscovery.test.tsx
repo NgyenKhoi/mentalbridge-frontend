@@ -150,6 +150,50 @@ describe('SpecialistDiscovery', () => {
     expect(appointmentClient.request).not.toHaveBeenCalled()
   })
 
+  it('lets the user choose chat or video and books the chosen modality', async () => {
+    const user = userEvent.setup()
+    const video = {
+      ...item.selectableSlots[0],
+      id: '43b7dbb4-021e-4c75-ae48-bfa7126c7257',
+      startAt: '2099-01-02T04:00:00Z',
+      endAt: '2099-01-02T05:00:00Z',
+      modality: 'IN_APP_VIDEO' as const,
+    }
+    const mixed = { ...item, selectableSlots: [item.selectableSlots[0], video] }
+    discoveryClient.detail.mockResolvedValue(mixed)
+    discoveryClient.list.mockResolvedValue({
+      ...page('PLUS'),
+      videoEnabled: true,
+      items: [mixed],
+    })
+    appointmentClient.request.mockResolvedValue({ id: 'appointment-id' })
+    renderDiscovery()
+    await user.click(await screen.findByRole('button', { name: 'Lịch trống' }))
+    const dialog = await screen.findByRole('dialog')
+    const modality = within(dialog).getByRole('radiogroup', {
+      name: 'Hình thức tư vấn',
+    })
+    const times = within(dialog).getByRole('radiogroup', {
+      name: 'Khung giờ trống',
+    })
+    expect(within(times).getAllByRole('radio')).toHaveLength(2)
+    await user.click(within(modality).getByRole('radio', { name: /Video/ }))
+    const [onlyVideo] = within(times).getAllByRole('radio')
+    expect(within(times).getAllByRole('radio')).toHaveLength(1)
+    await user.click(onlyVideo)
+    await user.click(within(dialog).getByRole('button', { name: 'Tiếp tục' }))
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Xác nhận đặt lịch' }),
+    )
+    await waitFor(() =>
+      expect(appointmentClient.request).toHaveBeenCalledWith(
+        video.id,
+        'IN_APP_VIDEO',
+        expect.stringMatching(/^appointment-/),
+      ),
+    )
+  })
+
   it('opens directly to slots and requests the exact selected time after confirmation', async () => {
     const user = userEvent.setup()
     discoveryClient.list.mockResolvedValue(page('PLUS'))
