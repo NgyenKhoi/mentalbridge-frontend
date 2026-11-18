@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { createPortal } from 'react-dom'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   AlertCircle,
@@ -35,6 +36,7 @@ import {
 } from '../api/chat-browser-client'
 import AppointmentChatPanel from './AppointmentChatPanel'
 import styles from './SpecialistChatView.module.css'
+import './session-record-print.css'
 
 // ==========================================
 // 1. Data Models & TypeScript Interfaces
@@ -226,6 +228,12 @@ export default function SpecialistChatView({
   const [consultationBrief, setConsultationBrief] =
     useState<ConsultationBrief | null>(null)
   const [rating, setRating] = useState<number | null>(null)
+  // The print record is portalled to <body> after mount so print CSS can hide the whole app shell.
+  const [printHost, setPrintHost] = useState<HTMLElement | null>(null)
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- document exists only after mount
+  useEffect(() => setPrintHost(document.body), [])
+  // Current rating version: an edit must send it as If-Match (RATING_VERSION_REQUIRED otherwise).
+  const [ratingVersion, setRatingVersion] = useState<number | undefined>()
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false)
   const [ratingInput, setRatingInput] = useState(5)
   const [savingRating, setSavingRating] = useState(false)
@@ -336,9 +344,15 @@ export default function SpecialistChatView({
       // 3) Rating
       try {
         const ratingData = await appointmentBrowserClient.rating(aptId)
-        if (!cancelled) setRating(ratingData.rating)
+        if (!cancelled) {
+          setRating(ratingData.rating)
+          setRatingVersion(ratingData.version)
+        }
       } catch {
-        if (!cancelled) setRating(null)
+        if (!cancelled) {
+          setRating(null)
+          setRatingVersion(undefined)
+        }
       }
 
       // 4) Chat history
@@ -418,11 +432,13 @@ export default function SpecialistChatView({
     if (!selectedAppointment?.id || savingRating) return
     setSavingRating(true)
     try {
-      await appointmentBrowserClient.saveRating(
+      const saved = await appointmentBrowserClient.saveRating(
         selectedAppointment.id,
         ratingInput,
+        ratingVersion,
       )
-      setRating(ratingInput)
+      setRating(saved.rating)
+      setRatingVersion(saved.version)
       setIsRatingModalOpen(false)
     } catch {
       // Keep state on failure
@@ -596,6 +612,100 @@ export default function SpecialistChatView({
       data-messages-workspace="true"
       data-purpose="three-column-workspace"
     >
+      {printHost &&
+        selectedAppointment &&
+        emrData &&
+        createPortal(
+          <section className="mb-print-record" aria-hidden="true">
+            <header>
+              <p>MentalBridge · Biên bản phiên tư vấn</p>
+              <h1>{currentSpecialist.name}</h1>
+              <dl>
+                <div>
+                  <dt>Ngày</dt>
+                  <dd>{emrData.consultationTime.date}</dd>
+                </div>
+                <div>
+                  <dt>Thời gian</dt>
+                  <dd>
+                    {emrData.consultationTime.timeRange} (
+                    {emrData.consultationTime.durationLabel})
+                  </dd>
+                </div>
+                <div>
+                  <dt>Hình thức</dt>
+                  <dd>
+                    {selectedAppointment.modality === 'IN_APP_VIDEO'
+                      ? 'Tư vấn video'
+                      : 'Tư vấn qua khung chat'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Mã phiên</dt>
+                  <dd>{emrData.invoiceId}</dd>
+                </div>
+              </dl>
+            </header>
+            <section>
+              <h2>Tổng kết sau phiên</h2>
+              {sessionSummary ? (
+                <>
+                  {(sessionSummary.topicsDiscussed?.length ?? 0) > 0 && (
+                    <p>
+                      <strong>Nội dung đã trao đổi:</strong>{' '}
+                      {sessionSummary.topicsDiscussed.join(', ')}
+                    </p>
+                  )}
+                  {sessionSummary.progressSummary && (
+                    <p>{sessionSummary.progressSummary}</p>
+                  )}
+                  {sessionSummary.specialistNoteForUser && (
+                    <p>
+                      <strong>Lời nhắn từ chuyên gia:</strong>{' '}
+                      {sessionSummary.specialistNoteForUser}
+                    </p>
+                  )}
+                  {(sessionSummary.agreedNextSteps?.length ?? 0) > 0 && (
+                    <>
+                      <h3>Đã thống nhất sau phiên</h3>
+                      <ol>
+                        {sessionSummary.agreedNextSteps?.map((step) => (
+                          <li key={step.id}>
+                            {step.title}
+                            {step.details ? `: ${step.details}` : ''}
+                          </li>
+                        ))}
+                      </ol>
+                    </>
+                  )}
+                </>
+              ) : (
+                <p>Chuyên gia chưa xuất bản bản tổng kết cho phiên này.</p>
+              )}
+            </section>
+            <section>
+              <h2>Nội dung trò chuyện</h2>
+              {chatMessages.length > 0 ? (
+                <ol className="mb-print-transcript">
+                  {chatMessages.map((msg) => (
+                    <li key={msg.id}>
+                      <strong>{msg.senderName}</strong>
+                      <span> · {msg.timestamp}</span>
+                      <p>{msg.content}</p>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p>Phiên này không có tin nhắn được lưu.</p>
+              )}
+            </section>
+            <footer>
+              Tài liệu chứa thông tin sức khỏe riêng tư. Chỉ chia sẻ khi người
+              dùng đồng ý.
+            </footer>
+          </section>,
+          printHost,
+        )}
       {/* ======================================================== */}
       {/* COLUMN 1: Session Master List (Lịch hẹn chat)            */}
       {/* ======================================================== */}

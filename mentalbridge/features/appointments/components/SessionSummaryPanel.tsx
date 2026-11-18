@@ -36,7 +36,7 @@ const REASON_LABELS: Record<ResourceProposalReasonCode, string> = {
   ADDRESS_REPORTED_BARRIER: 'Hỗ trợ trở ngại đã trao đổi',
 }
 
-const STEP_LABELS: Record<AgreedNextStepType, string> = {
+export const STEP_LABELS: Record<AgreedNextStepType, string> = {
   CHECKLIST: 'Việc cần làm',
   JOURNAL: 'Viết nhật ký',
   EMOTION_CHECK_IN: 'Ghi nhận cảm xúc',
@@ -92,10 +92,16 @@ function replaceSummary(items: SessionSummary[], updated: SessionSummary) {
   return items.map((item) => (item.id === updated.id ? updated : item))
 }
 
-function SummaryContent({ summary }: { summary: SessionSummary }) {
+export function SummaryContent({
+  summary,
+  hideMeta = false,
+}: {
+  summary: SessionSummary
+  hideMeta?: boolean
+}) {
   return (
     <div className={styles.summaryContent}>
-      <div className={styles.meta}>
+      <div className={styles.meta} hidden={hideMeta}>
         <span>Phiên bản {summary.version}</span>
         <time>
           {new Intl.DateTimeFormat('vi-VN', {
@@ -660,10 +666,9 @@ export function SessionSummaryPanel({
             <div>
               <strong>Cho phép dùng lại ở lần tư vấn sau</strong>
               <p>
-                Khi bật, bạn có thể chọn bản tóm tắt này khi chuẩn bị hồ sơ chia
-                sẻ cho một lịch hẹn sau. Chuyên gia chỉ xem được khi bạn phê
-                duyệt hồ sơ đó và trong thời gian truy cập của cuộc hẹn. Bạn có
-                thể tắt bất cứ lúc nào.
+                Khi bật, chuyên gia của lịch hẹn sau đã được xác nhận đọc được
+                bản tóm tắt này trong vòng 24 giờ quanh giờ hẹn, để hiểu bạn
+                đang ở đâu. Bạn có thể tắt bất cứ lúc nào.
               </p>
             </div>
             <label>

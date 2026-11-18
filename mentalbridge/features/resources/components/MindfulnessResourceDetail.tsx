@@ -295,7 +295,7 @@ export function MindfulnessResourceDetail({
           <div className={styles.audioControl}>
             <audio
               ref={soundRef}
-              src="/audio/nhac-thien.mp3"
+              src="/audio/nhac-thien-12p.mp3"
               preload="none"
               loop
               hidden

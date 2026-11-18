@@ -1333,6 +1333,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialist/appointments/{appointmentId}/reusable-session-summaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description For the assigned specialist of a CONFIRMED or IN_PROGRESS appointment, within 24 hours either side of its scheduled start, returns the same user's earlier session summaries whose latest version the user approved for reuse. Earlier sessions must end before this appointment starts. Revoked consent or an unapproved newer version removes the item. User-owned checklist and reuse-consent state are omitted. */
+        get: operations["listReusableEarlierSessionSummaries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist/appointments/{appointmentId}/accept": {
         parameters: {
             query?: never;
@@ -3882,6 +3899,20 @@ export interface components {
         };
         SessionSummaryList: {
             items: components["schemas"]["SessionSummary"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        ReusableSessionSummary: {
+            summary: components["schemas"]["SessionSummary"];
+            /** Format: date-time */
+            sessionStartedAt: string;
+            specialistDisplayName: string;
+            /** @description True when the caller wrote the earlier summary. */
+            sameSpecialist: boolean;
+        };
+        ReusableSessionSummaryList: {
+            items: components["schemas"]["ReusableSessionSummary"][];
             count: number;
             /** Format: date-time */
             generatedAt: string;
@@ -7484,6 +7515,31 @@ export interface operations {
             409: components["responses"]["ConflictProblem"];
             412: components["responses"]["VersionProblem"];
             428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    listReusableEarlierSessionSummaries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved earlier summaries, newest session first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReusableSessionSummaryList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
         };
     };
     acceptAssignedAppointment: {
