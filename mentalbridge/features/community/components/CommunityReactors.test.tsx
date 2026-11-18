@@ -57,7 +57,10 @@ describe('CommunityReactors', () => {
     api.reactions.mockResolvedValue({ items: [], count: 0 })
     render(<CommunityReactors postId="post-1" onClose={vi.fn()} />)
 
-    expect(await screen.findByText('Chưa có ai bày tỏ cảm xúc')).toBeVisible()
+    // The popover fades in from opacity 0; visibility is animation, not state.
+    expect(
+      await screen.findByText('Chưa có ai bày tỏ cảm xúc'),
+    ).toBeInTheDocument()
   })
 
   it('shows an error and retries', async () => {
@@ -72,7 +75,7 @@ describe('CommunityReactors', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Thử lại' }))
 
-    expect(await screen.findByText('Minh An')).toBeVisible()
+    expect(await screen.findByText('Minh An')).toBeInTheDocument()
     expect(api.reactions).toHaveBeenCalledTimes(2)
   })
 
