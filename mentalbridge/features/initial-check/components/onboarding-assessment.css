@@ -270,13 +270,6 @@
 }
 
 /* Card Header Components */
-.oj-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
 .oj-card-badge,
 .oj-card-top-badge {
   display: inline-flex;
@@ -1697,7 +1690,7 @@
   color: #63776e;
 }
 
-/* Bottom HIPAA Badges Footer */
+/* Footer */
 .oj-footer {
   max-width: min(100%, 1200px);
   width: 100%;
@@ -1708,29 +1701,6 @@
   gap: 18px;
   border-top: 1px solid #dce8e1;
   padding-top: 24px;
-}
-
-.oj-badges-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 28px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  color: #556c62;
-  font-weight: 500;
-}
-
-.oj-badge-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.oj-badge-item svg {
-  width: 15px;
-  height: 15px;
-  color: #1e5646;
 }
 
 .oj-footer-links-row {

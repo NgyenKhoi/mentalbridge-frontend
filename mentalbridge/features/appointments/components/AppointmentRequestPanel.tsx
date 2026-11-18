@@ -1042,10 +1042,7 @@ export default function AppointmentRequestPanel({
           TƯ VẤN SỨC KHỎE TÂM LÝ
         </span>
         <h1 className={styles.title}>Lịch hẹn của bạn</h1>
-        <p className={styles.subtitle}>
-          Quản lý hành trình chăm sóc bản thân. Mọi thông tin trao đổi giữa bạn
-          và chuyên gia đều được mã hóa bảo mật tuyệt đối.
-        </p>
+        <p className={styles.subtitle}>Quản lý hành trình chăm sóc bản thân.</p>
       </header>
 
       {actionError && (
