@@ -30,7 +30,6 @@ export type RealisticAppointmentExtended = AdminAppointmentItem & {
   chiefComplaint: string
   screeningStatus: string
   modalityDisplay: string
-  securityLevel: string
   timelineSteps: RealisticAppointmentStep[]
 }
 
@@ -79,7 +78,6 @@ export const REALISTIC_APPOINTMENTS: RealisticAppointmentExtended[] = [
     chiefComplaint: 'Căng thẳng áp lực & Mất ngủ nhẹ',
     screeningStatus: '✓ Đã qua sàng lọc sơ bộ',
     modalityDisplay: 'Chat bảo mật 60 phút',
-    securityLevel: '🔒 Mã hóa đầu cuối 100%',
     timelineSteps: [
       {
         step: 1,
@@ -155,7 +153,6 @@ export const REALISTIC_APPOINTMENTS: RealisticAppointmentExtended[] = [
     chiefComplaint: 'Khủng hoảng định hướng sự nghiệp & Lo âu',
     screeningStatus: '✓ Đã qua sàng lọc sơ bộ',
     modalityDisplay: 'Chat bảo mật 60 phút',
-    securityLevel: '🔒 Mã hóa đầu cuối 100%',
     timelineSteps: [
       {
         step: 1,
@@ -231,7 +228,6 @@ export const REALISTIC_APPOINTMENTS: RealisticAppointmentExtended[] = [
     chiefComplaint: 'Rối loạn thích ứng sau sang chấn tâm lý',
     screeningStatus: '✓ Đã qua sàng lọc sơ bộ',
     modalityDisplay: 'Gọi Video y tế 60 phút',
-    securityLevel: '🔒 Mã hóa WebRTC 256-bit',
     timelineSteps: [
       {
         step: 1,
@@ -308,7 +304,6 @@ export const REALISTIC_APPOINTMENTS: RealisticAppointmentExtended[] = [
     chiefComplaint: 'Tư vấn cảm xúc trầm buồn học đường',
     screeningStatus: '✓ Đã qua sàng lọc sơ bộ',
     modalityDisplay: 'Chat bảo mật',
-    securityLevel: '🔒 Mã hóa đầu cuối',
     timelineSteps: [
       {
         step: 1,
@@ -385,7 +380,6 @@ export const REALISTIC_APPOINTMENTS: RealisticAppointmentExtended[] = [
     chiefComplaint: 'Kiểm soát lo âu xã hội (Social Anxiety)',
     screeningStatus: '✓ Đã qua sàng lọc sơ bộ',
     modalityDisplay: 'Gọi Video y tế 60 phút',
-    securityLevel: '🔒 Mã hóa WebRTC 256-bit',
     timelineSteps: [
       {
         step: 1,
@@ -462,7 +456,6 @@ export const REALISTIC_APPOINTMENTS: RealisticAppointmentExtended[] = [
     chiefComplaint: 'Áp lực công việc kéo dài & Suy giảm tập trung',
     screeningStatus: '✓ Đã qua sàng lọc sơ bộ',
     modalityDisplay: 'Chat bảo mật 60 phút',
-    securityLevel: '🔒 Mã hóa đầu cuối 100%',
     timelineSteps: [
       {
         step: 1,
@@ -539,7 +532,6 @@ export const REALISTIC_APPOINTMENTS: RealisticAppointmentExtended[] = [
     chiefComplaint: 'Tư vấn chứng ám ảnh sợ cưỡng chế (OCD)',
     screeningStatus: '✓ Đã qua sàng lọc sơ bộ',
     modalityDisplay: 'Gọi Video y tế 60 phút',
-    securityLevel: '🔒 Mã hóa WebRTC 256-bit',
     timelineSteps: [
       {
         step: 1,
@@ -616,7 +608,6 @@ export const REALISTIC_APPOINTMENTS: RealisticAppointmentExtended[] = [
     chiefComplaint: 'Điều hòa cảm xúc & Quản trị xung đột gia đình',
     screeningStatus: '✓ Đã qua sàng lọc sơ bộ',
     modalityDisplay: 'Chat bảo mật 60 phút',
-    securityLevel: '🔒 Mã hóa đầu cuối 100%',
     timelineSteps: [
       {
         step: 1,

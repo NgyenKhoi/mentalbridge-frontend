@@ -11,7 +11,6 @@ import {
   Lock,
   ArrowRight,
   LifeBuoy,
-  Check,
   Moon,
   Zap,
   Smile,
@@ -875,24 +874,12 @@ export default function OnboardingAssessmentJourney({
             </div>
 
             <div className="oj-card">
-              <div className="oj-card-header">
-                <div className="oj-card-badge">
-                  <Shield size={14} />
-                  <span>Bảo Mật Y Tế Tuyệt Đối</span>
-                </div>
-                <div className="oj-card-lock-badge">
-                  <Lock size={16} />
-                </div>
-              </div>
-
               <h1 className="oj-card-title">
                 Chào mừng bạn đến với MentalBridge. Hãy hoàn thiện hồ sơ của
                 bạn.
               </h1>
               <p className="oj-card-subtitle">
-                Thông tin giúp bác sĩ và hệ thống thấu hiểu bạn tốt hơn, bảo mật
-                100% theo tiêu chuẩn y tế số HIPAA. Chúng tôi tôn trọng danh
-                tính và bảo vệ sự an tâm của bạn từ bước chạm đầu tiên.
+                Thông tin giúp bác sĩ và hệ thống thấu hiểu bạn tốt hơn.
               </p>
 
               <form onSubmit={handleSaveProfile} noValidate>
@@ -1733,17 +1720,6 @@ export default function OnboardingAssessmentJourney({
 
                 <div className="oj-plan-feat-item">
                   <div className="oj-plan-feat-icon">
-                    <Shield size={18} />
-                  </div>
-                  <div>
-                    <strong>Quyền riêng tư tuyệt đối:</strong> Kết quả sàng lọc
-                    PHQ-9 &amp; GAD-7 được mã hóa và chỉ dùng để cá nhân hóa
-                    trải nghiệm của chính bạn.
-                  </div>
-                </div>
-
-                <div className="oj-plan-feat-item">
-                  <div className="oj-plan-feat-icon">
                     <Smile size={18} />
                   </div>
                   <div>
@@ -1784,25 +1760,7 @@ export default function OnboardingAssessmentJourney({
 
       {/* Footer */}
       <footer className="oj-footer">
-        <div className="oj-badges-row">
-          <div className="oj-badge-item">
-            <Shield size={15} />
-            <span>Chuẩn Y Tế Kỹ Thuật Số HIPAA Compliant</span>
-          </div>
-          <div className="oj-badge-item">
-            <Lock size={15} />
-            <span>Mã Hóa 256-bit AES Toàn Trình</span>
-          </div>
-          <div className="oj-badge-item">
-            <Check size={15} />
-            <span>Không Chia Sẻ Cho Bên Thứ Ba</span>
-          </div>
-        </div>
-
         <div className="oj-footer-links-row">
-          <span>
-            Bảo mật thông tin y khoa chuẩn HIPAA &amp; mã hóa đầu cuối
-          </span>
           <Link href="/privacy">Chính sách quyền riêng tư</Link>
           <button type="button" onClick={() => router.push('/dashboard')}>
             Thoát an toàn
