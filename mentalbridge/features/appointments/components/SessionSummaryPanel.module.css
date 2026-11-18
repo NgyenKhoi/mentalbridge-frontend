@@ -79,6 +79,9 @@
   color: var(--ink-soft);
   font-size: 0.8rem;
 }
+.meta[hidden] {
+  display: none;
+}
 .tags {
   display: flex;
   flex-wrap: wrap;

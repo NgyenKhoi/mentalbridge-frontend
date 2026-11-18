@@ -618,7 +618,7 @@ export function SmallStepsResourceDetail({
               {/* Audio element connected to real media events */}
               <audio
                 ref={audioRef}
-                src="/audio/nhac-thien.mp3"
+                src="/audio/nhac-thien-12p.mp3"
                 preload="metadata"
                 loop
                 style={{ display: 'none' }}

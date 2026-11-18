@@ -10,6 +10,19 @@ import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { homeAppointmentView } from './home-appointment'
 import styles from './HomeSecondarySections.module.css'
 
+// A request the specialist has not answered yet still belongs on the dashboard when nothing is confirmed.
+function nextRequested(items: readonly Appointment[], now: number) {
+  return items
+    .filter(
+      (item) =>
+        item.status === 'REQUESTED' && Date.parse(item.scheduledEndAt) > now,
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(left.scheduledStartAt) - Date.parse(right.scheduledStartAt),
+    )[0]
+}
+
 export function HomeUpcomingAppointment({
   summonable = true,
 }: Readonly<{
@@ -34,7 +47,10 @@ export function HomeUpcomingAppointment({
         const readAt = new Date()
         setState({
           status: 'ready',
-          appointment: nextAppointment(list.items, readAt.getTime()) ?? null,
+          appointment:
+            nextAppointment(list.items, readAt.getTime()) ??
+            nextRequested(list.items, readAt.getTime()) ??
+            null,
           readAt,
         })
       },
@@ -100,7 +116,11 @@ export function HomeUpcomingAppointment({
             <div className={styles.timeBlock}>
               <div className={styles.timeRange}>{view.timeRange}</div>
               <div className={styles.appointmentMeta}>
-                {view.modality} · {view.countdown}
+                {view.modality} ·{' '}
+                {state.status === 'ready' &&
+                state.appointment?.status === 'REQUESTED'
+                  ? 'Chờ chuyên gia xác nhận'
+                  : view.countdown}
               </div>
             </div>
           </div>

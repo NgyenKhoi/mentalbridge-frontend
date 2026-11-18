@@ -128,7 +128,7 @@ describe('SessionSummaryPanel', () => {
       expect(api.updateConsent).toHaveBeenCalledWith(summary.id, true, 0),
     )
     expect(
-      screen.getByText(/Chuyên gia chỉ xem được khi bạn phê duyệt hồ sơ đó/),
+      screen.getByText(/chuyên gia của lịch hẹn sau đã được xác nhận đọc được/),
     ).toBeInTheDocument()
   })
 

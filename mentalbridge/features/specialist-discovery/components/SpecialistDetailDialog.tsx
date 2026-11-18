@@ -2,7 +2,16 @@
 
 import Link from 'next/link'
 import { useId, useMemo, useState } from 'react'
-import { BadgeCheck, Check, Clock3, LockKeyhole, Star, X } from 'lucide-react'
+import {
+  BadgeCheck,
+  Check,
+  Clock3,
+  LockKeyhole,
+  MessageCircle,
+  Star,
+  Video,
+  X,
+} from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
@@ -151,6 +160,9 @@ export default function SpecialistDetailDialog({
   const [step, setStep] = useState<'browse' | 'confirm' | 'success'>('browse')
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [modalityFilter, setModalityFilter] = useState<
+    'ALL' | 'IN_APP_CHAT' | 'IN_APP_VIDEO'
+  >('ALL')
   const [submitting, setSubmitting] = useState(false)
   const [bookingMessage, setBookingMessage] = useState('')
   const [todayIso] = useState(() => new Date().toISOString())
@@ -162,9 +174,20 @@ export default function SpecialistDetailDialog({
       ),
     [item],
   )
+  const offersVideo = slots.some((slot) => slot.modality === 'IN_APP_VIDEO')
+  const offersChat = slots.some((slot) => slot.modality !== 'IN_APP_VIDEO')
+  const visibleSlots = useMemo(
+    () =>
+      modalityFilter === 'ALL'
+        ? slots
+        : slots.filter(
+            (slot) => (slot.modality ?? 'IN_APP_CHAT') === modalityFilter,
+          ),
+    [slots, modalityFilter],
+  )
   const days = useMemo(() => {
     const groups = new Map<string, DiscoverySlot[]>()
-    for (const slot of slots) {
+    for (const slot of visibleSlots) {
       const key = dateKey(slot.startAt)
       groups.set(key, [...(groups.get(key) ?? []), slot])
     }
@@ -184,7 +207,7 @@ export default function SpecialistDetailDialog({
             : dateLabel(entries[0].startAt),
       slots: entries,
     }))
-  }, [slots, todayIso])
+  }, [visibleSlots, todayIso])
   const activeDay =
     selectedDay && days.some((day) => day.key === selectedDay)
       ? selectedDay
@@ -453,9 +476,13 @@ export default function SpecialistDetailDialog({
                   <div>
                     <dt>Hình thức</dt>
                     <dd>
-                      {slots.some((slot) => slot.modality === 'IN_APP_CHAT')
-                        ? 'Chat trong ứng dụng · 60 phút'
-                        : 'Xem lịch trống'}
+                      {offersChat && offersVideo
+                        ? 'Chat hoặc video trong ứng dụng · 60 phút'
+                        : offersVideo
+                          ? 'Video trong ứng dụng · 60 phút'
+                          : offersChat
+                            ? 'Chat trong ứng dụng · 60 phút'
+                            : 'Xem lịch trống'}
                     </dd>
                   </div>
                 </dl>
@@ -490,6 +517,42 @@ export default function SpecialistDetailDialog({
                   </div>
                 ) : (
                   <>
+                    {offersChat && offersVideo && (
+                      <div
+                        className={styles.modalities}
+                        role="radiogroup"
+                        aria-label="Hình thức tư vấn"
+                      >
+                        {(
+                          [
+                            ['ALL', 'Tất cả'],
+                            ['IN_APP_CHAT', 'Chat'],
+                            ['IN_APP_VIDEO', 'Video'],
+                          ] as const
+                        ).map(([value, label]) => (
+                          <label key={value}>
+                            <input
+                              type="radio"
+                              name="specialist-modality"
+                              checked={modalityFilter === value}
+                              onChange={() => {
+                                setModalityFilter(value)
+                                setSelectedSlotId(null)
+                              }}
+                            />
+                            <span>
+                              {value === 'IN_APP_CHAT' && (
+                                <MessageCircle size={15} aria-hidden="true" />
+                              )}
+                              {value === 'IN_APP_VIDEO' && (
+                                <Video size={15} aria-hidden="true" />
+                              )}
+                              {label}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                     <div className={styles.days}>
                       {days.map((day) => (
                         <button
@@ -519,8 +582,20 @@ export default function SpecialistDetailDialog({
                               onChange={() => setSelectedSlotId(slot.id)}
                             />
                             <span>
-                              {timeLabel(slot.startAt)} –{' '}
-                              {timeLabel(slot.endAt)}
+                              <strong>
+                                {timeLabel(slot.startAt)} –{' '}
+                                {timeLabel(slot.endAt)}
+                              </strong>
+                              <small>
+                                {slot.modality === 'IN_APP_VIDEO' ? (
+                                  <Video size={13} aria-hidden="true" />
+                                ) : (
+                                  <MessageCircle size={13} aria-hidden="true" />
+                                )}
+                                {slot.modality === 'IN_APP_VIDEO'
+                                  ? 'Video'
+                                  : 'Chat'}
+                              </small>
                             </span>
                           </label>
                         ))}
