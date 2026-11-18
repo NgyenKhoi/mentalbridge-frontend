@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import {
   ArrowRight,
   ChevronLeft,
@@ -19,6 +19,7 @@ import type {
 } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
 import {
+  appointmentStatusLabel,
   appointmentTimingCopy,
   nextAppointment,
   orderAppointmentsForDisplay,
@@ -115,17 +116,6 @@ function rescheduleOutcomeMessage(
   return 'Lịch cũ được lưu trong lịch sử. Yêu cầu mới đang chờ xác nhận.'
 }
 
-const appointmentStatus: Record<Appointment['status'], string> = {
-  REQUESTED: 'Chờ xác nhận',
-  CONFIRMED: 'Đã xác nhận',
-  IN_PROGRESS: 'Đang diễn ra',
-  SESSION_ENDED: 'Đang tổng hợp kết quả',
-  COMPLETED: 'Đã hoàn thành',
-  REJECTED: 'Chuyên gia chưa thể nhận lịch',
-  EXPIRED: 'Hết thời gian xác nhận',
-  CANCELLED: 'Đã hủy',
-}
-
 type DisplayAppointment = Pick<
   Appointment,
   | 'id'
@@ -135,6 +125,7 @@ type DisplayAppointment = Pick<
   | 'scheduledStartAt'
   | 'scheduledEndAt'
   | 'timezone'
+  | 'sessionOutcome'
 > & { guidance: string; appointment?: Appointment }
 
 function appointmentGuidance(appointment: Appointment) {
@@ -242,7 +233,9 @@ function AppointmentCancellationInfo({
           <summary>Lịch sử thay đổi</summary>
           <ol>
             {appointment.history.map((event) => (
-              <li key={event.eventId}>{appointmentStatus[event.toStatus]}</li>
+              <li key={event.eventId}>
+                {appointmentStatusLabel({ status: event.toStatus })}
+              </li>
             ))}
           </ol>
         </details>
@@ -291,6 +284,8 @@ export default function AppointmentRequestPanel({
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed'>('all')
   const [monthOffset, setMonthOffset] = useState(0)
   const [selectedDayKey, setSelectedDayKey] = useState('')
+  // Day whose full slot list is open; a different active day shows the short list again.
+  const [expandedDayKey, setExpandedDayKey] = useState('')
   const [appointmentLoading, setAppointmentLoading] = useState(true)
   const [slotLoading, setSlotLoading] = useState(true)
   const [submitting, setSubmitting] = useState<string | null>(null)
@@ -664,6 +659,12 @@ export default function AppointmentRequestPanel({
     slotsByDay.keys().next().value ||
     dayKey(calendarAnchor.getDate())
   const daySlots = slotsByDay.get(activeDayKey) ?? []
+  const slotsExpanded = expandedDayKey === activeDayKey
+  // Collapsed: first 5, plus the chosen slot when it sits further down.
+  const visibleSlots = slotsExpanded
+    ? daySlots
+    : daySlots.filter((slot, index) => index < 5 || slot.id === selectedSlotId)
+  const slotListId = useId()
 
   function openDetail(
     appointmentId: string,
@@ -863,7 +864,7 @@ export default function AppointmentRequestPanel({
                         : styles.badgeAmber
                     }
                   >
-                    {appointmentStatus[focusedAppointment.status]}
+                    {appointmentStatusLabel(focusedAppointment)}
                   </span>
                   <p
                     style={{
@@ -897,7 +898,7 @@ export default function AppointmentRequestPanel({
                 </div>
                 <div>
                   <dt>Trạng thái</dt>
-                  <dd>{appointmentStatus[focusedAppointment.status]}</dd>
+                  <dd>{appointmentStatusLabel(focusedAppointment)}</dd>
                 </div>
               </dl>
 
@@ -1253,14 +1254,7 @@ export default function AppointmentRequestPanel({
                     ? styles.badgeAmber
                     : styles.badgeGray
 
-                const badgeLabel =
-                  item.status === 'CONFIRMED'
-                    ? 'Đã xác nhận'
-                    : item.status === 'SESSION_ENDED'
-                      ? 'Đang tổng hợp kết quả'
-                      : item.status === 'COMPLETED'
-                        ? 'Đã hoàn thành'
-                        : appointmentStatus[item.status]
+                const badgeLabel = appointmentStatusLabel(item)
 
                 const timeLabel = formatTimeRange(
                   item.scheduledStartAt,
@@ -1527,40 +1521,69 @@ export default function AppointmentRequestPanel({
               ) : daySlots.length === 0 ? (
                 <p>Ngày này chưa có khung giờ trống.</p>
               ) : (
-                daySlots.map((slot) => {
-                  const selected = selectedSlotId === slot.id
-                  return (
-                    <button
-                      key={slot.id}
-                      type="button"
-                      className={`${styles.slotOption} ${selected ? styles.slotOptionSelected : ''}`}
-                      onClick={() => setSelectedSlotId(slot.id)}
-                      aria-pressed={selected}
-                    >
-                      <span
-                        className={`${styles.radioCircle} ${selected ? styles.radioCircleSelected : ''}`}
-                        aria-hidden="true"
+                <div id={slotListId} className={styles.slotList}>
+                  {visibleSlots.map((slot) => {
+                    const selected = selectedSlotId === slot.id
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        className={`${styles.slotOption} ${selected ? styles.slotOptionSelected : ''}`}
+                        onClick={() => setSelectedSlotId(slot.id)}
+                        aria-pressed={selected}
                       >
-                        {selected && <span className={styles.radioDot} />}
-                      </span>
-                      <span className={styles.slotOptionInfo}>
-                        <strong className={styles.slotOptionTime}>
-                          {formatTimeRange(
-                            slot.startAt,
-                            slot.endAt,
-                            slot.timezone,
-                          )}
-                        </strong>
-                        <span className={styles.slotOptionDoctor}>
-                          {slot.specialistDisplayName}
+                        <span
+                          className={`${styles.radioCircle} ${selected ? styles.radioCircleSelected : ''}`}
+                          aria-hidden="true"
+                        >
+                          {selected && <span className={styles.radioDot} />}
                         </span>
-                      </span>
-                      <span className={styles.slotBadgeMorning}>
-                        {slot.modality === 'IN_APP_CHAT' ? 'Chat' : 'Video'}
-                      </span>
-                    </button>
-                  )
-                })
+                        <span className={styles.slotOptionInfo}>
+                          <strong className={styles.slotOptionTime}>
+                            {formatTimeRange(
+                              slot.startAt,
+                              slot.endAt,
+                              slot.timezone,
+                            )}
+                          </strong>
+                          <span className={styles.slotOptionDoctor}>
+                            {slot.specialistDisplayName}
+                          </span>
+                        </span>
+                        <span className={styles.slotBadgeMorning}>
+                          {slot.modality === 'IN_APP_CHAT' ? 'Chat' : 'Video'}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {!slotLoading && !slotError && daySlots.length > 5 && (
+                <button
+                  type="button"
+                  className={styles.slotMoreBtn}
+                  aria-expanded={slotsExpanded}
+                  aria-controls={slotListId}
+                  aria-label={
+                    slotsExpanded
+                      ? 'Thu gọn danh sách khung giờ'
+                      : `Xem thêm ${daySlots.length - visibleSlots.length} khung giờ`
+                  }
+                  onClick={(event) => {
+                    const button = event.currentTarget
+                    setExpandedDayKey(slotsExpanded ? '' : activeDayKey)
+                    // Keep the button in view after the list shrinks.
+                    if (slotsExpanded) {
+                      requestAnimationFrame(() =>
+                        button.scrollIntoView?.({ block: 'nearest' }),
+                      )
+                    }
+                  }}
+                >
+                  {slotsExpanded
+                    ? 'Thu gọn'
+                    : `Xem thêm (${daySlots.length - visibleSlots.length})`}
+                </button>
               )}
             </div>
             <button
@@ -1599,7 +1622,7 @@ export default function AppointmentRequestPanel({
                 </h2>
                 <p>
                   {detailItem.specialistDisplayName} ·{' '}
-                  {appointmentStatus[detailItem.status]}
+                  {appointmentStatusLabel(detailItem)}
                 </p>
               </div>
               <button
@@ -1632,7 +1655,7 @@ export default function AppointmentRequestPanel({
               </div>
               <div>
                 <dt>Trạng thái</dt>
-                <dd>{appointmentStatus[detailItem.status]}</dd>
+                <dd>{appointmentStatusLabel(detailItem)}</dd>
               </div>
             </dl>
             {detailAppointment && (

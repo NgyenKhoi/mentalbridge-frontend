@@ -476,6 +476,28 @@ describe('Notification preferences page', () => {
     ).toBeVisible()
   })
 
+  it('explains why the appointment reminder is disabled while the email channel is off', async () => {
+    const user = userEvent.setup()
+    render(<NotificationsPage />)
+    await user.click(screen.getByRole('button', { name: /Cài đặt/i }))
+    const reminder = await screen.findByRole('switch', {
+      name: 'Nhắc lịch hẹn qua email',
+    })
+    expect(reminder).toBeDisabled()
+    expect(reminder).toHaveAccessibleDescription(
+      'Bật kênh Email ở trên để nhận nhắc lịch qua email.',
+    )
+    expect(
+      screen.getByText('Bật kênh Email ở trên để nhận nhắc lịch qua email.'),
+    ).toBeVisible()
+
+    await user.click(screen.getByRole('switch', { name: 'Email' }))
+    expect(reminder).toBeEnabled()
+    expect(
+      screen.queryByText('Bật kênh Email ở trên để nhận nhắc lịch qua email.'),
+    ).not.toBeInTheDocument()
+  })
+
   it('hides appointment reminder toggle and omits field from patch when backend does not support it (MB-517 rollout)', async () => {
     const oldEmail = { ...preferences.email }
     delete (oldEmail as { appointmentRemindersEnabled?: boolean })
