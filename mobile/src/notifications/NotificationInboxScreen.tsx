@@ -2,6 +2,7 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Text, View } from 'react-native'
 import type { MobileRole } from '@/auth/session'
+import { useForegroundRefresh } from '@/api/use-foreground-refresh'
 import { useSession } from '@/auth/session-context'
 import { Screen } from '@/components/Screen'
 import type { NotificationApi } from './notification-api'
@@ -19,12 +20,14 @@ function AccountInbox({
   onBack,
   onPreferences,
   onOpen,
+  initialAppointmentFilter,
 }: Readonly<{
   api: NotificationApi
   subject: string
   role: MobileRole
   onBack: () => void
   onPreferences: () => void
+  initialAppointmentFilter?: boolean
   onOpen: (
     destination: NonNullable<ReturnType<typeof notificationDestination>>,
   ) => void
@@ -34,6 +37,9 @@ function AccountInbox({
   const commandPending = useRef(false)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [onlyAppointments, setOnlyAppointments] = useState(
+    initialAppointmentFilter ?? false,
+  )
   useEffect(() => {
     mounted.current = true
     return () => {
@@ -50,17 +56,26 @@ function AccountInbox({
     refetchOnMount: 'always',
     retry: false,
   })
-  const ready = query.isSuccess && !query.isFetching && !busy
-  const items =
-    query.isSuccess && !query.isRefetching
-      ? [
-          ...new Map(
-            query.data.pages
-              .flatMap((page) => page.items)
-              .map((item) => [item.id, item]),
-          ).values(),
-        ]
-      : []
+  useForegroundRefresh(() => {
+    if (!commandPending.current && !query.isFetching)
+      void query.refetch({ cancelRefetch: false })
+  }, role === 'USER')
+  const ready = query.isSuccess && !busy
+  const items = query.isSuccess
+    ? [
+        ...new Map(
+          query.data.pages
+            .flatMap((page) => page.items)
+            .map((item) => [item.id, item]),
+        ).values(),
+      ].filter(
+        (item) =>
+          !onlyAppointments ||
+          item.kind === 'APPOINTMENT' ||
+          item.action?.type === 'OPEN_APPOINTMENTS' ||
+          item.action?.type === 'OPEN_APPOINTMENT',
+      )
+    : []
   const unreadCount = query.data?.pages.at(-1)?.unreadCount
   const run = async (id?: string, open = false) => {
     if (!ready || commandPending.current) return
@@ -70,7 +85,9 @@ function AccountInbox({
     try {
       const item = id ? await api.markRead(id) : null
       if (!id) await api.markAllRead()
-      await client.invalidateQueries({ queryKey: key })
+      await client.invalidateQueries({
+        queryKey: ['notifications', subject, role],
+      })
       if (!mounted.current) return
       if (open) {
         const destination = notificationDestination(item?.action ?? null, role)
@@ -86,7 +103,9 @@ function AccountInbox({
             : 'Đã cập nhật trạng thái đọc từ hệ thống.',
         )
     } catch (error) {
-      await client.invalidateQueries({ queryKey: key })
+      await client.invalidateQueries({
+        queryKey: ['notifications', subject, role],
+      })
       if (mounted.current) setNotice(notificationError(error))
     } finally {
       commandPending.current = false
@@ -112,7 +131,17 @@ function AccountInbox({
             {notice}
           </Text>
         )}
-        {query.isPending || query.isRefetching ? (
+        {role === 'USER' && (
+          <NotificationButton
+            label={
+              onlyAppointments
+                ? 'Xem tất cả thông báo'
+                : 'Chỉ xem thông báo lịch hẹn'
+            }
+            onPress={() => setOnlyAppointments((value) => !value)}
+          />
+        )}
+        {query.isPending ? (
           <Text accessibilityLiveRegion="polite" style={styles.muted}>
             Đang tải thông báo…
           </Text>
@@ -127,19 +156,24 @@ function AccountInbox({
           disabled={query.isFetching || busy}
           onPress={() => void query.refetch()}
         />
-        {query.isSuccess && !query.isRefetching && (
+        {query.isSuccess && (
           <>
             <Text accessibilityLiveRegion="polite" style={styles.body}>
               {unreadCount} thông báo chưa đọc
+              {onlyAppointments ? ' trong hộp thư' : ''}
             </Text>
-            <NotificationButton
-              label="Đánh dấu tất cả đã đọc"
-              disabled={!ready || unreadCount === 0}
-              onPress={() => void run()}
-            />
+            {!onlyAppointments && (
+              <NotificationButton
+                label="Đánh dấu tất cả đã đọc"
+                disabled={!ready || unreadCount === 0}
+                onPress={() => void run()}
+              />
+            )}
             {items.length === 0 && (
               <Text style={styles.muted}>
-                Chưa có thông báo. Những cập nhật mới sẽ xuất hiện tại đây.
+                {onlyAppointments
+                  ? 'Chưa có thông báo lịch hẹn trong các mục đã tải.'
+                  : 'Chưa có thông báo. Những cập nhật mới sẽ xuất hiện tại đây.'}
               </Text>
             )}
             {items.map((item) => (
@@ -181,7 +215,7 @@ function AccountInbox({
                     ? 'Đang tải thêm…'
                     : 'Xem thông báo cũ hơn'
                 }
-                disabled={!ready}
+                disabled={!ready || query.isFetching}
                 onPress={() => void query.fetchNextPage()}
               />
             )}

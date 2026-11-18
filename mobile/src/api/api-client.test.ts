@@ -70,6 +70,27 @@ describe('mobile API client', () => {
     expect(request?.headers.has('Authorization')).toBe(false)
   })
 
+  it('omits a stored bearer token when a public request opts out', async () => {
+    const getBearerToken = jest.fn(async () => 'stale-token')
+    const adapter: AxiosAdapter = async (request) => {
+      expect(request.headers.toJSON()).not.toHaveProperty('Authorization')
+      return {
+        config: request,
+        data: {},
+        headers: {},
+        status: 200,
+        statusText: 'OK',
+      }
+    }
+    const client = createApiClient({ adapter, config, getBearerToken })
+    await client.post(
+      '/api/v1/auth/refresh',
+      {},
+      { headers: { Authorization: false } },
+    )
+    expect(getBearerToken).not.toHaveBeenCalled()
+  })
+
   it('normalizes RFC 9457 Problem Details and preserves extensions', () => {
     const request = {
       headers: new AxiosHeaders(),

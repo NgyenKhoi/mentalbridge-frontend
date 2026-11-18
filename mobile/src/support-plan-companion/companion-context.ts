@@ -14,16 +14,22 @@ export type MobileCompanionContext = Readonly<{
   surface: 'TODAY' | 'PLAN'
 }>
 
-export type MobileCompanionNavigation = Readonly<{
-  label: string
-  href:
-    | '/(user)/journal'
-    | '/(user)/emotion'
-    | '/(user)/resources/[resourceId]'
-    | '/(user)/specialists'
-    | '/(user)/assessment'
-  params?: Readonly<Record<string, string>>
-}>
+export type MobileCompanionNavigation = Readonly<
+  { label: string } & (
+    | {
+        href: '/(user)/resources/[resourceId]'
+        params: Readonly<{ resourceId: string; date?: string }>
+      }
+    | {
+        href:
+          | '/(user)/journal'
+          | '/(user)/emotion'
+          | '/(user)/specialists'
+          | '/(user)/assessment'
+        params?: Readonly<Record<string, string>>
+      }
+  )
+>
 
 type CompanionSelection = Readonly<{
   now: Date

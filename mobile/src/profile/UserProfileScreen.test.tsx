@@ -101,13 +101,18 @@ describe('USER Care profile screen', () => {
     expect(await screen.findByText('Đã lưu thay đổi hồ sơ.')).toBeOnTheScreen()
   })
 
-  it('opens password security from the profile shell', async () => {
+  it('shows the profile first and only opens password security on demand', async () => {
     await renderProfile(<UserProfileScreen api={profileApi()} />)
 
     await screen.findByDisplayValue('Nguyễn An')
+    expect(screen.queryByLabelText('Mật khẩu hiện tại')).toBeNull()
     await fireEvent.press(screen.getByRole('link', { name: 'Đổi mật khẩu' }))
 
-    expect(mockPush).toHaveBeenCalledWith('/change-password')
+    expect(screen.getByLabelText('Mật khẩu hiện tại')).toBeOnTheScreen()
+    expect(mockPush).not.toHaveBeenCalled()
+    await fireEvent.press(screen.getByRole('button', { name: 'Đóng' }))
+    expect(screen.queryByLabelText('Mật khẩu hiện tại')).toBeNull()
+    expect(screen.getByDisplayValue('Nguyễn An')).toBeOnTheScreen()
   })
 
   it('treats PROFILE_NOT_FOUND as onboarding and creates without If-Match', async () => {

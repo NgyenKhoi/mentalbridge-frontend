@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { AppState } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
 
 import type {
@@ -60,6 +61,7 @@ async function runBeforeSignOut(hook: (() => Promise<void>) | undefined) {
     clearTimeout(timer)
   }
 }
+const REFRESH_RETRY_MS = 15_000
 
 export function SessionProvider({
   children,
@@ -81,33 +83,45 @@ export function SessionProvider({
     initialSession ? 'authenticated' : 'restoring',
   )
   const [notice, setNotice] = useState<string | null>(null)
-  const accessExpiresAt = useRef<string | null>(null)
+  const [accessExpiresAt, setAccessExpiresAt] = useState<string | null>(null)
+  const operationVersion = useRef(0)
+  const restoreInFlight = useRef<Promise<void> | null>(null)
 
   const applyAuthenticated = useCallback((value: AuthenticatedSession) => {
-    accessExpiresAt.current = value.accessExpiresAt
+    setAccessExpiresAt(value.accessExpiresAt)
     setSession(value.session)
     setStatus('authenticated')
   }, [])
 
   const applyUnauthenticated = useCallback(() => {
-    accessExpiresAt.current = null
+    setAccessExpiresAt(null)
     resetCompanionSessionPreferences()
     queryClient.clear()
     setSession(null)
     setStatus('unauthenticated')
   }, [queryClient])
 
-  const retryRestore = useCallback(async () => {
-    setSession(null)
-    setStatus('restoring')
-    try {
-      const restored = await service.restore()
-      if (restored) applyAuthenticated(restored)
-      else applyUnauthenticated()
-    } catch {
-      setSession(null)
-      setStatus('unavailable')
-    }
+  const retryRestore = useCallback(() => {
+    if (restoreInFlight.current) return restoreInFlight.current
+    const version = operationVersion.current
+    const operation = service
+      .restore()
+      .then((restored) => {
+        if (version !== operationVersion.current) return
+        if (restored) applyAuthenticated(restored)
+        else applyUnauthenticated()
+      })
+      .catch(() => {
+        if (version !== operationVersion.current) return
+        setSession(null)
+        setStatus('unavailable')
+      })
+      .finally(() => {
+        if (restoreInFlight.current === operation)
+          restoreInFlight.current = null
+      })
+    restoreInFlight.current = operation
+    return operation
   }, [applyAuthenticated, applyUnauthenticated, service])
 
   useEffect(() => {
@@ -117,27 +131,79 @@ export function SessionProvider({
   }, [initialSession, retryRestore])
 
   useEffect(() => {
-    if (status !== 'authenticated' || !accessExpiresAt.current) return
+    if (status !== 'authenticated' && status !== 'unavailable') return
+    if (status === 'authenticated' && !accessExpiresAt) return
 
-    const delay = Math.max(
-      0,
-      Date.parse(accessExpiresAt.current) - Date.now() - REFRESH_EARLY_MS,
-    )
-    const timer = setTimeout(() => {
-      void service
-        .refresh()
-        .then((refreshed) => {
-          if (refreshed) applyAuthenticated(refreshed)
-          else applyUnauthenticated()
-        })
-        .catch(() => {
+    const expiresAt = accessExpiresAt ? Date.parse(accessExpiresAt) : 0
+    const version = operationVersion.current
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let inFlight = false
+    let disposed = false
+
+    function schedule(delay: number) {
+      clearTimeout(timer)
+      timer = setTimeout(attempt, delay)
+    }
+
+    async function attempt() {
+      if (
+        disposed ||
+        inFlight ||
+        version !== operationVersion.current ||
+        AppState.currentState === 'background' ||
+        AppState.currentState === 'inactive'
+      )
+        return
+      inFlight = true
+      try {
+        if (status === 'unavailable') {
+          await retryRestore()
+          if (!disposed) schedule(REFRESH_RETRY_MS)
+          return
+        }
+        const restored = await service.restore()
+        if (disposed || version !== operationVersion.current) return
+        if (restored) applyAuthenticated(restored)
+        else applyUnauthenticated()
+      } catch {
+        if (disposed || version !== operationVersion.current) return
+        if (Date.now() >= expiresAt) {
           setSession(null)
           setStatus('unavailable')
-        })
-    }, delay)
+        } else {
+          schedule(Math.min(REFRESH_RETRY_MS, expiresAt - Date.now()))
+        }
+      } finally {
+        inFlight = false
+      }
+    }
 
-    return () => clearTimeout(timer)
-  }, [applyAuthenticated, applyUnauthenticated, service, session, status])
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (
+        state === 'active' &&
+        (status === 'unavailable' || Date.now() >= expiresAt - REFRESH_EARLY_MS)
+      ) {
+        void attempt()
+      }
+    })
+    schedule(
+      status === 'unavailable'
+        ? REFRESH_RETRY_MS
+        : Math.max(0, expiresAt - Date.now() - REFRESH_EARLY_MS),
+    )
+    return () => {
+      disposed = true
+      clearTimeout(timer)
+      subscription.remove()
+    }
+  }, [
+    accessExpiresAt,
+    applyAuthenticated,
+    applyUnauthenticated,
+    retryRestore,
+    service,
+    status,
+  ])
 
   const value = useMemo<SessionContextValue>(
     () => ({
@@ -146,10 +212,13 @@ export function SessionProvider({
       notice,
       async signIn(email, password) {
         setNotice(null)
+        const version = ++operationVersion.current
         const authenticated = await service.signIn(email, password)
-        applyAuthenticated(authenticated)
+        if (version === operationVersion.current)
+          applyAuthenticated(authenticated)
       },
       async signOut() {
+        const version = ++operationVersion.current
         await runBeforeSignOut(beforeSignOut)
         try {
           await service.logout()
@@ -159,7 +228,7 @@ export function SessionProvider({
             'Phiên đã được xóa khỏi thiết bị nhưng chưa thể xác nhận thu hồi trên máy chủ.',
           )
         } finally {
-          applyUnauthenticated()
+          if (version === operationVersion.current) applyUnauthenticated()
         }
       },
       retryRestore,
@@ -174,6 +243,7 @@ export function SessionProvider({
         service.resetPassword(challenge, newPassword),
       async changePassword(currentPassword, newPassword) {
         await service.changePassword(currentPassword, newPassword)
+        operationVersion.current += 1
         setNotice(null)
         applyUnauthenticated()
       },

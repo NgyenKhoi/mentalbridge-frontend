@@ -33,14 +33,18 @@ export interface IdentityApi {
 export function createIdentityApi(client: AxiosInstance): IdentityApi {
   return {
     async login(request) {
-      const response = await client.post('/api/v1/auth/login', request)
+      const response = await client.post('/api/v1/auth/login', request, {
+        headers: { Authorization: false },
+      })
       return tokenPairSchema.parse(response.data)
     },
     async refresh(refreshToken, idempotencyKey) {
       const response = await client.post(
         '/api/v1/auth/refresh',
         { refreshToken },
-        { headers: { 'Idempotency-Key': idempotencyKey } },
+        {
+          headers: { 'Idempotency-Key': idempotencyKey, Authorization: false },
+        },
       )
       return tokenPairSchema.parse(response.data)
     },

@@ -196,9 +196,7 @@ describe('Private mobile Journal CRUD', () => {
       screen.getByLabelText('Nội dung nhật ký'),
       'Chưa lưu.',
     )
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Về danh sách nhật ký' }),
-    )
+    await fireEvent.press(screen.getByRole('button', { name: 'Hủy bỏ' }))
     expect(alert).toHaveBeenCalledWith(
       'Rời bài viết?',
       expect.any(String),

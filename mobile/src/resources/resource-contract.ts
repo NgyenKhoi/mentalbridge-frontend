@@ -165,10 +165,28 @@ export const resourceProgressListSchema = z
 export const resourceProgressUpdateSchema = z
   .object({
     status: resourceProgressStatusSchema,
+    resourceVersion: z
+      .string()
+      .regex(/^(0|[1-9][0-9]*)$/)
+      .max(19)
+      .optional(),
     completedActionIds: z.array(completedActionIdSchema).max(32),
+    practiceSessionId: z.uuid().optional(),
+    practiceStartedAt: z.iso.datetime().optional(),
+    practiceDurationSeconds: z.number().int().min(1).max(7200).optional(),
   })
   .strict()
   .superRefine((value, context) => {
+    if (
+      (value.practiceStartedAt !== undefined ||
+        value.practiceDurationSeconds !== undefined) &&
+      value.practiceSessionId === undefined
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Practice timing requires a session identifier.',
+      })
+    }
     if (
       new Set(value.completedActionIds).size !== value.completedActionIds.length
     ) {

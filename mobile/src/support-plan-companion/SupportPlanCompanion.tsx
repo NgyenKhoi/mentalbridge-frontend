@@ -431,11 +431,21 @@ export function SupportPlanCompanion({
                 accessibilityRole="button"
                 onPress={() => {
                   close()
-                  router.push(
-                    navigation.params
-                      ? { pathname: navigation.href, params: navigation.params }
-                      : navigation.href,
-                  )
+                  if (navigation.href === '/(user)/resources/[resourceId]') {
+                    router.push({
+                      pathname: navigation.href,
+                      params: navigation.params,
+                    })
+                  } else {
+                    router.push(
+                      navigation.params
+                        ? {
+                            pathname: navigation.href,
+                            params: navigation.params,
+                          }
+                        : navigation.href,
+                    )
+                  }
                 }}
                 style={({ pressed }) => [
                   styles.starter,

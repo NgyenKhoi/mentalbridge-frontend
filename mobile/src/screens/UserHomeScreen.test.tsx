@@ -48,6 +48,10 @@ jest.mock('@/auth/session-context', () => ({
   }),
 }))
 
+jest.mock('@/mam/MamHomePet', () => ({
+  MamHomePet: () => null,
+}))
+
 function view(api: HomeApi, ui: ReactElement = <UserHomeScreen api={api} />) {
   const client = new QueryClient({
     defaultOptions: {
@@ -284,16 +288,18 @@ describe('USER Home emotion section', () => {
     mockParams = {}
   })
 
-  it('replaces the date-only week card and the emotion tile with the emotion section', async () => {
+  it('expands the emotion form inline after selecting a mood', async () => {
     await view(home(), screenWithEmotion())
 
-    expect(await screen.findByTestId('home-emotion-section')).toBeOnTheScreen()
-    expect(screen.getByText('Cảm xúc hôm nay')).toBeOnTheScreen()
-    expect(screen.getByText('Tuần này của bạn')).toBeOnTheScreen()
-    expect(screen.queryByText('Nhịp điệu tuần')).toBeNull()
-    expect(
-      screen.queryByRole('button', { name: 'Ghi nhận cảm xúc' }),
-    ).toBeNull()
+    expect(await screen.findByTestId('home-emotion-anchor')).toBeOnTheScreen()
+    expect(screen.getByText(/Tuần này của bạn/)).toBeOnTheScreen()
+    expect(screen.queryByText('Mức độ cảm nhận')).toBeNull()
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Tốt' }))
+
+    expect(await screen.findByText('Mức độ cảm nhận')).toBeOnTheScreen()
+    expect(screen.getByText(/Tuần này của bạn/)).toBeOnTheScreen()
+    expect(mockPush).not.toHaveBeenCalled()
   })
 
   it('invites the user to enable push, but never in safety mode', async () => {

@@ -3,6 +3,7 @@ import { router } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -10,11 +11,14 @@ import {
   View,
 } from 'react-native'
 
+import { ScreeningQuestion } from './ScreeningQuestion'
+
 import { ApiError } from '@/api/api-error'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import { useResourceFonts } from '@/resources/useResourceFonts'
 
 import type { AssessmentApi } from './assessment-api'
 import type {
@@ -278,10 +282,12 @@ export function HelpNowPanel({
   api,
   defaultTrigger,
   guidance,
+  overviewCard = false,
 }: Readonly<{
   api: AssessmentApi
   defaultTrigger: 'POSITIVE_ITEM_9' | 'HELP_NOW'
   guidance?: string
+  overviewCard?: boolean
 }>) {
   const [expanded, setExpanded] = useState(false)
   const [location, setLocation] = useState('')
@@ -312,8 +318,25 @@ export function HelpNowPanel({
   const directoryMessage = response ? directoryStateMessage(response) : null
 
   return (
-    <View style={styles.safetyPanel}>
-      <Text style={styles.sectionTitle}>Hỗ trợ an toàn</Text>
+    <View style={[styles.safetyPanel, overviewCard && overviewStyles.support]}>
+      {overviewCard ? (
+        <View style={overviewStyles.supportHeader}>
+          <Text aria-hidden style={overviewStyles.heart}>
+            ♥
+          </Text>
+          <Text accessibilityRole="header" style={overviewStyles.supportTitle}>
+            Hỗ trợ an toàn &amp; khủng hoảng
+          </Text>
+        </View>
+      ) : (
+        <Text style={styles.sectionTitle}>Hỗ trợ an toàn</Text>
+      )}
+      {overviewCard && (
+        <Text style={overviewStyles.copy}>
+          Nếu bạn đang cảm thấy quá tải hoặc có ý nghĩ làm tổn thương bản thân,
+          bạn có thể tìm sự hỗ trợ phù hợp với khu vực của mình.
+        </Text>
+      )}
       {guidance && <Text style={styles.body}>{guidance}</Text>}
       {!expanded ? (
         <PrimaryButton
@@ -369,7 +392,7 @@ export function HelpNowPanel({
   )
 }
 
-function GuidePanel({
+export function GuidePanel({
   api,
   guide,
 }: Readonly<{ api: AssessmentApi; guide: SupportGuide }>) {
@@ -489,6 +512,7 @@ export function AssessmentJourneyScreen({
   reassessment?: boolean
   onReassessmentComplete?: () => void
 }>) {
+  const overviewFonts = useResourceFonts()
   const { session, signOut } = useSession()
   const [overview, setOverview] = useState<Overview | null>(null)
   const [view, setView] = useState<ViewState>({ name: 'overview' })
@@ -809,77 +833,24 @@ export function AssessmentJourneyScreen({
     )
 
     return (
-      <Screen>
+      <Screen key={step}>
         <BackButton onPress={returnToOverview} />
         <Text style={styles.eyebrow}>SÀNG LỌC CÁ NHÂN</Text>
         <Text accessibilityRole="header" style={styles.title}>
           {questionnaire.title}
         </Text>
-        <Text style={styles.description}>
-          Chọn câu trả lời đúng với trải nghiệm trong{' '}
-          {questionnaire.referencePeriodDays} ngày gần đây.
-        </Text>
-
-        <Text accessibilityLiveRegion="polite" style={styles.progressText}>
-          Câu {step + 1} / {questionnaire.questions.length}
-        </Text>
-        <View
-          accessibilityLabel="Tiến độ bài sàng lọc"
-          accessibilityRole="progressbar"
-          accessibilityValue={{
-            min: 1,
-            max: questionnaire.questions.length,
-            now: step + 1,
-          }}
-          style={styles.progressTrack}
-        >
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${((step + 1) / questionnaire.questions.length) * 100}%`,
-              },
-            ]}
-          />
-        </View>
-
-        <View style={styles.questionPanel}>
-          <Text style={styles.questionNumber}>Câu {question.itemNumber}</Text>
-          <Text accessibilityRole="header" style={styles.questionText}>
-            {question.prompt}
-          </Text>
-          <View style={styles.options}>
-            {questionnaire.responseOptions.map((option) => {
-              const selected = selectedValue === option.value
-              return (
-                <Pressable
-                  accessibilityLabel={option.label}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected, disabled: working }}
-                  disabled={working}
-                  key={option.value}
-                  onPress={() =>
-                    setAnswers((current) => ({
-                      ...current,
-                      [question.questionId]: option.value,
-                    }))
-                  }
-                  style={({ pressed }) => [
-                    styles.option,
-                    selected && styles.optionSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <View
-                    aria-hidden
-                    style={[styles.radio, selected && styles.radioSelected]}
-                  />
-                  <Text style={styles.optionLabel}>{option.label}</Text>
-                </Pressable>
-              )
-            })}
-          </View>
-        </View>
+        <ScreeningQuestion
+          questionnaire={questionnaire}
+          step={step}
+          selected={selectedValue}
+          busy={working}
+          onSelect={(value) =>
+            setAnswers((current) => ({
+              ...current,
+              [question.questionId]: value,
+            }))
+          }
+        />
 
         {isLast && (
           <View style={styles.disclosurePanel}>
@@ -1059,20 +1030,90 @@ export function AssessmentJourneyScreen({
     loadError &&
     (loadError.includes('hết hạn') || loadError.includes('không có quyền'))
 
+  const continuing = Boolean(
+    overview?.episode && overview.episode.status !== 'COMPLETED',
+  )
+  const startLabel = continuing
+    ? 'Tiếp tục lượt đang làm'
+    : reassessment
+      ? 'Bắt đầu lượt kiểm tra lại'
+      : 'Bắt đầu lượt sàng lọc mới'
   return (
-    <Screen>
-      <BackButton onPress={() => router.back()} />
-      <Text style={styles.eyebrow}>CHĂM SÓC BẢN THÂN</Text>
-      <Text accessibilityRole="header" style={styles.title}>
-        {reassessment
-          ? 'Kiểm tra lại cho giai đoạn này'
-          : 'Sàng lọc và gợi ý hỗ trợ'}
-      </Text>
-      <Text style={styles.description}>
-        Hoàn thành PHQ-9 rồi GAD-7 theo nội dung đã được duyệt. Câu trả lời chỉ
-        được gửi khi bạn xác nhận và không được lưu vào hồ sơ hay phân tích khác
-        trên thiết bị.
-      </Text>
+    <Screen layout="dashboard" backgroundColor="#F8F6EF">
+      <View style={overviewStyles.bar}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.back()}
+          style={overviewStyles.navPill}
+        >
+          <Text style={overviewStyles.link}>‹ Quay lại</Text>
+        </Pressable>
+        <Text style={overviewStyles.eyebrow}>CHĂM SÓC BẢN THÂN</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Mở hồ sơ cá nhân"
+          onPress={() => router.push('/(user)/profile')}
+          style={overviewStyles.gear}
+        >
+          <Text aria-hidden style={overviewStyles.link}>
+            ⚙
+          </Text>
+        </Pressable>
+      </View>
+      <View style={overviewStyles.hero}>
+        <Text style={overviewStyles.pill}>✓ Không gian cá nhân</Text>
+        <Text
+          accessibilityRole="header"
+          style={[overviewStyles.title, overviewFonts && overviewStyles.serif]}
+        >
+          {reassessment
+            ? 'Kiểm tra lại cho giai đoạn này'
+            : 'Sàng lọc và gợi ý hỗ trợ'}
+        </Text>
+        <Text style={overviewStyles.copy}>
+          Hoàn thành PHQ-9 (trầm cảm) và GAD-7 (lo âu) dựa trên trải nghiệm
+          trong 14 ngày gần đây. Câu trả lời chỉ được gửi khi bạn xác nhận.
+        </Text>
+        <View style={overviewStyles.artFrame}>
+          <Image
+            source={require('../../assets/resource-covers/resource-small-steps.webp')}
+            style={overviewStyles.art}
+            resizeMode="cover"
+            accessible={false}
+          />
+          <Text style={overviewStyles.artLabel}>
+            ● Dành một chút thời gian cho bạn
+          </Text>
+        </View>
+        {overview && !permissionFailure && (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                working ? 'Đang chuẩn bị…' : 'Bắt đầu hoặc tiếp tục'
+              }
+              accessibilityState={{ disabled: working || Boolean(loadError) }}
+              disabled={working || Boolean(loadError)}
+              onPress={() => void startOrResume()}
+              style={({ pressed }) => [
+                overviewStyles.start,
+                (pressed || working || loadError) && styles.pressed,
+              ]}
+            >
+              <Text style={overviewStyles.startText}>
+                {working ? 'Đang chuẩn bị…' : startLabel}
+              </Text>
+              <Text aria-hidden style={overviewStyles.startArrow}>
+                →
+              </Text>
+            </Pressable>
+            <View style={overviewStyles.metaRow}>
+              <Text style={overviewStyles.meta}>◷ Khoảng 3–5 phút</Text>
+              <Text style={overviewStyles.meta}>16 câu hỏi</Text>
+            </View>
+          </>
+        )}
+      </View>
 
       {loadError && (
         <View style={styles.errorPanel}>
@@ -1095,56 +1136,99 @@ export function AssessmentJourneyScreen({
               tone="error"
             />
           )}
-          <View style={styles.heroPanel}>
-            <Text style={styles.sectionTitle}>
-              {overview.episode && overview.episode.status !== 'COMPLETED'
-                ? 'Tiếp tục lượt đang làm'
-                : reassessment
-                  ? 'Bắt đầu lượt kiểm tra lại'
-                  : 'Bắt đầu lượt sàng lọc'}
-            </Text>
-            <Text style={styles.body}>
-              Hai bài hỏi về trải nghiệm trong 14 ngày gần đây. Kết quả dùng để
-              đưa ra gợi ý hỗ trợ, không thay thế đánh giá chuyên môn.
-            </Text>
-            <PrimaryButton
-              disabled={working || Boolean(loadError)}
-              label={working ? 'Đang chuẩn bị…' : 'Bắt đầu hoặc tiếp tục'}
-              onPress={() => void startOrResume()}
-            />
-          </View>
-
           {runtimeError && <StateMessage message={runtimeError} tone="error" />}
 
-          <HelpNowPanel api={api} defaultTrigger="HELP_NOW" />
+          <HelpNowPanel api={api} defaultTrigger="HELP_NOW" overviewCard />
 
           <View style={styles.sectionGap}>
-            <Text style={styles.sectionTitle}>Kết quả gần đây</Text>
+            <View style={overviewStyles.historyHeader}>
+              <View style={overviewStyles.historyCopy}>
+                <Text
+                  accessibilityRole="header"
+                  style={[
+                    overviewStyles.historyTitle,
+                    overviewFonts && overviewStyles.serif,
+                  ]}
+                >
+                  Kết quả sàng lọc gần đây
+                </Text>
+                <Text style={overviewStyles.meta}>
+                  Xem lại các lượt bạn đã lưu
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => router.push('/(user)/analytics')}
+                style={overviewStyles.navPill}
+              >
+                <Text style={overviewStyles.link}>Biểu đồ ›</Text>
+              </Pressable>
+            </View>
             {overview.assessments.items.length === 0 ? (
               <Text style={styles.supportingText}>
                 Bạn chưa có kết quả sàng lọc đã lưu.
               </Text>
             ) : (
-              overview.assessments.items.map((assessment) => (
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={working}
-                  key={assessment.assessmentId}
-                  onPress={() => void openAssessment(assessment.assessmentId)}
-                  style={({ pressed }) => [
-                    styles.historyItem,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={styles.itemTitle}>
-                    {instrumentLabels[assessment.instrument]} ·{' '}
-                    {levelLabels[assessment.result.screeningLevel]}
-                  </Text>
-                  <Text style={styles.supportingText}>
-                    {formatDate(assessment.submittedAt)}
-                  </Text>
-                </Pressable>
-              ))
+              overview.assessments.items.map((assessment) => {
+                const isPhq = assessment.instrument === 'PHQ9'
+                const maximum = isPhq ? 27 : 21
+                const { totalScore, screeningLevel } = assessment.result
+                const minimum = screeningLevel === 'MINIMAL'
+                const percent = Math.min(100, (totalScore / maximum) * 100)
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={working}
+                    key={assessment.assessmentId}
+                    onPress={() => void openAssessment(assessment.assessmentId)}
+                    style={({ pressed }) => [
+                      overviewStyles.resultRow,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <View style={overviewStyles.historyCopy}>
+                      <View style={overviewStyles.metaRow}>
+                        <Text style={overviewStyles.resultName}>
+                          {instrumentLabels[assessment.instrument]} (
+                          {isPhq ? 'Trầm cảm' : 'Lo âu'})
+                        </Text>
+                        <Text
+                          style={[
+                            overviewStyles.scorePill,
+                            minimum && overviewStyles.minimum,
+                          ]}
+                        >
+                          {levelLabels[screeningLevel]} ({totalScore}/{maximum})
+                        </Text>
+                      </View>
+                      <View
+                        accessibilityRole="progressbar"
+                        accessibilityLabel="Điểm sàng lọc"
+                        accessibilityValue={{
+                          min: 0,
+                          max: maximum,
+                          now: totalScore,
+                        }}
+                        style={overviewStyles.track}
+                      >
+                        <View
+                          style={[
+                            overviewStyles.fill,
+                            minimum && overviewStyles.fillMinimum,
+                            { width: `${percent}%` },
+                          ]}
+                        />
+                      </View>
+                      <Text style={overviewStyles.meta}>
+                        {formatDate(assessment.submittedAt)}
+                      </Text>
+                    </View>
+                    <Text aria-hidden style={overviewStyles.chevron}>
+                      ›
+                    </Text>
+                  </Pressable>
+                )
+              })
             )}
           </View>
 
@@ -1191,7 +1275,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   title: {
-    color: colors.ink,
+    color: colors.tealDeep,
     fontSize: typography.heading,
     fontWeight: '700',
     lineHeight: typography.headingLineHeight,
@@ -1224,12 +1308,6 @@ const styles = StyleSheet.create({
   errorText: { color: '#9B352D' },
   successText: { color: colors.tealDeep },
   errorPanel: { gap: spacing.md },
-  heroPanel: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.shell,
-    gap: spacing.lg,
-    padding: spacing.xl,
-  },
   sectionGap: { gap: spacing.md, marginTop: spacing.xxl },
   sectionTitle: { color: colors.ink, fontSize: 20, fontWeight: '700' },
   secondaryButton: {
@@ -1245,70 +1323,6 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.68 },
-  progressText: {
-    color: colors.inkSoft,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-  },
-  progressTrack: {
-    backgroundColor: colors.tealPale,
-    borderRadius: radii.pill,
-    height: 8,
-    marginBottom: spacing.xl,
-    overflow: 'hidden',
-  },
-  progressFill: { backgroundColor: colors.tealDeep, height: 8 },
-  questionPanel: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.shell,
-    padding: spacing.xl,
-  },
-  questionNumber: {
-    color: colors.teal,
-    fontSize: typography.eyebrow,
-    fontWeight: '800',
-    marginBottom: spacing.sm,
-  },
-  questionText: {
-    color: colors.ink,
-    fontSize: 22,
-    fontWeight: '700',
-    lineHeight: 30,
-  },
-  options: { gap: spacing.md, marginTop: spacing.xl },
-  option: {
-    alignItems: 'center',
-    borderColor: colors.line,
-    borderRadius: radii.control,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.md,
-    minHeight: 52,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  optionSelected: {
-    backgroundColor: colors.tealPale,
-    borderColor: colors.tealDeep,
-  },
-  radio: {
-    borderColor: colors.inkFaint,
-    borderRadius: radii.pill,
-    borderWidth: 2,
-    height: 20,
-    width: 20,
-  },
-  radioSelected: {
-    backgroundColor: colors.tealDeep,
-    borderColor: colors.tealDeep,
-  },
-  optionLabel: {
-    color: colors.ink,
-    flex: 1,
-    fontSize: typography.body,
-    lineHeight: typography.bodyLineHeight,
-  },
   disclosurePanel: {
     backgroundColor: colors.surfaceSoft,
     borderRadius: radii.panel,
@@ -1343,6 +1357,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   resultPanel: {
+    borderColor: colors.line,
+    borderWidth: 1,
     backgroundColor: colors.surface,
     borderRadius: radii.panel,
     gap: spacing.sm,
@@ -1432,4 +1448,187 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: spacing.xl,
   },
+})
+
+const overviewStyles = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  navPill: {
+    minHeight: 44,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gear: {
+    width: 44,
+    height: 44,
+    backgroundColor: '#FFF',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#E9EBE2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyebrow: {
+    backgroundColor: '#EDF3EC',
+    color: '#285344',
+    borderRadius: 12,
+    overflow: 'hidden',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  link: { color: '#214D3D', fontSize: 13, fontWeight: '700' },
+  hero: {
+    backgroundColor: '#FFF',
+    borderColor: '#EFEEE6',
+    borderWidth: 1,
+    borderRadius: 26,
+    padding: 17,
+    gap: 12,
+  },
+  pill: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E7F7EF',
+    color: '#245844',
+    borderRadius: 14,
+    overflow: 'hidden',
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  title: { color: '#172F27', fontSize: 27, lineHeight: 33, fontWeight: '800' },
+  serif: { fontFamily: 'ResourceSerif', fontWeight: 'normal' },
+  copy: { color: '#465852', fontSize: 14, lineHeight: 22 },
+  artFrame: {
+    borderRadius: 17,
+    overflow: 'hidden',
+    backgroundColor: '#DFE8DF',
+    aspectRatio: 1.83,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    padding: 8,
+  },
+  art: { ...StyleSheet.absoluteFill, height: '100%', width: '100%' },
+  artLabel: {
+    color: '#255344',
+    backgroundColor: '#F8FCF7',
+    overflow: 'hidden',
+    borderRadius: 11,
+    fontSize: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  start: {
+    backgroundColor: '#193F34',
+    borderRadius: 16,
+    minHeight: 54,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  startText: { color: '#FFF', fontSize: 15, fontWeight: '800', flex: 1 },
+  startArrow: {
+    color: '#FFF',
+    backgroundColor: '#356457',
+    overflow: 'hidden',
+    borderRadius: 15,
+    width: 30,
+    lineHeight: 30,
+    textAlign: 'center',
+    fontSize: 18,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  meta: { color: '#65736A', fontSize: 12, lineHeight: 17 },
+  support: {
+    marginTop: 17,
+    backgroundColor: '#FFF0EA',
+    borderWidth: 1,
+    borderColor: '#F2DDD5',
+    borderRadius: 23,
+    padding: 15,
+  },
+  supportHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  heart: {
+    width: 38,
+    lineHeight: 38,
+    textAlign: 'center',
+    overflow: 'hidden',
+    borderRadius: 14,
+    backgroundColor: '#FFF',
+    color: '#A53341',
+    fontSize: 18,
+  },
+  supportTitle: {
+    fontFamily: 'serif',
+    fontWeight: '700',
+    fontSize: 18,
+    lineHeight: 24,
+    color: '#42302C',
+    flexShrink: 1,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 5,
+  },
+  historyCopy: { flex: 1, minWidth: 0, gap: 6 },
+  historyTitle: {
+    color: '#19322A',
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: '800',
+  },
+  resultRow: {
+    minHeight: 75,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#EFEEE5',
+    backgroundColor: '#FFF',
+    padding: 12,
+  },
+  resultName: { color: '#1E362C', fontWeight: '800', fontSize: 13 },
+  scorePill: {
+    color: '#634B25',
+    backgroundColor: '#FFF1D2',
+    overflow: 'hidden',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  minimum: { color: '#215843', backgroundColor: '#D9F4E7' },
+  track: {
+    width: '60%',
+    height: 5,
+    backgroundColor: '#EEF1EB',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  fill: { height: '100%', backgroundColor: '#D89E38', borderRadius: 3 },
+  fillMinimum: { backgroundColor: '#29A778' },
+  chevron: { color: '#698376', fontSize: 22 },
 })

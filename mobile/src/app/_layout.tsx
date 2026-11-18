@@ -1,11 +1,14 @@
 import { Stack, usePathname } from 'expo-router'
+import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { useSession } from '@/auth/session-context'
 import { CommunityInboxBanner } from '@/community-chat/CommunityInboxBanner'
 import { readRuntimeConfig } from '@/config/runtime-config'
+import { CrisisSupportOffsetContext } from '@/crisis-support/crisis-support-offset'
 import { CrisisSupportWidget } from '@/crisis-support/CrisisSupportWidget'
 import { useSafetyButtonLift } from '@/crisis-support/safety-button-lift'
+import { isUserTabPath, USER_TAB_BAR_HEIGHT } from '@/navigation/UserTabBar'
 import { getRouteGuards } from '@/navigation/route-policy'
 import { AppProviders } from '@/providers/AppProviders'
 import { SessionStatusScreen } from '@/screens/SessionStatusScreen'
@@ -17,6 +20,7 @@ export function RootNavigator() {
 
   const pathname = usePathname()
   const footerLift = useSafetyButtonLift()
+  const [screenActionHeight, setScreenActionHeight] = useState(0)
 
   let content
 
@@ -47,13 +51,31 @@ export function RootNavigator() {
 
   return (
     <View style={styles.root}>
-      {content}
+      <CrisisSupportOffsetContext.Provider value={setScreenActionHeight}>
+        {content}
+      </CrisisSupportOffsetContext.Provider>
       {session?.role === 'USER' && (
         <CommunityInboxBanner subject={session.subject} />
       )}
-      <CrisisSupportWidget
-        bottomOffset={session && pathname === '/user' ? 76 : footerLift}
-      />
+      {(pathname !== '/community' || status !== 'authenticated') && (
+        <CrisisSupportWidget
+          bottomOffset={
+            status === 'authenticated' &&
+            session?.role === 'USER' &&
+            isUserTabPath(pathname)
+              ? USER_TAB_BAR_HEIGHT +
+                (pathname === '/journal'
+                  ? Math.max(screenActionHeight, footerLift)
+                  : 0)
+              : pathname === '/community-chat'
+                ? USER_TAB_BAR_HEIGHT
+                : pathname === '/messages' ||
+                    (pathname === '/ai-companion' && session?.role === 'USER')
+                  ? Math.max(screenActionHeight, footerLift)
+                  : footerLift
+          }
+        />
+      )}
     </View>
   )
 }

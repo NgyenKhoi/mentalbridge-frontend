@@ -39,7 +39,7 @@ export function localPlanDate(now: Date, timezone: string) {
   }).format(now)
 }
 
-function addDays(date: string, days: number) {
+export function addPlanDays(date: string, days: number) {
   const value = new Date(`${date}T00:00:00Z`)
   value.setUTCDate(value.getUTCDate() + days)
   return value.toISOString().slice(0, 10)
@@ -47,7 +47,7 @@ function addDays(date: string, days: number) {
 
 export function occurrenceWindow(now: Date, timezone: string) {
   const today = localPlanDate(now, timezone)
-  return { from: addDays(today, -14), through: addDays(today, 16) }
+  return { from: addPlanDays(today, -14), through: addPlanDays(today, 16) }
 }
 
 export type ResolvedEmotionPlanOrigin = Readonly<{

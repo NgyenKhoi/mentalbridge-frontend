@@ -1,5 +1,7 @@
 import type { ResourceDetail } from './resource-contract'
 import {
+  breathingPhase,
+  breathingPractice,
   localDateInTimeZone,
   recentLocalDates,
   resourceActions,
@@ -130,5 +132,45 @@ describe('reviewed resource presentation model', () => {
       '2026-09-30',
       '2026-10-01',
     ])
+  })
+
+  it('matches the web five-minute session and advances phases without losing the final partial cycle', () => {
+    const practice = breathingPractice(
+      detail({
+        expectedDurationMinutes: 5,
+        interactionConfig: {
+          inhaleSeconds: 4,
+          exhaleSeconds: 5,
+          holdSeconds: 0,
+          cycles: 33,
+        },
+      }),
+    )
+    expect(practice.durationSeconds).toBe(300)
+    expect(practice.cycleCount).toBe(33)
+    expect(breathingPhase(practice, 300)).toMatchObject({
+      id: 'inhale',
+      remaining: 4,
+    })
+    expect(breathingPhase(practice, 296)).toMatchObject({
+      id: 'exhale',
+      remaining: 5,
+    })
+    expect(breathingPhase(practice, 291)).toMatchObject({
+      id: 'inhale',
+      remaining: 4,
+    })
+    const withHold = breathingPractice(
+      detail({
+        interactionConfig: {
+          inhaleSeconds: 4,
+          holdSeconds: 2,
+          exhaleSeconds: 6,
+        },
+      }),
+    )
+    expect(
+      breathingPhase(withHold, withHold.durationSeconds - 4),
+    ).toMatchObject({ id: 'hold', remaining: 2 })
   })
 })

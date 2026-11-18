@@ -8,6 +8,30 @@ const userDestination = (action: NotificationAction | null) =>
 const specialistDestination = (action: NotificationAction | null) =>
   notificationDestination(action, 'SPECIALIST')
 
+it('opens the appointment attached to a validated reminder', () => {
+  const item = notificationSchema.parse(
+    notification({
+      kind: 'APPOINTMENT',
+      action: {
+        type: 'OPEN_APPOINTMENT',
+        href: `/appointments/${targetId}`,
+        targetId,
+      },
+    }),
+  )
+  expect(userDestination(item.action)).toEqual({
+    pathname: '/(user)/appointments',
+    params: { appointmentId: targetId },
+  })
+  expect(
+    userDestination({
+      type: 'OPEN_APPOINTMENT',
+      href: '/appointments',
+      targetId,
+    }),
+  ).toBeNull()
+})
+
 it.each([
   ['OPEN_COMMUNITY_CONVERSATION', 'conversations', 'conversationId'],
   ['OPEN_COMMUNITY_REQUEST', 'requests', 'requestId'],
@@ -134,6 +158,7 @@ it('maps OPEN_APPOINTMENT only for the exact published appointment path', () => 
   const href = `/appointments/${targetId}`
   expect(userDestination({ type, href, targetId })).toEqual({
     pathname: '/(user)/appointments',
+    params: { appointmentId: targetId },
   })
   for (const invalid of [
     { type, href: '/appointments', targetId },

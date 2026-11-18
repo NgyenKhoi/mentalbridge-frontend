@@ -16,6 +16,9 @@ let mockFocus: (() => void) | undefined
 const mockAbort = jest.fn(),
   mockEject = jest.fn(),
   mockPush = jest.fn()
+jest.mock('@/api/use-foreground-refresh', () => ({
+  useForegroundRefresh: jest.fn(),
+}))
 jest.mock('expo-router', () => ({
   router: { push: (...args: unknown[]) => mockPush(...args), back: jest.fn() },
   useFocusEffect: (callback: () => void) => {

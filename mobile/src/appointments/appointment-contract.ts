@@ -182,6 +182,8 @@ export const bookableSlotsSchema = z
 export const creditAccountSchema = z.strictObject({
   accountId: id,
   packageCode,
+  entitlementState: z.enum(['ACTIVE', 'EXPIRED', 'DEFAULT_FREE']).optional(),
+  supportPlanEnabled: z.boolean().optional(),
   source,
   sourceReference: z.string().min(1).max(128).nullable(),
   periodStart: instant.nullable(),
@@ -211,6 +213,7 @@ export const creditAccountSchema = z.strictObject({
           'CONSUMED',
           'RELEASED',
           'FORFEITED',
+          'ADJUSTED_RELEASED',
         ]),
         source,
         packageCode,

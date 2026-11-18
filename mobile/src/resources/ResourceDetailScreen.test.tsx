@@ -6,7 +6,12 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native'
-import type { ReactElement } from 'react'
+import type {
+  DependencyList,
+  EffectCallback,
+  ReactElement,
+  ReactNode,
+} from 'react'
 import { Linking } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
@@ -23,6 +28,22 @@ let mockSession: AppSession | null = {
   role: 'USER',
 }
 const mockSignOut = jest.fn()
+
+jest.mock('./BreathingMedia', () => ({
+  BreathingMedia: ({ children }: { children: ReactNode }) => children,
+}))
+jest.mock('@/theme/useDashboardFonts', () => ({
+  useDashboardFonts: () => false,
+}))
+jest.mock('./useResourceFonts', () => ({ useResourceFonts: () => false }))
+jest.mock('expo-router', () => ({
+  useFocusEffect: (effect: () => void | (() => void)) => {
+    const React = jest.requireActual<{
+      useEffect: (effect: EffectCallback, deps: DependencyList) => void
+    }>('react')
+    React.useEffect(effect, [effect])
+  },
+}))
 
 jest.mock('@/auth/session-context', () => ({
   useSession: () => ({ session: mockSession, signOut: mockSignOut }),
@@ -282,6 +303,97 @@ describe('mobile reviewed resource detail and progress', () => {
         { status: 'COMPLETED', completedActionIds: ['settle'] },
       ),
     )
+  })
+
+  it('pauses breathing, preserves the remaining time, and saves only after explicit confirmation', async () => {
+    jest.useFakeTimers()
+    const resource = detail({
+      title: 'Thở chậm trong 5 phút',
+      category: 'BREATHING',
+      resourceKind: 'PRACTICE',
+      interactionType: 'BREATHING_PACER',
+      repeatability: 'REPEATABLE',
+      completionMode: 'TIMED',
+      expectedDurationMinutes: 5,
+      interactionConfig: {
+        inhaleSeconds: 4,
+        holdSeconds: 0,
+        exhaleSeconds: 5,
+        cycles: 33,
+        steps: [{ id: 'settle', label: 'Chọn tư thế được nâng đỡ' }],
+      },
+    })
+    const resourceApi = api(resource)
+    await renderDetail(screenFor(resourceApi, resource.id))
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Bắt đầu phiên thở' }),
+    )
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(6000)
+    })
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tạm dừng phiên thở' }),
+    )
+    expect(screen.getByTestId('breathing-remaining')).toHaveTextContent('04:54')
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(10000)
+    })
+    expect(screen.getByTestId('breathing-remaining')).toHaveTextContent('04:54')
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Xác nhận hoàn thành bài thở' }),
+    )
+    expect(resourceApi.saveProgress).not.toHaveBeenCalled()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Lưu xác nhận hoàn thành' }),
+    )
+    await waitFor(() =>
+      expect(resourceApi.saveProgress).toHaveBeenCalledWith(
+        resource.id,
+        '2026-10-07',
+        expect.objectContaining({
+          status: 'COMPLETED',
+          resourceVersion: resource.contentVersion,
+          completedActionIds: ['settle'],
+          practiceDurationSeconds: 6,
+          practiceSessionId: expect.any(String),
+          practiceStartedAt: expect.any(String),
+        }),
+      ),
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Đặt lại phiên thở' }),
+    )
+    expect(screen.getByTestId('breathing-remaining')).toHaveTextContent('05:00')
+    jest.useRealTimers()
+  })
+
+  it('does not auto-complete breathing at the end and prevents saving while progress is unavailable', async () => {
+    jest.useFakeTimers()
+    const resource = detail({
+      interactionType: 'BREATHING_PACER',
+      completionMode: 'TIMED',
+      expectedDurationMinutes: 5,
+      interactionConfig: { inhaleSeconds: 4, exhaleSeconds: 5 },
+    })
+    const resourceApi = api(resource, {
+      listProgress: jest.fn().mockRejectedValue(new Error('offline')),
+    })
+    await renderDetail(screenFor(resourceApi, resource.id))
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Bắt đầu phiên thở' }),
+    )
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(300000)
+    })
+    expect(screen.getByTestId('breathing-remaining')).toHaveTextContent('00:00')
+    expect(
+      screen.getByRole('button', { name: 'Xác nhận hoàn thành bài thở' }),
+    ).toBeDisabled()
+    expect(resourceApi.saveProgress).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('button', { name: 'Thử tải lại tiến độ' }),
+    ).toBeOnTheScreen()
+    jest.useRealTimers()
   })
 
   it('requires an opened reviewed video before explicit confirmation', async () => {

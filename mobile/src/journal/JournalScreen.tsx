@@ -1,3 +1,4 @@
+import { useDashboardFonts } from '@/theme/useDashboardFonts'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -10,7 +11,6 @@ import {
 } from 'react-native'
 
 import { useSession } from '@/auth/session-context'
-import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import type { SupportPlanActionApi } from '@/support-plan/support-plan-action-api'
 import {
@@ -20,6 +20,7 @@ import {
   type JournalPlanOrigin,
 } from '@/support-plan/journal-plan-context'
 
+import { JournalOverview } from './JournalOverview'
 import { JournalAnalysisPanel } from './JournalAnalysisPanel'
 import { JournalEditor, type JournalNavigationState } from './JournalEditor'
 import type { JournalApi } from './journal-api'
@@ -251,194 +252,146 @@ function JournalContent({
     return () => subscription.remove()
   })
   const request = comparisonPeriods(days, comparisonEnd)
-  return (
-    <Screen>
-      <TextAction
-        label={selected ? '← Về danh sách' : '← Trang của bạn'}
-        onPress={back}
-        testID="journal-back"
+  const fonts = useDashboardFonts()
+  const browsing = !selected && requestedOrigin.state === 'none'
+  const planContext =
+    requestedOrigin.state !== 'none' ? (
+      <View style={s.panel}>
+        <Text accessibilityRole="header" style={s.heading}>
+          Hoạt động trong kế hoạch
+        </Text>
+        {originContext.isPending && requestedOrigin.state === 'valid' ? (
+          <ActivityIndicator accessibilityLabel="Đang kiểm tra hoạt động nhật ký" />
+        ) : null}
+        {originContext.data ? (
+          <>
+            <Text style={s.label}>{originContext.data.title}</Text>
+            <Text style={s.source}>
+              {originContext.data.occurrence.localDate}
+            </Text>
+            <Text style={s.body}>
+              Nội dung nhật ký vẫn riêng tư. Kế hoạch chỉ ghi nhận việc bạn đã
+              lưu bài.
+            </Text>
+            {!originContext.data.canWrite &&
+            originContext.data.occurrence.state !== 'COMPLETED' ? (
+              <Notice>
+                Bài mới chỉ được ghi nhận cho ngày tạo bài. Bạn có thể viết nhật
+                ký riêng, nhưng không thể tạo bài cho một hoạt động ở ngày khác.
+              </Notice>
+            ) : null}
+          </>
+        ) : !originContext.isPending || requestedOrigin.state === 'invalid' ? (
+          <Notice error>
+            Không xác định được hoạt động này. Bạn vẫn có thể dùng nhật ký
+            riêng; không có hoạt động nào được ghi nhận thay.
+          </Notice>
+        ) : null}
+        {originContext.isError ? (
+          <TextAction
+            label="Thử kiểm tra lại hoạt động"
+            onPress={() => void originContext.refetch()}
+          />
+        ) : null}
+        {contextChanged ? (
+          <Notice>
+            Liên kết vừa thay đổi. Phần đang viết vẫn giữ liên kết ban đầu;
+            không tự chuyển sang hoạt động khác.
+          </Notice>
+        ) : null}
+        {returnNotice ? <Notice>{returnNotice}</Notice> : null}
+        {originContext.data && onReturnToPlan ? (
+          <TextAction
+            testID="journal-return-to-plan"
+            label={returning ? 'Đang quay lại…' : 'Quay lại hoạt động'}
+            disabled={
+              returning || navigationState.busy || navigationState.uncertain
+            }
+            onPress={returnToPlan}
+          />
+        ) : null}
+      </View>
+    ) : null
+  const currentEntry = selected !== 'new' ? detail.data : undefined
+  if (selected === 'new' || (selected && currentEntry)) {
+    const previous = list.data?.pages
+      .flatMap((page) => page.items)
+      .find(
+        (item) =>
+          item.id !== currentEntry?.id &&
+          Date.parse(item.occurredAt) <
+            (currentEntry ? Date.parse(currentEntry.occurredAt) : Infinity),
+      )
+    return (
+      <JournalEditor
+        key={selected}
+        api={api}
+        subject={subject}
+        {...(currentEntry ? { initialEntry: currentEntry } : {})}
+        {...(previous ? { previousEntry: previous } : {})}
+        onClose={closeEditor}
+        onDirtyChange={setDirty}
+        {...(selected === 'new' ? { onCreated: created } : {})}
+        onNavigationStateChange={editorNavigation}
+        now={now}
+        header={planContext}
+        staleEntry={detail.isError}
       />
-      <Text accessibilityRole="header" style={s.title}>
-        Nhật ký riêng tư
-      </Text>
-      {requestedOrigin.state !== 'none' ? (
-        <View style={s.panel}>
-          <Text accessibilityRole="header" style={s.heading}>
-            Hoạt động trong kế hoạch
-          </Text>
-          {originContext.isPending && requestedOrigin.state === 'valid' ? (
-            <ActivityIndicator accessibilityLabel="Đang kiểm tra hoạt động nhật ký" />
-          ) : null}
-          {originContext.data ? (
-            <>
-              <Text style={s.label}>{originContext.data.title}</Text>
-              <Text style={s.source}>
-                {originContext.data.occurrence.localDate}
-              </Text>
-              <Text style={s.body}>
-                Nội dung nhật ký vẫn riêng tư. Kế hoạch chỉ ghi nhận việc bạn đã
-                lưu bài.
-              </Text>
-              {!originContext.data.canWrite &&
-              originContext.data.occurrence.state !== 'COMPLETED' ? (
-                <Notice>
-                  Bài mới chỉ được ghi nhận cho ngày tạo bài. Bạn có thể viết
-                  nhật ký riêng, nhưng không thể tạo bài cho một hoạt động ở
-                  ngày khác.
-                </Notice>
-              ) : null}
-            </>
-          ) : !originContext.isPending ||
-            requestedOrigin.state === 'invalid' ? (
-            <Notice error>
-              Không xác định được hoạt động này. Bạn vẫn có thể dùng nhật ký
-              riêng; không có hoạt động nào được ghi nhận thay.
-            </Notice>
-          ) : null}
-          {originContext.isError ? (
-            <TextAction
-              label="Thử kiểm tra lại hoạt động"
-              onPress={() => void originContext.refetch()}
-            />
-          ) : null}
-          {contextChanged ? (
-            <Notice>
-              Liên kết vừa thay đổi. Phần đang viết vẫn giữ liên kết ban đầu;
-              không tự chuyển sang hoạt động khác.
-            </Notice>
-          ) : null}
-          {returnNotice ? <Notice>{returnNotice}</Notice> : null}
-          {originContext.data && onReturnToPlan ? (
-            <TextAction
-              testID="journal-return-to-plan"
-              label={returning ? 'Đang quay lại…' : 'Quay lại hoạt động'}
-              disabled={
-                returning || navigationState.busy || navigationState.uncertain
-              }
-              onPress={returnToPlan}
-            />
-          ) : null}
-        </View>
-      ) : null}
-      {selected === 'new' ? (
-        <JournalEditor
-          api={api}
-          subject={subject}
-          onClose={closeEditor}
-          onDirtyChange={setDirty}
-          onCreated={created}
-          onNavigationStateChange={editorNavigation}
-        />
-      ) : selected ? (
+    )
+  }
+  return (
+    <Screen
+      layout={browsing ? 'dashboard' : 'form'}
+      {...(browsing ? { backgroundColor: '#F7FAF8' } : {})}
+    >
+      {!browsing && (
         <>
-          {detail.isPending && !detail.data ? (
-            <ActivityIndicator accessibilityLabel="Đang mở nhật ký" />
-          ) : detail.isError && !detail.data ? (
-            <View style={s.panel}>
-              <Notice error>{journalError(detail.error)}</Notice>
-              <TextAction
-                label="Thử mở lại nhật ký"
-                onPress={() => void detail.refetch()}
-              />
-            </View>
-          ) : (
-            detail.data && (
-              <>
-                {detail.isError && (
-                  <Notice error>
-                    Chưa làm mới được bài viết. Phần đang viết vẫn được giữ; lần
-                    lưu tiếp theo sẽ kiểm tra bản đã tải.
-                  </Notice>
-                )}
-                <JournalEditor
-                  key={selected}
-                  api={api}
-                  subject={subject}
-                  initialEntry={detail.data}
-                  onClose={closeEditor}
-                  onDirtyChange={setDirty}
-                  onNavigationStateChange={editorNavigation}
-                />
-              </>
-            )
-          )}
+          <TextAction
+            label={selected ? '← Về danh sách' : '← Trang của bạn'}
+            onPress={back}
+            testID="journal-back"
+          />
+          <Text accessibilityRole="header" style={s.title}>
+            Nhật ký riêng tư
+          </Text>
         </>
+      )}
+      {planContext}
+      {selected ? (
+        detail.isPending ? (
+          <ActivityIndicator accessibilityLabel="Đang mở nhật ký" />
+        ) : (
+          <View style={s.panel}>
+            <Notice error>{journalError(detail.error)}</Notice>
+            <TextAction
+              label="Thử mở lại nhật ký"
+              onPress={() => void detail.refetch()}
+            />
+          </View>
+        )
       ) : (
         <>
-          <View style={s.panel}>
-            <Text style={s.body}>
-              Một nơi để giữ lại điều bạn đã trải qua, theo cách của bạn.
-            </Text>
-            <PrimaryButton
-              testID="journal-new"
-              label="Viết bài mới"
-              onPress={() => {
-                // Starting ordinary writing while the origin read is pending
-                // must not let its late response retarget this draft.
-                setOpenedOrigin(true)
-                setWritingOrigin(
-                  originContext.data?.canWrite
-                    ? originContext.data.origin
-                    : null,
-                )
-                setSelected('new')
-              }}
-            />
-          </View>
-          <View style={s.panel}>
-            <Text accessibilityRole="header" style={s.heading}>
-              Bài viết đã lưu
-            </Text>
-            {list.isPending ? (
-              <ActivityIndicator accessibilityLabel="Đang tải nhật ký" />
-            ) : list.isError ? (
-              <>
-                <Notice error>{journalError(list.error)}</Notice>
-                <TextAction
-                  label="Tải lại danh sách"
-                  onPress={() => void list.refetch()}
-                />
-              </>
-            ) : list.data?.pages[0]?.items.length === 0 ? (
-              <Notice>
-                Chưa có bài viết. Bắt đầu bằng một điều bạn muốn ghi lại hôm
-                nay.
-              </Notice>
-            ) : (
-              <>
-                {list.data?.pages
-                  .flatMap((page) => page.items)
-                  .map((entry) => (
-                    <Pressable
-                      key={entry.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Mở nhật ký ${new Date(entry.occurredAt).toLocaleDateString('vi-VN')}`}
-                      testID={`journal-entry-${entry.id}`}
-                      onPress={() => setSelected(entry.id)}
-                      style={s.choice}
-                    >
-                      <Text style={s.label}>
-                        {new Date(entry.occurredAt).toLocaleDateString('vi-VN')}
-                      </Text>
-                      <Text style={s.body} numberOfLines={3}>
-                        {entry.content.preview}
-                      </Text>
-                    </Pressable>
-                  ))}
-                {list.hasNextPage && (
-                  <TextAction
-                    label={
-                      list.isFetchingNextPage
-                        ? 'Đang tải…'
-                        : 'Xem bài viết trước đó'
-                    }
-                    disabled={list.isFetchingNextPage}
-                    onPress={() => void list.fetchNextPage()}
-                  />
-                )}
-              </>
-            )}
-          </View>
+          <JournalOverview
+            entries={list.data?.pages.flatMap((page) => page.items) ?? []}
+            now={now()}
+            pending={list.isPending}
+            error={list.isError ? journalError(list.error) : undefined}
+            complete={list.hasNextPage === false}
+            hasMore={list.hasNextPage}
+            fetchingMore={list.isFetchingNextPage}
+            fonts={fonts}
+            onEntry={setSelected}
+            onRetry={() => void list.refetch()}
+            onMore={() => void list.fetchNextPage()}
+            onReflection={() => setComparison((value) => !value)}
+            onNew={() => {
+              setOpenedOrigin(true)
+              setWritingOrigin(
+                originContext.data?.canWrite ? originContext.data.origin : null,
+              )
+              setSelected('new')
+            }}
+          />
           <TextAction
             label={
               comparison

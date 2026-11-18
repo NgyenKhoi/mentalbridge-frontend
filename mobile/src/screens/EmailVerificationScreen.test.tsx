@@ -10,6 +10,7 @@ const mockVerifyEmail = jest.fn()
 const mockRequestEmailVerification = jest.fn()
 
 jest.mock('expo-router', () => ({
+  useFocusEffect: jest.fn(),
   router: { replace: (path: string) => mockReplace(path) },
   useLocalSearchParams: () => ({ challenge }),
 }))
