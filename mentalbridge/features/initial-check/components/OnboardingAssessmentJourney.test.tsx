@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { ApiError } from '@/lib/api/api-error'
+import { ensureCurrentSupportGuide } from '@/features/support-guide/api/browser-support-guide'
 import {
   activateSupportPlan,
   proposeSupportPlanDraft,
@@ -87,6 +87,12 @@ vi.mock('@/features/support-plan/api/browser-support-plan', () => ({
   }),
   activateSupportPlan: vi.fn().mockResolvedValue({}),
   getCurrentSupportPlanDraft: vi.fn().mockResolvedValue(null),
+}))
+
+vi.mock('@/features/support-guide/api/browser-support-guide', () => ({
+  ensureCurrentSupportGuide: vi
+    .fn()
+    .mockResolvedValue({ supportGuideId: 'guide-123' }),
 }))
 
 describe('OnboardingAssessmentJourney', () => {
@@ -220,11 +226,22 @@ describe('OnboardingAssessmentJourney', () => {
       screen.getByText('Cơ chế giao cảm cảnh giác cao'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa ngay/i),
+      screen.getByRole('button', { name: 'Xem gợi ý hỗ trợ' }),
     ).toBeInTheDocument()
+    expect(screen.getByText(/gợi ý hỗ trợ sẽ chỉ ra/)).toBeInTheDocument()
+    expect(screen.queryByText(/lộ trình 14 ngày/)).not.toBeInTheDocument()
+    // The resource cards and the link that scrolled to them are gone.
+    expect(
+      screen.queryByText(/Tài nguyên gợi ý tức thì/),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/tài nguyên hỗ trợ gợi ý/),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/Kỹ thuật thở cơ hoành/)).not.toBeInTheDocument()
+    expect(screen.getByText('4. Gợi ý hỗ trợ')).toBeInTheDocument()
   })
 
-  it('advances from Step 3 to Step 4 and navigates to Dashboard', async () => {
+  it('opens the Support Guide from Step 3 without touching the plan', async () => {
     render(<OnboardingAssessmentJourney />)
 
     // Complete Step 1
@@ -257,26 +274,17 @@ describe('OnboardingAssessmentJourney', () => {
       }
     }
 
-    // In Step 3: click "Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa ngay →"
-    const createPlanBtn = await screen.findByText(
-      /Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa ngay/i,
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Xem gợi ý hỗ trợ' }),
     )
-    fireEvent.click(createPlanBtn)
 
-    // Should reach Step 4
-    expect(
-      await screen.findByText(
-        'Kế hoạch hỗ trợ của bạn đã được kích hoạt thành công!',
-      ),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('Bắt đầu khám phá không gian của bạn →'),
-    ).toBeInTheDocument()
-
-    // Click finish to dashboard
-    const finishBtn = screen.getByText('Bắt đầu khám phá không gian của bạn →')
-    fireEvent.click(finishBtn)
-    expect(mockPush).toHaveBeenCalledWith('/dashboard')
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/support-guides/guide-123'),
+    )
+    expect(ensureCurrentSupportGuide).toHaveBeenCalledTimes(1)
+    expect(proposeSupportPlanDraft).not.toHaveBeenCalled()
+    expect(activateSupportPlan).not.toHaveBeenCalled()
+    expect(screen.queryByText(/đã được kích hoạt/)).not.toBeInTheDocument()
   })
 
   async function reachStep3(purpose?: 'REASSESSMENT', planReview = false) {
@@ -312,8 +320,9 @@ describe('OnboardingAssessmentJourney', () => {
   it('REASSESSMENT never proposes or activates a plan and ends with the review', async () => {
     await reachStep3('REASSESSMENT')
     expect(
-      screen.queryByText(/Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa/i),
+      screen.queryByRole('button', { name: 'Xem gợi ý hỗ trợ' }),
     ).not.toBeInTheDocument()
+    expect(ensureCurrentSupportGuide).not.toHaveBeenCalled()
     expect(
       screen.getByText(/Kế hoạch của bạn chưa thay đổi/),
     ).toBeInTheDocument()
@@ -403,84 +412,26 @@ describe('OnboardingAssessmentJourney', () => {
     ).toHaveAttribute('href', '/support-plan?review=open')
   })
 
-  it('INITIAL_CHECK shows an error and no success when the plan cannot be created, then retries', async () => {
-    vi.mocked(proposeSupportPlanDraft).mockRejectedValueOnce(
-      new Error('plan down'),
+  it('INITIAL_CHECK shows a plan-free error when the guide cannot be opened, then retries', async () => {
+    vi.mocked(ensureCurrentSupportGuide).mockRejectedValueOnce(
+      new Error('guide down'),
     )
     await reachStep3()
-    fireEvent.click(screen.getByText(/Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa/i))
+    fireEvent.click(screen.getByRole('button', { name: 'Xem gợi ý hỗ trợ' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Chưa tạo được kế hoạch hỗ trợ',
+      'Chưa mở được gợi ý hỗ trợ. Kết quả sàng lọc của bạn vẫn được lưu. Bạn hãy thử lại.',
     )
-    expect(
-      screen.queryByText(
-        'Kế hoạch hỗ trợ của bạn đã được kích hoạt thành công!',
-      ),
-    ).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/kế hoạch/)
+    expect(mockPush).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByText('Thử lại tạo kế hoạch hỗ trợ →'))
-    expect(
-      await screen.findByText(
-        'Kế hoạch hỗ trợ của bạn đã được kích hoạt thành công!',
-      ),
-    ).toBeInTheDocument()
-  })
-
-  it('INITIAL_CHECK retries activation of the same draft instead of proposing twice', async () => {
-    vi.mocked(proposeSupportPlanDraft).mockClear()
-    vi.mocked(activateSupportPlan).mockRejectedValueOnce(
-      new Error('activate down'),
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Thử lại xem gợi ý hỗ trợ' }),
     )
-    await reachStep3()
-    fireEvent.click(screen.getByText(/Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa/i))
-    await screen.findByRole('alert')
-    fireEvent.click(screen.getByText('Thử lại tạo kế hoạch hỗ trợ →'))
-    await screen.findByText(
-      'Kế hoạch hỗ trợ của bạn đã được kích hoạt thành công!',
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/support-guides/guide-123'),
     )
-    await waitFor(() => expect(activateSupportPlan).toHaveBeenCalledTimes(2))
-    expect(proposeSupportPlanDraft).toHaveBeenCalledTimes(1)
-  })
-
-  it('INITIAL_CHECK replays the same keys after an activation that timed out, so a committed activation is not repeated', async () => {
-    vi.mocked(proposeSupportPlanDraft).mockClear()
-    vi.mocked(activateSupportPlan).mockClear()
-    vi.mocked(activateSupportPlan).mockRejectedValueOnce(
-      new ApiError({ message: 'timeout', code: 'NETWORK_ERROR' }),
-    )
-    await reachStep3()
-    fireEvent.click(screen.getByText(/Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa/i))
-    await screen.findByRole('alert')
-    fireEvent.click(screen.getByText('Thử lại tạo kế hoạch hỗ trợ →'))
-    await screen.findByText(
-      'Kế hoạch hỗ trợ của bạn đã được kích hoạt thành công!',
-    )
-    const [first, second] = vi.mocked(activateSupportPlan).mock.calls
-    expect(second[2]).toBe(first[2])
-    expect(second[0]).toBe(first[0])
-    expect(proposeSupportPlanDraft).toHaveBeenCalledTimes(1)
-  })
-
-  it('INITIAL_CHECK starts over with fresh keys after a definite rejection', async () => {
-    vi.mocked(proposeSupportPlanDraft).mockClear()
-    vi.mocked(activateSupportPlan).mockClear()
-    vi.mocked(activateSupportPlan).mockRejectedValueOnce(
-      new ApiError({
-        message: 'conflict',
-        code: 'VERSION_CONFLICT',
-        status: 409,
-      }),
-    )
-    await reachStep3()
-    fireEvent.click(screen.getByText(/Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa/i))
-    await screen.findByRole('alert')
-    fireEvent.click(screen.getByText('Thử lại tạo kế hoạch hỗ trợ →'))
-    await screen.findByText(
-      'Kế hoạch hỗ trợ của bạn đã được kích hoạt thành công!',
-    )
-    const [first, second] = vi.mocked(activateSupportPlan).mock.calls
-    expect(second[2]).not.toBe(first[2])
-    expect(proposeSupportPlanDraft).toHaveBeenCalledTimes(2)
+    expect(ensureCurrentSupportGuide).toHaveBeenCalledTimes(2)
+    expect(proposeSupportPlanDraft).not.toHaveBeenCalled()
   })
 })
