@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { reconcileTodayResourceCompletion } from '@/features/support-plan/resource-plan-origin'
 
 import {
   getResourceProgress,
@@ -269,6 +270,12 @@ export default function ResourcesExperience() {
         status: completed ? 'COMPLETED' : 'IN_PROGRESS',
         completedActionIds: completed ? ['overview-complete'] : [],
       })
+      if (completed && saved.status === 'COMPLETED')
+        await reconcileTodayResourceCompletion(
+          resource.id,
+          saved.contentVersion,
+          saved.localDate,
+        )
       const next = [
         ...progress.filter(
           (entry) =>

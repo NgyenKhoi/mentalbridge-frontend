@@ -680,20 +680,13 @@ export default function AppointmentChatPanel({
             </p>
           </div>
         </div>
-        {isSpecialist && (
+        {isSpecialist && eligibility.phase !== 'COMPLETED' && (
           <div className={styles.detailsLinks}>
             <Link
               href={`/specialist/clients?appointmentId=${encodeURIComponent(appointmentId)}`}
             >
               Xem chuẩn bị khách hàng
             </Link>
-            {eligibility.phase === 'COMPLETED' && (
-              <Link
-                href={`/specialist/follow-up?appointmentId=${encodeURIComponent(appointmentId)}`}
-              >
-                Mở Sau tư vấn
-              </Link>
-            )}
           </div>
         )}
       </>
@@ -1053,9 +1046,9 @@ export default function AppointmentChatPanel({
               </p>
               {eligibility?.phase === 'COMPLETED' && (
                 <Link
-                  href={`/specialist/follow-up?appointmentId=${encodeURIComponent(appointmentId)}`}
+                  href={`/specialist/clients?appointmentId=${encodeURIComponent(appointmentId)}`}
                 >
-                  Mở Sau tư vấn
+                  Tạo bản tóm tắt
                 </Link>
               )}
             </footer>

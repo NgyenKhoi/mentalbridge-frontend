@@ -17,6 +17,7 @@ import { reconcileResourceOccurrence } from '@/features/support-plan/api/browser
 import type { EmotionPlanOrigin } from '@/features/support-plan/emotion-plan-origin'
 import {
   hasContentCompletion,
+  reconcileTodayResourceCompletion,
   resolveResourcePlanOrigin,
 } from '@/features/support-plan/resource-plan-origin'
 import {
@@ -525,8 +526,15 @@ export default function ResourceDetail({
         setStatus(saved.status)
         window.dispatchEvent(new CustomEvent('mb:resource-progress-updated'))
         if (saved.status === 'COMPLETED') setReward(true)
-        if (saved.status === 'COMPLETED' || practice?.practiceDurationSeconds)
-          await reconcilePlanProgress()
+        if (saved.status === 'COMPLETED' || practice?.practiceDurationSeconds) {
+          if (supportPlanOrigin) await reconcilePlanProgress()
+          else
+            await reconcileTodayResourceCompletion(
+              resource.id,
+              saved.contentVersion,
+              saved.localDate,
+            )
+        }
         return true
       } catch {
         setMessage('Chưa thể lưu tiến độ. Bạn thử lại sau một chút nhé.')
@@ -542,6 +550,7 @@ export default function ResourceDetail({
       reconcilePlanProgress,
       resource,
       saving,
+      supportPlanOrigin,
     ],
   )
 

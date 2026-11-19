@@ -9,6 +9,11 @@ const api = vi.hoisted(() => ({
   getResourceProgress: vi.fn(),
   saveResourceProgress: vi.fn(),
   getResourceJourney: vi.fn(),
+  reconcileTodayResourceCompletion: vi.fn(),
+}))
+
+vi.mock('@/features/support-plan/resource-plan-origin', () => ({
+  reconcileTodayResourceCompletion: api.reconcileTodayResourceCompletion,
 }))
 
 vi.mock('../api/browser-resources', () => ({
@@ -77,6 +82,7 @@ describe('ResourcesExperience', () => {
       hasMore: false,
     })
     api.getResourceProgress.mockResolvedValue([])
+    api.reconcileTodayResourceCompletion.mockResolvedValue('not-applicable')
     api.getResourceJourney.mockImplementation(async (date: string) => ({
       assignmentId: '00000000-0000-4000-8000-000000000301',
       localDate: date,
@@ -162,6 +168,9 @@ describe('ResourcesExperience', () => {
         completedActionIds: ['overview-complete'],
       },
     )
+    expect(
+      api.reconcileTodayResourceCompletion,
+    ).toHaveBeenCalledExactlyOnceWith(resources[0].id, '1', '2026-09-29')
     expect(await screen.findByText(/một bước nhỏ đã hoàn thành/i)).toBeVisible()
   })
 

@@ -20,6 +20,7 @@ const api = vi.hoisted(() => ({
   getResourceProgress: vi.fn(),
   saveResourceProgress: vi.fn(),
   resolveResourcePlanOrigin: vi.fn(),
+  reconcileTodayResourceCompletion: vi.fn(),
   reconcileResourceOccurrence: vi.fn(),
 }))
 
@@ -65,6 +66,7 @@ vi.mock(
       typeof import('@/features/support-plan/resource-plan-origin')
     >()),
     resolveResourcePlanOrigin: api.resolveResourcePlanOrigin,
+    reconcileTodayResourceCompletion: api.reconcileTodayResourceCompletion,
   }),
 )
 
@@ -135,6 +137,7 @@ describe('ResourceDetail', () => {
     })
     api.getResourceProgress.mockResolvedValue([])
     api.resolveResourcePlanOrigin.mockReset()
+    api.reconcileTodayResourceCompletion.mockReset()
     api.reconcileResourceOccurrence.mockReset()
     api.saveResourceProgress.mockImplementation(
       async (_resourceId: string, localDate: string, update: object) => ({
@@ -588,6 +591,21 @@ describe('ResourceDetail', () => {
     await user.click(screen.getByLabelText(/một bước nhỏ, an toàn/i))
     await user.click(screen.getByRole('button', { name: 'Hoàn tất' }))
   }
+
+  it('reconciles Content completion without plan URL parameters', async () => {
+    render(<ResourceDetail resourceId={resource.id} />)
+    await completePlanResource()
+    await waitFor(() =>
+      expect(
+        api.reconcileTodayResourceCompletion,
+      ).toHaveBeenCalledExactlyOnceWith(
+        resource.id,
+        resource.contentVersion,
+        expect.any(String),
+      ),
+    )
+    expect(api.resolveResourcePlanOrigin).not.toHaveBeenCalled()
+  })
 
   const planOccurrence = {
     ...emotionOccurrenceFixture(),

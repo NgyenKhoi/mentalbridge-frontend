@@ -463,9 +463,11 @@ describe('AppointmentChatPanel', () => {
     expect(
       screen.queryByRole('textbox', { name: 'Tin nhắn' }),
     ).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Mở Sau tư vấn' })).toHaveAttribute(
+    expect(
+      screen.getByRole('link', { name: 'Tạo bản tóm tắt' }),
+    ).toHaveAttribute(
       'href',
-      `/specialist/follow-up?appointmentId=${appointmentId}`,
+      `/specialist/clients?appointmentId=${appointmentId}`,
     )
     expect(realtime.connect).not.toHaveBeenCalled()
   })
