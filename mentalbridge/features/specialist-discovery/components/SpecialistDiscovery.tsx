@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import type {
   DiscoverySlot,
+  ServiceCreditAccount,
   SpecialistDiscoveryItem,
   SpecialistDiscoveryPage,
 } from '@/lib/consultation/consultation-validation'
@@ -175,6 +176,9 @@ export default function SpecialistDiscovery({
   const [sortBy, setSortBy] = useState<'recommended' | 'nearest'>('recommended')
   const [searchQuery, setSearchQuery] = useState('')
   const [availableCredits, setAvailableCredits] = useState<number | null>(null)
+  const [reservationCapacity, setReservationCapacity] = useState<
+    ServiceCreditAccount['reservationCapacity'] | null
+  >(null)
   const [bookedSlot, setBookedSlot] = useState<{
     slot: DiscoverySlot
     name: string
@@ -188,10 +192,11 @@ export default function SpecialistDiscovery({
     const request = ++creditRequest.current
     void browserServiceCredits
       .get()
-      .then((account) => account.balance.available)
       .catch(() => null)
-      .then((available) => {
-        if (request === creditRequest.current) setAvailableCredits(available)
+      .then((account) => {
+        if (request !== creditRequest.current) return
+        setAvailableCredits(account?.balance.available ?? null)
+        setReservationCapacity(account?.reservationCapacity ?? null)
       })
   }, [])
 
@@ -817,6 +822,7 @@ export default function SpecialistDiscovery({
         packageCode={page?.packageCode ?? null}
         initialTab={initialTab}
         availableCredits={availableCredits}
+        reservationCapacity={reservationCapacity}
         onClose={() => {
           setDetailId(null)
           setDetail(null)

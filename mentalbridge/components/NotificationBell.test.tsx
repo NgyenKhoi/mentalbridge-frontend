@@ -16,6 +16,17 @@ vi.mock('@/features/notifications/api/browser-notifications', () => ({
   markNotificationRead: vi.fn(),
 }))
 
+const push = vi.hoisted(() => ({
+  emit: undefined as undefined | ((notificationId: string) => void),
+  unsubscribe: vi.fn(),
+}))
+vi.mock('@/features/notifications/api/realtime-notifications', () => ({
+  subscribeNotificationCreated: (listener: (id: string) => void) => {
+    push.emit = listener
+    return push.unsubscribe
+  },
+}))
+
 const toast = vi.hoisted(() => vi.fn())
 vi.mock('@/components/ui/FeedbackProvider', () => ({
   useFeedback: () => ({ showNotificationToast: toast }),
@@ -160,5 +171,65 @@ describe('NotificationBell', () => {
       value: 'visible',
     })
     window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, onUpdate)
+  })
+
+  it('refetches, toasts and broadcasts at once on a socket pointer, without a second toast from the poll', async () => {
+    vi.useFakeTimers()
+    vi.mocked(getNotifications)
+      .mockResolvedValueOnce(page([item('a', 'Cũ', true)], 0) as never)
+      .mockResolvedValue(
+        page([item('b', 'Lịch hẹn mới'), item('a', 'Cũ', true)], 1) as never,
+      )
+    const onUpdate = vi.fn()
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, onUpdate)
+    renderBell()
+    await act(async () => {})
+    expect(toast).not.toHaveBeenCalled()
+
+    await act(async () => push.emit?.('b'))
+    expect(toast).toHaveBeenCalledTimes(1)
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Lịch hẹn mới' }),
+    )
+    expect(onUpdate).toHaveBeenCalledTimes(1)
+    expect(
+      screen.getByRole('button', { name: 'Thông báo, 1 chưa đọc' }),
+    ).toBeInTheDocument()
+
+    // The 20s poll sees the same notification: no duplicate toast or event.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000)
+    })
+    expect(toast).toHaveBeenCalledTimes(1)
+    expect(onUpdate).toHaveBeenCalledTimes(1)
+    window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, onUpdate)
+  })
+
+  it('does not lose a socket pointer that arrives while a read is in flight', async () => {
+    vi.useFakeTimers()
+    let finishFirst: (value: never) => void = () => {}
+    vi.mocked(getNotifications)
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (finishFirst = resolve)),
+      )
+      .mockResolvedValue(page([item('b', 'Lịch hẹn mới')], 1) as never)
+    renderBell()
+    await act(async () => {})
+    await act(async () => push.emit?.('b'))
+    await act(async () =>
+      finishFirst(page([item('a', 'Cũ', true)], 0) as never),
+    )
+    expect(getNotifications).toHaveBeenCalledTimes(2)
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Lịch hẹn mới' }),
+    )
+  })
+
+  it('unsubscribes from the socket on unmount', async () => {
+    vi.mocked(getNotifications).mockResolvedValue(page([], 0) as never)
+    const { unmount } = renderBell()
+    await act(async () => {})
+    unmount()
+    expect(push.unsubscribe).toHaveBeenCalled()
   })
 })
