@@ -75,15 +75,13 @@ export async function resolveTodayResourceOccurrence(
 export async function reconcileTodayResourceCompletion(
   resourceId: string,
   resourceVersion: string,
-  completedDate: string,
 ) {
   try {
     const occurrence = await resolveTodayResourceOccurrence(
       resourceId,
       resourceVersion,
     )
-    if (!occurrence || occurrence.localDate !== completedDate)
-      return 'not-applicable'
+    if (!occurrence) return 'not-applicable'
     const recorded = await reconcileResourceOccurrence(
       occurrence.occurrenceId,
       occurrence.version,
@@ -92,9 +90,11 @@ export async function reconcileTodayResourceCompletion(
   } catch (error: unknown) {
     // A Content save remains valid when evidence is missing, stale, or unavailable.
     const problem = toApiError(error)
-    return [409, 412].includes(problem.status ?? 0)
+    return problem.status === 409
       ? 'not-recorded'
-      : 'unavailable'
+      : problem.status === 412
+        ? 'stale'
+        : 'unavailable'
   }
 }
 

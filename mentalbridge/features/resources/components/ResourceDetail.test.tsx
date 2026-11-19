@@ -598,13 +598,27 @@ describe('ResourceDetail', () => {
     await waitFor(() =>
       expect(
         api.reconcileTodayResourceCompletion,
-      ).toHaveBeenCalledExactlyOnceWith(
-        resource.id,
-        resource.contentVersion,
-        expect.any(String),
-      ),
+      ).toHaveBeenCalledExactlyOnceWith(resource.id, resource.contentVersion),
     )
     expect(api.resolveResourcePlanOrigin).not.toHaveBeenCalled()
+  })
+
+  it('keeps a no-origin Content completion and retries Care without saving again', async () => {
+    api.reconcileTodayResourceCompletion
+      .mockResolvedValueOnce('unavailable')
+      .mockResolvedValueOnce('recorded')
+    render(<ResourceDetail resourceId={resource.id} />)
+    await completePlanResource()
+    expect(
+      await screen.findByText(/Kế hoạch sẽ cập nhật khi kết nối lại/),
+    ).toBeInTheDocument()
+    const saves = api.saveResourceProgress.mock.calls.length
+    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(
+      await screen.findByText('Đã ghi nhận vào kế hoạch hôm nay.'),
+    ).toBeInTheDocument()
+    expect(api.reconcileTodayResourceCompletion).toHaveBeenCalledTimes(2)
+    expect(api.saveResourceProgress).toHaveBeenCalledTimes(saves)
   })
 
   const planOccurrence = {

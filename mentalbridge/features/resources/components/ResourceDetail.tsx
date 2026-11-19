@@ -245,6 +245,7 @@ export default function ResourceDetail({
     contextKey: string
     state: ReconcileState
   }>()
+  const [noOriginVersion, setNoOriginVersion] = useState<string | null>(null)
   const reconcileState =
     reconciliation?.contextKey === reconcileKey ? reconciliation.state : 'idle'
   const [reward, setReward] = useState(false)
@@ -504,6 +505,31 @@ export default function ResourceDetail({
     }
   }, [contentVersion, reconcileKey, resource, supportPlanOrigin])
 
+  const reconcileWithoutOrigin = useCallback(
+    async (version: string) => {
+      if (!resource) return
+      setReconciliation({ contextKey: reconcileKey, state: 'pending' })
+      const result = await reconcileTodayResourceCompletion(
+        resource.id,
+        version,
+      )
+      setReconciliation({
+        contextKey: reconcileKey,
+        state:
+          result === 'recorded'
+            ? 'recorded'
+            : result === 'not-recorded'
+              ? 'missing'
+              : result === 'stale'
+                ? 'stale'
+                : result === 'unavailable'
+                  ? 'unavailable'
+                  : 'idle',
+      })
+    },
+    [reconcileKey, resource],
+  )
+
   const persistProgress = useCallback(
     async (
       nextActions: string[],
@@ -528,12 +554,10 @@ export default function ResourceDetail({
         if (saved.status === 'COMPLETED') setReward(true)
         if (saved.status === 'COMPLETED' || practice?.practiceDurationSeconds) {
           if (supportPlanOrigin) await reconcilePlanProgress()
-          else
-            await reconcileTodayResourceCompletion(
-              resource.id,
-              saved.contentVersion,
-              saved.localDate,
-            )
+          else {
+            setNoOriginVersion(saved.contentVersion)
+            await reconcileWithoutOrigin(saved.contentVersion)
+          }
         }
         return true
       } catch {
@@ -548,6 +572,7 @@ export default function ResourceDetail({
       date,
       progressReady,
       reconcilePlanProgress,
+      reconcileWithoutOrigin,
       resource,
       saving,
       supportPlanOrigin,
@@ -600,13 +625,17 @@ export default function ResourceDetail({
       ? 'Quay lại gợi ý hỗ trợ'
       : 'Quay lại Tài nguyên'
 
-  const planNotice = supportPlanReturnHref ? (
-    <ResourcePlanNotice
-      state={reconcileState}
-      returnHref={supportPlanReturnHref}
-      onRetry={() => void reconcilePlanProgress()}
-    />
-  ) : null
+  const planNotice =
+    supportPlanReturnHref || reconcileState !== 'idle' ? (
+      <ResourcePlanNotice
+        state={reconcileState}
+        returnHref={supportPlanReturnHref ?? '/support-plan'}
+        onRetry={() => {
+          if (supportPlanOrigin) void reconcilePlanProgress()
+          else if (noOriginVersion) void reconcileWithoutOrigin(noOriginVersion)
+        }}
+      />
+    ) : null
 
   if (loadState === 'loading') {
     return (

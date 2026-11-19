@@ -73,6 +73,7 @@ const resources = [
 
 describe('ResourcesExperience', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date('2026-09-29T09:00:00+07:00'))
     sessionStorage.clear()
@@ -170,8 +171,29 @@ describe('ResourcesExperience', () => {
     )
     expect(
       api.reconcileTodayResourceCompletion,
-    ).toHaveBeenCalledExactlyOnceWith(resources[0].id, '1', '2026-09-29')
+    ).toHaveBeenCalledExactlyOnceWith(resources[0].id, '1')
     expect(await screen.findByText(/một bước nhỏ đã hoàn thành/i)).toBeVisible()
+  })
+
+  it('offers a Care retry after saving daily progress without saving it twice', async () => {
+    api.reconcileTodayResourceCompletion
+      .mockResolvedValueOnce('unavailable')
+      .mockResolvedValueOnce('recorded')
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(<ResourcesExperience />)
+    const challenge = await screen.findByRole('heading', {
+      name: /một chút bình yên/i,
+    })
+    const section = challenge.closest('section')
+    expect(section).not.toBeNull()
+    await user.click(within(section as HTMLElement).getAllByRole('checkbox')[0])
+    expect(
+      await screen.findByText(/Mục kế hoạch chưa cập nhật. Hãy thử lại/),
+    ).toBeVisible()
+    const saves = api.saveResourceProgress.mock.calls.length
+    await user.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(api.reconcileTodayResourceCompletion).toHaveBeenCalledTimes(2)
+    expect(api.saveResourceProgress).toHaveBeenCalledTimes(saves)
   })
 
   it('explains active filters and offers a direct way back to all activities', async () => {

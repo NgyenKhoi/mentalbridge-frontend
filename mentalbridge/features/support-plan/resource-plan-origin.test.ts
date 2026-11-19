@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@/lib/api/api-error'
 import {
   emotionOccurrenceFixture,
   nativeSupportPlanFixture,
@@ -78,7 +79,7 @@ describe('Resource plan completion context', () => {
       }
       api.reconcile.mockResolvedValue(recorded)
       await expect(
-        reconcileTodayResourceCompletion(resourceId, '4', origin.localDate),
+        reconcileTodayResourceCompletion(resourceId, '4'),
       ).resolves.toBe('recorded')
       expect(api.reconcile).toHaveBeenCalledExactlyOnceWith(
         occurrence.occurrenceId,
@@ -89,7 +90,7 @@ describe('Resource plan completion context', () => {
     }
   })
 
-  it('does not reconcile when the resource, version, date or state does not match', async () => {
+  it('does not reconcile when the resource, version or state does not match', async () => {
     await expect(
       resolveTodayResourceOccurrence(resourceId, '5', now),
     ).resolves.toBeNull()
@@ -109,16 +110,32 @@ describe('Resource plan completion context', () => {
     vi.setSystemTime(now)
     try {
       await expect(
-        reconcileTodayResourceCompletion(
-          'another-resource',
-          '4',
-          origin.localDate,
-        ),
-      ).resolves.toBe('not-applicable')
-      await expect(
-        reconcileTodayResourceCompletion(resourceId, '4', '2026-10-12'),
+        reconcileTodayResourceCompletion('another-resource', '4'),
       ).resolves.toBe('not-applicable')
       expect(api.reconcile).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([
+    [409, 'not-recorded'],
+    [412, 'stale'],
+    [503, 'unavailable'],
+  ])('keeps the Content save separate from Care %i', async (status, result) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+    try {
+      api.reconcile.mockRejectedValue(
+        new ApiError({
+          message: 'Care did not reconcile',
+          code: 'CARE_ERROR',
+          status,
+        }),
+      )
+      await expect(
+        reconcileTodayResourceCompletion(resourceId, '4'),
+      ).resolves.toBe(result)
     } finally {
       vi.useRealTimers()
     }
