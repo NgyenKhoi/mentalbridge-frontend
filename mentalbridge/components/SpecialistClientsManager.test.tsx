@@ -148,10 +148,11 @@ describe('SpecialistClientsManager', () => {
     expect(search).toHaveFocus()
     screen.getByRole('tab', { name: 'Chuẩn bị phiên' }).focus()
     await user.keyboard('{End}')
-    expect(screen.getByRole('tab', { name: 'Phạm vi truy cập' })).toHaveFocus()
-    expect(screen.getByRole('tabpanel')).toHaveTextContent(
-      'Thời gian được xem:',
-    )
+    expect(screen.getByRole('tab', { name: 'Tổng kết phiên' })).toHaveFocus()
+    expect(
+      screen.queryByRole('tab', { name: 'Phạm vi truy cập' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
     expect(screen.getByRole('tabpanel')).not.toHaveTextContent(appointmentId)
     expect(screen.getByRole('tabpanel')).not.toHaveTextContent(
       'ConsultationBrief',

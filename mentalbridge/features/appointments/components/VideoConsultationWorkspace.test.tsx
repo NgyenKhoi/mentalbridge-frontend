@@ -76,3 +76,27 @@ describe('dedicated appointment consultation workspace', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('call window workspace', () => {
+  it('adds the notes side panel only for the Specialist', () => {
+    const { unmount } = render(
+      <VideoConsultationWorkspace
+        appointmentId={id}
+        role="SPECIALIST"
+        callWindow
+      />,
+    )
+    expect(
+      screen.getByRole('complementary', { name: 'Ghi chú phiên' }),
+    ).toBeInTheDocument()
+    unmount()
+    render(
+      <VideoConsultationWorkspace appointmentId={id} role="USER" callWindow />,
+    )
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
+  })
+  it('does not show notes inside the app shell', () => {
+    render(<VideoConsultationWorkspace appointmentId={id} role="SPECIALIST" />)
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
+  })
+})
