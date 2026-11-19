@@ -124,6 +124,31 @@ describe('Resource plan completion context', () => {
     }
   })
 
+  it('uses the pinned schedule date when it differs from the plan cycle date', async () => {
+    const plan = planFixture()
+    plan.cycle = {
+      policyVersion: 'support-plan-cycle-v1',
+      lengthDays: 14,
+      timezone: 'Asia/Ho_Chi_Minh',
+      cycleNumber: 1,
+      startedOn: '2026-10-13',
+      reviewDueOn: '2026-10-26',
+      currentDay: 1,
+      pausedDays: 0,
+      state: 'IN_PROGRESS',
+    }
+    plan.focuses[0].actions[0].schedules[0].timezone = 'America/Los_Angeles'
+    api.current.mockResolvedValue(plan)
+    await expect(
+      resolveTodayResourceOccurrence(
+        resourceId,
+        '4',
+        new Date('2026-10-14T02:00:00Z'),
+      ),
+    ).resolves.toEqual(occurrence)
+    expect(api.occurrences).toHaveBeenCalledWith('2026-10-13', '2026-10-13')
+  })
+
   it('resolves only the owned matching RESOURCE, pinned version and occurrence', async () => {
     await expect(
       resolveResourcePlanOrigin(origin, resourceId, '4', now),

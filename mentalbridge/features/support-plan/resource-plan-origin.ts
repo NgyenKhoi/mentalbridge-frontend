@@ -6,7 +6,7 @@ import {
 } from './api/browser-support-plan-actions'
 import { toApiError } from '@/lib/api/api-error'
 import type { EmotionPlanOrigin } from './emotion-plan-origin'
-import { localDateIn, planTimezone } from './workspace/workspace-model'
+import { localDateIn } from './workspace/workspace-model'
 
 /** Find an open, exact-version resource scheduled for today in the owned plan. */
 export async function resolveTodayResourceOccurrence(
@@ -23,8 +23,27 @@ export async function resolveTodayResourceOccurrence(
   }
   if (plan.representationMode !== 'NATIVE_V3' || plan.status !== 'ACTIVE')
     return null
-  const today = localDateIn(planTimezone(plan), now)
-  const window = await getSupportPlanActionOccurrences(today, today)
+  const actions = plan.focuses
+    .flatMap((focus) => focus.actions)
+    .filter(
+      (item) =>
+        item.actionType === 'RESOURCE' &&
+        item.status === 'ACTIVE' &&
+        item.representationMode === 'NATIVE_V3' &&
+        item.source?.ownerDomain === 'CONTENT' &&
+        item.source.sourceId === resourceId &&
+        item.source.sourceRevision === resourceVersion,
+    )
+  const localDates = actions
+    .flatMap((action) =>
+      action.schedules.map((schedule) => localDateIn(schedule.timezone, now)),
+    )
+    .sort()
+  if (!localDates.length) return null
+  const window = await getSupportPlanActionOccurrences(
+    localDates[0],
+    localDates[localDates.length - 1],
+  )
   if (
     window.supportPlanId !== plan.supportPlanId ||
     window.representationMode !== 'NATIVE_V3' ||
@@ -36,27 +55,17 @@ export async function resolveTodayResourceOccurrence(
       if (
         occurrence.actionType !== 'RESOURCE' ||
         occurrence.representationMode !== 'NATIVE_V3' ||
-        occurrence.state !== 'SCHEDULED' ||
-        occurrence.localDate !== today
+        occurrence.state !== 'SCHEDULED'
       )
         return false
-      const action = plan.focuses
-        .flatMap((focus) => focus.actions)
-        .find(
-          (item) =>
-            item.actionId === occurrence.actionId &&
-            item.actionType === 'RESOURCE' &&
-            item.status === 'ACTIVE' &&
-            item.representationMode === 'NATIVE_V3' &&
-            item.source?.ownerDomain === 'CONTENT' &&
-            item.source.sourceId === resourceId &&
-            item.source.sourceRevision === resourceVersion,
-        )
+      const action = actions.find(
+        (item) => item.actionId === occurrence.actionId,
+      )
       return action?.schedules.some(
         (schedule) =>
           schedule.scheduleId === occurrence.scheduleId &&
           schedule.version === occurrence.scheduleVersion &&
-          localDateIn(schedule.timezone, now) === today,
+          localDateIn(schedule.timezone, now) === occurrence.localDate,
       )
     }) ?? null
   )
