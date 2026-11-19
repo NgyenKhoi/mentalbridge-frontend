@@ -843,6 +843,14 @@
   }
 }
 
+/* Short landscape phones: keep the notes toggle within one scroll of the video. */
+@media (max-height: 520px) {
+  .workspace[data-call-window] .call,
+  .workspace[data-call-window] .standby {
+    min-height: 300px;
+    height: calc(100dvh - 140px);
+  }
+}
 @media (max-width: 639px) {
   .workspace[data-role='SPECIALIST'] {
     padding: 16px;

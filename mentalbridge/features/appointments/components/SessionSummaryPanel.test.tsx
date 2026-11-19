@@ -9,6 +9,10 @@ const api = vi.hoisted(() => ({
   updateConsent: vi.fn(),
   updateStep: vi.fn(),
 }))
+const feedback = vi.hoisted(() => ({ confirm: vi.fn() }))
+vi.mock('@/components/ui/FeedbackProvider', () => ({
+  useFeedback: () => feedback,
+}))
 const resources = vi.hoisted(() => ({
   catalogue: vi.fn(),
   detail: vi.fn(),
@@ -315,6 +319,8 @@ describe('SessionSummaryPanel in-call notes draft', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.localStorage.clear()
+    feedback.confirm.mockReset()
+    feedback.confirm.mockResolvedValue(true)
     resources.catalogue.mockResolvedValue({ items: [], hasMore: false })
   })
   async function openForm(items: unknown[], button: string) {
@@ -381,8 +387,14 @@ describe('SessionSummaryPanel in-call notes draft', () => {
     expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
       'Giấc ngủ\nCông việc',
     )
+    feedback.confirm.mockResolvedValueOnce(false)
     await user.click(screen.getByRole('button', { name: 'Bỏ nháp' }))
-    expect(window.localStorage.getItem(key)).toBeNull()
+    expect(window.localStorage.getItem(key)).not.toBeNull()
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
+      'Giấc ngủ\nCông việc',
+    )
+    await user.click(screen.getByRole('button', { name: 'Bỏ nháp' }))
+    await waitFor(() => expect(window.localStorage.getItem(key)).toBeNull())
     expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
       'Giấc ngủ',
     )

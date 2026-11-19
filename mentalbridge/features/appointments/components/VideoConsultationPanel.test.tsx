@@ -451,6 +451,11 @@ describe('separate call window', () => {
     })
     expect(link).toHaveAttribute('href', `/call/${id}?join=1`)
     expect(link).toHaveAttribute('target', '_blank')
+    await user.click(link)
+    expect(screen.queryByRole('link', { name: /Mở cuộc gọi/ })).toBeNull()
+    expect(
+      screen.getByText(/Cuộc gọi đang mở ở cửa sổ riêng/),
+    ).toBeInTheDocument()
   })
   it('joins by itself in the call window once the session allows it', async () => {
     view('USER', { callWindow: true, autoJoin: true })
@@ -472,9 +477,17 @@ describe('separate call window', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Rời cuộc gọi' }),
     )
-    expect(screen.getByText('Bạn đã rời cuộc gọi')).toBeInTheDocument()
+    const heading = screen.getByRole('heading', {
+      name: 'Bạn đã rời cuộc gọi',
+    })
+    expect(heading).toHaveFocus()
     await user.click(screen.getByRole('button', { name: 'Đóng cửa sổ' }))
     expect(close).toHaveBeenCalledOnce()
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Trình duyệt không cho tự đóng cửa sổ/),
+      ).toBeInTheDocument(),
+    )
   })
   it('keeps the specialist completion flow in the call window', async () => {
     const user = userEvent.setup()

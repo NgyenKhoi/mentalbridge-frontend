@@ -21,17 +21,13 @@ export default async function SpecialistCallWindowPage({
   if (!validUuid(appointmentId)) notFound()
   const autoJoin = (await searchParams)?.join === '1'
   return (
-    <div
-      key={`${account.accountId}:${appointmentId}`}
-      className="ref-still"
-      data-page-motion="off"
-    >
+    <main key={`${account.accountId}:${appointmentId}`}>
       <VideoConsultationWorkspace
         appointmentId={appointmentId}
         role="SPECIALIST"
         callWindow
         autoJoin={autoJoin}
       />
-    </div>
+    </main>
   )
 }

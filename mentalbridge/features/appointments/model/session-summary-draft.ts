@@ -57,6 +57,17 @@ export function writeSummaryDraft(
   }
 }
 
+export const summaryDraftKey = key
+
+/** True while any draft entry exists, expired or not. */
+export function hasSummaryDraft(appointmentId: string) {
+  try {
+    return window.localStorage.getItem(key(appointmentId)) !== null
+  } catch {
+    return false
+  }
+}
+
 export function clearSummaryDraft(appointmentId: string) {
   try {
     window.localStorage.removeItem(key(appointmentId))

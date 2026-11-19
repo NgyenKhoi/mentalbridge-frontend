@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FileCheck2, FilePenLine, Plus, Trash2 } from 'lucide-react'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import type {
@@ -195,6 +196,7 @@ function SpecialistForm({
   onCancel: () => void
   onDiscardDraft: () => void
 }) {
+  const { confirm } = useFeedback()
   const [initial] = useState(() => formValues(current, draft))
   const [fromDraft, setFromDraft] = useState(Boolean(draft))
   const [topics, setTopics] = useState(initial.topics)
@@ -212,7 +214,16 @@ function SpecialistForm({
     firstInput.current?.focus({ preventScroll: true })
   }, [])
 
-  const discardDraft = () => {
+  const discardDraft = async () => {
+    const accepted = await confirm({
+      title: 'Bỏ ghi chú trong phiên?',
+      description:
+        'Ghi chú lưu tạm trên máy này sẽ bị xóa và không thể khôi phục.',
+      confirmLabel: 'Bỏ nháp',
+      cancelLabel: 'Giữ lại',
+      tone: 'danger',
+    })
+    if (!accepted) return
     clearSummaryDraft(appointmentId)
     const base = formValues(current, null)
     setTopics(base.topics)
@@ -349,7 +360,11 @@ function SpecialistForm({
       {fromDraft && (
         <p className={styles.draftNotice} role="status">
           <span>Đã điền từ ghi chú trong phiên</span>
-          <button type="button" onClick={discardDraft} disabled={saving}>
+          <button
+            type="button"
+            onClick={() => void discardDraft()}
+            disabled={saving}
+          >
             Bỏ nháp
           </button>
         </p>

@@ -87,6 +87,8 @@ export function VideoSessionPanel({
   const preparationId = useId()
   const callTab = useRef<Window | null>(null)
   const autoJoined = useRef(false)
+  const endHeading = useRef<HTMLHeadingElement>(null)
+  const endFocused = useRef(false)
   const alive = useRef(false)
   const working = useRef(false)
   const latest = useRef<{ session: VideoSession; received: number } | null>(
@@ -385,6 +387,13 @@ export function VideoSessionPanel({
     Boolean(session?.completion) ||
     (session !== null && ['ENDED', 'COMPLETED'].includes(session.phase))
 
+  useEffect(() => {
+    // Move focus once so a screen-reader user hears the end state.
+    if (!callWindow || !ended || endFocused.current) return
+    endFocused.current = true
+    endHeading.current?.focus()
+  }, [callWindow, ended])
+
   return (
     <section
       className={styles.panel}
@@ -466,9 +475,9 @@ export function VideoSessionPanel({
       </header>
       <div className={styles.body}>
         {callWindow && ended && (
-          <div className={styles.endState} role="status">
+          <div className={styles.endState}>
             <div>
-              <h3>
+              <h3 ref={endHeading} tabIndex={-1}>
                 {callEnded && session?.joinAllowed && !session.completion
                   ? 'Bạn đã rời cuộc gọi'
                   : 'Buổi tư vấn đã kết thúc'}
@@ -480,12 +489,11 @@ export function VideoSessionPanel({
                     ? 'Ghi chú của bạn vẫn còn trên máy này. Khi lịch hẹn hoàn tất, mở Tổng kết phiên trong mục Khách hàng để xuất bản; ghi chú sẽ được điền sẵn.'
                     : 'Bạn có thể đóng cửa sổ này. Nội dung sau buổi tư vấn nằm trong lịch hẹn của bạn.'}
               </p>
-              {closeBlocked && (
-                <p>
-                  Trình duyệt không cho tự đóng cửa sổ. Hãy đóng thẻ này bằng
-                  tay.
-                </p>
-              )}
+              <p role="status">
+                {closeBlocked
+                  ? 'Trình duyệt không cho tự đóng cửa sổ. Hãy đóng thẻ này bằng tay.'
+                  : ''}
+              </p>
             </div>
             <button
               data-appointment-ui
@@ -513,6 +521,11 @@ export function VideoSessionPanel({
               href={callPath(appointmentId, role)}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => {
+                // The link opens the call, so Join must not open a second one.
+                setPopupBlocked(false)
+                setCallOpen(true)
+              }}
             >
               <ExternalLink size={14} aria-hidden="true" /> Mở cuộc gọi trong
               thẻ mới
