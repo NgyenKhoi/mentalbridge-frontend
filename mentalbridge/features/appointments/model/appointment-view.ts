@@ -76,21 +76,33 @@ export function appointmentTimingCopy(appointment: Appointment) {
   return 'Mở tin nhắn để xem trạng thái phiên'
 }
 
-/** Decision deadlines first; no client-side inference of decision eligibility. */
+const SPECIALIST_RANK: Partial<Record<Appointment['status'], number>> = {
+  IN_PROGRESS: 0,
+  CONFIRMED: 1,
+  REQUESTED: 2,
+  SESSION_ENDED: 3,
+}
+
+/**
+ * Specialist "Tất cả" order (owner, MB-891): in progress, upcoming confirmed
+ * (nearest first), requests by decision deadline, ended sessions awaiting a
+ * result, then history (newest first). No client-side decision eligibility.
+ */
 export function orderSpecialistAppointments(
   appointments: readonly Appointment[],
 ) {
-  return orderAppointmentsForDisplay(appointments).sort((left, right) => {
-    if (left.status === 'REQUESTED' && right.status === 'REQUESTED') {
-      return (
-        Date.parse(left.decisionDeadlineAt) -
-        Date.parse(right.decisionDeadlineAt)
-      )
-    }
-    if (left.status === 'REQUESTED') return -1
-    if (right.status === 'REQUESTED') return 1
-    return 0
-  })
+  const rank = (item: Appointment) => SPECIALIST_RANK[item.status] ?? 4
+  const time = (item: Appointment) =>
+    Date.parse(
+      item.status === 'REQUESTED'
+        ? item.decisionDeadlineAt
+        : item.scheduledStartAt,
+    )
+  return [...appointments].sort(
+    (left, right) =>
+      rank(left) - rank(right) ||
+      (rank(left) < 3 ? time(left) - time(right) : time(right) - time(left)),
+  )
 }
 
 type Viewer = 'USER' | 'SPECIALIST'

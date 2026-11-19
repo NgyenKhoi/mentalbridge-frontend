@@ -18,6 +18,7 @@ import {
   markNotificationRead,
   type Notification,
 } from '@/features/notifications/api/browser-notifications'
+import { subscribeNotificationCreated } from '@/features/notifications/api/realtime-notifications'
 import styles from './NotificationBell.module.css'
 
 export const NOTIFICATIONS_UPDATED_EVENT = 'mb:notifications-updated'
@@ -53,47 +54,72 @@ export default function NotificationBell({
   const [marking, setMarking] = useState(false)
   const previous = useRef<number | null>(null)
   const inflight = useRef(false)
+  const queued = useRef(false)
+  const toasted = useRef<string | null>(null)
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
   const popover = useRef<HTMLDivElement>(null)
   const popoverId = useId()
 
-  const load = useCallback(async () => {
-    if (inflight.current) return
-    inflight.current = true
-    try {
-      const page = await getNotifications()
-      const before = previous.current
-      previous.current = page.unreadCount
-      setItems(page.items)
-      setUnread(page.unreadCount)
-      setFailed(false)
-      if (before !== null && page.unreadCount > before) {
-        const newest = page.items.find((item) => !item.read) ?? page.items[0]
-        setPops((count) => count + 1)
-        if (newest) {
-          showNotificationToast({
-            title: newest.title,
-            description: newest.body,
-            tone: 'info',
-            ...(newest.action
-              ? { action: { label: 'Xem', href: newest.action.href } }
-              : {}),
-          })
-        }
-        window.dispatchEvent(
-          new CustomEvent(NOTIFICATIONS_UPDATED_EVENT, {
-            detail: { unreadCount: page.unreadCount, newest },
-          }),
-        )
+  // `urgent` (socket pointer) must not be lost to a read already in flight.
+  const load = useCallback(
+    async (urgent = false) => {
+      if (inflight.current) {
+        queued.current ||= urgent
+        return
       }
-    } catch {
-      setFailed(true)
-    } finally {
+      inflight.current = true
+      do {
+        queued.current = false
+        try {
+          const page = await getNotifications()
+          const before = previous.current
+          previous.current = page.unreadCount
+          setItems(page.items)
+          setUnread(page.unreadCount)
+          setFailed(false)
+          if (before !== null && page.unreadCount > before) {
+            const newest =
+              page.items.find((item) => !item.read) ?? page.items[0]
+            setPops((count) => count + 1)
+            if (newest && toasted.current !== newest.id) {
+              toasted.current = newest.id
+              showNotificationToast({
+                title: newest.title,
+                description: newest.body,
+                tone: 'info',
+                ...(newest.action
+                  ? { action: { label: 'Xem', href: newest.action.href } }
+                  : {}),
+              })
+            }
+            window.dispatchEvent(
+              new CustomEvent(NOTIFICATIONS_UPDATED_EVENT, {
+                detail: { unreadCount: page.unreadCount, newest },
+              }),
+            )
+          }
+        } catch {
+          setFailed(true)
+        }
+      } while (queued.current)
       inflight.current = false
       setLoaded(true)
-    }
-  }, [showNotificationToast])
+    },
+    [showNotificationToast],
+  )
+
+  // Push: refetch at once when the server says a notification exists; polling
+  // below stays as the fallback. The unread-count rise toasts once however the
+  // read was triggered, so socket and poll cannot double-toast.
+  const loadRef = useRef(load)
+  useEffect(() => {
+    loadRef.current = load
+  })
+  useEffect(
+    () => subscribeNotificationCreated(() => void loadRef.current(true)),
+    [],
+  )
 
   // Poll only while the tab is visible; refresh on focus/visibility.
   useEffect(() => {

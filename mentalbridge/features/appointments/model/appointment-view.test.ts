@@ -6,6 +6,7 @@ import {
   matchesAppointmentFilter,
   nextAppointment,
   orderAppointmentsForDisplay,
+  orderSpecialistAppointments,
 } from './appointment-view'
 
 const appointment = (overrides: Partial<Appointment> = {}): Appointment => ({
@@ -112,5 +113,56 @@ describe('appointment view', () => {
       newerHistory.id,
       olderHistory.id,
     ])
+  })
+
+  it('orders the specialist list: in progress, upcoming, requests by deadline, ended, history', () => {
+    const at = (id: string, over: Partial<Appointment>) =>
+      appointment({ id, ...over })
+    const ended = at('e', {
+      status: 'SESSION_ENDED',
+      scheduledStartAt: '2026-10-01T07:00:00Z',
+    })
+    const historyOld = at('h1', {
+      status: 'COMPLETED',
+      scheduledStartAt: '2026-09-01T07:00:00Z',
+    })
+    const historyNew = at('h2', {
+      status: 'REJECTED',
+      scheduledStartAt: '2026-09-20T07:00:00Z',
+    })
+    const lateRequest = at('r2', {
+      status: 'REQUESTED',
+      decisionDeadlineAt: '2026-10-05T07:00:00Z',
+    })
+    const soonRequest = at('r1', {
+      status: 'REQUESTED',
+      scheduledStartAt: '2026-12-01T07:00:00Z',
+      decisionDeadlineAt: '2026-10-04T07:00:00Z',
+    })
+    const later = at('c2', {
+      status: 'CONFIRMED',
+      scheduledStartAt: '2026-10-09T07:00:00Z',
+    })
+    const sooner = at('c1', {
+      status: 'CONFIRMED',
+      scheduledStartAt: '2026-10-06T07:00:00Z',
+    })
+    const live = at('p', {
+      status: 'IN_PROGRESS',
+      scheduledStartAt: '2026-10-07T07:00:00Z',
+    })
+
+    expect(
+      orderSpecialistAppointments([
+        historyOld,
+        ended,
+        lateRequest,
+        later,
+        historyNew,
+        soonRequest,
+        sooner,
+        live,
+      ]).map((item) => item.id),
+    ).toEqual(['p', 'c1', 'c2', 'r1', 'r2', 'e', 'h2', 'h1'])
   })
 })
