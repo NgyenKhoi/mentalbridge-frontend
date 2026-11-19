@@ -191,8 +191,14 @@ function SessionDetailDrawer({
     ? CANCELLATION_LABELS[appointment.cancellationReason]
     : null
   const briefLinkable =
-    appointment &&
+    !!appointment &&
     ['CONFIRMED', 'IN_PROGRESS', 'SESSION_ENDED'].includes(appointment.status)
+  const hasLinks =
+    !!appointment &&
+    (briefLinkable ||
+      appointment.status === 'COMPLETED' ||
+      chatLinkable(appointment) ||
+      videoLinkable(appointment))
   return (
     <Dialog
       open={open}
@@ -274,32 +280,34 @@ function SessionDetailDrawer({
               <dd>{CREDIT_LABELS[appointment.creditState]}</dd>
             </div>
           </dl>
-          <nav className={styles.drawerLinks} aria-label="Đi tới">
-            {briefLinkable && (
-              <Link
-                href={`/specialist/clients?appointmentId=${encodeURIComponent(appointment.id)}`}
-              >
-                Mở hồ sơ chuẩn bị phiên
-              </Link>
-            )}
-            {appointment.status === 'COMPLETED' && (
-              <Link
-                href={`/specialist/clients?appointmentId=${encodeURIComponent(appointment.id)}`}
-              >
-                Xem tổng kết phiên
-              </Link>
-            )}
-            {chatLinkable(appointment) && (
-              <Link href={chatHref(appointment)}>Mở cuộc trò chuyện</Link>
-            )}
-            {videoLinkable(appointment) && (
-              <Link href={videoHref(appointment)}>
-                {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status)
-                  ? 'Mở phòng tư vấn video'
-                  : 'Xem phiên tư vấn video'}
-              </Link>
-            )}
-          </nav>
+          {hasLinks && (
+            <nav className={styles.drawerLinks} aria-label="Đi tới">
+              {briefLinkable && (
+                <Link
+                  href={`/specialist/clients?appointmentId=${encodeURIComponent(appointment.id)}`}
+                >
+                  Mở hồ sơ chuẩn bị phiên
+                </Link>
+              )}
+              {appointment.status === 'COMPLETED' && (
+                <Link
+                  href={`/specialist/clients?appointmentId=${encodeURIComponent(appointment.id)}`}
+                >
+                  Xem tổng kết phiên
+                </Link>
+              )}
+              {chatLinkable(appointment) && (
+                <Link href={chatHref(appointment)}>Mở cuộc trò chuyện</Link>
+              )}
+              {videoLinkable(appointment) && (
+                <Link href={videoHref(appointment)}>
+                  {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status)
+                    ? 'Mở phòng tư vấn video'
+                    : 'Xem phiên tư vấn video'}
+                </Link>
+              )}
+            </nav>
+          )}
         </div>
       )}
     </Dialog>
@@ -319,7 +327,9 @@ export default function SpecialistAppointmentDecisionPanel({
   const [error, setError] = useState('')
   const [pendingCommand, setPendingCommand] = useState<string | null>(null)
   const [clientNames, setClientNames] = useState<Record<string, string>>({})
-  const [detailId, setDetailId] = useState<string | null>(null)
+  // Snapshot, not an id: a refresh that drops the appointment must not empty
+  // the open drawer.
+  const [detailSnapshot, setDetailSnapshot] = useState<Appointment | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const commandKeys = useRef(new Map<string, string>())
   const commandBusy = useRef(false)
@@ -465,11 +475,14 @@ export default function SpecialistAppointmentDecisionPanel({
       ['COMPLETED', 'REJECTED', 'EXPIRED', 'CANCELLED'],
     ],
   ]
-  const detail = appointments.find((item) => item.id === detailId)
+  const detail =
+    appointments.find((item) => item.id === detailSnapshot?.id) ??
+    detailSnapshot ??
+    undefined
   const clientName = (appointment: Appointment) =>
     clientNames[appointment.id] ?? FALLBACK_CLIENT
   const openDetail = (appointment: Appointment) => {
-    setDetailId(appointment.id)
+    setDetailSnapshot(appointment)
     setDetailOpen(true)
   }
   const weekAnchor = generatedAt ? new Date(generatedAt) : new Date()
@@ -646,7 +659,7 @@ export default function SpecialistAppointmentDecisionPanel({
               type="button"
               className={styles.detailLink}
               onClick={() => openDetail(appointment)}
-              aria-label={`Xem chi tiết phiên, ${displayDate(appointment)} ${displayTimeRange(appointment)}`}
+              aria-label={`Xem chi tiết phiên, ${clientName(appointment)}, ${displayDate(appointment)} ${displayTimeRange(appointment)}`}
             >
               Xem chi tiết phiên
               <ChevronRight size={15} strokeWidth={1.75} aria-hidden="true" />
@@ -707,7 +720,7 @@ export default function SpecialistAppointmentDecisionPanel({
                   type="button"
                   className={styles.compactAction}
                   onClick={() => openDetail(appointment)}
-                  aria-label={`Xem chi tiết phiên, ${displayDate(appointment)} ${displayTimeRange(appointment)}`}
+                  aria-label={`Xem chi tiết phiên, ${clientName(appointment)}, ${displayDate(appointment)} ${displayTimeRange(appointment)}`}
                 >
                   Xem chi tiết phiên
                 </button>

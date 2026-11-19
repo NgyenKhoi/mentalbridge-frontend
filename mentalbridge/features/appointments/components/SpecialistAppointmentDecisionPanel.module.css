@@ -1179,6 +1179,7 @@ dialog.drawer {
 }
 
 dialog.drawer > div {
+  overscroll-behavior: contain;
   height: 100%;
   max-height: 100dvh;
   border-radius: 0;
@@ -1217,7 +1218,7 @@ dialog.drawer > div {
   place-items: center;
   width: 44px;
   height: 44px;
-  border: 1px solid #e3e6ed;
+  border: 1px solid var(--line, rgba(27, 42, 34, 0.12));
   border-radius: 12px;
   background: #fff;
   color: #31424e;
@@ -1272,7 +1273,7 @@ dialog.drawer > div {
 .drawer :is(button, a):focus-visible,
 .detailLink:focus-visible,
 button.compactAction:focus-visible {
-  outline: 3px solid #76b894;
+  outline: 3px solid var(--color-primary, #1f5c3f);
   outline-offset: 2px;
 }
 

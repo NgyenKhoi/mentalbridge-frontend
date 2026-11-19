@@ -385,6 +385,59 @@ describe('SpecialistAppointmentDecisionPanel', () => {
       ).not.toBeInTheDocument()
     })
 
+    it('keeps the open drawer filled when a refresh drops its appointment', async () => {
+      continuity.specialistContinuity.mockResolvedValue({
+        items: [{ appointmentId: confirmed.id, userDisplayName: 'Lan Anh' }],
+      })
+      api.assigned
+        .mockResolvedValueOnce({
+          items: [confirmed],
+          count: 1,
+          generatedAt: '2099-09-25T02:00:01Z',
+        })
+        .mockResolvedValue({
+          items: [],
+          count: 0,
+          generatedAt: '2099-09-25T02:00:31Z',
+        })
+      const user = userEvent.setup()
+      render(<SpecialistAppointmentDecisionPanel />)
+      await user.click(
+        await screen.findByRole('button', {
+          name: /Xem chi tiết phiên, Lan Anh/,
+        }),
+      )
+      const drawer = await screen.findByRole('dialog', {
+        name: 'Chi tiết phiên',
+      })
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent(NOTIFICATIONS_UPDATED_EVENT))
+      })
+      await screen.findByText('Chưa có yêu cầu lịch hẹn')
+      expect(drawer).toHaveTextContent('Lan Anh')
+      expect(drawer).toHaveTextContent('Bạn đã xác nhận lịch hẹn')
+    })
+
+    it('hides the drawer link list when the session has nowhere to go', async () => {
+      api.assigned.mockResolvedValue({
+        items: [{ ...requested, status: 'REJECTED' as const }],
+        count: 1,
+        generatedAt: '2099-09-25T02:00:01Z',
+      })
+      const user = userEvent.setup()
+      render(<SpecialistAppointmentDecisionPanel />)
+      await user.click(
+        await screen.findByRole('button', { name: /Xem chi tiết phiên/ }),
+      )
+      const drawer = await screen.findByRole('dialog', {
+        name: 'Chi tiết phiên',
+      })
+      expect(
+        within(drawer).queryByRole('navigation', { name: 'Đi tới' }),
+      ).not.toBeInTheDocument()
+    })
+
     it('offers the summary link for a completed video session and shows who cancelled', async () => {
       api.assigned.mockResolvedValue({
         items: [

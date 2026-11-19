@@ -440,6 +440,39 @@ describe('SpecialistDiscovery', () => {
       ).toBeEnabled()
     })
 
+    it('renders one notice per view and clears a 409 card after a refetch', async () => {
+      creditsClient.get.mockResolvedValue({
+        balance: { available: 2 },
+        reservationCapacity: { active: 1, maximum: 2, remaining: 1 },
+      })
+      appointmentClient.request.mockRejectedValue(
+        new ApiError({
+          message: 'limit',
+          code: 'APPOINTMENT_RESERVATION_LIMIT_REACHED',
+          status: 409,
+        }),
+      )
+      const { user, dialog } = await openSlots()
+      await user.click(await within(dialog).findByRole('radio'))
+      await user.click(within(dialog).getByRole('button', { name: 'Tiếp tục' }))
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Xác nhận đặt lịch' }),
+      )
+      expect(await within(dialog).findAllByRole('status')).toHaveLength(1)
+
+      creditsClient.get.mockResolvedValue({
+        balance: { available: 2 },
+        reservationCapacity: { active: 1, maximum: 2, remaining: 1 },
+      })
+      fireEvent(window, new Event('focus'))
+      await waitFor(() =>
+        expect(within(dialog).queryByRole('status')).not.toBeInTheDocument(),
+      )
+      expect(
+        within(dialog).getByRole('button', { name: 'Xác nhận đặt lịch' }),
+      ).toBeEnabled()
+    })
+
     it('maps a submit-time reservation limit 409 to the same card', async () => {
       creditsClient.get.mockResolvedValue({
         balance: { available: 2 },

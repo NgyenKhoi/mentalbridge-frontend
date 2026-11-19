@@ -205,7 +205,16 @@ export default function SpecialistDetailDialog({
   >('ALL')
   const [submitting, setSubmitting] = useState(false)
   const [bookingMessage, setBookingMessage] = useState('')
-  const [limitHit, setLimitHit] = useState(false)
+  // A 409 only holds for the balance it was seen with; a refetch (new account
+  // objects) clears it so the card never outlives the data it describes.
+  const [limitSeen, setLimitSeen] = useState<{
+    capacity: unknown
+    credits: number | null
+  } | null>(null)
+  const limitHit =
+    limitSeen !== null &&
+    limitSeen.capacity === reservationCapacity &&
+    limitSeen.credits === availableCredits
   const [todayIso] = useState(() => new Date().toISOString())
 
   const slots = useMemo(
@@ -312,7 +321,10 @@ export default function SpecialistDetailDialog({
         caught instanceof ApiError &&
         caught.code === 'APPOINTMENT_RESERVATION_LIMIT_REACHED'
       )
-        setLimitHit(true)
+        setLimitSeen({
+          capacity: reservationCapacity,
+          credits: availableCredits,
+        })
       else setBookingMessage(bookingError(caught))
     } finally {
       setSubmitting(false)

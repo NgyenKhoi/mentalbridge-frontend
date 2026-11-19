@@ -260,17 +260,17 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 14px;
-  border: 1px solid #ecd9a8;
+  border: 1px solid var(--amber, #e1a651);
   border-radius: 12px;
   padding: 12px 14px;
-  background: #fbf5e4;
+  background: var(--color-amber-soft, #fef3c7);
   animation: mb-data-enter var(--motion-medium, 300ms)
     var(--ease-standard, ease) backwards;
 }
 .blocked p {
   flex: 1 1 240px;
   margin: 0;
-  color: #4d4220;
+  color: var(--amber-deep, #8a5a1f);
   font-size: 0.88rem;
   line-height: 1.5;
 }
