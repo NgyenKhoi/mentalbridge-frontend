@@ -366,6 +366,144 @@ describe('SpecialistDiscovery', () => {
     expect(within(dialog).getByText(/1 lượt khả dụng/)).toBeInTheDocument()
   })
 
+  describe('booking reason card', () => {
+    const full = {
+      balance: { available: 2 },
+      reservationCapacity: { active: 2, maximum: 2, remaining: 0 },
+    }
+
+    async function openSlots(packageCode: 'PLUS' | 'FREE' = 'PLUS') {
+      const user = userEvent.setup()
+      discoveryClient.list.mockResolvedValue(page(packageCode))
+      renderDiscovery()
+      await user.click(
+        await screen.findByRole('button', { name: 'Lịch trống' }),
+      )
+      return { user, dialog: await screen.findByRole('dialog') }
+    }
+
+    it('explains a full reservation capacity and blocks the slot step', async () => {
+      creditsClient.get.mockResolvedValue(full)
+      const { user, dialog } = await openSlots()
+      await user.click(await within(dialog).findByRole('radio'))
+
+      const notice = await within(dialog).findByRole('status')
+      expect(notice).toHaveTextContent(
+        'Bạn đang giữ 2/2 lịch hẹn của gói. Hãy hủy một lịch đang chờ hoặc chờ phiên diễn ra để đặt thêm.',
+      )
+      expect(
+        within(notice).getByRole('link', { name: 'Xem lịch hẹn' }),
+      ).toHaveAttribute('href', '/appointments')
+      expect(
+        within(dialog).getByRole('button', { name: 'Tiếp tục' }),
+      ).toBeDisabled()
+    })
+
+    it('blocks the nearest-slot shortcut when capacity is full', async () => {
+      creditsClient.get.mockResolvedValue(full)
+      discoveryClient.list.mockResolvedValue(page('PLUS'))
+      renderDiscovery()
+      await userEvent
+        .setup()
+        .click(await screen.findByRole('button', { name: 'Hồ sơ' }))
+      const dialog = await screen.findByRole('dialog')
+      await within(dialog).findByText(/Bạn đang giữ 2\/2 lịch hẹn/)
+      expect(
+        within(dialog).getByRole('button', { name: 'Đặt lịch gần nhất' }),
+      ).toBeDisabled()
+    })
+
+    it('explains an exhausted credit balance with a package link', async () => {
+      creditsClient.get.mockResolvedValue({
+        balance: { available: 0 },
+        reservationCapacity: { active: 0, maximum: 2, remaining: 2 },
+      })
+      const { dialog } = await openSlots()
+
+      const notice = await within(dialog).findByRole('status')
+      expect(notice).toHaveTextContent('Bạn đã dùng hết lượt tư vấn.')
+      expect(
+        within(notice).getByRole('link', { name: 'Xem gói dịch vụ' }),
+      ).toHaveAttribute('href', '/subscription')
+    })
+
+    it('shows no reason card while booking is open', async () => {
+      creditsClient.get.mockResolvedValue({
+        balance: { available: 2 },
+        reservationCapacity: { active: 1, maximum: 2, remaining: 1 },
+      })
+      const { user, dialog } = await openSlots()
+      await user.click(await within(dialog).findByRole('radio'))
+      expect(within(dialog).queryByRole('status')).not.toBeInTheDocument()
+      expect(
+        within(dialog).getByRole('button', { name: 'Tiếp tục' }),
+      ).toBeEnabled()
+    })
+
+    it('renders one notice per view and clears a 409 card after a refetch', async () => {
+      creditsClient.get.mockResolvedValue({
+        balance: { available: 2 },
+        reservationCapacity: { active: 1, maximum: 2, remaining: 1 },
+      })
+      appointmentClient.request.mockRejectedValue(
+        new ApiError({
+          message: 'limit',
+          code: 'APPOINTMENT_RESERVATION_LIMIT_REACHED',
+          status: 409,
+        }),
+      )
+      const { user, dialog } = await openSlots()
+      await user.click(await within(dialog).findByRole('radio'))
+      await user.click(within(dialog).getByRole('button', { name: 'Tiếp tục' }))
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Xác nhận đặt lịch' }),
+      )
+      expect(await within(dialog).findAllByRole('status')).toHaveLength(1)
+
+      creditsClient.get.mockResolvedValue({
+        balance: { available: 2 },
+        reservationCapacity: { active: 1, maximum: 2, remaining: 1 },
+      })
+      fireEvent(window, new Event('focus'))
+      await waitFor(() =>
+        expect(within(dialog).queryByRole('status')).not.toBeInTheDocument(),
+      )
+      expect(
+        within(dialog).getByRole('button', { name: 'Xác nhận đặt lịch' }),
+      ).toBeEnabled()
+    })
+
+    it('maps a submit-time reservation limit 409 to the same card', async () => {
+      creditsClient.get.mockResolvedValue({
+        balance: { available: 2 },
+        reservationCapacity: { active: 1, maximum: 2, remaining: 1 },
+      })
+      appointmentClient.request.mockRejectedValue(
+        new ApiError({
+          message: 'limit',
+          code: 'APPOINTMENT_RESERVATION_LIMIT_REACHED',
+          status: 409,
+        }),
+      )
+      const { user, dialog } = await openSlots()
+      await user.click(await within(dialog).findByRole('radio'))
+      await user.click(within(dialog).getByRole('button', { name: 'Tiếp tục' }))
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Xác nhận đặt lịch' }),
+      )
+
+      const notice = await within(dialog).findByRole('status')
+      expect(notice).toHaveTextContent('Bạn đã đạt giới hạn lịch hẹn đang giữ')
+      expect(
+        within(notice).getByRole('link', { name: 'Xem lịch hẹn' }),
+      ).toBeInTheDocument()
+      expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+      expect(
+        within(dialog).getByRole('button', { name: 'Xác nhận đặt lịch' }),
+      ).toBeDisabled()
+    })
+  })
+
   it('uses the enabled backend video capability for discovery filtering', async () => {
     const user = userEvent.setup()
     discoveryClient.list.mockResolvedValue({

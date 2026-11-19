@@ -28,6 +28,7 @@ export const config = {
     '/assessments/:path*',
     '/specialists/:path*',
     '/appointments/:path*',
+    '/call/:path*',
     '/messages/:path*',
     '/ai-companion/:path*',
     '/analytics/:path*',

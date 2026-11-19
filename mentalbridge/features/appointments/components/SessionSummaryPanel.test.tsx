@@ -9,6 +9,10 @@ const api = vi.hoisted(() => ({
   updateConsent: vi.fn(),
   updateStep: vi.fn(),
 }))
+const feedback = vi.hoisted(() => ({ confirm: vi.fn() }))
+vi.mock('@/components/ui/FeedbackProvider', () => ({
+  useFeedback: () => feedback,
+}))
 const resources = vi.hoisted(() => ({
   catalogue: vi.fn(),
   detail: vi.fn(),
@@ -300,5 +304,112 @@ describe('SessionSummaryPanel', () => {
     await waitFor(() =>
       expect(api.updateConsent).toHaveBeenCalledWith(previous.id, false, 1),
     )
+  })
+})
+
+describe('SessionSummaryPanel in-call notes draft', () => {
+  const key = `mb.summaryDraft.${appointmentId}`
+  const draft = {
+    topics: 'Giấc ngủ\nCông việc',
+    progress: 'Ngủ muộn do áp lực.',
+    note: 'Bạn đã làm rất tốt.',
+    steps: 'Đi ngủ trước 23h\nGhi nhật ký',
+    savedAt: Date.now() - 60_000,
+  }
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+    feedback.confirm.mockReset()
+    feedback.confirm.mockResolvedValue(true)
+    resources.catalogue.mockResolvedValue({ items: [], hasMore: false })
+  })
+  async function openForm(items: unknown[], button: string) {
+    api.list.mockResolvedValue({
+      items,
+      count: items.length,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    const user = userEvent.setup()
+    render(
+      <SessionSummaryPanel appointmentId={appointmentId} viewer="SPECIALIST" />,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(await screen.findByRole('button', { name: button }))
+    return user
+  }
+
+  it('prefills a first summary from the draft and deletes it after publishing', async () => {
+    window.localStorage.setItem(key, JSON.stringify(draft))
+    api.publish.mockResolvedValue(summary)
+    const user = await openForm([], 'Tạo bản tóm tắt')
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Đã điền từ ghi chú trong phiên',
+    )
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
+      'Giấc ngủ\nCông việc',
+    )
+    expect(screen.getByLabelText('Tên bước 2')).toHaveValue('Ghi nhật ký')
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất bản cho người dùng' }),
+    )
+    await waitFor(() => expect(api.publish).toHaveBeenCalled())
+    expect(api.publish.mock.calls[0][1]).toMatchObject({
+      topicsDiscussed: ['Giấc ngủ', 'Công việc'],
+      progressSummary: 'Ngủ muộn do áp lực.',
+      specialistNoteForUser: 'Bạn đã làm rất tốt.',
+      agreedNextSteps: [
+        { type: 'CHECKLIST', title: 'Đi ngủ trước 23h' },
+        { type: 'CHECKLIST', title: 'Ghi nhật ký' },
+      ],
+    })
+    await waitFor(() => expect(window.localStorage.getItem(key)).toBeNull())
+  })
+
+  it('keeps the draft when the form is cancelled or publishing fails', async () => {
+    window.localStorage.setItem(key, JSON.stringify(draft))
+    api.publish.mockRejectedValue(new Error('network'))
+    const user = await openForm([], 'Tạo bản tóm tắt')
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất bản cho người dùng' }),
+    )
+    await screen.findByRole('alert')
+    expect(window.localStorage.getItem(key)).not.toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Hủy bỏ' }))
+    expect(window.localStorage.getItem(key)).not.toBeNull()
+    expect(
+      screen.getByText(/Ghi chú trong phiên sẽ được điền sẵn/),
+    ).toBeInTheDocument()
+  })
+
+  it('lets the specialist discard the draft and falls back to the published version', async () => {
+    window.localStorage.setItem(key, JSON.stringify(draft))
+    const user = await openForm([summary], 'Đính chính bản tóm tắt')
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
+      'Giấc ngủ\nCông việc',
+    )
+    feedback.confirm.mockResolvedValueOnce(false)
+    await user.click(screen.getByRole('button', { name: 'Bỏ nháp' }))
+    expect(window.localStorage.getItem(key)).not.toBeNull()
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
+      'Giấc ngủ\nCông việc',
+    )
+    await user.click(screen.getByRole('button', { name: 'Bỏ nháp' }))
+    await waitFor(() => expect(window.localStorage.getItem(key)).toBeNull())
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
+      'Giấc ngủ',
+    )
+    expect(screen.queryByRole('button', { name: 'Bỏ nháp' })).toBeNull()
+  })
+
+  it('ignores a draft older than 48 hours and counts characters', async () => {
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({ ...draft, savedAt: Date.now() - 49 * 3_600_000 }),
+    )
+    const user = await openForm([], 'Tạo bản tóm tắt')
+    expect(screen.queryByText('Đã điền từ ghi chú trong phiên')).toBeNull()
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue('')
+    await user.type(screen.getByLabelText(/Điều đã ghi nhận/), 'abc')
+    expect(screen.getByText('3/1000')).toBeInTheDocument()
   })
 })
