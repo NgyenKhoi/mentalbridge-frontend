@@ -199,6 +199,33 @@ describe('Canonical native SupportPlan boundaries', () => {
     ).toBeNull()
   })
 
+  it('accepts the owner cycle-review decision as Care evidence only for the review reminder', () => {
+    const evidence = {
+      ...emotionCompletionFixture(),
+      kind: 'OWNER_REVIEW_DECISION',
+      ownerDomain: 'CARE',
+    }
+    const occurrence = {
+      ...emotionOccurrenceFixture(),
+      actionType: 'REASSESSMENT_SCREENING',
+      state: 'COMPLETED',
+      displayState: 'COMPLETED',
+      version: 1,
+      completionEvidence: evidence,
+      outcomeRecordedAt: evidence.verifiedAt,
+    }
+    expect(parseActionOccurrence(occurrence)).toEqual(occurrence)
+    expect(
+      parseActionOccurrence({
+        ...occurrence,
+        completionEvidence: { ...evidence, ownerDomain: 'JOURNAL_AI' },
+      }),
+    ).toBeNull()
+    expect(
+      parseActionOccurrence({ ...occurrence, actionType: 'EMOTION_CHECK_IN' }),
+    ).toBeNull()
+  })
+
   it('keeps fresh source absence separate from immutable accepted completion', () => {
     const occurrence = emotionOccurrenceFixture()
     const result = {
