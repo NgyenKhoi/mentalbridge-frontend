@@ -776,6 +776,73 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+/* Standalone call window: no shell, video first, notes beside it. */
+.workspace[data-call-window] {
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: 16px;
+  background: var(--surface-soft);
+}
+.callLayout {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+.workspace[data-call-window] .call {
+  height: clamp(480px, calc(100dvh - 190px), 960px);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 44px;
+  color: #004844;
+  font:
+    800 15px/1 var(--font-video-display),
+    var(--font-body),
+    sans-serif;
+}
+.brand svg {
+  width: 28px;
+  height: 28px;
+}
+.endState {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px solid #e0ece8;
+  border-radius: 16px;
+  background: #fff;
+}
+.endState > div {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.endState h3 {
+  margin: 0;
+  color: #004844;
+  font:
+    700 16px/1.5 var(--font-video-display),
+    var(--font-body),
+    sans-serif;
+}
+.endState p {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.6;
+}
+@media (min-width: 1024px) {
+  .callLayout:has(> aside) {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+
 @media (max-width: 639px) {
   .workspace[data-role='SPECIALIST'] {
     padding: 16px;

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Activity,
   Check,
@@ -36,17 +36,133 @@ function denied(error: unknown) {
   )
 }
 
+function BriefBody({
+  loading,
+  error,
+  brief,
+  inline = false,
+}: {
+  loading: boolean
+  error: string
+  brief: Brief | null
+  inline?: boolean
+}) {
+  return (
+    <>
+      {loading && (
+        <div className={styles.modalLoading} role="status">
+          <RefreshCw size={26} className={styles.spin} aria-hidden="true" />
+          <p>Đang tải tóm tắt lâm sàng từ hồ sơ thân chủ…</p>
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className={styles.modalError}>
+          <div className={styles.modalErrorIcon}>
+            <Info size={18} aria-hidden="true" />
+          </div>
+          <div className={styles.modalErrorContent}>
+            <h4>Thông báo quyền truy cập</h4>
+            <p className={styles.notice} role="status">
+              {error}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!loading && brief && (
+        <div className={styles.modalSections} data-inline={inline || undefined}>
+          <div className={styles.cardSection}>
+            <div className={styles.sectionHeading}>
+              <div className={styles.iconCircle}>
+                <FileText size={15} aria-hidden="true" />
+              </div>
+              <h3>Tình hình hiện tại</h3>
+            </div>
+            <div className={styles.situationBox}>
+              <p>{brief.currentSituation}</p>
+            </div>
+          </div>
+
+          <div className={styles.cardSection}>
+            <div className={styles.sectionHeading}>
+              <div className={styles.iconCircle}>
+                <Target size={15} aria-hidden="true" />
+              </div>
+              <h3>Mục tiêu trao đổi</h3>
+              <span className={styles.countBadge}>
+                {brief.userGoals.length} mục tiêu
+              </span>
+            </div>
+            <ul className={styles.goalsList}>
+              {brief.userGoals.map((goal, idx) => (
+                <li key={idx} className={styles.goalItem}>
+                  <span className={styles.goalBullet}>
+                    <Check size={12} strokeWidth={2.5} aria-hidden="true" />
+                  </span>
+                  <span>{goal}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className={styles.cardSection}>
+            <div className={styles.sectionHeading}>
+              <div className={styles.iconCircle}>
+                <Activity size={15} aria-hidden="true" />
+              </div>
+              <h3>Bối cảnh sàng lọc ban đầu</h3>
+            </div>
+            <div className={styles.screeningGrid}>
+              {brief.screeningContext.map((item) => (
+                <div key={item.instrument} className={styles.screeningCard}>
+                  <span className={styles.screeningInstrument}>
+                    {item.instrument}
+                  </span>
+                  <span
+                    className={styles.screeningBadge}
+                    data-level={item.screeningLevel}
+                  >
+                    {item.screeningLevel}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className={styles.disclaimerNote}>
+              <Info
+                size={15}
+                className={styles.disclaimerIcon}
+                aria-hidden="true"
+              />
+              <p>
+                Kết quả sàng lọc không phải chẩn đoán y khoa. Dữ liệu mang tính
+                chất tham khảo chuẩn bị cho phiên tư vấn.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 export function SpecialistConsultationBrief({
   appointmentId,
   compact = false,
-}: Readonly<{ appointmentId: string; compact?: boolean }>) {
+  inline = false,
+}: Readonly<{
+  appointmentId: string
+  compact?: boolean
+  /** Shows the approved brief on the page itself instead of behind a dialog. */
+  inline?: boolean
+}>) {
   const [open, setOpen] = useState(false)
   const [brief, setBrief] = useState<Brief | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const request = useRef(0)
 
-  async function load() {
+  const load = useCallback(async () => {
     const sequence = ++request.current
     setLoading(true)
     setError('')
@@ -60,7 +176,12 @@ export function SpecialistConsultationBrief({
     } finally {
       if (sequence === request.current) setLoading(false)
     }
-  }
+  }, [appointmentId])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch on mount
+    if (inline) void load()
+  }, [inline, load])
 
   async function handleToggle() {
     if (open) {
@@ -78,6 +199,27 @@ export function SpecialistConsultationBrief({
     setError('')
     setLoading(false)
   }
+
+  if (inline)
+    return (
+      <section
+        className={`${styles.specialist} ${styles.briefInline}`}
+        aria-label="Tóm tắt được người dùng phê duyệt"
+        aria-busy={loading}
+      >
+        <div className={styles.heading}>
+          <div>
+            <h4>Tóm tắt trước buổi tư vấn</h4>
+            <p>Chỉ đọc bản chụp người dùng đã phê duyệt cho lịch hẹn này.</p>
+          </div>
+          <button type="button" disabled={loading} onClick={() => void load()}>
+            <RefreshCw size={14} aria-hidden="true" />
+            Tải lại
+          </button>
+        </div>
+        <BriefBody loading={loading} error={error} brief={brief} inline />
+      </section>
+    )
 
   return (
     <section
@@ -164,99 +306,7 @@ export function SpecialistConsultationBrief({
             </p>
           </div>
 
-          {loading && (
-            <div className={styles.modalLoading} role="status">
-              <RefreshCw size={26} className={styles.spin} aria-hidden="true" />
-              <p>Đang tải tóm tắt lâm sàng từ hồ sơ thân chủ…</p>
-            </div>
-          )}
-
-          {!loading && error && (
-            <div className={styles.modalError}>
-              <div className={styles.modalErrorIcon}>
-                <Info size={18} aria-hidden="true" />
-              </div>
-              <div className={styles.modalErrorContent}>
-                <h4>Thông báo quyền truy cập</h4>
-                <p className={styles.notice} role="status">
-                  {error}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {!loading && brief && (
-            <div className={styles.modalSections}>
-              <div className={styles.cardSection}>
-                <div className={styles.sectionHeading}>
-                  <div className={styles.iconCircle}>
-                    <FileText size={15} aria-hidden="true" />
-                  </div>
-                  <h3>Tình hình hiện tại</h3>
-                </div>
-                <div className={styles.situationBox}>
-                  <p>{brief.currentSituation}</p>
-                </div>
-              </div>
-
-              <div className={styles.cardSection}>
-                <div className={styles.sectionHeading}>
-                  <div className={styles.iconCircle}>
-                    <Target size={15} aria-hidden="true" />
-                  </div>
-                  <h3>Mục tiêu trao đổi</h3>
-                  <span className={styles.countBadge}>
-                    {brief.userGoals.length} mục tiêu
-                  </span>
-                </div>
-                <ul className={styles.goalsList}>
-                  {brief.userGoals.map((goal, idx) => (
-                    <li key={idx} className={styles.goalItem}>
-                      <span className={styles.goalBullet}>
-                        <Check size={12} strokeWidth={2.5} aria-hidden="true" />
-                      </span>
-                      <span>{goal}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className={styles.cardSection}>
-                <div className={styles.sectionHeading}>
-                  <div className={styles.iconCircle}>
-                    <Activity size={15} aria-hidden="true" />
-                  </div>
-                  <h3>Bối cảnh sàng lọc ban đầu</h3>
-                </div>
-                <div className={styles.screeningGrid}>
-                  {brief.screeningContext.map((item) => (
-                    <div key={item.instrument} className={styles.screeningCard}>
-                      <span className={styles.screeningInstrument}>
-                        {item.instrument}
-                      </span>
-                      <span
-                        className={styles.screeningBadge}
-                        data-level={item.screeningLevel}
-                      >
-                        {item.screeningLevel}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className={styles.disclaimerNote}>
-                  <Info
-                    size={15}
-                    className={styles.disclaimerIcon}
-                    aria-hidden="true"
-                  />
-                  <p>
-                    Kết quả sàng lọc không phải chẩn đoán y khoa. Dữ liệu mang
-                    tính chất tham khảo chuẩn bị cho phiên tư vấn.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          <BriefBody loading={loading} error={error} brief={brief} />
 
           <footer className={styles.modalFooter}>
             <div className={styles.confidentialityNote}>

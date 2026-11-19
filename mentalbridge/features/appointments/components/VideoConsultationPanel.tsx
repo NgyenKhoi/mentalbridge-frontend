@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Ban,
   Clock3,
+  ExternalLink,
   FileText,
   RefreshCw,
   VideoOff,
@@ -50,16 +51,25 @@ const phaseCopy: Record<VideoSession['phase'], string> = {
   UNAVAILABLE: 'Chưa thể mở phiên video. Bạn có thể thử lại sau.',
 }
 
+const callPath = (appointmentId: string, role: 'USER' | 'SPECIALIST') =>
+  `${role === 'USER' ? '' : '/specialist'}/call/${encodeURIComponent(appointmentId)}?join=1`
+
 export function VideoSessionPanel({
   appointmentId,
   role,
   onVerified,
   preparation,
+  callWindow = false,
+  autoJoin = false,
 }: {
   appointmentId: string
   role: 'USER' | 'SPECIALIST'
   onVerified?: () => void
   preparation?: ReactNode
+  /** True inside the standalone call window; otherwise Join opens that window. */
+  callWindow?: boolean
+  /** Call window only: join as soon as the session allows it. */
+  autoJoin?: boolean
 }) {
   const { confirm } = useFeedback()
   const [session, setSession] = useState<VideoSession | null>(null)
@@ -71,7 +81,12 @@ export function VideoSessionPanel({
   const [participantName, setParticipantName] = useState('')
   const [callEnded, setCallEnded] = useState(false)
   const [preparationOpen, setPreparationOpen] = useState(false)
+  const [callOpen, setCallOpen] = useState(false)
+  const [popupBlocked, setPopupBlocked] = useState(false)
+  const [closeBlocked, setCloseBlocked] = useState(false)
   const preparationId = useId()
+  const callTab = useRef<Window | null>(null)
+  const autoJoined = useRef(false)
   const alive = useRef(false)
   const working = useRef(false)
   const latest = useRef<{ session: VideoSession; received: number } | null>(
@@ -207,7 +222,13 @@ export function VideoSessionPanel({
     }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', checkDeadline)
-    const deadline = setInterval(checkDeadline, 1000)
+    const deadline = setInterval(() => {
+      checkDeadline()
+      if (callTab.current?.closed) {
+        callTab.current = null
+        setCallOpen(false)
+      }
+    }, 1000)
     return () => {
       alive.current = false
       joinAttempt.current += 1
@@ -219,7 +240,7 @@ export function VideoSessionPanel({
     }
   }, [refresh, stopMedia])
 
-  async function join() {
+  const join = useCallback(async () => {
     if (working.current || command.current) return
     working.current = true
     setBusy(true)
@@ -252,6 +273,44 @@ export function VideoSessionPanel({
       working.current = false
       if (alive.current) setBusy(false)
     }
+  }, [appointmentId, refresh])
+
+  useEffect(() => {
+    if (!callWindow || !autoJoin || autoJoined.current) return
+    if (!session?.joinAllowed || busy) return
+    autoJoined.current = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one automatic join when the call window opens
+    void join()
+  }, [callWindow, autoJoin, session, busy, join])
+
+  // window.open must run inside the click; the call window re-checks authority.
+  function openCall() {
+    if (callTab.current && !callTab.current.closed) {
+      callTab.current.focus()
+      return
+    }
+    const opened = window.open(
+      callPath(appointmentId, role),
+      `mb-call-${appointmentId}`,
+    )
+    if (!opened) {
+      setPopupBlocked(true)
+      return
+    }
+    // Same-origin page: keep the handle to refocus, but give the tab no way back.
+    try {
+      opened.opener = null
+    } catch {
+      // The handle still works for focus and closed checks.
+    }
+    callTab.current = opened
+    setPopupBlocked(false)
+    setCallOpen(true)
+  }
+
+  function closeWindow() {
+    window.close()
+    setTimeout(() => setCloseBlocked(true), 200)
   }
 
   async function finish() {
@@ -321,6 +380,11 @@ export function VideoSessionPanel({
     }
   }
 
+  const ended =
+    callEnded ||
+    Boolean(session?.completion) ||
+    (session !== null && ['ENDED', 'COMPLETED'].includes(session.phase))
+
   return (
     <section
       className={styles.panel}
@@ -329,18 +393,40 @@ export function VideoSessionPanel({
     >
       <header className={styles.header}>
         <div className={styles.headerIdentity}>
-          <Link
-            className={styles.backLink}
-            aria-label="Trở về lịch hẹn"
-            title="Trở về lịch hẹn"
-            href={
-              role === 'USER'
-                ? `/appointments/${encodeURIComponent(appointmentId)}`
-                : `/specialist/appointments?appointmentId=${encodeURIComponent(appointmentId)}`
-            }
-          >
-            <ArrowLeft size={18} aria-hidden="true" />
-          </Link>
+          {callWindow ? (
+            <span className={styles.brand}>
+              <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
+                <path
+                  d="M4 26C10 14 30 14 36 26"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                />
+                <circle cx="8" cy="27" r="3" fill="currentColor" />
+                <circle
+                  cx="32"
+                  cy="27"
+                  r="3"
+                  fill="currentColor"
+                  opacity=".55"
+                />
+              </svg>
+              MentalBridge
+            </span>
+          ) : (
+            <Link
+              className={styles.backLink}
+              aria-label="Trở về lịch hẹn"
+              title="Trở về lịch hẹn"
+              href={
+                role === 'USER'
+                  ? `/appointments/${encodeURIComponent(appointmentId)}`
+                  : `/specialist/appointments?appointmentId=${encodeURIComponent(appointmentId)}`
+              }
+            >
+              <ArrowLeft size={18} aria-hidden="true" />
+            </Link>
+          )}
           <div>
             <div className={styles.nameLine}>
               <h2>
@@ -379,6 +465,38 @@ export function VideoSessionPanel({
         </span>
       </header>
       <div className={styles.body}>
+        {callWindow && ended && (
+          <div className={styles.endState} role="status">
+            <div>
+              <h3>
+                {callEnded && session?.joinAllowed && !session.completion
+                  ? 'Bạn đã rời cuộc gọi'
+                  : 'Buổi tư vấn đã kết thúc'}
+              </h3>
+              <p>
+                {callEnded && session?.joinAllowed && !session.completion
+                  ? 'Bạn có thể tham gia lại nếu phiên còn mở, hoặc đóng cửa sổ này.'
+                  : role === 'SPECIALIST'
+                    ? 'Ghi chú của bạn vẫn còn trên máy này. Khi lịch hẹn hoàn tất, mở Tổng kết phiên trong mục Khách hàng để xuất bản; ghi chú sẽ được điền sẵn.'
+                    : 'Bạn có thể đóng cửa sổ này. Nội dung sau buổi tư vấn nằm trong lịch hẹn của bạn.'}
+              </p>
+              {closeBlocked && (
+                <p>
+                  Trình duyệt không cho tự đóng cửa sổ. Hãy đóng thẻ này bằng
+                  tay.
+                </p>
+              )}
+            </div>
+            <button
+              data-appointment-ui
+              type="button"
+              className={role === 'USER' ? styles.primary : undefined}
+              onClick={closeWindow}
+            >
+              Đóng cửa sổ
+            </button>
+          </div>
+        )}
         {session?.completion && (
           <p role="status">
             {session.completion.verificationState === 'VERIFIED'
@@ -386,6 +504,19 @@ export function VideoSessionPanel({
               : session.completion.verificationState === 'EVIDENCE_REVIEW'
                 ? 'Phiên cần được kiểm tra thêm. Lượt tư vấn vẫn được giữ; chưa có kết luận hoàn tất.'
                 : 'Đã nhận xác nhận. Đang kiểm tra thông tin tham gia; lượt tư vấn vẫn được giữ.'}
+          </p>
+        )}
+        {popupBlocked && (
+          <p className={styles.error} role="alert">
+            Trình duyệt đã chặn cửa sổ cuộc gọi.{' '}
+            <a
+              href={callPath(appointmentId, role)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink size={14} aria-hidden="true" /> Mở cuộc gọi trong
+              thẻ mới
+            </a>
           </p>
         )}
         {error && (
@@ -401,20 +532,22 @@ export function VideoSessionPanel({
         {!uncertain && (
           <VideoMedia
             access={access}
-            previewAllowed={Boolean(session?.previewAllowed)}
+            previewAllowed={Boolean(session?.previewAllowed) && !callOpen}
             onLeave={leaveCall}
             onError={mediaError}
             participantName={participantName || 'Người tham gia cùng bạn'}
             hint={
-              callEnded && session?.joinAllowed
-                ? 'Bạn đã rời cuộc gọi. Có thể tham gia lại nếu phiên còn mở.'
-                : session
-                  ? phaseCopy[session.phase]
-                  : loadError
-                    ? 'Chưa xác nhận được quyền vào phiên.'
-                    : 'Đang kiểm tra quyền vào phiên…'
+              callOpen
+                ? 'Cuộc gọi đang mở ở cửa sổ riêng. Nhấn nút để chuyển sang cửa sổ đó.'
+                : callEnded && session?.joinAllowed
+                  ? 'Bạn đã rời cuộc gọi. Có thể tham gia lại nếu phiên còn mở.'
+                  : session
+                    ? phaseCopy[session.phase]
+                    : loadError
+                      ? 'Chưa xác nhận được quyền vào phiên.'
+                      : 'Đang kiểm tra quyền vào phiên…'
             }
-            onJoin={() => void join()}
+            onJoin={() => (callWindow ? void join() : openCall())}
             joinDisabled={busy || !session?.joinAllowed || uncertain}
             joining={busy}
           />
@@ -457,7 +590,7 @@ export function VideoSessionPanel({
                 <FileText size={14} aria-hidden="true" />
                 Tóm tắt trước buổi tư vấn
               </button>
-            ) : (
+            ) : callWindow ? null : (
               <Link
                 className={styles.preparationButton}
                 href={`/appointments/${encodeURIComponent(appointmentId)}`}
@@ -484,18 +617,19 @@ export function VideoSessionPanel({
               )}
           </div>
         </footer>
-        {session?.completion?.verificationState === 'VERIFIED' && (
-          <Link
-            className={styles.resultLink}
-            href={
-              role === 'USER'
-                ? `/appointments/${encodeURIComponent(appointmentId)}`
-                : `/specialist/follow-up?appointmentId=${encodeURIComponent(appointmentId)}`
-            }
-          >
-            Xem nội dung sau buổi tư vấn
-          </Link>
-        )}
+        {!callWindow &&
+          session?.completion?.verificationState === 'VERIFIED' && (
+            <Link
+              className={styles.resultLink}
+              href={
+                role === 'USER'
+                  ? `/appointments/${encodeURIComponent(appointmentId)}`
+                  : `/specialist/follow-up?appointmentId=${encodeURIComponent(appointmentId)}`
+              }
+            >
+              Xem nội dung sau buổi tư vấn
+            </Link>
+          )}
       </div>
       {preparation && (
         <Dialog

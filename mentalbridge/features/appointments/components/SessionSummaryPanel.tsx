@@ -17,6 +17,11 @@ import {
   type PublicResourceSummary,
 } from '@/features/resources/api/browser-resources'
 import { sessionSummaryBrowserClient } from '../api/session-summary-browser-client'
+import {
+  clearSummaryDraft,
+  readSummaryDraft,
+  type SummaryDraft,
+} from '../model/session-summary-draft'
 import { PlanChangeRequestCard } from './PlanChangeRequestCard'
 import styles from './SessionSummaryPanel.module.css'
 
@@ -72,6 +77,40 @@ const draftStep = (
   resourceVersion: step.resourceVersion ?? '',
   resourceProposalReasonCode: step.resourceProposalReasonCode ?? '',
 })
+
+const noteSteps = (text: string): DraftStep[] =>
+  text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+    .map((line) => ({ ...emptyStep(), title: line.slice(0, 160) }))
+
+function formValues(
+  current: SessionSummary | null,
+  draft: SummaryDraft | null,
+) {
+  const steps = draft ? noteSteps(draft.steps) : []
+  return {
+    topics: draft?.topics.trim()
+      ? draft.topics
+      : (current?.topicsDiscussed.join('\n') ?? ''),
+    progress: draft?.progress.trim()
+      ? draft.progress
+      : (current?.progressSummary ?? ''),
+    note: draft?.note.trim()
+      ? draft.note
+      : (current?.specialistNoteForUser ?? ''),
+    steps: steps.length
+      ? steps
+      : current?.agreedNextSteps.length
+        ? current.agreedNextSteps.map(draftStep)
+        : [emptyStep()],
+  }
+}
+
+const topicCount = (text: string) =>
+  text.split('\n').filter((line) => line.trim()).length
 
 function errorText(error: unknown) {
   if (error instanceof ApiError) {
@@ -142,27 +181,27 @@ export function SummaryContent({
 function SpecialistForm({
   appointmentId,
   current,
+  draft,
   resources,
   onPublished,
   onCancel,
+  onDiscardDraft,
 }: {
   appointmentId: string
   current: SessionSummary | null
+  draft: SummaryDraft | null
   resources: PublicResourceSummary[]
   onPublished: (summary: SessionSummary) => void
   onCancel: () => void
+  onDiscardDraft: () => void
 }) {
-  const [topics, setTopics] = useState(
-    current?.topicsDiscussed.join('\n') ?? '',
-  )
-  const [progress, setProgress] = useState(current?.progressSummary ?? '')
-  const [note, setNote] = useState(current?.specialistNoteForUser ?? '')
+  const [initial] = useState(() => formValues(current, draft))
+  const [fromDraft, setFromDraft] = useState(Boolean(draft))
+  const [topics, setTopics] = useState(initial.topics)
+  const [progress, setProgress] = useState(initial.progress)
+  const [note, setNote] = useState(initial.note)
   const [followUp, setFollowUp] = useState(current?.followUpSuggested ?? false)
-  const [steps, setSteps] = useState<DraftStep[]>(
-    current?.agreedNextSteps.length
-      ? current.agreedNextSteps.map(draftStep)
-      : [emptyStep()],
-  )
+  const [steps, setSteps] = useState<DraftStep[]>(initial.steps)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const idempotencyKey = useRef(crypto.randomUUID())
@@ -172,6 +211,17 @@ function SpecialistForm({
   useEffect(() => {
     firstInput.current?.focus({ preventScroll: true })
   }, [])
+
+  const discardDraft = () => {
+    clearSummaryDraft(appointmentId)
+    const base = formValues(current, null)
+    setTopics(base.topics)
+    setProgress(base.progress)
+    setNote(base.note)
+    setSteps(base.steps)
+    setFromDraft(false)
+    onDiscardDraft()
+  }
 
   const updateStep = (id: string, patch: Partial<DraftStep>) =>
     setSteps((items) =>
@@ -264,6 +314,7 @@ function SpecialistForm({
         current?.version,
       )
       idempotencyKey.current = crypto.randomUUID()
+      clearSummaryDraft(appointmentId)
       onPublished(saved)
     } catch (caught) {
       setError(errorText(caught))
@@ -295,9 +346,28 @@ function SpecialistForm({
           ? 'Đính chính tạo một phiên bản mới; bản cũ vẫn được giữ lại.'
           : 'Chỉ ghi lại nội dung đã trao đổi và các bước hai bên đã thống nhất.'}
       </p>
+      {fromDraft && (
+        <p className={styles.draftNotice} role="status">
+          <span>Đã điền từ ghi chú trong phiên</span>
+          <button type="button" onClick={discardDraft} disabled={saving}>
+            Bỏ nháp
+          </button>
+        </p>
+      )}
       <fieldset disabled={saving} className={styles.fields}>
         <label>
-          Nội dung đã trao đổi <small>Mỗi dòng là một mục, tối đa 8 mục</small>
+          <span className={styles.labelLine}>
+            <span>
+              Nội dung đã trao đổi{' '}
+              <small>Mỗi dòng là một mục, tối đa 8 mục</small>
+            </span>
+            <small
+              className={styles.counter}
+              data-over={topicCount(topics) > 8}
+            >
+              {topicCount(topics)}/8
+            </small>
+          </span>
           <textarea
             ref={firstInput}
             value={topics}
@@ -306,7 +376,10 @@ function SpecialistForm({
           />
         </label>
         <label>
-          Điều đã ghi nhận trong phiên
+          <span className={styles.labelLine}>
+            Điều đã ghi nhận trong phiên
+            <small className={styles.counter}>{progress.length}/1000</small>
+          </span>
           <textarea
             value={progress}
             onChange={(event) => setProgress(event.target.value)}
@@ -315,7 +388,10 @@ function SpecialistForm({
           />
         </label>
         <label>
-          Lời nhắn cho người dùng
+          <span className={styles.labelLine}>
+            Lời nhắn cho người dùng
+            <small className={styles.counter}>{note.length}/1000</small>
+          </span>
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value)}
@@ -467,11 +543,15 @@ function SpecialistForm({
 export function SessionSummaryPanel({
   appointmentId,
   viewer,
+  defaultOpen = false,
 }: {
   appointmentId: string
   viewer: 'USER' | 'SPECIALIST'
+  /** Opens and loads at once; for a tab whose only content is this panel. */
+  defaultOpen?: boolean
 }) {
   const [loaded, setLoaded] = useState(false)
+  const [draft, setDraft] = useState<SummaryDraft | null>(null)
   const [loading, setLoading] = useState(false)
   const [summaries, setSummaries] = useState<SessionSummary[]>([])
   const [resources, setResources] = useState<PublicResourceSummary[]>([])
@@ -495,6 +575,7 @@ export function SessionSummaryPanel({
       setSummaries(data.items)
       setLoaded(true)
       if (viewer === 'SPECIALIST') {
+        setDraft(readSummaryDraft(appointmentId))
         try {
           const catalogue = await getResourceCatalogue(undefined, 'vi-VN')
           setResources(catalogue.items)
@@ -508,6 +589,11 @@ export function SessionSummaryPanel({
       setLoading(false)
     }
   }, [appointmentId, viewer])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch on mount
+    if (defaultOpen) void load()
+  }, [defaultOpen, load])
 
   const latest = summaries[0] ?? null
   const updateConsent = async (summary: SessionSummary, approved: boolean) => {
@@ -551,6 +637,7 @@ export function SessionSummaryPanel({
       className={styles.panel}
       data-viewer={viewer}
       data-specialist-journey={viewer === 'SPECIALIST' ? 'summary' : undefined}
+      open={defaultOpen || undefined}
       onToggle={(event) => {
         if (event.currentTarget.open && !loaded && !loading) void load()
       }}
@@ -699,11 +786,19 @@ export function SessionSummaryPanel({
                 </p>
               </div>
             )}
+            {draft && (
+              <p className={styles.draftHint}>
+                Ghi chú trong phiên sẽ được điền sẵn vào bản tóm tắt.
+              </p>
+            )}
             <button
               ref={editButton}
               className={styles.primary}
               type="button"
-              onClick={() => setEditing(true)}
+              onClick={() => {
+                setDraft(readSummaryDraft(appointmentId))
+                setEditing(true)
+              }}
             >
               {latest ? 'Đính chính bản tóm tắt' : 'Tạo bản tóm tắt'}
             </button>
@@ -713,10 +808,13 @@ export function SessionSummaryPanel({
           <SpecialistForm
             appointmentId={appointmentId}
             current={latest}
+            draft={draft}
             resources={resources}
             onCancel={finishEditing}
+            onDiscardDraft={() => setDraft(null)}
             onPublished={(saved) => {
               setSummaries((items) => [saved, ...items])
+              setDraft(null)
               finishEditing()
             }}
           />
