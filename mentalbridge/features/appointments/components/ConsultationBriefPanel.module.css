@@ -678,3 +678,15 @@
   color: var(--ink-soft);
   white-space: pre-wrap;
 }
+
+/* Inline brief on the "Chuẩn bị phiên" tab: the page scrolls, not the list. */
+.briefInline {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+.modalSections[data-inline] {
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+}
