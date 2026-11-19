@@ -20,6 +20,7 @@ const api = vi.hoisted(() => ({
   getResourceProgress: vi.fn(),
   saveResourceProgress: vi.fn(),
   resolveResourcePlanOrigin: vi.fn(),
+  reconcileTodayResourceCompletion: vi.fn(),
   reconcileResourceOccurrence: vi.fn(),
 }))
 
@@ -65,6 +66,7 @@ vi.mock(
       typeof import('@/features/support-plan/resource-plan-origin')
     >()),
     resolveResourcePlanOrigin: api.resolveResourcePlanOrigin,
+    reconcileTodayResourceCompletion: api.reconcileTodayResourceCompletion,
   }),
 )
 
@@ -135,6 +137,7 @@ describe('ResourceDetail', () => {
     })
     api.getResourceProgress.mockResolvedValue([])
     api.resolveResourcePlanOrigin.mockReset()
+    api.reconcileTodayResourceCompletion.mockReset()
     api.reconcileResourceOccurrence.mockReset()
     api.saveResourceProgress.mockImplementation(
       async (_resourceId: string, localDate: string, update: object) => ({
@@ -588,6 +591,35 @@ describe('ResourceDetail', () => {
     await user.click(screen.getByLabelText(/một bước nhỏ, an toàn/i))
     await user.click(screen.getByRole('button', { name: 'Hoàn tất' }))
   }
+
+  it('reconciles Content completion without plan URL parameters', async () => {
+    render(<ResourceDetail resourceId={resource.id} />)
+    await completePlanResource()
+    await waitFor(() =>
+      expect(
+        api.reconcileTodayResourceCompletion,
+      ).toHaveBeenCalledExactlyOnceWith(resource.id, resource.contentVersion),
+    )
+    expect(api.resolveResourcePlanOrigin).not.toHaveBeenCalled()
+  })
+
+  it('keeps a no-origin Content completion and retries Care without saving again', async () => {
+    api.reconcileTodayResourceCompletion
+      .mockResolvedValueOnce('unavailable')
+      .mockResolvedValueOnce('recorded')
+    render(<ResourceDetail resourceId={resource.id} />)
+    await completePlanResource()
+    expect(
+      await screen.findByText(/Kế hoạch sẽ cập nhật khi kết nối lại/),
+    ).toBeInTheDocument()
+    const saves = api.saveResourceProgress.mock.calls.length
+    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(
+      await screen.findByText('Đã ghi nhận vào kế hoạch hôm nay.'),
+    ).toBeInTheDocument()
+    expect(api.reconcileTodayResourceCompletion).toHaveBeenCalledTimes(2)
+    expect(api.saveResourceProgress).toHaveBeenCalledTimes(saves)
+  })
 
   const planOccurrence = {
     ...emotionOccurrenceFixture(),

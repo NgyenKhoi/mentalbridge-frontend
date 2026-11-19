@@ -17,6 +17,7 @@ import { reconcileResourceOccurrence } from '@/features/support-plan/api/browser
 import type { EmotionPlanOrigin } from '@/features/support-plan/emotion-plan-origin'
 import {
   hasContentCompletion,
+  reconcileTodayResourceCompletion,
   resolveResourcePlanOrigin,
 } from '@/features/support-plan/resource-plan-origin'
 import {
@@ -244,6 +245,7 @@ export default function ResourceDetail({
     contextKey: string
     state: ReconcileState
   }>()
+  const [noOriginVersion, setNoOriginVersion] = useState<string | null>(null)
   const reconcileState =
     reconciliation?.contextKey === reconcileKey ? reconciliation.state : 'idle'
   const [reward, setReward] = useState(false)
@@ -503,6 +505,31 @@ export default function ResourceDetail({
     }
   }, [contentVersion, reconcileKey, resource, supportPlanOrigin])
 
+  const reconcileWithoutOrigin = useCallback(
+    async (version: string) => {
+      if (!resource) return
+      setReconciliation({ contextKey: reconcileKey, state: 'pending' })
+      const result = await reconcileTodayResourceCompletion(
+        resource.id,
+        version,
+      )
+      setReconciliation({
+        contextKey: reconcileKey,
+        state:
+          result === 'recorded'
+            ? 'recorded'
+            : result === 'not-recorded'
+              ? 'missing'
+              : result === 'stale'
+                ? 'stale'
+                : result === 'unavailable'
+                  ? 'unavailable'
+                  : 'idle',
+      })
+    },
+    [reconcileKey, resource],
+  )
+
   const persistProgress = useCallback(
     async (
       nextActions: string[],
@@ -525,8 +552,13 @@ export default function ResourceDetail({
         setStatus(saved.status)
         window.dispatchEvent(new CustomEvent('mb:resource-progress-updated'))
         if (saved.status === 'COMPLETED') setReward(true)
-        if (saved.status === 'COMPLETED' || practice?.practiceDurationSeconds)
-          await reconcilePlanProgress()
+        if (saved.status === 'COMPLETED' || practice?.practiceDurationSeconds) {
+          if (supportPlanOrigin) await reconcilePlanProgress()
+          else {
+            setNoOriginVersion(saved.contentVersion)
+            await reconcileWithoutOrigin(saved.contentVersion)
+          }
+        }
         return true
       } catch {
         setMessage('Chưa thể lưu tiến độ. Bạn thử lại sau một chút nhé.')
@@ -540,8 +572,10 @@ export default function ResourceDetail({
       date,
       progressReady,
       reconcilePlanProgress,
+      reconcileWithoutOrigin,
       resource,
       saving,
+      supportPlanOrigin,
     ],
   )
 
@@ -591,13 +625,17 @@ export default function ResourceDetail({
       ? 'Quay lại gợi ý hỗ trợ'
       : 'Quay lại Tài nguyên'
 
-  const planNotice = supportPlanReturnHref ? (
-    <ResourcePlanNotice
-      state={reconcileState}
-      returnHref={supportPlanReturnHref}
-      onRetry={() => void reconcilePlanProgress()}
-    />
-  ) : null
+  const planNotice =
+    supportPlanReturnHref || reconcileState !== 'idle' ? (
+      <ResourcePlanNotice
+        state={reconcileState}
+        returnHref={supportPlanReturnHref ?? '/support-plan'}
+        onRetry={() => {
+          if (supportPlanOrigin) void reconcilePlanProgress()
+          else if (noOriginVersion) void reconcileWithoutOrigin(noOriginVersion)
+        }}
+      />
+    ) : null
 
   if (loadState === 'loading') {
     return (
