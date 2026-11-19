@@ -3,7 +3,13 @@
   min-height: 100vh;
   background: #f4f7f5;
   color: #16332a;
-  font-family: var(--font-be-vietnam-variable), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    var(--font-be-vietnam-variable),
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   display: flex;
   flex-direction: column;
 }
@@ -384,7 +390,9 @@
   color: #16332a;
   background: #fbfdfc;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .oj-input:focus {
@@ -1092,89 +1100,6 @@
   text-decoration: underline;
 }
 
-.oj-resources-hint {
-  font-size: 12.5px;
-  color: #63776e;
-}
-
-/* Suggested Resources Cards */
-.oj-resources-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-top: 12px;
-}
-
-@media (max-width: 640px) {
-  .oj-resources-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.oj-resource-card {
-  background: #ffffff;
-  border: 1px solid #dce8e1;
-  border-radius: 14px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.oj-resource-card:hover {
-  border-color: #1e5646;
-  box-shadow: 0 4px 16px rgba(22, 51, 42, 0.08);
-  transform: translateY(-2px);
-}
-
-.oj-resource-badge {
-  display: inline-block;
-  background: #edf5f1;
-  color: #1e5646;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  align-self: flex-start;
-}
-
-.oj-resource-title {
-  font-family: var(--font-fraunces-variable), serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: #16332a;
-  line-height: 1.35;
-  margin: 0;
-}
-
-.oj-resource-desc {
-  font-size: 12.5px;
-  color: #556c62;
-  line-height: 1.45;
-  margin: 0;
-}
-
-.oj-resource-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px solid #edf2ef;
-  padding-top: 10px;
-  font-size: 12px;
-  color: #7b8f85;
-}
-
-.oj-resource-link {
-  color: #1e5646;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .oj-cta-center-box {
   display: flex;
   flex-direction: column;
@@ -1189,56 +1114,6 @@
   padding: 16px 36px !important;
   border-radius: 14px !important;
   box-shadow: 0 4px 18px rgba(22, 78, 63, 0.25) !important;
-}
-
-/* Success Card */
-.oj-success-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 40px 32px !important;
-}
-
-.oj-success-icon-wrap {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: #edf7f2;
-  display: grid;
-  place-items: center;
-  margin-bottom: 20px;
-}
-
-.oj-success-icon {
-  color: #1e5646;
-}
-
-.oj-plan-features-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  max-width: 580px;
-  width: 100%;
-  margin: 28px 0 36px;
-}
-
-.oj-plan-feat-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  background: #f7faf8;
-  border: 1px solid #e2ede7;
-  border-radius: 12px;
-  padding: 14px 18px;
-  font-size: 13.5px;
-  color: #3b5349;
-  line-height: 1.5;
-}
-
-.oj-plan-feat-icon {
-  color: #1e5646;
-  flex-shrink: 0;
-  margin-top: 2px;
 }
 .oj-score-card {
   display: flex;
@@ -1519,124 +1394,6 @@
   max-width: 500px;
 }
 
-/* Recommended Resources */
-.oj-resources-section {
-  margin-top: 24px;
-}
-
-.oj-resources-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.oj-res-title-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.oj-res-icon {
-  width: 18px;
-  height: 18px;
-  color: #1e5646;
-}
-
-.oj-res-main-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #16332a;
-}
-
-.oj-res-sub {
-  font-size: 12px;
-  color: #7b8f85;
-}
-
-.oj-resources-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-@media (max-width: 640px) {
-  .oj-resources-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.oj-res-card {
-  background: #ffffff;
-  border: 1px solid #dce8e1;
-  border-radius: 14px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 12px;
-  transition: all 0.2s;
-}
-
-.oj-res-card:hover {
-  border-color: #a4c4b5;
-  box-shadow: 0 4px 16px rgba(22, 51, 42, 0.06);
-}
-
-.oj-res-tag {
-  display: inline-block;
-  background: #edf5f1;
-  color: #1e5646;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  align-self: flex-start;
-}
-
-.oj-res-card-title {
-  font-family: var(--font-fraunces-variable), serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: #16332a;
-  line-height: 1.35;
-}
-
-.oj-res-card-desc {
-  font-size: 12.5px;
-  color: #556c62;
-  line-height: 1.45;
-}
-
-.oj-res-card-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px solid #edf2ef;
-  padding-top: 10px;
-  font-size: 12px;
-}
-
-.oj-res-author {
-  color: #7b8f85;
-}
-
-.oj-res-read-btn {
-  background: none;
-  border: none;
-  color: #1e5646;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.oj-res-read-btn:hover {
-  text-decoration: underline;
-}
-
 /* ========================================================== */
 /* Step 4: Support Plan Proposal & Confirmation               */
 /* ========================================================== */
@@ -1790,7 +1547,8 @@
   margin: 16px 0 6px;
 }
 
-.oj-modal-body ul, .oj-modal-body ol {
+.oj-modal-body ul,
+.oj-modal-body ol {
   padding-left: 20px;
   margin-bottom: 14px;
 }
@@ -1812,8 +1570,7 @@
 .onboarding-journey-container .oj-card p,
 .onboarding-journey-container .oj-card-subtitle,
 .onboarding-journey-container .oj-score-summary,
-.onboarding-journey-container .oj-clinical-desc,
-.onboarding-journey-container .oj-resource-desc {
+.onboarding-journey-container .oj-clinical-desc {
   max-width: 68ch;
 }
 
@@ -1832,7 +1589,7 @@
   }
 }
 
-/* Step 3 plan failure and step 4 reassessment review */
+/* Step 3 guide failure and step 4 reassessment review */
 .oj-plan-error {
   max-width: 500px;
   padding: 10px 14px;
