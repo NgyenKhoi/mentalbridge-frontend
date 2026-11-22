@@ -14,6 +14,8 @@ type DialogProps = Readonly<{
   className?: string
   restoreFocusTo?: () => HTMLElement | null
   onAfterClose?: () => void
+  /** Lets Mầm stay in her corner beside this modal on a desktop screen (MB-895). */
+  companion?: 'quiet'
 }>
 
 export function Dialog({
@@ -25,6 +27,7 @@ export function Dialog({
   className,
   restoreFocusTo,
   onAfterClose,
+  companion,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
@@ -95,6 +98,7 @@ export function Dialog({
       className={[styles.dialog, className].filter(Boolean).join(' ')}
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
+      data-mam-companion={companion}
       onKeyDown={(event) => {
         if (event.key !== 'Tab') return
         const dialog = dialogRef.current

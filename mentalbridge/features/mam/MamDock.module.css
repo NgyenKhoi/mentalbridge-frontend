@@ -15,6 +15,35 @@
     opacity var(--motion-fast) var(--ease-standard);
 }
 
+/*
+ * MB-895: beside the journal editor (a modal) she is a popover, drawn in the top layer above its
+ * backdrop, in the gap left of its panel (the host sets `left`). The popover defaults would centre
+ * and frame her, so they are undone; the dialog keeps every click. A short fade, no movement.
+ */
+.root[data-mam-above='true'] {
+  top: auto;
+  right: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+  pointer-events: none;
+  animation: mam-above-in 160ms var(--ease-standard) both;
+}
+
+@keyframes mam-above-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-mam-above='true'] {
+    animation: none;
+  }
+}
+
 /* Page actions remain visible and receive clicks through the dock. */
 .root[data-yield='true'] {
   opacity: 0.35;

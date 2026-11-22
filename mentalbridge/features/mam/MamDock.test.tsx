@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import type { ReactNode } from 'react'
 import {
   afterEach,
@@ -14,6 +21,7 @@ import { MamDock } from './MamDock'
 import { MamDockSlot } from './MamDockSlot'
 import { observeMamAwardRead, type MamAward } from './mam-celebrations'
 import { resetMamRendererFailure } from './mam-failure'
+import { resetMamWelcomeAttempts } from './mam-welcome-attempts'
 import { setMamMotionOff, setMamMuted } from './mam-preferences'
 import { dispatchMamSaved } from './mam-saved'
 import { useMamSuppress } from './mam-suppression'
@@ -117,6 +125,7 @@ describe('MamDock', () => {
     character.fallback = null
     // The dizzy latch lasts for the page; each test is a fresh page.
     resetMamRendererFailure()
+    resetMamWelcomeAttempts()
     window.localStorage.clear()
     window.sessionStorage.clear()
     // MB-894: an automated browser never gets the welcome flight unless `?mamWelcome=1` asks for it.
@@ -542,26 +551,384 @@ describe('MamDock', () => {
     await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
   })
 
-  it('keeps Mầm still on the journal list without touching the motion preference', () => {
+  it('MB-895: marks the mode, stays visible on a QUIET route and is still only while a form has focus', async () => {
     navigation.pathname = '/journal'
     const { rerender } = render(
       <>
+        <textarea aria-label="Nhật ký" />
         <MamDockSlot />
         <MamDock />
       </>,
     )
-    expect(screen.getByTestId('mam-character').dataset.reduced).toBe('true')
+    const reduced = () => screen.getByTestId('mam-character').dataset.reduced
+    expect(document.querySelector('[data-mam-dock]')).toHaveAttribute(
+      'data-mam-mode',
+      'quiet',
+    )
+    expect(dockButton()).toBeVisible()
+    expect(reduced()).toBe('false')
+    act(() => screen.getByLabelText('Nhật ký').focus())
+    await waitFor(() => expect(reduced()).toBe('true'))
+    expect(dockButton()).toBeVisible()
+    act(() => screen.getByLabelText('Nhật ký').blur())
+    await waitFor(() => expect(reduced()).toBe('false'))
     expect(window.localStorage.getItem('mentalbridge_mam_motion')).toBeNull()
 
     navigation.pathname = '/dashboard'
     rerender(
       <>
+        <textarea aria-label="Nhật ký" />
         <MamDockSlot />
         <MamDock />
       </>,
     )
-    expect(screen.getByTestId('mam-character').dataset.reduced).toBe('false')
+    expect(document.querySelector('[data-mam-dock]')).toHaveAttribute(
+      'data-mam-mode',
+      'full',
+    )
     expect(character.mounts).toBe(1)
+  })
+
+  describe('MB-895 journal editor companion', () => {
+    const showPopover = vi.fn()
+    const hidePopover = vi.fn()
+    const editor = (attributes: { companion?: boolean } = {}) => (
+      <>
+        <dialog
+          open
+          data-mam-companion={attributes.companion ? 'quiet' : undefined}
+        >
+          <section data-mam-panel>
+            <textarea aria-label="Nội dung" />
+          </section>
+        </dialog>
+        <MamDockSlot />
+        <MamDock />
+      </>
+    )
+    const dockRootEl = () => document.querySelector('[data-mam-dock]')!
+    beforeEach(() => {
+      navigation.pathname = '/journal'
+      character.ready = true
+      showPopover.mockClear()
+      hidePopover.mockReset()
+      Object.defineProperty(HTMLElement.prototype, 'showPopover', {
+        value: showPopover,
+        configurable: true,
+      })
+      Object.defineProperty(HTMLElement.prototype, 'hidePopover', {
+        value: hidePopover,
+        configurable: true,
+      })
+      stubMatchMedia((query) => query === '(min-width: 901px)')
+    })
+    afterEach(() => {
+      // Unmount before the globals go: removing the dialog would re-run the host's effects.
+      cleanup()
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover')
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover')
+    })
+
+    it('stays docked above the dialog backdrop on desktop: top-layer popover, marked for z-order', () => {
+      render(editor({ companion: true }))
+      expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'shown')
+      expect(dockRootEl()).toHaveAttribute('data-mam-above', 'true')
+      expect(dockRootEl()).toHaveAttribute('popover', 'manual')
+      expect(showPopover).toHaveBeenCalledTimes(1)
+    })
+
+    it('is not a popover when no dialog is open', () => {
+      render(
+        <>
+          <MamDockSlot />
+          <MamDock />
+        </>,
+      )
+      expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false')
+      expect(dockRootEl()).not.toHaveAttribute('popover')
+    })
+
+    it('stays away at 900 px or less', () => {
+      stubMatchMedia(() => false)
+      render(editor({ companion: true }))
+      expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away')
+      expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false')
+      expect(showPopover).not.toHaveBeenCalled()
+    })
+
+    it('every other modal still hides her', () => {
+      render(editor())
+      expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away')
+      expect(showPopover).not.toHaveBeenCalled()
+    })
+
+    const panelAt = (left: number, height = 700) =>
+      vi
+        .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+        .mockImplementation(function (this: HTMLElement) {
+          if (this.matches('[data-mam-panel]'))
+            return new DOMRect(left, 100, 980, height)
+          return new DOMRect()
+        })
+
+    it.each([
+      [310, 198], // panel.left - 96 - 16
+      [230, 118],
+      [193, 81],
+    ])(
+      'sits in the gap left of the panel (panel at %i, her left %i)',
+      async (left, expected) => {
+        panelAt(left)
+        render(editor({ companion: true }))
+        await waitFor(() =>
+          expect(dockRootEl()).toHaveStyle({ left: `${expected}px` }),
+        )
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'shown')
+        expect(dockRootEl()).toHaveStyle({ '--mam-dock-offset': '0px' })
+      },
+    )
+
+    it('is away when the panel leaves no room (panel.left < size + 32)', async () => {
+      panelAt(127)
+      render(editor({ companion: true }))
+      await waitFor(() =>
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away'),
+      )
+    })
+
+    it('stays when the room is exactly size + 32', async () => {
+      panelAt(128)
+      render(editor({ companion: true }))
+      await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '16px' }))
+      expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'shown')
+    })
+
+    it('follows the panel when the window resizes', async () => {
+      panelAt(310)
+      render(editor({ companion: true }))
+      await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+      panelAt(230)
+      fireEvent(window, new Event('resize'))
+      await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '118px' }))
+    })
+
+    it('lines her bottom edge up with the panel, never below her dock', async () => {
+      panelAt(310, 500) // panel bottom 600, the window is 768 high: 168 px up
+      render(editor({ companion: true }))
+      await waitFor(() => expect(dockRootEl()).toHaveStyle({ bottom: '168px' }))
+      cleanup()
+      panelAt(310, 700) // panel bottom 800 is below the window: her dock edge
+      render(editor({ companion: true }))
+      await waitFor(() => expect(dockRootEl()).toHaveStyle({ bottom: '24px' }))
+    })
+
+    it('stays hidden while the panel entrance runs, then appears at the settled position', async () => {
+      panelAt(310)
+      let running = true
+      Object.defineProperty(HTMLElement.prototype, 'getAnimations', {
+        value: () => (running ? [{ playState: 'running' }] : []),
+        configurable: true,
+      })
+      try {
+        render(editor({ companion: true }))
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 60))
+        })
+        expect(dockRootEl()).toHaveStyle({ visibility: 'hidden' })
+        running = false
+        fireEvent(
+          document.querySelector('[data-mam-panel]')!,
+          new Event('animationend'),
+        )
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+        expect(dockRootEl()).not.toHaveStyle({ visibility: 'hidden' })
+      } finally {
+        Reflect.deleteProperty(HTMLElement.prototype, 'getAnimations')
+      }
+    })
+
+    it('a panel that never settles is measured after the 350 ms fallback', async () => {
+      panelAt(310)
+      Object.defineProperty(HTMLElement.prototype, 'getAnimations', {
+        value: () => [{ playState: 'running' }],
+        configurable: true,
+      })
+      try {
+        render(editor({ companion: true }))
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 100))
+        })
+        expect(dockRootEl()).toHaveStyle({ visibility: 'hidden' })
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+      } finally {
+        Reflect.deleteProperty(HTMLElement.prototype, 'getAnimations')
+      }
+    })
+
+    describe('leaving the top layer', () => {
+      const popoverGone = () => {
+        expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false')
+        expect(dockRootEl()).not.toHaveAttribute('popover')
+        expect((dockRootEl() as HTMLElement).style.left).toBe('')
+        expect(hidePopover).toHaveBeenCalled()
+      }
+
+      it('the dialog closing', async () => {
+        panelAt(310)
+        render(editor({ companion: true }))
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+        act(() => document.querySelector('dialog')!.removeAttribute('open'))
+        await waitFor(() =>
+          expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false'),
+        )
+        popoverGone()
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'shown')
+      })
+
+      it('the editor becoming the reader (the opt-in is removed): every modal rule applies again', async () => {
+        panelAt(310)
+        render(editor({ companion: true }))
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+        act(() =>
+          document
+            .querySelector('dialog')!
+            .removeAttribute('data-mam-companion'),
+        )
+        await waitFor(() =>
+          expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false'),
+        )
+        popoverGone()
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away')
+      })
+
+      it('unmounting', () => {
+        panelAt(310)
+        const { unmount } = render(editor({ companion: true }))
+        expect(hidePopover).not.toHaveBeenCalled()
+        unmount()
+        expect(hidePopover).toHaveBeenCalled()
+      })
+
+      it('the window narrowing to 900 px or less', async () => {
+        panelAt(310)
+        let desktop = true
+        let fire = () => {}
+        const query = '(min-width: 901px)'
+        window.matchMedia = vi.fn((media: string) => ({
+          get matches() {
+            return media === query ? desktop : false
+          },
+          media,
+          addEventListener: (_type: string, listener: () => void) => {
+            if (media === query) fire = listener
+          },
+          removeEventListener: vi.fn(),
+        })) as unknown as typeof window.matchMedia
+        render(editor({ companion: true }))
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+        desktop = false
+        act(() => fire())
+        await waitFor(() =>
+          expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false'),
+        )
+        popoverGone()
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away')
+      })
+
+      it('does not throw when the browser already dropped the popover (hidePopover throws)', async () => {
+        panelAt(310)
+        hidePopover.mockImplementation(() => {
+          throw new DOMException('not showing', 'InvalidStateError')
+        })
+        render(editor({ companion: true }))
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+        act(() => document.querySelector('dialog')!.removeAttribute('open'))
+        await waitFor(() =>
+          expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false'),
+        )
+        expect(hidePopover).toHaveBeenCalled()
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'shown')
+      })
+    })
+
+    it('the opt-in is honoured on QUIET routes only: on a FULL route the dialog hides her like any modal', () => {
+      navigation.pathname = '/dashboard'
+      render(editor({ companion: true }))
+      expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away')
+      expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false')
+      expect(showPopover).not.toHaveBeenCalled()
+    })
+
+    it('a focused field that leaves the DOM stops counting as a form focus', async () => {
+      stubMatchMedia(() => false)
+      const view = render(
+        <>
+          <form>
+            <input aria-label="Ô nhập" />
+          </form>
+          <MamDockSlot />
+          <MamDock />
+        </>,
+      )
+      act(() => screen.getByLabelText('Ô nhập').focus())
+      await waitFor(() =>
+        expect(screen.getByTestId('mam-character').dataset.reduced).toBe(
+          'true',
+        ),
+      )
+      // The field is removed with no focusout; the next render of the host sees that it is gone.
+      view.rerender(
+        <>
+          <MamDockSlot />
+          <MamDock />
+        </>,
+      )
+      navigation.pathname = '/profile'
+      view.rerender(
+        <>
+          <MamDockSlot />
+          <MamDock />
+        </>,
+      )
+      await waitFor(() =>
+        expect(screen.getByTestId('mam-character').dataset.reduced).toBe(
+          'false',
+        ),
+      )
+    })
+
+    it('keeps her idle life while the user types: a field with focus does not still her', async () => {
+      vi.useFakeTimers()
+      window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true')
+      vi.spyOn(Math, 'random').mockReturnValue(0) // 25 s FULL, 50 s on a QUIET route
+      panelAt(310)
+      render(editor({ companion: true }))
+      const field = screen.getByLabelText('Nội dung')
+      act(() => field.focus())
+      for (let t = 0; t < 49_500; t += 500)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(500)
+        })
+      expect(character.plays).toBe(0)
+      for (let t = 0; t < 1_500; t += 500)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(500)
+        })
+      expect(character.plays).toBe(1)
+      expect(dockRootEl()).toHaveAttribute('data-mam-gaze', 'false')
+      vi.useRealTimers()
+    })
+  })
+
+  it('MB-895: renders nothing on a HIDDEN route', () => {
+    navigation.pathname = '/call/a-1'
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(document.querySelector('[data-mam-dock]')).toBeNull()
   })
 
   it('closes the menu on a route change', async () => {
@@ -1781,6 +2148,33 @@ describe('MamDock', () => {
           // It ends with the asset; nothing else queued behind it.
           await steps(2500)
           expect(shot()).toBe('')
+        })
+
+        it('MB-895: on a QUIET route the idle action waits twice as long', async () => {
+          navigation.pathname = '/journal'
+          vi.spyOn(Math, 'random').mockReturnValue(0) // 25 s on FULL, 50 s on QUIET
+          render(living())
+          await steps(49_500)
+          expect(character.plays).toBe(0)
+          await steps(1000)
+          expect(IDLE).toContain(shot())
+        })
+
+        it('MB-895: stays still while a form field has focus on a QUIET route', async () => {
+          navigation.pathname = '/journal'
+          vi.spyOn(Math, 'random').mockReturnValue(0)
+          render(
+            <>
+              <form>
+                <button type="button">Lưu</button>
+              </form>
+              {living()}
+            </>,
+          )
+          screen.getByRole('button', { name: 'Lưu' }).focus()
+          await steps(58_000)
+          expect(character.plays).toBe(0)
+          expect(gaze()).toBe('off')
         })
 
         it('plays at most 2 in the first minute', async () => {
