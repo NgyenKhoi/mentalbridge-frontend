@@ -446,7 +446,7 @@ test.describe('MB-814 living Mầm on the dock', () => {
   test('is dizzy when the asset fails, and a tap or a summon says so', async ({
     page,
   }) => {
-    await page.route('**/mam/mam-v06.riv', (route) => route.abort('failed'))
+    await page.route('**/mam/mam-v07.riv', (route) => route.abort('failed'))
     await installHomeMocks(page, homeWorld('do-today'))
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/dashboard')
@@ -486,7 +486,7 @@ test.describe('MB-814 living Mầm on the dock', () => {
 
   test('static dizzy art under reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await page.route('**/mam/mam-v06.riv', (route) => route.abort('failed'))
+    await page.route('**/mam/mam-v07.riv', (route) => route.abort('failed'))
     await installHomeMocks(page, homeWorld('do-today'))
     await page.goto('/dashboard')
     await expect(

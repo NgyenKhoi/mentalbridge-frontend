@@ -1,4 +1,4 @@
-// Mầm v0.6 Rive rig (v0.3 art plus `sleep`, `speaking` and the MB-818 idle/touch states): art from the "Mầm — Character Sheet v0.3" canvas
+// Mầm v0.7 Rive rig (v0.3 art plus `sleep`, `speaking`, the MB-818 idle/touch states and the MB-894 airplane-arrival states): art from the "Mầm — Character Sheet v0.3" canvas
 // (mam_v03_rive_layers.svg), motion from its Motion spec board.
 // Control contract (view model, enum IDs, state graph) is unchanged from the
 // mam-companion v0.2 rig so a consumer can swap the .riv without code changes.
@@ -103,6 +103,17 @@ const blanket = node('blanket', [120, 252], [
   ...[214, 226, 238].map((y, i) => pth(`blanket_stripe_${i}`, `M72 ${y} L168 ${y}`, stroke('#EFD0B4', 3.2))),
 ], { op: 0 })
 
+// v0.7 (MB-894): aviator goggles worn on the forehead above the brows, visible only while piloting (opacity 0 elsewhere).
+const lens = (key, cx) => node(key, [cx, 89], [
+  ell('lens', cx, 89, 13, 13, { fill: '#CFE6E8', stroke: C.line, w: 3, op: 0.92 }),
+  ell('lens_shine', cx - 4.5, 83.5, 3.6, 2.3, fill(C.white, 0.9)),
+])
+const goggles = node('goggles', [120, 92], [
+  pth('strap', 'M40 104 Q120 80 200 104', stroke(C.amberLine, 7)),
+  pth('bridge', 'M110.5 89 Q120 85 129.5 89', stroke(C.amberLine, 4.5)),
+  lens('lensL', 98), lens('lensR', 142),
+], { op: 0 })
+
 const head = node('head', [120, 192], [
   node('sprout', [120, 46], [
     node('glow', [120, 0], [ell('glow_outer', 120, 0, 34, 34, fill(C.glow, 0.5)), ell('glow_inner', 120, 0, 21.1, 21.1, fill(C.glow, 0.8))], { op: 0.44, s: 20 / 34 }),
@@ -128,6 +139,7 @@ const head = node('head', [120, 192], [
   lid('lidSad', 'M107 116 L87 116 L87 127 L107 122 Z', 'M133 116 L153 116 L153 127 L133 122 Z', 'M105.5 122.6 L88.5 126.4', 'M134.5 122.6 L151.5 126.4'),
   ...brows,
   mouth,
+  goggles,
   node('tear', [151, 146], [pth('drop', 'M151 139 C153 143 155 146 155 148 C155 151 153 152.5 151 152.5 C149 152.5 147 151 147 148 C147 146 149 143 151 139 Z', { fill: C.tear, stroke: C.tearLine, w: 1.5 })], { op: 0 }),
 ])
 
@@ -267,12 +279,14 @@ const nodes = new Map()
 // Keep this order: enum IDs are the v0.2 control contract; new values are appended only.
 // v0.6 (MB-818) appends, in this order: drowsy, wake, giggle, tickled, dangle, nod, stretch, look_around, scratch, point.
 const behaviors = ['idle', 'curious', 'listening', 'thinking', 'gentle', 'explaining', 'light_success', 'celebrate_soft', 'celebrate_hero', 'rest', 'sad', 'happy', 'sleep', 'speaking',
-  'drowsy', 'wake', 'giggle', 'tickled', 'dangle', 'nod', 'stretch', 'look_around', 'scratch', 'point']
-// One-shots start with `playOnce` and write `idle` when done. Only `dangle` is a host-set loop.
-const finite = new Set(['light_success', 'celebrate_soft', 'celebrate_hero', 'drowsy', 'wake', 'giggle', 'tickled', 'nod', 'stretch', 'look_around', 'scratch', 'point'])
+  'drowsy', 'wake', 'giggle', 'tickled', 'dangle', 'nod', 'stretch', 'look_around', 'scratch', 'point',
+  'pilot', 'pilot_wave', 'hop_down', 'wave']
+// v0.7 (MB-894) appends, in this order: pilot, pilot_wave, hop_down, wave (ids 24-27).
+// One-shots start with `playOnce` and write `idle` when done. `dangle`, `pilot` and `pilot_wave` are host-set loops.
+const finite = new Set(['light_success', 'celebrate_soft', 'celebrate_hero', 'drowsy', 'wake', 'giggle', 'tickled', 'nod', 'stretch', 'look_around', 'scratch', 'point', 'hop_down', 'wave'])
 const tiered = new Set(['celebrate_soft', 'celebrate_hero'])
 const ids = { vm: 3000, instance: 3001, behavior: 3010, attention: 3011, tier: 3012, reduced: 3013, visible: 3014, play: 3015, dock: 3016, machine: 3100 }
-// Tier enum lives above the 24 behavior values (3401…3424); the v0.5 ids 3420…3423 would collide.
+// Tier enum lives above the 28 behavior values (3401…3428, clear of 3450 and 3460); the v0.5 ids 3420…3423 would collide.
 const TIER_ENUM = 3460
 const id = (number) => `0:${number}`
 const enumValue = (name) => 3401 + behaviors.indexOf(name)
@@ -376,6 +390,8 @@ const osc = (rest, base, amp, period, cycles, total, lead = 0) => {
   out.push([total, rest])
   return out
 }
+const WAVE_ARM = -150 // raised hand beside and above the head (deg)
+const PILOT_ARM = 38 // arms rest on the cockpit rim (deg)
 const hop = (peak, period, cycles, total) => osc(0, -peak / 2, peak / 2, period, cycles, total)
 const timelines = {
   idle: [420, true, {
@@ -610,6 +626,49 @@ const timelines = {
     ...leaves(F([0, 0], [16, 10], [76, 10], [96, 0])),
     'fxExplain.op': F([0, 0], [16, 1], [76, 1], [92, 0], [96, 0]), 'cheeks.op': hold(0.85),
   }],
+  // ---- v0.7 (MB-894). `pilot` and `pilot_wave` are host-set loops (the airplane scene); `hop_down` and `wave` are one-shots. ----
+  // Seated in the cockpit, flying right: arms rest on the rim, goggles on, leaves and sprout swept back (left) by the wind.
+  pilot: [72, true, {
+    ...face({ brow: 'raised', mouth: 'smile' }),
+    'goggles.op': hold(1), 'shadow.op': hold(0), 'cheeks.op': hold(0.9),
+    ...arms(osc(PILOT_ARM, PILOT_ARM, 3, 24, 3, 72), osc(-PILOT_ARM, -PILOT_ARM, -3, 24, 3, 72)),
+    'head.dy': F([0, 0], [36, -1.5], [72, 0]), 'body.sy': F([0, 1], [36, 1.01], [72, 1]),
+    'sprout.rot': osc(-16, -16, 4, 12, 6, 72), 'head.rot': hold(-2),
+    ...lift('L', osc(-6, -6, 8, 12, 6, 72)), ...lift('R', osc(118, 118, 8, 12, 6, 72)),
+  }],
+  // `pilot` with the right hand raised, waving at the user.
+  pilot_wave: [48, true, {
+    ...happyFace,
+    'goggles.op': hold(1), 'shadow.op': hold(0), 'cheeks.op': hold(0.95),
+    ...arms(osc(PILOT_ARM, PILOT_ARM, 3, 24, 2, 48), osc(WAVE_ARM, WAVE_ARM, 16, 16, 3, 48)),
+    'armR.dx': hold(24), 'armR.dy': hold(-24), 'armR.sy': hold(1.2),
+    'head.dy': F([0, 0], [24, -1.5], [48, 0]), 'body.sy': F([0, 1], [24, 1.01], [48, 1]),
+    'sprout.rot': osc(-16, -16, 4, 12, 4, 48), 'head.rot': hold(-2),
+    ...lift('L', osc(-6, -6, 8, 12, 4, 48)), ...lift('R', osc(118, 118, 8, 12, 4, 48)),
+  }],
+  // 0.9 s: crouch, jump out of the cockpit (the host moves the mover to the dock), land with squash, settle into the dock pose.
+  hop_down: [54, false, {
+    ...faceSeq([[0, { brow: 'raised', mouth: 'smile' }], [10, { eye: 'wide', brow: 'high', mouth: 'open' }], [26, { eye: 'happy', brow: 'raised', mouth: 'open' }], [44, {}]]),
+    'mam.dy': F([0, 0], [10, 3], [26, -14], [38, 0], [44, 1], [54, 0]),
+    'mam.sy': F([0, 1], [10, 0.93], [26, 1.05], [38, 1.02], [43, 0.93], [54, 1]),
+    'mam.sx': F([0, 1], [26, 0.97], [38, 0.99], [43, 1.05], [54, 1]),
+    'shadow.op': F([0, 0], [34, 0], [44, 1], [54, 1]),
+    'goggles.op': F([0, 1], [30, 1], [44, 0], [54, 0]),
+    'cheeks.op': F([0, 0.9], [26, 0.95], [54, 0.75]),
+    'sprout.rot': F([0, -16], [10, 0], [26, 6], [44, 0], [54, 0]), 'head.rot': F([0, -2], [10, 0], [54, 0]),
+    ...lift('L', F([0, -6], [10, -8], [26, 30], [38, 8], [54, 0])), ...lift('R', F([0, 118], [10, 40], [26, 30], [38, 8], [54, 0])),
+    ...arms(F([0, PILOT_ARM], [10, 10], [26, 120], [38, 50], [44, 12], [54, 18]), F([0, -PILOT_ARM], [10, -10], [26, -120], [38, -50], [44, -12], [54, -18])),
+  }],
+  // 1.4 s standing greeting (also S3's generic hello): right arm up, four waves, then back down.
+  wave: [84, false, {
+    ...faceSeq([[0, {}], [8, { eye: 'happy', brow: 'raised', mouth: 'open' }], [76, {}]]),
+    'armR.rot': F([0, -18], [14, WAVE_ARM], ...Array.from({ length: 8 }, (_, i) => [18 + 8 * i, WAVE_ARM + (i % 2 ? -16 : 16)]), [84, -18]),
+    'armR.dx': F([0, 0], [14, 24], [74, 24], [84, 0]), 'armR.dy': F([0, 0], [14, -24], [74, -24], [84, 0]), 'armR.sy': F([0, 1], [14, 1.2], [74, 1.2], [84, 1]),
+    'mam.rot': F([0, 0], [14, 3], [74, 3], [84, 0]),
+    'head.rot': F([0, 0], [14, 3], [74, 3], [84, 0]),
+    ...leaves(F([0, 0], [14, 10], [74, 10], [84, 0])),
+    'cheeks.op': F([0, 0.75], [14, 0.95], [74, 0.95], [84, 0.75]),
+  }],
   rest: [1, false, face({})],
   hidden: [1, false, { ...face({}), 'mam.op': hold(0), 'shadow.op': hold(0) }],
   return_to_dock: [1, false, face({})],
@@ -709,7 +768,7 @@ if (nodeIds.size + 10 >= 1000) throw Error('Node IDs overlap shape IDs')
 await mkdir(join(directory, 'rig'), { recursive: true })
 await mkdir(join(directory, 'capture'), { recursive: true })
 await writeFile(join(directory, 'rig', 'scene.rml'), buildScene())
-await writeFile(join(directory, 'rig', 'rive.yaml'), 'name: mam-v06\nmain: companion_main\nlogs:\n  file: build/rive.log\n  problems: build/problems.log\n')
+await writeFile(join(directory, 'rig', 'rive.yaml'), 'name: mam-v07\nmain: companion_main\nlogs:\n  file: build/rive.log\n  problems: build/problems.log\n')
 await writeFile(join(directory, 'capture', 'scene.rml'), buildScene('#F1F4EB'))
-await writeFile(join(directory, 'capture', 'rive.yaml'), 'name: mam-v06-capture\nmain: companion_main\n')
+await writeFile(join(directory, 'capture', 'rive.yaml'), 'name: mam-v07-capture\nmain: companion_main\n')
 console.log(JSON.stringify({ artboard: 'companion_main', nodes: nodeIds.size, shapes: shapeId - 1000, states: allStates.length }))
