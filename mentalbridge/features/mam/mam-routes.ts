@@ -11,6 +11,7 @@ const FULL_ROUTES = [
   /^\/achievements$/,
   /^\/resources$/,
   /^\/analytics$/,
+  /^\/nhin-lai$/,
 ]
 
 // Private chat, video, screening and its results, plus the owner's scope cut

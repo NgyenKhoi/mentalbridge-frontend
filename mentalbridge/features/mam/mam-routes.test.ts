@@ -13,6 +13,7 @@ describe('mamRouteMode', () => {
     '/achievements',
     '/resources',
     '/analytics',
+    '/nhin-lai',
   ])('is FULL on %s', (path) => expect(mamRouteMode(path)).toBe('full'))
 
   it.each([
@@ -79,9 +80,14 @@ describe('isMamDockRoute', () => {
 })
 
 describe('isMamCelebrationRoute', () => {
-  it.each(['/dashboard', '/achievements', '/resources', '/analytics'])(
-    'plays celebrations on %s',
-    (path) => expect(isMamCelebrationRoute(path)).toBe(true),
+  it.each([
+    '/dashboard',
+    '/achievements',
+    '/resources',
+    '/analytics',
+    '/nhin-lai',
+  ])('plays celebrations on %s', (path) =>
+    expect(isMamCelebrationRoute(path)).toBe(true),
   )
 
   it.each([
