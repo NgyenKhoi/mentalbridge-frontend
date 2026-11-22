@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SpecialistProfileWorkspace from './SpecialistProfileWorkspace'
+import { BrowserConsultationError } from '../api/browser-client'
 
 const profile = {
   accountId: 'f5297ec9-bbc9-4d51-8212-62778245335c',
@@ -29,7 +30,15 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('../api/browser-client', () => ({
   browserConsultation: api,
-  BrowserConsultationError: class extends Error {},
+  BrowserConsultationError: class extends Error {
+    constructor(
+      readonly status: number,
+      readonly code: string,
+      message: string,
+    ) {
+      super(message)
+    }
+  },
 }))
 
 describe('SpecialistProfileWorkspace', () => {
@@ -67,6 +76,48 @@ describe('SpecialistProfileWorkspace', () => {
     expect(
       await screen.findByText('Hồ sơ đã được gửi để quản trị viên xét duyệt.'),
     ).toBeInTheDocument()
+  })
+
+  it('keeps required language data while removing it from the specialist profile UI', async () => {
+    api.own.mockResolvedValueOnce({
+      data: { ...profile, languages: ['vi', 'en'] },
+      etag: '"0"',
+    })
+    const user = userEvent.setup()
+    render(<SpecialistProfileWorkspace />)
+    const name = await screen.findByLabelText('Tên hiển thị')
+
+    expect(screen.queryByText('Ngôn ngữ tư vấn')).not.toBeInTheDocument()
+    expect(screen.queryByText('Thời lượng mỗi phiên')).not.toBeInTheDocument()
+    expect(screen.queryByText('Hình thức tư vấn')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tiếng Việt')).not.toBeInTheDocument()
+
+    await user.type(name, ' đã sửa')
+    await user.click(
+      screen.getAllByRole('button', { name: 'Lưu thay đổi' }).at(-1)!,
+    )
+    await waitFor(() =>
+      expect(api.save).toHaveBeenCalledWith(
+        expect.objectContaining({ languages: ['vi', 'en'] }),
+        '"0"',
+      ),
+    )
+  })
+
+  it('explains why a new profile must be saved before adding credentials', async () => {
+    api.own.mockRejectedValueOnce(
+      new BrowserConsultationError(404, 'PROFILE_NOT_FOUND', 'Missing'),
+    )
+    render(<SpecialistProfileWorkspace />)
+
+    const addCredential = await screen.findByRole('button', {
+      name: 'Thêm giấy tờ',
+    })
+    expect(addCredential).toBeDisabled()
+    expect(addCredential).toHaveAccessibleDescription(
+      'Lưu hồ sơ trước để thêm giấy tờ.',
+    )
+    expect(screen.queryByText('Ngôn ngữ tư vấn')).not.toBeInTheDocument()
   })
 
   it('keeps unsaved changes local until the specialist saves them', async () => {
