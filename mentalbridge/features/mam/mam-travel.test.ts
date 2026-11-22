@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createMamTravel, isMamCardOnScreen } from './mam-travel'
+import { buildFlightPlan } from './mam-welcome-flight'
 
 const SIZE = 96
 const DOCK = new DOMRect(24, 700, SIZE, SIZE)
@@ -583,5 +584,85 @@ describe('Mầm travel', () => {
       section.appendChild(inner)
       expect(isMamCardOnScreen(section)).toBe(true)
     })
+  })
+})
+
+describe('Mầm welcome flight (MB-894)', () => {
+  const plan = buildFlightPlan({
+    vw: 1440,
+    vh: 900,
+    dockRect: { left: 256, top: 780 },
+    size: SIZE,
+  })
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => {
+    vi.useRealTimers()
+    document.body.innerHTML = ''
+  })
+
+  function start() {
+    const { hooks, calls } = setup()
+    const puff = vi.fn()
+    const flying = createMamTravel({ ...hooks, puff })
+    flying.attach({ root: box(DOCK), size: SIZE })
+    return { travel: flying, hooks, calls, puff }
+  }
+
+  it('flies to the end: pilot, wave, hop_down, home, puffs while airborne', async () => {
+    const { travel, calls, puff } = start()
+    let done: boolean | null = null
+    void travel.welcome(plan).then((value) => (done = value))
+    await vi.advanceTimersByTimeAsync(50)
+    expect(travel.mode()).toBe('welcome')
+    expect(travel.values.planeX.get()).toBeLessThan(0)
+    await vi.advanceTimersByTimeAsync(plan.duration + 100)
+    expect(done).toBe(true)
+    expect(travel.mode()).toBe('dock')
+    expect(
+      calls.filter((call) => /^(behavior|shot):/.test(call)).slice(0, 5),
+    ).toEqual([
+      'behavior:pilot',
+      'behavior:pilot_wave',
+      'behavior:pilot',
+      'behavior:null',
+      'shot:hop_down',
+    ])
+    expect(calls.slice(-3)).toEqual(['mode:dock', 'behavior:null', 'shot:null'])
+    expect(puff.mock.calls.length).toBeGreaterThan(20)
+    expect(travel.values.x.get()).toBeCloseTo(0, 5)
+    expect(travel.values.y.get()).toBeCloseTo(0, 5)
+  })
+
+  it('snap cancels it at once and nothing keeps running', async () => {
+    const { travel, hooks, puff } = start()
+    let done: boolean | null = null
+    void travel.welcome(plan).then((value) => (done = value))
+    await vi.advanceTimersByTimeAsync(2000)
+    const puffs = puff.mock.calls.length
+    travel.snap()
+    expect(travel.mode()).toBe('dock')
+    expect(hooks.oneShot).toHaveBeenLastCalledWith(null)
+    await vi.advanceTimersByTimeAsync(plan.duration)
+    expect(done).toBe(false)
+    expect(puff.mock.calls.length).toBe(puffs)
+    expect(travel.values.x.get()).toBeCloseTo(0, 5)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('dispose settles a running flight as not finished', async () => {
+    const { travel } = start()
+    let done: boolean | null = null
+    void travel.welcome(plan).then((value) => (done = value))
+    await vi.advanceTimersByTimeAsync(500)
+    travel.dispose()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(done).toBe(false)
+  })
+
+  it('does not start away from the dock or while asleep', async () => {
+    const { travel } = start()
+    travel.dragStart(10, 10)
+    expect(await travel.welcome(plan)).toBe(false)
+    expect(travel.mode()).toBe('drag')
   })
 })

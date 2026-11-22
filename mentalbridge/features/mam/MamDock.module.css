@@ -449,6 +449,13 @@
   cursor: grabbing;
 }
 
+/* The welcome flight is a scene, not a grab: the plane never takes a pointer. */
+.root[data-mam-travel='welcome'] .dock {
+  cursor: default;
+  /* Everything she draws in the dock is click-through: a click under her reaches the page. */
+  pointer-events: none;
+}
+
 /* A no-interrupt zone freezes the host-owned loops; the sleep pose itself stays. */
 .root[data-mam-suppressed='true'] .breath,
 .root[data-mam-suppressed='true'] .letters span {

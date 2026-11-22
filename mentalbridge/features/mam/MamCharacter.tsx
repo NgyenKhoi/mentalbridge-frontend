@@ -47,6 +47,8 @@ export interface MamCharacterProps {
   visible?: boolean
   /** The user's Mầm motion preference; the OS setting forces it on. */
   reducedMotion?: boolean
+  /** Draw into a bigger buffer while the host shows her scaled up (the welcome flight), so she stays sharp. */
+  oversample?: boolean
   oneShot?: MamOneShotCommand | null
   className?: string
   onStatusChange?: (status: MamRenderStatus) => void
@@ -103,6 +105,7 @@ export function MamCharacter({
   gaze,
   visible = true,
   reducedMotion = false,
+  oversample = false,
   oneShot = null,
   className,
   onStatusChange,
@@ -225,8 +228,12 @@ export function MamCharacter({
 
   // Keeps the drawing surface sharp when the host changes the size.
   useEffect(() => {
-    if (status === 'ready') instanceRef.current?.resizeDrawingSurfaceToCanvas()
-  }, [status, size])
+    // The welcome flight draws her up to 1.7x larger: size the buffer for that while it lasts, else for the screen.
+    if (status === 'ready')
+      instanceRef.current?.resizeDrawingSurfaceToCanvas(
+        (window.devicePixelRatio || 1) * (oversample ? 1.7 : 1),
+      )
+  }, [status, size, oversample])
 
   // Gates first: hidden and reduced motion also stop a running one-shot in the asset.
   useEffect(() => {

@@ -22,8 +22,16 @@ import {
   type MamEase,
   type VelocitySample,
 } from './mam-motion'
+import { sampleFlight, type FlightPlan } from './mam-welcome-flight'
 
-export type MamTravelMode = 'dock' | 'perch' | 'drag' | 'fly' | 'home'
+export type MamTravelMode =
+  | 'dock'
+  | 'perch'
+  | 'drag'
+  | 'fly'
+  | 'home'
+  // MB-894: the welcome flight (docs/ADR_MAM_RIVE_V2_CONTRACT.md).
+  | 'welcome'
 
 /** Viewport geometry of the perched character, for the bubble. */
 export type MamPerch = Readonly<{
@@ -42,6 +50,8 @@ export type MamTravelHooks = Readonly<{
   attention: (direction: number) => void
   perch: (perch: MamPerch | null) => void
   asleep: (asleep: boolean) => void
+  /** A cloud puff dropped at a point of the character box (px), while the welcome plane is airborne. */
+  puff?: (x: number, y: number, scale: number) => void
 }>
 
 type Key = 'dockOff' | 'perchOff' | 'dy' | 'rot' | 'sx' | 'sy' | 'hands'
@@ -131,6 +141,16 @@ export function createMamTravel(hooks: MamTravelHooks) {
     pawRight: motionValue(0),
     pawY: motionValue(0),
     pawScale: motionValue(0),
+    // The welcome plane (MB-894): offsets from the docked centre, like x and y.
+    planeX: motionValue(0),
+    planeY: motionValue(0),
+    planeRotate: motionValue(0),
+    planeDir: motionValue(1),
+    planeSquash: motionValue(1),
+    planeGroundBlob: motionValue(0),
+    planeOpacity: motionValue(1),
+    // 1 once Mầm has left the cockpit: she is then drawn over the plane's front layer.
+    moverZ: motionValue(0),
   }
   const st = {
     mode: 'dock' as MamTravelMode,
@@ -190,6 +210,10 @@ export function createMamTravel(hooks: MamTravelHooks) {
   let climbing = false
   // The card left, or scrolled too high, while Mầm was perched.
   let onLost = () => {}
+  // Settles a running welcome flight when the controller is disposed.
+  let settleWelcome: ((finished: boolean) => void) | null = null
+  let puffTo: (x: number, y: number, scale: number) => void =
+    hooks.puff ?? (() => {})
 
   const alive = (t: number) => t === token
   const measure = () => {
@@ -416,11 +440,87 @@ export function createMamTravel(hooks: MamTravelHooks) {
     // A sleeping Mầm stays asleep, in the settled pose, not mid-transform.
     Object.assign(st, asleep ? { dy: size * 0.2, rot: -78 } : { dy: 0, rot: 0 })
     values.pawScale.set(0)
+    values.moverZ.set(0)
     setMode('dock')
     hooks.perch(null)
     hooks.attention(0)
     hooks.behavior(asleep ? 'sleep' : null)
     render()
+  }
+
+  // ---- Welcome flight (MB-894) --------------------------------------------
+
+  const PUFF_EVERY_MS = 110
+
+  /**
+   * Flies the plan: Mầm seated in the plane (`pilot`, `pilot_wave`), a landing, the `hop_down`
+   * one-shot, then home. Resolves true when it ran to the end, false when `snap` (or anything that
+   * takes the token) cut it short. Needs a measured dock and a docked, awake Mầm.
+   */
+  async function welcome(plan: FlightPlan) {
+    if (st.mode !== 'dock' || asleep || st.dockOff !== 0) return false
+    const t = (token += 1)
+    measure()
+    // Reset here, not on the way out: the exiting plane keeps its last opacity, so the unmount fade has one source.
+    values.planeOpacity.set(1)
+    setMode('welcome')
+    let cue: string | null = null
+    let nextPuff = 0
+    const start = performance.now()
+    return new Promise<boolean>((resolve) => {
+      settleWelcome = resolve
+      const step = () => {
+        if (!alive(t)) return resolve(false)
+        const ms = performance.now() - start
+        const s = sampleFlight(plan, ms)
+        const { plane, seat } = s
+        values.planeX.set(plane.x)
+        values.planeY.set(plane.y)
+        values.planeRotate.set(plane.rot)
+        values.planeDir.set(plane.dirX * plane.scale)
+        values.planeSquash.set(plane.squashY * plane.scale)
+        values.planeGroundBlob.set(plane.groundBlob)
+        values.planeOpacity.set(plane.opacity)
+        values.moverZ.set(seat.free ? 1 : 0)
+        Object.assign(st, {
+          x: origin.left + seat.x,
+          y: origin.top + seat.y,
+          rot: seat.rot,
+          sx: seat.dirX * seat.scale,
+          sy: seat.scale,
+        })
+        if (s.cue !== cue) {
+          cue = s.cue
+          // The loop hands over to the one-shot in one commit (the renderer reads behaviour first).
+          if (s.cue === 'hop') {
+            hooks.behavior(null)
+            hooks.oneShot('hop_down')
+          } else hooks.behavior(s.cue)
+        }
+        if (s.airborne && ms >= nextPuff) {
+          nextPuff = ms + PUFF_EVERY_MS
+          // The tail, in box px: it flips and scales with the plane about the seat (artboard units, 512 = the box).
+          const k = plane.scale
+          puffTo(
+            (256 + (-70 - 256) * plane.dirX * k) * plan.scale + plane.x,
+            (317 + (420 - 317) * k) * plan.scale + plane.y,
+            k,
+          )
+        }
+        render()
+        if (ms < plan.duration) return void raf(step)
+        // Home: back on the dock for the greeting; the plane is gone.
+        Object.assign(st, { dockOff: 0, dy: 0, rot: 0, sx: 1, sy: 1 })
+        values.moverZ.set(0)
+        setMode('dock')
+        hooks.behavior(null)
+        hooks.oneShot(null)
+        render()
+        resolve(true)
+      }
+      // The first frame is set now, so Mầm is already in the plane when the host shows her.
+      step()
+    })
   }
 
   // Mầm's head rises above the card's top edge: perch where that band holds no text or control.
@@ -750,6 +850,7 @@ export function createMamTravel(hooks: MamTravelHooks) {
     climb,
     home,
     snap,
+    welcome,
     sleep,
     wake,
     wakeQuiet,
@@ -762,10 +863,16 @@ export function createMamTravel(hooks: MamTravelHooks) {
     onLost(handler: () => void) {
       onLost = handler
     },
+    /** Where the welcome plane drops its cloud puffs; the host registers its trail here. */
+    onPuff(handler: (x: number, y: number, scale: number) => void) {
+      puffTo = handler
+    },
     isAsleep: () => asleep,
     mode: () => st.mode,
     dispose() {
       token += 1
+      settleWelcome?.(false)
+      settleWelcome = null
       drag = null
       listen(false)
       frames.forEach((id) => cancelAnimationFrame(id))

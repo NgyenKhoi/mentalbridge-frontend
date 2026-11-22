@@ -1,4 +1,4 @@
-name: mam-v06
+name: mam-v07
 main: companion_main
 logs:
   file: build/rive.log

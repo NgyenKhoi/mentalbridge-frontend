@@ -15,13 +15,14 @@ import { EyeOff, Leaf, MessageCircleQuestion } from 'lucide-react'
 
 import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
 
+import { MamAirplane, MamFlightFx } from './MamAirplane'
 import { MamBubble, MamCelebrationBubble, MamNoticeBubble } from './MamBubble'
 import { MamCharacter, type MamRenderStatus } from './MamCharacter'
 import styles from './MamDock.module.css'
 import { useMamAccountId } from './MamDockSlot'
 import { MamDizzy } from './MamDizzy'
 import { hasMamRendererFailed, markMamRendererFailed } from './mam-failure'
-import type { MamLoopingBehavior } from './mam-contract'
+import { MAM_WELCOME_ENABLED, type MamLoopingBehavior } from './mam-contract'
 import {
   setMamHidden,
   setMamMotionOff,
@@ -39,6 +40,7 @@ import { IDLE_ACTIONS, useMamIdleActions } from './use-mam-idle-actions'
 import { useMamGaze } from './mam-gaze'
 import { NO_POKE, pokeClick } from './mam-poke'
 import { useMamShot } from './use-mam-shot'
+import { buildFlightPlan } from './mam-welcome-flight'
 import { isMamCelebrationRoute, isMamStaticDockRoute } from './mam-routes'
 import {
   useMamCelebrationNote,
@@ -74,6 +76,50 @@ function subscribeCoarse(onChange: () => void) {
 }
 
 const ease = [0.16, 1, 0.3, 1] as const
+
+// MB-894: the welcome airplane (docs/ADR_MAM_RIVE_V2_CONTRACT.md). Once per account and session.
+const WELCOME_DELAY_MS = 700
+const WELCOME_READY_MS = 4000
+const WELCOME_CANCEL_EVENTS = [
+  'pointerdown',
+  'keydown',
+  'wheel',
+  'touchstart',
+] as const
+const welcomeKey = (accountId: string) =>
+  `mentalbridge_mam_welcome:${accountId}`
+const isDashboard = (pathname: string) => /^\/dashboard\/?$/.test(pathname)
+const markWelcome = (accountId: string | null) => {
+  try {
+    if (accountId) sessionStorage.setItem(welcomeKey(accountId), '1')
+  } catch {
+    // Storage may be blocked: the scene then replays on the next load, which is harmless.
+  }
+}
+/** `?mamWelcome=1` replays for QA and demos; an automated browser only plays it that way. */
+function welcomeDue(
+  pathname: string,
+  accountId: string | null,
+  allowReplay: boolean,
+) {
+  if (
+    !MAM_WELCOME_ENABLED ||
+    typeof window === 'undefined' ||
+    !accountId ||
+    !isDashboard(pathname)
+  )
+    return false
+  const replay =
+    allowReplay &&
+    new URLSearchParams(window.location.search).get('mamWelcome') === '1'
+  if (navigator.webdriver && !replay) return false
+  if (replay) return true
+  try {
+    return sessionStorage.getItem(welcomeKey(accountId)) === null
+  } catch {
+    return true
+  }
+}
 
 /** The one Mầm per tab, loaded by `MamDock` only where it shows (MB-781). */
 export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
@@ -185,11 +231,38 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const [travelBehavior, setTravelBehavior] =
     useState<MamLoopingBehavior | null>(null)
   const [attention, setAttention] = useState(0)
+  // Welcome: waiting (the dock character is held back) until it starts, is skipped or is cancelled.
+  // `?mamWelcome=1` replays once per page load.
+  const [replayUsed, setReplayUsed] = useState(false)
+  const welcomeAllowed = !hidden && !reduced && !dizzy
+  const [welcome, setWelcome] = useState<'waiting' | 'done'>(() =>
+    welcomeAllowed && welcomeDue(pathname, accountId, true)
+      ? 'waiting'
+      : 'done',
+  )
+  // Arriving on /dashboard later in the session makes the scene due again (derived state, guarded by the path change).
+  const [arrivedAt, setArrivedAt] = useState(pathname)
+  if (arrivedAt !== pathname) {
+    setArrivedAt(pathname)
+    if (
+      welcome === 'done' &&
+      welcomeAllowed &&
+      welcomeDue(pathname, accountId, !replayUsed)
+    )
+      setWelcome('waiting')
+  }
+  // A hidden Mầm, a stilled one, another page, a fallback or a broken renderer ends the wait (a derived-state reset, guarded so it runs once).
+  if (
+    welcome === 'waiting' &&
+    (!welcomeAllowed || !isDashboard(pathname) || status === 'fallback')
+  )
+    setWelcome('done')
   const [perch, setPerch] = useState<MamPerch | null>(null)
   const [asleep, setAsleep] = useState(false)
   // The host's own one-shot channel: drowsy and wake (travel), pokes, idle actions.
   const local = useMamShot()
   const pokes = useRef(NO_POKE)
+  const flightFx = useRef<MamFlightFx>(null)
   const [travel] = useState(() =>
     createMamTravel({
       mode: setTravelMode,
@@ -200,6 +273,9 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       asleep: setAsleep,
     }),
   )
+  useEffect(() => {
+    travel.onPuff((x, y, scale) => flightFx.current?.emit(x, y, scale))
+  }, [travel])
   const layerRef = useCallback(
     (node: HTMLElement | null) => travel.setLayer(node),
     [travel],
@@ -242,6 +318,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const perched = travelMode === 'perch'
   const flying =
     travelMode === 'drag' || travelMode === 'fly' || travelMode === 'home'
+  const welcoming = travelMode === 'welcome'
   // A drag or a throw must not select the page text it sweeps over.
   const carried = travelMode === 'drag' || travelMode === 'fly'
   useEffect(() => {
@@ -272,6 +349,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       !suppressed &&
       !dizzy &&
       !flying &&
+      !welcoming &&
       !summon &&
       !notice &&
       !menuOpen,
@@ -286,6 +364,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       !suppressed &&
       !dizzy &&
       !flying &&
+      !welcoming &&
       !summon &&
       !notice &&
       !menuOpen &&
@@ -333,7 +412,10 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const localKind = local.shot?.kind
   const localShot =
     local.shot &&
-    (localKind === 'drowsy' || localKind === 'wake'
+    (localKind === 'drowsy' ||
+    localKind === 'wake' ||
+    localKind === 'hop_down' ||
+    localKind === 'wave'
       ? calm
       : localKind === 'point'
         ? pointReady
@@ -369,6 +451,85 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       dockRef.current?.focus({ preventScroll: true })
   }, [lead, perch])
   const lively = autonomous && !local.shot
+
+  // ---- MB-894 welcome airplane ----
+  const welcomeGate = useRef(false)
+  useEffect(() => {
+    welcomeGate.current =
+      calm &&
+      travelMode === 'dock' &&
+      !asleep &&
+      !menuOpen &&
+      !summon &&
+      !notice &&
+      !celebrating &&
+      !shot &&
+      !local.shot &&
+      // A page action under the dock only dims the docked Mầm; the plane is click-through. Focus under it
+      // means the user is already working there, so the scene does not start.
+      yielding !== 'focus' &&
+      document.visibilityState === 'visible' &&
+      window.innerWidth >= 320 &&
+      window.innerHeight >= 480
+  })
+  // The whole wait is capped: whatever holds the start (a slow asset, a no-interrupt zone, focus), after 4 s Mầm
+  // shows in the dock and the scene is off. The session is not marked as played.
+  useEffect(() => {
+    if (welcome !== 'waiting') return
+    const timer = setTimeout(() => setWelcome('done'), WELCOME_READY_MS)
+    return () => clearTimeout(timer)
+  }, [welcome])
+  // The user has started to use the page: no surprise entrance after that.
+  useEffect(() => {
+    if (welcome !== 'waiting') return
+    const stop = () => setWelcome('done')
+    for (const type of WELCOME_CANCEL_EVENTS)
+      window.addEventListener(type, stop, { capture: true, passive: true })
+    return () => {
+      for (const type of WELCOME_CANCEL_EVENTS)
+        window.removeEventListener(type, stop, { capture: true })
+    }
+  }, [welcome])
+  // 700 ms after ready the page's entrance has landed; every gate is checked once, then it flies.
+  useEffect(() => {
+    if (welcome !== 'waiting' || !calm) return
+    const timer = setTimeout(() => {
+      setWelcome('done')
+      const rect = dockRef.current?.getBoundingClientRect()
+      if (!welcomeGate.current || !rect) return
+      markWelcome(accountId)
+      setReplayUsed(true)
+      const plan = buildFlightPlan({
+        vw: window.innerWidth,
+        vh: window.innerHeight,
+        dockRect: rect,
+        size,
+      })
+      void travel.welcome(plan).then((finished) => {
+        if (finished) playLocal('wave')
+      })
+    }, WELCOME_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [welcome, calm, accountId, size, travel, playLocal])
+  // Any input, a hidden tab or a lost gate skips the scene at once; the input still reaches its target.
+  useEffect(() => {
+    if (!welcoming) return
+    const skip = () => travel.snap()
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') skip()
+    }
+    for (const type of WELCOME_CANCEL_EVENTS)
+      window.addEventListener(type, skip, { capture: true, passive: true })
+    // The plan holds the viewport and the dock size: a resize makes it stale.
+    window.addEventListener('resize', skip)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      for (const type of WELCOME_CANCEL_EVENTS)
+        window.removeEventListener(type, skip, { capture: true })
+      window.removeEventListener('resize', skip)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [welcoming, travel])
   // What the character is told to play now (also read by the E2E specs).
   const playing = (asleep ? null : shot) ?? localShot
   const gaze = useMamGaze(lively, dockRef)
@@ -692,7 +853,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       data-mam-gaze={lively}
       data-mam-dizzy={dizzy}
       data-mam-suppressed={suppressed}
-      data-front={flying}
+      data-front={flying || welcoming}
     >
       <AnimatePresence initial={false} mode="wait">
         {away ? null : hidden ? (
@@ -752,9 +913,30 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
               onPointerCancel={onDockPointerEnd}
             >
               <span className={styles.flight} data-flight={celebration.flight}>
+                {welcoming ? (
+                  <MamFlightFx
+                    ref={flightFx}
+                    size={size}
+                    values={travel.values}
+                  />
+                ) : null}
+                <AnimatePresence>
+                  {welcoming ? (
+                    <MamAirplane
+                      key="back"
+                      layer="back"
+                      size={size}
+                      values={travel.values}
+                    />
+                  ) : null}
+                </AnimatePresence>
                 <motion.span
                   className={styles.mover}
-                  style={{ x: travel.values.x, y: travel.values.y }}
+                  style={{
+                    x: travel.values.x,
+                    y: travel.values.y,
+                    zIndex: travel.values.moverZ,
+                  }}
                 >
                   <motion.span
                     className={styles.body}
@@ -782,6 +964,14 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                         }
                         attention={attention}
                         gaze={lively ? gaze : undefined}
+                        // Held back only while the scene is about to start: loading, or the 700 ms before it.
+                        visible={
+                          !(
+                            welcome === 'waiting' &&
+                            (status === 'loading' || calm)
+                          )
+                        }
+                        oversample={welcoming}
                         reducedMotion={
                           motionOff ||
                           suppressed ||
@@ -814,6 +1004,16 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                     </span>
                   ) : null}
                 </motion.span>
+                <AnimatePresence>
+                  {welcoming ? (
+                    <MamAirplane
+                      key="front"
+                      layer="front"
+                      size={size}
+                      values={travel.values}
+                    />
+                  ) : null}
+                </AnimatePresence>
               </span>
             </button>
 

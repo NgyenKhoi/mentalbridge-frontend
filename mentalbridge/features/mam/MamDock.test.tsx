@@ -119,6 +119,8 @@ describe('MamDock', () => {
     resetMamRendererFailure()
     window.localStorage.clear()
     window.sessionStorage.clear()
+    // MB-894: an automated browser never gets the welcome flight unless `?mamWelcome=1` asks for it.
+    Object.defineProperty(navigator, 'webdriver', { value: true, configurable: true })
     stubMatchMedia(() => false)
     vi.stubGlobal(
       'ResizeObserver',
@@ -135,6 +137,7 @@ describe('MamDock', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+    Reflect.deleteProperty(navigator, 'webdriver')
     document.body.innerHTML = ''
   })
 

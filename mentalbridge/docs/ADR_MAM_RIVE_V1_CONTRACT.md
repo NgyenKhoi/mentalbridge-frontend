@@ -10,6 +10,7 @@
   business authority
 - Follow-up implementation: MB-767 to MB-776
 - Evidence: [mb-766-mam-rive-contract.md](evidence/mb-766-mam-rive-contract.md)
+- Amended by [ADR_MAM_RIVE_V2_CONTRACT.md](ADR_MAM_RIVE_V2_CONTRACT.md) (MB-894): asset `mam-v07.riv`, IDs 24 to 27, the welcome airplane, a 180 KB budget. This document is not edited.
 
 ## Context
 

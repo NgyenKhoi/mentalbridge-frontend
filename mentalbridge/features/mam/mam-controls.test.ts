@@ -198,6 +198,10 @@ describe('createMamControls', () => {
       'look_around',
       'scratch',
       'point',
+      'pilot',
+      'pilot_wave',
+      'hop_down',
+      'wave',
     ])
   })
 })
