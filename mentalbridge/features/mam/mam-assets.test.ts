@@ -10,6 +10,7 @@ import {
   MAM_LOOPING_BEHAVIORS,
   MAM_ONE_SHOTS,
   MAM_ONE_SHOT_MS,
+  MAM_ASSET_VERSION,
 } from './mam-contract'
 
 const sha256 = (file: string) =>
@@ -41,11 +42,20 @@ describe('Mầm committed assets', () => {
     expect(MAM_LOOPING_BEHAVIORS).toContain('speaking')
   })
 
-  it('serves v0.7 inside the V2 budget and keeps v0.6 for rollback', () => {
-    expect(MAM_ASSET.src).toBe('/mam/mam-v07.riv')
-    // V1 froze 160 KB; V2 (docs/ADR_MAM_RIVE_V2_CONTRACT.md) raises it to 180 KB for the four new states.
+  it('derives the asset generation from the served file, so a half rollback cannot send ids 28 and up to v0.7', () => {
+    expect(MAM_ASSET.src).toContain(`mam-${MAM_ASSET_VERSION}.riv`)
+    expect(MAM_ASSET_VERSION).toBe('v08')
+  })
+
+  it('serves v0.8 inside the V2 budget and keeps v0.7 and v0.6 for rollback', () => {
+    expect(MAM_ASSET.src).toBe('/mam/mam-v08.riv')
+    // V1 froze 160 KB; V2 (docs/ADR_MAM_RIVE_V2_CONTRACT.md) raised it to 180 KB for v0.7 and to 240 KB for the eight v0.8 states.
     expect(statSync(publicFile(MAM_ASSET.src)).size).toBeLessThanOrEqual(
-      180 * 1024,
+      240 * 1024,
+    )
+    expect(existsSync(publicFile('/mam/mam-v07.riv'))).toBe(true)
+    expect(sha256(publicFile('/mam/mam-v07.riv'))).toBe(
+      'b440cb6f097a5ae12cb7ad3d44cf4f4f5055000156c823b09530d1e85ea653c3',
     )
     expect(existsSync(publicFile('/mam/mam-v06.riv'))).toBe(true)
     expect(sha256(publicFile('/mam/mam-v06.riv'))).toBe(
@@ -55,8 +65,8 @@ describe('Mầm committed assets', () => {
   })
 
   it('appends the v0.7 states after the unchanged 24 ids', () => {
-    expect(MAM_BEHAVIORS).toHaveLength(28)
-    expect(MAM_BEHAVIORS.slice(24)).toEqual([
+    expect(MAM_BEHAVIORS.slice(0, 28)).toHaveLength(28)
+    expect(MAM_BEHAVIORS.slice(24, 28)).toEqual([
       'pilot',
       'pilot_wave',
       'hop_down',
@@ -67,9 +77,43 @@ describe('Mầm committed assets', () => {
     expect(MAM_LOOPING_BEHAVIORS).toEqual(
       expect.arrayContaining(['pilot', 'pilot_wave']),
     )
-    expect(MAM_ONE_SHOTS.slice(-2)).toEqual(['hop_down', 'wave'])
+    expect(MAM_ONE_SHOTS.slice(-8, -6)).toEqual(['hop_down', 'wave'])
     expect(MAM_ONE_SHOT_MS.hop_down).toBeGreaterThanOrEqual(900)
     expect(MAM_ONE_SHOT_MS.wave).toBeGreaterThanOrEqual(1400)
+  })
+
+  it('appends the v0.8 states after the unchanged 28 ids', () => {
+    expect(MAM_BEHAVIORS).toHaveLength(36)
+    expect(MAM_BEHAVIORS.slice(24, 28)).toEqual([
+      'pilot',
+      'pilot_wave',
+      'hop_down',
+      'wave',
+    ])
+    expect(MAM_BEHAVIORS.slice(28)).toEqual([
+      'spin',
+      'dance',
+      'clap',
+      'thumbs_up',
+      'fist_pump',
+      'sit_hug',
+      'hang',
+      'pop_up',
+    ])
+    // sit_hug and hang are host-set loops; the other six are one-shots.
+    expect(MAM_LOOPING_BEHAVIORS).toEqual(
+      expect.arrayContaining(['sit_hug', 'hang']),
+    )
+    expect(MAM_ONE_SHOTS.slice(-6)).toEqual([
+      'spin',
+      'dance',
+      'clap',
+      'thumbs_up',
+      'fist_pump',
+      'pop_up',
+    ])
+    for (const kind of MAM_ONE_SHOTS.slice(-6))
+      expect(MAM_ONE_SHOT_MS[kind]).toBeGreaterThanOrEqual(1000)
   })
 
   it('appends the v0.6 states in the documented order after the unchanged v0.5 IDs', () => {

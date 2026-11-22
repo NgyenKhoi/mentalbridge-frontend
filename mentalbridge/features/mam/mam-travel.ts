@@ -22,6 +22,7 @@ import {
   type MamEase,
   type VelocitySample,
 } from './mam-motion'
+import type { MamSceneFrame } from './mam-scenes'
 import { sampleFlight, type FlightPlan } from './mam-welcome-flight'
 
 export type MamTravelMode =
@@ -32,6 +33,10 @@ export type MamTravelMode =
   | 'home'
   // MB-894: the welcome flight (docs/ADR_MAM_RIVE_V2_CONTRACT.md).
   | 'welcome'
+  // MB-896: a cinematic scene the orchestrator asks for (the parachute descent), in front of the page like the flight.
+  | 'scene'
+  // MB-896: a hop on the spot (dance, spin): she stays in the dock layer, clickable and keyboard-usable.
+  | 'hop'
 
 /** Viewport geometry of the perched character, for the bubble. */
 export type MamPerch = Readonly<{
@@ -523,6 +528,46 @@ export function createMamTravel(hooks: MamTravelHooks) {
     })
   }
 
+  /**
+   * Plays a timed scene (MB-896): `sample` gives her offset from the dock for each millisecond until `duration`,
+   * then she is home. Resolves true at the end, false when `snap` (or a newer sequence) cut it short.
+   * `mode` 'scene' is the cinematic one (front layer, click-through); 'hop' keeps her in the dock layer.
+   * Needs a measured, docked, awake Mầm, like the welcome flight.
+   */
+  async function scene(
+    duration: number,
+    sample: (ms: number) => MamSceneFrame,
+    mode: 'scene' | 'hop' = 'scene',
+  ) {
+    if (st.mode !== 'dock' || asleep || st.dockOff !== 0) return false
+    const t = (token += 1)
+    measure()
+    setMode(mode)
+    const start = performance.now()
+    return new Promise<boolean>((resolve) => {
+      settleWelcome = resolve
+      const step = () => {
+        if (!alive(t)) return resolve(false)
+        const ms = performance.now() - start
+        const frame = sample(Math.min(ms, duration))
+        Object.assign(st, {
+          x: origin.left + frame.x,
+          y: origin.top + frame.y,
+          rot: frame.rot,
+          sx: frame.sx,
+          sy: frame.sy,
+        })
+        render()
+        if (ms < duration) return void raf(step)
+        Object.assign(st, { dockOff: 0, dy: 0, rot: 0, sx: 1, sy: 1 })
+        setMode('dock')
+        render()
+        resolve(true)
+      }
+      step()
+    })
+  }
+
   // Mầm's head rises above the card's top edge: perch where that band holds no text or control.
   function perchShift(el: Element) {
     const rect = perchEdge(el).getBoundingClientRect()
@@ -851,6 +896,7 @@ export function createMamTravel(hooks: MamTravelHooks) {
     home,
     snap,
     welcome,
+    scene,
     sleep,
     wake,
     wakeQuiet,

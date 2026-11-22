@@ -347,6 +347,18 @@
   animation: mam-hero-rise 1400ms var(--ease-standard);
 }
 
+/* MB-896: an expressive look grows her from her feet: in over 180 ms, back over 220 ms. Never under reduced motion. */
+.flight {
+  transform-origin: 50% 100%; /* her feet: the grown box is anchored on the dock line */
+  transition: transform 220ms var(--ease-standard);
+}
+
+.root[data-mam-emphasis='true'] .flight {
+  transform: scale(var(--mam-emphasis, 1.25));
+  transition-duration: 180ms;
+  transition-timing-function: var(--ease-emphasis);
+}
+
 @keyframes mam-hero-rise {
   35% {
     transform: translateY(-14px);
@@ -365,6 +377,12 @@
 @media (prefers-reduced-motion: reduce) {
   .flight[data-flight='true'] {
     animation: none;
+  }
+
+  .flight,
+  .root[data-mam-emphasis='true'] .flight {
+    transform: none;
+    transition: none;
   }
 }
 
@@ -478,8 +496,9 @@
   cursor: grabbing;
 }
 
-/* The welcome flight is a scene, not a grab: the plane never takes a pointer. */
-.root[data-mam-travel='welcome'] .dock {
+/* The welcome flight and the MB-896 scenes are not a grab: the plane and the parachute never take a pointer. */
+.root[data-mam-travel='welcome'] .dock,
+.root[data-mam-travel='scene'] .dock {
   cursor: default;
   /* Everything she draws in the dock is click-through: a click under her reaches the page. */
   pointer-events: none;

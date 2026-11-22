@@ -205,3 +205,94 @@ Gate A is a visual decision, not a test count: it stays open while the art or th
 - **Mounting:** `MamDockSlot` stays in the `(dashboard)` and `resources` layouts. It is not mounted in
   `(community)`, so the community has no dock even if a path were mapped.
 - **Rollback:** emptying the FULL and QUIET lists hides Mầm everywhere. `MAM_WEB_ENABLED` still gates the slots.
+
+## v0.8 amendment (MB-896, Phase C: orchestrator and variations)
+
+- **Asset:** `public/mam/mam-v08.riv` (233,322 bytes, 227.9 KB), SHA-256 `e54ddc955c0f4fc1b7a190a06b33e1e8e7eeb050409c083f9e56b5a4fb86b021`, rig name `mam-v08`. `mam-v07.riv` (174,450 B, hash above) and `mam-v06.riv` stay in `public/mam/` for rollback; `mam-assets.test.ts` locks all three hashes.
+- **Budget:** v0.8 is 58,872 bytes over v0.7. Eight states at about 7 KB each, plus the `fistL`/`fistR`/`thumbR` nodes. A ninth state, `leaf_play`, was cut after the art review (the arm crossed the head shell); it was the last id, so no other id moved. The art was not cut to fit. The new limit is **240 KB (245,760 B)**, and the next phase must re-measure again or split the asset.
+- **IDs 28 to 35, appended in this order; the first 28 are unchanged:**
+
+| ID  | State       | Class         | Length             | Pose                                                                                                     |
+| --- | ----------- | ------------- | ------------------ | -------------------------------------------------------------------------------------------------------- |
+| 28  | `spin`      | one-shot      | 66 frames (1.1 s)  | crouch, hop, two turns about the vertical axis (scaleX = cos), landing squash                            |
+| 29  | `dance`     | one-shot      | 144 frames (2.4 s) | side sway, beat bounce, arms trading up and down, feet stepping                                          |
+| 30  | `clap`      | one-shot      | 96 frames (1.6 s)  | arms rise, six claps under the chin, small bob                                                           |
+| 31  | `thumbs_up` | one-shot      | 78 frames (1.3 s)  | wink, right arm out with the thumb up, two pushes                                                        |
+| 32  | `fist_pump` | one-shot      | 72 frames (1.2 s)  | crouch, two hops with the right fist driven up                                                           |
+| 33  | `sit_hug`   | host-set loop | 240 frames (4 s)   | seated, squashed body, arms wrapped round the belly, happy closed eyes, slow rocking                     |
+| 34  | `hang`      | host-set loop | 72 frames (1.2 s)  | both fists up (about (30,140) and (210,140) canvas, V arms), feet kicking, leaves lifted; shadow hidden  |
+| 35  | `pop_up`    | one-shot      | 66 frames (1.1 s)  | starts crouched 18 canvas units low (the host's pot hides the body), squats, springs up with arms raised |
+
+- **New art nodes:** `fistL` (in `armL`), `fistR` and `thumbR` (in `armR`), opacity 0 except in `thumbs_up`, `fist_pump` and `hang`.
+- **Contract:** `sit_hug` and `hang` join `MAM_LOOPING_BEHAVIORS` (set only by a variation sequence); the six one-shots join `MAM_ONE_SHOTS` (timeouts 1200, 2500, 1700, 1400, 1300 and 1200 ms) and return to `idle` themselves. Arbitration is unchanged.
+- **Build:** `keys()` accepts a third element `'lin'` on a frame (linear segment); `spin` uses it for its cosine keys.
+- **Rollback:** point `MAM_ASSET.src` and `sha256` at `mam-v07.riv`. `MAM_ASSET_VERSION` is read from `src`, so the catalogue then drops every variation that declares `minAsset: 'v08'` (ids 28 to 35) by itself; a half rollback cannot send them to v0.7 (`mam-assets.test.ts` ties the two).
+
+## Orchestrator and variations (MB-896, Phase C)
+
+One behaviour, many looks. A caller asks for a semantic **intent**; the orchestrator picks one **variation** and runs its steps. Code: `features/mam/mam-orchestrator.ts` (pure core), `mam-variations.ts` (the catalogue), `use-mam-stage.ts` (the host adapter), `MamProps.tsx` (host SVG props), `mam-scenes.ts` (pure scene motion).
+
+### API
+
+`play(intent, { source, priority?, grade?, variation? })` returns `{ status: 'played', variation }`, `{ status: 'queued' }` or `{ status: 'skipped', reason }`. Skip reasons: `disposed`, `hidden`, `reduced`, `route`, `viewport`, `none`, `blocked`, `busy`, `queue_full`. `grade` (`light`, `soft`, `hero`) narrows CELEBRATE to the celebration's own looks; `variation` forces one look (a trigger with a fixed look, or QA) and every gate still applies. Other calls: `cancel(reason)`, `dequeue(source)` (drops a waiting play), `input()` (ends a cinematic look only), `claim(priority)`, `refresh()`, `current()` (intent, variation, tier, whether it may grow), `candidates()`, `dispose()`. A seeded generator (`seededRandom`) and an injected clock make it deterministic in tests.
+
+Intents: `WELCOME, IDLE, HAPPY, CELEBRATE, ENCOURAGE, COMFORT, LISTEN, THINK, GUIDE, REST`.
+
+### Selection
+
+Filter by route mode, viewport width, the served asset (`minAsset`), grade or forced id, and the host gate the look needs (`calm`, `present`, `festive`, `touch`, `autonomous`). A weight of 0 switches a look off. Then a weighted random pick that never repeats the intent's last look while another one qualifies. Hidden and reduced motion are checked first and skip with their own reason.
+
+### Priority, queue, cancel
+
+Priority, high to low: safety, hide and reduced motion (gates that cancel everything, not priorities), then `user` (4: a poke, a drag), `summon` (3: summon, guide, listen, think), `activity` (2: an acknowledgement, a celebration, a save), `welcome` (1), `idle` (0). `REST` ranks with `welcome`: the yawn of a nap is a host one-shot that takes the stage from idle looks, and must not cancel the nap. A lower priority never interrupts a higher one (`busy`). A higher one cancels the running one (`preempted`). The same priority queues at most one (`queued`, then `queue_full`); it is judged again when it starts, and a welcome that has to wait is dropped, since that page load has tried.
+
+What cancels a running look (`MamCancelReason`):
+
+- **Any look:** a route change and an account change (layout effects, so the old route's props never paint on the next one); hide, away and suppression (`hidden`); reduced motion; a closed host gate (`gate`); the journal editor dialog opening beside her (`modal`; other modals take her away, which is `hidden`); a renderer failure; a scene that is cut short, throws or rejects (`scene`: the priority is released and she returns to the dock); a hidden tab or a resize (`host`: a plan made for the old viewport is stale); unmount.
+- **Cinematic looks only:** any pointer, key, wheel or touch (`input`). The input still reaches its target. This covers the plant pot and the parachute's whole run, not only the airplane. An expressive or micro look plays on after an input.
+
+`clear()` on the host removes props, loop, concealment, gaze, the stage's one-shot and any scene motion (a travel snap); all timers are cleared. A normal end only settles props, loop and gaze; the last one-shot finishes by itself.
+
+Travel modes: `welcome` and `scene` are cinematic (the dock layer moves to the front, the dock is click-through, celebrations and saves wait). `hop` is the expressive dance and spin on the spot: she stays in the dock layer, the dock button stays clickable and keyboard-usable, and a celebration or a save queues behind the look instead of being blocked.
+
+### Variation library
+
+Tiers bound the length (micro up to 2 s, expressive up to 5 s, cinematic 5 to 9 s); cinematic looks are WELCOME only, FULL only. The tier test (`mam-variations.test.ts`) enforces it. New looks are marked ★.
+
+| Intent               | Looks                                                                                             | Notes                                                                                                                                                                                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WELCOME              | `airplane` (MB-894), ★`parachute`, ★`plant_pot`                                                   | cinematic, FULL only. The parachute is `hang` plus a descent (`parachuteDescent`, 4.2 s) and a closing `wave`; the pot drops in, hides her (concealed), `pop_up`, `wave`, then sinks                                                                                  |
+| HAPPY                | `happy`, ★`spin`, ★`tiny_dance`                                                                   | `spin` and `tiny_dance` FULL only. The asset's hops are about a pixel at the 96 px dock, so both also run a host travel scene (`danceMotion`: a 9 px hop on every beat and an 11 px sway; `spinHop`: a 14 px jump over the asset's jump), scaled by dock size over 96 |
+| CELEBRATE | `light_success` (Bingo), `celebrate_soft`, ★`clap` (soft), `celebrate_hero`, ★`cheer_sign` (hero) | FULL only. The sign shows on every screen: on the compact dock its board and text are bigger so the text is 12 px or more, and it stands on the roomy side (right of the dock), or floats above her head when there is no room there |
+| ENCOURAGE            | `nod`, ★`thumbs_up`, ★`fist_pump`                                                                 | `nod` is also allowed on QUIET routes and is the look of every confirmed save                                                                                                                                                                                         |
+| COMFORT              | `gentle`, ★`sit_hug`, ★`umbrella`                                                                 | the umbrella and its drops are FULL only                                                                                                                                                                                                                              |
+| LISTEN, THINK, GUIDE | `listening`, `listen_nod`, `thinking`, `point`                                                    | the triggers come with the summon wiring (MB-897)                                                                                                                                                                                                                     |
+| IDLE | `stretch`, `look_around`, `scratch`, ★`butterfly` | the butterfly is rarer (weight 1 of 10) and FULL only; her gaze follows its path. An idle look pauses the pointer gaze and restarts the 25 to 45 s cadence from its end, as before |
+| REST | `drowsy_sleep` (the existing yawn and lie-down), ★`blanket_tuck` (a nap in place) | the 60 s idle sleep asks for `REST/drowsy_sleep`; the travel controller still performs it |
+
+### Emphasis at the dock
+
+While an EXPRESSIVE look plays at the dock, the flight box (Mầm and her props) grows to 1.25 (desktop) or 1.15 (compact), anchored at her feet (`transform-origin: 50% 100%`), so a pose that is a few pixels at 96 px reads. Looks that grow: `spin`, `tiny_dance`, `clap`, `thumbs_up`, `fist_pump`, `sit_hug`, `happy`, `celebrate_soft`, `gentle`, `umbrella`, `butterfly`. Looks that opt out (`grow: false`): `look_around` and every REST look (`drowsy_sleep`, `blanket_tuck`), which are idle life, not performances. It is a CSS transform on the flight box: in over 180 ms with `--ease-emphasis`, out over 220 ms when the look ends. The canvas is oversampled while it lasts, so she stays sharp. Micro looks, cinematic scenes and reduced motion never scale; under reduced motion no look starts at all. The dock root carries `data-mam-emphasis`. The page-action yield check uses the grown box. A look gated on `touch` or `autonomous` is cancelled when the grown box would cover a page action; a CELEBRATE look (`festive` gate) deliberately may play while the page yields, so a grown `celebrate_soft` dims behind the action instead of being cancelled.
+
+### Host props
+
+SVG in the character's artboard space, with the rig's palette and stroke, never taking a pointer or focus: `parachute` (rides with her), `plantPot` (a back layer and a front lip around her), `cheerSign` ("Giỏi lắm!", on a pole to her right or above her head), `umbrella` (with a few drops) and `butterfly` (drawn 1.3 times larger so it reads at the dock size; its path is shared with the gaze steps). Only transform and opacity animate, and every animation is inside `prefers-reduced-motion: no-preference`; a prop that is asked to leave while motion is reduced is retired at once. The butterfly's WAAPI path does not run under reduced motion.
+
+### Migration (the same behaviour, with the differences listed)
+
+- The welcome plays through `WELCOME`; its once-per-session flag, 4 s cap, start gate and input cancel are unchanged. `?mamVariation=<id>` picks the look for a demo or a capture.
+- The idle actions keep their 25 to 45 s cadence, the cap of 2 a minute and the QUIET half cadence in `use-mam-idle-actions.ts`; which look plays is `IDLE` (the "never the same twice" rule moved into the orchestrator).
+- A celebration asks for `CELEBRATE` with its grade; the hook still owns the reservation, the budget and the bubble. A confirmed save asks for `ENCOURAGE/nod`.
+- The stage has its own one-shot channel (`stage:` keys), so the older gates on pokes, drowsing and `point` never judge its commands. The yawn, the wake and a poke take the stage from an idle look; the airplane's own hop and wave do not.
+- The 60 s sleep timer keeps its gates and asks for `REST/drowsy_sleep`. Pokes, drag and the summon stay as they were, and tell the orchestrator through `claim`.
+- Deliberate differences: an idle look is picked by weight (the butterfly is new and rare) instead of uniformly; an expressive look (not `look_around`, not a REST look) grows her while it plays; `celebrate_soft` is one of them; the stretch, look-around and scratch keep their asset lengths.
+
+### QA trigger
+
+`?mamIntent=<INTENT>` (any case) plays one intent once, 400 ms after the host is ready; `&mamVariation=<id>` forces a look. Every gate still applies and a skipped play is not retried. The dock root carries `data-mam-intent`, `data-mam-variation` and `data-mam-last` (the last look started) for tests and captures.
+
+### Known limits
+
+- The welcome's "never the same twice" holds within a page load; across sessions the look is random.
+- `blanket_tuck` uses the rig's own blanket (sleep pose) rather than a separate host prop.
+- The dev `?mamIntent=` trigger plays only when the host is calm, so under reduced motion it never reaches the orchestrator; the `skipped: reduced` reason is covered by the unit tests.

@@ -466,7 +466,7 @@ describe('MamCharacter', () => {
     const [first, second] = runtime.state.instances
     expect(first!.options.buffer).not.toBe(second!.options.buffer)
     expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch).toHaveBeenCalledWith('/mam/mam-v07.riv')
+    expect(fetch).toHaveBeenCalledWith('/mam/mam-v08.riv')
   })
 
   it('keeps the static pose when the asset download fails, and retries later', async () => {
