@@ -977,10 +977,12 @@ export default function JournalPage() {
           }}
           labelledBy="journal-dialog-title"
           className="journal-modal-layer"
+          companion={mode === 'create' || mode === 'edit' ? 'quiet' : undefined}
           restoreFocusTo={() => triggerRef.current}
         >
           <section
             ref={dialogRef}
+            data-mam-panel
             className={`journal-dialog ${
               mode === 'create' || mode === 'edit'
                 ? 'journal-dialog-editor'

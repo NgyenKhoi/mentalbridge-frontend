@@ -12,6 +12,7 @@ import {
 import { MamDock } from './MamDock'
 import { MamDockSlot } from './MamDockSlot'
 import { resetMamRendererFailure } from './mam-failure'
+import { resetMamWelcomeAttempts } from './mam-welcome-attempts'
 import { setMamHidden, setMamMotionOff } from './mam-preferences'
 import { useMamSuppress } from './mam-suppression'
 import { FLIGHT_MS } from './mam-welcome-flight'
@@ -92,6 +93,7 @@ describe('Mầm welcome airplane', () => {
     navigation.pathname = '/dashboard'
     character.status = 'ready'
     resetMamRendererFailure()
+    resetMamWelcomeAttempts()
     window.localStorage.clear()
     window.sessionStorage.clear()
     window.history.replaceState(null, '', '/dashboard')
@@ -192,7 +194,7 @@ describe('Mầm welcome airplane', () => {
   })
 
   it.each([
-    ['another route', () => (navigation.pathname = '/resources')],
+    ['a QUIET route', () => (navigation.pathname = '/journal')],
     ['reduced motion', () => setMamMotionOff(true)],
     ['a hidden Mầm', () => setMamHidden(true)],
     [
@@ -259,8 +261,108 @@ describe('Mầm welcome airplane', () => {
     expect(visible()).toBe('true')
   })
 
-  it('becomes due when /dashboard is reached later in the session, once', async () => {
+  it.each(['/resources', '/achievements', '/analytics'])(
+    'is eligible on the first FULL route, %s, not only /dashboard',
+    async (path) => {
+      navigation.pathname = path
+      window.history.replaceState(null, '', path)
+      render(app())
+      await ms(TO_FLIGHT)
+      expect(mode()).toBe('welcome')
+    },
+  )
+
+  it('never plays on a QUIET route and plays once on the first FULL route after it', async () => {
+    navigation.pathname = '/journal'
+    const { rerender } = render(app())
+    expect(visible()).toBe('true')
+    await ms(TO_FLIGHT + 300)
+    expect(mode()).toBe('dock')
     navigation.pathname = '/resources'
+    rerender(app())
+    await ms(TO_FLIGHT)
+    expect(mode()).toBe('welcome')
+    await ms(FLIGHT_MS.end + 600)
+    // QUIET again, then FULL again: the welcome never replays.
+    navigation.pathname = '/journal'
+    rerender(app())
+    navigation.pathname = '/analytics'
+    rerender(app())
+    await ms(TO_FLIGHT + 300)
+    expect(mode()).toBe('dock')
+  })
+
+  it('input that ends the wait also ends it for later FULL routes', async () => {
+    const { rerender } = render(app())
+    await ms(300)
+    fireEvent.keyDown(document.body, { key: 'a' })
+    expect(window.sessionStorage.getItem(KEY)).toBe('1')
+    navigation.pathname = '/achievements'
+    rerender(app())
+    await ms(TO_FLIGHT + 300)
+    expect(mode()).toBe('dock')
+  })
+
+  it('a wait that ended on the 4 s cap never holds Mầm back again on later FULL routes or after a HIDDEN one', async () => {
+    character.status = 'loading'
+    const { rerender, unmount } = render(app())
+    await ms(4500)
+    expect(visible()).toBe('true')
+    expect(window.sessionStorage.getItem(KEY)).toBeNull()
+    character.status = 'ready'
+    navigation.pathname = '/achievements'
+    rerender(app())
+    // No hold: she is shown at once and no scene starts.
+    expect(visible()).toBe('true')
+    await ms(TO_FLIGHT + 300)
+    expect(mode()).toBe('dock')
+    // FULL, HIDDEN, FULL: the host remounts and still does not hold her back.
+    unmount()
+    navigation.pathname = '/dashboard'
+    render(app())
+    expect(visible()).toBe('true')
+    await ms(TO_FLIGHT + 300)
+    expect(mode()).toBe('dock')
+  })
+
+  it('a failed start check (a viewport under 480 px high) counts as attempted too', async () => {
+    const height = window.innerHeight
+    Object.defineProperty(window, 'innerHeight', {
+      value: 400,
+      configurable: true,
+    })
+    try {
+      const { rerender } = render(app())
+      await ms(TO_FLIGHT + 300)
+      expect(mode()).toBe('dock')
+      expect(visible()).toBe('true')
+      navigation.pathname = '/analytics'
+      rerender(app())
+      expect(visible()).toBe('true')
+      await ms(TO_FLIGHT + 300)
+      expect(mode()).toBe('dock')
+    } finally {
+      Object.defineProperty(window, 'innerHeight', {
+        value: height,
+        configurable: true,
+      })
+    }
+  })
+
+  it('?mamWelcome=1 still replays after an attempt', async () => {
+    character.status = 'loading'
+    const { unmount } = render(app())
+    await ms(4500)
+    unmount()
+    character.status = 'ready'
+    window.history.replaceState(null, '', '/dashboard?mamWelcome=1')
+    render(app())
+    await ms(TO_FLIGHT)
+    expect(mode()).toBe('welcome')
+  })
+
+  it('becomes due when /dashboard is reached later in the session, once', async () => {
+    navigation.pathname = '/journal'
     const { rerender } = render(app())
     await ms(TO_FLIGHT + 300)
     expect(mode()).toBe('dock')

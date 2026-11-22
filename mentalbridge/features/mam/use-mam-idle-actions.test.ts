@@ -32,6 +32,22 @@ describe('useMamIdleActions', () => {
     expect(late).toHaveBeenCalledTimes(1)
   })
 
+  it('slow (QUIET) waits twice as long: 50 s to 90 s', () => {
+    const play = vi.fn()
+    renderHook(() => useMamIdleActions(true, play, () => 0, true))
+    act(() => void vi.advanceTimersByTime(IDLE_ACTION_MIN_MS * 2 - 1))
+    expect(play).not.toHaveBeenCalled()
+    act(() => void vi.advanceTimersByTime(1))
+    expect(play).toHaveBeenCalledTimes(1)
+
+    const late = vi.fn()
+    renderHook(() => useMamIdleActions(true, late, () => 0.999, true))
+    act(() => void vi.advanceTimersByTime(IDLE_ACTION_MAX_MS * 2 - 200))
+    expect(late).not.toHaveBeenCalled()
+    act(() => void vi.advanceTimersByTime(200))
+    expect(late).toHaveBeenCalledTimes(1)
+  })
+
   it('never plays the same action twice in a row', () => {
     const play = vi.fn()
     renderHook(() => useMamIdleActions(true, play, () => 0))

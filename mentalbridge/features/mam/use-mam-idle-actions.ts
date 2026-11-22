@@ -15,12 +15,16 @@ export const IDLE_ACTIONS = ['stretch', 'look_around', 'scratch'] as const
  * Calls `play` with one idle action at random 25–45 s intervals while
  * `enabled`. Turning `enabled` off drops the pending timer; turning it on
  * waits a fresh interval. An action that cannot play now (cap, typing) is
- * skipped, never queued.
+ * skipped, never queued. `slow` (a QUIET route, MB-895) doubles the interval:
+ * half the cadence. `allowTyping` keeps it going while a field has focus (the journal editor,
+ * where Mầm keeps the user company).
  */
 export function useMamIdleActions(
   enabled: boolean,
   play: (kind: MamOneShot) => void,
   random: () => number = Math.random,
+  slow = false,
+  allowTyping = false,
 ) {
   const latest = useRef({ play, random })
   useEffect(() => {
@@ -37,7 +41,7 @@ export function useMamIdleActions(
       fired.current = fired.current.filter((at) => now - at < 60_000)
       if (
         fired.current.length < IDLE_ACTIONS_PER_MINUTE &&
-        !isTypingTarget(document.activeElement)
+        (allowTyping || !isTypingTarget(document.activeElement))
       ) {
         const { play: start, random: next } = latest.current
         const choices = IDLE_ACTIONS.filter((kind) => kind !== last.current)
@@ -52,10 +56,12 @@ export function useMamIdleActions(
       const { random: next } = latest.current
       timer = setTimeout(
         run,
-        IDLE_ACTION_MIN_MS + next() * (IDLE_ACTION_MAX_MS - IDLE_ACTION_MIN_MS),
+        (IDLE_ACTION_MIN_MS +
+          next() * (IDLE_ACTION_MAX_MS - IDLE_ACTION_MIN_MS)) *
+          (slow ? 2 : 1),
       )
     }
     schedule()
     return () => clearTimeout(timer)
-  }, [enabled])
+  }, [enabled, slow, allowTyping])
 }

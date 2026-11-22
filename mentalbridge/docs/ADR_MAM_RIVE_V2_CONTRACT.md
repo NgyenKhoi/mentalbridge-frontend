@@ -141,3 +141,64 @@ the only route in S1.
 Evidence lives in the story's `.artifacts/MB-894-*`: Rive previews of each new state, videos at 1440 by 900
 and 375 by 812, motion frames at 0.5, 2.0, 3.0, 4.6, 5.5, 6.2, 6.6 and 8.0 s, and one reduced-motion run.
 Gate A is a visual decision, not a test count: it stays open while the art or the timing is weak.
+
+## Route surface matrix V2
+
+- Status: **proposed for MB-895 review**. Date: 2026-11-22. This section replaces the V1 "Surface matrix" table and
+  its "static dock" rows. Everything else in V1 and in the sections above stands.
+- Scope (owner, 2026-11-22): Mầm is present on the important tabs of the user-support journey, as one character per
+  tab. The community and the plans-and-payment pages are out.
+
+`features/mam/mam-routes.ts` maps a pathname to one mode (`mamRouteMode`). The host exposes it as
+`data-mam-mode` on the dock root. A route that is not listed is HIDDEN, so a new route never shows Mầm by accident.
+
+| Mode   | Routes |
+| ------ | ------ |
+| FULL   | `/dashboard`, `/achievements`, `/resources`, `/analytics` |
+| QUIET  | `/journal`, `/ai-companion`, `/support-plan` (exact), `/support-guides`, `/support-guides/[id]`, `/appointments`, `/appointments/[id]`, `/messages`, `/notifications`, `/profile`, `/specialists`, `/resources/[id]` |
+| HIDDEN | `/appointments/[id]/chat`, `/appointments/[id]/video`, `/call/*`, `/assessments(/*)`, `/assessment/*`, `/initial-check`, `/safety-directory`, `/community/*`, `/subscription`, and any unknown route |
+
+- **FULL:** visible; idle life at the normal cadence; celebrations and reactions; the welcome may play.
+- **QUIET:** visible and docked. Idle micro-actions (`stretch`, `look_around`, `scratch`) run at half the FULL cadence
+  (interval 50 to 90 s instead of 25 to 45 s); sleep after 60 s idle is unchanged. No celebration bubbles or queued
+  awards (they wait for a FULL route), no tip hop, no welcome. Summon and drag still work. While a text field, or any
+  control in a form, has focus, Mầm stays visible and still: no idle action, no gaze, no sleep, and the character gets
+  the static pose (`reducedMotion`). A dirty form (`useMamSuppress`) already did this; the journal list no longer hides, and the journal editor modal is the exception below.
+- **HIDDEN:** `MamDock` renders nothing, so no host and no motion run there.
+- **Welcome (changes the V1-era rule above):** a wait that ends without playing (the 4 s cap, a failed start check or
+  the user's first input) is remembered in memory for this page load, so later FULL routes, and a return from a
+  HIDDEN route, never hold her back again; `?mamWelcome=1` ignores it. Otherwise: eligible on the first FULL route reached in the session, not only
+  `/dashboard`. It never plays on a QUIET route. Going QUIET to FULL plays it only if it has not played, and never
+  replays after. Any input that ends the wait also marks the session, so a later FULL route does not surprise the user.
+  The `?mamWelcome=1` replay works on any FULL route.
+- **Safety:** unchanged. A modal (the voice dialog, a tour, the crisis panel), or a SupportPlan or HomeHub safety
+  zone, still removes Mầm (`away`), so the AI voice dialog keeps its own Mầm face and there is never a second
+  character on `/ai-companion`. The crisis button (z 120000) is never covered.
+- **Journal editor exception (owner, 2026-11-22):** the editor dialog (create and edit, not the reader) opts in with
+  `data-mam-companion="quiet"` (`Dialog` prop `companion="quiet"`). Only a dialog that carries it is exempt from
+  the modal rule, and only while all of these hold:
+  - the viewport is wider than 900 px (`min-width: 901px`); at 900 px or less the dialog covers the screen and she
+    stays away, as she does where the browser has no Popover API;
+  - no other modal is open over it;
+  - the route is QUIET: on any other route the opt-in is ignored and the dialog hides her like every modal.
+
+  Then she is drawn above the dialog's backdrop: the dock root becomes a manual popover (top layer,
+  `data-mam-above="true"`), which a normal z-index cannot do under a native modal. She sits in the gap left of the
+  dialog panel (`data-mam-panel`): `left = panel.left - size - 16` (size 96 px on desktop), her bottom edge on the
+  panel's bottom edge (never lower than her 24 px dock edge, so she clears the sidebar's account card), over the
+  sidebar, which is inert under a modal. She is away only when `panel.left < size + 32`.
+  The editor panel is up to 980 px wide and centred, so that is below about 1236 px wide (and she fits at 1440,
+  1366 and 1600). The position is recomputed on a resize, on the panel's own resize and when its entrance animation
+  ends (a panel that never reports an animation is measured after 350 ms). She is hidden until first placed and
+  until the entrance has settled, so she never shows at her dock spot or slides sideways; she enters with a 160 ms fade and no
+  movement (no animation under reduced motion).
+
+  The top layer is also above the crisis widget's z-index, but the page under a modal is inert, so the widget is
+  unreachable there as it is today, and she is inert too (`pointer-events: none`). She keeps the slow QUIET idle
+  micro-actions while the user types (no form-focus stillness there), with no gaze-follow, no bubbles, no tip and no
+  sound.
+- **Celebration routes** (queued awards play, `isMamCelebrationRoute`): FULL routes only (was `/dashboard`,
+  `/achievements`, `/resources`, `/resources/[id]`). The award waits on `/resources/[id]` until a FULL route.
+- **Mounting:** `MamDockSlot` stays in the `(dashboard)` and `resources` layouts. It is not mounted in
+  `(community)`, so the community has no dock even if a path were mapped.
+- **Rollback:** emptying the FULL and QUIET lists hides Mầm everywhere. `MAM_WEB_ENABLED` still gates the slots.
