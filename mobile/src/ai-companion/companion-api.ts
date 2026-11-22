@@ -33,7 +33,7 @@ const reply = z.object({
   conversationId: z.uuid(),
   userMessageId: z.uuid(),
   assistantMessageId: z.uuid(),
-  assistant: z.string().min(1).max(500),
+  assistant: z.string().min(1).max(1500),
   createdAt: instant,
   suggestion: suggestion.nullable().optional(),
 })
