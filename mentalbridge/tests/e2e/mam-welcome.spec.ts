@@ -12,7 +12,10 @@ const startToday = (page: Page) =>
     .getByRole('region', { name: 'Bước tiếp theo', exact: true })
     .getByRole('link', { name: 'Bắt đầu ngay', exact: true })
 const planes = (page: Page) => page.locator('[data-mam-plane]')
-const open = async (page: Page, url = '/dashboard?mamWelcome=1') => {
+const open = async (
+  page: Page,
+  url = '/dashboard?mamWelcome=1&mamVariation=airplane',
+) => {
   await installHomeMocks(page, homeWorld('do-today'))
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto(url)
@@ -83,6 +86,17 @@ test.describe('MB-894 Mầm welcome airplane', () => {
         w.probeClicks = (w.probeClicks ?? 0) + 1
       })
       document.body.append(probe)
+    })
+    // She enters from beyond the left edge: wait until her centre is on screen, or the click lands outside the page.
+    await page.waitForFunction(() => {
+      const rect = document
+        .querySelector('[data-mam-dock] [data-mam-status]')
+        ?.getBoundingClientRect()
+      return (
+        rect !== undefined &&
+        rect.left + rect.width / 2 > 40 &&
+        rect.left + rect.width / 2 < window.innerWidth - 40
+      )
     })
     // Her centre now, in the page: nothing of the dock may be the hit target there.
     const spot = await page.evaluate(() => {
@@ -168,7 +182,7 @@ test.describe('MB-894 Mầm welcome airplane', () => {
   test('is skipped without the asset: static fallback, no scene', async ({
     page,
   }) => {
-    await page.route('**/mam/mam-v07.riv', (route) => route.abort('failed'))
+    await page.route('**/mam/mam-v08.riv', (route) => route.abort('failed'))
     await open(page)
     await expect(dockRoot(page)).toHaveAttribute('data-mam-dizzy', 'true')
     await page.waitForTimeout(2_500)

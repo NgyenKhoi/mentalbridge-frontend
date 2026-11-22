@@ -90,6 +90,8 @@ beforeAll(loadMamDockHost, 20_000)
 
 describe('Mầm welcome airplane', () => {
   beforeEach(() => {
+    // The orchestrator picks the welcome by weight: 0 is the first candidate, the airplane.
+    vi.spyOn(Math, 'random').mockReturnValue(0)
     navigation.pathname = '/dashboard'
     character.status = 'ready'
     resetMamRendererFailure()

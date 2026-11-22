@@ -118,6 +118,8 @@ beforeAll(loadMamDockHost, 20_000)
 
 describe('MamDock', () => {
   beforeEach(() => {
+    // The orchestrator picks a look by weight: 0 is the first candidate (the existing looks: celebrate_hero, nod, ...).
+    vi.spyOn(Math, 'random').mockReturnValue(0)
     navigation.pathname = '/dashboard'
     character.mounts = 0
     character.plays = 0
@@ -1539,6 +1541,9 @@ describe('MamDock', () => {
           screen.getByTestId('mam-character').getAttribute('data-one-shot'),
         ).toBe('drowsy')
         expect(behavior()).toBe('idle')
+        // MB-896: the yawn and lie-down are the catalogue's REST/drowsy_sleep.
+        expect(root()).toHaveAttribute('data-mam-intent', 'REST')
+        expect(root()).toHaveAttribute('data-mam-variation', 'drowsy_sleep')
         await advance(2500)
         expect(root()).toHaveAttribute('data-mam-sleep', 'true')
         expect(
@@ -1872,6 +1877,9 @@ describe('MamDock', () => {
       // The dock button reports the menu at once; the menu itself exits on real frames.
       const isOpen = () => anyDock().getAttribute('aria-expanded') === 'true'
       const IDLE = ['stretch', 'look_around', 'scratch']
+      const playDev = (query: string) =>
+        window.history.replaceState(null, '', `/dashboard?${query}`)
+      afterEach(() => window.history.replaceState(null, '', '/dashboard'))
       // React flushes effects when an act ends: step the clock so each state change lands.
       const steps = async (ms: number) => {
         for (let t = 0; t < ms; t += 500) await advance(500)
@@ -2137,6 +2145,103 @@ describe('MamDock', () => {
         })
       })
 
+      describe('MB-896 emphasis', () => {
+        const grown = () => root().getAttribute('data-mam-emphasis')
+
+        it('an expressive look grows her while it plays and lets go at the end', async () => {
+          playDev('mamIntent=HAPPY&mamVariation=spin')
+          render(living())
+          expect(grown()).toBe('false')
+          await steps(1500)
+          expect(root()).toHaveAttribute('data-mam-variation', 'spin')
+          expect(grown()).toBe('true')
+          await steps(2500)
+          expect(root()).toHaveAttribute('data-mam-intent', '')
+          expect(grown()).toBe('false')
+        })
+
+        it('the idle glance and the rest looks opt out of growing', async () => {
+          playDev('mamIntent=IDLE&mamVariation=look_around')
+          render(living())
+          await steps(1000)
+          expect(root()).toHaveAttribute('data-mam-variation', 'look_around')
+          expect(grown()).toBe('false')
+        })
+
+        it('a hop on the spot is not a cinematic scene: she stays clickable, in the dock layer, and a click ends it', async () => {
+          playDev('mamIntent=HAPPY&mamVariation=tiny_dance')
+          render(living())
+          await steps(1000)
+          expect(root()).toHaveAttribute('data-mam-variation', 'tiny_dance')
+          expect(root()).toHaveAttribute('data-mam-travel', 'hop')
+          expect(root()).toHaveAttribute('data-front', 'false')
+          expect(dockButton()).not.toHaveAttribute('tabindex', '-1')
+          fireEvent.click(dockButton(), { detail: 0 })
+          await steps(500)
+          expect(isOpen()).toBe(true)
+          expect(root()).toHaveAttribute('data-mam-intent', '')
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+        })
+
+        it('a cinematic look with no travel scene (the plant pot) ends on a key press and leaves no prop behind', async () => {
+          playDev('mamIntent=WELCOME&mamVariation=plant_pot')
+          render(living())
+          await steps(1500)
+          expect(root()).toHaveAttribute('data-mam-variation', 'plant_pot')
+          expect(root()).toHaveAttribute('data-front', 'true')
+          expect(document.querySelectorAll('[data-mam-prop]').length).toBe(2)
+          fireEvent.keyDown(window, { key: 'a' })
+          await steps(500)
+          expect(root()).toHaveAttribute('data-mam-intent', '')
+          expect(document.querySelectorAll('[data-mam-prop]').length).toBe(0)
+        })
+
+        it('an expressive look is not ended by a key press or a height-only resize, but a width change ends it', async () => {
+          playDev('mamIntent=HAPPY&mamVariation=tiny_dance')
+          const original = Object.getOwnPropertyDescriptor(window, 'innerWidth')
+          const width = window.innerWidth
+          render(living())
+          await steps(1000)
+          fireEvent.keyDown(window, { key: 'a' })
+          await steps(500)
+          expect(root()).toHaveAttribute('data-mam-variation', 'tiny_dance')
+          // Mobile URL-bar collapse: height changes, width does not.
+          fireEvent(window, new Event('resize'))
+          await steps(100)
+          expect(root()).toHaveAttribute('data-mam-variation', 'tiny_dance')
+          try {
+            Object.defineProperty(window, 'innerWidth', {
+              configurable: true,
+              writable: true,
+              value: width - 100,
+            })
+            fireEvent(window, new Event('resize'))
+            await steps(500)
+            expect(root()).toHaveAttribute('data-mam-intent', '')
+          } finally {
+            if (original) Object.defineProperty(window, 'innerWidth', original)
+            else delete (window as { innerWidth?: number }).innerWidth
+          }
+        })
+
+        it('a micro look never grows her', async () => {
+          playDev('mamIntent=ENCOURAGE&mamVariation=nod')
+          render(living())
+          await steps(1000)
+          expect(root()).toHaveAttribute('data-mam-variation', 'nod')
+          expect(grown()).toBe('false')
+        })
+
+        it('reduced motion plays nothing, so nothing grows', async () => {
+          act(() => setMamMotionOff(true))
+          playDev('mamIntent=HAPPY&mamVariation=spin')
+          render(living())
+          await steps(1500)
+          expect(root()).toHaveAttribute('data-mam-variation', '')
+          expect(grown()).toBe('false')
+        })
+      })
+
       describe('idle actions', () => {
         it('plays one stretch, look-around or scratch 25–45 s into the idle, never sooner', async () => {
           vi.spyOn(Math, 'random').mockReturnValue(0.5) // 35 s
@@ -2144,6 +2249,7 @@ describe('MamDock', () => {
           await steps(34_500)
           expect(shot()).toBe('')
           await steps(1000)
+          // The IDLE pool is stretch, look_around, scratch, butterfly (weights 3, 3, 3, 1): a roll of 0.5 lands on look_around.
           expect(shot()).toBe('look_around')
           // It ends with the asset; nothing else queued behind it.
           await steps(2500)

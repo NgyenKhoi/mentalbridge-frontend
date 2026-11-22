@@ -18,6 +18,7 @@ import { EyeOff, Leaf, MessageCircleQuestion } from 'lucide-react'
 import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
 
 import { MamAirplane, MamFlightFx } from './MamAirplane'
+import { MamProp, mamPropLayers, type MamPropLayer } from './MamProps'
 import { MamBubble, MamCelebrationBubble, MamNoticeBubble } from './MamBubble'
 import { MamCharacter, type MamRenderStatus } from './MamCharacter'
 import styles from './MamDock.module.css'
@@ -38,11 +39,12 @@ import {
   type MamTravelMode,
 } from './mam-travel'
 import { MAM_INPUT_EVENTS, useMamIdle } from './use-mam-idle'
-import { IDLE_ACTIONS, useMamIdleActions } from './use-mam-idle-actions'
+import { useMamIdleActions } from './use-mam-idle-actions'
+import { MAM_PRIORITY, type MamPlayContext } from './mam-orchestrator'
+import { useMamDevIntent, useMamStage } from './use-mam-stage'
 import { isTypingTarget, useMamGaze } from './mam-gaze'
 import { NO_POKE, pokeClick } from './mam-poke'
 import { useMamShot } from './use-mam-shot'
-import { buildFlightPlan } from './mam-welcome-flight'
 import { mamRouteMode } from './mam-routes'
 import { markWelcomeAttempted, welcomeAttempted } from './mam-welcome-attempts'
 import {
@@ -65,6 +67,9 @@ const COARSE_QUERY = '(pointer: coarse)'
 // A press that moves less than this is a tap, not a drag (design §C).
 const DRAG_SLOP_PX = 6
 const TIP_DELAY_MS = 1400
+// An expressive look grows her by this much, anchored at her feet (desktop, compact).
+const MAM_EMPHASIS = 1.25
+const MAM_EMPHASIS_COMPACT = 1.15
 // Beside the journal editor she sits this far left of its panel, and the panel needs this much room to the left.
 const GAP_PX = 16
 const GAP_ROOM_PX = 32
@@ -328,6 +333,35 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   useEffect(() => {
     travel.onPuff((x, y, scale) => flightFx.current?.emit(x, y, scale))
   }, [travel])
+  // MB-896: the orchestrator's host adapter. Created here, before every gate that reads `stage.current`; the gates it
+  // asks about are written into `contextRef` once they are known (below).
+  const contextRef = useRef<Omit<MamPlayContext, 'viewportWidth'>>({
+    routeMode: 'hidden',
+    reduced: true,
+    hidden: true,
+    gates: {
+      calm: false,
+      present: false,
+      festive: false,
+      touch: false,
+      autonomous: false,
+    },
+  })
+  const getContext = useCallback(
+    (): MamPlayContext => ({
+      ...contextRef.current,
+      viewportWidth: window.innerWidth,
+    }),
+    [],
+  )
+  const stage = useMamStage({
+    travel,
+    dockRef,
+    size,
+    playLocal: local.play,
+    getContext,
+  })
+  const orchestrator = stage.orchestrator
   const layerRef = useCallback(
     (node: HTMLElement | null) => travel.setLayer(node),
     [travel],
@@ -371,6 +405,10 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const flying =
     travelMode === 'drag' || travelMode === 'fly' || travelMode === 'home'
   const welcoming = travelMode === 'welcome'
+  // A cinematic variation (the airplane, the parachute, the plant pot) holds the page's front, is click-through and
+  // ends on any input. An expressive hop (`hop` mode) is none of that: she stays clickable in the dock layer.
+  const staged =
+    welcoming || travelMode === 'scene' || stage.current?.tier === 'cinematic'
   // A drag or a throw must not select the page text it sweeps over.
   const carried = travelMode === 'drag' || travelMode === 'fly'
   useEffect(() => {
@@ -461,7 +499,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       !suppressed &&
       !dizzy &&
       !flying &&
-      !welcoming &&
+      !staged &&
       !summon &&
       !notice &&
       !menuOpen,
@@ -476,7 +514,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       !suppressed &&
       !dizzy &&
       !flying &&
-      !welcoming &&
+      !staged &&
       !summon &&
       !notice &&
       !menuOpen &&
@@ -537,9 +575,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       ? calm
       : localKind === 'point'
         ? pointReady
-        : (IDLE_ACTIONS as readonly string[]).includes(localKind ?? '')
-          ? autonomous
-          : touchOk)
+        : touchOk)
       ? local.shot
       : null
   // Withdrawn eligibility drops the command for good, so it never resurfaces mid-way.
@@ -568,7 +604,88 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     )
       dockRef.current?.focus({ preventScroll: true })
   }, [lead, perch])
-  const lively = autonomous && !local.shot
+  const lively = autonomous && !local.shot && stage.current === null
+
+  // ---- MB-896 orchestrator ----
+  // The old gates of an achievement's celebration and of a save's nod, kept as they were: the first lets the page
+  // yield to an action while it plays, the second stops there.
+  const festive =
+    calm && !muted && !flying && !staged && !summon && !notice && !menuOpen
+  const present = festive && yielding === 'none'
+  // `touchOk` also asks for the dock mode; a dance or a spin (`hop` mode) still counts as docked.
+  const touchStage =
+    calm &&
+    (travelMode === 'dock' || travelMode === 'hop') &&
+    yielding === 'none' &&
+    !dockBubble &&
+    !celebrating &&
+    !shot
+  // What the orchestrator may start, and keep running, is read from here: the same gates as before, one place. A layout
+  // effect, so the stage's own re-check (a passive effect) always sees this render's gates.
+  useLayoutEffect(() => {
+    contextRef.current = {
+      routeMode: mode,
+      reduced,
+      hidden: hidden || away || suppressed || dizzy,
+      gates: { calm, present, festive, touch: touchStage, autonomous },
+    }
+  })
+  // A route change, another account, a failed renderer or a higher-ranked actor ends what runs.
+  // Layout effects: the old route's props never paint on the new one.
+  useLayoutEffect(() => {
+    orchestrator.cancel('route')
+  }, [orchestrator, pathname])
+  useLayoutEffect(() => {
+    orchestrator.cancel('account')
+  }, [orchestrator, accountId])
+  // The journal editor opening beside her ends what she was doing (other modals take her away: `hidden`).
+  useLayoutEffect(() => {
+    if (companion !== null) orchestrator.cancel('modal')
+  }, [orchestrator, companion])
+  useEffect(() => {
+    if (dizzy) orchestrator.cancel('renderer')
+  }, [orchestrator, dizzy])
+  useEffect(() => {
+    if (summon || menuOpen || notice) orchestrator.claim(MAM_PRIORITY.summon)
+  }, [orchestrator, summon, menuOpen, notice])
+  // The yawn, the wake and a poke take the stage from an idle look (the airplane's own hop and wave do not).
+  useEffect(() => {
+    if (local.shot && localKind !== 'hop_down' && localKind !== 'wave')
+      orchestrator.claim(MAM_PRIORITY.welcome)
+  }, [orchestrator, local.shot, localKind])
+  // An achievement's celebration and a confirmed save pick their look here; their own windows (gates, the bubble) are unchanged.
+  const celebrationKey = celebration.oneShot?.key ?? null
+  const celebrationKind = celebration.oneShot?.kind
+  useEffect(() => {
+    if (celebrationKey === null) return
+    orchestrator.play('CELEBRATE', {
+      source: 'celebration',
+      grade:
+        celebrationKind === 'celebrate_hero'
+          ? 'hero'
+          : celebrationKind === 'celebrate_soft'
+            ? 'soft'
+            : 'light',
+    })
+  }, [orchestrator, celebrationKey, celebrationKind])
+  const savedKey = saved?.key ?? null
+  useEffect(() => {
+    if (savedKey === null) return
+    orchestrator.play('ENCOURAGE', { source: 'saved', variation: 'nod' })
+  }, [orchestrator, savedKey])
+
+  // An EXPRESSIVE look grows her a little while it plays, so it reads at the dock size (the scale is CSS on the
+  // flight box, anchored at her feet). Micro looks, cinematic scenes, looks that opt out (`grow: false`: the idle
+  // glance and the rest looks) and reduced motion never scale.
+  const emphasized =
+    !reduced &&
+    stage.current?.grow === true &&
+    (travelMode === 'dock' || travelMode === 'hop')
+  const emphasisScale = compact ? MAM_EMPHASIS_COMPACT : MAM_EMPHASIS
+  const emphasisRef = useRef(1)
+  useEffect(() => {
+    emphasisRef.current = emphasized ? emphasisScale : 1
+  })
 
   // ---- MB-894 welcome airplane ----
   const welcomeGate = useRef(false)
@@ -626,43 +743,83 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         markWelcomeAttempted(accountId)
         return
       }
+      // The orchestrator picks the look (airplane, parachute, plant pot); a play it refuses is an attempt, not a show.
+      // `?mamVariation=<id>` picks the look for a demo or a capture (QA only; every gate still applies).
+      const result = orchestrator.play('WELCOME', {
+        source: 'welcome',
+        variation:
+          new URLSearchParams(window.location.search).get('mamVariation') ??
+          undefined,
+      })
+      if (result.status !== 'played') {
+        // A queued welcome would start later without the session flag: drop it, this page load has tried.
+        orchestrator.dequeue('welcome')
+        markWelcomeAttempted(accountId)
+        return
+      }
       markWelcome(accountId)
       setReplayUsed(true)
-      const plan = buildFlightPlan({
-        vw: window.innerWidth,
-        vh: window.innerHeight,
-        dockRect: rect,
-        size,
-      })
-      void travel.welcome(plan).then((finished) => {
-        if (finished) playLocal('wave')
-      })
     }, WELCOME_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [welcome, calm, accountId, size, travel, playLocal])
-  // Any input, a hidden tab or a lost gate skips the scene at once; the input still reaches its target.
+  }, [welcome, calm, accountId, orchestrator])
+  // Any input ends a cinematic look at once (the input still reaches its target); a hidden tab or a resize ends any
+  // look, since a plan made for the old viewport is stale. Listening while any look runs covers the plant pot and
+  // the parachute's closing wave, which have no travel mode.
+  const lookRunning = stage.current !== null
   useEffect(() => {
-    if (!welcoming) return
-    const skip = () => travel.snap()
+    if (!staged && !lookRunning) return
+    // Only the orchestrator's own travel modes are snapped: a perch or a drag belongs to someone else.
+    const snapOwn = () => {
+      const mode = travel.mode()
+      if (mode === 'welcome' || mode === 'scene' || mode === 'hop')
+        travel.snap()
+    }
+    const skip = () => {
+      orchestrator.input()
+      // A scene the orchestrator no longer knows (it was disposed) is snapped home directly.
+      if (!orchestrator.current()) snapOwn()
+    }
+    const leave = () => {
+      if (!orchestrator.cancel('host')) snapOwn()
+    }
     const onVisibility = () => {
-      if (document.visibilityState === 'hidden') skip()
+      if (document.visibilityState === 'hidden') leave()
+    }
+    // Mobile URL-bar collapse fires height-only resizes while scrolling: they end a cinematic (its path uses the
+    // viewport height) but not an expressive look at the dock, which only a width change ends.
+    let width = window.innerWidth
+    const onResize = () => {
+      if (!staged && window.innerWidth === width) return
+      width = window.innerWidth
+      leave()
     }
     for (const type of WELCOME_CANCEL_EVENTS)
       window.addEventListener(type, skip, { capture: true, passive: true })
-    // The plan holds the viewport and the dock size: a resize makes it stale.
-    window.addEventListener('resize', skip)
+    window.addEventListener('resize', onResize)
     document.addEventListener('visibilitychange', onVisibility)
     return () => {
       for (const type of WELCOME_CANCEL_EVENTS)
         window.removeEventListener(type, skip, { capture: true })
-      window.removeEventListener('resize', skip)
+      window.removeEventListener('resize', onResize)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [welcoming, travel])
-  // What the character is told to play now (also read by the E2E specs).
-  const playing = (asleep ? null : shot) ?? localShot
+  }, [staged, lookRunning, travel, orchestrator])
+  // What the character is told to play now (also read by the E2E specs): the stage's command (a celebration, a save,
+  // an idle action, a variation), held while she sleeps, else the host's own.
+  const playing = (asleep ? null : stage.shot) ?? localShot
   const gaze = useMamGaze(lively && !above, dockRef)
-  useMamIdleActions(lively, local.play, undefined, quiet, above)
+  useMamIdleActions(
+    lively,
+    () => orchestrator.play('IDLE', { source: 'idle' }),
+    undefined,
+    quiet,
+    above,
+  )
+  // `?mamIntent=<INTENT>` plays one intent once the host is ready (QA, captures, the demo).
+  useMamDevIntent(
+    status === 'ready' && welcome === 'done' && calm,
+    orchestrator.play,
+  )
   // Input during the yawn: Mầm perks up instead of falling asleep.
   const drowsing = localKind === 'drowsy'
   useEffect(() => {
@@ -686,7 +843,12 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       !summon &&
       !notice &&
       !celebrating,
-    () => void travel.sleep(),
+    // REST/drowsy_sleep: the catalogue's yawn and lie-down, which the travel controller still performs.
+    () =>
+      void orchestrator.play('REST', {
+        source: 'idle',
+        variation: 'drowsy_sleep',
+      }),
   )
   // The one-time tip: a card to ask about, "tự lên tiếng" on, not seen before.
   const hasCards = useHasMamElementTarget()
@@ -729,7 +891,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         !root ||
         menuOpen ||
         dockBubble ||
-        travelMode !== 'dock' ||
+        (travelMode !== 'dock' && travelMode !== 'hop') ||
         (active && root.contains(active))
       ) {
         setYielding('none')
@@ -740,7 +902,18 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         setYielding('none')
         return
       }
-      const dock = root.getBoundingClientRect()
+      const unscaled = root.getBoundingClientRect()
+      // The flight box grows up and sideways from her feet while an expressive look plays.
+      const grow = emphasisRef.current
+      const dock =
+        grow === 1
+          ? unscaled
+          : new DOMRect(
+              unscaled.left - (unscaled.width * (grow - 1)) / 2,
+              unscaled.top - unscaled.height * (grow - 1),
+              unscaled.width * grow,
+              unscaled.height * grow,
+            )
       const bubble = celebrationRef.current?.getBoundingClientRect()
       const covered = bubble
         ? new DOMRect(
@@ -826,7 +999,16 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       window.removeEventListener('scroll', scheduleCheck, true)
       window.removeEventListener('resize', scheduleCheck)
     }
-  }, [pathname, hidden, menuOpen, dockBubble, celebrating, travelMode, above])
+  }, [
+    pathname,
+    hidden,
+    menuOpen,
+    dockBubble,
+    celebrating,
+    travelMode,
+    above,
+    emphasized,
+  ])
 
   // Leaving (a safety zone, a modal) while the dock owns focus would drop it on
   // the body; hand it to the page content. Focus a dialog already took is not in the
@@ -904,6 +1086,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         return
       }
       press.on = true
+      orchestrator.claim(MAM_PRIORITY.user)
       setOpen(false)
       setNotice(null)
       close(false)
@@ -937,7 +1120,8 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     }, 0)
   }
   const onDockClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
-    if (afterDrag.current || travelMode !== 'dock') return
+    if (afterDrag.current || (travelMode !== 'dock' && travelMode !== 'hop'))
+      return
     // A click (a screen reader sends no pointer events) during the yawn stirs Mầm.
     if (drowsing) travel.stir()
     if (dizzy) {
@@ -958,7 +1142,10 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       const poke = pokeClick(pokes.current, performance.now())
       pokes.current = poke.state
       toggle = poke.toggleMenu
-      if (poke.play) local.play(poke.play)
+      if (poke.play) {
+        orchestrator.claim(MAM_PRIORITY.user)
+        local.play(poke.play)
+      }
     }
     setNotice(null)
     if (dockBubble) close(false)
@@ -970,6 +1157,22 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     setOpen(false)
     setMamHidden(next)
   }
+
+  // The props a running variation asked for, per drawing layer (behind her, over her, or riding with her).
+  const propLayer = (layer: MamPropLayer) =>
+    stage.props
+      .filter((prop) => mamPropLayers(prop.id).includes(layer))
+      .map((prop) => (
+        <MamProp
+          key={`${prop.id}:${layer}`}
+          id={prop.id}
+          phase={prop.phase}
+          layer={layer}
+          size={size}
+          side={prop.side}
+          onGone={stage.removeProp}
+        />
+      ))
 
   const rise = reduced ? 0 : 8
   const shrink = reduced ? 1 : 0.98
@@ -1001,10 +1204,14 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       data-mam-travel={travelMode}
       data-mam-sleep={asleep}
       data-mam-shot={playing?.kind ?? ''}
+      data-mam-emphasis={emphasized}
+      data-mam-intent={stage.current?.intent ?? ''}
+      data-mam-variation={stage.current?.variation ?? ''}
+      data-mam-last={stage.lastVariation}
       data-mam-gaze={lively && !above}
       data-mam-dizzy={dizzy}
       data-mam-suppressed={suppressed}
-      data-front={flying || welcoming}
+      data-front={flying || staged}
     >
       <AnimatePresence initial={false} mode="wait">
         {away ? null : hidden ? (
@@ -1056,14 +1263,20 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
               data-open={menuOpen || dockBubble}
               // Away from the dock (perched, thrown) the button is an empty spot:
               // out of the tab order, but not inert (a drag needs its pointer capture).
-              tabIndex={travelMode === 'dock' ? undefined : -1}
+              tabIndex={
+                travelMode === 'dock' || travelMode === 'hop' ? undefined : -1
+              }
               onClick={onDockClick}
               onPointerDown={onDockPointerDown}
               onPointerMove={onDockPointerMove}
               onPointerUp={onDockPointerEnd}
               onPointerCancel={onDockPointerEnd}
             >
-              <span className={styles.flight} data-flight={celebration.flight}>
+              <span
+                className={styles.flight}
+                data-flight={celebration.flight}
+                style={{ '--mam-emphasis': emphasisScale } as CSSProperties}
+              >
                 {welcoming ? (
                   <MamFlightFx
                     ref={flightFx}
@@ -1081,6 +1294,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                     />
                   ) : null}
                 </AnimatePresence>
+                {propLayer('back')}
                 <motion.span
                   className={styles.mover}
                   style={{
@@ -1089,6 +1303,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                     zIndex: travel.values.moverZ,
                   }}
                 >
+                  {propLayer('mover')}
                   <motion.span
                     className={styles.body}
                     style={{
@@ -1106,6 +1321,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                           dizzy
                             ? 'gentle'
                             : (travelBehavior ??
+                              stage.loop ??
                               behavior ??
                               (celebrating
                                 ? 'happy'
@@ -1113,16 +1329,19 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                                   ? 'curious'
                                   : 'idle'))
                         }
-                        attention={attention}
+                        // A variation that follows something with her eyes (the butterfly) owns the gaze until it ends.
+                        attention={stage.gaze ?? attention}
                         gaze={lively && !above ? gaze : undefined}
-                        // Held back only while the scene is about to start: loading, or the 700 ms before it.
+                        // Held back only while the scene is about to start (loading, or the 700 ms before it), or
+                        // while a variation hides her (she is in the pot until it lands).
                         visible={
+                          !stage.concealed &&
                           !(
                             welcome === 'waiting' &&
                             (status === 'loading' || calm)
                           )
                         }
-                        oversample={welcoming}
+                        oversample={staged || emphasized}
                         reducedMotion={motionOff || suppressed || quietBusy}
                         // Held while asleep: the quiet wake must clear the sleep state
                         // first, or the renderer would cancel the command that woke Mầm.
@@ -1151,6 +1370,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                     </span>
                   ) : null}
                 </motion.span>
+                {propLayer('front')}
                 <AnimatePresence>
                   {welcoming ? (
                     <MamAirplane

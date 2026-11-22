@@ -227,7 +227,7 @@ test.describe('MB-895 Mầm route surface matrix', () => {
     await expect(planes(page)).toHaveCount(0)
 
     // The first FULL route reached plays it (`/resources` is not `/dashboard`).
-    await page.goto('/resources?mamWelcome=1')
+    await page.goto('/resources?mamWelcome=1&mamVariation=airplane')
     await expect(dockRoot(page)).toHaveAttribute('data-mam-mode', 'full')
     await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'welcome', {
       timeout: 10_000,
@@ -247,7 +247,9 @@ test.describe('MB-895 Mầm route surface matrix', () => {
     await expect(dockRoot(page)).toHaveAttribute('data-mam-mode', 'quiet')
     await page.goBack()
     // The replay query is back in the URL, but it was used once for this page load.
-    await expect(page).toHaveURL(/\/resources\?mamWelcome=1$/)
+    await expect(page).toHaveURL(
+      /\/resources\?mamWelcome=1&mamVariation=airplane$/,
+    )
     await expect(dockRoot(page)).toHaveAttribute('data-mam-mode', 'full')
     await page.waitForTimeout(1_800)
     await expect(dockRoot(page)).toHaveAttribute('data-mam-travel', 'dock')

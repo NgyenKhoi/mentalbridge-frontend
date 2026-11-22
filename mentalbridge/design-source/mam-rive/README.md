@@ -1,8 +1,8 @@
-# Mầm v0.7 — Rive rig (v0.3 + `sleep`, `speaking`, các trạng thái sống động MB-818 và chuyến bay đến MB-894)
+# Mầm v0.8 — Rive rig (v0.3 + `sleep`, `speaking`, các trạng thái sống động MB-818, chuyến bay đến MB-894 và các biến thể MB-896)
 
 > Nguồn sinh asset, đã đưa vào repo trong MB-767 (bản gốc ở
 > `creative/mam-rive/`, nằm ngoài Git). Thư mục này không được Next.js phục vụ.
-> Ứng dụng dùng `public/mam/mam-v07.riv` (v0.7, MB-894; `mam-v06.riv` còn đó để rollback). Hash của file đó được khóa trong
+> Ứng dụng dùng `public/mam/mam-v08.riv` (v0.8, MB-896; `mam-v07.riv` và `mam-v06.riv` còn đó để rollback). Hash của file đó được khóa trong
 > `features/mam/mam-contract.ts`, `docs/ADR_MAM_RIVE_V2_CONTRACT.md`. Nếu đổi `build.mjs`, phải build lại, cập
 > nhật hash và làm lại QA hình ảnh. Các lệnh bên dưới chạy trong thư mục gốc
 > `creative/mam-rive/`.
@@ -19,7 +19,7 @@ Rig Rive dựng lại từ canvas **"Mầm — Character Sheet v0.3"** (file
 - `controls-sheet.png`: hero frame 4, rồi hero, soft và light_success sau khi
   tự về idle, light_success đang chạy, reducedMotion, chỉ đặt enum hero mà
   không fire, và isVisible=false (ô trống).
-- `rig/build/mam-v07.riv`: bản build unsigned để preview cục bộ (174,450 byte).
+- `rig/build/mam-v08.riv`: bản build unsigned để preview cục bộ (233,322 byte).
 
 Preview trực tiếp (PowerShell, trong thư mục này):
 
@@ -49,7 +49,7 @@ State machine `MamBehaviorController`, View Model `MamControls`, instance `Defau
 
 | Property | Kiểu | Ý nghĩa |
 | --- | --- | --- |
-| `behaviorState` | enum `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy, sleep, speaking, drowsy, wake, giggle, tickled, dangle, nod, stretch, look_around, scratch, point, pilot, pilot_wave, hop_down, wave` (28 giá trị, ID cố định theo thứ tự này) | Hành vi |
+| `behaviorState` | enum `idle, curious, listening, thinking, gentle, explaining, light_success, celebrate_soft, celebrate_hero, rest, sad, happy, sleep, speaking, drowsy, wake, giggle, tickled, dangle, nod, stretch, look_around, scratch, point, pilot, pilot_wave, hop_down, wave, spin, dance, clap, thumbs_up, fist_pump, sit_hug, hang, pop_up` (36 giá trị, ID cố định theo thứ tự này) | Hành vi |
 | `attentionDirection` | number −1…1 | Hướng nhìn; đồng tử lệch tối đa 6 px |
 | `celebrationTier` | enum `none, soft, hero` | Chọn celebration theo tier |
 | `playOnce` | trigger | Phát one-shot đã chọn |
@@ -101,7 +101,22 @@ là SVG của host (`features/mam/MamAirplane.tsx`), không nằm trong `.riv`.
 | `hop_down` | 0,9 s | Ngồi thấp, nhảy ra, tiếp đất có squash, kính mờ dần, về tư thế dock |
 | `wave` | 1,4 s | Đứng, tay phải giơ cạnh đầu, vẫy 4 nhịp |
 
-Asset lớn hơn V1 (174,450 byte, ngân sách V2 là 180 KB): xem `docs/ADR_MAM_RIVE_V2_CONTRACT.md`.
+v0.8 (MB-896) nối thêm 8 trạng thái cho các biến thể của orchestrator, đúng thứ tự `spin, dance, clap, thumbs_up,
+fist_pump, sit_hug, hang, pop_up` (ID 28 đến 35), cùng các node `fistL`, `fistR`, `thumbR` (nắm tay và ngón cái, ẩn ngoài các state dùng chúng).
+`sit_hug` và `hang` là vòng lặp do host đặt; sáu state còn lại là one-shot. Dù, chậu cây, biển cổ vũ, ô và bướm là SVG của host.
+
+| State | Độ dài | Tư thế |
+| --- | --- | --- |
+| `spin` | 1,1 s | Nhún, nhảy, xoay hai vòng quanh trục dọc (scaleX = cos), tiếp đất có squash |
+| `dance` | 2,4 s | Nhún nhảy theo nhịp (squash/stretch), lắc ±6°, lá bật, hai tay lên xuống xen kẽ biên độ lớn, chân bước |
+| `clap` | 1,6 s | Giơ tay, vỗ sáu nhịp dưới cằm |
+| `thumbs_up` | 1,3 s | Nháy mắt, tay phải đưa ra giơ ngón cái, hai lần nhấn |
+| `fist_pump` | 1,2 s | Nhún quyết tâm, hai lần nhảy với nắm tay phải đấm lên |
+| `sit_hug` | 4 s (lặp) | Ngồi, thân thấp, hai tay ôm bụng, mắt cười nhắm, đung đưa chậm |
+| `hang` | 1,2 s (lặp) | Hai nắm tay giơ chữ V bám dây dù (khoảng (30,140) và (210,140)), chân đá, lá bị gió nâng, ẩn bóng |
+| `pop_up` | 1,1 s | Bắt đầu ngồi thấp (chậu của host che thân), nhún sâu, bật lên giơ hai tay |
+
+Asset lớn hơn V1 (233,322 byte, ngân sách V2 là 240 KB): xem `docs/ADR_MAM_RIVE_V2_CONTRACT.md`.
 
 Nhịp chuyển động theo bảng Motion spec của canvas:
 
@@ -126,7 +141,7 @@ Không cần npm dependency để build:
 
 ```powershell
 node build.mjs                      # ghi rig/scene.rml + capture/scene.rml
-..\..\.artifacts\tools\rive\rive.exe .\rig --once   # rig/build/mam-v07.riv, unsigned, không đăng nhập
+..\..\.artifacts\tools\rive\rive.exe .\rig --once   # rig/build/mam-v08.riv, unsigned, không đăng nhập
 node capture.mjs                    # previews/*.png từ project capture (nền kem)
 ```
 

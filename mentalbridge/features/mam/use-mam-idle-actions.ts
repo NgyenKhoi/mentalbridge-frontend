@@ -2,17 +2,16 @@
 
 import { useEffect, useRef } from 'react'
 
-import type { MamOneShot } from './mam-contract'
 import { isTypingTarget } from './mam-gaze'
 
-// MB-818 goal 3: one small idle action every 25–45 s, at most 2 per rolling minute.
+// MB-818 goal 3: one small idle action every 25–45 s, at most 2 per rolling minute. MB-896: the hook keeps the
+// cadence and the cap; which look plays (and never the same twice in a row) is the orchestrator's `IDLE` intent.
 export const IDLE_ACTION_MIN_MS = 25_000
 export const IDLE_ACTION_MAX_MS = 45_000
 export const IDLE_ACTIONS_PER_MINUTE = 2
-export const IDLE_ACTIONS = ['stretch', 'look_around', 'scratch'] as const
 
 /**
- * Calls `play` with one idle action at random 25–45 s intervals while
+ * Calls `play` (the host asks the orchestrator for `IDLE`) at random 25–45 s intervals while
  * `enabled`. Turning `enabled` off drops the pending timer; turning it on
  * waits a fresh interval. An action that cannot play now (cap, typing) is
  * skipped, never queued. `slow` (a QUIET route, MB-895) doubles the interval:
@@ -21,7 +20,7 @@ export const IDLE_ACTIONS = ['stretch', 'look_around', 'scratch'] as const
  */
 export function useMamIdleActions(
   enabled: boolean,
-  play: (kind: MamOneShot) => void,
+  play: () => void,
   random: () => number = Math.random,
   slow = false,
   allowTyping = false,
@@ -32,7 +31,6 @@ export function useMamIdleActions(
   })
   // Shared across enable cycles, so toggling cannot beat the cap.
   const fired = useRef<number[]>([])
-  const last = useRef<(typeof IDLE_ACTIONS)[number] | null>(null)
   useEffect(() => {
     if (!enabled) return
     let timer: ReturnType<typeof setTimeout>
@@ -43,12 +41,9 @@ export function useMamIdleActions(
         fired.current.length < IDLE_ACTIONS_PER_MINUTE &&
         (allowTyping || !isTypingTarget(document.activeElement))
       ) {
-        const { play: start, random: next } = latest.current
-        const choices = IDLE_ACTIONS.filter((kind) => kind !== last.current)
-        const kind = choices[Math.floor(next() * choices.length)]!
-        last.current = kind
+        const { play: start } = latest.current
         fired.current.push(now)
-        start(kind)
+        start()
       }
       schedule()
     }
