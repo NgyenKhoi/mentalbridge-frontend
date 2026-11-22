@@ -1,0 +1,111 @@
+import type { NextRequest } from 'next/server'
+
+import {
+  composeLookBack,
+  latestPerInstrument,
+} from '@/features/look-back/look-back-model'
+import { ApiError } from '@/lib/api/api-error'
+import { correlationIdFrom } from '@/lib/auth/bff-response'
+import {
+  authenticatedCareUser,
+  careAuthenticationFailure,
+  carryCareSession,
+} from '@/lib/care/authenticated-user'
+import {
+  careErrorResponse,
+  careSuccessResponse,
+  localProblem,
+} from '@/lib/care/bff-response'
+import { careClient } from '@/lib/care/care-client'
+import { companionClient } from '@/lib/companion/companion-client'
+
+function validTimezone(value: string | null): value is string {
+  if (!value || value.length > 64) return false
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value }).format()
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Missing consent or no access (403/404) hides a section quietly; a timeout, a rate limit or an outage also says so.
+const quietlyHidden = (error: unknown) =>
+  error instanceof ApiError && (error.status === 403 || error.status === 404)
+
+export async function GET(request: NextRequest) {
+  const correlationId = correlationIdFrom(request)
+  const timezone = request.nextUrl.searchParams.get('timezone')
+  if (
+    [...request.nextUrl.searchParams.keys()].some(
+      (key) => key !== 'timezone',
+    ) ||
+    request.nextUrl.searchParams.getAll('timezone').length !== 1 ||
+    !validTimezone(timezone)
+  )
+    return localProblem(
+      400,
+      'VALIDATION_FAILED',
+      'Múi giờ không hợp lệ.',
+      correlationId,
+    )
+
+  let user: Awaited<ReturnType<typeof authenticatedCareUser>>
+  try {
+    user = await authenticatedCareUser(request, correlationId)
+  } catch (error) {
+    return careAuthenticationFailure(error, correlationId)
+  }
+
+  const token = user.accessToken
+  const [dashboard, history, companion] = await Promise.allSettled([
+    // 14 is not an allowed range; the composition keeps the last 14 local days.
+    careClient.activityDashboard(token, timezone, 30, correlationId),
+    careClient.history(token, undefined, 20, correlationId),
+    companionClient.list(token, correlationId),
+  ])
+  // The mood chart is the point of the page: without it there is nothing to show.
+  if (dashboard.status === 'rejected')
+    return carryCareSession(
+      careErrorResponse(dashboard.reason, correlationId),
+      user,
+    )
+
+  let degraded = history.status === 'rejected'
+  const progress = await Promise.allSettled(
+    (history.status === 'fulfilled'
+      ? latestPerInstrument(history.value.items)
+      : []
+    ).map((item) =>
+      careClient.progress(token, item.assessmentId, correlationId),
+    ),
+  )
+  for (const result of progress)
+    if (
+      result.status === 'rejected' &&
+      // A single screening is not a failure; there is just nothing to compare.
+      !(
+        result.reason instanceof ApiError &&
+        result.reason.code === 'INSUFFICIENT_COMPARABLE_DATA'
+      )
+    )
+      degraded = true
+  if (companion.status === 'rejected' && !quietlyHidden(companion.reason))
+    degraded = true
+
+  return carryCareSession(
+    careSuccessResponse(
+      composeLookBack({
+        dashboard: dashboard.value,
+        conversations:
+          companion.status === 'fulfilled' ? companion.value.items : null,
+        progress: progress.flatMap((result) =>
+          result.status === 'fulfilled' ? [result.value] : [],
+        ),
+        degraded,
+      }),
+      correlationId,
+    ),
+    user,
+  )
+}

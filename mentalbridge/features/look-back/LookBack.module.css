@@ -1,0 +1,473 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+/* Mầm's voice: the sentence the page is built around. */
+.voice {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-6);
+  border-left: 4px solid var(--teal);
+  border-radius: 0 var(--radius-panel) var(--radius-panel) 0;
+  background: var(--teal-pale);
+}
+
+.narrative {
+  margin: 0;
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces-variable), var(--font-fraunces, serif);
+  font-size: clamp(19px, 2.2vw, 23px);
+  font-weight: 600;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.block {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  /* Incumbent card look: the same 1px line as the Home and reassessment cards. */
+  border: 1px solid var(--line); /* taste-skill-ignore */
+  border-radius: var(--radius-panel);
+  background: #ffffff;
+}
+
+.h2 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-fraunces-variable), var(--font-fraunces, serif);
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.lead {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Chart: dots are HTML so they stay round at every width; only the line stretches. */
+.chart {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  column-gap: var(--space-3);
+  row-gap: var(--space-2);
+}
+
+.axis {
+  position: relative;
+  height: 180px;
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+/* Labels sit on the same 8% and 92% the dots use for the best and worst level. */
+.axis > div {
+  position: absolute;
+  right: 0;
+  left: 0;
+  transform: translateY(-50%);
+}
+
+.plot {
+  position: relative;
+  height: 180px;
+}
+
+/* Week 2 is tinted so the two weeks read apart without a divider. */
+.tint {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 50%;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--teal) 8%, transparent);
+}
+
+.line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.line polyline {
+  stroke: var(--teal);
+  stroke-width: 2;
+  opacity: 0.55;
+  animation: lbFade var(--motion-slow) var(--ease-standard) 240ms backwards;
+}
+
+.dot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: var(--c);
+  animation: lbDot var(--motion-medium) var(--ease-standard) backwards;
+  animation-delay: calc(240ms + var(--i) * 28ms);
+}
+
+.weeks {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.weeks > div {
+  text-align: center;
+}
+
+.scale {
+  grid-column: 2;
+  color: var(--ink-faint);
+  font-size: 12px;
+  text-align: center;
+}
+
+.stats {
+  display: grid;
+  gap: var(--space-5);
+  margin: 0;
+}
+
+.stat {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.statLabel {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.secondary {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.pair {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.value {
+  display: grid;
+  min-width: 56px;
+  justify-items: center;
+}
+
+.num {
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces-variable), var(--font-fraunces, serif);
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  animation: lbSettle var(--motion-base) var(--ease-emphasis) backwards;
+  animation-delay: calc(120ms + var(--i, 0) * 70ms);
+}
+
+.caption {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.arrow {
+  color: var(--ink-faint);
+  font-size: 18px;
+}
+
+.timeline {
+  position: relative;
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0 0 0 var(--space-5);
+  list-style: none;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 5px;
+  width: 2px;
+  background: var(--line);
+}
+
+.talkItem {
+  position: relative;
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.talkItem::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: calc(var(--space-5) * -1 + 1px);
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--teal);
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.talkDate {
+  flex: none;
+  min-width: 44px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.talkTitle {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.more {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* A closed disclosure under a list would leave a double gap (block gap plus its 44px target). */
+.bands + .more {
+  margin-top: calc(var(--space-3) * -1);
+}
+
+.more > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--teal-deep);
+  font-size: 14px;
+  font-weight: 600;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.more > summary:hover {
+  text-decoration: underline;
+}
+
+.more > summary:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.bands {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+}
+
+.transition {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.details {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.pointer {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--amber-soft);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.quiet {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--teal-deep);
+  font-weight: 600;
+  text-underline-offset: 4px;
+}
+
+.quiet:hover {
+  text-decoration: underline;
+}
+
+.quiet:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.next {
+  display: flex;
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 52px;
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--teal-deep);
+  color: #ffffff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--motion-instant) var(--ease-standard),
+    background-color var(--motion-instant) var(--ease-standard);
+}
+
+.primary:hover {
+  transform: translateY(-2px);
+  background: var(--teal);
+}
+
+.primary:active {
+  transform: scale(var(--motion-scale-enter));
+}
+
+.primary:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+@keyframes lbFade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes lbDot {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+@keyframes lbSettle {
+  from {
+    opacity: 0.4;
+    transform: translateY(calc(var(--motion-distance-sm) * -1));
+  }
+}
+
+@media (max-width: 560px) {
+  .voice,
+  .block {
+    padding: var(--space-4);
+  }
+
+  .chart {
+    grid-template-columns: 56px minmax(0, 1fr);
+    column-gap: var(--space-2);
+  }
+
+  .axis {
+    font-size: 11px;
+  }
+
+  .weeks {
+    font-size: 12px;
+  }
+
+  .pair {
+    gap: var(--space-3);
+  }
+
+  .value {
+    min-width: 44px;
+  }
+
+  .primary {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line polyline,
+  .dot,
+  .num {
+    animation: none;
+  }
+
+  .primary {
+    transition: none;
+  }
+
+  .primary:hover,
+  .primary:active {
+    transform: none;
+  }
+}
+
+/* The live region stays mounted; while empty it must not add a grid gap. */
+.live:empty {
+  margin-top: calc(var(--space-5) * -1);
+}

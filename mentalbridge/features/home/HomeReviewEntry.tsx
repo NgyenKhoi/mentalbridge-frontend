@@ -13,19 +13,25 @@ import styles from './HomeReviewEntry.module.css'
  * screening happened to be a reassessment. HomeHub does not render it on the safety Home (a deliberate
  * decision: the safety presentation comes first).
  */
-export function HomeReviewEntry() {
+export function HomeReviewEntry({
+  onResolved,
+}: Readonly<{ onResolved?: (exists: boolean) => void }> = {}) {
   const id = useId()
   const [exists, setExists] = useState(false)
 
   useEffect(() => {
     let active = true
     listReassessmentSummaries(1)
-      .then((page) => active && setExists(page.items.length > 0))
-      .catch(() => undefined)
+      .then((page) => {
+        if (!active) return
+        setExists(page.items.length > 0)
+        onResolved?.(page.items.length > 0)
+      })
+      .catch(() => active && onResolved?.(false))
     return () => {
       active = false
     }
-  }, [])
+  }, [onResolved])
 
   if (!exists) return null
   return (

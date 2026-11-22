@@ -154,7 +154,7 @@ Gate A is a visual decision, not a test count: it stays open while the art or th
 
 | Mode   | Routes |
 | ------ | ------ |
-| FULL   | `/dashboard`, `/achievements`, `/resources`, `/analytics` |
+| FULL   | `/dashboard`, `/achievements`, `/resources`, `/analytics`, `/nhin-lai` |
 | QUIET  | `/journal`, `/ai-companion`, `/support-plan` (exact), `/support-guides`, `/support-guides/[id]`, `/appointments`, `/appointments/[id]`, `/messages`, `/notifications`, `/profile`, `/specialists`, `/resources/[id]` |
 | HIDDEN | `/appointments/[id]/chat`, `/appointments/[id]/video`, `/call/*`, `/assessments(/*)`, `/assessment/*`, `/initial-check`, `/safety-directory`, `/community/*`, `/subscription`, and any unknown route |
 
@@ -197,6 +197,9 @@ Gate A is a visual decision, not a test count: it stays open while the art or th
   unreachable there as it is today, and she is inert too (`pointer-events: none`). She keeps the slow QUIET idle
   micro-actions while the user types (no form-focus stillness there), with no gaze-follow, no bubbles, no tip and no
   sound.
+- **`/nhin-lai` (14-day journey, MB-898):** FULL, but the page holds a no-interrupt zone (`useMamSuppress`) while it loads and
+  whenever the fortnight reads harder or a screening band is moderate or above, so no celebration, queued award or
+  welcome plays beside hard news.
 - **Celebration routes** (queued awards play, `isMamCelebrationRoute`): FULL routes only (was `/dashboard`,
   `/achievements`, `/resources`, `/resources/[id]`). The award waits on `/resources/[id]` until a FULL route.
 - **Mounting:** `MamDockSlot` stays in the `(dashboard)` and `resources` layouts. It is not mounted in
