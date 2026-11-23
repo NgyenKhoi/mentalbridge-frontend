@@ -51,6 +51,11 @@ describe('composeLookBack', () => {
     expect(view.asOfLocalDate).toBe(asOf)
     expect(view.startLocalDate).toBe('2026-11-09')
     expect(view.weeks[0]).toMatchObject({ moodAverage: 2, journalDays: 1 })
+    expect(view.days[0]).toMatchObject({
+      emotionLevel: 2,
+      journalEntries: 1,
+      supportCompleted: 0,
+    })
     expect(view.weeks[1]).toMatchObject({ moodAverage: 4, journalDays: 0 })
     expect(view.narrative).toBe('IMPROVING')
     expect(view.nextStep).toBe('PLAN')

@@ -1,11 +1,7 @@
 import type { Emotion } from '@/lib/emotion-check-in/contract'
 import { emotionPresentation } from '@/lib/emotion-check-in/presentation'
 
-import type {
-  LookBack,
-  LookBackNarrative,
-  LookBackNextStep,
-} from './look-back-model'
+import type { LookBackNarrative, LookBackNextStep } from './look-back-model'
 
 // Approved Mầm copy (MB-898 brief); tớ/bạn, association, never causality.
 export const narrativeCopy: Readonly<
@@ -43,10 +39,3 @@ export function moodLabel(level: number) {
 
 export const dayMonth = (localDate: string) =>
   `${localDate.slice(8, 10)}/${localDate.slice(5, 7)}`
-
-export function moodComparison(weeks: LookBack['weeks']) {
-  const [first, second] = weeks.map((week) => moodLabel(week.moodAverage ?? 3))
-  return first.key === second.key
-    ? `Trung bình, cả hai tuần của bạn đều ở mức "${first.label}".`
-    : `Trung bình, tuần 1 của bạn ở mức "${first.label}" và tuần 2 ở mức "${second.label}".`
-}

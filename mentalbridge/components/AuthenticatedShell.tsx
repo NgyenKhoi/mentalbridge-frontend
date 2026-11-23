@@ -85,6 +85,16 @@ const groups = [
           <path d="m9 16 2 2 4-4" />
         </Svg>,
       ],
+      [
+        '/nhin-lai',
+        'Nhìn lại 14 ngày',
+        <Svg key="look-back">
+          <path d="M3 17c3-1 4-8 8-8s5 6 10-3" />
+          <circle cx="3" cy="17" r="1" />
+          <circle cx="11" cy="9" r="1" />
+          <circle cx="21" cy="6" r="1" />
+        </Svg>,
+      ],
     ],
   },
   {
@@ -174,6 +184,7 @@ const labels: Record<string, string> = {
   '/support-guides': 'Gợi ý hỗ trợ',
   '/safety-directory': 'Hỗ trợ an toàn theo khu vực',
   '/support-plan': 'Kế hoạch hỗ trợ',
+  '/nhin-lai': 'Nhìn lại 14 ngày',
   '/specialists': 'Chuyên gia tư vấn',
   '/appointments': 'Lịch hẹn',
   '/messages': 'Tin nhắn',

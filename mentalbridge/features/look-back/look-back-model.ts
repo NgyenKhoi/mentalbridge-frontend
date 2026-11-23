@@ -46,12 +46,18 @@ export type LookBack = Readonly<{
   startLocalDate: string
   asOfLocalDate: string
   days: ReadonlyArray<
-    Readonly<{ localDate: string; emotionLevel: number | null }>
+    Readonly<{
+      localDate: string
+      emotionLevel: number | null
+      journalEntries: number | null
+      supportCompleted: number | null
+    }>
   >
   weeks: readonly [LookBackWeek, LookBackWeek]
   recordDays: number
   narrative: LookBackNarrative
   appointments: number | null
+  completedSessions: number | null
   /** null hides the section: no consent, or the list could not be read. */
   conversations: ReadonlyArray<
     Readonly<{ id: string; title: string | null; localDate: string }>
@@ -241,6 +247,7 @@ export function composeLookBack({
   conversations,
   progress,
   latestLevels = [],
+  completedSessions = null,
   degraded,
 }: Readonly<{
   dashboard: ActivityDashboard
@@ -248,6 +255,7 @@ export function composeLookBack({
   progress: readonly AssessmentProgress[]
   /** The latest screening band of each instrument (`latestScreeningLevels`), with or without a previous one. */
   latestLevels?: readonly ScreeningLevel[]
+  completedSessions?: number | null
   /** An optional source failed for a reason other than missing consent. */
   degraded: boolean
 }>): LookBack {
@@ -270,16 +278,25 @@ export function composeLookBack({
   return {
     startLocalDate: start,
     asOfLocalDate: asOf,
-    days: days.map(({ localDate, emotionLevel }) => ({
-      localDate,
-      emotionLevel,
-    })),
+    days: days.map(
+      ({ localDate, emotionLevel, journals, supportCompleted }) => ({
+        localDate,
+        emotionLevel,
+        journalEntries: readable(dashboard.sources, 'journals')
+          ? journals
+          : null,
+        supportCompleted: readable(dashboard.sources, 'supportPlans')
+          ? supportCompleted
+          : null,
+      }),
+    ),
     weeks,
     recordDays,
     narrative,
     appointments: readable(dashboard.sources, 'appointments')
       ? total(days, (day) => day.appointments)
       : null,
+    completedSessions,
     conversations:
       conversations === null
         ? null

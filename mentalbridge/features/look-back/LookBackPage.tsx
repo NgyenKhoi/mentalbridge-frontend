@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Heart, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import {
   useEffect,
@@ -18,13 +18,13 @@ import { getLookBack } from './browser-look-back'
 import {
   dayMonth,
   dimensionLabel,
-  moodComparison,
+  moodLabel,
   narrativeCopy,
   nextStepAction,
 } from './look-back-copy'
 import type { LookBack } from './look-back-model'
 import { useMamSuppress } from '@/features/mam/mam-suppression'
-import { MoodChart } from './MoodChart'
+import { JourneyMap } from './JourneyMap'
 import styles from './LookBack.module.css'
 
 type State =
@@ -32,7 +32,7 @@ type State =
   | Readonly<{ phase: 'error' }>
   | Readonly<{ phase: 'ready'; data: LookBack }>
 
-const VISIBLE_CONVERSATIONS = 6
+const VISIBLE_CONVERSATIONS = 2
 const count = (value: number | null) => value ?? '–'
 
 function Pair({
@@ -97,23 +97,48 @@ function Stats({ data }: Readonly<{ data: LookBack }>) {
           <Pair first={a.checkInDays} second={b.checkInDays} index={2} />
         </dd>
       </div>
+      {data.completedSessions !== null && data.completedSessions > 0 && (
+        <div className={styles.stat}>
+          <dt className={styles.statLabel}>Hỗ trợ chuyên gia</dt>
+          <dd className={styles.specialistCount}>
+            {data.completedSessions} <small>buổi tư vấn đã diễn ra</small>
+          </dd>
+        </div>
+      )}
     </dl>
   )
 }
 
 function Conversations({
   items,
-}: Readonly<{ items: NonNullable<LookBack['conversations']> }>) {
-  const row = (item: (typeof items)[number]) => (
-    <li key={item.id} className={styles.talkItem}>
-      <time className={styles.talkDate} dateTime={item.localDate}>
-        {dayMonth(item.localDate)}
-      </time>
-      <div className={styles.talkTitle}>
-        {item.title ?? 'Một cuộc trò chuyện'}
-      </div>
-    </li>
-  )
+  days,
+}: Readonly<{
+  items: NonNullable<LookBack['conversations']>
+  days: LookBack['days']
+}>) {
+  const row = (item: (typeof items)[number]) => {
+    const mood = days.find(
+      (day) => day.localDate === item.localDate,
+    )?.emotionLevel
+    return (
+      <li key={item.id} className={styles.talkItem}>
+        <time className={styles.talkDate} dateTime={item.localDate}>
+          {dayMonth(item.localDate).slice(0, 2)}
+        </time>
+        <div className={styles.talkBody}>
+          <div className={styles.talkTitle}>
+            {item.title ?? 'Một cuộc trò chuyện'}
+          </div>
+          <div className={styles.talkMeta}>
+            {dayMonth(item.localDate)} · Trò chuyện cùng Mầm
+          </div>
+        </div>
+        {mood != null && (
+          <span className={styles.talkMood}>{moodLabel(mood).label}</span>
+        )}
+      </li>
+    )
+  }
   const more = items.slice(VISIBLE_CONVERSATIONS)
   return (
     <>
@@ -189,14 +214,48 @@ function Screening({ data }: Readonly<{ data: LookBack }>) {
 
 function Header({
   headingRef,
-}: Readonly<{ headingRef: Ref<HTMLHeadingElement> }>) {
+  data,
+}: Readonly<{ headingRef: Ref<HTMLHeadingElement>; data?: LookBack }>) {
+  const [first, second] = data?.weeks ?? []
   return (
-    <header data-user-page-header>
+    <header data-user-page-header className={styles.header}>
       <div data-user-page-heading>
+        <div className={styles.kicker}>
+          <span aria-hidden="true" />
+          Báo cáo sức khỏe tinh thần
+        </div>
         <h1 ref={headingRef} tabIndex={-1}>
           Hành trình 14 ngày của bạn
         </h1>
+        {data && (
+          <p>
+            Giai đoạn: {dayMonth(data.startLocalDate)}/
+            {data.startLocalDate.slice(0, 4)} – {dayMonth(data.asOfLocalDate)}/
+            {data.asOfLocalDate.slice(0, 4)} · Hai chặng cảm xúc
+          </p>
+        )}
       </div>
+      {first?.moodAverage != null && second?.moodAverage != null && (
+        <div
+          className={styles.weekBadge}
+          aria-label="Mức cảm xúc trung bình hai tuần"
+        >
+          <div>
+            <small>Tuần 1</small>
+            <strong>
+              {moodLabel(first.moodAverage).label} (
+              {first.moodAverage.toFixed(1)}/5)
+            </strong>
+          </div>
+          <div>
+            <small>Tuần 2</small>
+            <strong>
+              {moodLabel(second.moodAverage).label} (
+              {second.moodAverage.toFixed(1)}/5)
+            </strong>
+          </div>
+        </div>
+      )}
     </header>
   )
 }
@@ -210,7 +269,13 @@ function Ready({ data }: Readonly<{ data: LookBack }>) {
     <>
       {narrative !== 'UNKNOWN' && (
         <section className={styles.voice} aria-label="Mầm nhắn bạn">
+          <div className={styles.voiceIcon}>
+            <Heart size={20} aria-hidden="true" />
+          </div>
           <div className={styles.narrative}>{narrativeCopy[narrative]}</div>
+          <div className={styles.voiceByline}>
+            Lời nhắn từ Mầm · Người bạn đồng hành của bạn
+          </div>
         </section>
       )}
       {/* Always mounted so a screen reader hears the note when it arrives. */}
@@ -221,42 +286,51 @@ function Ready({ data }: Readonly<{ data: LookBack }>) {
       </div>
       {narrative !== 'SPARSE' && (
         <>
-          {hasMood && (
-            <section className={styles.block} aria-labelledby="look-back-mood">
-              <h2 id="look-back-mood" className={styles.h2}>
-                Cảm xúc của bạn
-              </h2>
-              <p className={styles.lead}>{moodComparison(data.weeks)}</p>
-              <MoodChart days={data.days} />
-            </section>
-          )}
-          <section className={styles.block} aria-labelledby="look-back-did">
-            <h2 id="look-back-did" className={styles.h2}>
-              Những gì bạn đã làm
-            </h2>
-            <Stats data={data} />
-            {!!data.appointments && (
-              <p className={styles.note}>
-                Bạn đã có {data.appointments} buổi tư vấn với chuyên gia.
-              </p>
-            )}
-          </section>
-          {!!data.conversations?.length && (
-            <section className={styles.block} aria-labelledby="look-back-talk">
-              <h2 id="look-back-talk" className={styles.h2}>
-                Bạn đã trò chuyện với Mầm về
-              </h2>
-              <Conversations items={data.conversations} />
-            </section>
-          )}
+          <Stats data={data} />
+          {hasMood && <JourneyMap data={data} />}
         </>
       )}
+      <div className={styles.bottomGrid}>
+        {!!data.conversations?.length && narrative !== 'SPARSE' && (
+          <section
+            className={styles.conversations}
+            aria-labelledby="look-back-talk"
+          >
+            <div className={styles.conversationHead}>
+              <h2 id="look-back-talk" className={styles.h2}>
+                <MessageCircle size={20} aria-hidden="true" />
+                Bạn đã trò chuyện với Mầm về
+              </h2>
+              <span>Gần đây nhất</span>
+            </div>
+            <Conversations items={data.conversations} days={data.days} />
+            <div className={styles.conversationFoot}>
+              Những cuộc trò chuyện bạn đã ghi lại trong 14 ngày qua.
+            </div>
+          </section>
+        )}
+        <section className={styles.next} aria-label="Bước tiếp theo">
+          <div className={styles.nextKicker}>Bước tiếp theo</div>
+          <div className={styles.nextTitle} role="heading" aria-level={2}>
+            {data.nextStep === 'SUPPORT'
+              ? 'Cân bằng lại cùng sự hỗ trợ phù hợp'
+              : data.nextStep === 'CHECK_IN'
+                ? 'Bắt đầu từ một ghi nhận nhỏ'
+                : 'Tiếp tục nhịp chăm sóc của bạn'}
+          </div>
+          <div className={styles.nextBody}>
+            {data.nextStep === 'SUPPORT'
+              ? 'Bạn có thể xem lại hướng hỗ trợ và trò chuyện với chuyên gia khi cần.'
+              : data.nextStep === 'CHECK_IN'
+                ? 'Ghi lại cảm xúc hôm nay để lần sau nhìn lại rõ hơn.'
+                : 'Một bước nhỏ hôm nay cũng là một phần trong hành trình của bạn.'}
+          </div>
+          <Link className={styles.primary} href={next.href}>
+            {next.label} <ArrowRight aria-hidden="true" size={18} />
+          </Link>
+        </section>
+      </div>
       {data.screening.length > 0 && <Screening data={data} />}
-      <section className={styles.next} aria-label="Bước tiếp theo">
-        <Link className={styles.primary} href={next.href}>
-          {next.label} <ArrowRight aria-hidden="true" size={18} />
-        </Link>
-      </section>
     </>
   )
 }
@@ -312,7 +386,10 @@ export function LookBackPage() {
 
   return (
     <div className={styles.page} aria-busy={state.phase === 'loading'}>
-      <Header headingRef={headingRef} />
+      <Header
+        headingRef={headingRef}
+        data={state.phase === 'ready' ? state.data : undefined}
+      />
       {state.phase === 'loading' ? (
         <Loading />
       ) : state.phase === 'error' ? (
