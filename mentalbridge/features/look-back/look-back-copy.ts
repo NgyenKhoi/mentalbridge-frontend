@@ -39,3 +39,26 @@ export function moodLabel(level: number) {
 
 export const dayMonth = (localDate: string) =>
   `${localDate.slice(8, 10)}/${localDate.slice(5, 7)}`
+
+// Journey palette from the approved Stitch reference: warm amber at the top, cool slate and plum below, never alarm red.
+export const moodTone: Readonly<
+  Record<Emotion, Readonly<{ color: string; soft: string }>>
+> = {
+  GREAT: { color: '#B45F06', soft: '#FDF1E1' },
+  GOOD: { color: '#2D6A4F', soft: '#E3F2E9' },
+  OKAY: { color: '#4F7489', soft: '#E6EEF2' },
+  LOW: { color: '#76618A', soft: '#F0EBF4' },
+  VERY_LOW: { color: '#5B4868', soft: '#ECE6F0' },
+}
+
+const weekdays = [
+  'Chủ Nhật',
+  'Thứ Hai',
+  'Thứ Ba',
+  'Thứ Tư',
+  'Thứ Năm',
+  'Thứ Sáu',
+  'Thứ Bảy',
+]
+export const weekdayOf = (localDate: string) =>
+  weekdays[new Date(`${localDate}T00:00:00Z`).getUTCDay()]
