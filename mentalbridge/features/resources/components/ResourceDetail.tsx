@@ -52,6 +52,7 @@ import { ProblemSolvingResourceDetail } from './ProblemSolvingResourceDetail'
 import { ProgressiveRelaxationResourceDetail } from './ProgressiveRelaxationResourceDetail'
 import { SleepRoutineResourceDetail } from './SleepRoutineResourceDetail'
 import { SmallStepsResourceDetail } from './SmallStepsResourceDetail'
+import { dispatchMamEvent } from '@/features/mam/mam-events'
 import { StretchResourceDetail } from './StretchResourceDetail'
 import { PurposeShapedActions } from './PurposeShapedActions'
 import { VietnameseCaptionedVideo } from './VietnameseCaptionedVideo'
@@ -539,6 +540,9 @@ export default function ResourceDetail({
       },
     ) => {
       if (!resource || !progressReady || saving) return false
+      // Mầm hears only the move to completed: a re-save of a finished resource (an unchecked action, another
+      // practice round) is not a completion.
+      const wasCompleted = status === 'COMPLETED'
       setSaving(true)
       setMessage('')
       try {
@@ -551,7 +555,10 @@ export default function ResourceDetail({
         setCompletedActionIds(saved.completedActionIds)
         setStatus(saved.status)
         window.dispatchEvent(new CustomEvent('mb:resource-progress-updated'))
-        if (saved.status === 'COMPLETED') setReward(true)
+        if (saved.status === 'COMPLETED') {
+          setReward(true)
+          if (!wasCompleted) dispatchMamEvent({ type: 'resource-done' })
+        }
         if (saved.status === 'COMPLETED' || practice?.practiceDurationSeconds) {
           if (supportPlanOrigin) await reconcilePlanProgress()
           else {
@@ -575,6 +582,7 @@ export default function ResourceDetail({
       reconcileWithoutOrigin,
       resource,
       saving,
+      status,
       supportPlanOrigin,
     ],
   )

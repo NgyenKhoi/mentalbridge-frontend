@@ -52,6 +52,8 @@ import {
   useMamCelebrations,
 } from './use-mam-celebrations'
 import { useMamSaved } from './mam-saved'
+import { mamHoldMs } from './mam-lines'
+import { useMamTrajectory } from './use-mam-trajectory'
 import { useMamDropRing } from './use-mam-drop-ring'
 import { useMamSummon } from './use-mam-summon'
 import {
@@ -203,6 +205,8 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     () => false,
   )
   const [open, setOpen] = useState(false)
+  // MB-897: a trajectory or event bubble is open; an achievement's celebration waits for it (derived below).
+  const [trajectoryOpen, setTrajectoryOpen] = useState(false)
   // Each time the dizzy message opens, the swirl and the stars play again.
   const [dizzyPlay, setDizzyPlay] = useState(0)
   // The one-time tip and the dizzy message: a short bubble at the dock.
@@ -503,7 +507,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       !summon &&
       !notice &&
       !menuOpen,
-    blocked: yielding !== 'none',
+    blocked: yielding !== 'none' || trajectoryOpen,
   })
   // A save Care confirmed (MB-772): one light_success under the same conditions.
   const saved = useMamSaved(
@@ -521,11 +525,42 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       yielding === 'none',
     pathname,
   )
+  // MB-897: Mầm's daily trajectory and verified events. Hidden, away (a modal, a safety hide zone), muted and a
+  // failed renderer drop them; anything else only waits: a form being edited or just saved (the check-in keeps focus
+  // for a moment after its own save), a menu, a summon, a look that runs, the welcome, a page action under her.
+  const trajectory = useMamTrajectory({
+    accountId,
+    mode,
+    hard: hidden || muted || away || dizzy,
+    ready:
+      status === 'ready' &&
+      !suppressed &&
+      !flying &&
+      !staged &&
+      !summon &&
+      !notice &&
+      !menuOpen &&
+      welcome === 'done' &&
+      stage.current === null &&
+      yielding === 'none' &&
+      celebration.bubbleText === null &&
+      celebration.oneShot === null &&
+      saved === null,
+  })
+  const trajectoryText = trajectory.reaction?.text ?? null
+  if (trajectoryOpen !== (trajectoryText !== null))
+    setTrajectoryOpen(trajectoryText !== null)
+  const dismissTrajectory = trajectory.dismiss
   const dismissCelebration = useRef(celebration.dismiss)
   useEffect(() => {
-    dismissCelebration.current = celebration.dismiss
+    dismissCelebration.current = () => {
+      celebration.dismiss()
+      dismissTrajectory()
+    }
   })
-  const celebrating = celebration.bubbleText !== null
+  // Stable: the bubble restarts its auto-hide timer whenever `onClose` changes.
+  const closeBubble = useCallback(() => dismissCelebration.current(), [])
+  const celebrating = celebration.bubbleText !== null || trajectoryOpen
   const note = useMamCelebrationNote({
     accountId,
     open: menuOpen && (muted || reduced),
@@ -618,7 +653,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     (travelMode === 'dock' || travelMode === 'hop') &&
     yielding === 'none' &&
     !dockBubble &&
-    !celebrating &&
+    celebration.bubbleText === null &&
     !shot
   // What the orchestrator may start, and keep running, is read from here: the same gates as before, one place. A layout
   // effect, so the stage's own re-check (a passive effect) always sees this render's gates.
@@ -673,6 +708,18 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     if (savedKey === null) return
     orchestrator.play('ENCOURAGE', { source: 'saved', variation: 'nod' })
   }, [orchestrator, savedKey])
+  // MB-897: the look that goes with a trajectory or event line (the bubble shows even where the look is skipped:
+  // reduced motion, a busy stage, a gate that closed).
+  const reactionKey = trajectory.reaction?.key ?? null
+  const reactionIntent = trajectory.reaction?.intent
+  const reactionGrade = trajectory.reaction?.grade
+  useEffect(() => {
+    if (reactionKey === null || !reactionIntent) return
+    orchestrator.play(reactionIntent, {
+      source: 'trajectory',
+      grade: reactionGrade,
+    })
+  }, [orchestrator, reactionKey, reactionIntent, reactionGrade])
 
   // An EXPRESSIVE look grows her a little while it plays, so it reads at the dock size (the scale is CSS on the
   // flight box, anchored at her feet). Micro looks, cinematic scenes, looks that opt out (`grow: false`: the idle
@@ -1090,7 +1137,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       setOpen(false)
       setNotice(null)
       close(false)
-      celebration.dismiss()
+      dismissCelebration.current()
     }
     travel.dragMove(event.clientX, event.clientY)
     // Escape or a fallen gate ended the drag while the pointer is still held.
@@ -1323,7 +1370,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                             : (travelBehavior ??
                               stage.loop ??
                               behavior ??
-                              (celebrating
+                              (celebration.bubbleText !== null
                                 ? 'happy'
                                 : menuOpen
                                   ? 'curious'
@@ -1465,15 +1512,22 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       </AnimatePresence>
 
       <AnimatePresence>
-        {celebration.bubbleText ? (
+        {celebration.bubbleText || trajectoryText ? (
           <MamCelebrationBubble
             key="celebration"
-            text={celebration.bubbleText}
-            showLink={pathname !== '/achievements'}
+            text={celebration.bubbleText ?? trajectoryText ?? ''}
+            showLink={
+              celebration.bubbleText !== null && pathname !== '/achievements'
+            }
+            holdMs={
+              celebration.bubbleText === null && trajectoryText
+                ? mamHoldMs(trajectoryText)
+                : undefined
+            }
             reduced={reduced}
             bubbleRef={celebrationRef}
             returnFocusRef={dockRef}
-            onClose={celebration.dismiss}
+            onClose={closeBubble}
           />
         ) : null}
       </AnimatePresence>

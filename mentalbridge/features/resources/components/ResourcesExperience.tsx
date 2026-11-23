@@ -29,6 +29,7 @@ import {
   type ResourceDifficulty,
   type ResourceFormat,
 } from '../model/resource-experience'
+import { dispatchMamEvent } from '@/features/mam/mam-events'
 import { AnimatedResourceSticker } from './AnimatedResourceSticker'
 import { ResourcePreview } from './ResourcePreview'
 
@@ -323,6 +324,9 @@ export default function ResourcesExperience() {
       }))
       window.dispatchEvent(new CustomEvent('mb:resource-progress-updated'))
       if (completed) {
+        // The server's answer, not the click, decides that it is done; unchecking and re-saving never gets here.
+        if (saved.status === 'COMPLETED')
+          dispatchMamEvent({ type: 'resource-done' })
         const completedCount = selected.filter(
           (candidate) =>
             progressFor(next, candidate.id, selectedDate)?.status ===

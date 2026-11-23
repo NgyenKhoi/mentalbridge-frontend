@@ -4,6 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ResourcesExperience from './ResourcesExperience'
 
+// MB-897: what Mầm is told about a confirmed completion.
+const mam = vi.hoisted(() => ({ dispatch: vi.fn() }))
+vi.mock('@/features/mam/mam-events', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/mam/mam-events')>()),
+  dispatchMamEvent: mam.dispatch,
+}))
+
 const api = vi.hoisted(() => ({
   getResourceCatalogue: vi.fn(),
   getResourceProgress: vi.fn(),
@@ -173,6 +180,36 @@ describe('ResourcesExperience', () => {
       api.reconcileTodayResourceCompletion,
     ).toHaveBeenCalledExactlyOnceWith(resources[0].id, '1')
     expect(await screen.findByText(/một bước nhỏ đã hoàn thành/i)).toBeVisible()
+    expect(mam.dispatch).toHaveBeenCalledExactlyOnceWith({
+      type: 'resource-done',
+    })
+  })
+
+  it('tells Mầm nothing when the save fails, or when the server does not answer completed', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const original = api.saveResourceProgress.getMockImplementation()
+    api.saveResourceProgress.mockRejectedValueOnce(new Error('down'))
+    render(<ResourcesExperience />)
+    const challenge = await screen.findByRole('heading', {
+      name: /một chút bình yên/i,
+    })
+    const section = challenge.closest('section') as HTMLElement
+    await user.click(within(section).getAllByRole('checkbox')[0])
+    expect(await screen.findByText(/Chưa thể lưu tiến độ/)).toBeVisible()
+    expect(mam.dispatch).not.toHaveBeenCalled()
+
+    // The click asked for completed but the server kept it in progress: not a completion.
+    api.saveResourceProgress.mockImplementationOnce(
+      async (resourceId: string, localDate: string, update: object) => ({
+        ...(await original?.(resourceId, localDate, update)),
+        status: 'IN_PROGRESS',
+      }),
+    )
+    await user.click(within(section).getAllByRole('checkbox')[0])
+    await vi.waitFor(() =>
+      expect(api.saveResourceProgress).toHaveBeenCalledTimes(2),
+    )
+    expect(mam.dispatch).not.toHaveBeenCalled()
   })
 
   it('offers a Care retry after saving daily progress without saving it twice', async () => {

@@ -55,11 +55,15 @@ describe('/api/look-back', () => {
         {
           assessmentId: 'a-new',
           instrument: 'PHQ9',
+
+          result: { screeningLevel: 'MILD' },
           submittedAt: '2026-11-21T09:00:00+07:00',
         },
         {
           assessmentId: 'a-old',
           instrument: 'PHQ9',
+
+          result: { screeningLevel: 'MILD' },
           submittedAt: '2026-11-01T09:00:00+07:00',
         },
       ],
@@ -102,6 +106,47 @@ describe('/api/look-back', () => {
       screening: [{ instrument: 'PHQ9', direction: 'LOWER' }],
     })
     expect(body.days).toHaveLength(14)
+  })
+
+  it('shows the professional pointer for a FIRST moderate screening that has nothing to compare', async () => {
+    care.history.mockResolvedValue({
+      items: [
+        {
+          assessmentId: 'a-only',
+          instrument: 'PHQ9',
+          result: { screeningLevel: 'MODERATE' },
+          submittedAt: '2026-11-21T09:00:00+07:00',
+        },
+      ],
+      hasMore: false,
+    })
+    care.progress.mockRejectedValue(
+      problem(409, 'INSUFFICIENT_COMPARABLE_DATA'),
+    )
+    const body = await (await GET(request())).json()
+    expect(body.screening).toEqual([])
+    expect(body.professionalPointer).toBe(true)
+    expect(body.nextStep).toBe('SUPPORT')
+    expect(body.partial).toBe(false)
+  })
+
+  it('flags partial for a screening level it does not know', async () => {
+    care.history.mockResolvedValue({
+      items: [
+        {
+          assessmentId: 'a-odd',
+          instrument: 'PHQ9',
+          result: { screeningLevel: 'EXTREME' },
+          submittedAt: '2026-11-21T09:00:00+07:00',
+        },
+      ],
+      hasMore: false,
+    })
+    care.progress.mockRejectedValue(
+      problem(409, 'INSUFFICIENT_COMPARABLE_DATA'),
+    )
+    const body = await (await GET(request())).json()
+    expect(body.partial).toBe(true)
   })
 
   it('hides the conversation section silently when consent is missing', async () => {

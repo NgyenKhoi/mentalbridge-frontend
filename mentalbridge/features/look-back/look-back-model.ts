@@ -108,6 +108,16 @@ export function narrativeOfDashboard(
   )
 }
 
+export function validTimezone(value: string | null): value is string {
+  if (!value || value.length > 64) return false
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value }).format()
+    return true
+  } catch {
+    return false
+  }
+}
+
 export const isModerateOrAbove = (level: ScreeningLevel) =>
   LEVEL_ORDER.indexOf(level) >= LEVEL_ORDER.indexOf('MODERATE')
 
@@ -135,6 +145,25 @@ export function latestPerInstrument(items: readonly AssessmentSummary[]) {
       latest.set(item.instrument, item)
   }
   return [...latest.values()]
+}
+
+/**
+ * The band of the LATEST screening of each instrument, whether or not an earlier one exists to compare with:
+ * a first moderate-or-higher screening must show the professional pointer and hold celebrations back. A level this
+ * client does not know sets `unknown`, which the route reports as partial (fail closed).
+ */
+export function latestScreeningLevels(items: readonly AssessmentSummary[]): {
+  levels: ScreeningLevel[]
+  unknown: boolean
+} {
+  const levels: ScreeningLevel[] = []
+  let unknown = false
+  for (const item of latestPerInstrument(items)) {
+    const level = item.result?.screeningLevel
+    if (level && LEVEL_ORDER.includes(level)) levels.push(level)
+    else unknown = true
+  }
+  return { levels, unknown }
 }
 
 type Sources = ActivityDashboard['sources']
@@ -211,11 +240,14 @@ export function composeLookBack({
   dashboard,
   conversations,
   progress,
+  latestLevels = [],
   degraded,
 }: Readonly<{
   dashboard: ActivityDashboard
   conversations: readonly CompanionConversationSummary[] | null
   progress: readonly AssessmentProgress[]
+  /** The latest screening band of each instrument (`latestScreeningLevels`), with or without a previous one. */
+  latestLevels?: readonly ScreeningLevel[]
   /** An optional source failed for a reason other than missing consent. */
   degraded: boolean
 }>): LookBack {
@@ -231,9 +263,9 @@ export function composeLookBack({
   const screening = progress
     .map((item) => screeningFrom(item, { start, asOf }, dashboard.timezone))
     .filter((item): item is LookBackScreening => item !== null)
-  const professionalPointer = screening.some((item) =>
-    isModerateOrAbove(item.current.level),
-  )
+  const professionalPointer =
+    screening.some((item) => isModerateOrAbove(item.current.level)) ||
+    latestLevels.some(isModerateOrAbove)
 
   return {
     startLocalDate: start,
