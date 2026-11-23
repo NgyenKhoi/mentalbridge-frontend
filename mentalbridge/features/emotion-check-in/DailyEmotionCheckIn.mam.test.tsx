@@ -66,6 +66,11 @@ vi.mock('./api/browser-emotion-check-in', () => ({
   updateEmotionCheckIn: vi.fn(),
 }))
 
+// The dock's daily trajectory read is not under test here.
+vi.mock('@/features/mam/browser-mam-trajectory', () => ({
+  getMamTrajectory: () => Promise.reject(new Error('not under test')),
+}))
+
 const get = vi.mocked(getEmotionCheckIn)
 const create = vi.mocked(createEmotionCheckIn)
 const update = vi.mocked(updateEmotionCheckIn)
@@ -113,7 +118,7 @@ const card = () => document.getElementById('emotion-check-in')!
 function App({ slot = true }: Readonly<{ slot?: boolean }>) {
   return (
     <>
-      {slot ? <MamDockSlot /> : null}
+      {slot ? <MamDockSlot accountId="acct-1" /> : null}
       <DailyEmotionCheckIn />
       <MamDock />
     </>
@@ -186,7 +191,7 @@ describe('DailyEmotionCheckIn Mầm entry', () => {
     )
   })
 
-  it('shows nothing with the flag off (no dock slot)', async () => {
+  it('shows nothing without a dock slot', async () => {
     get.mockResolvedValue(record())
     render(<App slot={false} />)
     await screen.findByRole('radio', { name: 'Rất không tốt' })
@@ -237,9 +242,14 @@ describe('DailyEmotionCheckIn Mầm entry', () => {
     get.mockRejectedValue(notFound())
     create.mockResolvedValue({ ...record(), emotion: 'GOOD', note: null })
     const events: string[] = []
+    const checkInEvents: { type: string; detail: unknown }[] = []
     const dispatch = window.dispatchEvent.bind(window)
     vi.spyOn(window, 'dispatchEvent').mockImplementation((event) => {
       events.push(event.type)
+      checkInEvents.push({
+        type: event.type,
+        detail: (event as CustomEvent).detail,
+      })
       return dispatch(event)
     })
     render(<App />)
@@ -252,11 +262,41 @@ describe('DailyEmotionCheckIn Mầm entry', () => {
       expect(screen.getByRole('button', { name: BUTTON })).toBeVisible(),
     )
     expect(events).not.toContain('mam:saved')
+    // MB-897: a confirmed save announces enums and a date only, stamped with the account; never the note.
+    const announced = checkInEvents.filter(
+      (event) => event.type === 'mam:checkin-saved',
+    )
+    expect(announced).toHaveLength(1)
+    expect(announced[0].detail).toEqual({
+      type: 'checkin-saved',
+      emotion: 'GOOD',
+      intensity: 5,
+      localDate: '2026-10-29',
+      accountId: 'acct-1',
+    })
     await user.click(screen.getByRole('button', { name: 'Chỉnh sửa ghi nhận' }))
     // Clean and unfocused: still the saved record. Touching the form removes it.
     expect(cardButton()).not.toBeNull()
     await user.click(screen.getByRole('radio', { name: 'Bình thường' }))
     await waitFor(() => expect(cardButton()).toBeNull())
+  })
+
+  it('a failed save announces nothing to Mầm', async () => {
+    const user = userEvent.setup()
+    get.mockRejectedValue(notFound())
+    create.mockRejectedValue(new Error('down'))
+    const events: string[] = []
+    const dispatch = window.dispatchEvent.bind(window)
+    vi.spyOn(window, 'dispatchEvent').mockImplementation((event) => {
+      events.push(event.type)
+      return dispatch(event)
+    })
+    render(<App />)
+    await user.click(await screen.findByRole('radio', { name: 'Tốt' }))
+    await user.click(await screen.findByRole('radio', { name: '4' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu ghi nhận' }))
+    await screen.findByText(/Chưa thể lưu thay đổi/)
+    expect(events.filter((type) => type.startsWith('mam:'))).toEqual([])
   })
 
   it('opens the reviewed bubble on press with no request, and closes it when editing starts', async () => {

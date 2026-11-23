@@ -114,7 +114,7 @@ export default function SpecialistCredentialUploadDialog({
     } catch (cause) {
       setError(
         cause instanceof BrowserConsultationError && cause.status === 503
-          ? 'Chưa thể tải giấy tờ lên lúc này. Vui lòng thử lại sau.'
+          ? 'Chưa thể lưu giấy tờ lúc này. Thông tin bạn nhập vẫn ở đây; hãy thử lại sau.'
           : cause instanceof Error
             ? cause.message
             : 'Không thể tải giấy tờ. Hãy thử lại.',

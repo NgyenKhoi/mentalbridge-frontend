@@ -637,10 +637,12 @@ export function VideoSessionPanel({
               href={
                 role === 'USER'
                   ? `/appointments/${encodeURIComponent(appointmentId)}`
-                  : `/specialist/follow-up?appointmentId=${encodeURIComponent(appointmentId)}`
+                  : `/specialist/clients?appointmentId=${encodeURIComponent(appointmentId)}`
               }
             >
-              Xem nội dung sau buổi tư vấn
+              {role === 'SPECIALIST'
+                ? 'Tạo bản tóm tắt'
+                : 'Xem nội dung sau buổi tư vấn'}
             </Link>
           )}
       </div>

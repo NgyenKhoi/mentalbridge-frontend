@@ -198,6 +198,18 @@ describe('createMamControls', () => {
       'look_around',
       'scratch',
       'point',
+      'pilot',
+      'pilot_wave',
+      'hop_down',
+      'wave',
+      'spin',
+      'dance',
+      'clap',
+      'thumbs_up',
+      'fist_pump',
+      'sit_hug',
+      'hang',
+      'pop_up',
     ])
   })
 })

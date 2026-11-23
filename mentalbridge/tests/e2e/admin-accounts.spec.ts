@@ -31,6 +31,17 @@ test.describe('admin account state journey', () => {
     await expect(
       page.getByRole('heading', { name: 'Quản trị trạng thái tài khoản' }),
     ).toBeVisible()
+    const firstAccount = await page
+      .getByRole('button', { name: /user@example.com/ })
+      .boundingBox()
+    const secondAccount = await page
+      .getByRole('button', { name: /specialist@example.com/ })
+      .boundingBox()
+    expect(firstAccount).not.toBeNull()
+    expect(secondAccount).not.toBeNull()
+    expect(secondAccount!.y).toBeGreaterThanOrEqual(
+      firstAccount!.y + firstAccount!.height,
+    )
     await page.getByLabel('Vai trò').selectOption('USER')
     await page.getByLabel('Email chính xác').fill('user@example.com')
     await page.getByRole('button', { name: 'Tìm tài khoản' }).click()

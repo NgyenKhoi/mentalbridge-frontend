@@ -32,6 +32,7 @@ export const config = {
     '/messages/:path*',
     '/ai-companion/:path*',
     '/analytics/:path*',
+    '/nhin-lai/:path*',
     '/subscription/:path*',
     '/notifications/:path*',
     '/profile/:path*',

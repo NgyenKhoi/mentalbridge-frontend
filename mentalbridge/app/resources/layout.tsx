@@ -15,9 +15,7 @@ export default async function ResourcesLayout({
   return (
     <AuthenticatedShell workspaces={resolveWorkspaces(account.roles) ?? []}>
       {children}
-      {process.env.MAM_WEB_ENABLED === 'true' ? (
-        <MamDockSlot accountId={account.accountId} />
-      ) : null}
+      <MamDockSlot accountId={account.accountId} />
     </AuthenticatedShell>
   )
 }

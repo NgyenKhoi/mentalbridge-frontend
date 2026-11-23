@@ -976,10 +976,6 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
   test('MB-772 explains the adaptive review inline through Mầm without mutating the plan', async ({
     page,
   }) => {
-    test.skip(
-      process.env.MAM_WEB_ENABLED === 'false',
-      'The Mầm inline review renders only with MAM_WEB_ENABLED=true.',
-    )
     test.setTimeout(90_000)
     await authenticate(page)
     const review = nativeSupportPlanReviewFixture()

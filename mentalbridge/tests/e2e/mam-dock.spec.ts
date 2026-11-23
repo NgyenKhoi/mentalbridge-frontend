@@ -14,8 +14,7 @@ import {
   travelling,
 } from './mam-dock-helpers'
 
-// MB-768: one Mầm per tab across eligible USER routes. The E2E servers run
-// with MAM_WEB_ENABLED=true (playwright.config.ts, scripts/run-e2e.mjs).
+// MB-768: one Mầm per tab across eligible USER routes.
 
 const startToday = (page: Page) =>
   page
@@ -446,7 +445,7 @@ test.describe('MB-814 living Mầm on the dock', () => {
   test('is dizzy when the asset fails, and a tap or a summon says so', async ({
     page,
   }) => {
-    await page.route('**/mam/mam-v06.riv', (route) => route.abort('failed'))
+    await page.route('**/mam/mam-v08.riv', (route) => route.abort('failed'))
     await installHomeMocks(page, homeWorld('do-today'))
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/dashboard')
@@ -486,7 +485,7 @@ test.describe('MB-814 living Mầm on the dock', () => {
 
   test('static dizzy art under reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await page.route('**/mam/mam-v06.riv', (route) => route.abort('failed'))
+    await page.route('**/mam/mam-v08.riv', (route) => route.abort('failed'))
     await installHomeMocks(page, homeWorld('do-today'))
     await page.goto('/dashboard')
     await expect(
@@ -670,11 +669,10 @@ test.describe('MB-818 Mầm idle life and touch', () => {
     // The idle action fires 25–45 s after load; a click cuts to a poke at once.
     test.setTimeout(90_000)
     await open(page)
-    await expect(async () => {
-      expect(await dockRoot(page).getAttribute('data-mam-shot')).toMatch(
-        /^(stretch|look_around|scratch)$/,
-      )
-    }).toPass({ timeout: 50_000, intervals: [250] })
+    // MB-896: the IDLE pool also holds the butterfly (a look without a Rive shot), so wait for the intent.
+    await expect(dockRoot(page)).toHaveAttribute('data-mam-intent', 'IDLE', {
+      timeout: 50_000,
+    })
     await dock(page).click()
     await shot(page, 'giggle')
     await expect(menu(page)).toBeVisible()

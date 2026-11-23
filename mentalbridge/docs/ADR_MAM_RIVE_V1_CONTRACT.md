@@ -10,6 +10,7 @@
   business authority
 - Follow-up implementation: MB-767 to MB-776
 - Evidence: [mb-766-mam-rive-contract.md](evidence/mb-766-mam-rive-contract.md)
+- Amended by [ADR_MAM_RIVE_V2_CONTRACT.md](ADR_MAM_RIVE_V2_CONTRACT.md) (MB-894): asset `mam-v07.riv`, IDs 24 to 27, the welcome airplane, a 180 KB budget. This document is not edited.
 
 ## Context
 
@@ -259,7 +260,7 @@ actions below.
 | Target registry and context                         | MB-769                                                                                | Targets register a typed descriptor: surface, allowed intents, and context IDs taken from props. No DOM text scraping |
 | Feature integrations                                | MB-770 Resources, MB-771 Emotion/Journal, MB-772 SupportPlan, MB-774 rewards          | Emit Mầm events only                                                                                                  |
 | Celebration scheduler and budget                    | MB-773                                                                                | The only producer of `celebrate_*`                                                                                    |
-| Gate, flag, rollout                                 | MB-775                                                                                | Default off                                                                                                           |
+| Gate, flag, rollout                                 | MB-775                                                                                | Always on                                                                                                             |
 | Explanations and suggestions                        | Care, through the existing companion endpoint (ADR 0040); Journal/AI only behind Care | Mầm displays the text. It never changes plan, journal, reward, consent, booking or payment state                      |
 
 ## Event taxonomy
@@ -502,20 +503,19 @@ document keep the static, inert dock.
 | `/support-guides`, `/support-guides/[supportGuideId]`                                                                                                                                                                          | yes                          | none in V1                                                                                                                                                                                                       | none                                                                                                                                                       |
 | `/journal` list view                                                                                                                                                                                                           | static dock                  | none (MB-771)                                                                                                                                                                                                    | none; no save reaction (MB-771)                                                                                                                            |
 | Journal authoring, `/assessment/*`, `/assessments`, `/initial-check`, `/safety-directory`, `/subscription`, checkout, appointment booking, `/messages`, community routes, `/ai-companion`, admin, specialist, anonymous routes | hidden (`isVisible=false`)   | none                                                                                                                                                                                                             | none                                                                                                                                                       |
-| AI voice call dialog (opened from `/ai-companion`; only when `MAM_WEB_ENABLED` is on and Mầm is not hidden)                                                                                                                    | none (the dock stays hidden) | none                                                                                                                                                                                                             | none. The character is driven only by call state: `idle`, `thinking`, `speaking` (`gentle` for a `comfort` reply, MB-820), and `rest` under reduced motion |
+| AI voice call dialog (opened from `/ai-companion`; only when Mầm is not hidden)                                                                                                                                                | none (the dock stays hidden) | none                                                                                                                                                                                                             | none. The character is driven only by call state: `idle`, `thinking`, `speaking` (`gentle` for a `comfort` reply, MB-820), and `rest` under reduced motion |
 
 `/ai-companion` keeps a hidden dock, no summon and no automatic appearance. Its
 text chat has no character. The AI voice call uses Mầm as its face instead of
 adding a second character (MB-815).
 
-Since MB-772 the global dock shows on exact `/support-plan` when
-`MAM_WEB_ENABLED` is on, and the page then drops the legacy SupportPlan
-Companion (aside, contextual entries and guided panel). With the flag off the
-legacy contextual "Giải thích" entries stay and no dock renders, so the page
-never shows two companions (owner decision, 2026-10-27, MB-768). MB-771
-removed the legacy aside and guided panel for both flag values (owner
-decision, 2026-10-29). The page passes the
-server-read flag to the workspace so both sides switch together. The host shows
+Since MB-772 the global dock shows on exact `/support-plan` and the page drops
+the legacy SupportPlan Companion (aside, contextual entries and guided panel),
+so the page never shows two companions (owner decision, 2026-10-27, MB-768).
+MB-771 removed the legacy aside and guided panel (owner decision, 2026-10-29).
+`MAM_WEB_ENABLED` no longer exists: the `(dashboard)` and `resources` layouts
+always mount `MamDockSlot` and the page always passes `mamEnabled` to the
+workspace (owner decision 2026-11-23: always on; rollback = revert). The host shows
 the dock only on the routes in `features/mam/mam-routes.ts`; any other route
 hides it.
 

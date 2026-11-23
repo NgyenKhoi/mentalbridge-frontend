@@ -13,20 +13,16 @@ import {
   BriefcaseBusiness,
   Check,
   CircleUserRound,
-  Clock3,
   Eye,
   FileBadge2,
   FilePlus2,
   FileText,
-  Globe2,
-  Languages,
   LockKeyhole,
   Minus,
   Plus,
   Save,
   ShieldCheck,
   UserRound,
-  Video,
 } from 'lucide-react'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import type {
@@ -66,13 +62,6 @@ const reasonLabels: Record<SpecialistDecisionReason, string> = {
 const supportAreaLabels: Record<SupportArea, string> = {
   DEPRESSIVE_SYMPTOMS: 'Cảm xúc trầm buồn',
   ANXIETY_SYMPTOMS: 'Lo âu',
-}
-
-const languageLabels: Record<string, string> = {
-  vi: 'Tiếng Việt',
-  en: 'English',
-  zh: '中文',
-  fr: 'Français',
 }
 
 type ViewStatus =
@@ -208,7 +197,6 @@ export default function SpecialistProfileWorkspace() {
       { label: 'Tên hiển thị', done: form.displayName.trim().length > 0 },
       { label: 'Phần giới thiệu', done: form.bio.trim().length > 0 },
       { label: 'Lĩnh vực hỗ trợ', done: form.supportAreas.length > 0 },
-      { label: 'Ngôn ngữ', done: form.languages.length > 0 },
       { label: 'Số năm kinh nghiệm', done: form.yearsOfExperience > 0 },
     ],
     [form],
@@ -231,7 +219,6 @@ export default function SpecialistProfileWorkspace() {
     !form.displayName.trim() && 'tên hiển thị',
     !form.bio.trim() && 'phần giới thiệu',
     !form.supportAreas.length && 'lĩnh vực hỗ trợ',
-    !form.languages.length && 'ngôn ngữ',
   ].filter(Boolean)
   const saveDisabledReason = canSave
     ? undefined
@@ -268,15 +255,6 @@ export default function SpecialistProfileWorkspace() {
       supportAreas: current.supportAreas.includes(area)
         ? current.supportAreas.filter((item) => item !== area)
         : [...current.supportAreas, area],
-    }))
-  }
-
-  function toggleLanguage(language: string) {
-    setForm((current) => ({
-      ...current,
-      languages: current.languages.includes(language)
-        ? current.languages.filter((item) => item !== language)
-        : [...current.languages, language],
     }))
   }
 
@@ -552,10 +530,6 @@ export default function SpecialistProfileWorkspace() {
                 <span>Lĩnh vực hỗ trợ</span>
               </div>
               <div>
-                <strong>{form.languages.length}</strong>
-                <span>Ngôn ngữ</span>
-              </div>
-              <div>
                 <strong>{completion}%</strong>
                 <span>Đã hoàn thiện</span>
               </div>
@@ -634,7 +608,7 @@ export default function SpecialistProfileWorkspace() {
               </span>
               <div>
                 <h3>Chuyên môn</h3>
-                <p>Chọn lĩnh vực bạn có thể hỗ trợ.</p>
+                <p>Chọn lĩnh vực hỗ trợ và ghi số năm kinh nghiệm.</p>
               </div>
             </div>
             <fieldset className={styles.optionGrid} disabled={locked}>
@@ -656,37 +630,6 @@ export default function SpecialistProfileWorkspace() {
                       <strong>{supportAreaLabels[area]}</strong>
                       <small>{hint}</small>
                     </span>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-          </section>
-
-          <section className={`${styles.card} ${styles.section}`}>
-            <div className={styles.sectionHead}>
-              <span className={styles.sectionIcon}>
-                <Globe2 aria-hidden="true" />
-              </span>
-              <div>
-                <h3>Ngôn ngữ, kinh nghiệm và hình thức tư vấn</h3>
-                <p>
-                  Giúp người dùng chọn đúng người phù hợp với cách họ muốn trò
-                  chuyện.
-                </p>
-              </div>
-            </div>
-            <strong className={styles.groupLabel}>Ngôn ngữ tư vấn</strong>
-            <fieldset className={styles.optionGrid} disabled={locked}>
-              {['vi', 'en', 'zh', 'fr'].map((language) => (
-                <label className={styles.option} key={language}>
-                  <input
-                    type="checkbox"
-                    checked={form.languages.includes(language)}
-                    onChange={() => toggleLanguage(language)}
-                  />
-                  <span>
-                    <i aria-hidden="true" />
-                    <strong>{languageLabels[language]}</strong>
                   </span>
                 </label>
               ))}
@@ -742,21 +685,6 @@ export default function SpecialistProfileWorkspace() {
                 </button>
               </div>
             </label>
-            <div className={styles.serviceDetails}>
-              <div>
-                <span>Thời lượng mỗi phiên</span>
-                <strong>
-                  <Clock3 aria-hidden="true" /> 60 phút
-                </strong>
-              </div>
-              <div>
-                <span>Hình thức tư vấn</span>
-                <strong>
-                  <Video aria-hidden="true" /> Trực tuyến · Chat hoặc Video
-                  trong ứng dụng
-                </strong>
-              </div>
-            </div>
           </section>
 
           <section className={`${styles.card} ${styles.section}`}>
@@ -777,11 +705,19 @@ export default function SpecialistProfileWorkspace() {
                 data-profile-ui
                 type="button"
                 disabled={!profile}
+                aria-describedby={
+                  !profile ? 'credential-save-first' : undefined
+                }
                 onClick={() => setUploadOpen(true)}
               >
                 <FilePlus2 aria-hidden="true" /> Thêm giấy tờ
               </button>
             </div>
+            {!profile && (
+              <p className={styles.credentialState} id="credential-save-first">
+                Lưu hồ sơ trước để thêm giấy tờ.
+              </p>
+            )}
             {documentsLoading && (
               <p className={styles.credentialState}>Đang tải giấy tờ…</p>
             )}
@@ -951,10 +887,6 @@ export default function SpecialistProfileWorkspace() {
                 <BriefcaseBusiness aria-hidden="true" />{' '}
                 {form.yearsOfExperience} năm kinh nghiệm
               </span>
-              <span>
-                <Languages aria-hidden="true" /> {form.languages.length} ngôn
-                ngữ
-              </span>
             </div>
             <p className={styles.previewBio}>
               {form.bio || 'Phần giới thiệu của bạn sẽ hiển thị ở đây.'}
@@ -962,9 +894,6 @@ export default function SpecialistProfileWorkspace() {
             <div className={styles.previewTags}>
               {form.supportAreas.map((area) => (
                 <span key={area}>{supportAreaLabels[area]}</span>
-              ))}
-              {form.languages.map((language) => (
-                <span key={language}>{languageLabels[language]}</span>
               ))}
               {documents
                 .filter(

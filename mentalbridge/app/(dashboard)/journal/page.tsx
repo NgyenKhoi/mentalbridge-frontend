@@ -29,6 +29,7 @@ import {
 } from '@/features/journal/authoring'
 
 import { JournalDetail } from '@/features/journal/JournalDetail'
+import { dispatchMamEvent } from '@/features/mam/mam-events'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import { Dialog } from '@/components/ui/Dialog'
@@ -161,6 +162,14 @@ export default function JournalPage() {
     useState<ResolvedJournalPlanOrigin | null>(null)
   const openedOrigin = useRef(new Set<string>())
   const mutationPendingRef = useRef(false)
+  // MB-897: a save that resolves after the page is gone is not announced to Mầm.
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
   const confirmationPendingRef = useRef(false)
   const workingRef = useRef(false)
   const detailEpochRef = useRef(0)
@@ -762,6 +771,7 @@ export default function JournalPage() {
         },
         parseJournalEntry,
       )
+      if (mountedRef.current) dispatchMamEvent({ type: 'journal-saved' })
       setPageNotice('Nhật ký đã được lưu.')
       showActionToast({ title: 'Đã lưu nhật ký' })
       if (capturedOrigin) {
@@ -798,6 +808,7 @@ export default function JournalPage() {
         },
         parseJournalEntry,
       )
+      if (mountedRef.current) dispatchMamEvent({ type: 'journal-saved' })
       setSelected(updated)
       updateMood(updated.mood)
       setEditorBaseline(null)
@@ -977,10 +988,12 @@ export default function JournalPage() {
           }}
           labelledBy="journal-dialog-title"
           className="journal-modal-layer"
+          companion={mode === 'create' || mode === 'edit' ? 'quiet' : undefined}
           restoreFocusTo={() => triggerRef.current}
         >
           <section
             ref={dialogRef}
+            data-mam-panel
             className={`journal-dialog ${
               mode === 'create' || mode === 'edit'
                 ? 'journal-dialog-editor'

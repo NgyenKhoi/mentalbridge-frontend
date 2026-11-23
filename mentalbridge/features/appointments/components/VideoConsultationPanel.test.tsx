@@ -102,6 +102,20 @@ describe('appointment video authority and intent', () => {
       value: 'visible',
     })
   })
+  it('links a verified specialist session to its client summary', async () => {
+    api.session.mockResolvedValue({
+      ...active,
+      phase: 'COMPLETED',
+      joinAllowed: false,
+      previewAllowed: false,
+      completion: { ...pending, verificationState: 'VERIFIED' },
+      version: 4,
+    })
+    view('SPECIALIST', {})
+    expect(
+      await screen.findByRole('link', { name: 'Tạo bản tóm tắt' }),
+    ).toHaveAttribute('href', `/specialist/clients?appointmentId=${id}`)
+  })
   it('keeps authorized joining available when the optional display name cannot load', async () => {
     api.list.mockRejectedValueOnce(new Error('Optional name unavailable'))
     view()

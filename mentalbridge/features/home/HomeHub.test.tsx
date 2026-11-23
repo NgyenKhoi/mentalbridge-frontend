@@ -20,8 +20,22 @@ vi.mock('next/navigation', () => ({
 vi.mock('./browser-home-next-step', () => ({ getHomeNextStep: vi.fn() }))
 vi.mock('./home-destination', () => ({ homeDestination: vi.fn() }))
 vi.mock('./HomeScreeningNotice', () => ({ HomeScreeningNotice: () => null }))
-vi.mock('./HomeReviewEntry', () => ({
-  HomeReviewEntry: () => <div>review-entry</div>,
+const review = vi.hoisted(() => ({ exists: true }))
+vi.mock('./HomeReviewEntry', async () => {
+  const { useEffect } = await import('react')
+  return {
+    HomeReviewEntry: ({
+      onResolved,
+    }: {
+      onResolved?: (exists: boolean) => void
+    }) => {
+      useEffect(() => onResolved?.(review.exists), [onResolved])
+      return review.exists ? <div>review-entry</div> : null
+    },
+  }
+})
+vi.mock('./HomeLookBackEntry', () => ({
+  HomeLookBackEntry: () => <div>look-back-entry</div>,
 }))
 vi.mock('./HomeGreeting', () => ({
   HomeGreeting: () => (
@@ -87,6 +101,7 @@ vi.mock('@/features/emotion-check-in/PlanEmotionCheckIn', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks()
+  review.exists = true
   location.query = ''
   vi.mocked(homeDestination).mockResolvedValue({})
   vi.mocked(getHomeNextStep).mockResolvedValue(homeFirstUseFixture())
@@ -246,6 +261,8 @@ describe('HomeHub', () => {
     const ordinary = render(<HomeHub />)
     await screen.findByRole('link', { name: 'Bắt đầu kiểm tra ban đầu' })
     expect(screen.getByText('review-entry')).toBeInTheDocument()
+    // The reassessment review wins; the journey entry never shows beside it.
+    expect(screen.queryByText('look-back-entry')).not.toBeInTheDocument()
     ordinary.unmount()
 
     vi.mocked(getHomeNextStep).mockResolvedValue(
@@ -255,6 +272,14 @@ describe('HomeHub', () => {
     )
     render(<HomeHub />)
     await screen.findByRole('link', { name: 'Xem nơi hỗ trợ' })
+    expect(screen.queryByText('review-entry')).not.toBeInTheDocument()
+    expect(screen.queryByText('look-back-entry')).not.toBeInTheDocument()
+  })
+
+  it('shows the journey entry when there is no saved review', async () => {
+    review.exists = false
+    render(<HomeHub />)
+    expect(await screen.findByText('look-back-entry')).toBeInTheDocument()
     expect(screen.queryByText('review-entry')).not.toBeInTheDocument()
   })
 

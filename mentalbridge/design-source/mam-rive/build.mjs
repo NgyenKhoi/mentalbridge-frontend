@@ -1,4 +1,4 @@
-// Mầm v0.6 Rive rig (v0.3 art plus `sleep`, `speaking` and the MB-818 idle/touch states): art from the "Mầm — Character Sheet v0.3" canvas
+// Mầm v0.8 Rive rig (v0.3 art plus `sleep`, `speaking`, the MB-818 idle/touch states, the MB-894 airplane-arrival states and the MB-896 variation states): art from the "Mầm — Character Sheet v0.3" canvas
 // (mam_v03_rive_layers.svg), motion from its Motion spec board.
 // Control contract (view model, enum IDs, state graph) is unchanged from the
 // mam-companion v0.2 rig so a consumer can swap the .riv without code changes.
@@ -92,7 +92,9 @@ const lid = (key, left, right, lineL, lineR) => node(key, [120, 124], [
   pth('lid_right', right, fill(C.cream)), pth('lid_line_right', lineR, stroke(C.ink, 2.6)),
 ], { op: 0 })
 
-const arm = (key, x, deg) => node(key, [x, 186], [ell('arm', x, 204, 9.5, 20, { fill: C.shell, stroke: C.line, w: 3 })], { rot: deg })
+// v0.8 (MB-896): the arms carry a fist (right: also a thumb), opacity 0 elsewhere, for thumbs_up, fist_pump and hang.
+const hand = { fill: C.shell, stroke: C.line, w: 3 }
+const arm = (key, x, deg, extra = []) => node(key, [x, 186], [ell('arm', x, 204, 9.5, 20, { fill: C.shell, stroke: C.line, w: 3 }), ...extra], { rot: deg })
 
 // Sleep-only blanket: drawn above body and arms, hidden (opacity 0) in every other state.
 const BLANKET = 'M80 186 L160 186 Q174 186 174 200 L174 238 Q174 252 160 252 L80 252 Q66 252 66 238 L66 200 Q66 186 80 186 Z'
@@ -101,6 +103,17 @@ const blanket = node('blanket', [120, 252], [
   pth('blanket_body', BLANKET, { fill: '#F5E6C6', stroke: '#C77B5C', w: 2.5 }),
   pth('blanket_hem', HEM, fill('#FBF3E2')),
   ...[214, 226, 238].map((y, i) => pth(`blanket_stripe_${i}`, `M72 ${y} L168 ${y}`, stroke('#EFD0B4', 3.2))),
+], { op: 0 })
+
+// v0.7 (MB-894): aviator goggles worn on the forehead above the brows, visible only while piloting (opacity 0 elsewhere).
+const lens = (key, cx) => node(key, [cx, 89], [
+  ell('lens', cx, 89, 13, 13, { fill: '#CFE6E8', stroke: C.line, w: 3, op: 0.92 }),
+  ell('lens_shine', cx - 4.5, 83.5, 3.6, 2.3, fill(C.white, 0.9)),
+])
+const goggles = node('goggles', [120, 92], [
+  pth('strap', 'M40 104 Q120 80 200 104', stroke(C.amberLine, 7)),
+  pth('bridge', 'M110.5 89 Q120 85 129.5 89', stroke(C.amberLine, 4.5)),
+  lens('lensL', 98), lens('lensR', 142),
 ], { op: 0 })
 
 const head = node('head', [120, 192], [
@@ -128,6 +141,7 @@ const head = node('head', [120, 192], [
   lid('lidSad', 'M107 116 L87 116 L87 127 L107 122 Z', 'M133 116 L153 116 L153 127 L133 122 Z', 'M105.5 122.6 L88.5 126.4', 'M134.5 122.6 L151.5 126.4'),
   ...brows,
   mouth,
+  goggles,
   node('tear', [151, 146], [pth('drop', 'M151 139 C153 143 155 146 155 148 C155 151 153 152.5 151 152.5 C149 152.5 147 151 147 148 C147 146 149 143 151 139 Z', { fill: C.tear, stroke: C.tearLine, w: 1.5 })], { op: 0 }),
 ])
 
@@ -168,7 +182,10 @@ const art = [
     node('foot_right', [140, 244], [ell('foot', 140, 244, 17, 9, fill(C.line))]),
     node('body', [120, 244], [ell('body', 120, 206, 50, 38, { fill: C.shell, stroke: C.line, w: 3 }), ell('belly', 120, 214, 30, 22, fill(C.belly))]),
     head,
-    arm('armL', 74, 18), arm('armR', 166, -18),
+    arm('armL', 74, 18, [node('fistL', [74, 186], [ell('fist', 74, 225, 11.5, 10.5, hand)], { op: 0 })]), arm('armR', 166, -18, [
+      node('fistR', [166, 186], [ell('fist', 166, 225, 11.5, 10.5, hand)], { op: 0 }),
+      node('thumbR', [166, 186], [ell('thumb', 178.5, 222, 8, 4.8, hand)], { op: 0 }),
+    ]),
     blanket,
     ...fx,
   ]),
@@ -267,12 +284,16 @@ const nodes = new Map()
 // Keep this order: enum IDs are the v0.2 control contract; new values are appended only.
 // v0.6 (MB-818) appends, in this order: drowsy, wake, giggle, tickled, dangle, nod, stretch, look_around, scratch, point.
 const behaviors = ['idle', 'curious', 'listening', 'thinking', 'gentle', 'explaining', 'light_success', 'celebrate_soft', 'celebrate_hero', 'rest', 'sad', 'happy', 'sleep', 'speaking',
-  'drowsy', 'wake', 'giggle', 'tickled', 'dangle', 'nod', 'stretch', 'look_around', 'scratch', 'point']
-// One-shots start with `playOnce` and write `idle` when done. Only `dangle` is a host-set loop.
-const finite = new Set(['light_success', 'celebrate_soft', 'celebrate_hero', 'drowsy', 'wake', 'giggle', 'tickled', 'nod', 'stretch', 'look_around', 'scratch', 'point'])
+  'drowsy', 'wake', 'giggle', 'tickled', 'dangle', 'nod', 'stretch', 'look_around', 'scratch', 'point',
+  'pilot', 'pilot_wave', 'hop_down', 'wave',
+  'spin', 'dance', 'clap', 'thumbs_up', 'fist_pump', 'sit_hug', 'hang', 'pop_up']
+// v0.7 (MB-894) appends, in this order: pilot, pilot_wave, hop_down, wave (ids 24-27).
+// v0.8 (MB-896) appends, in this order: spin, dance, clap, thumbs_up, fist_pump, sit_hug, hang, pop_up (ids 28-35). `sit_hug` and `hang` are host-set loops.
+// One-shots start with `playOnce` and write `idle` when done. `dangle`, `pilot` and `pilot_wave` are host-set loops.
+const finite = new Set(['light_success', 'celebrate_soft', 'celebrate_hero', 'drowsy', 'wake', 'giggle', 'tickled', 'nod', 'stretch', 'look_around', 'scratch', 'point', 'hop_down', 'wave', 'spin', 'dance', 'clap', 'thumbs_up', 'fist_pump', 'pop_up'])
 const tiered = new Set(['celebrate_soft', 'celebrate_hero'])
 const ids = { vm: 3000, instance: 3001, behavior: 3010, attention: 3011, tier: 3012, reduced: 3013, visible: 3014, play: 3015, dock: 3016, machine: 3100 }
-// Tier enum lives above the 24 behavior values (3401…3424); the v0.5 ids 3420…3423 would collide.
+// Tier enum lives above the 36 behavior values (3401…3436, clear of 3450 and 3460); the v0.5 ids 3420…3423 would collide.
 const TIER_ENUM = 3460
 const id = (number) => `0:${number}`
 const enumValue = (name) => 3401 + behaviors.indexOf(name)
@@ -376,7 +397,16 @@ const osc = (rest, base, amp, period, cycles, total, lead = 0) => {
   out.push([total, rest])
   return out
 }
+const WAVE_ARM = -150 // raised hand beside and above the head (deg)
+const PILOT_ARM = 38 // arms rest on the cockpit rim (deg)
 const hop = (peak, period, cycles, total) => osc(0, -peak / 2, peak / 2, period, cycles, total)
+// v0.8 (MB-896). Fakes a turn about the vertical axis: scaleX = cos(angle) with an eased angle; linear keys every 4 frames keep it smooth, and it never quite reaches 0.
+const spinX = (from, length, turns) => Array.from({ length: length / 4 + 1 }, (_, i) => {
+  const t = (i * 4) / length, c = Math.cos(2 * Math.PI * turns * t * t * (3 - 2 * t))
+  return [from + i * 4, Math.abs(c) < 0.1 ? (c < 0 ? -0.1 : 0.1) : n(c), 'lin']
+})
+// Six claps, 10 frames apart from frame 20: [close value, open value] pairs as keyframes.
+const clapKeys = (closed, open) => Array.from({ length: 6 }, (_, i) => [[20 + 10 * i, closed], [25 + 10 * i, open]]).flat()
 const timelines = {
   idle: [420, true, {
     ...face({}),
@@ -610,6 +640,143 @@ const timelines = {
     ...leaves(F([0, 0], [16, 10], [76, 10], [96, 0])),
     'fxExplain.op': F([0, 0], [16, 1], [76, 1], [92, 0], [96, 0]), 'cheeks.op': hold(0.85),
   }],
+  // ---- v0.7 (MB-894). `pilot` and `pilot_wave` are host-set loops (the airplane scene); `hop_down` and `wave` are one-shots. ----
+  // Seated in the cockpit, flying right: arms rest on the rim, goggles on, leaves and sprout swept back (left) by the wind.
+  pilot: [72, true, {
+    ...face({ brow: 'raised', mouth: 'smile' }),
+    'goggles.op': hold(1), 'shadow.op': hold(0), 'cheeks.op': hold(0.9),
+    ...arms(osc(PILOT_ARM, PILOT_ARM, 3, 24, 3, 72), osc(-PILOT_ARM, -PILOT_ARM, -3, 24, 3, 72)),
+    'head.dy': F([0, 0], [36, -1.5], [72, 0]), 'body.sy': F([0, 1], [36, 1.01], [72, 1]),
+    'sprout.rot': osc(-16, -16, 4, 12, 6, 72), 'head.rot': hold(-2),
+    ...lift('L', osc(-6, -6, 8, 12, 6, 72)), ...lift('R', osc(118, 118, 8, 12, 6, 72)),
+  }],
+  // `pilot` with the right hand raised, waving at the user.
+  pilot_wave: [48, true, {
+    ...happyFace,
+    'goggles.op': hold(1), 'shadow.op': hold(0), 'cheeks.op': hold(0.95),
+    ...arms(osc(PILOT_ARM, PILOT_ARM, 3, 24, 2, 48), osc(WAVE_ARM, WAVE_ARM, 16, 16, 3, 48)),
+    'armR.dx': hold(24), 'armR.dy': hold(-24), 'armR.sy': hold(1.2),
+    'head.dy': F([0, 0], [24, -1.5], [48, 0]), 'body.sy': F([0, 1], [24, 1.01], [48, 1]),
+    'sprout.rot': osc(-16, -16, 4, 12, 4, 48), 'head.rot': hold(-2),
+    ...lift('L', osc(-6, -6, 8, 12, 4, 48)), ...lift('R', osc(118, 118, 8, 12, 4, 48)),
+  }],
+  // 0.9 s: crouch, jump out of the cockpit (the host moves the mover to the dock), land with squash, settle into the dock pose.
+  hop_down: [54, false, {
+    ...faceSeq([[0, { brow: 'raised', mouth: 'smile' }], [10, { eye: 'wide', brow: 'high', mouth: 'open' }], [26, { eye: 'happy', brow: 'raised', mouth: 'open' }], [44, {}]]),
+    'mam.dy': F([0, 0], [10, 3], [26, -14], [38, 0], [44, 1], [54, 0]),
+    'mam.sy': F([0, 1], [10, 0.93], [26, 1.05], [38, 1.02], [43, 0.93], [54, 1]),
+    'mam.sx': F([0, 1], [26, 0.97], [38, 0.99], [43, 1.05], [54, 1]),
+    'shadow.op': F([0, 0], [34, 0], [44, 1], [54, 1]),
+    'goggles.op': F([0, 1], [30, 1], [44, 0], [54, 0]),
+    'cheeks.op': F([0, 0.9], [26, 0.95], [54, 0.75]),
+    'sprout.rot': F([0, -16], [10, 0], [26, 6], [44, 0], [54, 0]), 'head.rot': F([0, -2], [10, 0], [54, 0]),
+    ...lift('L', F([0, -6], [10, -8], [26, 30], [38, 8], [54, 0])), ...lift('R', F([0, 118], [10, 40], [26, 30], [38, 8], [54, 0])),
+    ...arms(F([0, PILOT_ARM], [10, 10], [26, 120], [38, 50], [44, 12], [54, 18]), F([0, -PILOT_ARM], [10, -10], [26, -120], [38, -50], [44, -12], [54, -18])),
+  }],
+  // 1.4 s standing greeting (also S3's generic hello): right arm up, four waves, then back down.
+  wave: [84, false, {
+    ...faceSeq([[0, {}], [8, { eye: 'happy', brow: 'raised', mouth: 'open' }], [76, {}]]),
+    'armR.rot': F([0, -18], [14, WAVE_ARM], ...Array.from({ length: 8 }, (_, i) => [18 + 8 * i, WAVE_ARM + (i % 2 ? -16 : 16)]), [84, -18]),
+    'armR.dx': F([0, 0], [14, 24], [74, 24], [84, 0]), 'armR.dy': F([0, 0], [14, -24], [74, -24], [84, 0]), 'armR.sy': F([0, 1], [14, 1.2], [74, 1.2], [84, 1]),
+    'mam.rot': F([0, 0], [14, 3], [74, 3], [84, 0]),
+    'head.rot': F([0, 0], [14, 3], [74, 3], [84, 0]),
+    ...leaves(F([0, 0], [14, 10], [74, 10], [84, 0])),
+    'cheeks.op': F([0, 0.75], [14, 0.95], [74, 0.95], [84, 0.75]),
+  }],
+  // ---- v0.8 (MB-896). One-shots return to the dock pose; `sit_hug` and `hang` are host-set loops. ----
+  // 1.1 s twirl: anticipation crouch, hop, two turns about the vertical axis (scaleX = cos), land with squash.
+  spin: [66, false, {
+    ...face({ eye: 'happy', brow: 'raised', mouth: 'open' }),
+    'mam.dy': F([0, 0], [10, 3], [28, -12], [40, -11], [54, 1], [60, -1], [66, 0]),
+    'mam.sx': F([0, 1], [10, 1], ...spinX(12, 40, 2), [58, 1.05], [66, 1]),
+    'mam.sy': F([0, 1], [10, 0.93], [28, 1.05], [54, 0.95], [60, 1.02], [66, 1]),
+    'shadow.sx': F([0, 1], [10, 1.05], [28, 0.8], [54, 1.05], [66, 1]), 'shadow.op': F([0, 1], [28, 0.65], [54, 1], [66, 1]),
+    ...arms(F([0, 18], [10, 10], [28, 100], [48, 100], [58, 30], [66, 18]), F([0, -18], [10, -10], [28, -100], [48, -100], [58, -30], [66, -18])),
+    ...leaves(F([0, 0], [10, -6], [28, 40], [48, 40], [58, 10], [66, 0])),
+    'cheeks.op': hold(0.95), 'fxHappy.op': F([0, 0], [24, 1], [50, 1], [66, 0]),
+  }],
+  // 2.4 s tiny dance: side-to-side sway, beat bounce, arms trading up and down, feet stepping.
+  dance: [144, false, {
+    ...happyFace,
+    // Beat every 20 frames: hop 5 units with squash on the ground and stretch in the air; sway every 40.
+    'mam.dy': osc(0, -2.5, 2.5, 20, 6, 144, 12), 'mam.sy': osc(1, 1, -0.045, 20, 6, 144, 12), 'shadow.sx': osc(1, 0.925, 0.075, 20, 6, 144, 12),
+    'mam.dx': osc(0, 0, 10, 40, 3, 144, 12), 'mam.rot': osc(0, 0, 6, 40, 3, 144, 12), 'head.rot': osc(0, 0, -8, 40, 3, 144, 12),
+    ...arms(osc(18, 90, 60, 40, 3, 144, 12), osc(-18, -90, -60, 40, 3, 144, 12)),
+    ...leaves(osc(0, 14, 12, 20, 6, 144, 12)),
+    'foot_left.dy': osc(0, -3, 3, 40, 3, 144, 12), 'foot_right.dy': osc(0, -3, -3, 40, 3, 144, 12),
+    'cheeks.op': hold(0.95), 'fxHappy.op': F([0, 0], [14, 1], [124, 1], [144, 0]),
+  }],
+  // 1.6 s: arms rise, six claps in front of the chin with a small bob, arms down.
+  clap: [96, false, {
+    ...happyFace,
+    'armL.rot': F([0, 18], [14, 62], ...clapKeys(-88, 40), [96, 18]),
+    'armR.rot': F([0, -18], [14, -62], ...clapKeys(88, -40), [96, -18]),
+    'armL.dy': F([0, 0], [14, -3], [76, -3], [92, 0], [96, 0]), 'armR.dy': F([0, 0], [14, -3], [76, -3], [92, 0], [96, 0]),
+    'armL.sy': F([0, 1], [14, 1.2], [76, 1.2], [92, 1], [96, 1]), 'armR.sy': F([0, 1], [14, 1.2], [76, 1.2], [92, 1], [96, 1]),
+    'head.dy': F([0, 0], ...clapKeys(1.5, -0.5), [96, 0]),
+    'mam.dy': F([0, 0], ...clapKeys(-1.5, 0), [96, 0]),
+    ...leaves(F([0, 0], [14, 8], [76, 8], [96, 0])),
+    'cheeks.op': hold(0.95), 'fxHappy.op': F([0, 0], [16, 1], [76, 1], [90, 0]),
+  }],
+  // 1.3 s: wink, right arm out with the thumb up, two small pushes, arm down.
+  thumbs_up: [78, false, {
+    ...faceSeq([[0, {}], [10, { brow: 'raised', mouth: 'smile' }], [22, { eyeL: 'happy', eyeR: 'open', brow: 'raised', mouth: 'open' }], [62, {}]]),
+    'armR.rot': F([0, -18], [8, -12], [22, -100], [30, -106], [38, -98], [62, -100], [78, -18]),
+    'armR.dx': F([0, 0], [22, 10], [62, 10], [78, 0]), 'armR.dy': F([0, 0], [22, -10], [62, -10], [78, 0]), 'armR.sy': F([0, 1], [22, 1.12], [62, 1.12], [78, 1]),
+    'fistR.op': F([0, 0], [10, 1], [68, 1], [74, 0], [78, 0]), 'thumbR.op': F([0, 0], [10, 1], [68, 1], [74, 0], [78, 0]),
+    'mam.rot': F([0, 0], [22, 3], [62, 3], [78, 0]), 'head.rot': F([0, 0], [22, -4], [62, -4], [78, 0]),
+    'mam.dy': F([0, 0], [8, 2], [22, -3], [34, 0], [78, 0]), 'mam.sy': F([0, 1], [8, 0.96], [22, 1.03], [34, 1], [78, 1]),
+    ...leaves(F([0, 0], [8, -4], [22, 12], [62, 10], [78, 0])),
+    'cheeks.op': hold(0.95), 'fxHappy.op': F([0, 0], [26, 1], [60, 1], [72, 0]),
+  }],
+  // 1.2 s: determined crouch, then two hops with the right fist driven upward, hold, down.
+  fist_pump: [72, false, {
+    ...faceSeq([[0, {}], [8, { eye: 'focus', brow: 'low', mouth: 'rest' }], [18, { eye: 'happy', brow: 'high', mouth: 'big' }], [62, {}]]),
+    'armR.rot': F([0, -18], [10, -8], [18, -155], [26, -120], [34, -158], [42, -125], [50, -158], [62, -158], [72, -18]),
+    'armR.dx': F([0, 0], [18, 14], [62, 14], [72, 0]), 'armR.dy': F([0, 0], [18, -34], [62, -34], [72, 0]), 'armR.sy': F([0, 1], [18, 1.2], [62, 1.2], [72, 1]),
+    'armL.rot': F([0, 18], [18, 38], [62, 38], [72, 18]),
+    'fistR.op': F([0, 0], [8, 0], [12, 1], [64, 1], [70, 0], [72, 0]),
+    'mam.dy': F([0, 0], [10, 3], [18, -10], [26, -2], [34, -10], [42, -2], [50, -9], [60, 0], [66, 1], [72, 0]),
+    'mam.sy': F([0, 1], [10, 0.92], [18, 1.06], [26, 0.97], [34, 1.06], [42, 0.97], [50, 1.05], [60, 0.98], [72, 1]),
+    'mam.rot': F([0, 0], [18, 4], [62, 4], [72, 0]),
+    'shadow.sx': F([0, 1], [10, 1.05], [18, 0.82], [26, 1], [34, 0.82], [42, 1], [50, 0.84], [60, 1], [72, 1]),
+    ...leaves(F([0, 0], [10, -8], [18, 30], [26, 14], [34, 30], [42, 14], [50, 30], [62, 18], [72, 0])),
+    'cheeks.op': hold(0.95), 'fxHappy.op': F([0, 0], [20, 1], [60, 1], [70, 0]),
+  }],
+  // Host-set loop. Sits down (squashed body, splayed feet), arms wrapped round the belly, eyes soft, slow rocking (4 s).
+  sit_hug: [240, true, {
+    ...face({ eye: 'happy', brow: 'soft', mouth: 'gentle' }),
+    'body.sy': F([0, 0.85], [120, 0.87], [240, 0.85]), 'body.sx': hold(1.08),
+    'head.dy': F([0, 8], [120, 9], [240, 8]), 'head.rot': hold(4),
+    'foot_left.dx': hold(-14), 'foot_right.dx': hold(14), 'foot_left.rot': hold(-18), 'foot_right.rot': hold(18),
+    'mam.rot': F([0, -3], [60, 3], [120, -3], [180, 3], [240, -3]),
+    ...arms(hold(-100), hold(100)), 'armL.dy': hold(16), 'armR.dy': hold(16), 'armL.sy': hold(1.35), 'armR.sy': hold(1.35),
+    'sprout.rot': hold(-4), ...leaves(hold(-8)),
+    'glow.s': hold(glowScale(22)), 'glow.op': hold(glowOp(0.3)), 'cheeks.op': hold(1), 'shadow.sx': hold(1.1),
+  }],
+  // Host-set loop: both fists up on the parachute straps (about (30,140) and (210,140) canvas), feet kicking, leaves lifted by the air.
+  hang: [72, true, {
+    ...face({ brow: 'raised', mouth: 'open' }),
+    'shadow.op': hold(0),
+    'mam.rot': F([0, -2.5], [36, 2.5], [72, -2.5]), 'head.dy': F([0, 0], [36, -1], [72, 0]),
+    ...arms(hold(138), hold(-138)), 'armL.dy': hold(-4), 'armR.dy': hold(-4), 'armL.dx': hold(-12), 'armR.dx': hold(12), 'armL.sy': hold(1.35), 'armR.sy': hold(1.35),
+    'fistL.op': hold(1), 'fistR.op': hold(1),
+    'sprout.rot': F([0, -5], [36, 5], [72, -5]), ...leaves(F([0, 22], [18, 30], [36, 22], [54, 30], [72, 22])),
+    'foot_left.dy': F([0, 6], [18, 1], [36, 6], [54, 10], [72, 6]), 'foot_right.dy': F([0, 6], [18, 10], [36, 6], [54, 1], [72, 6]),
+    'foot_left.rot': F([0, 0], [18, -12], [36, 0], [54, 10], [72, 0]), 'foot_right.rot': F([0, 0], [18, 10], [36, 0], [54, -12], [72, 0]),
+    'body.sy': hold(1.03), 'cheeks.op': hold(0.95),
+  }],
+  // 1.1 s: starts crouched low (the host's pot hides the body), squats deeper, springs up with arms raised, settles.
+  pop_up: [66, false, {
+    ...faceSeq([[0, { brow: 'raised', mouth: 'gentle' }], [22, { eye: 'wide', brow: 'high', mouth: 'open' }], [40, { eye: 'happy', brow: 'raised', mouth: 'open' }], [56, {}]]),
+    'mam.dy': F([0, 18], [14, 18], [22, 18], [34, -8], [44, 0], [50, -3], [58, 1], [66, 0]),
+    'mam.sy': F([0, 0.85], [22, 0.78], [34, 1.1], [44, 0.97], [52, 1.02], [66, 1]),
+    'mam.sx': F([0, 1.05], [22, 1.1], [34, 0.94], [44, 1.03], [66, 1]),
+    'shadow.op': F([0, 0], [56, 0], [66, 1]),
+    ...arms(F([0, 18], [22, 18], [34, 130], [56, 130], [66, 18]), F([0, -18], [22, -18], [34, -130], [56, -130], [66, -18])),
+    ...leaves(F([0, -8], [22, -12], [34, 36], [44, 14], [66, 0])),
+    'cheeks.op': hold(0.95), 'fxSparkle.op': F([0, 0], [34, 1], [58, 1], [66, 0]), 'fxSparkle.s': F([0, 0.7], [40, 1.05], [66, 1.1]),
+  }],
   rest: [1, false, face({})],
   hidden: [1, false, { ...face({}), 'mam.op': hold(0), 'shadow.op': hold(0) }],
   return_to_dock: [1, false, face({})],
@@ -627,7 +794,7 @@ function resolve(timeline) {
       rot: (v) => v * DEG, dx: (v) => rest.x + v * S, dy: (v) => rest.y + v * S, op: (v) => v,
       sx: (v) => v, sy: (v) => v, s: (v) => v,
     }[ch]
-    const values = frames.map(([f, v]) => [f, n(conv(v))])
+    const values = frames.map(([f, v, mode]) => [f, n(conv(v)), mode])
     for (const prop of ch === 's' ? ['scaleX', 'scaleY'] : [channel[ch]]) out[`${key}.${prop}`] = values
   }
   return out
@@ -639,7 +806,7 @@ const restValue = (key, prop) => {
   const r = nodes.get(key)
   return { x: r.x, y: r.y, rotation: n(r.rot * DEG), scaleX: r.s, scaleY: r.s, opacity: r.op }[prop]
 }
-const keys = (values) => values.map(([frame, value], index) => index === values.length - 1
+const keys = (values) => values.map(([frame, value, mode], index) => index === values.length - 1 || mode === 'lin'
   ? `<KeyFrameDouble frame="${frame}" value="${value}" interpolationType="linear"/>`
   : `<KeyFrameDouble frame="${frame}" value="${value}" interpolationType="cubic"><CubicEaseInterpolator x1="0.33" y1="0" x2="0.2" y2="1"/></KeyFrameDouble>`).join('')
 
@@ -709,7 +876,7 @@ if (nodeIds.size + 10 >= 1000) throw Error('Node IDs overlap shape IDs')
 await mkdir(join(directory, 'rig'), { recursive: true })
 await mkdir(join(directory, 'capture'), { recursive: true })
 await writeFile(join(directory, 'rig', 'scene.rml'), buildScene())
-await writeFile(join(directory, 'rig', 'rive.yaml'), 'name: mam-v06\nmain: companion_main\nlogs:\n  file: build/rive.log\n  problems: build/problems.log\n')
+await writeFile(join(directory, 'rig', 'rive.yaml'), 'name: mam-v08\nmain: companion_main\nlogs:\n  file: build/rive.log\n  problems: build/problems.log\n')
 await writeFile(join(directory, 'capture', 'scene.rml'), buildScene('#F1F4EB'))
-await writeFile(join(directory, 'capture', 'rive.yaml'), 'name: mam-v06-capture\nmain: companion_main\n')
+await writeFile(join(directory, 'capture', 'rive.yaml'), 'name: mam-v08-capture\nmain: companion_main\n')
 console.log(JSON.stringify({ artboard: 'companion_main', nodes: nodeIds.size, shapes: shapeId - 1000, states: allStates.length }))

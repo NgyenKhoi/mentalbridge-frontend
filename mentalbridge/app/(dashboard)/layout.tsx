@@ -19,9 +19,7 @@ export default async function DashboardLayout({
       workspaces={resolveWorkspaces(account.roles) ?? []}
     >
       {children}
-      {process.env.MAM_WEB_ENABLED === 'true' ? (
-        <MamDockSlot accountId={account.accountId} />
-      ) : null}
+      <MamDockSlot accountId={account.accountId} />
     </AuthenticatedShell>
   )
 }

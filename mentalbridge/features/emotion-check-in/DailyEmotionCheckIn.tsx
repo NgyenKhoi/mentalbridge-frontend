@@ -8,6 +8,7 @@ import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import { MamCardButton } from '@/features/mam/MamCardButton'
 import { useMamDockSlotted } from '@/features/mam/MamDockSlot'
+import { dispatchMamEvent } from '@/features/mam/mam-events'
 import { useMamSuppress } from '@/features/mam/mam-suppression'
 import { useMamTarget } from '@/features/mam/use-mam-target'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
@@ -256,6 +257,12 @@ export function DailyEmotionCheckIn({
       )
       onPersisted?.()
       announceChange()
+      dispatchMamEvent({
+        type: 'checkin-saved',
+        emotion: saved.emotion,
+        intensity: saved.intensity,
+        localDate: saved.localDate,
+      })
     } catch (error) {
       if (!mounted.current || activeDate.current !== localDate) return
       if (

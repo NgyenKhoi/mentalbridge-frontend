@@ -23,10 +23,8 @@ import {
 } from './mam-dock-helpers'
 import { installSupportPlanMocks } from './support-plan-mam-mocks'
 
-// MB-775: web release gate for Mầm behind MAM_WEB_ENABLED. Needs the flag on
-// (the E2E default). Proves the dock never blocks core journeys, survives asset
-// loss, a slow or lost network and long sessions, and sends nothing private.
-// The flag-off half is mam-flag-off.spec.ts.
+// MB-775: web release gate for Mầm. Proves the dock never blocks core journeys,
+// survives asset loss, a slow or lost network and long sessions, and sends nothing private.
 
 const status = (page: Page) => page.locator('[data-mam-dock] [data-mam-status]')
 const startToday = (page: Page) =>
@@ -34,7 +32,7 @@ const startToday = (page: Page) =>
     .getByRole('region', { name: 'Bước tiếp theo', exact: true })
     .getByRole('link', { name: 'Bắt đầu ngay', exact: true })
 const providerFixtureUrl = 'http://127.0.0.1:3201'
-const RIV = '**/mam/mam-v06.riv'
+const RIV = '**/mam/mam-v08.riv'
 const WASM = '**/mam/rive-lite-2.47.1.wasm'
 
 // Measured 2026-10-28 (docs/evidence/mb-775-mam-web-gate.md): the measured
@@ -117,9 +115,8 @@ async function openJournal(page: Page, width: number) {
 test.describe('MB-775 Mầm web gate', () => {
   test.use({ timezoneId: 'Asia/Ho_Chi_Minh' })
   test.skip(
-    process.env.E2E_RUNTIME === 'live-cross-stack' ||
-      process.env.MAM_WEB_ENABLED === 'false',
-    'The gate uses browser-owned fixtures and needs MAM_WEB_ENABLED=true.',
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'Uses browser-owned fixtures.',
   )
 
   for (const width of [1440, 1280, 768, 375]) {

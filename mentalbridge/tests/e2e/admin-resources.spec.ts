@@ -47,6 +47,17 @@ test.describe('ADMIN to USER resource boundary', () => {
     await expect(
       page.getByText('Draft Resource', { exact: true }),
     ).toBeVisible()
+    const publishedRow = await page
+      .getByRole('button', { name: /Published Resource/ })
+      .boundingBox()
+    const draftRow = await page
+      .getByRole('button', { name: /Draft Resource/ })
+      .boundingBox()
+    expect(publishedRow).not.toBeNull()
+    expect(draftRow).not.toBeNull()
+    expect(draftRow!.y).toBeGreaterThanOrEqual(
+      publishedRow!.y + publishedRow!.height,
+    )
     await page.getByRole('button', { name: /Draft Resource/ }).click()
     // Publishing stays locked: no publish action before an approved review, and
     // approval needs complete source provenance, which this draft lacks.

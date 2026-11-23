@@ -1,0 +1,219 @@
+/*
+ * The host props of the MB-896 variations. Each is an SVG in the character's artboard space: it sits in the dock's
+ * flight space, above the page, and never takes a pointer or focus. Only transform and opacity animate. Every
+ * animation is inside `no-preference`: under reduced motion no look starts, and a prop that is still asked to leave
+ * has no animation to wait for (the component retires it at once).
+ *
+ * `transform-origin` on the outer svg is a percentage of its box (96 or 72 px), never artboard px; inner groups
+ * are SVG children, whose px origins resolve against the viewBox.
+ */
+.prop,
+.box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.box {
+  display: block;
+}
+
+.signSway {
+  transform-origin: 552px 500px;
+}
+
+.wingL,
+.wingR {
+  transform-box: view-box;
+  transform-origin: 256px 256px;
+}
+
+.prop[data-mam-prop='parachute'] {
+  transform-origin: 50% 61%;
+}
+
+.prop[data-mam-prop='cheerSign'] {
+  /* The sign's foot, (552, 500) of 512 */
+  transform-origin: 107.8% 97.7%;
+}
+
+.prop[data-mam-prop='umbrella'] {
+  /* The umbrella's top, (256, 20) of 512 */
+  transform-origin: 50% 3.9%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The pot falls onto her spot: gravity, so it accelerates in (a deliberate slow start, then a fast fall). */
+  .prop[data-phase='in'][data-mam-prop='plantPot'] {
+    animation: mam-pot-in 820ms both;
+  }
+
+  .prop[data-phase='out'][data-mam-prop='plantPot'] {
+    animation: mam-pot-out 600ms var(--ease-standard, ease-out) both;
+  }
+
+  @keyframes mam-pot-in {
+    0% {
+      transform: translateY(-170%) rotate(-5deg);
+      animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+    }
+
+    58% {
+      transform: translateY(0) rotate(0);
+      animation-timing-function: var(--ease-standard, ease-out);
+    }
+
+    74% {
+      transform: translateY(-5%);
+      animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+    }
+
+    88%,
+    100% {
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes mam-pot-out {
+    to {
+      transform: translateY(26%);
+      opacity: 0;
+    }
+  }
+
+  /* The parachute: the canopy rocks over her hands, then collapses over her and fades. */
+  .prop[data-phase='in'][data-mam-prop='parachute'] .sway {
+    transform-origin: 256px 314px;
+    animation: mam-chute-sway 2800ms ease-in-out infinite alternate;
+  }
+
+  .prop[data-phase='out'][data-mam-prop='parachute'] {
+    animation: mam-chute-fall 700ms var(--ease-standard, ease-out) both;
+  }
+
+  @keyframes mam-chute-sway {
+    from {
+      transform: rotate(-3.5deg);
+    }
+
+    to {
+      transform: rotate(3.5deg);
+    }
+  }
+
+  @keyframes mam-chute-fall {
+    to {
+      transform: translateY(34%) scale(1, 0.35);
+      opacity: 0;
+    }
+  }
+
+  /* The cheer sign is planted beside her: it pops up from the ground and wiggles. */
+  .prop[data-phase='in'][data-mam-prop='cheerSign'] {
+    animation: mam-sign-in 380ms var(--ease-emphasis, ease-out) both;
+  }
+
+  .prop[data-phase='out'][data-mam-prop='cheerSign'] {
+    animation: mam-sign-out 260ms var(--ease-standard, ease-out) both;
+  }
+
+  .prop[data-phase='in'] .signBoard {
+    transform-origin: 552px 300px;
+    animation: mam-sign-wiggle 520ms ease-in-out 380ms 2 alternate;
+  }
+
+  @keyframes mam-sign-in {
+    from {
+      transform: scale(0.2);
+      opacity: 0;
+    }
+  }
+
+  @keyframes mam-sign-out {
+    to {
+      transform: scale(0.5);
+      opacity: 0;
+    }
+  }
+
+  @keyframes mam-sign-wiggle {
+    from {
+      transform: rotate(-3deg);
+    }
+
+    to {
+      transform: rotate(3deg);
+    }
+  }
+
+  /* The umbrella opens over her; a few drops fall past its edge. */
+  .prop[data-phase='in'][data-mam-prop='umbrella'] {
+    animation: mam-umbrella-in 360ms var(--ease-emphasis, ease-out) both;
+  }
+
+  .prop[data-phase='out'][data-mam-prop='umbrella'] {
+    animation: mam-umbrella-out 280ms var(--ease-standard, ease-out) both;
+  }
+
+  @keyframes mam-umbrella-in {
+    from {
+      transform: translateY(-14%) scale(0.6);
+      opacity: 0;
+    }
+  }
+
+  @keyframes mam-umbrella-out {
+    to {
+      transform: translateY(-10%) scale(0.7);
+      opacity: 0;
+    }
+  }
+
+  .drop {
+    animation: mam-drop 1150ms linear infinite;
+  }
+
+  @keyframes mam-drop {
+    0% {
+      transform: translateY(0);
+      opacity: 0;
+    }
+
+    12% {
+      opacity: 0.95;
+    }
+
+    88% {
+      opacity: 0.95;
+    }
+
+    100% {
+      transform: translateY(700px);
+      opacity: 0;
+    }
+  }
+
+  /* The butterfly: two wings flap against the body while the path moves the whole svg. */
+  .bob {
+    animation: mam-bob 380ms ease-in-out infinite alternate;
+  }
+
+  .wingL,
+  .wingR {
+    animation: mam-flap 170ms ease-in-out infinite alternate;
+  }
+
+  @keyframes mam-bob {
+    to {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes mam-flap {
+    to {
+      transform: scaleX(0.28);
+    }
+  }
+}
