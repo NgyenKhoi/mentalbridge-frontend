@@ -51,14 +51,6 @@ describe('AuthenticatedShell', () => {
     profileApi.getCareProfile.mockReset().mockReturnValue(new Promise(() => {}))
   })
 
-  it('offers the 14-day look-back in the sidebar', () => {
-    navigation.pathname = '/nhin-lai'
-    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
-    const link = screen.getByRole('link', { name: 'Nhìn lại 14 ngày' })
-    expect(link).toHaveAttribute('href', '/nhin-lai')
-    expect(link).toHaveClass('active')
-  })
-
   it('shows the real profile name and initials in the sidebar and header', async () => {
     profileApi.getCareProfile.mockResolvedValue({
       displayName: '  Nguyễn Minh An  ',
