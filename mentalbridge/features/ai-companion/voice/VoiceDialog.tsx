@@ -55,7 +55,7 @@ export default function VoiceDialog({
   const [saving, setSaving] = useState(false)
   const [includeTextContext, setIncludeTextContext] = useState(false)
   const [now, setNow] = useState(Date.now)
-  // The flag is read where the dock slot mounts, so a slotted page means MAM_WEB_ENABLED is on.
+  // Only pages under a dock slot (USER layouts) show the dock.
   const slotted = useMamDockSlotted()
   const { hidden } = useMamPreferences()
   const mam = slotted && !hidden

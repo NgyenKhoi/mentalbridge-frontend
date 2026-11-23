@@ -23,12 +23,12 @@
 
 ## Asset
 
-| | v0.6 (V1) | v0.7 (V2) |
-| --- | --- | --- |
-| File | `mam-v06.riv` | `mam-v07.riv` |
-| Bytes | 145,399 | 174,450 |
-| SHA-256 | `6abc31b75f180fa58506e2ff1b48f9322818fe72652b20e8df9c03a0992ad644` | `b440cb6f097a5ae12cb7ad3d44cf4f4f5055000156c823b09530d1e85ea653c3` |
-| Artboard, state machine, view model | `companion_main`, `MamBehaviorController`, `MamControls` | unchanged |
+|                                     | v0.6 (V1)                                                          | v0.7 (V2)                                                          |
+| ----------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| File                                | `mam-v06.riv`                                                      | `mam-v07.riv`                                                      |
+| Bytes                               | 145,399                                                            | 174,450                                                            |
+| SHA-256                             | `6abc31b75f180fa58506e2ff1b48f9322818fe72652b20e8df9c03a0992ad644` | `b440cb6f097a5ae12cb7ad3d44cf4f4f5055000156c823b09530d1e85ea653c3` |
+| Artboard, state machine, view model | `companion_main`, `MamBehaviorController`, `MamControls`           | unchanged                                                          |
 
 The source of truth is `design-source/mam-rive/build.mjs`; `scene.rml` is generated and never edited by
 hand. Rebuild with `node build.mjs` and `rive.exe .\rig --once` (free CLI path, no login, no push, no
@@ -46,12 +46,12 @@ adds more states must re-measure and justify again, or move to a separate asset.
 
 ### Appended behaviours
 
-| ID | State | Class | Length | Used by |
-| --- | --- | --- | --- | --- |
-| 24 | `pilot` | host-set loop | 72 frames (1.2 s) | seated in the plane, wind-swept leaves, goggles on |
-| 25 | `pilot_wave` | host-set loop | 48 frames (0.8 s) | `pilot` with the right hand waving at the user |
-| 26 | `hop_down` | one-shot (`playOnce`) | 54 frames (0.9 s) | crouch, jump out, land with squash, goggles fade, dock pose |
-| 27 | `wave` | one-shot (`playOnce`) | 84 frames (1.4 s) | standing greeting; also the generic hello later phases reuse |
+| ID  | State        | Class                 | Length            | Used by                                                      |
+| --- | ------------ | --------------------- | ----------------- | ------------------------------------------------------------ |
+| 24  | `pilot`      | host-set loop         | 72 frames (1.2 s) | seated in the plane, wind-swept leaves, goggles on           |
+| 25  | `pilot_wave` | host-set loop         | 48 frames (0.8 s) | `pilot` with the right hand waving at the user               |
+| 26  | `hop_down`   | one-shot (`playOnce`) | 54 frames (0.9 s) | crouch, jump out, land with squash, goggles fade, dock pose  |
+| 27  | `wave`       | one-shot (`playOnce`) | 84 frames (1.4 s) | standing greeting; also the generic hello later phases reuse |
 
 `pilot` and `pilot_wave` join `MAM_LOOPING_BEHAVIORS`; the host sets them only through the welcome flight
 (like `dangle` for a drag). `hop_down` and `wave` join `MAM_ONE_SHOTS` (timeouts 1000 ms and 1500 ms) and
@@ -152,11 +152,11 @@ Gate A is a visual decision, not a test count: it stays open while the art or th
 `features/mam/mam-routes.ts` maps a pathname to one mode (`mamRouteMode`). The host exposes it as
 `data-mam-mode` on the dock root. A route that is not listed is HIDDEN, so a new route never shows Mầm by accident.
 
-| Mode   | Routes |
-| ------ | ------ |
-| FULL   | `/dashboard`, `/achievements`, `/resources`, `/analytics`, `/nhin-lai` |
+| Mode   | Routes                                                                                                                                                                                                               |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FULL   | `/dashboard`, `/achievements`, `/resources`, `/analytics`, `/nhin-lai`                                                                                                                                               |
 | QUIET  | `/journal`, `/ai-companion`, `/support-plan` (exact), `/support-guides`, `/support-guides/[id]`, `/appointments`, `/appointments/[id]`, `/messages`, `/notifications`, `/profile`, `/specialists`, `/resources/[id]` |
-| HIDDEN | `/appointments/[id]/chat`, `/appointments/[id]/video`, `/call/*`, `/assessments(/*)`, `/assessment/*`, `/initial-check`, `/safety-directory`, `/community/*`, `/subscription`, and any unknown route |
+| HIDDEN | `/appointments/[id]/chat`, `/appointments/[id]/video`, `/call/*`, `/assessments(/*)`, `/assessment/*`, `/initial-check`, `/safety-directory`, `/community/*`, `/subscription`, and any unknown route                 |
 
 - **FULL:** visible; idle life at the normal cadence; celebrations and reactions; the welcome may play.
 - **QUIET:** visible and docked. Idle micro-actions (`stretch`, `look_around`, `scratch`) run at half the FULL cadence
@@ -197,6 +197,7 @@ Gate A is a visual decision, not a test count: it stays open while the art or th
   unreachable there as it is today, and she is inert too (`pointer-events: none`). She keeps the slow QUIET idle
   micro-actions while the user types (no form-focus stillness there), with no gaze-follow, no bubbles, no tip and no
   sound.
+
 - **`/nhin-lai` (14-day journey, MB-898):** FULL, but the page holds a no-interrupt zone (`useMamSuppress`) while it loads and
   whenever the fortnight reads harder or a screening band is moderate or above, so no celebration, queued award or
   welcome plays beside hard news.
@@ -204,7 +205,7 @@ Gate A is a visual decision, not a test count: it stays open while the art or th
   `/achievements`, `/resources`, `/resources/[id]`). The award waits on `/resources/[id]` until a FULL route.
 - **Mounting:** `MamDockSlot` stays in the `(dashboard)` and `resources` layouts. It is not mounted in
   `(community)`, so the community has no dock even if a path were mapped.
-- **Rollback:** emptying the FULL and QUIET lists hides Mầm everywhere. `MAM_WEB_ENABLED` still gates the slots.
+- **Rollback:** emptying the FULL and QUIET lists hides Mầm everywhere. The flag is gone: the slots always mount (owner decision 2026-11-23: always on; rollback = revert).
 
 ## v0.8 amendment (MB-896, Phase C: orchestrator and variations)
 
@@ -263,12 +264,12 @@ Tiers bound the length (micro up to 2 s, expressive up to 5 s, cinematic 5 to 9 
 | -------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | WELCOME              | `airplane` (MB-894), ★`parachute`, ★`plant_pot`                                                   | cinematic, FULL only. The parachute is `hang` plus a descent (`parachuteDescent`, 4.2 s) and a closing `wave`; the pot drops in, hides her (concealed), `pop_up`, `wave`, then sinks                                                                                  |
 | HAPPY                | `happy`, ★`spin`, ★`tiny_dance`                                                                   | `spin` and `tiny_dance` FULL only. The asset's hops are about a pixel at the 96 px dock, so both also run a host travel scene (`danceMotion`: a 9 px hop on every beat and an 11 px sway; `spinHop`: a 14 px jump over the asset's jump), scaled by dock size over 96 |
-| CELEBRATE | `light_success` (Bingo), `celebrate_soft`, ★`clap` (soft), `celebrate_hero`, ★`cheer_sign` (hero) | FULL only. The sign shows on every screen: on the compact dock its board and text are bigger so the text is 12 px or more, and it stands on the roomy side (right of the dock), or floats above her head when there is no room there |
+| CELEBRATE            | `light_success` (Bingo), `celebrate_soft`, ★`clap` (soft), `celebrate_hero`, ★`cheer_sign` (hero) | FULL only. The sign shows on every screen: on the compact dock its board and text are bigger so the text is 12 px or more, and it stands on the roomy side (right of the dock), or floats above her head when there is no room there                                  |
 | ENCOURAGE            | `nod`, ★`thumbs_up`, ★`fist_pump`                                                                 | `nod` is also allowed on QUIET routes and is the look of every confirmed save                                                                                                                                                                                         |
 | COMFORT              | `gentle`, ★`sit_hug`, ★`umbrella`                                                                 | the umbrella and its drops are FULL only                                                                                                                                                                                                                              |
 | LISTEN, THINK, GUIDE | `listening`, `listen_nod`, `thinking`, `point`                                                    | the triggers come with the summon wiring (MB-897)                                                                                                                                                                                                                     |
-| IDLE | `stretch`, `look_around`, `scratch`, ★`butterfly` | the butterfly is rarer (weight 1 of 10) and FULL only; her gaze follows its path. An idle look pauses the pointer gaze and restarts the 25 to 45 s cadence from its end, as before |
-| REST | `drowsy_sleep` (the existing yawn and lie-down), ★`blanket_tuck` (a nap in place) | the 60 s idle sleep asks for `REST/drowsy_sleep`; the travel controller still performs it |
+| IDLE                 | `stretch`, `look_around`, `scratch`, ★`butterfly`                                                 | the butterfly is rarer (weight 1 of 10) and FULL only; her gaze follows its path. An idle look pauses the pointer gaze and restarts the 25 to 45 s cadence from its end, as before                                                                                    |
+| REST                 | `drowsy_sleep` (the existing yawn and lie-down), ★`blanket_tuck` (a nap in place)                 | the 60 s idle sleep asks for `REST/drowsy_sleep`; the travel controller still performs it                                                                                                                                                                             |
 
 ### Emphasis at the dock
 

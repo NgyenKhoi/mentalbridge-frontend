@@ -186,7 +186,7 @@ describe('DailyEmotionCheckIn Mầm entry', () => {
     )
   })
 
-  it('shows nothing with the flag off (no dock slot)', async () => {
+  it('shows nothing without a dock slot', async () => {
     get.mockResolvedValue(record())
     render(<App slot={false} />)
     await screen.findByRole('radio', { name: 'Rất không tốt' })
