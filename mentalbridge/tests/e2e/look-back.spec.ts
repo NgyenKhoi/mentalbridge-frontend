@@ -122,7 +122,7 @@ test.describe('look-back', () => {
           ).toBeVisible()
           await page.getByRole('button', { name: /Ngày 1,/ }).click()
           await expect(page.getByLabel('Chi tiết ngày 1')).toContainText(
-            'Nhật ký:',
+            /nhật ký/i,
           )
         }
         if (scenario.name.startsWith('HARDER'))

@@ -173,19 +173,22 @@ describe('LookBackPage', () => {
     const firstWeek = screen.getByRole('button', { name: /Tuần 1 \(/ })
     fireEvent.click(firstWeek)
     expect(firstWeek).toHaveAttribute('aria-pressed', 'true')
+    // Week 2 stays on the road, dimmed but still reachable by keyboard and screen reader.
     expect(screen.getAllByRole('button', { name: /^Ngày \d+,/ })).toHaveLength(
-      7,
+      14,
     )
+    expect(document.querySelectorAll('button[data-dim]')).toHaveLength(7)
+    expect(screen.getByText(/^Tập trung Chặng 1/)).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: /Ngày 1,/ }))
-    expect(screen.getByLabelText('Chi tiết ngày 1')).toHaveTextContent(
-      'Mức cảm xúc:',
-    )
-    expect(screen.getByLabelText('Chi tiết ngày 1')).toHaveTextContent(
-      'Hoạt động đã làm:',
-    )
-    expect(screen.getByLabelText('Chi tiết ngày 1')).toHaveTextContent(
-      'Nhật ký:',
-    )
+    const card = screen.getByLabelText('Chi tiết ngày 1')
+    expect(card).toHaveTextContent(/Ngày 1 •/)
+    expect(card).toHaveTextContent(/\(\d\/5\)|Chưa ghi cảm xúc/)
+    expect(card).toHaveTextContent('hoạt động đã làm')
+    expect(card).toHaveTextContent(/nhật ký/i)
+    expect(card).toHaveTextContent(/lần ghi|chưa ghi cảm xúc/i)
+    // Escape closes the card without a pointer.
+    fireEvent.keyDown(card, { key: 'Escape' })
+    expect(screen.queryByLabelText('Chi tiết ngày 1')).toBeNull()
   })
 
   it('shows a completed specialist session only when supplied by the consultation source', async () => {
