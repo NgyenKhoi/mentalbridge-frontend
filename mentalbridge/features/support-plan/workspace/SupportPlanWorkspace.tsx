@@ -56,6 +56,7 @@ import type {
   SupportPlanV3,
   UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
+import { dispatchMamEvent, mamBandChange } from '@/features/mam/mam-events'
 import { dispatchMamSaved } from '@/features/mam/mam-saved'
 import { useMamSuppress } from '@/features/mam/mam-suppression'
 import { useMamPageTarget } from '@/features/mam/use-mam-target'
@@ -711,8 +712,10 @@ export default function SupportPlanWorkspace({
         await latestLoad.current()
       }
       // Care has confirmed the change; a failed or pending save never gets here.
-      if (mamEnabled && mounted.current && state === 'COMPLETED')
+      if (mamEnabled && mounted.current && state === 'COMPLETED') {
         dispatchMamSaved()
+        dispatchMamEvent({ type: 'support-done' })
+      }
       const title = item.action.presentation.title
       return state === 'COMPLETED'
         ? `Đã ghi nhận: ${title}.`
@@ -1070,6 +1073,14 @@ export default function SupportPlanWorkspace({
           },
         ),
       )
+      // Care's reassessment is in hand: Mầm answers its band change (one it could not read stays silent).
+      const change = mamEnabled ? mamBandChange(summary) : null
+      if (change && mounted.current)
+        dispatchMamEvent({
+          type: 'reassessment-done',
+          ...change,
+          id: summary.summaryId,
+        })
     }, true)
   }
 

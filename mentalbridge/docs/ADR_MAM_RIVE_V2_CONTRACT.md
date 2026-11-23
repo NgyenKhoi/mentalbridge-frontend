@@ -297,3 +297,75 @@ SVG in the character's artboard space, with the rig's palette and stroke, never 
 - The welcome's "never the same twice" holds within a page load; across sessions the look is random.
 - `blanket_tuck` uses the rig's own blanket (sleep pose) rather than a separate host prop.
 - The dev `?mamIntent=` trigger plays only when the host is calm, so under reduced motion it never reaches the orchestrator; the `skipped: reduced` reason is covered by the unit tests.
+
+## Verified events and daily trajectory (MB-897, Phase D)
+
+Mầm notices what the user really does and how their days are going. It reacts at the moment of a server-confirmed success and once a day to the trajectory of the user's own check-ins. It never reads journal or chat text.
+
+### Events
+
+- Names: `mam:journal-saved`, `mam:checkin-saved`, `mam:support-done`, `mam:resource-done`, `mam:reassessment-done`. A payload carries enums, numbers and dates only, never text:
+  - `checkin-saved`: `emotion` (the Care enum), `intensity`, `localDate`;
+  - `reassessment-done`: `band` (`LOWER | SAME | HIGHER`), `moderatePlus`, `id` (the summary id);
+  - the others: no field of their own.
+- `dispatchMamEvent` stamps the signed-in account id and the browser's local date last, so a caller cannot override them. With no signed-in slot nothing is sent. `parseMamEvent` whitelists each type's fields (a stray `note` or `text` never passes) and drops an event stamped with another account.
+- Dedupe: the same type and local date within 10 s plays once. A reassessment `id` plays once for good: the last 5 answered ids are kept per account (`mentalbridge_mam_reassessment:<account>`, a JSON list), so a reload or another review of the same summary does not replay it.
+- A dispatch follows only a server-confirmed success; a failed or pending save sends nothing. The call sites:
+  - check-in: after create or update resolves (`DailyEmotionCheckIn`);
+  - journal: after create or revise resolves and the page is still mounted (`journal/page.tsx`);
+  - support step: after Care confirms `COMPLETED` (`SupportPlanWorkspace`);
+  - resource: only on the transition to completed. `ResourceDetail` compares the status before the save with the server's answer; `ResourcesExperience` requires `saved.status === 'COMPLETED'`. Unchecking or re-saving a finished resource sends nothing;
+  - reassessment: when the plan review loads Care's reassessment summary (`reviewReplacement`). It is answered only there.
+- `mam:saved` (MB-772) is kept: a support step plays the nod, then the deferred line.
+
+### Trajectory
+
+- Input: the check-in level (1 very low to 5 great, Care's own mapping) of the last 14 local days, from the slim BFF route below. Journal mood is not used (a known limit). Intensity is the strength of a feeling, not wellness, so it is not used either. A day without a check-in is a gap.
+- Thresholds: low is level 2 or less, good is 4 or more, improving is the 3-day mean up by 0.7 or more against the 3 recorded days before it, absent is 3 or more days, flat is a spread of 1 or less over 5 recorded days with a mean from 2.5 to 3.5.
+- Precedence: PERSISTENT_LOW, DIP_AFTER_GOOD, FIRST_LOW, BOUNCE_BACK, IMPROVING, STEADY_GOOD, FLAT, WELCOME_BACK, NO_DATA.
+- Guards:
+  - fewer than 2 records in the window is NO_DATA;
+  - a latest record 3 or more days old is WELCOME_BACK;
+  - FIRST_LOW, DIP_AFTER_GOOD and BOUNCE_BACK need a record dated today;
+  - FIRST_LOW is also the answer to any other low today (a low after mixed days);
+  - BOUNCE_BACK needs the previous record to be a low one dated yesterday, so its lines may say "after a heavy day";
+  - PERSISTENT_LOW and IMPROVING need the latest record not to contradict them.
+- State to intent: FIRST_LOW, DIP_AFTER_GOOD and PERSISTENT_LOW play COMFORT (PERSISTENT_LOW may point softly to the plan, to talking, or to a specialist); BOUNCE_BACK plays a soft CELEBRATE; IMPROVING plays ENCOURAGE; STEADY_GOOD plays HAPPY; FLAT plays LISTEN; WELCOME_BACK plays HAPPY (a short look, never a second airplane); NO_DATA plays nothing.
+
+### Cheering gate
+
+- Celebratory: the states BOUNCE_BACK, IMPROVING and STEADY_GOOD; the third support step of a day (a soft CELEBRATE); a lower reassessment band.
+- A celebration needs a cheerable look-back: the mood is readable and not HARDER, the band is readable, no band is moderate or higher, and nothing is missing (`partial` is false). A band that failed to load never reads as "no band". The band is the LATEST screening of each instrument (from Care's history, of any age), with or without an earlier one to compare with, so a first moderate-or-higher screening sets `moderatePlus` and shows the look-back page's professional pointer. A latest level this client does not know makes the view partial (fail closed).
+- An unknown calm never celebrates. The third support step and a lower reassessment band fetch the slim route on demand when this page load has not read it (a reassessment always asks again, because the band may just have changed); a failed read is "not calm". The reaction is then plain ENCOURAGE (support step) or LISTEN (reassessment).
+- Reassessment bands: LOWER celebrates softly with the line "điểm tự đánh giá thấp hơn lần trước"; SAME listens; HIGHER, or a moderate-or-higher band on any instrument (with or without a previous point), comforts with a pointer to the support guide and never celebrates. A level this client does not know makes `mamBandChange` return null: the event is silent, never LOWER.
+- The comforting states are never held back.
+
+### Delivery
+
+- The daily moment: the first FULL-route visit of each local day, once per account, reads the series and answers its state. It is read again for the new day on FULL-to-FULL navigation across midnight.
+- At most 3 bubbles a day, shared by the daily line and the events (awards keep their own caps). A reaction past the cap is dropped.
+- At least 60 s between two bubbles. A reaction inside the spacing is deferred (kept, and shown when it has passed), not dropped; a check-in made right after the daily line is therefore still answered.
+- A reaction from a QUIET route (journal, plan) waits for the next FULL route, and is dropped after 10 minutes.
+- Gates: `hard` (hidden, away by a modal or a safety zone, muted, a failed renderer) drops a reaction. Not ready (a form being edited or just saved, a menu, a summon, the welcome, a running look, a page action under the dock, an award bubble, a save nod) only waits.
+- The bubble: the award bubble, dismissible, no focus taken, shown for `max(6 s, 4 s + 60 ms per character)` with the usual hover and focus pause. An award's own bubble keeps 8 s; the two never show together, and a trajectory bubble holds the award back. Under reduced motion the bubble shows and no look plays. An emoji in a line is drawn but hidden from the screen reader (`aria-hidden`).
+- The look is played through the orchestrator with the source `trajectory`.
+
+### Lines
+
+- `mam-lines.ts`: Vietnamese, tớ and bạn, 4 to 6 lines per state and per event, at most 90 characters, no digits, soft endings, an emoji only on the light states and events. Banned words: khỏi bệnh, chẩn đoán, chữa, đừng buồn, bệnh, điều trị, trầm cảm. No claim about how often the user records, no filler reassurance.
+- A line never repeats either of the last two shown for its key. The history is kept per account as line numbers by state (`mentalbridge_mam_lines:<account>`), nothing else.
+
+### Storage keys
+
+- `mentalbridge_mam_daily:<account>:<date>`, `mentalbridge_mam_bubbles:<account>:<date>`, `mentalbridge_mam_support:<account>:<date>`, `mentalbridge_mam_journal:<account>` (the last journal day, per device), `mentalbridge_mam_reassessment:<account>`, `mentalbridge_mam_lines:<account>`.
+- Every access is in a try/catch with a per-tab memory copy. Shortcut: old date keys are not pruned (a few bytes each); prune them if the key count ever matters.
+
+### Data source
+
+- `GET /api/mam/trajectory?timezone=` (BFF, same authentication and timezone rules as `/api/look-back`). It composes the look-back view without the companion call and returns only `asOfLocalDate`, `days[{localDate, emotionLevel}]`, `narrative`, `band{readable, moderatePlus, transition}` and `partial`. It carries no conversation titles and no text of the user's own, and it reads Care's dashboard, history and progress only.
+
+### QA, rollback and known limits
+
+- QA: `?mamIntent=` is unchanged; `data-mam-intent` on the dock root is the test hook.
+- Rollback: removing the `useMamTrajectory` call from the host silences the feature; the dispatchers then send events nobody hears.
+- Known limits: journal mood is not used; "days since the last journal entry" is per device; a reassessment is answered only from the plan review; a reaction on a QUIET route waits at most 10 minutes. Fixed in round 2: a first moderate-or-higher screening (nothing to compare) now counts as moderate-or-higher in both the trajectory view and the look-back page model.

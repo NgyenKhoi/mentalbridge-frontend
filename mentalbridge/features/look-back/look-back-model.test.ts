@@ -9,6 +9,7 @@ import {
 import {
   composeLookBack,
   latestPerInstrument,
+  latestScreeningLevels,
   narrativeFor,
   narrativeOfDashboard,
 } from './look-back-model'
@@ -271,5 +272,62 @@ describe('latestPerInstrument', () => {
         item('c', 'GAD7', '2026-11-10T00:00:00Z'),
       ]).map((entry) => entry.assessmentId),
     ).toEqual(['b', 'c'])
+  })
+})
+
+describe('the latest band, with or without something to compare', () => {
+  const summary = (instrument: string, level: string, submittedAt: string) =>
+    ({
+      assessmentId: `${instrument}-${submittedAt}`,
+      instrument,
+      submittedAt,
+      result: { screeningLevel: level },
+    }) as never
+
+  it('reads the newest screening of each instrument', () => {
+    expect(
+      latestScreeningLevels([
+        summary('PHQ9', 'SEVERE', '2026-10-01T00:00:00Z'),
+        summary('PHQ9', 'MILD', '2026-11-20T00:00:00Z'),
+        summary('GAD7', 'MODERATE', '2026-11-10T00:00:00Z'),
+      ]),
+    ).toEqual({ levels: ['MILD', 'MODERATE'], unknown: false })
+  })
+
+  it('marks a level it does not know, or a missing result, instead of guessing', () => {
+    expect(
+      latestScreeningLevels([
+        summary('PHQ9', 'EXTREME', '2026-11-20T00:00:00Z'),
+      ]).unknown,
+    ).toBe(true)
+    expect(
+      latestScreeningLevels([
+        {
+          assessmentId: 'x',
+          instrument: 'PHQ9',
+          submittedAt: '2026-11-20T00:00:00Z',
+        } as never,
+      ]).unknown,
+    ).toBe(true)
+  })
+
+  it('a FIRST moderate screening shows the professional pointer and points to support', () => {
+    const view = composeLookBack({
+      dashboard: makeDashboard(moods(2, 4)),
+      ...base,
+      latestLevels: ['MODERATE'],
+    })
+    expect(view.screening).toEqual([])
+    expect(view.professionalPointer).toBe(true)
+    expect(view.nextStep).toBe('SUPPORT')
+  })
+
+  it('a first mild screening shows no pointer', () => {
+    const view = composeLookBack({
+      dashboard: makeDashboard(moods(2, 4)),
+      ...base,
+      latestLevels: ['MILD'],
+    })
+    expect(view.professionalPointer).toBe(false)
   })
 })

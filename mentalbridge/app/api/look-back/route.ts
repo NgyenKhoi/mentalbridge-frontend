@@ -3,6 +3,8 @@ import type { NextRequest } from 'next/server'
 import {
   composeLookBack,
   latestPerInstrument,
+  latestScreeningLevels,
+  validTimezone,
 } from '@/features/look-back/look-back-model'
 import { ApiError } from '@/lib/api/api-error'
 import { correlationIdFrom } from '@/lib/auth/bff-response'
@@ -18,16 +20,6 @@ import {
 } from '@/lib/care/bff-response'
 import { careClient } from '@/lib/care/care-client'
 import { companionClient } from '@/lib/companion/companion-client'
-
-function validTimezone(value: string | null): value is string {
-  if (!value || value.length > 64) return false
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: value }).format()
-    return true
-  } catch {
-    return false
-  }
-}
 
 // Missing consent or no access (403/404) hides a section quietly; a timeout, a rate limit or an outage also says so.
 const quietlyHidden = (error: unknown) =>
@@ -71,7 +63,11 @@ export async function GET(request: NextRequest) {
       user,
     )
 
-  let degraded = history.status === 'rejected'
+  const latest =
+    history.status === 'fulfilled'
+      ? latestScreeningLevels(history.value.items)
+      : { levels: [], unknown: false }
+  let degraded = history.status === 'rejected' || latest.unknown
   const progress = await Promise.allSettled(
     (history.status === 'fulfilled'
       ? latestPerInstrument(history.value.items)
@@ -99,6 +95,7 @@ export async function GET(request: NextRequest) {
         dashboard: dashboard.value,
         conversations:
           companion.status === 'fulfilled' ? companion.value.items : null,
+        latestLevels: latest.levels,
         progress: progress.flatMap((result) =>
           result.status === 'fulfilled' ? [result.value] : [],
         ),

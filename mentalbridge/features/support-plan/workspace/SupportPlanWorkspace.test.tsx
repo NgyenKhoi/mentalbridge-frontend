@@ -33,6 +33,13 @@ import {
   adaptiveReviewFixture,
 } from '../testing/adaptive-review-fixture'
 
+// MB-897: what Mầm is told about a confirmed support step or reassessment.
+const mamEvents = vi.hoisted(() => ({ dispatch: vi.fn() }))
+vi.mock('@/features/mam/mam-events', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/mam/mam-events')>()),
+  dispatchMamEvent: mamEvents.dispatch,
+}))
+
 const api = vi.hoisted(() => ({
   getCurrentSupportPlanActions: vi.fn(),
   getCurrentNativeSupportPlanDraft: vi.fn(),
@@ -2855,6 +2862,7 @@ describe('SupportPlan workspace with the global Mầm', () => {
     const saved = vi.fn()
     beforeEach(() => {
       saved.mockClear()
+      mamEvents.dispatch.mockClear()
       window.addEventListener('mam:saved', saved)
       withCurrent(resourcePlan(), [occurrence({ actionType: 'RESOURCE' })])
     })
@@ -2883,6 +2891,10 @@ describe('SupportPlan workspace with the global Mầm', () => {
         })
       })
       await waitFor(() => expect(saved).toHaveBeenCalledTimes(1))
+      // The same confirmation tells Mầm one verified support step, with no text.
+      expect(mamEvents.dispatch).toHaveBeenCalledExactlyOnceWith({
+        type: 'support-done',
+      })
     })
 
     it('stays silent when the delayed reply arrives after leaving the screen', async () => {
@@ -2907,6 +2919,7 @@ describe('SupportPlan workspace with the global Mầm', () => {
         })
       })
       expect(saved).not.toHaveBeenCalled()
+      expect(mamEvents.dispatch).not.toHaveBeenCalled()
     })
 
     it('stays silent when Care rejects it', async () => {
@@ -2920,6 +2933,7 @@ describe('SupportPlan workspace with the global Mầm', () => {
       )
       expect(await screen.findByRole('alert')).toBeVisible()
       expect(saved).not.toHaveBeenCalled()
+      expect(mamEvents.dispatch).not.toHaveBeenCalled()
     })
 
     it('does not fire for skipping, or with the flag off', async () => {
