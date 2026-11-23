@@ -279,7 +279,7 @@ export default function SupportPlanWorkspace({
   invalidOrigin?: boolean
   /** Returning from a reassessment the plan review asked for. */
   openReview?: boolean
-  /** Server-resolved MAM_WEB_ENABLED: the global Mầm owns the explanations. */
+  /** The global Mầm owns the explanations; the page always passes it (tests default to false). */
   mamEnabled?: boolean
 }>) {
   const { confirm } = useFeedback()

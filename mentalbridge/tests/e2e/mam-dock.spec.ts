@@ -14,8 +14,7 @@ import {
   travelling,
 } from './mam-dock-helpers'
 
-// MB-768: one Mầm per tab across eligible USER routes. The E2E servers run
-// with MAM_WEB_ENABLED=true (playwright.config.ts, scripts/run-e2e.mjs).
+// MB-768: one Mầm per tab across eligible USER routes.
 
 const startToday = (page: Page) =>
   page

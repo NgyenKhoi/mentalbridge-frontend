@@ -19,8 +19,7 @@ import {
 } from './plan-resources-mocks'
 
 // MB-895: the route surface matrix V2 (docs/ADR_MAM_RIVE_V2_CONTRACT.md). One Mầm per tab, a mode per route:
-// FULL lives and celebrates, QUIET is docked and calm, HIDDEN renders nothing. The E2E servers run with
-// MAM_WEB_ENABLED=true.
+// FULL lives and celebrates, QUIET is docked and calm, HIDDEN renders nothing.
 
 const resourceId = homeResourceDetails()[0]!.id
 // `/resources` is FULL too; it needs the plan-and-resources fixtures, so the welcome test walks it.
