@@ -5,7 +5,7 @@ import { harder, improving, sparse } from '../fixtures/look-back'
 import { test } from './test-fixtures'
 
 const accessCookie = 'mentalbridge_access'
-const widths = [1440, 375]
+const widths = [1440, 1280, 768, 375]
 
 async function expectNoHorizontalOverflow(page: Page) {
   await expect
@@ -18,14 +18,22 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 // Screenshots go to the story's capture folder when LOOKBACK_SHOTS_DIR is set, else to the test output.
-function shot(
+async function shot(
   page: Page,
   testInfo: { outputPath: (name: string) => string },
   name: string,
 ) {
   const dir = process.env.LOOKBACK_SHOTS_DIR
+  await page.screenshot({
+    path: dir
+      ? `${dir}/${name}-viewport.png`
+      : testInfo.outputPath(`${name}-viewport.png`),
+    fullPage: false,
+  })
   return page.screenshot({
-    path: dir ? `${dir}/${name}.png` : testInfo.outputPath(`${name}.png`),
+    path: dir
+      ? `${dir}/${name}-full.png`
+      : testInfo.outputPath(`${name}-full.png`),
     fullPage: true,
   })
 }
@@ -88,12 +96,12 @@ test.describe('look-back', () => {
           page.getByRole('heading', { level: 2, name })
         if (scenario.name === 'SPARSE') {
           await expect(
-            page.locator('main').getByRole('heading', { level: 2 }),
+            page.getByRole('heading', { name: /Bản đồ hành trình cảm xúc/ }),
           ).toHaveCount(0)
           await expect(page.getByRole('img')).toHaveCount(0)
         } else {
-          await expect(heading('Cảm xúc của bạn')).toBeVisible()
-          await expect(heading('Những gì bạn đã làm')).toBeVisible()
+          await expect(heading('Bản đồ hành trình cảm xúc')).toBeVisible()
+          await expect(page.getByText('Ngày viết nhật ký')).toBeVisible()
           await expect(heading('Kết quả tự đánh giá')).toBeVisible()
           await expect(
             page.getByRole('img', { name: /Biểu đồ cảm xúc/ }),
@@ -101,18 +109,27 @@ test.describe('look-back', () => {
         }
         if (scenario.name === 'IMPROVING')
           await expect(heading('Bạn đã trò chuyện với Mầm về')).toBeVisible()
-        if (scenario.name.startsWith('HARDER'))
-          await expect(
-            page.getByRole('link', { name: 'Tìm chuyên gia' }),
-          ).toBeVisible()
-        else await expect(page.getByText('Tìm chuyên gia')).toHaveCount(0)
-
         await expectNoHorizontalOverflow(page)
         await shot(
           page,
           testInfo,
           `look-back-${scenario.name.split(' ')[0]}-${width}`,
         )
+        if (scenario.name === 'IMPROVING') {
+          await page.getByRole('button', { name: /Tuần 1 \(/ }).click()
+          await expect(
+            page.getByRole('button', { name: /Ngày 1,/ }),
+          ).toBeVisible()
+          await page.getByRole('button', { name: /Ngày 1,/ }).click()
+          await expect(page.getByLabel('Chi tiết ngày 1')).toContainText(
+            'Nhật ký:',
+          )
+        }
+        if (scenario.name.startsWith('HARDER'))
+          await expect(
+            page.getByRole('link', { name: 'Tìm chuyên gia' }),
+          ).toBeVisible()
+        else await expect(page.getByText('Tìm chuyên gia')).toHaveCount(0)
       })
 
   test('error offers a retry that loads the page', async ({ page }) => {
