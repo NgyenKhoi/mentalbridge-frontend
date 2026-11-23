@@ -19,6 +19,7 @@ const care = vi.hoisted(() => ({
   progress: vi.fn(),
 }))
 const companion = vi.hoisted(() => ({ list: vi.fn() }))
+const consultation = vi.hoisted(() => ({ appointments: vi.fn() }))
 
 vi.mock('@/lib/care/authenticated-user', () => ({
   authenticatedCareUser: auth.authenticate,
@@ -28,6 +29,9 @@ vi.mock('@/lib/care/authenticated-user', () => ({
 vi.mock('@/lib/care/care-client', () => ({ careClient: care }))
 vi.mock('@/lib/companion/companion-client', () => ({
   companionClient: companion,
+}))
+vi.mock('@/lib/consultation/consultation-client', () => ({
+  consultationClient: consultation,
 }))
 
 import { GET } from './route'
@@ -79,6 +83,7 @@ describe('/api/look-back', () => {
     companion.list.mockResolvedValue({
       items: [conversation('c1', 'Ngủ ngon hơn', '2026-11-20T09:00:00+07:00')],
     })
+    consultation.appointments.mockResolvedValue({ data: { items: [] } })
   })
 
   it('composes one owner-scoped view from the 30-day dashboard, screenings and conversations', async () => {
@@ -106,6 +111,31 @@ describe('/api/look-back', () => {
       screening: [{ instrument: 'PHQ9', direction: 'LOWER' }],
     })
     expect(body.days).toHaveLength(14)
+    expect(consultation.appointments).toHaveBeenCalledWith(
+      'owner-token',
+      expect.any(String),
+    )
+  })
+
+  it('counts only completed sessions that ended in the 14-day local window', async () => {
+    consultation.appointments.mockResolvedValue({
+      data: {
+        items: [
+          { status: 'COMPLETED', sessionEndedAt: '2026-11-20T09:00:00+07:00' },
+          { status: 'REQUESTED', sessionEndedAt: null },
+          { status: 'COMPLETED', sessionEndedAt: '2026-10-20T09:00:00+07:00' },
+        ],
+      },
+    })
+    const body = await (await GET(request())).json()
+    expect(body.completedSessions).toBe(1)
+  })
+
+  it('keeps the look-back usable when the consultation list cannot load', async () => {
+    consultation.appointments.mockRejectedValue(new Error('unavailable'))
+    const body = await (await GET(request())).json()
+    expect(body.completedSessions).toBeNull()
+    expect(body.partial).toBe(true)
   })
 
   it('shows the professional pointer for a FIRST moderate screening that has nothing to compare', async () => {

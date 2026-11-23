@@ -63,19 +63,16 @@ describe('LookBackPage', () => {
     expect(await screen.findByText(narrativeCopy.IMPROVING)).toBeVisible()
 
     expect(
-      screen
-        .getAllByRole('heading', { level: 2 })
-        .map((heading) => heading.textContent),
-    ).toEqual([
-      'Cảm xúc của bạn',
-      'Những gì bạn đã làm',
-      'Bạn đã trò chuyện với Mầm về',
-      'Kết quả tự đánh giá',
-    ])
+      screen.getByRole('heading', { name: /Bản đồ hành trình cảm xúc/ }),
+    ).toBeVisible()
     expect(
-      screen.getByText(
-        /tuần 1 của bạn ở mức "Không tốt" và tuần 2 ở mức "Tốt"/,
-      ),
+      screen.getByLabelText('Mức cảm xúc trung bình hai tuần'),
+    ).toHaveTextContent('/5')
+    expect(
+      screen.getByRole('heading', { name: 'Bạn đã trò chuyện với Mầm về' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Kết quả tự đánh giá' }),
     ).toBeVisible()
     expect(screen.getByText('Ngủ ngon hơn')).toBeVisible()
     expect(screen.getByText('Mức trung bình → Mức nhẹ')).toBeVisible()
@@ -117,7 +114,9 @@ describe('LookBackPage', () => {
     api.getLookBack.mockResolvedValue(sparse())
     render(<LookBackPage />)
     expect(await screen.findByText(narrativeCopy.SPARSE)).toBeVisible()
-    expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0)
+    expect(
+      screen.queryByRole('heading', { name: /Bản đồ hành trình cảm xúc/ }),
+    ).toBeNull()
     expect(screen.queryByRole('img')).toBeNull()
     expect(nextLink()).toHaveTextContent('Ghi cảm xúc hôm nay')
     expect(nextLink()).toHaveAttribute('href', '/dashboard')
@@ -128,7 +127,9 @@ describe('LookBackPage', () => {
     render(<LookBackPage />)
     await screen.findByText(narrativeCopy.STEADY)
     expect(screen.queryByText('Bạn đã trò chuyện với Mầm về')).toBeNull()
-    expect(screen.getByText('Cảm xúc của bạn')).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: /Bản đồ hành trình cảm xúc/ }),
+    ).toBeVisible()
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
@@ -152,7 +153,7 @@ describe('LookBackPage', () => {
     expect(row).not.toHaveTextContent('0')
   })
 
-  it('folds conversations beyond six behind "Xem thêm"', async () => {
+  it('folds conversations beyond two behind "Xem thêm"', async () => {
     const items = Array.from({ length: 8 }, (_, index) => ({
       id: `c${index}`,
       title: index === 7 ? null : `Chủ đề ${index}`,
@@ -160,9 +161,43 @@ describe('LookBackPage', () => {
     }))
     api.getLookBack.mockResolvedValue(steady({ conversations: items }))
     render(<LookBackPage />)
-    const summary = await screen.findByText('Xem thêm 2 cuộc trò chuyện')
+    const summary = await screen.findByText('Xem thêm 6 cuộc trò chuyện')
     expect(summary.closest('details')).not.toHaveAttribute('open')
     expect(screen.getByText('Một cuộc trò chuyện')).toBeInTheDocument()
+  })
+
+  it('filters the map and shows only factual daily details', async () => {
+    api.getLookBack.mockResolvedValue(improving())
+    render(<LookBackPage />)
+    await screen.findByText(narrativeCopy.IMPROVING)
+    const firstWeek = screen.getByRole('button', { name: /Tuần 1 \(/ })
+    fireEvent.click(firstWeek)
+    expect(firstWeek).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getAllByRole('button', { name: /^Ngày \d+,/ })).toHaveLength(
+      7,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Ngày 1,/ }))
+    expect(screen.getByLabelText('Chi tiết ngày 1')).toHaveTextContent(
+      'Mức cảm xúc:',
+    )
+    expect(screen.getByLabelText('Chi tiết ngày 1')).toHaveTextContent(
+      'Hoạt động đã làm:',
+    )
+    expect(screen.getByLabelText('Chi tiết ngày 1')).toHaveTextContent(
+      'Nhật ký:',
+    )
+  })
+
+  it('shows a completed specialist session only when supplied by the consultation source', async () => {
+    api.getLookBack.mockResolvedValue(
+      steady({ completedSessions: 2, appointments: 7 }),
+    )
+    render(<LookBackPage />)
+    await screen.findByText(narrativeCopy.STEADY)
+    const specialist = screen.getByText('Hỗ trợ chuyên gia').closest('div')
+    expect(specialist).toHaveTextContent('2')
+    expect(specialist).toHaveTextContent('buổi tư vấn đã diễn ra')
+    expect(specialist).not.toHaveTextContent('7')
   })
 
   it('SPARSE with a moderate band still shows the result and the professional pointer', async () => {
@@ -207,7 +242,7 @@ describe('LookBackPage', () => {
     ).toBeVisible()
     expect(screen.queryByText(/chưa có đủ ghi nhận/)).toBeNull()
     expect(screen.queryByRole('img')).toBeNull()
-    expect(screen.getByText('Những gì bạn đã làm')).toBeVisible()
+    expect(screen.getByText('Ngày viết nhật ký')).toBeVisible()
     expect(nextLink()).toHaveTextContent('Tiếp tục kế hoạch hôm nay')
   })
 

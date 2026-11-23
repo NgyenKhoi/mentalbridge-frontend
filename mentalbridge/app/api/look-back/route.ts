@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server'
 
 import {
   composeLookBack,
+  localDateOf,
   latestPerInstrument,
   latestScreeningLevels,
   validTimezone,
@@ -20,6 +21,7 @@ import {
 } from '@/lib/care/bff-response'
 import { careClient } from '@/lib/care/care-client'
 import { companionClient } from '@/lib/companion/companion-client'
+import { consultationClient } from '@/lib/consultation/consultation-client'
 
 // Missing consent or no access (403/404) hides a section quietly; a timeout, a rate limit or an outage also says so.
 const quietlyHidden = (error: unknown) =>
@@ -50,12 +52,14 @@ export async function GET(request: NextRequest) {
   }
 
   const token = user.accessToken
-  const [dashboard, history, companion] = await Promise.allSettled([
-    // 14 is not an allowed range; the composition keeps the last 14 local days.
-    careClient.activityDashboard(token, timezone, 30, correlationId),
-    careClient.history(token, undefined, 20, correlationId),
-    companionClient.list(token, correlationId),
-  ])
+  const [dashboard, history, companion, appointments] =
+    await Promise.allSettled([
+      // 14 is not an allowed range; the composition keeps the last 14 local days.
+      careClient.activityDashboard(token, timezone, 30, correlationId),
+      careClient.history(token, undefined, 20, correlationId),
+      companionClient.list(token, correlationId),
+      consultationClient.appointments(token, correlationId),
+    ])
   // The mood chart is the point of the page: without it there is nothing to show.
   if (dashboard.status === 'rejected')
     return carryCareSession(
@@ -88,6 +92,22 @@ export async function GET(request: NextRequest) {
       degraded = true
   if (companion.status === 'rejected' && !quietlyHidden(companion.reason))
     degraded = true
+  if (appointments.status === 'rejected') degraded = true
+
+  const last14 = dashboard.value.daily.slice(-14)
+  const firstDate = last14[0].localDate
+  const lastDate = dashboard.value.asOfLocalDate
+  const completedSessions =
+    appointments.status === 'fulfilled'
+      ? appointments.value.data.items.filter((item) => {
+          if (item.status !== 'COMPLETED' || !item.sessionEndedAt) return false
+          const endedOn = localDateOf(
+            item.sessionEndedAt,
+            dashboard.value.timezone,
+          )
+          return endedOn >= firstDate && endedOn <= lastDate
+        }).length
+      : null
 
   return carryCareSession(
     careSuccessResponse(
@@ -96,6 +116,7 @@ export async function GET(request: NextRequest) {
         conversations:
           companion.status === 'fulfilled' ? companion.value.items : null,
         latestLevels: latest.levels,
+        completedSessions,
         progress: progress.flatMap((result) =>
           result.status === 'fulfilled' ? [result.value] : [],
         ),
