@@ -1,7 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { ensureCurrentSupportGuide } from '@/features/support-guide/api/browser-support-guide'
+import {
+  ensureCurrentSupportGuide,
+  getGuidedJourney,
+} from '@/features/support-guide/api/browser-support-guide'
 import {
   activateSupportPlan,
   proposeSupportPlanDraft,
@@ -13,10 +16,11 @@ import OnboardingAssessmentJourney, {
 } from './OnboardingAssessmentJourney'
 
 const mockPush = vi.fn()
+const mockReplace = vi.fn()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
-    replace: vi.fn(),
+    replace: mockReplace,
   }),
 }))
 
@@ -88,12 +92,41 @@ vi.mock('@/features/support-guide/api/browser-support-guide', () => ({
   ensureCurrentSupportGuide: vi
     .fn()
     .mockResolvedValue({ supportGuideId: 'guide-123' }),
+  getGuidedJourney: vi
+    .fn()
+    .mockResolvedValue({ episodeId: null, assessmentInProgress: false }),
 }))
 
 describe('OnboardingAssessmentJourney', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.scrollTo = vi.fn()
+  })
+
+  it('turns a retake after a completed initial check into a reassessment', async () => {
+    vi.mocked(getGuidedJourney).mockResolvedValueOnce({
+      episodeId: 'episode-1',
+      assessmentInProgress: false,
+    } as never)
+    render(<OnboardingAssessmentJourney />)
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith(
+        '/initial-check?purpose=reassessment',
+      ),
+    )
+    expect(screen.queryByLabelText(/Tên gọi thân mật/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps an unfinished initial check on its own journey', async () => {
+    vi.mocked(getGuidedJourney).mockResolvedValueOnce({
+      episodeId: 'episode-1',
+      assessmentInProgress: true,
+    } as never)
+    render(<OnboardingAssessmentJourney />)
+    expect(
+      await screen.findByLabelText(/Tên gọi thân mật/i),
+    ).toBeInTheDocument()
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 
   it('renders Step 1 (Hoàn thiện hồ sơ) with profile inputs and priority goals', async () => {
@@ -333,6 +366,41 @@ describe('OnboardingAssessmentJourney', () => {
     expect(
       await screen.findByRole('link', { name: 'Về trang tổng quan →' }),
     ).toHaveAttribute('href', '/dashboard')
+  })
+
+  it('still reaches the review when preparing the reassessment Guide fails', async () => {
+    vi.mocked(ensureCurrentSupportGuide).mockRejectedValueOnce(
+      new Error('down'),
+    )
+    await reachStep3('REASSESSMENT')
+
+    fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
+
+    expect(await screen.findByText('Chặng vừa khép lại')).toBeInTheDocument()
+    expect(ensureCurrentSupportGuide).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('reaches the review after 6 s even when the reassessment Guide never settles', async () => {
+    vi.mocked(ensureCurrentSupportGuide).mockReturnValueOnce(
+      new Promise(() => {}) as never,
+    )
+    await reachStep3('REASSESSMENT')
+    const realSetTimeout = window.setTimeout.bind(window)
+    const waits: unknown[] = []
+    vi.spyOn(window, 'setTimeout').mockImplementation(((
+      fn: () => void,
+      ms?: number,
+    ) => {
+      waits.push(ms)
+      return ms === 6000 ? (fn(), 0) : realSetTimeout(fn, ms)
+    }) as never)
+
+    fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
+
+    expect(await screen.findByText('Chặng vừa khép lại')).toBeInTheDocument()
+    expect(waits).toContain(6000)
+    vi.mocked(window.setTimeout).mockRestore()
   })
 
   it('holds the step-4 action until Care says whether a plan is in use', async () => {

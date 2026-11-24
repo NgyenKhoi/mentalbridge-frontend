@@ -36,7 +36,10 @@ import {
 } from '@/features/assessment/api/browser-care'
 import { ReassessmentReview } from '@/features/assessment/components/ReassessmentReview'
 import { getHomeNextStep } from '@/features/home/browser-home-next-step'
-import { ensureCurrentSupportGuide } from '@/features/support-guide/api/browser-support-guide'
+import {
+  ensureCurrentSupportGuide,
+  getGuidedJourney,
+} from '@/features/support-guide/api/browser-support-guide'
 
 import './onboarding-assessment.css'
 
@@ -243,14 +246,26 @@ export default function OnboardingAssessmentJourney({
   // Load profile & initial check status
   useEffect(() => {
     let active = true
+    let redirecting = false
     async function init() {
       try {
-        const [profileRes, disclosureRes] = await Promise.allSettled([
-          getCareProfile(),
-          getPrivacyDisclosure(),
-        ])
+        const [profileRes, disclosureRes, journeyRes] =
+          await Promise.allSettled([
+            getCareProfile(),
+            getPrivacyDisclosure(),
+            isReassessment ? Promise.resolve(null) : getGuidedJourney(),
+          ])
 
         if (!active) return
+
+        // A retake after a completed initial check is a reassessment, so it closes the chặng and feeds plan review.
+        const journey =
+          journeyRes.status === 'fulfilled' ? journeyRes.value : null
+        if (journey?.episodeId && !journey.assessmentInProgress) {
+          redirecting = true
+          router.replace('/initial-check?purpose=reassessment')
+          return
+        }
 
         if (profileRes.status === 'fulfilled' && profileRes.value) {
           const p = profileRes.value
@@ -277,13 +292,14 @@ export default function OnboardingAssessmentJourney({
       } catch {
         // Fallback to defaults
       } finally {
-        if (active) setLoading(false)
+        if (active && !redirecting) setLoading(false)
       }
     }
     init()
     return () => {
       active = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per mount; purpose comes from the URL
   }, [])
 
   // Goal selection handler (max 3)
@@ -621,10 +637,22 @@ export default function OnboardingAssessmentJourney({
   }
 
   // INITIAL_CHECK opens the Support Guide of the finished screening episode (the create call is
-  // idempotent per episode). A reassessment never touches the plan: the user reviews the last
-  // 14 days and decides about the plan afterwards.
+  // idempotent per episode). A reassessment also prepares its Guide (the Guide follows the latest
+  // screening) and waits for it, but at most 6 s so the move to the review step never hangs; it
+  // never touches the plan: the user reviews the last 14 days and decides about the plan afterwards.
   const handleContinue = async () => {
     if (isReassessment) {
+      setSubmitting(true)
+      try {
+        await Promise.race([
+          ensureCurrentSupportGuide(),
+          new Promise((resolve) => window.setTimeout(resolve, 6000)),
+        ])
+      } catch {
+        // The review does not need the Guide; History retries it for the latest screening.
+      } finally {
+        setSubmitting(false)
+      }
       setCurrentStep(4)
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return

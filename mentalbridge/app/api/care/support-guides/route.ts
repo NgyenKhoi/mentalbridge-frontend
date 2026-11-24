@@ -26,7 +26,9 @@ export async function POST(request: NextRequest) {
       user.accessToken,
       correlationId,
     )
-    if (!journey.episodeId) {
+    // The Guide follows the newest completed screening of either purpose.
+    const episodeId = journey.latestScreening?.episodeId ?? journey.episodeId
+    if (!episodeId) {
       return carryCareSession(
         localProblem(
           409,
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
     const guide = await careClient.ensureScreeningEpisodeSupportGuide(
       user.accessToken,
-      journey.episodeId,
+      episodeId,
       correlationId,
     )
     return carryCareSession(careSuccessResponse(guide, correlationId), user)

@@ -18,6 +18,7 @@ import SupportGuideCard, {
   type SupportGuideScorePair,
 } from './SupportGuideCard'
 import { guideContinuation, isCurrentJourneyGuide } from './guided-continuation'
+import { useCurrentPlanReviewDue } from './useCurrentPlanReviewDue'
 import { loadGuideMeaning, loadGuideScores } from './load-guide-scores'
 import type { CombinedScreeningMeaning } from '@/features/assessment/api/care-contract'
 
@@ -52,6 +53,7 @@ export default function SupportGuideJourney({
   const [error, setError] = useState<string>()
   const [journey, setJourney] = useState<GuidedJourney | null>(null)
   const [journeyFailed, setJourneyFailed] = useState(false)
+  const planReviewDue = useCurrentPlanReviewDue(journey)
 
   const [meaning, setMeaning] = useState<CombinedScreeningMeaning | null>(null)
   const [journeyRetrying, setJourneyRetrying] = useState(false)
@@ -259,7 +261,7 @@ export default function SupportGuideJourney({
                 showOpenLink={!supportGuideId}
                 continuation={
                   guide === currentGuide && journey
-                    ? guideContinuation(journey, guide)
+                    ? guideContinuation(journey, guide, planReviewDue)
                     : readOnly
                       ? undefined
                       : null
