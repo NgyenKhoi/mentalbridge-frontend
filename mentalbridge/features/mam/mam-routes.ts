@@ -10,7 +10,6 @@ const FULL_ROUTES = [
   /^\/dashboard$/,
   /^\/achievements$/,
   /^\/resources$/,
-  /^\/analytics$/,
   /^\/nhin-lai$/,
 ]
 

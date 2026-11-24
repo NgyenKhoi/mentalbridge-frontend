@@ -51,7 +51,7 @@ test.describe('reassessment review', () => {
   })
 
   for (const width of widths) {
-    test(`flow step 3, step 4 review and the Nhìn lại tab at ${width}`, async ({
+    test(`flow step 3 and the step 4 chapter at ${width}`, async ({
       page,
     }, testInfo) => {
       await page.setViewportSize({ width, height: 900 })
@@ -66,16 +66,13 @@ test.describe('reassessment review', () => {
       await expectNoHorizontalOverflow(page)
       await shot(page, testInfo, `after-flow-step3-${width}`, true)
 
-      // Step 4: the review, never a plan.
+      // Step 4: the chapter just closed, never a plan.
       await page.getByRole('button', { name: /Xem nhìn lại 14 ngày/ }).click()
       await expect(
-        page.getByRole('heading', { level: 2, name: 'Nhìn lại 14 ngày' }),
+        page.getByRole('heading', { level: 2, name: 'Chặng 1 vừa khép lại' }),
       ).toBeVisible()
       await expect(
-        page.getByRole('heading', { name: 'Mức độ sàng lọc' }),
-      ).toBeVisible()
-      await expect(
-        page.getByRole('heading', { name: 'Điều bạn viết trong nhật ký' }),
+        page.getByRole('heading', { name: 'Kết quả tự đánh giá' }),
       ).toBeVisible()
       await expect(
         page.getByRole('heading', { name: 'Cảm xúc hằng ngày' }),
@@ -84,7 +81,6 @@ test.describe('reassessment review', () => {
         page.getByRole('heading', { name: 'Việc đã làm' }),
       ).toBeVisible()
       await expect(page.getByText('Thở chậm')).toBeVisible()
-      await expect(page.getByText('— bạn ghi')).toBeVisible()
       await expect(page.getByText(/bài sàng lọc đầu tiên/)).toHaveCount(0)
       await expect(
         page.getByRole('link', { name: 'Xem lại kế hoạch' }),
@@ -95,101 +91,8 @@ test.describe('reassessment review', () => {
       await page.waitForTimeout(200)
       await shot(page, testInfo, `after-flow-step4-scrolled-${width}`)
       await shot(page, testInfo, `after-flow-step4-full-${width}`, true)
-
-      // The same review lives in the assessments tab, with the earlier ones listed below it.
-      await page.goto('/assessments?tab=reassessment')
-      await expect(page.getByRole('tab', { name: 'Nhìn lại' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      )
-      const panel = page.getByRole('tabpanel', { name: 'Nhìn lại' })
-      await expect(
-        panel.getByRole('heading', { level: 2, name: 'Nhìn lại 14 ngày' }),
-      ).toBeVisible()
-      await expect(
-        panel.getByRole('heading', { name: 'Các lần nhìn lại trước' }),
-      ).toBeVisible()
-      // The shell's flex-basis on the heading must not turn into an empty gap in the stacked mobile header.
-      if (width <= 720)
-        expect(
-          (await page
-            .locator('[data-user-page-heading]')
-            .first()
-            .boundingBox())!.height,
-        ).toBeLessThan(160)
-      await expectNoHorizontalOverflow(page)
-      await shot(page, testInfo, `after-assessments-review-first-view-${width}`)
-      await page.mouse.wheel(0, 900)
-      await page.waitForTimeout(200)
-      await shot(page, testInfo, `after-assessments-review-scrolled-${width}`)
-      await shot(page, testInfo, `after-assessments-review-full-${width}`, true)
-
-      await panel.locator('.rr-history-row').first().click()
-      await expect(
-        panel.getByRole('button', { name: 'Quay lại lần nhìn lại mới nhất' }),
-      ).toBeVisible()
     })
   }
-})
-
-test.describe('reassessment review: consent missing', () => {
-  test.use({ timezoneId: 'Asia/Ho_Chi_Minh' })
-
-  test('every section renders and the journal section asks for consent at 1440', async ({
-    context,
-    page,
-  }, testInfo) => {
-    await context.addCookies([
-      {
-        name: accessCookie,
-        value: 'synthetic-mb273-e2e-access',
-        url: 'http://127.0.0.1:3100',
-        httpOnly: true,
-        sameSite: 'Lax',
-      },
-    ])
-    await page.emulateMedia({ reducedMotion: 'reduce' })
-    await installMocks(page)
-    const noConsent = makeSummary({
-      journalContext: {
-        ...makeSummary().journalContext,
-        state: 'UNAVAILABLE',
-        unavailableReason: 'CONSENT_REQUIRED',
-        jobId: null,
-        analysisId: null,
-        changesComparedWithPreviousPeriod: [],
-        recurringThemes: [],
-        helpfulPatterns: [],
-        dataCoverage: null,
-      },
-    })
-    await page.route('**/api/care/reassessment-summaries/list**', (route) =>
-      route.fulfill(
-        json({ items: [noConsent], nextCursor: null, hasMore: false }),
-      ),
-    )
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto('/assessments?tab=reassessment')
-    await expect(
-      page.getByText('Bật quyền cho AI đọc nhật ký để thấy phần này.'),
-    ).toBeVisible()
-    await expect(
-      page.getByRole('link', { name: 'Mở quyền riêng tư' }),
-    ).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Mức độ sàng lọc' }),
-    ).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Việc đã làm' }),
-    ).toBeVisible()
-    await expectNoHorizontalOverflow(page)
-    await shot(
-      page,
-      testInfo,
-      'after-assessments-review-consent-missing-1440',
-      true,
-    )
-  })
 })
 
 test.describe('Home after a reassessment', () => {
@@ -264,7 +167,7 @@ test.describe('Home after a reassessment', () => {
       await page.goto('/dashboard')
       await expect(
         page.getByRole('link', { name: /Nhìn lại 14 ngày vừa qua/ }),
-      ).toHaveAttribute('href', '/assessments?tab=reassessment')
+      ).toHaveAttribute('href', '/nhin-lai')
       await expect.poll(() => requested).toContain(reassessmentId)
       await expect(
         page.getByRole('heading', { name: 'Nên tìm hỗ trợ chuyên môn' }),

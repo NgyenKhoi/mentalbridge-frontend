@@ -92,6 +92,7 @@ export default function AdjustPanel({
           onApplied={onApplied}
           onDiscardDraft={onDiscardDraft}
           onRefreshPlan={onRefreshPlan}
+          onProposeReplacement={onProposeReplacement}
         />
       )}
     </Disclosure>

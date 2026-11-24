@@ -23,7 +23,7 @@ import {
 
 const resourceId = homeResourceDetails()[0]!.id
 // `/resources` is FULL too; it needs the plan-and-resources fixtures, so the welcome test walks it.
-const FULL = ['/dashboard', '/achievements', '/analytics']
+const FULL = ['/dashboard', '/achievements']
 const QUIET = [
   '/journal',
   '/ai-companion',
