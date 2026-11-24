@@ -308,6 +308,72 @@ describe('/api/look-back', () => {
       expect(body.partial).toBe(false)
     })
 
+    // 27/10 to 9/11 local: inside the 30-day test dashboard (24/10 to 22/11).
+    const inside = makeSummary({
+      summaryId: 'sum-in',
+      composedAt: '2026-11-10T00:00:00+07:00',
+      currentPeriod: {
+        startAt: '2026-10-27T00:00:00+07:00',
+        endAt: '2026-11-10T00:00:00+07:00',
+      },
+    })
+    const withChapter = () =>
+      care.reassessmentSummaryHistory.mockResolvedValue({
+        items: [inside],
+        nextCursor: null,
+        hasMore: false,
+      })
+    const dates = (body: { days: { localDate: string }[] }) =>
+      body.days.map((day) => day.localDate)
+
+    it('opens the newest closed chapter with its own days and summary screening when no cycle runs', async () => {
+      withChapter()
+      const body = await (await GET(request())).json()
+      expect(body.startLocalDate).toBe('2026-10-27')
+      expect(body.asOfLocalDate).toBe('2026-11-09')
+      expect(dates(body)).toHaveLength(14)
+      // The chapter's summary, not the latest assessments (a-new / a-old).
+      expect(body.screening).toMatchObject([
+        {
+          instrument: 'PHQ9',
+          direction: 'LOWER',
+          previous: { level: 'MODERATE', score: 14 },
+          current: { level: 'MILD', score: 8 },
+        },
+        { instrument: 'GAD7', direction: 'LOWER' },
+      ])
+      expect(body.conversations).toEqual([])
+    })
+
+    it('looks at a chapter asked for by from and to', async () => {
+      withChapter()
+      plans.current.mockResolvedValue({ supportPlanId: 'p1', cycle })
+      const body = await (
+        await GET(
+          request('timezone=Asia%2FHo_Chi_Minh&from=2026-10-27&to=2026-11-09'),
+        )
+      ).json()
+      expect(body.startLocalDate).toBe('2026-10-27')
+      expect(body.asOfLocalDate).toBe('2026-11-09')
+      expect(body.journey.running.number).toBe(2)
+      expect(body.screening[0].current.score).toBe(8)
+    })
+
+    it('composes an arbitrary valid window with the screening read from the assessments', async () => {
+      const body = await (
+        await GET(
+          request('timezone=Asia%2FHo_Chi_Minh&from=2026-11-10&to=2026-11-14'),
+        )
+      ).json()
+      expect(dates(body)).toEqual([
+        '2026-11-10',
+        '2026-11-11',
+        '2026-11-12',
+        '2026-11-13',
+        '2026-11-14',
+      ])
+    })
+
     it('has no running chapter without a plan, and is not partial for it', async () => {
       const body = await (await GET(request())).json()
       expect(body.journey).toMatchObject({ chapters: [], running: null })
@@ -353,6 +419,45 @@ describe('/api/look-back', () => {
     expect(response.status).toBe(401)
     expect(care.activityDashboard).not.toHaveBeenCalled()
     expect(companion.list).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'from=2026-11-10',
+    'to=2026-11-14',
+    'from=2026-11-14&to=2026-11-10',
+    'from=2026-11-31&to=2026-12-02',
+    'from=11-10-2026&to=2026-11-14',
+    'from=2026-10-24&to=2026-11-24',
+    'from=2026-11-10&from=2026-11-11&to=2026-11-14',
+  ])(
+    'rejects the bad chapter window %s before authentication',
+    async (window) => {
+      const response = await GET(request(`timezone=UTC&${window}`))
+      expect(response.status).toBe(400)
+      expect(auth.authenticate).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([
+    // before the first day of the 90-day activity window (here 24/10)
+    'from=2026-10-01&to=2026-10-14',
+    // after today (22/11)
+    'from=2026-11-20&to=2026-11-25',
+  ])('rejects the window %s outside the activity days', async (window) => {
+    const response = await GET(request(`timezone=Asia%2FHo_Chi_Minh&${window}`))
+    expect(response.status).toBe(400)
+  })
+
+  it('accepts a window as wide as the activity days', async () => {
+    const response = await GET(
+      request(
+        'timezone=Asia%2FHo_Chi_Minh&from=2026-10-24&to=2026-11-23'.replace(
+          '11-23',
+          '11-22',
+        ),
+      ),
+    )
+    expect(response.status).toBe(200)
   })
 
   it.each([

@@ -10,7 +10,7 @@ import type {
 } from '@/features/assessment/api/care-contract'
 import type { CompanionConversationSummary } from '@/lib/companion/companion-contract'
 
-import type { LookBackJourney } from './look-back-chapters'
+import type { ChapterScreening, LookBackJourney } from './look-back-chapters'
 
 export const WINDOW_DAYS = 14
 export const MIN_RECORD_DAYS = 5
@@ -35,12 +35,17 @@ export type LookBackWeek = Readonly<{
 
 export type LookBackScreening = Readonly<{
   instrument: Instrument
+  // localDate is null on a chapter's own summary: it carries the bands and scores, not the screening days.
   previous: Readonly<{
     level: ScreeningLevel
     score: number
-    localDate: string
+    localDate: string | null
   }>
-  current: Readonly<{ level: ScreeningLevel; score: number; localDate: string }>
+  current: Readonly<{
+    level: ScreeningLevel
+    score: number
+    localDate: string | null
+  }>
   direction: 'LOWER' | 'SAME' | 'HIGHER'
 }>
 
@@ -99,12 +104,11 @@ export function narrativeFor(
   return 'STEADY'
 }
 
-/** The narrative of the last 14 days; the page and the Home card share it so the card never opens an empty page. */
-export function narrativeOfDashboard(
-  dashboard: ActivityDashboard,
+function narrativeOfDays(
+  days: readonly ActivityDashboardDay[],
+  sources: ActivityDashboard['sources'],
 ): LookBackNarrative {
-  if (dashboard.sources.emotions === 'unavailable') return 'UNKNOWN'
-  const days = dashboard.daily.slice(-WINDOW_DAYS)
+  if (sources.emotions === 'unavailable') return 'UNKNOWN'
   const mean = (part: typeof days) =>
     average(
       part.flatMap((day) =>
@@ -117,6 +121,10 @@ export function narrativeOfDashboard(
     mean(days.slice(7)),
   )
 }
+
+/** The narrative of the last 14 days; the page and the Home card share it so the card never opens an empty page. */
+export const narrativeOfDashboard = (dashboard: ActivityDashboard) =>
+  narrativeOfDays(dashboard.daily.slice(-WINDOW_DAYS), dashboard.sources)
 
 export function validTimezone(value: string | null): value is string {
   if (!value || value.length > 64) return false
@@ -248,6 +256,49 @@ function screeningFrom(
   }
 }
 
+/**
+ * The days a look-back covers: a chapter's own days (`from`..`to`), a running chapter's days so far, or the last 14.
+ * shortcut: a legacy chapter longer than 14 days shows its last 14, the road has room for two weeks; upgrade with a longer road.
+ */
+export function windowDays(
+  daily: readonly ActivityDashboardDay[],
+  from?: string,
+  to?: string,
+) {
+  const recent = daily.slice(-WINDOW_DAYS)
+  if (to) {
+    const days = daily
+      .filter((day) => day.localDate >= (from ?? '') && day.localDate <= to)
+      .slice(-WINDOW_DAYS)
+    return days.length > 0 ? days : recent
+  }
+  const inChapter = from
+    ? recent.filter((day) => day.localDate >= from)
+    : recent
+  return inChapter.length > 0 ? inChapter : recent
+}
+
+const fromChapterScreening = (
+  items: readonly ChapterScreening[],
+): LookBackScreening[] =>
+  items.flatMap((item) =>
+    item.previous && item.direction !== 'INSUFFICIENT_DATA'
+      ? [
+          {
+            instrument: item.instrument,
+            previous: { ...item.previous, localDate: null },
+            current: { ...item.current, localDate: null },
+            direction:
+              item.direction === 'DECREASED'
+                ? ('LOWER' as const)
+                : item.direction === 'INCREASED'
+                  ? ('HIGHER' as const)
+                  : ('SAME' as const),
+          },
+        ]
+      : [],
+  )
+
 export function composeLookBack({
   dashboard,
   conversations,
@@ -257,6 +308,8 @@ export function composeLookBack({
   degraded,
   journey = null,
   fromLocalDate,
+  toLocalDate,
+  chapterScreening,
 }: Readonly<{
   dashboard: ActivityDashboard
   conversations: readonly CompanionConversationSummary[] | null
@@ -269,23 +322,27 @@ export function composeLookBack({
   journey?: LookBackJourney | null
   /** A running chapter looks back over its own days so far, never past the rolling 14. */
   fromLocalDate?: string
+  /** A closed chapter's last day; with it the window is that chapter's, not "up to today". */
+  toLocalDate?: string
+  /** A closed chapter's own screening (previous to current) replaces the one read from the latest assessments. */
+  chapterScreening?: readonly ChapterScreening[]
 }>): LookBack {
-  const recent = dashboard.daily.slice(-WINDOW_DAYS)
-  const inChapter = fromLocalDate
-    ? recent.filter((day) => day.localDate >= fromLocalDate)
-    : recent
-  const days = inChapter.length > 0 ? inChapter : recent
+  const days = windowDays(dashboard.daily, fromLocalDate, toLocalDate)
   const start = days[0].localDate
-  const asOf = dashboard.asOfLocalDate
+  const asOf = toLocalDate ?? dashboard.asOfLocalDate
   const weeks = [
     week(days.slice(0, 7), dashboard.sources),
     week(days.slice(7), dashboard.sources),
   ] as const
   const recordDays = days.filter((day) => day.total > 0).length
-  const narrative = narrativeOfDashboard(dashboard)
-  const screening = progress
-    .map((item) => screeningFrom(item, { start, asOf }, dashboard.timezone))
-    .filter((item): item is LookBackScreening => item !== null)
+  const narrative = toLocalDate
+    ? narrativeOfDays(days, dashboard.sources)
+    : narrativeOfDashboard(dashboard)
+  const screening = chapterScreening
+    ? fromChapterScreening(chapterScreening)
+    : progress
+        .map((item) => screeningFrom(item, { start, asOf }, dashboard.timezone))
+        .filter((item): item is LookBackScreening => item !== null)
   const professionalPointer =
     screening.some((item) => isModerateOrAbove(item.current.level)) ||
     latestLevels.some(isModerateOrAbove)

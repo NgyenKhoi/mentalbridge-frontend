@@ -12,6 +12,7 @@ import {
   latestScreeningLevels,
   narrativeFor,
   narrativeOfDashboard,
+  windowDays,
 } from './look-back-model'
 
 const moods = (first: number, second: number) => [
@@ -334,5 +335,99 @@ describe('the latest band, with or without something to compare', () => {
       latestLevels: ['MILD'],
     })
     expect(view.professionalPointer).toBe(false)
+  })
+
+  describe('a chặng window', () => {
+    // The fixture's 30 days end on asOf: 24/10 to 22/11, moods only in the last 14 (9/11 to 22/11).
+    const dashboard = makeDashboard(moods(2, 4))
+
+    it('looks at the chặng days, not the last 14', () => {
+      const view = composeLookBack({
+        dashboard,
+        ...base,
+        fromLocalDate: '2026-11-09',
+        toLocalDate: '2026-11-15',
+      })
+      expect(view.startLocalDate).toBe('2026-11-09')
+      expect(view.asOfLocalDate).toBe('2026-11-15')
+      expect(view.days).toHaveLength(7)
+      // Only the first week of the fixture's moods falls in it.
+      expect(view.weeks[0].moodAverage).toBe(2)
+      expect(view.weeks[1].moodAverage).toBeNull()
+    })
+
+    it('reads the narrative of the window, not of the last 14 days', () => {
+      expect(narrativeOfDashboard(dashboard)).toBe('IMPROVING')
+      const early = composeLookBack({
+        dashboard,
+        ...base,
+        fromLocalDate: '2026-10-25',
+        toLocalDate: '2026-11-07',
+      })
+      expect(early.narrative).toBe('SPARSE')
+    })
+
+    it('keeps only conversations that fall inside the window', () => {
+      const view = composeLookBack({
+        dashboard,
+        conversations: [
+          conversation('in', 'Trong', '2026-11-10T09:00:00+07:00'),
+          conversation('out', 'Ngoài', '2026-11-20T09:00:00+07:00'),
+        ],
+        progress: [],
+        degraded: false,
+        fromLocalDate: '2026-11-09',
+        toLocalDate: '2026-11-15',
+      })
+      expect(view.conversations?.map((item) => item.id)).toEqual(['in'])
+    })
+
+    it('uses the summary screening of the chặng, with no screening days, and points to a professional on a moderate band', () => {
+      const view = composeLookBack({
+        dashboard,
+        ...base,
+        fromLocalDate: '2026-11-09',
+        toLocalDate: '2026-11-15',
+        chapterScreening: [
+          {
+            instrument: 'PHQ9',
+            previous: { instrument: 'PHQ9', level: 'MILD', score: 6 },
+            current: { instrument: 'PHQ9', level: 'MODERATE', score: 11 },
+            direction: 'INCREASED',
+          },
+          {
+            instrument: 'GAD7',
+            previous: null,
+            current: { instrument: 'GAD7', level: 'MILD', score: 6 },
+            direction: 'INSUFFICIENT_DATA',
+          },
+        ],
+      })
+      expect(view.screening).toEqual([
+        {
+          instrument: 'PHQ9',
+          previous: {
+            instrument: 'PHQ9',
+            level: 'MILD',
+            score: 6,
+            localDate: null,
+          },
+          current: {
+            instrument: 'PHQ9',
+            level: 'MODERATE',
+            score: 11,
+            localDate: null,
+          },
+          direction: 'HIGHER',
+        },
+      ])
+      expect(view.professionalPointer).toBe(true)
+    })
+
+    it('windowDays keeps the last 14 days of a longer chặng', () => {
+      const days = windowDays(dashboard.daily, '2026-10-24', '2026-11-22')
+      expect(days).toHaveLength(14)
+      expect(days[0].localDate).toBe('2026-11-09')
+    })
   })
 })

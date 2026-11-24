@@ -3,11 +3,13 @@
 import { ArrowRight, Heart, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import {
+  Fragment,
   useEffect,
   useId,
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent,
   type Ref,
 } from 'react'
 
@@ -15,11 +17,15 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { levelLabels } from '@/features/assessment/components/assessment-meanings'
 
 import { getLookBack } from './browser-look-back'
-import { ChapterList } from './ChapterList'
 import { JourneyStrip } from './JourneyStrip'
-import { hasHardNews } from './look-back-chapters'
-import { useResourceTitles } from './use-resource-titles'
 import {
+  defaultClosedChapter,
+  hasHardNews,
+  pickableChapters,
+  type LookBackJourney,
+} from './look-back-chapters'
+import {
+  dateRange,
   dayMonth,
   dimensionLabel,
   moodLabel,
@@ -216,8 +222,10 @@ function Screening({ data }: Readonly<{ data: LookBack }>) {
           {data.screening.map((item) => (
             <li key={item.instrument}>
               {dimensionLabel[item.instrument].name}: {item.previous.score} →{' '}
-              {item.current.score} điểm ({dayMonth(item.previous.localDate)} →{' '}
-              {dayMonth(item.current.localDate)})
+              {item.current.score} điểm
+              {item.previous.localDate && item.current.localDate
+                ? ` (${dayMonth(item.previous.localDate)} → ${dayMonth(item.current.localDate)})`
+                : ''}
             </li>
           ))}
         </ul>
@@ -322,67 +330,208 @@ function WindowHead({
   )
 }
 
+const RUNNING = 'running'
+
+type Tab = Readonly<{ id: string; name: string; sub: string }>
+
+/** One tab per chặng, oldest left; manual activation (arrows move focus, Enter or Space picks) so arrowing never fetches. */
+function ChapterTabs({
+  tabs,
+  active,
+  panelId,
+  onSelect,
+}: Readonly<{
+  tabs: readonly Tab[]
+  active: string | null
+  panelId: string
+  onSelect: (id: string) => void
+}>) {
+  const list = useRef<HTMLDivElement>(null)
+  const move = (event: KeyboardEvent<HTMLDivElement>) => {
+    const buttons = [
+      ...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]'),
+    ]
+    const at = buttons.indexOf(document.activeElement as HTMLButtonElement)
+    const target = {
+      ArrowRight: (at + 1) % buttons.length,
+      ArrowLeft: (at - 1 + buttons.length) % buttons.length,
+      Home: 0,
+      End: buttons.length - 1,
+    }[event.key]
+    if (at < 0 || target === undefined) return
+    event.preventDefault()
+    buttons[target].focus()
+  }
+  // The chosen chặng may sit off-screen in the scroll row (375px): bring it to the middle once.
+  useEffect(() => {
+    const row = list.current
+    const tab = row?.querySelector<HTMLElement>('[aria-selected=true]')
+    if (row && tab)
+      row.scrollTo?.({
+        left: tab.offsetLeft - (row.clientWidth - tab.offsetWidth) / 2,
+      })
+  }, [])
+  return (
+    <div
+      ref={list}
+      className={`${styles.chapterTabs} ${styles.rise}`}
+      style={rise(80)}
+      role="tablist"
+      aria-label="Chọn chặng"
+      onKeyDown={move}
+    >
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          id={`${panelId}-${tab.id}`}
+          type="button"
+          role="tab"
+          className={styles.chapterTab}
+          aria-selected={tab.id === active}
+          aria-controls={panelId}
+          tabIndex={tab.id === active ? 0 : -1}
+          onClick={() => onSelect(tab.id)}
+        >
+          <strong>{tab.name}</strong>
+          <small>{tab.sub}</small>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ErrorBlock({ onRetry }: Readonly<{ onRetry: () => void }>) {
+  const errorId = useId()
+  return (
+    <section className={styles.block} aria-labelledby={errorId}>
+      <h2 id={errorId} className={styles.h2}>
+        Chưa tải được phần nhìn lại
+      </h2>
+      <p className={styles.lead} role="alert">
+        Bạn thử lại sau một chút nhé.
+      </p>
+      <button type="button" className={styles.primary} onClick={onRetry}>
+        Thử lại
+      </button>
+    </section>
+  )
+}
+
 function Ready({
+  journey,
   data,
-  titles,
-}: Readonly<{ data: LookBack; titles: ReadonlyMap<string, string> }>) {
-  const journey = data.journey
-  const chapters = journey?.chapters ?? []
+  phase,
+  active,
+  onSelect,
+  onRetry,
+}: Readonly<{
+  journey: LookBackJourney | null
+  /** The look-back of the chặng being shown; null while it loads or failed. */
+  data: LookBack | null
+  phase: State['phase']
+  active: string | null
+  onSelect: (id: string) => void
+  onRetry: () => void
+}>) {
+  const panelId = useId()
+  const chapters = pickableChapters(journey)
   const running = journey?.running
-  const closed = journey?.closedAwaitingChoice ? chapters.at(-1) : undefined
-  // The rolling view shows its own specialist pointer beside a screening it carries.
-  const rollingPointer =
-    !closed && data.screening.length > 0 && data.professionalPointer
+  const closed = journey?.closedAwaitingChoice
+    ? journey.chapters.at(-1)
+    : undefined
+  const chapter = chapters.find((item) => item.summaryId === active)
+  const tabs: Tab[] = [
+    ...chapters.map((item) => ({
+      id: item.summaryId,
+      name: `Chặng ${item.number}`,
+      sub: dateRange(item.startLocalDate, item.endLocalDate),
+    })),
+    ...(running
+      ? [{ id: RUNNING, name: `Chặng ${running.number}`, sub: 'đang diễn ra' }]
+      : []),
+  ]
+  const runningActive = running && active === RUNNING
+  const pending = closed
+    ? { label: 'Chọn nhịp tiếp theo', href: '/support-plan?review=open' }
+    : running?.state === 'REVIEW_DUE'
+      ? {
+          label: 'Làm bài đánh giá lại',
+          href: '/initial-check?purpose=reassessment',
+        }
+      : undefined
   return (
     <>
-      {closed ? (
+      {closed && (
         <section
-          className={`${styles.block} ${styles.rise}`}
-          style={rise(100)}
+          className={`${styles.closedBanner} ${styles.rise}`}
+          style={rise(60)}
           aria-labelledby="look-back-closed"
         >
-          <h2 id="look-back-closed" className={styles.h2}>
-            Chặng {closed.number} đã khép lại
-          </h2>
-          <p className={styles.lead}>
-            Chọn nhịp cho kế hoạch tiếp theo để mở chặng {closed.number + 1}.
-          </p>
-          <Link
-            className={`${styles.primary} ${styles.fit}`}
-            href="/support-plan?review=open"
-          >
-            Chọn nhịp tiếp theo <ArrowRight aria-hidden="true" size={18} />
-          </Link>
+          <div>
+            <h2 id="look-back-closed" className={styles.bannerTitle}>
+              Chặng {closed.number} đã khép lại
+            </h2>
+            <p className={styles.bannerLead}>
+              Chọn nhịp cho kế hoạch tiếp theo để mở chặng {closed.number + 1}.
+            </p>
+          </div>
         </section>
-      ) : (
-        <>
-          <WindowHead
-            data={data}
-            title={
-              running
-                ? `Chặng ${running.number} · ngày ${running.currentDay}/${running.lengthDays}`
-                : '14 ngày gần đây'
-            }
-            note={running?.state === 'PAUSED' ? 'đang tạm dừng' : undefined}
-            action={
-              running?.state === 'REVIEW_DUE'
-                ? {
-                    label: 'Làm bài đánh giá lại để khép chặng này',
-                    href: '/initial-check?purpose=reassessment',
-                  }
-                : undefined
-            }
-          />
-          <Window data={data} />
-        </>
       )}
-      {journey && chapters.length > 0 && <JourneyStrip journey={journey} />}
-      {chapters.length > 0 && (
-        <ChapterList
-          chapters={chapters}
-          titles={titles}
-          pointer={!rollingPointer}
+      {tabs.length > 0 && (
+        <ChapterTabs
+          tabs={tabs}
+          active={active}
+          panelId={panelId}
+          onSelect={onSelect}
         />
+      )}
+      <div
+        id={panelId}
+        className={styles.panel}
+        role={tabs.length > 0 ? 'tabpanel' : undefined}
+        aria-labelledby={
+          tabs.length > 0 && active ? `${panelId}-${active}` : undefined
+        }
+        aria-busy={phase === 'loading'}
+      >
+        {phase === 'loading' ? (
+          <Loading />
+        ) : phase === 'error' || !data ? (
+          <ErrorBlock onRetry={onRetry} />
+        ) : (
+          // Keyed by chặng: the road and its week tabs start over for the chặng picked.
+          <Fragment key={active ?? 'rolling'}>
+            <WindowHead
+              data={data}
+              title={
+                runningActive
+                  ? `Chặng ${running.number} · ngày ${running.currentDay}/${running.lengthDays}`
+                  : chapter
+                    ? `Chặng ${chapter.number}`
+                    : '14 ngày gần đây'
+              }
+              note={
+                runningActive && running.state === 'PAUSED'
+                  ? 'đang tạm dừng'
+                  : chapter
+                    ? 'đã khép lại'
+                    : undefined
+              }
+              action={
+                runningActive && running.state === 'REVIEW_DUE'
+                  ? {
+                      label: 'Làm bài đánh giá lại để khép chặng này',
+                      href: '/initial-check?purpose=reassessment',
+                    }
+                  : undefined
+              }
+            />
+            <Window data={data} pending={pending} />
+          </Fragment>
+        )}
+      </div>
+      {journey && journey.chapters.length > 0 && (
+        <JourneyStrip journey={journey} />
       )}
       <p className={styles.note}>
         Số liệu do bạn tự ghi lại; xu hướng không phải chẩn đoán.
@@ -391,8 +540,15 @@ function Ready({
   )
 }
 
-function Window({ data }: Readonly<{ data: LookBack }>) {
-  const next = nextStepAction[data.nextStep]
+function Window({
+  data,
+  pending,
+}: Readonly<{
+  data: LookBack
+  /** A step the cycle is waiting for outranks the generic next step. */
+  pending?: { label: string; href: string }
+}>) {
+  const next = pending ?? nextStepAction[data.nextStep]
   const narrative = data.narrative
   // Mood-based sections need a readable, non-sparse mood; the screening result does not.
   const hasMood = narrative !== 'SPARSE' && narrative !== 'UNKNOWN'
@@ -510,24 +666,33 @@ function Loading() {
   )
 }
 
+type Selection = Readonly<{ id: string; from: string; to: string }>
+
 export function LookBackPage() {
   const [state, setState] = useState<State>({ phase: 'loading' })
   const [attempt, setAttempt] = useState(0)
-  const errorId = useId()
+  // null = the default view the first load returned; otherwise another closed chặng, fetched by its dates.
+  const [selection, setSelection] = useState<Selection | null>(null)
+  const [other, setOther] = useState<State>({ phase: 'loading' })
+  const [otherAttempt, setOtherAttempt] = useState(0)
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const journey = state.phase === 'ready' ? state.data.journey : null
+  const shown = selection ? other : state
+  const data = shown.phase === 'ready' ? shown.data : null
+  // The chặng on screen: the picked one, else the running one, else the newest closed (what the first load shows).
+  const defaultId = journey?.running
+    ? RUNNING
+    : (defaultClosedChapter(journey)?.summaryId ?? null)
+  const active = selection?.id ?? defaultId
   // No celebration, queued award or welcome while loading or beside hard news (host gates honour this zone).
-  const newest =
-    state.phase === 'ready' ? state.data.journey?.chapters.at(-1) : undefined
+  const newest = journey?.chapters.at(-1)
+  const looked = journey?.chapters.find((item) => item.summaryId === active)
   useMamSuppress(
-    state.phase !== 'ready' ||
-      state.data.professionalPointer ||
-      state.data.narrative === 'HARDER' ||
-      (newest !== undefined && hasHardNews(newest)),
-  )
-  const titles = useResourceTitles(
-    state.phase === 'ready' &&
-      (state.data.journey?.chapters.some((c) => c.reflections.length > 0) ??
-        false),
+    data === null ||
+      data.professionalPointer ||
+      data.narrative === 'HARDER' ||
+      (newest !== undefined && hasHardNews(newest)) ||
+      (looked !== undefined && hasHardNews(looked)),
   )
   // After "Thử lại" the button disappears: keep focus on the page title.
   useEffect(() => {
@@ -545,39 +710,66 @@ export function LookBackPage() {
     return () => controller.abort()
   }, [attempt])
 
+  useEffect(() => {
+    if (!selection) return
+    const controller = new AbortController()
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    getLookBack(timezone, controller.signal, {
+      from: selection.from,
+      to: selection.to,
+    })
+      .then((data) => setOther({ phase: 'ready', data }))
+      .catch(() => {
+        if (!controller.signal.aborted) setOther({ phase: 'error' })
+      })
+    return () => controller.abort()
+  }, [selection, otherAttempt])
+
+  const select = (id: string) => {
+    if (id === active) return
+    const chapter = pickableChapters(journey).find(
+      (item) => item.summaryId === id,
+    )
+    // The default chặng is already loaded; any other is fetched by its own dates.
+    if (id === defaultId || !chapter) return setSelection(null)
+    setOther({ phase: 'loading' })
+    setSelection({
+      id,
+      from: chapter.startLocalDate,
+      to: chapter.endLocalDate,
+    })
+  }
+
   return (
     // The page owns its entrance (it plays when the data arrives), so the shell's page entrance stays off.
     <div
       className={styles.page}
-      aria-busy={state.phase === 'loading'}
+      aria-busy={shown.phase === 'loading'}
       data-page-motion="off"
     >
       <Header headingRef={headingRef} />
       {state.phase === 'loading' ? (
         <Loading />
       ) : state.phase === 'error' ? (
-        <>
-          <section className={styles.block} aria-labelledby={errorId}>
-            <h2 id={errorId} className={styles.h2}>
-              Chưa tải được phần nhìn lại
-            </h2>
-            <p className={styles.lead} role="alert">
-              Bạn thử lại sau một chút nhé.
-            </p>
-            <button
-              type="button"
-              className={styles.primary}
-              onClick={() => {
-                setState({ phase: 'loading' })
-                setAttempt((value) => value + 1)
-              }}
-            >
-              Thử lại
-            </button>
-          </section>
-        </>
+        <ErrorBlock
+          onRetry={() => {
+            setState({ phase: 'loading' })
+            setSelection(null)
+            setAttempt((value) => value + 1)
+          }}
+        />
       ) : (
-        <Ready data={state.data} titles={titles} />
+        <Ready
+          journey={state.data.journey}
+          data={data}
+          phase={shown.phase}
+          active={active}
+          onSelect={select}
+          onRetry={() => {
+            setOther({ phase: 'loading' })
+            setOtherAttempt((value) => value + 1)
+          }}
+        />
       )}
     </div>
   )

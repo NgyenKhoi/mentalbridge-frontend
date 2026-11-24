@@ -269,3 +269,11 @@ export const hasHardNews = (chapter: LookBackChapter) =>
       (item.previous !== null &&
         levelRank(item.current.level) > levelRank(item.previous.level)),
   )
+
+/** Chapters whose days the activity window still holds; only those can be looked at on their own. */
+export const pickableChapters = (journey: LookBackJourney | null) =>
+  journey?.chapters.filter((chapter) => chapter.days !== null) ?? []
+
+/** The chapter shown first with no running one (a closed cycle waiting for the choice, or no cycle): the newest closed. */
+export const defaultClosedChapter = (journey: LookBackJourney | null) =>
+  journey && !journey.running ? pickableChapters(journey).at(-1) : undefined
