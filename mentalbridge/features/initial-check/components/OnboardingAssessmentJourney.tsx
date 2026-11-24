@@ -1518,7 +1518,7 @@ export default function OnboardingAssessmentJourney({
           <div className="oj-container-narrow">
             <div className="oj-top-indicator">
               <span className="oj-step-counter">
-                Bước 4/4: Nhìn lại 14 ngày
+                Bước 4/4: Nhìn lại chặng vừa qua
               </span>
               <div className="oj-step-info-right">
                 <div className="oj-progress-pill">
@@ -1528,7 +1528,6 @@ export default function OnboardingAssessmentJourney({
               </div>
             </div>
             <ReassessmentReview
-              variant="flow"
               planReview={planReview}
               footer={
                 planReview || planState === 'known' ? (

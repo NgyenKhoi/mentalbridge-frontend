@@ -11,7 +11,7 @@ import { test } from './test-fixtures'
 
 // MB-897: Mầm's daily trajectory and verified events, against the built app with the real v0.8 asset. The look-back
 // series is the user's own check-ins (mocked per state); automated browsers get no welcome, so nothing but the
-// trajectory moment plays here. `/analytics` is a FULL route with no page action under the dock.
+// trajectory moment plays here. `/achievements` is a FULL route with no page action under the dock.
 
 const today = () =>
   new Intl.DateTimeFormat('en-CA', {
@@ -66,7 +66,7 @@ async function open(
     partial?: boolean
     moderatePlus?: boolean
   },
-  { path = '/analytics', width = 1440 } = {},
+  { path = '/achievements', width = 1440 } = {},
 ) {
   await installHomeMocks(page, homeWorld('do-today'))
   const reads = { count: 0 }

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const api = vi.hoisted(() => ({
@@ -59,65 +59,40 @@ describe('ReassessmentReview', () => {
   afterEach(() => vi.useRealTimers())
 
   it('shows a skeleton first then every section for a sufficient and consented review', async () => {
-    render(<ReassessmentReview variant="flow" />)
+    const { container } = render(<ReassessmentReview />)
     expect(screen.getByRole('status')).toHaveTextContent(
       'Đang chuẩn bị phần nhìn lại',
     )
+    expect(container.firstElementChild).toHaveAttribute('aria-busy', 'true')
 
     expect(
-      await screen.findByRole('heading', { name: 'Mức độ sàng lọc' }),
+      await screen.findByRole('heading', { name: 'Chặng 1 vừa khép lại' }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('heading', { name: 'Nhìn lại 14 ngày' }),
-    ).toBeInTheDocument()
-    // Overview strip: counts only, with the previous period as a quiet note.
-    const strip = screen.getByRole('list', { name: 'Tóm tắt kỳ này' })
-    expect(strip).toHaveTextContent('5bài nhật kýkỳ trước 4')
-    expect(strip).toHaveTextContent('6việc hoàn thànhkỳ trước 2')
-    await waitFor(() =>
-      expect(strip).toHaveTextContent('14ngày ghi cảm xúckỳ trước 14'),
-    )
+    expect(container.firstElementChild).toHaveAttribute('aria-busy', 'false')
     // Bands before and after, plain names, no raw score until the disclosure opens.
-    expect(screen.getByText('Trầm cảm (PHQ-9)')).toBeInTheDocument()
-    expect(screen.getAllByText('Trung bình')).toHaveLength(2)
-    expect(screen.getAllByText('Nhẹ')).toHaveLength(2)
-    expect(screen.queryByText(/14 → 8 điểm/)).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Xem điểm chi tiết' }))
-    expect(
-      await screen.findByText(/14 → 8 điểm \(thay đổi -6\)/),
-    ).toBeInTheDocument()
+    expect(screen.getAllByText('Mức trung bình → Mức nhẹ')).toHaveLength(2)
+    const details = screen.getByText('Xem điểm chi tiết').closest('details')!
+    expect(details).not.toHaveAttribute('open')
+    expect(details).toHaveTextContent('Trầm cảm (PHQ-9): 14 → 8 điểm')
 
-    // Journal: direction words only, INSUFFICIENT_DATA skipped, themes and coverage.
-    expect(screen.getByText('Áp lực công việc')).toBeInTheDocument()
-    expect(screen.getByText('nhắc ít hơn')).toBeInTheDocument()
-    expect(screen.getByText('tương tự kỳ trước')).toBeInTheDocument()
-    expect(screen.queryByText('Ẩn')).not.toBeInTheDocument()
-    expect(screen.getByText('Công việc')).toBeInTheDocument()
-    expect(screen.getByText('Đi bộ')).toBeInTheDocument()
-    expect(
-      screen.getByText(/Dựa trên 5 bài nhật ký kỳ này \(4 bài kỳ trước\)/),
-    ).toBeInTheDocument()
+    // Counts against the 14 days before, with the journal count from the summary.
+    const metrics = screen.getByText('Bài nhật ký').closest('dl')!
+    expect(metrics).toHaveTextContent('Bài nhật ký5')
+    expect(metrics).toHaveTextContent('14 ngày trước đó: 4')
+    expect(metrics).toHaveTextContent('Việc hoàn thành6')
+    expect(metrics).toHaveTextContent('14 ngày trước đó: 2')
 
-    // Mood: two rows with an accessible text equivalent and the count line.
-    expect(
-      await screen.findByRole('img', {
-        name: /^Kỳ trước \d{2}\/\d{2}–\d{2}\/\d{2}: 14 ngày có check-in, 0 ngày tốt hoặc rất tốt$/,
-      }),
-    ).toBeInTheDocument()
+    // Daily mood with a text equivalent.
     expect(
       screen.getByRole('img', {
-        name: /^Kỳ này \d{2}\/\d{2}–\d{2}\/\d{2}: 14 ngày có check-in, 14 ngày tốt hoặc rất tốt$/,
+        name: /^\d+ ngày có ghi cảm xúc, \d+ ngày tốt hoặc rất tốt$/,
       }),
     ).toBeInTheDocument()
 
-    // Activity: counts, resolved title, the user's own words attributed to them.
+    // Activity: counts, resolved title, the user's own words.
     expect(screen.getByText('6 việc hoàn thành · 2 bỏ qua')).toBeInTheDocument()
     expect(await screen.findByText('Thở chậm')).toBeInTheDocument()
     expect(screen.getByText(/Thở xong thấy nhẹ người/)).toBeInTheDocument()
-    expect(screen.getByText('— bạn ghi')).toBeInTheDocument()
-    expect(
-      screen.getByText('Lý do bỏ qua thường gặp: Không đủ thời gian.'),
-    ).toBeInTheDocument()
 
     // One disclaimer, no recovery verdict, plan untouched.
     expect(
@@ -133,14 +108,63 @@ describe('ReassessmentReview', () => {
     )
   })
 
+  it('numbers the chapter after the ones already closed', async () => {
+    // Other screenings than this reassessment's, so none of them is mistaken for it.
+    const screening = makeSummary().screening
+    const earlierScreening = {
+      ...screening,
+      trends: screening.trends.map((trend) => ({
+        ...trend,
+        current: { ...trend.current, assessmentId: 'earlier' },
+      })),
+    }
+    api.listReassessmentSummaries.mockResolvedValue({
+      items: [
+        makeSummary({
+          summaryId: 'old-2',
+          screening: earlierScreening,
+          composedAt: '2020-02-01T00:00:00Z',
+          currentPeriod: {
+            startAt: '2020-01-18T00:00:00Z',
+            endAt: '2020-02-01T00:00:00Z',
+          },
+        }),
+        makeSummary({
+          summaryId: 'old-1',
+          screening: earlierScreening,
+          composedAt: '2020-01-01T00:00:00Z',
+          currentPeriod: {
+            startAt: '2019-12-18T00:00:00Z',
+            endAt: '2020-01-01T00:00:00Z',
+          },
+        }),
+      ],
+      nextCursor: null,
+      hasMore: false,
+    })
+    render(<ReassessmentReview />)
+    expect(
+      await screen.findByRole('heading', { name: 'Chặng 3 vừa khép lại' }),
+    ).toBeInTheDocument()
+  })
+
+  it('still shows the chapter, without daily dots, when the daily mood cannot be read', async () => {
+    analytics.getAnalyticsEvents.mockRejectedValue(new Error('down'))
+    render(<ReassessmentReview />)
+    expect(
+      await screen.findByRole('heading', { name: 'Kết quả tự đánh giá' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
   it('reuses a summary already composed for the same screening pair', async () => {
     api.listReassessmentSummaries.mockResolvedValue({
       items: [makeSummary()],
       nextCursor: null,
       hasMore: false,
     })
-    render(<ReassessmentReview variant="flow" />)
-    await screen.findByRole('heading', { name: 'Mức độ sàng lọc' })
+    render(<ReassessmentReview />)
+    await screen.findByRole('heading', { name: 'Kết quả tự đánh giá' })
     expect(api.createLongitudinalAnalysis).not.toHaveBeenCalled()
     expect(api.composeReassessmentSummary).not.toHaveBeenCalled()
   })
@@ -159,42 +183,15 @@ describe('ReassessmentReview', () => {
         },
       }),
     )
-    render(<ReassessmentReview variant="flow" />)
+    render(<ReassessmentReview />)
     expect(
       await screen.findByText('Bật quyền cho AI đọc nhật ký để thấy phần này.'),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Mở quyền riêng tư' }),
     ).toHaveAttribute('href', '/profile')
-    expect(screen.getByText('Trầm cảm (PHQ-9)')).toBeInTheDocument()
+    expect(screen.getAllByText('Mức trung bình → Mức nhẹ')).toHaveLength(2)
     expect(screen.getByText('6 việc hoàn thành · 2 bỏ qua')).toBeInTheDocument()
-  })
-
-  it('shows counts and one next step when a period has fewer than three entries', async () => {
-    api.composeReassessmentSummary.mockResolvedValue(
-      makeSummary({
-        journalContext: {
-          ...makeSummary().journalContext,
-          state: 'INSUFFICIENT_DATA',
-          changesComparedWithPreviousPeriod: [],
-          dataCoverage: {
-            previousPeriodJournalEntryCount: 1,
-            currentPeriodJournalEntryCount: 2,
-            sufficientForComparison: false,
-          },
-        },
-      }),
-    )
-    render(<ReassessmentReview variant="flow" />)
-    expect(
-      await screen.findByText(
-        'Cần ít nhất 3 bài mỗi kỳ để so sánh. Kỳ này bạn có 2 bài.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Viết nhật ký' })).toHaveAttribute(
-      'href',
-      '/journal',
-    )
   })
 
   it('shows a busy row while the journal job runs and composes once it finishes', async () => {
@@ -203,13 +200,13 @@ describe('ReassessmentReview', () => {
     api.getLongitudinalAnalysisJob
       .mockResolvedValueOnce(runningJob)
       .mockResolvedValue(job)
-    render(<ReassessmentReview variant="flow" />)
+    render(<ReassessmentReview />)
     expect(
       await screen.findByText('Đang đọc lại nhật ký của bạn…'),
     ).toBeInTheDocument()
     await act(() => vi.advanceTimersByTimeAsync(2000))
     expect(
-      await screen.findByRole('heading', { name: 'Mức độ sàng lọc' }),
+      await screen.findByRole('heading', { name: 'Kết quả tự đánh giá' }),
     ).toBeInTheDocument()
   })
 
@@ -217,7 +214,7 @@ describe('ReassessmentReview', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     api.createLongitudinalAnalysis.mockResolvedValue(runningJob)
     api.getLongitudinalAnalysisJob.mockResolvedValue(runningJob)
-    render(<ReassessmentReview variant="flow" />)
+    render(<ReassessmentReview />)
     await act(() => vi.advanceTimersByTimeAsync(16_000))
     expect(
       await screen.findByText('Nhật ký của bạn vẫn đang được đọc.'),
@@ -249,7 +246,7 @@ describe('ReassessmentReview', () => {
         },
       }),
     )
-    render(<ReassessmentReview variant="flow" />)
+    render(<ReassessmentReview />)
     expect(
       await screen.findByText('Bật quyền cho AI đọc nhật ký để thấy phần này.'),
     ).toBeInTheDocument()
@@ -257,16 +254,12 @@ describe('ReassessmentReview', () => {
     expect(api.composeReassessmentSummary.mock.calls[0][0]).not.toHaveProperty(
       'journalJobId',
     )
-    expect(
-      screen.getByRole('list', { name: 'Tóm tắt kỳ này' }),
-    ).toHaveTextContent('—bài nhật kýChưa bật quyền đọc nhật ký')
-    expect(screen.getByText('Trầm cảm (PHQ-9)')).toBeInTheDocument()
+    expect(screen.getByText('Bài nhật ký').closest('div')).toHaveTextContent(
+      'Chưa có số liệu',
+    )
+    expect(screen.getAllByText('Mức trung bình → Mức nhẹ')).toHaveLength(2)
     expect(screen.getByText('6 việc hoàn thành · 2 bỏ qua')).toBeInTheDocument()
-    expect(
-      await screen.findByRole('img', {
-        name: /^Kỳ này .*: 14 ngày có check-in/,
-      }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('img')).toBeInTheDocument()
   })
 
   it('says the user switched journal reading off when consent was withdrawn', async () => {
@@ -285,7 +278,7 @@ describe('ReassessmentReview', () => {
       nextCursor: null,
       hasMore: false,
     })
-    render(<ReassessmentReview variant="flow" />)
+    render(<ReassessmentReview />)
     expect(
       await screen.findByText('Bạn đã tắt quyền cho AI đọc nhật ký.'),
     ).toBeInTheDocument()
@@ -307,8 +300,8 @@ describe('ReassessmentReview', () => {
         }),
       )
       .mockResolvedValueOnce(makeSummary())
-    render(<ReassessmentReview variant="flow" />)
-    await screen.findByRole('heading', { name: 'Mức độ sàng lọc' })
+    render(<ReassessmentReview />)
+    await screen.findByRole('heading', { name: 'Kết quả tự đánh giá' })
     expect(api.composeReassessmentSummary).toHaveBeenCalledTimes(2)
     expect(api.composeReassessmentSummary).toHaveBeenLastCalledWith(
       expect.objectContaining({ journalJobId: job.jobId }),
@@ -316,24 +309,19 @@ describe('ReassessmentReview', () => {
     )
   })
 
-  it('shows an empty state with a check-in link when no mood was recorded', async () => {
+  it('says so, with no dots, when no mood was recorded in the chapter', async () => {
     analytics.getAnalyticsEvents.mockResolvedValue(
       dashboard(Array(28).fill(null)),
     )
-    render(<ReassessmentReview variant="flow" />)
-    expect(
-      await screen.findByText('Chưa có check-in cảm xúc trong 14 ngày.'),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('link', { name: 'Check-in cảm xúc' }),
-    ).toHaveAttribute('href', '/dashboard')
+    render(<ReassessmentReview />)
+    expect(await screen.findByText(/^0 ngày tốt hoặc rất tốt/)).toBeVisible()
   })
 
-  it('shows an empty state when the plan had no activity this period', async () => {
+  it('says the plan had no activity when the chapter has none', async () => {
     api.composeReassessmentSummary.mockResolvedValue(
       makeSummary({
         supportPlanEngagement: {
-          state: 'INSUFFICIENT_DATA',
+          state: 'AVAILABLE',
           previousPeriod: { completedCount: 0, skippedCount: 0 },
           currentPeriod: { completedCount: 0, skippedCount: 0 },
           sources: [],
@@ -341,9 +329,9 @@ describe('ReassessmentReview', () => {
         activityReflection: { state: 'INSUFFICIENT_DATA', sources: [] },
       }),
     )
-    render(<ReassessmentReview variant="flow" />)
+    render(<ReassessmentReview />)
     expect(
-      await screen.findByText('Kỳ này chưa có hoạt động trong kế hoạch.'),
+      await screen.findByText('Chặng này chưa có hoạt động nào được ghi.'),
     ).toBeInTheDocument()
   })
 
@@ -354,7 +342,7 @@ describe('ReassessmentReview', () => {
       missingInstruments: ['GAD7'],
       gad7AssessmentId: null,
     })
-    render(<ReassessmentReview variant="flow" planReview />)
+    render(<ReassessmentReview planReview />)
     expect(
       await screen.findByText('Bạn chưa có lần đánh giá lại nào.'),
     ).toBeInTheDocument()
@@ -371,16 +359,16 @@ describe('ReassessmentReview', () => {
     api.composeReassessmentSummary.mockRejectedValueOnce(
       new ApiError({ message: 'down', code: 'CARE_UNAVAILABLE', status: 503 }),
     )
-    render(<ReassessmentReview variant="flow" />)
+    render(<ReassessmentReview />)
     expect(
       await screen.findByText('Chưa tạo được phần nhìn lại.'),
     ).toBeInTheDocument()
     expect(
-      screen.queryByRole('heading', { name: 'Mức độ sàng lọc' }),
+      screen.queryByRole('heading', { name: 'Kết quả tự đánh giá' }),
     ).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
     expect(
-      await screen.findByRole('heading', { name: 'Mức độ sàng lọc' }),
+      await screen.findByRole('heading', { name: 'Kết quả tự đánh giá' }),
     ).toBeInTheDocument()
   })
 
@@ -398,7 +386,7 @@ describe('ReassessmentReview', () => {
         }),
       )
     api.getLongitudinalAnalysisJob.mockResolvedValue(job)
-    render(<ReassessmentReview variant="flow" />)
+    render(<ReassessmentReview />)
     fireEvent.click(
       await screen.findByRole('button', {
         name: 'Thêm cảm nhận của bạn (không bắt buộc)',
@@ -432,47 +420,10 @@ describe('ReassessmentReview', () => {
     api.getCurrentReassessmentSelfReport.mockRejectedValue(
       new ApiError({ message: 'down', code: 'HTTP_500', status: 500 }),
     )
-    render(<ReassessmentReview variant="flow" />)
-    await screen.findByRole('heading', { name: 'Mức độ sàng lọc' })
+    render(<ReassessmentReview />)
+    await screen.findByRole('heading', { name: 'Kết quả tự đánh giá' })
     expect(
       screen.queryByRole('button', { name: /Thêm cảm nhận/ }),
     ).not.toBeInTheDocument()
-  })
-
-  it('in the tab never composes by itself and shows the newest saved review', async () => {
-    api.listReassessmentSummaries.mockResolvedValue({
-      items: [
-        makeSummary({ summaryId: '40000000-0000-4000-8000-000000000009' }),
-      ],
-      nextCursor: null,
-      hasMore: false,
-    })
-    api.getReassessmentContext.mockResolvedValue({
-      ...context,
-      phq9AssessmentId: '10000000-0000-4000-8000-0000000000aa',
-    })
-    const onReady = vi.fn()
-    render(<ReassessmentReview variant="tab" onReady={onReady} />)
-    await screen.findByRole('heading', { name: 'Mức độ sàng lọc' })
-    await waitFor(() =>
-      expect(onReady).toHaveBeenCalledWith(
-        expect.objectContaining({
-          summaryId: '40000000-0000-4000-8000-000000000009',
-        }),
-      ),
-    )
-    expect(api.createLongitudinalAnalysis).not.toHaveBeenCalled()
-    // The pair differs from the current context, so the snapshot is read-only.
-    expect(
-      screen.queryByRole('button', { name: /Thêm cảm nhận/ }),
-    ).not.toBeInTheDocument()
-  })
-
-  it('in the tab shows the empty state instead of composing when nothing was saved', async () => {
-    render(<ReassessmentReview variant="tab" />)
-    expect(
-      await screen.findByText('Bạn chưa có lần đánh giá lại nào.'),
-    ).toBeInTheDocument()
-    expect(api.createLongitudinalAnalysis).not.toHaveBeenCalled()
   })
 })

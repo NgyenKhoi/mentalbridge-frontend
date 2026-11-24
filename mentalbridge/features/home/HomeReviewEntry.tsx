@@ -37,7 +37,7 @@ export function HomeReviewEntry({
   return (
     <Link
       className={styles.entry}
-      href="/assessments?tab=reassessment"
+      href="/nhin-lai"
       aria-labelledby={`${id}-title`}
       aria-describedby={`${id}-line`}
     >

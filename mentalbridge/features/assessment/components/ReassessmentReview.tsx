@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowDown, ArrowUp, ChevronDown, Equal } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import {
   useCallback,
@@ -13,13 +13,17 @@ import {
   type ReactNode,
 } from 'react'
 
-import { Skeleton } from '@/components/ui/Skeleton'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import type { ActivityDashboard } from '@/features/analytics/api/activity-dashboard-contract'
 import { getAnalyticsEvents } from '@/features/analytics/api/browser-analytics'
-import { getResourceCatalogue } from '@/features/resources/api/browser-resources'
+import {
+  ChapterDetail,
+  ChapterDetailSkeleton,
+} from '@/features/look-back/ChapterDetail'
+import { buildJourney } from '@/features/look-back/look-back-chapters'
+import { dateRange } from '@/features/look-back/look-back-copy'
+import { useResourceTitles } from '@/features/look-back/use-resource-titles'
 import { ApiError } from '@/lib/api/api-error'
-import { emotionPresentation } from '@/lib/emotion-check-in/presentation'
 import type { LongitudinalAnalysisJob } from '@/lib/journal/journal-contract'
 import {
   composeReassessmentSummary,
@@ -37,17 +41,7 @@ import type {
   ReassessmentCurrentExperience,
   ReassessmentSelfReport,
   ReassessmentSummary,
-  ScreeningLevel,
 } from '../api/care-contract'
-import { levelLabels } from './assessment-meanings'
-import {
-  formatDayMonth,
-  helpfulSources,
-  moodRangeFor,
-  moodRow,
-  topBarriers,
-  type MoodRow,
-} from './reassessment-review-model'
 
 import './reassessment-review.css'
 
@@ -67,24 +61,6 @@ const experienceLabels = Object.fromEntries(experienceOptions) as Record<
   string
 >
 
-const directionLabels = {
-  MORE_FREQUENT: 'nhắc nhiều hơn',
-  LESS_FREQUENT: 'nhắc ít hơn',
-  SIMILAR: 'tương tự kỳ trước',
-} as const
-
-const helpfulnessLabels = {
-  VERY_HELPFUL: 'Rất giúp ích',
-  HELPFUL: 'Giúp ích',
-} as const
-
-const instrumentNames = {
-  PHQ9: 'Trầm cảm (PHQ-9)',
-  GAD7: 'Lo âu (GAD-7)',
-} as const
-
-const levelToEmotion = ['VERY_LOW', 'LOW', 'OKAY', 'GOOD', 'GREAT'] as const
-
 const wait = (milliseconds: number) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds))
 
@@ -96,13 +72,6 @@ async function terminalJob(initial: LongitudinalAnalysisJob) {
   }
   return job
 }
-
-const dayMonth = (iso: string) => formatDayMonth(iso)
-// Periods are half-open, so the last day shown is the day before endAt.
-const periodLabel = (period: ReassessmentSummary['currentPeriod']) =>
-  `${dayMonth(period.startAt)}–${dayMonth(
-    new Date(Date.parse(period.endAt) - 1).toISOString(),
-  )}`
 
 const samePair = (summary: ReassessmentSummary, context: ReassessmentContext) =>
   summary.screening.trends.every(
@@ -203,530 +172,27 @@ function Block({
   )
 }
 
-function Pill({
-  level,
-  now,
-}: Readonly<{ level: ScreeningLevel; now?: boolean }>) {
-  return (
-    <div
-      className={`rr-pill${now ? ' rr-pill-now rr-band-now' : ''}`}
-      data-level={level.toLowerCase()}
-    >
-      {levelLabels[level]}
-    </div>
-  )
-}
-
-function ScreeningBlock({
+/** The journal count reads "–" without consent; this says why and where to change it. */
+function JournalConsentNote({
   summary,
 }: Readonly<{ summary: ReassessmentSummary }>) {
-  const trends = summary.screening.trends
-  return (
-    <Block index={4} title="Mức độ sàng lọc">
-      <ul className="rr-tiles rr-tiles-2">
-        {trends.map((trend) => {
-          const previous =
-            trend.state === 'AVAILABLE' ? trend.previous : undefined
-          return (
-            <li key={trend.instrument} className="rr-tile">
-              <div className="rr-tile-name">
-                {instrumentNames[trend.instrument]}
-              </div>
-              <div
-                className="rr-band-flow"
-                data-compared={previous ? 'yes' : 'no'}
-              >
-                {previous && (
-                  <>
-                    <Pill level={previous.screeningLevel} />
-                    <svg
-                      className="rr-arrow"
-                      viewBox="0 0 28 12"
-                      width="32"
-                      height="14"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M1 6h24M20 1.5 25.5 6 20 10.5" />
-                    </svg>
-                  </>
-                )}
-                <Pill level={trend.current.screeningLevel} now />
-                {previous && <div className="rr-caption">Kỳ trước</div>}
-                {previous && <div />}
-                <div className="rr-caption rr-band-now">Kỳ này</div>
-              </div>
-              {!previous && (
-                <p className="rr-note">Chưa có kết quả kỳ trước để so sánh.</p>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-      <Collapse label="Xem điểm chi tiết">
-        <ul className="rr-rows">
-          {trends.map((trend) => (
-            <li key={trend.instrument} className="rr-score-line">
-              {instrumentNames[trend.instrument]}:{' '}
-              {trend.previous ? `${trend.previous.totalScore} → ` : ''}
-              {trend.current.totalScore} điểm
-              {trend.previous && trend.rawDelta != null
-                ? ` (thay đổi ${trend.rawDelta > 0 ? '+' : ''}${trend.rawDelta})`
-                : ''}
-            </li>
-          ))}
-        </ul>
-      </Collapse>
-    </Block>
+  const reason = summary.journalContext.unavailableReason
+  if (
+    summary.journalContext.state !== 'UNAVAILABLE' ||
+    (reason !== 'CONSENT_REQUIRED' && reason !== 'CONSENT_REVOKED')
   )
-}
-
-const directionIcons = {
-  MORE_FREQUENT: ArrowUp,
-  LESS_FREQUENT: ArrowDown,
-  SIMILAR: Equal,
-} as const
-
-function JournalBlock({ summary }: Readonly<{ summary: ReassessmentSummary }>) {
-  const journal = summary.journalContext
-  const coverage = journal.dataCoverage
-  const changes = journal.changesComparedWithPreviousPeriod.filter(
-    (change) => change.direction !== 'INSUFFICIENT_DATA',
-  )
-  const hasChips =
-    journal.recurringThemes.length > 0 || journal.helpfulPatterns.length > 0
-  let body: ReactNode
-  if (journal.state === 'UNAVAILABLE') {
-    body =
-      journal.unavailableReason === 'CONSENT_REQUIRED' ||
-      journal.unavailableReason === 'CONSENT_REVOKED' ? (
-        <GateNote
-          text={
-            journal.unavailableReason === 'CONSENT_REVOKED'
-              ? 'Bạn đã tắt quyền cho AI đọc nhật ký.'
-              : 'Bật quyền cho AI đọc nhật ký để thấy phần này.'
-          }
-          href="/profile"
-          action="Mở quyền riêng tư"
-        />
-      ) : (
-        <p className="rr-note">Chưa đọc được nhật ký lần này.</p>
-      )
-  } else if (journal.state === 'INSUFFICIENT_DATA') {
-    body = (
-      <GateNote
-        text={`Cần ít nhất 3 bài mỗi kỳ để so sánh. Kỳ này bạn có ${coverage?.currentPeriodJournalEntryCount ?? 0} bài.`}
-        href="/journal"
-        action="Viết nhật ký"
-      />
-    )
-  } else {
-    body = (
-      <>
-        <div className="rr-journal-grid" data-chips={hasChips ? 'yes' : 'no'}>
-          <div className="rr-journal-col">
-            <div className="rr-sub">So với kỳ trước</div>
-            {changes.length > 0 ? (
-              <ul className="rr-rows">
-                {changes.map((change) => {
-                  const direction =
-                    change.direction as keyof typeof directionIcons
-                  const Icon = directionIcons[direction]
-                  return (
-                    <li key={change.signal} className="rr-change">
-                      <div className="rr-change-label">{change.signal}</div>
-                      <div className="rr-direction">
-                        {Icon && <Icon aria-hidden="true" size={14} />}
-                        {directionLabels[direction] ?? ''}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            ) : (
-              <p className="rr-note">Chưa thấy thay đổi rõ giữa hai kỳ.</p>
-            )}
-          </div>
-          {hasChips && (
-            <div className="rr-journal-col">
-              <ChipGroup
-                label="Chủ đề lặp lại"
-                items={journal.recurringThemes}
-              />
-              <ChipGroup
-                label="Điều bạn thấy giúp ích"
-                items={journal.helpfulPatterns}
-              />
-            </div>
-          )}
-        </div>
-        {coverage && (
-          <p className="rr-note">
-            Dựa trên {coverage.currentPeriodJournalEntryCount} bài nhật ký kỳ
-            này ({coverage.previousPeriodJournalEntryCount} bài kỳ trước).
-          </p>
-        )}
-      </>
-    )
-  }
-  return (
-    <Block index={5} title="Điều bạn viết trong nhật ký">
-      {body}
-    </Block>
-  )
-}
-
-function GateNote({
-  text,
-  href,
-  action,
-}: Readonly<{ text: string; href: string; action: string }>) {
+    return null
   return (
     <div className="rr-gate">
-      <p>{text}</p>
-      <Link href={href} className="rr-link">
-        {action}
+      <p>
+        {reason === 'CONSENT_REVOKED'
+          ? 'Bạn đã tắt quyền cho AI đọc nhật ký.'
+          : 'Bật quyền cho AI đọc nhật ký để thấy phần này.'}
+      </p>
+      <Link href="/profile" className="rr-link">
+        Mở quyền riêng tư
       </Link>
     </div>
-  )
-}
-
-function ChipGroup({
-  label,
-  items,
-}: Readonly<{ label: string; items: string[] }>) {
-  if (items.length === 0) return null
-  return (
-    <div className="rr-chip-group">
-      <div className="rr-sub">{label}</div>
-      <ul className="rr-chips">
-        {items.map((item) => (
-          <li key={item} className="rr-chip">
-            {item}
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-const emotionDotStyle = (emotion: (typeof levelToEmotion)[number] | null) =>
-  ({
-    '--rr-dot': emotion ? emotionPresentation[emotion].color : 'transparent',
-  }) as CSSProperties
-
-function MoodDots({
-  row,
-  label,
-  range,
-  offset,
-}: Readonly<{ row: MoodRow; label: string; range: string; offset: number }>) {
-  const description = `${label} ${range}: ${row.checkedDays} ngày có check-in, ${row.goodDays} ngày tốt hoặc rất tốt`
-  return (
-    <div className="rr-mood-row">
-      <div className="rr-mood-label">
-        {label} <div className="rr-range">{range}</div>
-      </div>
-      <div className="rr-dots" role="img" aria-label={description}>
-        {row.days.map((day, index) => {
-          const emotion = day.level ? levelToEmotion[day.level - 1] : null
-          return (
-            <i
-              key={day.localDate}
-              className="rr-dot"
-              data-empty={emotion ? undefined : 'true'}
-              title={`${day.localDate.slice(8, 10)}/${day.localDate.slice(5, 7)}: ${
-                emotion ? emotionPresentation[emotion].label : 'chưa ghi'
-              }`}
-              style={
-                {
-                  ...emotionDotStyle(emotion),
-                  '--rr-d': offset + index,
-                } as CSSProperties
-              }
-            />
-          )
-        })}
-      </div>
-      <div className="rr-mood-count">
-        {row.goodDays} ngày tốt hoặc rất tốt · {row.checkedDays} ngày ghi
-      </div>
-    </div>
-  )
-}
-
-function MoodLegend() {
-  return (
-    <ul className="rr-legend" aria-label="Ý nghĩa màu của các chấm">
-      {[...levelToEmotion].reverse().map((emotion) => (
-        <li key={emotion}>
-          <i className="rr-dot rr-dot-key" style={emotionDotStyle(emotion)} />
-          {emotionPresentation[emotion].label}
-        </li>
-      ))}
-      <li>
-        <i
-          className="rr-dot rr-dot-key"
-          data-empty="true"
-          style={emotionDotStyle(null)}
-        />
-        Chưa ghi
-      </li>
-    </ul>
-  )
-}
-
-type MoodState =
-  | { phase: 'loading' }
-  | { phase: 'error' }
-  | { phase: 'none' }
-  | { phase: 'ready'; previous: MoodRow; current: MoodRow }
-
-/** Daily mood from the activity dashboard, shared by the overview strip and the mood section. */
-function useMood(
-  periods:
-    Pick<ReassessmentContext, 'previousPeriod' | 'currentPeriod'> | undefined,
-) {
-  const [state, setState] = useState<MoodState>({ phase: 'loading' })
-  const [attempt, setAttempt] = useState(0)
-  const previousPeriod = periods?.previousPeriod
-  const currentPeriod = periods?.currentPeriod
-
-  useEffect(() => {
-    if (!previousPeriod || !currentPeriod) return
-    let active = true
-    const range = moodRangeFor(previousPeriod)
-    if (!range) {
-      void Promise.resolve().then(() => active && setState({ phase: 'none' }))
-      return () => {
-        active = false
-      }
-    }
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-    getAnalyticsEvents(range, timeZone)
-      .then((dashboard: ActivityDashboard) => {
-        if (!active) return
-        if (dashboard.sources.emotions === 'unavailable') {
-          setState({ phase: 'error' })
-          return
-        }
-        setState({
-          phase: 'ready',
-          previous: moodRow(dashboard, previousPeriod, timeZone),
-          current: moodRow(dashboard, currentPeriod, timeZone),
-        })
-      })
-      .catch(() => active && setState({ phase: 'error' }))
-    return () => {
-      active = false
-    }
-  }, [previousPeriod, currentPeriod, attempt])
-
-  const retry = () => {
-    setState({ phase: 'loading' })
-    setAttempt((value) => value + 1)
-  }
-  return [state, retry] as const
-}
-
-function MoodBlock({
-  periods,
-  mood,
-  onRetry,
-}: Readonly<{
-  periods: Pick<ReassessmentContext, 'previousPeriod' | 'currentPeriod'>
-  mood: MoodState
-  onRetry: () => void
-}>) {
-  let body: ReactNode
-  if (mood.phase === 'loading')
-    body = <Skeleton height={96} width="100%" className="rr-skeleton" />
-  else if (mood.phase === 'error')
-    body = (
-      <div className="rr-gate">
-        <p>Chưa tải được check-in cảm xúc.</p>
-        <button type="button" className="rr-link" onClick={onRetry}>
-          Thử lại
-        </button>
-      </div>
-    )
-  else if (
-    mood.phase === 'none' ||
-    mood.previous.checkedDays + mood.current.checkedDays === 0
-  )
-    body = (
-      <GateNote
-        text="Chưa có check-in cảm xúc trong 14 ngày."
-        href="/dashboard"
-        action="Check-in cảm xúc"
-      />
-    )
-  else
-    body = (
-      <>
-        <MoodDots
-          row={mood.previous}
-          label="Kỳ trước"
-          range={periodLabel(periods.previousPeriod)}
-          offset={0}
-        />
-        <MoodDots
-          row={mood.current}
-          label="Kỳ này"
-          range={periodLabel(periods.currentPeriod)}
-          offset={14}
-        />
-        <MoodLegend />
-      </>
-    )
-  return (
-    <Block index={6} title="Cảm xúc hằng ngày">
-      {body}
-    </Block>
-  )
-}
-
-function StatTile({
-  index,
-  value,
-  label,
-  note,
-}: Readonly<{ index: number; value: string; label: string; note: string }>) {
-  return (
-    <li
-      className="rr-stat rr-rise"
-      style={{ '--rr-i': index } as CSSProperties}
-    >
-      <div className="rr-stat-number">{value}</div>
-      <div className="rr-stat-label">{label}</div>
-      <div className="rr-stat-note">{note}</div>
-    </li>
-  )
-}
-
-/** Counts only: what the user wrote, checked in and did; never a score or a judgement. */
-function OverviewStrip({
-  summary,
-  mood,
-}: Readonly<{ summary: ReassessmentSummary; mood: MoodState }>) {
-  const journal = summary.journalContext
-  const coverage = journal.dataCoverage
-  const consentOff =
-    journal.unavailableReason === 'CONSENT_REQUIRED' ||
-    journal.unavailableReason === 'CONSENT_REVOKED'
-  const activity = summary.supportPlanEngagement
-  return (
-    <ul className="rr-strip" aria-label="Tóm tắt kỳ này">
-      {coverage ? (
-        <StatTile
-          index={1}
-          value={String(coverage.currentPeriodJournalEntryCount)}
-          label="bài nhật ký"
-          note={`kỳ trước ${coverage.previousPeriodJournalEntryCount}`}
-        />
-      ) : (
-        <StatTile
-          index={1}
-          value="—"
-          label="bài nhật ký"
-          note={
-            consentOff ? 'Chưa bật quyền đọc nhật ký' : 'Chưa đọc được nhật ký'
-          }
-        />
-      )}
-      {mood.phase === 'loading' && (
-        <li className="rr-stat" aria-hidden="true">
-          <Skeleton height={104} width="100%" className="rr-skeleton" />
-        </li>
-      )}
-      {mood.phase === 'ready' && (
-        <StatTile
-          index={2}
-          value={String(mood.current.checkedDays)}
-          label="ngày ghi cảm xúc"
-          note={`kỳ trước ${mood.previous.checkedDays}`}
-        />
-      )}
-      <StatTile
-        index={3}
-        value={String(activity.currentPeriod.completedCount)}
-        label="việc hoàn thành"
-        note={`kỳ trước ${activity.previousPeriod.completedCount}`}
-      />
-    </ul>
-  )
-}
-
-function ActivityBlock({
-  summary,
-  titles,
-}: Readonly<{
-  summary: ReassessmentSummary
-  titles: ReadonlyMap<string, string>
-}>) {
-  const engagement = summary.supportPlanEngagement
-  const current = engagement.currentPeriod
-  const previous = engagement.previousPeriod
-  const empty = current.completedCount + current.skippedCount === 0
-  const helpful = helpfulSources(summary)
-  const barriers = topBarriers(summary)
-  const engagementByOccurrence = new Map(
-    (engagement.sources ?? []).map((source) => [source.occurrenceId, source]),
-  )
-  return (
-    <Block index={7} title="Việc đã làm">
-      {empty ? (
-        <p className="rr-note">Kỳ này chưa có hoạt động trong kế hoạch.</p>
-      ) : (
-        <>
-          <div className="rr-figure">
-            {current.completedCount} việc hoàn thành · {current.skippedCount} bỏ
-            qua
-          </div>
-          <p className="rr-note">
-            Kỳ trước: {previous.completedCount} hoàn thành,{' '}
-            {previous.skippedCount} bỏ qua.
-          </p>
-          {helpful.length > 0 && (
-            <ul className="rr-tiles rr-tiles-auto">
-              {helpful.map((source) => {
-                const origin = engagementByOccurrence.get(source.occurrenceId)
-                const title =
-                  (origin?.sourceResourceId &&
-                    titles.get(origin.sourceResourceId)) ||
-                  (origin
-                    ? `Hoạt động ngày ${dayMonth(origin.scheduledAt)}`
-                    : 'Một hoạt động trong kế hoạch')
-                return (
-                  <li key={source.occurrenceId} className="rr-tile rr-helpful">
-                    <div className="rr-helpful-title">{title}</div>
-                    <div className="rr-direction">
-                      {helpfulnessLabels[
-                        source.helpfulness as keyof typeof helpfulnessLabels
-                      ] ?? ''}
-                    </div>
-                    {source.reflection && (
-                      <blockquote className="rr-quote">
-                        “{source.reflection}”<footer>— bạn ghi</footer>
-                      </blockquote>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-          {barriers.length > 0 && (
-            <p className="rr-note">
-              Lý do bỏ qua thường gặp: {barriers.join(', ')}.
-            </p>
-          )}
-        </>
-      )}
-    </Block>
   )
 }
 
@@ -859,35 +325,30 @@ function SelfReportBlock({
   )
 }
 
+/** The chapter this reassessment just closed: composes its summary (once) and shows it as the look-back does. */
 export function ReassessmentReview({
-  variant,
-  summary: shownSummary,
   planReview = false,
-  onReady,
   footer,
 }: Readonly<{
-  variant: 'flow' | 'tab'
   /** The one next step, centred under the disclaimer (the flow passes its plan or overview link). */
   footer?: ReactNode
-  /** Called with the snapshot being shown once it is ready (the tab uses it to list only the older ones). */
-  onReady?: (summary: ReassessmentSummary) => void
-  /** An older snapshot to show as it was composed; the review then never composes or edits. */
-  summary?: ReassessmentSummary
   planReview?: boolean
 }>) {
   const { confirm, showActionToast } = useFeedback()
-  const [phase, setPhase] = useState<Phase>(shownSummary ? 'ready' : 'loading')
+  const [phase, setPhase] = useState<Phase>('loading')
   const [context, setContext] = useState<ReassessmentContext>()
   const [composed, setComposed] = useState<ReassessmentSummary>()
+  const [earlier, setEarlier] = useState<readonly ReassessmentSummary[]>([])
+  // undefined while loading; null when the daily mood could not be read.
+  const [activity, setActivity] = useState<ActivityDashboard | null>()
   const [report, setReport] = useState<ReassessmentSelfReport>()
   const [reportKnown, setReportKnown] = useState(false)
   const [working, setWorking] = useState(false)
   const [notice, setNotice] = useState<string>()
-  const [titles, setTitles] = useState<ReadonlyMap<string, string>>(new Map())
   const [attempt, setAttempt] = useState(0)
   const pendingJob = useRef<LongitudinalAnalysisJob>(undefined)
   const headingId = useId()
-  const summary = shownSummary ?? composed
+  const summary = composed
 
   const composeFrom = useCallback(async function compose(
     ctx: ReassessmentContext,
@@ -955,7 +416,6 @@ export function ReassessmentReview({
   )
 
   useEffect(() => {
-    if (shownSummary) return
     let active = true
     void (async () => {
       try {
@@ -968,7 +428,8 @@ export function ReassessmentReview({
           !!ctx.phq9AssessmentId &&
           !!ctx.gad7AssessmentId
         const [page, savedReport] = await Promise.all([
-          listReassessmentSummaries(10).catch(() => undefined),
+          // 50 is the page maximum: enough to number this chapter after the ones before it.
+          listReassessmentSummaries(50).catch(() => undefined),
           ready
             ? getCurrentReassessmentSelfReport().catch((error: unknown) => {
                 // A missing report is normal; any other failure means we must not create a second one.
@@ -983,18 +444,17 @@ export function ReassessmentReview({
         const matching =
           savedReport && samePeriod(savedReport, ctx) ? savedReport : undefined
         setReport(matching)
-        // The tab shows the newest snapshot as it was composed; the flow shows the one for this reassessment.
-        const existing =
-          (ready
-            ? page?.items.find((item) => samePair(item, ctx))
-            : undefined) ?? (variant === 'tab' ? page?.items[0] : undefined)
+        setEarlier(page?.items ?? [])
+        // The summary for this reassessment may already exist (a reload); otherwise compose it.
+        const existing = ready
+          ? page?.items.find((item) => samePair(item, ctx))
+          : undefined
         if (existing) {
           setComposed(existing)
           setPhase('ready')
           return
         }
-        // Only the guided flow composes on its own; opening the tab never starts a journal job.
-        if (ready && variant === 'flow') await composeFresh(ctx, matching)
+        if (ready) await composeFresh(ctx, matching)
         else setPhase('incomplete')
       } catch {
         if (active) setPhase('error')
@@ -1003,28 +463,37 @@ export function ReassessmentReview({
     return () => {
       active = false
     }
-  }, [shownSummary, attempt, composeFresh, variant])
+  }, [attempt, composeFresh])
 
+  // The daily mood of the chapter: 90 days reach back far enough for the one just closed.
+  const summaryId = summary?.summaryId
   useEffect(() => {
-    if (summary) onReady?.(summary)
-  }, [summary, onReady])
-
-  const needsTitles = summary ? helpfulSources(summary).length > 0 : false
-  useEffect(() => {
-    if (!needsTitles) return
+    if (!summaryId) return
     let active = true
-    getResourceCatalogue()
-      .then((catalogue) => {
-        if (active)
-          setTitles(
-            new Map(catalogue.items.map((item) => [item.id, item.title])),
-          )
-      })
-      .catch(() => undefined)
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    getAnalyticsEvents(90, timeZone)
+      .then((dashboard) => active && setActivity(dashboard))
+      .catch(() => active && setActivity(null))
     return () => {
       active = false
     }
-  }, [needsTitles])
+  }, [summaryId])
+
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  const chapter = (() => {
+    if (!summary) return undefined
+    const { chapters } = buildJourney({
+      summaries: [
+        ...earlier.filter((item) => item.summaryId !== summary.summaryId),
+        summary,
+      ],
+      dashboard: activity ?? null,
+      cycle: null,
+      timeZone,
+    })
+    return chapters.find((item) => item.summaryId === summary.summaryId)
+  })()
+  const titles = useResourceTitles((chapter?.reflections.length ?? 0) > 0)
 
   async function resume() {
     if (!context || !pendingJob.current) return
@@ -1106,40 +575,44 @@ export function ReassessmentReview({
     }
   }
 
-  const periods = summary ?? context
-  const [mood, retryMood] = useMood(summary)
-  const headerLine = periods
-    ? `Từ những gì bạn đã chia sẻ, kỳ trước ${periodLabel(periods.previousPeriod)} và kỳ này ${periodLabel(periods.currentPeriod)}.`
-    : 'Từ những gì bạn đã chia sẻ trong hai kỳ gần nhất.'
+  // The chapter reads once its summary and the daily mood have both arrived.
+  const reading =
+    phase === 'loading' ||
+    phase === 'composing' ||
+    (phase === 'ready' && activity === undefined)
+
+  const shown = reading ? undefined : chapter
 
   return (
     <section
-      className={`rr-root rr-${variant}`}
+      className="rr-root rr-flow"
       aria-labelledby={headingId}
-      aria-busy={phase === 'loading' || phase === 'composing'}
+      aria-busy={reading}
     >
       <header
         className="rr-header rr-rise"
         style={{ '--rr-i': 0 } as CSSProperties}
       >
         <h2 id={headingId} tabIndex={-1}>
-          Nhìn lại 14 ngày
+          {shown ? `Chặng ${shown.number} vừa khép lại` : 'Chặng vừa khép lại'}
         </h2>
-        {phase !== 'incomplete' && <p>{headerLine}</p>}
+        {phase !== 'incomplete' && (
+          <p>
+            {shown
+              ? `Từ những gì bạn đã chia sẻ, ${dateRange(shown.startLocalDate, shown.endLocalDate)}.`
+              : 'Từ những gì bạn đã chia sẻ trong chặng này.'}
+          </p>
+        )}
       </header>
 
-      {(phase === 'loading' || phase === 'composing') && (
+      {reading && (
         <div className="rr-loading" role="status">
           <div className="rr-busy">
             {phase === 'composing'
               ? 'Đang đọc lại nhật ký của bạn…'
               : 'Đang chuẩn bị phần nhìn lại…'}
           </div>
-          <Skeleton height={112} width="100%" className="rr-skeleton" />
-          <div className="rr-pair">
-            <Skeleton height={160} width="100%" className="rr-skeleton" />
-            <Skeleton height={160} width="100%" className="rr-skeleton" />
-          </div>
+          <ChapterDetailSkeleton />
         </div>
       )}
 
@@ -1188,24 +661,14 @@ export function ReassessmentReview({
         </div>
       )}
 
-      {phase === 'ready' && summary && (
+      {phase === 'ready' && summary && chapter && activity !== undefined && (
         <>
-          <OverviewStrip summary={summary} mood={mood} />
-          <ScreeningBlock summary={summary} />
-          <JournalBlock summary={summary} />
-          <div className="rr-pair">
-            <MoodBlock periods={summary} mood={mood} onRetry={retryMood} />
-            <ActivityBlock summary={summary} titles={titles} />
-          </div>
+          <ChapterDetail chapter={chapter} titles={titles} />
+          <JournalConsentNote summary={summary} />
           <SelfReportBlock
             key={`${summary.summaryId}`}
             summary={summary}
-            editable={
-              !shownSummary &&
-              reportKnown &&
-              !!context &&
-              samePair(summary, context)
-            }
+            editable={reportKnown && !!context && samePair(summary, context)}
             report={report}
             working={working}
             notice={notice}
@@ -1221,11 +684,6 @@ export function ReassessmentReview({
               thành điểm hay kết luận.
             </p>
             {footer}
-            {variant === 'tab' && planReview && (
-              <Link href="/support-plan?review=open" className="rr-link">
-                Quay lại xem lại kế hoạch
-              </Link>
-            )}
           </div>
         </>
       )}

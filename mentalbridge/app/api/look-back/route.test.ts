@@ -7,6 +7,7 @@ import {
   makeDashboard,
   makeProgress,
 } from '@/tests/fixtures/look-back'
+import { makeSummary } from '@/tests/fixtures/reassessment-review'
 
 const auth = vi.hoisted(() => ({
   authenticate: vi.fn(),
@@ -17,7 +18,9 @@ const care = vi.hoisted(() => ({
   activityDashboard: vi.fn(),
   history: vi.fn(),
   progress: vi.fn(),
+  reassessmentSummaryHistory: vi.fn(),
 }))
+const plans = vi.hoisted(() => ({ current: vi.fn() }))
 const companion = vi.hoisted(() => ({ list: vi.fn() }))
 const consultation = vi.hoisted(() => ({ appointments: vi.fn() }))
 
@@ -27,6 +30,9 @@ vi.mock('@/lib/care/authenticated-user', () => ({
   carryCareSession: auth.carrySession,
 }))
 vi.mock('@/lib/care/care-client', () => ({ careClient: care }))
+vi.mock('@/lib/care/support-plan-action-client', () => ({
+  supportPlanActionClient: plans,
+}))
 vi.mock('@/lib/companion/companion-client', () => ({
   companionClient: companion,
 }))
@@ -84,9 +90,15 @@ describe('/api/look-back', () => {
       items: [conversation('c1', 'Ngủ ngon hơn', '2026-11-20T09:00:00+07:00')],
     })
     consultation.appointments.mockResolvedValue({ data: { items: [] } })
+    care.reassessmentSummaryHistory.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+      hasMore: false,
+    })
+    plans.current.mockRejectedValue(problem(404, 'SUPPORT_PLAN_NOT_FOUND'))
   })
 
-  it('composes one owner-scoped view from the 30-day dashboard, screenings and conversations', async () => {
+  it('composes one owner-scoped view from the 90-day dashboard, screenings and conversations', async () => {
     const response = await GET(request())
     const body = await response.json()
 
@@ -95,7 +107,7 @@ describe('/api/look-back', () => {
     expect(care.activityDashboard).toHaveBeenCalledWith(
       'owner-token',
       'Asia/Ho_Chi_Minh',
-      30,
+      90,
       expect.any(String),
     )
     expect(care.progress).toHaveBeenCalledTimes(1)
@@ -238,6 +250,95 @@ describe('/api/look-back', () => {
     expect(care.progress).not.toHaveBeenCalled()
     expect(body.partial).toBe(true)
     expect(body.days).toHaveLength(14)
+  })
+
+  describe('journey', () => {
+    const chapter = makeSummary({
+      summaryId: 'sum-1',
+      composedAt: '2026-11-03T09:00:00+07:00',
+      currentPeriod: {
+        startAt: '2026-10-20T09:00:00+07:00',
+        endAt: '2026-11-03T09:00:00+07:00',
+      },
+    })
+    const cycle = {
+      policyVersion: 'support-plan-cycle-v1',
+      lengthDays: 14,
+      timezone: 'Asia/Ho_Chi_Minh',
+      cycleNumber: 2,
+      startedOn: '2026-11-17',
+      reviewDueOn: '2026-11-30',
+      currentDay: 6,
+      pausedDays: 0,
+      state: 'IN_PROGRESS',
+    }
+
+    it('returns the chapters and the running cycle, and looks back only over the cycle days', async () => {
+      care.reassessmentSummaryHistory.mockResolvedValue({
+        items: [chapter],
+        nextCursor: null,
+        hasMore: false,
+      })
+      plans.current.mockResolvedValue({ supportPlanId: 'p1', cycle })
+      const body = await (await GET(request())).json()
+      expect(care.reassessmentSummaryHistory).toHaveBeenCalledWith(
+        'owner-token',
+        undefined,
+        50,
+        expect.any(String),
+      )
+      expect(body.journey.chapters).toMatchObject([
+        { number: 1, summaryId: 'sum-1' },
+      ])
+      expect(body.journey.running).toMatchObject({
+        number: 2,
+        startLocalDate: '2026-11-17',
+        currentDay: 6,
+      })
+      expect(
+        body.days.map((day: { localDate: string }) => day.localDate),
+      ).toEqual([
+        '2026-11-17',
+        '2026-11-18',
+        '2026-11-19',
+        '2026-11-20',
+        '2026-11-21',
+        '2026-11-22',
+      ])
+      expect(body.partial).toBe(false)
+    })
+
+    it('has no running chapter without a plan, and is not partial for it', async () => {
+      const body = await (await GET(request())).json()
+      expect(body.journey).toMatchObject({ chapters: [], running: null })
+      expect(body.days).toHaveLength(14)
+      expect(body.partial).toBe(false)
+    })
+
+    it('keeps the rolling look-back and says part is missing when the summaries fail', async () => {
+      care.reassessmentSummaryHistory.mockRejectedValue(
+        problem(503, 'CARE_UNAVAILABLE'),
+      )
+      const body = await (await GET(request())).json()
+      expect(body.journey).toBeNull()
+      expect(body.partial).toBe(true)
+      expect(body.days).toHaveLength(14)
+    })
+
+    it('keeps the chapters without a running one when the plan cannot be read', async () => {
+      care.reassessmentSummaryHistory.mockResolvedValue({
+        items: [chapter],
+        nextCursor: null,
+        hasMore: false,
+      })
+      plans.current.mockRejectedValue(problem(503, 'CARE_UNAVAILABLE'))
+      const body = await (await GET(request())).json()
+      expect(body.journey).toMatchObject({
+        chapters: [{ number: 1 }],
+        running: null,
+      })
+      expect(body.partial).toBe(true)
+    })
   })
 
   it('fails the request when the dashboard cannot be read', async () => {

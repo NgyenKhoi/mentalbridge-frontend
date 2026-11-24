@@ -1621,8 +1621,8 @@
         "source": "mentalbridge/features/assessment/components/ReassessmentReview.test.tsx",
         "scenario": "shows a skeleton first then every section for a sufficient and consented review",
         "assertions": [
-          "screen.getByRole('list', { name: 'Tóm tắt kỳ này' })",
-          "expect(strip).toHaveTextContent('5bài nhật kýkỳ trước 4')"
+          "const metrics = screen.getByText('Bài nhật ký').closest('dl')!",
+          "expect(metrics).toHaveTextContent('14 ngày trước đó: 4')"
         ]
       },
       "mobile": {
@@ -1756,8 +1756,8 @@
         "source": "mentalbridge/features/assessment/components/ReassessmentReview.test.tsx",
         "scenario": "shows a skeleton first then every section for a sufficient and consented review",
         "assertions": [
-          "screen.getByRole('button', { name: 'Xem điểm chi tiết' })",
-          "screen.getByText('Trầm cảm (PHQ-9)')"
+          "screen.getByText('Xem điểm chi tiết').closest('details')!",
+          "expect(details).toHaveTextContent('Trầm cảm (PHQ-9): 14 → 8 điểm')"
         ]
       }
     },

@@ -20,7 +20,7 @@ describe('HomeReviewEntry', () => {
     const link = await screen.findByRole('link', {
       name: 'Nhìn lại 14 ngày vừa qua',
     })
-    expect(link).toHaveAttribute('href', '/assessments?tab=reassessment')
+    expect(link).toHaveAttribute('href', '/nhin-lai')
     // The arrow is decoration; the description carries the one line.
     expect(link).toHaveAccessibleDescription(/hai kỳ gần nhất/)
     expect(api.listReassessmentSummaries).toHaveBeenCalledWith(1)

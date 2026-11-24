@@ -75,7 +75,7 @@ describe('HomeEmotionWeek', () => {
     expect(within(days).getAllByLabelText(/Chưa ghi nhận/)).toHaveLength(6)
     expect(screen.getByRole('link', { name: 'Xem tiến độ →' })).toHaveAttribute(
       'href',
-      '/analytics',
+      '/nhin-lai',
     )
     expect(
       screen.queryByText('private context must not appear'),

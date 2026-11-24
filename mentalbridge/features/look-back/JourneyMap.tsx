@@ -69,7 +69,7 @@ function compareText(days: readonly Day[], index: number) {
     .slice(0, index)
     .findLast((item) => item.emotionLevel !== null)
   if (!previous || previous.emotionLevel === null)
-    return 'Lần ghi cảm xúc đầu tiên trong 14 ngày này.'
+    return 'Lần ghi cảm xúc đầu tiên trong giai đoạn này.'
   const when = dayMonth(previous.localDate)
   if (level > previous.emotionLevel)
     return `Nhẹ nhõm hơn lần ghi trước (${when}).`
@@ -181,8 +181,11 @@ export function JourneyMap({ data }: Readonly<{ data: LookBack }>) {
   const path = useMemo(() => roadPath(points), [points])
   const inFilter = (index: number) =>
     filter === 'all' || (filter === 'first' ? index < 7 : index >= 7)
+  // A running chapter can have fewer than 14 days, and fewer than 8 leaves no second week.
+  const total = data.days.length
+  const hasSecond = total > 7
   const range = (first: number, last: number) =>
-    `${dayMonth(data.days[first].localDate)} - ${dayMonth(data.days[last].localDate)}`
+    `${dayMonth(data.days[first].localDate)} - ${dayMonth(data.days[Math.min(last, total - 1)].localDate)}`
   const weekMood = (week: 0 | 1) => {
     const average = data.weeks[week].moodAverage
     return average === null
@@ -191,9 +194,17 @@ export function JourneyMap({ data }: Readonly<{ data: LookBack }>) {
   }
   const filters: ReadonlyArray<{ key: Filter; label: string; badge: string }> =
     [
-      { key: 'all', label: 'Tất cả (14 ngày)', badge: '14 trạm' },
-      { key: 'first', label: `Tuần 1 (${range(0, 6)})`, badge: 'Chặng 1' },
-      { key: 'second', label: `Tuần 2 (${range(7, 13)})`, badge: 'Chặng 2' },
+      { key: 'all', label: `Tất cả (${total} ngày)`, badge: `${total} trạm` },
+      { key: 'first', label: `Tuần 1 (${range(0, 6)})`, badge: '7 trạm' },
+      ...(hasSecond
+        ? [
+            {
+              key: 'second' as const,
+              label: `Tuần 2 (${range(7, 13)})`,
+              badge: `${total - 7} trạm`,
+            },
+          ]
+        : []),
     ]
   const choose = (key: Filter) => {
     setFilter(key)
@@ -226,7 +237,9 @@ export function JourneyMap({ data }: Readonly<{ data: LookBack }>) {
           <h2 id="look-back-mood" className={styles.h2}>
             Bản đồ hành trình cảm xúc{' '}
             <small aria-hidden="true">
-              {filter === 'all' ? '14 trạm dừng' : '7 trạm dừng'}
+              {filter === 'all'
+                ? `${total} trạm dừng`
+                : `${filter === 'first' ? 7 : total - 7} trạm dừng`}
             </small>
           </h2>
           <div className={styles.mapLead}>
@@ -265,10 +278,10 @@ export function JourneyMap({ data }: Readonly<{ data: LookBack }>) {
         <div className={styles.filterHint} role="status">
           <i data-week={filter} aria-hidden="true" />
           {filter === 'all'
-            ? 'Đang hiển thị toàn cảnh 14 ngày của cả hai chặng'
+            ? `Đang hiển thị toàn cảnh ${total} ngày`
             : filter === 'first'
-              ? `Tập trung Chặng 1${weekMood(0)}`
-              : `Tập trung Chặng 2${weekMood(1)}`}
+              ? `Tập trung Tuần 1${weekMood(0)}`
+              : `Tập trung Tuần 2${weekMood(1)}`}
         </div>
       </div>
       <div className={styles.mapWrap}>
@@ -286,14 +299,16 @@ export function JourneyMap({ data }: Readonly<{ data: LookBack }>) {
               className={`${styles.zone} ${styles.zoneFirst}`}
               data-dim={filter === 'second' || undefined}
             >
-              CHẶNG 1 • TUẦN 1 ({range(0, 6)})
+              TUẦN 1 ({range(0, 6)})
             </div>
-            <div
-              className={`${styles.zone} ${styles.zoneSecond}`}
-              data-dim={filter === 'first' || undefined}
-            >
-              CHẶNG 2 • TUẦN 2 ({range(7, 13)})
-            </div>
+            {hasSecond && (
+              <div
+                className={`${styles.zone} ${styles.zoneSecond}`}
+                data-dim={filter === 'first' || undefined}
+              >
+                TUẦN 2 ({range(7, 13)})
+              </div>
+            )}
             <svg
               viewBox="0 0 1000 400"
               role="img"

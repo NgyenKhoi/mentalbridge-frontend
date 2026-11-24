@@ -62,3 +62,11 @@ const weekdays = [
 ]
 export const weekdayOf = (localDate: string) =>
   weekdays[new Date(`${localDate}T00:00:00Z`).getUTCDay()]
+
+export const dateRange = (start: string, end: string) =>
+  `${dayMonth(start)} – ${dayMonth(end)}`
+
+export const helpfulnessLabel = {
+  HELPFUL: 'Giúp ích',
+  VERY_HELPFUL: 'Rất giúp ích',
+} as const
