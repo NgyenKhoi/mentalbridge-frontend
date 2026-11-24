@@ -128,6 +128,8 @@ export function validTimezone(value: string | null): value is string {
   }
 }
 
+export const levelRank = (level: ScreeningLevel) => LEVEL_ORDER.indexOf(level)
+
 export const isModerateOrAbove = (level: ScreeningLevel) =>
   LEVEL_ORDER.indexOf(level) >= LEVEL_ORDER.indexOf('MODERATE')
 

@@ -10,7 +10,7 @@ import type {
 import { helpfulSources } from '@/features/assessment/components/reassessment-review-model'
 import type { SupportPlanV3 } from '@/features/support-plan/api/support-plan-contract'
 
-import { localDateOf } from './look-back-model'
+import { isModerateOrAbove, levelRank, localDateOf } from './look-back-model'
 
 export type SupportPlanCycle = NonNullable<SupportPlanV3['cycle']>
 
@@ -259,3 +259,12 @@ export function buildJourney({
     closedAwaitingChoice,
   }
 }
+
+/** A moderate-or-higher band, or a band above the one before: Mầm stays quiet beside it. */
+export const hasHardNews = (chapter: LookBackChapter) =>
+  chapter.screening.some(
+    (item) =>
+      isModerateOrAbove(item.current.level) ||
+      (item.previous !== null &&
+        levelRank(item.current.level) > levelRank(item.previous.level)),
+  )

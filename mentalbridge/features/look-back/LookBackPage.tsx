@@ -15,6 +15,10 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { levelLabels } from '@/features/assessment/components/assessment-meanings'
 
 import { getLookBack } from './browser-look-back'
+import { ChapterList } from './ChapterList'
+import { JourneyStrip } from './JourneyStrip'
+import { hasHardNews } from './look-back-chapters'
+import { useResourceTitles } from './use-resource-titles'
 import {
   dayMonth,
   dimensionLabel,
@@ -77,7 +81,7 @@ function Stats({ data }: Readonly<{ data: LookBack }>) {
   const skipped = (a.supportSkipped ?? 0) > 0 || (b.supportSkipped ?? 0) > 0
   const checkIns =
     a.checkInDays !== null && b.checkInDays !== null
-      ? `Duy trì đều đặn ${a.checkInDays + b.checkInDays}/14 ngày`
+      ? `Duy trì đều đặn ${a.checkInDays + b.checkInDays}/${data.days.length} ngày`
       : 'Tuần 1 → Tuần 2'
   return (
     <dl className={styles.stats}>
@@ -113,7 +117,7 @@ function Stats({ data }: Readonly<{ data: LookBack }>) {
           <div className={styles.unit}>buổi tư vấn đã diễn ra</div>
         </dd>
         <dd className={styles.caption} data-dot>
-          Trong 14 ngày qua
+          Trong {data.days.length} ngày qua
         </dd>
       </div>
     </dl>
@@ -217,9 +221,6 @@ function Screening({ data }: Readonly<{ data: LookBack }>) {
             </li>
           ))}
         </ul>
-        <p className={styles.note}>
-          Đây là kết quả sàng lọc từ câu trả lời của bạn, không phải chẩn đoán.
-        </p>
       </details>
       {data.professionalPointer && (
         <div className={styles.pointer}>
@@ -253,9 +254,7 @@ function WeekMood({
 
 function Header({
   headingRef,
-  data,
-}: Readonly<{ headingRef: Ref<HTMLHeadingElement>; data?: LookBack }>) {
-  const [first, second] = data?.weeks ?? []
+}: Readonly<{ headingRef: Ref<HTMLHeadingElement> }>) {
   return (
     <header
       data-user-page-header
@@ -268,17 +267,40 @@ function Header({
           Báo cáo sức khỏe tinh thần
         </div>
         <h1 ref={headingRef} tabIndex={-1}>
-          Hành trình 14 ngày của bạn
+          Nhìn lại hành trình
         </h1>
-        {data && (
-          <p>
-            Giai đoạn: {dayMonth(data.startLocalDate)}/
-            {data.startLocalDate.slice(0, 4)} — {dayMonth(data.asOfLocalDate)}/
-            {data.asOfLocalDate.slice(0, 4)} • Hai chặng chuyển biến cảm xúc
-          </p>
-        )}
+        <p>
+          Mỗi chặng là một kế hoạch 14 ngày, khép lại bằng một lần đánh giá lại.
+        </p>
       </div>
-      {first?.moodAverage != null && second?.moodAverage != null && (
+    </header>
+  )
+}
+
+/** The window being looked at (the running chapter's days so far, or the last 14), with its two-week mood. */
+function WindowHead({
+  data,
+  title,
+  note,
+  action,
+}: Readonly<{
+  data: LookBack
+  title: string
+  note?: string
+  action?: { label: string; href: string }
+}>) {
+  const [first, second] = data.weeks
+  return (
+    <div className={`${styles.windowHead} ${styles.rise}`} style={rise(100)}>
+      <div>
+        <h2 className={styles.windowTitle}>{title}</h2>
+        <p className={styles.windowDates}>
+          {dayMonth(data.startLocalDate)}/{data.startLocalDate.slice(0, 4)} —{' '}
+          {dayMonth(data.asOfLocalDate)}/{data.asOfLocalDate.slice(0, 4)}
+          {note ? ` · ${note}` : ''}
+        </p>
+      </div>
+      {first.moodAverage != null && second.moodAverage != null && (
         <div
           className={styles.weekBadge}
           aria-label="Mức cảm xúc trung bình hai tuần"
@@ -287,11 +309,85 @@ function Header({
           <WeekMood label="Tuần 2" average={second.moodAverage} />
         </div>
       )}
-    </header>
+      {action && (
+        <Link className={styles.primary} href={action.href}>
+          {action.label} <ArrowRight aria-hidden="true" size={18} />
+        </Link>
+      )}
+    </div>
   )
 }
 
-function Ready({ data }: Readonly<{ data: LookBack }>) {
+function Ready({
+  data,
+  titles,
+}: Readonly<{ data: LookBack; titles: ReadonlyMap<string, string> }>) {
+  const journey = data.journey
+  const chapters = journey?.chapters ?? []
+  const running = journey?.running
+  const closed = journey?.closedAwaitingChoice ? chapters.at(-1) : undefined
+  // The rolling view shows its own specialist pointer beside a screening it carries.
+  const rollingPointer =
+    !closed && data.screening.length > 0 && data.professionalPointer
+  return (
+    <>
+      {closed ? (
+        <section
+          className={`${styles.block} ${styles.rise}`}
+          style={rise(100)}
+          aria-labelledby="look-back-closed"
+        >
+          <h2 id="look-back-closed" className={styles.h2}>
+            Chặng {closed.number} đã khép lại
+          </h2>
+          <p className={styles.lead}>
+            Chọn nhịp cho kế hoạch tiếp theo để mở chặng {closed.number + 1}.
+          </p>
+          <Link
+            className={`${styles.primary} ${styles.fit}`}
+            href="/support-plan?review=open"
+          >
+            Chọn nhịp tiếp theo <ArrowRight aria-hidden="true" size={18} />
+          </Link>
+        </section>
+      ) : (
+        <>
+          <WindowHead
+            data={data}
+            title={
+              running
+                ? `Chặng ${running.number} · ngày ${running.currentDay}/${running.lengthDays}`
+                : '14 ngày gần đây'
+            }
+            note={running?.state === 'PAUSED' ? 'đang tạm dừng' : undefined}
+            action={
+              running?.state === 'REVIEW_DUE'
+                ? {
+                    label: 'Làm bài đánh giá lại để khép chặng này',
+                    href: '/initial-check?purpose=reassessment',
+                  }
+                : undefined
+            }
+          />
+          <Window data={data} />
+        </>
+      )}
+      {journey && chapters.length > 0 && <JourneyStrip journey={journey} />}
+      {chapters.length > 0 && (
+        <ChapterList
+          chapters={chapters}
+          titles={titles}
+          pointer={!rollingPointer}
+        />
+      )}
+      <p className={styles.note}>
+        Số liệu do bạn tự ghi lại; xu hướng không phải chẩn đoán.
+      </p>
+    </>
+  )
+}
+
+function Window({ data }: Readonly<{ data: LookBack }>) {
   const next = nextStepAction[data.nextStep]
   const narrative = data.narrative
   // Mood-based sections need a readable, non-sparse mood; the screening result does not.
@@ -343,7 +439,10 @@ function Ready({ data }: Readonly<{ data: LookBack }>) {
             </div>
             <Conversations items={data.conversations} days={data.days} />
             <div className={styles.conversationFoot}>
-              <div>Những cuộc trò chuyện bạn đã ghi lại trong 14 ngày qua.</div>
+              <div>
+                Những cuộc trò chuyện bạn đã ghi lại trong {data.days.length}{' '}
+                ngày qua.
+              </div>
               <Link className={styles.footLink} href="/ai-companion">
                 Chi tiết →
               </Link>
@@ -413,10 +512,18 @@ export function LookBackPage() {
   const errorId = useId()
   const headingRef = useRef<HTMLHeadingElement>(null)
   // No celebration, queued award or welcome while loading or beside hard news (host gates honour this zone).
+  const newest =
+    state.phase === 'ready' ? state.data.journey?.chapters.at(-1) : undefined
   useMamSuppress(
     state.phase !== 'ready' ||
       state.data.professionalPointer ||
-      state.data.narrative === 'HARDER',
+      state.data.narrative === 'HARDER' ||
+      (newest !== undefined && hasHardNews(newest)),
+  )
+  const titles = useResourceTitles(
+    state.phase === 'ready' &&
+      (state.data.journey?.chapters.some((c) => c.reflections.length > 0) ??
+        false),
   )
   // After "Thử lại" the button disappears: keep focus on the page title.
   useEffect(() => {
@@ -441,10 +548,7 @@ export function LookBackPage() {
       aria-busy={state.phase === 'loading'}
       data-page-motion="off"
     >
-      <Header
-        headingRef={headingRef}
-        data={state.phase === 'ready' ? state.data : undefined}
-      />
+      <Header headingRef={headingRef} />
       {state.phase === 'loading' ? (
         <Loading />
       ) : state.phase === 'error' ? (
@@ -469,7 +573,7 @@ export function LookBackPage() {
           </section>
         </>
       ) : (
-        <Ready data={state.data} />
+        <Ready data={state.data} titles={titles} />
       )}
     </div>
   )

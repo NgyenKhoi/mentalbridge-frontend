@@ -3,7 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const api = vi.hoisted(() => ({ getLookBack: vi.fn() }))
 vi.mock('./browser-look-back', () => api)
+vi.mock('@/features/resources/api/browser-resources', () => ({
+  getResourceCatalogue: vi
+    .fn()
+    .mockResolvedValue({ items: [], hasMore: false }),
+}))
 
+import type { ReassessmentSummary } from '@/features/assessment/api/care-contract'
+import { makeSummary } from '@/tests/fixtures/reassessment-review'
 import {
   asOf,
   harder,
@@ -13,6 +20,7 @@ import {
   sparse,
 } from '@/tests/fixtures/look-back'
 import { isMamFeatureSuppressed } from '@/features/mam/mam-suppression'
+import { buildJourney } from './look-back-chapters'
 import { composeLookBack, type LookBack } from './look-back-model'
 import { narrativeCopy } from './look-back-copy'
 import { LookBackPage } from './LookBackPage'
@@ -26,6 +34,49 @@ const steady = (patch: Partial<LookBack> = {}): LookBack => ({
   }),
   ...patch,
 })
+
+const summary = (id: string, start: string, end: string) =>
+  makeSummary({
+    summaryId: id,
+    composedAt: `${end}T09:00:00+07:00`,
+    currentPeriod: {
+      startAt: `${start}T00:00:00+07:00`,
+      endAt: `${end}T00:00:00+07:00`,
+    },
+    previousPeriod: {
+      startAt: '2026-01-01T00:00:00+07:00',
+      endAt: `${start}T00:00:00+07:00`,
+    },
+  }) as unknown as ReassessmentSummary
+const cycle = (patch: Record<string, unknown> = {}) =>
+  ({
+    policyVersion: 'support-plan-cycle-v1',
+    lengthDays: 14,
+    timezone: 'Asia/Ho_Chi_Minh',
+    cycleNumber: 3,
+    startedOn: '2026-11-17',
+    reviewDueOn: '2026-11-30',
+    currentDay: 6,
+    pausedDays: 0,
+    state: 'IN_PROGRESS',
+    ...patch,
+  }) as never
+const withJourney = (
+  summaries: ReassessmentSummary[],
+  plan: ReturnType<typeof cycle> | null = null,
+) =>
+  steady({
+    journey: buildJourney({
+      summaries,
+      dashboard: makeDashboard(Array(14).fill(4)),
+      cycle: plan,
+      timeZone: 'Asia/Ho_Chi_Minh',
+    }),
+  })
+const twoChapters = () => [
+  summary('s1', '2026-10-10', '2026-10-24'),
+  summary('s2', '2026-10-25', '2026-11-08'),
+]
 
 const nextLink = () =>
   within(screen.getByRole('region', { name: 'Bước tiếp theo' })).getByRole(
@@ -41,7 +92,7 @@ describe('LookBackPage', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Hành trình 14 ngày của bạn',
+        name: 'Nhìn lại hành trình',
       }),
     ).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Đang tải')
@@ -178,7 +229,7 @@ describe('LookBackPage', () => {
       14,
     )
     expect(document.querySelectorAll('button[data-dim]')).toHaveLength(7)
-    expect(screen.getByText(/^Tập trung Chặng 1/)).toBeVisible()
+    expect(screen.getByText(/^Tập trung Tuần 1/)).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: /Ngày 1,/ }))
     const card = screen.getByLabelText('Chi tiết ngày 1')
     expect(card).toHaveTextContent(/Ngày 1 •/)
@@ -284,5 +335,165 @@ describe('LookBackPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
     expect(await screen.findByText(narrativeCopy.IMPROVING)).toBeVisible()
     expect(api.getLookBack).toHaveBeenCalledTimes(2)
+  })
+
+  describe('chapters', () => {
+    it('lists chapters newest first, the newest open and the others folded', async () => {
+      api.getLookBack.mockResolvedValue(withJourney(twoChapters()))
+      render(<LookBackPage />)
+      const list = (
+        await screen.findByRole('heading', { name: 'Các chặng đã qua' })
+      ).closest('section')!
+      const items = [...list.querySelectorAll('details')].filter((item) =>
+        item.querySelector(':scope > summary strong'),
+      )
+      expect(
+        items.map((item) => item.querySelector('summary strong')?.textContent),
+      ).toEqual(['Chặng 2', 'Chặng 1'])
+      expect(items[0]).toHaveAttribute('open')
+      expect(items[1]).not.toHaveAttribute('open')
+      expect(
+        within(items[0]).getByRole('heading', { name: 'Kết quả tự đánh giá' }),
+      ).toBeVisible()
+      expect(
+        within(items[0]).getByRole('heading', { name: 'Cảm xúc hằng ngày' }),
+      ).toBeVisible()
+    })
+
+    it('labels comparisons as the 14 days before, never as the previous chapter', async () => {
+      api.getLookBack.mockResolvedValue(withJourney(twoChapters()))
+      render(<LookBackPage />)
+      await screen.findByRole('heading', { name: 'Các chặng đã qua' })
+      expect(screen.getAllByText(/^14 ngày trước đó: /).length).toBeGreaterThan(
+        0,
+      )
+      expect(screen.queryByText(/kỳ trước/i)).toBeNull()
+    })
+
+    it('strip starts at the beginning, ends with the running chapter and gives it no band', async () => {
+      api.getLookBack.mockResolvedValue(withJourney(twoChapters(), cycle()))
+      render(<LookBackPage />)
+      const strip = (
+        await screen.findByRole('heading', { name: 'Hành trình của bạn' })
+      ).closest('section')!
+      const columns = within(strip).getAllByRole('listitem')
+      expect(columns.map((c) => c.firstElementChild?.textContent)).toEqual([
+        'Lúc bắt đầu',
+        'Chặng 1',
+        'Chặng 2',
+        'Chặng 3',
+      ])
+      expect(columns[3]).toHaveTextContent('Đang diễn ra')
+      expect(columns[3]).toHaveTextContent('Chưa đánh giá lại')
+      expect(columns[3]).not.toHaveTextContent(/Tâm trạng|Lo lắng/)
+      expect(columns[1]).toHaveTextContent('Tâm trạng')
+    })
+
+    it('titles the running chapter by its day and offers the reassessment when it is due', async () => {
+      api.getLookBack.mockResolvedValue(
+        withJourney(
+          twoChapters(),
+          cycle({ state: 'REVIEW_DUE', currentDay: 14 }),
+        ),
+      )
+      render(<LookBackPage />)
+      expect(
+        await screen.findByRole('heading', { name: 'Chặng 3 · ngày 14/14' }),
+      ).toBeVisible()
+      expect(
+        screen.getByRole('link', {
+          name: /Làm bài đánh giá lại để khép chặng này/,
+        }),
+      ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
+    })
+
+    it('a cycle closed by a reassessment links to the plan review and has no running column', async () => {
+      api.getLookBack.mockResolvedValue(
+        withJourney(
+          twoChapters(),
+          cycle({
+            startedOn: '2026-10-25',
+            state: 'REVIEW_DUE',
+            currentDay: 14,
+          }),
+        ),
+      )
+      render(<LookBackPage />)
+      expect(
+        await screen.findByRole('heading', { name: 'Chặng 2 đã khép lại' }),
+      ).toBeVisible()
+      expect(
+        screen.getByRole('link', { name: /Chọn nhịp tiếp theo/ }),
+      ).toHaveAttribute('href', '/support-plan?review=open')
+      expect(screen.queryByText('Đang diễn ra')).toBeNull()
+      expect(
+        screen.queryByRole('heading', { name: '14 ngày gần đây' }),
+      ).toBeNull()
+    })
+
+    it('an old chapter says daily detail is kept for 90 days instead of drawing empty dots', async () => {
+      api.getLookBack.mockResolvedValue(
+        withJourney([summary('old', '2026-07-01', '2026-07-15')]),
+      )
+      render(<LookBackPage />)
+      expect(
+        await screen.findByText(
+          'Chỉ giữ chi tiết theo ngày trong 90 ngày gần nhất.',
+        ),
+      ).toBeVisible()
+      expect(screen.getAllByText('Chưa có số liệu').length).toBeGreaterThan(0)
+    })
+
+    it('draws only the days a running chapter has so far', async () => {
+      api.getLookBack.mockResolvedValue(
+        composeLookBack({
+          dashboard: makeDashboard([...Array(7).fill(2), ...Array(7).fill(4)]),
+          conversations: null,
+          progress: [],
+          degraded: false,
+          fromLocalDate: '2026-11-13',
+        }),
+      )
+      render(<LookBackPage />)
+      await screen.findByRole('heading', { name: /Bản đồ hành trình cảm xúc/ })
+      expect(
+        screen.getAllByRole('button', { name: /^Ngày \d+,/ }),
+      ).toHaveLength(10)
+      expect(screen.getByRole('button', { name: /^Tuần 2 \(/ })).toBeVisible()
+      expect(screen.getByText('Đang hiển thị toàn cảnh 10 ngày')).toBeVisible()
+    })
+
+    it('keeps the rolling view when there are no chapters', async () => {
+      api.getLookBack.mockResolvedValue(withJourney([]))
+      render(<LookBackPage />)
+      expect(
+        await screen.findByRole('heading', { name: '14 ngày gần đây' }),
+      ).toBeVisible()
+      expect(
+        screen.queryByRole('heading', { name: 'Hành trình của bạn' }),
+      ).toBeNull()
+      expect(
+        screen.queryByRole('heading', { name: 'Các chặng đã qua' }),
+      ).toBeNull()
+    })
+
+    it('says the note about self-reported data once, however many chapters', async () => {
+      api.getLookBack.mockResolvedValue(withJourney(twoChapters()))
+      render(<LookBackPage />)
+      await screen.findByRole('heading', { name: 'Các chặng đã qua' })
+      expect(screen.getAllByText(/không phải chẩn đoán/)).toHaveLength(1)
+    })
+
+    it('keeps Mầm quiet when the newest chapter ends at a moderate band', async () => {
+      const moderate = summary('s1', '2026-10-25', '2026-11-08')
+      moderate.screening.trends[0].current.screeningLevel = 'MODERATE'
+      api.getLookBack.mockResolvedValue(withJourney([moderate]))
+      render(<LookBackPage />)
+      await screen.findByRole('heading', { name: 'Các chặng đã qua' })
+      expect(isMamFeatureSuppressed()).toBe(true)
+      expect(
+        screen.getByRole('link', { name: 'Tìm chuyên gia' }),
+      ).toHaveAttribute('href', '/specialists')
+    })
   })
 })
