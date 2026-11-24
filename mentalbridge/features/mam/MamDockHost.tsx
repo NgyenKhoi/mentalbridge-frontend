@@ -54,6 +54,7 @@ import {
 import { useMamSaved } from './mam-saved'
 import { mamHoldMs } from './mam-lines'
 import { useMamTrajectory } from './use-mam-trajectory'
+import { useOnboardingHold } from '@/features/onboarding/onboarding-hold'
 import { useMamDropRing } from './use-mam-drop-ring'
 import { useMamSummon } from './use-mam-summon'
 import {
@@ -256,6 +257,8 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     })
   const dockBubble = summon?.anchor.kind === 'dock'
   const accountId = useMamAccountId()
+  // A first-run tour owns the screen: the welcome keeps waiting (no cap, no cancel) and flies once it ends or is skipped.
+  const tourHolds = useOnboardingHold(accountId, pathname)
   if (notice && (summon || menuOpen)) setNotice(null)
   // A renderer failure retires what is open: the menu, the summon and its request.
   if (dizzy && open) setOpen(false)
@@ -757,16 +760,16 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   // The whole wait is capped: whatever holds the start (a slow asset, a no-interrupt zone, focus), after 4 s Mầm
   // shows in the dock and the scene is off. The session is not marked as played.
   useEffect(() => {
-    if (welcome !== 'waiting') return
+    if (welcome !== 'waiting' || tourHolds) return
     const timer = setTimeout(() => {
       setWelcome('done')
       markWelcomeAttempted(accountId)
     }, WELCOME_READY_MS)
     return () => clearTimeout(timer)
-  }, [welcome, accountId])
+  }, [welcome, accountId, tourHolds])
   // The user has started to use the page: no surprise entrance after that.
   useEffect(() => {
-    if (welcome !== 'waiting') return
+    if (welcome !== 'waiting' || tourHolds) return
     // The user has started to use the page: this session's entrance is over, here and on later FULL routes.
     const stop = () => {
       setWelcome('done')
@@ -779,10 +782,10 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       for (const type of WELCOME_CANCEL_EVENTS)
         window.removeEventListener(type, stop, { capture: true })
     }
-  }, [welcome, accountId])
+  }, [welcome, accountId, tourHolds])
   // 700 ms after ready the page's entrance has landed; every gate is checked once, then it flies.
   useEffect(() => {
-    if (welcome !== 'waiting' || !calm) return
+    if (welcome !== 'waiting' || !calm || tourHolds) return
     const timer = setTimeout(() => {
       setWelcome('done')
       const rect = dockRef.current?.getBoundingClientRect()
@@ -808,7 +811,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       setReplayUsed(true)
     }, WELCOME_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [welcome, calm, accountId, orchestrator])
+  }, [welcome, calm, accountId, orchestrator, tourHolds])
   // Any input ends a cinematic look at once (the input still reaches its target); a hidden tab or a resize ends any
   // look, since a plan made for the old viewport is stale. Listening while any look runs covers the plant pot and
   // the parachute's closing wave, which have no travel mode.
