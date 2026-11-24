@@ -190,7 +190,11 @@ describe('buildJourney', () => {
   it('runs the next chapter when the rhythm was kept on the reassessment day', () => {
     const journey = build({
       summaries: [summary('a', '2026-11-10', '2026-11-24')],
-      cycle: cycle({ startedOn: '2026-11-24', state: 'IN_PROGRESS', currentDay: 1 }),
+      cycle: cycle({
+        startedOn: '2026-11-24',
+        state: 'IN_PROGRESS',
+        currentDay: 1,
+      }),
     })
     expect(journey.closedAwaitingChoice).toBe(false)
     expect(journey.running?.number).toBe(2)
