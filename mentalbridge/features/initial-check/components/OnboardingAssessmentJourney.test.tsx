@@ -63,15 +63,10 @@ vi.mock('@/features/assessment/api/browser-care', () => ({
 }))
 
 vi.mock('@/features/assessment/components/ReassessmentReview', () => ({
-  ReassessmentReview: ({
-    variant,
-    footer,
-  }: {
-    variant: string
-    footer?: React.ReactNode
-  }) => (
+  ReassessmentReview: ({ footer }: { footer?: React.ReactNode }) => (
     <div>
-      Nhìn lại 14 ngày ({variant}){footer}
+      Chặng vừa khép lại
+      {footer}
     </div>
   ),
 }))
@@ -329,9 +324,7 @@ describe('OnboardingAssessmentJourney', () => {
 
     fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
 
-    expect(
-      await screen.findByText('Nhìn lại 14 ngày (flow)'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Chặng vừa khép lại')).toBeInTheDocument()
     expect(screen.getByText('4. Nhìn lại')).toBeInTheDocument()
     expect(screen.queryByText(/bài sàng lọc đầu tiên/i)).not.toBeInTheDocument()
     expect(proposeSupportPlanDraft).not.toHaveBeenCalled()

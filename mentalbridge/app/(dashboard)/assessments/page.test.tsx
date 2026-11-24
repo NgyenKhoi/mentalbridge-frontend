@@ -149,25 +149,14 @@ describe('Assessment history page', () => {
     const historyTab = screen.getByRole('tab', { name: 'Lịch sử sàng lọc' })
     historyTab.focus()
     await userEvent.keyboard('{End}')
-    expect(screen.getByRole('tab', { name: 'Nhìn lại' })).toHaveFocus()
-    expect(screen.getByRole('tab', { name: 'Nhìn lại' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    )
-    expect(
-      await screen.findByRole('heading', { name: 'Nhìn lại 14 ngày' }),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('link', { name: 'Làm bài đánh giá lại' }),
-    ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
+    const supportTab = screen.getByRole('tab', { name: 'Gợi ý sau sàng lọc' })
+    expect(supportTab).toHaveFocus()
+    expect(supportTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'panel-support')
     await userEvent.keyboard('{Home}')
     expect(historyTab).toHaveFocus()
     expect(historyTab).toHaveAttribute('aria-selected', 'true')
-    await userEvent.keyboard('{ArrowRight}')
-    expect(
-      screen.getByRole('tab', { name: 'Gợi ý sau sàng lọc' }),
-    ).toHaveFocus()
-    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'panel-support')
+    expect(screen.queryByRole('tab', { name: 'Nhìn lại' })).toBeNull()
   })
 
   it('does not misreport a history failure as no previous assessment', async () => {
