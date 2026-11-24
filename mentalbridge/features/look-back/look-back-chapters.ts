@@ -224,8 +224,9 @@ export function buildJourney({
     (RUNNING_STATES as readonly string[]).includes(cycle.state)
       ? cycle
       : null
+  // Only a due cycle waits for the user's choice; keeping the rhythm on the reassessment day starts a new IN_PROGRESS cycle.
   const closedAwaitingChoice =
-    !!open &&
+    open?.state === 'REVIEW_DUE' &&
     !!newest &&
     localDateOf(newest.composedAt, timeZone) >= open.startedOn!
   let running: RunningChapter | null = null

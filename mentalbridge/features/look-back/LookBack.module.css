@@ -1300,7 +1300,7 @@
 }
 
 .dot[data-empty] {
-  border: 1.5px solid #cbd5e1;
+  border: 1.5px solid var(--slate-500);
   background: transparent;
 }
 
@@ -1558,6 +1558,19 @@
     gap: var(--space-5);
   }
 
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .chapterItem > .chapter {
+    padding: 0 var(--space-4) var(--space-4);
+  }
+
+  /* The strip scrolls sideways here: fade its right edge so the next chặng reads as more to swipe. */
+  .stripScroll {
+    mask-image: linear-gradient(to right, #000 82%, transparent);
+  }
+
   .live:empty {
     margin-top: calc(var(--space-5) * -1);
   }
@@ -1687,7 +1700,9 @@
   .zone,
   .primary,
   .filters button,
-  .next .primary svg {
+  .next .primary svg,
+  .chapterItem > summary svg,
+  .chapterName {
     transition: none;
   }
 

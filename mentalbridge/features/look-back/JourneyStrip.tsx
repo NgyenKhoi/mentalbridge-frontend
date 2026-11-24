@@ -77,8 +77,10 @@ export function JourneyStrip({
     byInstrument(chapter.screening.map((s) => s.current)),
   )
   const start = byInstrument(baseline)
-  let index = 0
-  const rise = () => ({ '--d': `${index++ * 70}ms` }) as CSSProperties
+  // Stagger by column position (pure, so a StrictMode double render keeps the same delays).
+  const offset = baseline.length > 0 ? 1 : 0
+  const rise = (column: number) =>
+    ({ '--d': `${column * 70}ms` }) as CSSProperties
   return (
     <section
       className={`${styles.block} ${styles.rise}`}
@@ -96,7 +98,7 @@ export function JourneyStrip({
       >
         <ol className={styles.strip}>
           {baseline.length > 0 && (
-            <li className={`${styles.stripCol} ${styles.rise}`} style={rise()}>
+            <li className={`${styles.stripCol} ${styles.rise}`} style={rise(0)}>
               <div className={styles.stripTitle}>Lúc bắt đầu</div>
               <Bands bands={start} />
             </li>
@@ -105,7 +107,7 @@ export function JourneyStrip({
             <li
               key={chapter.summaryId}
               className={`${styles.stripCol} ${styles.rise}`}
-              style={rise()}
+              style={rise(offset + position)}
             >
               <div className={styles.stripTitle}>Chặng {chapter.number}</div>
               <div className={styles.stripDates}>
@@ -131,7 +133,7 @@ export function JourneyStrip({
           {running && (
             <li
               className={`${styles.stripCol} ${styles.rise}`}
-              style={rise()}
+              style={rise(offset + chapters.length)}
               data-running="true"
             >
               <div className={styles.stripTitle}>Chặng {running.number}</div>
