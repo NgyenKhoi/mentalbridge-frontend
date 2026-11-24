@@ -34,6 +34,8 @@ type Props = Readonly<{
   onDiscardDraft: () => Promise<void> | void
   /** Reloads the authoritative plan after it changed elsewhere. */
   onRefreshPlan: () => Promise<void> | void
+  /** Prepares a replacement draft from the reassessment result; the plan changes only after the owner confirms. */
+  onProposeReplacement?: () => void
 }>
 
 const domain = { PHQ9: 'Dấu hiệu trầm cảm', GAD7: 'Dấu hiệu lo âu' } as const
@@ -361,6 +363,7 @@ export default function AdaptiveReview({
   onApplied,
   onDiscardDraft,
   onRefreshPlan,
+  onProposeReplacement,
 }: Props) {
   const [review, setReview] = useState<Review>()
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>(
@@ -622,6 +625,23 @@ export default function AdaptiveReview({
           <Link className="mbw-text-link" href={REVIEW_REASSESSMENT_HREF}>
             Làm bài kiểm tra lại
           </Link>
+        </div>
+      )}
+
+      {reassessmentState === 'AVAILABLE' && onProposeReplacement && (
+        <div className="mbw-review-note">
+          <p>
+            Bạn đã làm bài kiểm tra lại. Phương án mới dựa trên kết quả đó; kế
+            hoạch hiện tại không đổi cho đến khi bạn xác nhận.
+          </p>
+          <button
+            type="button"
+            className="mbw-secondary"
+            disabled={locked}
+            onClick={onProposeReplacement}
+          >
+            Lập kế hoạch mới từ kết quả đánh giá
+          </button>
         </div>
       )}
 
