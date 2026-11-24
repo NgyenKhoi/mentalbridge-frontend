@@ -87,7 +87,7 @@ const groups = [
       ],
       [
         '/nhin-lai',
-        'Nhìn lại 14 ngày',
+        'Nhìn lại',
         <Svg key="look-back">
           <path d="M3 17c3-1 4-8 8-8s5 6 10-3" />
           <circle cx="3" cy="17" r="1" />
@@ -152,13 +152,6 @@ const groups = [
         </Svg>,
       ],
       [
-        '/analytics',
-        'Phân tích',
-        <Svg key="n">
-          <path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />
-        </Svg>,
-      ],
-      [
         '/subscription',
         'Gói dịch vụ',
         <Svg key="p">
@@ -184,14 +177,13 @@ const labels: Record<string, string> = {
   '/support-guides': 'Gợi ý hỗ trợ',
   '/safety-directory': 'Hỗ trợ an toàn theo khu vực',
   '/support-plan': 'Kế hoạch hỗ trợ',
-  '/nhin-lai': 'Nhìn lại 14 ngày',
+  '/nhin-lai': 'Nhìn lại',
   '/specialists': 'Chuyên gia tư vấn',
   '/appointments': 'Lịch hẹn',
   '/messages': 'Tin nhắn',
   '/ai-companion': 'AI Companion',
   '/resources': 'Tài nguyên',
   '/achievements': 'Bộ sưu tập hành trình',
-  '/analytics': 'Phân tích',
   '/subscription': 'Gói dịch vụ',
   '/notifications': 'Thông báo',
   '/profile': 'Hồ sơ và quyền riêng tư',

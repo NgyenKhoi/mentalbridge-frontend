@@ -573,7 +573,7 @@ test.describe('MB-672 Home next step', () => {
       ).toHaveCount(7)
       await expect(
         page.getByRole('link', { name: /Xem tiến độ/ }),
-      ).toHaveAttribute('href', '/analytics')
+      ).toHaveAttribute('href', '/nhin-lai')
       await expect(page.getByText(/chuỗi|streak|điểm thưởng/i)).toHaveCount(0)
     })
   }

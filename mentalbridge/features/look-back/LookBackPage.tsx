@@ -262,7 +262,11 @@ function Header({
       style={rise(50)}
     >
       <div data-user-page-heading>
-        <div className={styles.kicker}>
+        <div
+          className={
+            styles.kicker
+          } /* taste-skill-ignore: approved MB-898 Stitch header */
+        >
           <i aria-hidden="true" />
           Báo cáo sức khỏe tinh thần
         </div>

@@ -281,7 +281,7 @@ describe('Mầm welcome airplane', () => {
     expect(visible()).toBe('true')
   })
 
-  it.each(['/resources', '/achievements', '/analytics'])(
+  it.each(['/resources', '/achievements', '/nhin-lai'])(
     'is eligible on the first FULL route, %s, not only /dashboard',
     async (path) => {
       navigation.pathname = path
@@ -306,7 +306,7 @@ describe('Mầm welcome airplane', () => {
     // QUIET again, then FULL again: the welcome never replays.
     navigation.pathname = '/journal'
     rerender(app())
-    navigation.pathname = '/analytics'
+    navigation.pathname = '/nhin-lai'
     rerender(app())
     await ms(TO_FLIGHT + 300)
     expect(mode()).toBe('dock')
@@ -356,7 +356,7 @@ describe('Mầm welcome airplane', () => {
       await ms(TO_FLIGHT + 300)
       expect(mode()).toBe('dock')
       expect(visible()).toBe('true')
-      navigation.pathname = '/analytics'
+      navigation.pathname = '/nhin-lai'
       rerender(app())
       expect(visible()).toBe('true')
       await ms(TO_FLIGHT + 300)

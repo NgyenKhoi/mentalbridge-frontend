@@ -481,14 +481,11 @@ export default function GuidedInitialCheck({
               Quay lại xem lại kế hoạch
             </h2>
             <p>
-              Bạn có thể chia sẻ thêm cảm nhận của mình, rồi quay lại phần xem
-              lại kế hoạch. Kế hoạch chưa thay đổi.
+              Bài kiểm tra lại đã xong. Kế hoạch chưa thay đổi cho đến khi bạn
+              chọn.
             </p>
-            <Link
-              className="btn btn-outline"
-              href="/assessments?tab=reassessment&returnTo=plan-review"
-            >
-              Chia sẻ cảm nhận rồi quay lại kế hoạch
+            <Link className="btn btn-outline" href="/support-plan?review=open">
+              Xem lại kế hoạch
             </Link>
           </section>
         )}

@@ -6,7 +6,7 @@ import { dockRoot } from './mam-dock-helpers'
 
 // MB-896: the orchestrator (docs/ADR_MAM_RIVE_V2_CONTRACT.md "Orchestrator"), driven by its QA trigger
 // `?mamIntent=<INTENT>` (and `&mamVariation=<id>`), with the real v0.8 asset. Automated browsers skip the
-// automatic welcome, so nothing but the trigger plays here. `/analytics` is a FULL route with no page action under the
+// automatic welcome, so nothing but the trigger plays here. `/achievements` is a FULL route with no page action under the
 // dock (on `/dashboard` the dock yields to one, which blocks the touch and idle looks by design).
 
 const INTENTS = [
@@ -26,7 +26,7 @@ const props = (page: Page) => page.locator('[data-mam-prop]')
 const open = async (
   page: Page,
   query: string,
-  { path = '/analytics', width = 1440 } = {},
+  { path = '/achievements', width = 1440 } = {},
 ) => {
   await installHomeMocks(page, homeWorld('do-today'))
   await page.setViewportSize({ width, height: width === 375 ? 812 : 900 })
@@ -74,13 +74,13 @@ test.describe('MB-896 Mầm intents', () => {
     })
     await expect(props(page)).toHaveCount(0, { timeout: 8_000 })
 
-    await page.goto('/analytics?mamIntent=IDLE&mamVariation=butterfly')
+    await page.goto('/achievements?mamIntent=IDLE&mamVariation=butterfly')
     await expect(page.locator('[data-mam-prop="butterfly"]')).toHaveCount(1, {
       timeout: 10_000,
     })
     await expect(props(page)).toHaveCount(0, { timeout: 8_000 })
 
-    await page.goto('/analytics?mamIntent=CELEBRATE&mamVariation=cheer_sign')
+    await page.goto('/achievements?mamIntent=CELEBRATE&mamVariation=cheer_sign')
     await expect(page.locator('[data-mam-prop="cheerSign"]')).toHaveText(
       'Giỏi lắm!',
       { timeout: 10_000 },

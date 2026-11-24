@@ -111,7 +111,7 @@ export function HomeEmotionWeek({
     >
       <div className={styles.heading}>
         <h2 id="home-emotion-week-title">Tuần này của bạn</h2>
-        <Link href="/analytics">Xem tiến độ →</Link>
+        <Link href="/nhin-lai">Xem tiến độ →</Link>
       </div>
       {state.phase === 'loading' ? (
         <div

@@ -176,18 +176,15 @@ describe('GuidedInitialCheck', () => {
     )
     expect(
       await screen.findByRole('link', {
-        name: 'Chia sẻ cảm nhận rồi quay lại kế hoạch',
+        name: 'Xem lại kế hoạch',
       }),
-    ).toHaveAttribute(
-      'href',
-      '/assessments?tab=reassessment&returnTo=plan-review',
-    )
+    ).toHaveAttribute('href', '/support-plan?review=open')
     unmount()
     render(<GuidedInitialCheck purpose="REASSESSMENT" />)
     await screen.findByText(/Đã lưu kết quả/)
     expect(
       screen.queryByRole('link', {
-        name: 'Chia sẻ cảm nhận rồi quay lại kế hoạch',
+        name: 'Xem lại kế hoạch',
       }),
     ).toBeNull()
   })

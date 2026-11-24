@@ -58,7 +58,7 @@ describe('ReassessmentReview', () => {
   })
   afterEach(() => vi.useRealTimers())
 
-  it('shows the chapter skeleton first, then the chapter that was just closed', async () => {
+  it('shows a skeleton first then every section for a sufficient and consented review', async () => {
     const { container } = render(<ReassessmentReview />)
     expect(screen.getByRole('status')).toHaveTextContent(
       'Đang chuẩn bị phần nhìn lại',
