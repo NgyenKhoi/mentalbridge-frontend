@@ -420,14 +420,17 @@ function ErrorBlock({ onRetry }: Readonly<{ onRetry: () => void }>) {
 function Ready({
   journey,
   data,
+  shownId,
   phase,
   active,
   onSelect,
   onRetry,
 }: Readonly<{
   journey: LookBackJourney | null
-  /** The look-back of the chặng being shown; null while it loads or failed. */
+  /** The look-back on screen: the picked chặng's, or the previous one (dimmed) while the pick loads; null before any. */
   data: LookBack | null
+  /** The chặng `data` belongs to. */
+  shownId: string | null
   phase: State['phase']
   active: string | null
   onSelect: (id: string) => void
@@ -439,7 +442,8 @@ function Ready({
   const closed = journey?.closedAwaitingChoice
     ? journey.chapters.at(-1)
     : undefined
-  const chapter = chapters.find((item) => item.summaryId === active)
+  const stale = phase === 'loading' && data !== null
+  const chapter = chapters.find((item) => item.summaryId === shownId)
   const tabs: Tab[] = [
     ...chapters.map((item) => ({
       id: item.summaryId,
@@ -450,22 +454,42 @@ function Ready({
       ? [{ id: RUNNING, name: `Chặng ${running.number}`, sub: 'đang diễn ra' }]
       : []),
   ]
-  const runningActive = running && active === RUNNING
-  const pending = closed
-    ? {
-        label: 'Chọn nhịp tiếp theo',
-        href: '/support-plan?review=open',
-        title: 'Chọn nhịp cho chặng tiếp theo',
-        body: 'Chặng vừa rồi đã khép lại với lần đánh giá mới. Bạn chọn giữ nhịp, điều chỉnh hay lập kế hoạch mới.',
-      }
-    : running?.state === 'REVIEW_DUE'
+  const tabbed = tabs.length > 1
+  const label = tabs.find((tab) => tab.id === active)?.name.toLowerCase()
+  // Polite status for the swap: the old chặng stays on screen until the new one arrives.
+  const [status, setStatus] = useState('')
+  const switched = useRef(false)
+  useEffect(() => {
+    if (!switched.current) {
+      switched.current = true
+      return
+    }
+    setStatus(
+      phase === 'loading'
+        ? `Đang tải ${label}…`
+        : phase === 'ready'
+          ? `Đã mở ${label}`
+          : '',
+    )
+  }, [active, phase, label])
+  const runningActive = running && shownId === RUNNING
+  // The override belongs to the chặng it concerns: the newest closed one, or the running one.
+  const pending =
+    closed && shownId === closed.summaryId
       ? {
-          label: 'Làm bài đánh giá lại',
-          href: '/initial-check?purpose=reassessment',
-          title: 'Khép lại chặng này',
-          body: 'Đã đủ 14 ngày. Làm bài đánh giá lại để xem chặng vừa qua và chọn nhịp tiếp theo.',
+          label: 'Chọn nhịp tiếp theo',
+          href: '/support-plan?review=open',
+          title: 'Chọn nhịp cho chặng tiếp theo',
+          body: 'Chặng vừa rồi đã khép lại với lần đánh giá mới. Bạn chọn giữ nhịp, điều chỉnh hay lập kế hoạch mới.',
         }
-      : undefined
+      : runningActive && running.state === 'REVIEW_DUE'
+        ? {
+            label: 'Làm bài đánh giá lại',
+            href: '/initial-check?purpose=reassessment',
+            title: 'Khép lại chặng này',
+            body: 'Đã đủ 14 ngày. Làm bài đánh giá lại để xem chặng vừa qua và chọn nhịp tiếp theo.',
+          }
+        : undefined
   return (
     <>
       {closed && (
@@ -478,13 +502,10 @@ function Ready({
             <h2 id="look-back-closed" className={styles.bannerTitle}>
               Chặng {closed.number} đã khép lại
             </h2>
-            <p className={styles.bannerLead}>
-              Chọn nhịp cho kế hoạch tiếp theo để mở chặng {closed.number + 1}.
-            </p>
           </div>
         </section>
       )}
-      {tabs.length > 0 && (
+      {tabbed && (
         <ChapterTabs
           tabs={tabs}
           active={active}
@@ -492,22 +513,23 @@ function Ready({
           onSelect={onSelect}
         />
       )}
+      <div role="status" className="sr-only">
+        {status}
+      </div>
       <div
         id={panelId}
-        className={styles.panel}
-        role={tabs.length > 0 ? 'tabpanel' : undefined}
-        aria-labelledby={
-          tabs.length > 0 && active ? `${panelId}-${active}` : undefined
-        }
+        className={`${styles.panel} ${stale ? styles.panelStale : ''}`}
+        role={tabbed ? 'tabpanel' : undefined}
+        aria-labelledby={tabbed && active ? `${panelId}-${active}` : undefined}
         aria-busy={phase === 'loading'}
       >
-        {phase === 'loading' ? (
-          <Loading />
-        ) : phase === 'error' || !data ? (
+        {phase === 'error' ? (
           <ErrorBlock onRetry={onRetry} />
+        ) : !data ? (
+          <Loading />
         ) : (
           // Keyed by chặng: the road and its week tabs start over for the chặng picked.
-          <Fragment key={active ?? 'rolling'}>
+          <Fragment key={shownId ?? 'rolling'}>
             <WindowHead
               data={data}
               title={
@@ -689,12 +711,19 @@ export function LookBackPage() {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const journey = state.phase === 'ready' ? state.data.journey : null
   const shown = selection ? other : state
-  const data = shown.phase === 'ready' ? shown.data : null
+  // A pick keeps the previous chặng on screen (dimmed) until its own data arrives.
+  const [content, setContent] = useState<{
+    id: string | null
+    data: LookBack
+  } | null>(null)
   // The chặng on screen: the picked one, else the running one, else the newest closed (what the first load shows).
   const defaultId = journey?.running
     ? RUNNING
     : (defaultClosedChapter(journey)?.summaryId ?? null)
   const active = selection?.id ?? defaultId
+  if (shown.phase === 'ready' && content?.data !== shown.data)
+    setContent({ id: active, data: shown.data })
+  const data = shown.phase === 'error' ? null : (content?.data ?? null)
   // No celebration, queued award or welcome while loading or beside hard news (host gates honour this zone).
   const newest = journey?.chapters.at(-1)
   const looked = journey?.chapters.find((item) => item.summaryId === active)
@@ -714,7 +743,10 @@ export function LookBackPage() {
     const controller = new AbortController()
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
     getLookBack(timezone, controller.signal)
-      .then((data) => setState({ phase: 'ready', data }))
+      .then((data) => {
+        if (controller.signal.aborted) return
+        setState({ phase: 'ready', data })
+      })
       .catch(() => {
         if (!controller.signal.aborted) setState({ phase: 'error' })
       })
@@ -729,7 +761,10 @@ export function LookBackPage() {
       from: selection.from,
       to: selection.to,
     })
-      .then((data) => setOther({ phase: 'ready', data }))
+      .then((data) => {
+        if (controller.signal.aborted) return
+        setOther({ phase: 'ready', data })
+      })
       .catch(() => {
         if (!controller.signal.aborted) setOther({ phase: 'error' })
       })
@@ -773,6 +808,7 @@ export function LookBackPage() {
         <Ready
           journey={state.data.journey}
           data={data}
+          shownId={content?.id ?? null}
           phase={shown.phase}
           active={active}
           onSelect={select}

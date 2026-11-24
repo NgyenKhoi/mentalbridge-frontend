@@ -438,7 +438,7 @@ describe('LookBackPage', () => {
       ).toBeVisible()
     })
 
-    it('refetches by the chặng dates, shows loading while it waits and keeps the selector', async () => {
+    it('refetches by the chặng dates, keeps the previous chặng dimmed while it waits and keeps the selector', async () => {
       const base = withJourney(pickable(), cycle())
       let finish: (view: LookBack) => void = () => undefined
       api.getLookBack.mockImplementation(
@@ -459,18 +459,23 @@ describe('LookBackPage', () => {
       )
       expect(container.firstElementChild).toHaveAttribute('aria-busy', 'true')
       expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-busy', 'true')
-      expect(screen.getByText('Đang tải phần nhìn lại…')).toBeInTheDocument()
-      expect(selected()).toEqual(['Chặng 125/10 – 31/10'])
+      // No collapse to a skeleton: the running chặng stays on screen, dimmed, until the pick arrives.
+      expect(screen.queryByText('Đang tải phần nhìn lại…')).toBeNull()
       expect(
-        screen.queryByRole('heading', { name: /Bản đồ hành trình cảm xúc/ }),
-      ).toBeNull()
+        screen.getByRole('heading', { name: 'Chặng 3 · ngày 6/14' }),
+      ).toBeVisible()
+      expect(screen.getByRole('tabpanel').className).toMatch(/panelStale/)
+      expect(screen.getByText('Đang tải chặng 1…')).toBeInTheDocument()
+      expect(selected()).toEqual(['Chặng 125/10 – 31/10'])
 
       finish(chapterView(base, 's1'))
       expect(
         await screen.findByRole('heading', { name: 'Chặng 1' }),
       ).toBeVisible()
       expect(screen.getByText(/đã khép lại$/)).toBeVisible()
-      expect(screen.queryByText('Đang tải phần nhìn lại…')).toBeNull()
+      expect(await screen.findByText('Đã mở chặng 1')).toBeInTheDocument()
+      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-busy', 'false')
+      expect(screen.getByRole('tabpanel').className).not.toMatch(/panelStale/)
       expect(container.firstElementChild).toHaveAttribute('aria-busy', 'false')
       // The journey strip is the first load's: it never refetches per tab.
       expect(
@@ -483,6 +488,88 @@ describe('LookBackPage', () => {
         await screen.findByRole('heading', { name: 'Chặng 3 · ngày 6/14' }),
       ).toBeVisible()
       expect(api.getLookBack).toHaveBeenCalledTimes(2)
+    })
+
+    it('ignores a response whose request was aborted by a newer pick', async () => {
+      const base = withJourney(pickable(), cycle())
+      const finish: Record<string, (view: LookBack) => void> = {}
+      api.getLookBack.mockImplementation(
+        (_tz: string, _signal: AbortSignal, window?: { from: string }) =>
+          window
+            ? new Promise<LookBack>(
+                (resolve) => (finish[window.from] = resolve),
+              )
+            : Promise.resolve(base),
+      )
+      render(<LookBackPage />)
+      await screen.findByRole('heading', { name: /Bản đồ hành trình cảm xúc/ })
+      fireEvent.click(tabs()[0])
+      fireEvent.click(tabs()[1])
+      finish['2026-10-25'](chapterView(base, 's1'))
+      await Promise.resolve()
+      // The first request was aborted: its answer must not replace the content of the chặng picked since.
+      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-busy', 'true')
+      expect(screen.queryByRole('heading', { name: 'Chặng 1' })).toBeNull()
+      finish['2026-11-01'](chapterView(base, 's2'))
+      expect(
+        await screen.findByRole('heading', { name: 'Chặng 2' }),
+      ).toBeVisible()
+    })
+
+    it('hides the selector when only one chặng can be picked, the strip still lists it', async () => {
+      api.getLookBack.mockResolvedValue(
+        withJourney([summary('s1', '2026-10-25', '2026-11-01')]),
+      )
+      render(<LookBackPage />)
+      expect(
+        await screen.findByRole('heading', { name: 'Chặng 1' }),
+      ).toBeVisible()
+      expect(screen.queryByRole('tablist')).toBeNull()
+      expect(screen.queryByRole('tabpanel')).toBeNull()
+      expect(
+        screen.getByRole('heading', { name: 'Hành trình của bạn' }),
+      ).toBeVisible()
+    })
+
+    it('puts the pending next step only on the chặng it concerns', async () => {
+      // A closed cycle waits for the choice: only the newest closed chặng shows it.
+      const closedBase = withJourney(
+        pickable(),
+        cycle({ startedOn: '2026-11-01', state: 'REVIEW_DUE', currentDay: 14 }),
+      )
+      serve(closedBase)
+      const { unmount } = render(<LookBackPage />)
+      await screen.findByRole('heading', { name: 'Chặng 2 đã khép lại' })
+      expect(nextLink()).toHaveAttribute('href', '/support-plan?review=open')
+      fireEvent.click(tabs()[0])
+      await screen.findByRole('heading', { name: 'Chặng 1' })
+      expect(nextLink()).not.toHaveAttribute(
+        'href',
+        '/support-plan?review=open',
+      )
+      unmount()
+
+      // A running chặng that is due: only the running tab shows the reassessment.
+      const dueBase = withJourney(
+        pickable(),
+        cycle({ state: 'REVIEW_DUE', currentDay: 14 }),
+      )
+      serve(dueBase)
+      render(<LookBackPage />)
+      await screen.findByRole('heading', { name: 'Chặng 3 · ngày 14/14' })
+      expect(nextLink()).toHaveAttribute(
+        'href',
+        '/initial-check?purpose=reassessment',
+      )
+      fireEvent.click(tabs()[0])
+      await screen.findByRole('heading', { name: 'Chặng 1' })
+      expect(nextLink()).not.toHaveAttribute(
+        'href',
+        '/initial-check?purpose=reassessment',
+      )
+      expect(
+        screen.queryByRole('link', { name: /Làm bài đánh giá lại để khép/ }),
+      ).toBeNull()
     })
 
     it("shows a closed chặng's own screening, previous to current", async () => {
