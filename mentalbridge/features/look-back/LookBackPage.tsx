@@ -452,11 +452,18 @@ function Ready({
   ]
   const runningActive = running && active === RUNNING
   const pending = closed
-    ? { label: 'Chọn nhịp tiếp theo', href: '/support-plan?review=open' }
+    ? {
+        label: 'Chọn nhịp tiếp theo',
+        href: '/support-plan?review=open',
+        title: 'Chọn nhịp cho chặng tiếp theo',
+        body: 'Chặng vừa rồi đã khép lại với lần đánh giá mới. Bạn chọn giữ nhịp, điều chỉnh hay lập kế hoạch mới.',
+      }
     : running?.state === 'REVIEW_DUE'
       ? {
           label: 'Làm bài đánh giá lại',
           href: '/initial-check?purpose=reassessment',
+          title: 'Khép lại chặng này',
+          body: 'Đã đủ 14 ngày. Làm bài đánh giá lại để xem chặng vừa qua và chọn nhịp tiếp theo.',
         }
       : undefined
   return (
@@ -546,7 +553,7 @@ function Window({
 }: Readonly<{
   data: LookBack
   /** A step the cycle is waiting for outranks the generic next step. */
-  pending?: { label: string; href: string }
+  pending?: { label: string; href: string; title: string; body: string }
 }>) {
   const next = pending ?? nextStepAction[data.nextStep]
   const narrative = data.narrative
@@ -618,18 +625,22 @@ function Window({
           <div className={styles.nextText}>
             <div className={styles.nextKicker}>Bước tiếp theo</div>
             <div className={styles.nextTitle} role="heading" aria-level={2}>
-              {data.nextStep === 'SUPPORT'
-                ? 'Cân bằng lại cùng sự hỗ trợ phù hợp'
-                : data.nextStep === 'CHECK_IN'
-                  ? 'Bắt đầu từ một ghi nhận nhỏ'
-                  : 'Tiếp tục nhịp chăm sóc của bạn'}
+              {pending
+                ? pending.title
+                : data.nextStep === 'SUPPORT'
+                  ? 'Cân bằng lại cùng sự hỗ trợ phù hợp'
+                  : data.nextStep === 'CHECK_IN'
+                    ? 'Bắt đầu từ một ghi nhận nhỏ'
+                    : 'Tiếp tục nhịp chăm sóc của bạn'}
             </div>
             <div className={styles.nextBody}>
-              {data.nextStep === 'SUPPORT'
-                ? 'Bạn có thể xem lại hướng hỗ trợ và trò chuyện với chuyên gia khi cần.'
-                : data.nextStep === 'CHECK_IN'
-                  ? 'Ghi lại cảm xúc hôm nay để lần sau nhìn lại rõ hơn.'
-                  : 'Một bước nhỏ hôm nay cũng là một phần trong hành trình của bạn.'}
+              {pending
+                ? pending.body
+                : data.nextStep === 'SUPPORT'
+                  ? 'Bạn có thể xem lại hướng hỗ trợ và trò chuyện với chuyên gia khi cần.'
+                  : data.nextStep === 'CHECK_IN'
+                    ? 'Ghi lại cảm xúc hôm nay để lần sau nhìn lại rõ hơn.'
+                    : 'Một bước nhỏ hôm nay cũng là một phần trong hành trình của bạn.'}
             </div>
           </div>
           <div className={styles.nextAction}>
