@@ -353,6 +353,15 @@
   margin: 0;
   line-height: 1.6;
 }
+.combined-meaning-guide-status .combined-meaning-quiet {
+  display: inline;
+  min-height: 0;
+  padding: var(--space-2) 0;
+  text-decoration-color: currentColor;
+}
+.combined-meaning-spin {
+  animation: combined-meaning-busy 900ms linear infinite;
+}
 .combined-meaning-reassurance {
   flex-wrap: wrap;
   padding: var(--space-3) var(--space-4);
@@ -614,7 +623,8 @@
   .combined-meaning:not(.priority-safety)
     .combined-meaning-scale-bars
     > .is-active,
-  .combined-meaning button[aria-busy='true'] .lucide-rotate-ccw {
+  .combined-meaning button[aria-busy='true'] .lucide-rotate-ccw,
+  .combined-meaning-spin {
     animation: none;
   }
 }

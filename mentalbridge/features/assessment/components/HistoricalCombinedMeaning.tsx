@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/api/api-error'
 import { getCombinedScreeningMeaning } from '../api/browser-care'
 import type { CombinedScreeningMeaning } from '../api/care-contract'
+import { getGuidedJourney } from '@/features/support-guide/api/browser-support-guide'
 import { CombinedMeaningCard } from './CombinedMeaningCard'
 import { MamAnLoadingState } from './MamAnLoadingState'
 
@@ -36,6 +37,7 @@ export function HistoricalCombinedMeaning({
   const Heading = embedded ? 'h2' : 'h1'
   const className = embedded ? styles.embedded : styles.page
   const [meaning, setMeaning] = useState<CombinedScreeningMeaning>()
+  const [isLatest, setIsLatest] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>()
   const requestRef = useRef<AbortController | null>(null)
@@ -52,6 +54,18 @@ export function HistoricalCombinedMeaning({
         controller.signal,
       )
       if (controller.signal.aborted) return
+      // Only the latest completed screening prepares a missing Guide in place; any doubt keeps the banner.
+      let latest = false
+      if (!nextMeaning.supportGuideId && nextMeaning.episodeId) {
+        try {
+          const journey = await getGuidedJourney()
+          latest =
+            (journey.latestScreening?.episodeId ?? journey.episodeId) ===
+            nextMeaning.episodeId
+        } catch {}
+        if (controller.signal.aborted) return
+      }
+      setIsLatest(latest)
       setMeaning(nextMeaning)
     } catch (cause) {
       if (controller.signal.aborted) return
@@ -111,6 +125,7 @@ export function HistoricalCombinedMeaning({
       <CombinedMeaningCard
         meaning={meaning}
         historical
+        ensureLatestGuide={isLatest}
         headingLevel={Heading}
         showHistoryNavigation={!embedded}
       />

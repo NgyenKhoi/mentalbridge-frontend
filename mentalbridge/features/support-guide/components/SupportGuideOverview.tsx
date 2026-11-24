@@ -22,6 +22,7 @@ import SupportGuideCard, {
   type SupportGuideScorePair,
 } from './SupportGuideCard'
 import { guideContinuation, isCurrentJourneyGuide } from './guided-continuation'
+import { useCurrentPlanReviewDue } from './useCurrentPlanReviewDue'
 import { loadGuideMeaning, loadGuideScores } from './load-guide-scores'
 import styles from './support-guide-overview.module.css'
 import './support-guide.css'
@@ -59,6 +60,7 @@ export default function SupportGuideOverview() {
   const [loading, setLoading] = useState(true)
   const [preparing, setPreparing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const planReviewDue = useCurrentPlanReviewDue(journey)
 
   // A retry keeps the error panel mounted so its busy state and focus survive.
   const load = useCallback(async (retry = false) => {
@@ -222,7 +224,7 @@ export default function SupportGuideOverview() {
                 meaning={meaning}
                 continuation={
                   isCurrent && journey
-                    ? guideContinuation(journey, guide)
+                    ? guideContinuation(journey, guide, planReviewDue)
                     : undefined
                 }
               />

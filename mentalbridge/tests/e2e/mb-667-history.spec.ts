@@ -773,6 +773,21 @@ test('MB-667 keeps safety authoritative and renders severe professional support 
   severe.baseMeaning.text =
     'Dấu hiệu trầm cảm ở mức nặng, lo âu rất ít. Bạn nên ưu tiên trao đổi sớm với chuyên gia.'
 
+  // A newer screening exists, so these older results keep the "no saved Guide" note and create nothing.
+  await page.route('**/api/care/guided-journey', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        stage: 'GUIDE_READY',
+        episodeId: '70000000-0000-4000-8000-000000000101',
+        latestScreening: {
+          episodeId: '70000000-0000-4000-8000-000000000999',
+          purpose: 'REASSESSMENT',
+        },
+      }),
+    }),
+  )
   await page.route(
     `**/api/care/support-evaluations/${safetyEvaluationId}/combined-meaning`,
     (route) =>

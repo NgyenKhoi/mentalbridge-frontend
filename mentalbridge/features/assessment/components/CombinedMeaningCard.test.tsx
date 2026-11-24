@@ -1,10 +1,17 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ensureCurrentSupportGuide } from '@/features/support-guide/api/browser-support-guide'
 import { combinedMeaningFixture } from '@/tests/fixtures/combined-meaning'
 import { CombinedMeaningCard } from './CombinedMeaningCard'
 
+vi.mock('@/features/support-guide/api/browser-support-guide', () => ({
+  ensureCurrentSupportGuide: vi.fn(),
+}))
+
 describe('CombinedMeaningCard', () => {
+  beforeEach(() => vi.mocked(ensureCurrentSupportGuide).mockReset())
+
   it('uses one shared composition with both exact scores and no summary-download action', () => {
     render(
       <CombinedMeaningCard
@@ -215,5 +222,95 @@ describe('CombinedMeaningCard', () => {
     expect(
       screen.queryByRole('heading', { name: /hướng dẫn an toàn/i }),
     ).not.toBeInTheDocument()
+  })
+
+  describe('latest screening without a saved Guide', () => {
+    const latest = () => (
+      <CombinedMeaningCard
+        meaning={combinedMeaningFixture({ purpose: 'REASSESSMENT' })}
+        historical
+        ensureLatestGuide
+      />
+    )
+
+    it('prepares the Guide once, shows a busy status, then links the new Guide', async () => {
+      let resolve!: (guide: { supportGuideId: string }) => void
+      vi.mocked(ensureCurrentSupportGuide).mockReturnValue(
+        new Promise((r) => (resolve = r)) as never,
+      )
+      render(latest())
+
+      const status = screen.getByRole('status')
+      expect(status).toHaveAttribute('aria-busy', 'true')
+      expect(status).toHaveTextContent(
+        'Đang chuẩn bị gợi ý từ lần sàng lọc này…',
+      )
+      expect(
+        screen.queryByText('Lần sàng lọc này chưa có gợi ý đã lưu.'),
+      ).not.toBeInTheDocument()
+
+      resolve({ supportGuideId: '90000000-0000-4000-8000-000000000202' })
+
+      expect(
+        await screen.findByRole('link', { name: /Xem gợi ý đã lưu/ }),
+      ).toHaveAttribute(
+        'href',
+        '/support-guides/90000000-0000-4000-8000-000000000202?from=screening-history&resultEvaluationId=20000000-0000-4000-8000-000000000101',
+      )
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(ensureCurrentSupportGuide).toHaveBeenCalledTimes(1)
+    })
+
+    it('keeps the banner and offers a retry when preparing fails', async () => {
+      vi.mocked(ensureCurrentSupportGuide)
+        .mockRejectedValueOnce(new Error('down'))
+        .mockResolvedValueOnce({
+          supportGuideId: '90000000-0000-4000-8000-000000000202',
+        } as never)
+      render(latest())
+
+      expect(
+        await screen.findByText('Lần sàng lọc này chưa có gợi ý đã lưu.'),
+      ).toBeVisible()
+      fireEvent.click(screen.getByRole('button', { name: 'Tạo gợi ý' }))
+
+      expect(
+        await screen.findByRole('link', { name: /Xem gợi ý đã lưu/ }),
+      ).toBeVisible()
+      expect(ensureCurrentSupportGuide).toHaveBeenCalledTimes(2)
+    })
+
+    it('does nothing when the Guide is already saved', () => {
+      render(
+        <CombinedMeaningCard
+          meaning={combinedMeaningFixture({
+            purpose: 'REASSESSMENT',
+            supportGuideId: '90000000-0000-4000-8000-000000000101',
+          })}
+          historical
+          ensureLatestGuide
+        />,
+      )
+
+      expect(ensureCurrentSupportGuide).not.toHaveBeenCalled()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
+    it('leaves an older episode with the banner and no request', () => {
+      render(
+        <CombinedMeaningCard
+          meaning={combinedMeaningFixture({ purpose: 'REASSESSMENT' })}
+          historical
+        />,
+      )
+
+      expect(ensureCurrentSupportGuide).not.toHaveBeenCalled()
+      expect(
+        screen.getByText('Lần sàng lọc này chưa có gợi ý đã lưu.'),
+      ).toBeVisible()
+      expect(
+        screen.queryByRole('button', { name: 'Tạo gợi ý' }),
+      ).not.toBeInTheDocument()
+    })
   })
 })

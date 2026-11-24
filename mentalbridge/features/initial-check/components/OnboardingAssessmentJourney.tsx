@@ -621,10 +621,18 @@ export default function OnboardingAssessmentJourney({
   }
 
   // INITIAL_CHECK opens the Support Guide of the finished screening episode (the create call is
-  // idempotent per episode). A reassessment never touches the plan: the user reviews the last
+  // idempotent per episode). A reassessment also prepares its Guide (the Guide follows the latest
+  // screening) but never blocks on it and never touches the plan: the user reviews the last
   // 14 days and decides about the plan afterwards.
   const handleContinue = async () => {
     if (isReassessment) {
+      setSubmitting(true)
+      try {
+        await ensureCurrentSupportGuide()
+      } catch {
+        // The review does not need the Guide; History retries it for the latest screening.
+      }
+      setSubmitting(false)
       setCurrentStep(4)
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return

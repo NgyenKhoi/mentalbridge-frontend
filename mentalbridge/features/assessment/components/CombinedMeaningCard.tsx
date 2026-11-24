@@ -10,16 +10,18 @@ import {
   FileText,
   History,
   Info,
+  LoaderCircle,
   RotateCcw,
   ShieldCheck,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import { Disclosure } from '@/components/ui/Disclosure'
 import type {
   CombinedScreeningMeaning,
   ScreeningLevel,
 } from '@/features/assessment/api/care-contract'
+import { ensureCurrentSupportGuide } from '@/features/support-guide/api/browser-support-guide'
 
 import './combined-meaning-card.css'
 
@@ -118,9 +120,12 @@ export function CombinedMeaningCard({
   onRestart,
   restarting = false,
   afterActions,
+  ensureLatestGuide = false,
 }: Readonly<{
   meaning: CombinedScreeningMeaning
   historical?: boolean
+  /** This is the latest completed screening: prepare its Guide here when none is saved yet. */
+  ensureLatestGuide?: boolean
   headingLevel?: 'h1' | 'h2'
   showHistoryNavigation?: boolean
   onRestart?: () => void
@@ -129,6 +134,28 @@ export function CombinedMeaningCard({
   afterActions?: ReactNode
 }>) {
   const Heading = headingLevel
+  // The Guide follows the latest screening, so a latest result without one prepares it in place.
+  const needsGuide = ensureLatestGuide && !meaning.supportGuideId
+  const [attempt, setAttempt] = useState(0)
+  const [outcome, setOutcome] = useState<{
+    attempt: number
+    guideId?: string
+  } | null>(null)
+  useEffect(() => {
+    if (!needsGuide) return
+    let active = true
+    ensureCurrentSupportGuide().then(
+      (guide) =>
+        active && setOutcome({ attempt, guideId: guide.supportGuideId }),
+      () => active && setOutcome({ attempt }),
+    )
+    return () => {
+      active = false
+    }
+  }, [needsGuide, attempt])
+  const settled = outcome?.attempt === attempt
+  const preparing = needsGuide && !settled
+  const guideId = meaning.supportGuideId ?? (settled ? outcome.guideId : null)
   const occurredAt = meaning.episodeCompletedAt ?? meaning.evaluatedAt
   const isSafety = meaning.presentationPriority === 'SAFETY'
   const SubHeading = isSafety || headingLevel === 'h2' ? 'h3' : 'h2'
@@ -146,13 +173,12 @@ export function CombinedMeaningCard({
         : 'Kết quả sàng lọc'
   // A current reassessment continues only to its own saved Guide, never the initial-check one.
   const continuesToGuide =
-    !historical &&
-    (meaning.episodePurpose === 'INITIAL_CHECK' || !!meaning.supportGuideId)
-  const currentGuideHref = meaning.supportGuideId
-    ? `/support-guides/${meaning.supportGuideId}`
+    !historical && (meaning.episodePurpose === 'INITIAL_CHECK' || !!guideId)
+  const currentGuideHref = guideId
+    ? `/support-guides/${guideId}`
     : '/support-guides'
-  const guideHref = meaning.supportGuideId
-    ? `/support-guides/${meaning.supportGuideId}?from=screening-history&resultEvaluationId=${meaning.supportEvaluationId}`
+  const guideHref = guideId
+    ? `/support-guides/${guideId}?from=screening-history&resultEvaluationId=${meaning.supportEvaluationId}`
     : undefined
 
   return (
@@ -233,12 +259,37 @@ export function CombinedMeaningCard({
             </span>
           </p>
         )}
-        {!guideHref && !continuesToGuide && (
+        {preparing && (
+          <aside
+            className="combined-meaning-guide-status"
+            role="status"
+            aria-busy="true"
+          >
+            <LoaderCircle
+              className="combined-meaning-spin"
+              aria-hidden="true"
+            />
+            <p>Đang chuẩn bị gợi ý từ lần sàng lọc này…</p>
+          </aside>
+        )}
+        {!preparing && !guideHref && !continuesToGuide && (
           <aside className="combined-meaning-guide-status" role="note">
             <Info aria-hidden="true" />
             <p>
               <strong>Lần sàng lọc này chưa có gợi ý đã lưu.</strong> Bạn có thể
               xem các lựa chọn hỗ trợ hiện tại bên dưới.
+              {needsGuide && (
+                <>
+                  {' '}
+                  <button
+                    className="combined-meaning-quiet"
+                    type="button"
+                    onClick={() => setAttempt((value) => value + 1)}
+                  >
+                    Tạo gợi ý
+                  </button>
+                </>
+              )}
             </p>
           </aside>
         )}

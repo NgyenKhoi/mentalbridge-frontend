@@ -335,6 +335,19 @@ describe('OnboardingAssessmentJourney', () => {
     ).toHaveAttribute('href', '/dashboard')
   })
 
+  it('still reaches the review when preparing the reassessment Guide fails', async () => {
+    vi.mocked(ensureCurrentSupportGuide).mockRejectedValueOnce(
+      new Error('down'),
+    )
+    await reachStep3('REASSESSMENT')
+
+    fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
+
+    expect(await screen.findByText('Chặng vừa khép lại')).toBeInTheDocument()
+    expect(ensureCurrentSupportGuide).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('holds the step-4 action until Care says whether a plan is in use', async () => {
     let resolve!: (value: never) => void
     vi.mocked(getHomeNextStep).mockReturnValueOnce(

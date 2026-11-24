@@ -3,6 +3,14 @@ import { http, HttpResponse } from 'msw'
 
 // Default handlers for common endpoints
 const defaultHandlers = [
+  // A result card asks Care whether it shows the latest screening; by default it never is.
+  http.get('/api/care/guided-journey', () =>
+    HttpResponse.json({
+      stage: 'ASSESSMENT_REQUIRED',
+      episodeId: null,
+      latestScreening: null,
+    }),
+  ),
   // Mock /api/resources endpoint to prevent unhandled requests in component tests
   http.get('/api/resources', () => {
     // Return empty resources by default
