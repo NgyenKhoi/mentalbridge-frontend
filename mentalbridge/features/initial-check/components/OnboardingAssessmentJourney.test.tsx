@@ -381,6 +381,28 @@ describe('OnboardingAssessmentJourney', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('reaches the review after 6 s even when the reassessment Guide never settles', async () => {
+    vi.mocked(ensureCurrentSupportGuide).mockReturnValueOnce(
+      new Promise(() => {}) as never,
+    )
+    await reachStep3('REASSESSMENT')
+    const realSetTimeout = window.setTimeout.bind(window)
+    const waits: unknown[] = []
+    vi.spyOn(window, 'setTimeout').mockImplementation(((
+      fn: () => void,
+      ms?: number,
+    ) => {
+      waits.push(ms)
+      return ms === 6000 ? (fn(), 0) : realSetTimeout(fn, ms)
+    }) as never)
+
+    fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
+
+    expect(await screen.findByText('Chặng vừa khép lại')).toBeInTheDocument()
+    expect(waits).toContain(6000)
+    vi.mocked(window.setTimeout).mockRestore()
+  })
+
   it('holds the step-4 action until Care says whether a plan is in use', async () => {
     let resolve!: (value: never) => void
     vi.mocked(getHomeNextStep).mockReturnValueOnce(

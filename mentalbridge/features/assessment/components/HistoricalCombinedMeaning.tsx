@@ -49,22 +49,22 @@ export function HistoricalCombinedMeaning({
     setLoading(true)
     setError(undefined)
     try {
-      const nextMeaning = await getCombinedScreeningMeaning(
-        supportEvaluationId,
-        controller.signal,
-      )
+      // The journey loads beside the meaning (no extra round trip); it only decides the in-place Guide.
+      const [meaningResult, journeyResult] = await Promise.allSettled([
+        getCombinedScreeningMeaning(supportEvaluationId, controller.signal),
+        getGuidedJourney(),
+      ])
       if (controller.signal.aborted) return
+      if (meaningResult.status === 'rejected') throw meaningResult.reason
+      const nextMeaning = meaningResult.value
       // Only the latest completed screening prepares a missing Guide in place; any doubt keeps the banner.
-      let latest = false
-      if (!nextMeaning.supportGuideId && nextMeaning.episodeId) {
-        try {
-          const journey = await getGuidedJourney()
-          latest =
-            (journey.latestScreening?.episodeId ?? journey.episodeId) ===
-            nextMeaning.episodeId
-        } catch {}
-        if (controller.signal.aborted) return
-      }
+      const journey =
+        journeyResult.status === 'fulfilled' ? journeyResult.value : undefined
+      const latest =
+        !nextMeaning.supportGuideId &&
+        !!nextMeaning.episodeId &&
+        (journey?.latestScreening?.episodeId ?? journey?.episodeId) ===
+          nextMeaning.episodeId
       setIsLatest(latest)
       setMeaning(nextMeaning)
     } catch (cause) {

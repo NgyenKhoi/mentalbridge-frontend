@@ -359,6 +359,16 @@
   padding: var(--space-2) 0;
   text-decoration-color: currentColor;
 }
+@media (pointer: coarse) {
+  .combined-meaning-guide-status .combined-meaning-quiet {
+    display: inline-flex;
+    min-height: 44px;
+  }
+}
+.combined-meaning-guide-status:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 3px;
+}
 .combined-meaning-spin {
   animation: combined-meaning-busy 900ms linear infinite;
 }

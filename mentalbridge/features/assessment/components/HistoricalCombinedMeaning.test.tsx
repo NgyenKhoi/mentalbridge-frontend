@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
@@ -119,6 +119,37 @@ describe('HistoricalCombinedMeaning', () => {
         await screen.findByText('Lần sàng lọc này chưa có gợi ý đã lưu.'),
       ).toBeVisible()
       expect(created).toBe(false)
+    })
+
+    it('asks for the journey while the meaning is still loading', async () => {
+      let release!: () => void
+      const gate = new Promise<void>((r) => (release = r))
+      let journeyAsked = false
+      mockServer.use(
+        http.get('http://localhost/api/care/guided-journey', () => {
+          journeyAsked = true
+          return HttpResponse.json({
+            stage: 'ASSESSMENT_REQUIRED',
+            episodeId: null,
+            latestScreening: null,
+          })
+        }),
+        http.get(
+          `http://localhost/api/care/support-evaluations/${evaluationId}/combined-meaning`,
+          async () => {
+            await gate
+            return HttpResponse.json(reassessment())
+          },
+        ),
+      )
+
+      render(<HistoricalCombinedMeaning supportEvaluationId={evaluationId} />)
+
+      await waitFor(() => expect(journeyAsked).toBe(true))
+      release()
+      expect(
+        await screen.findByText('Lần sàng lọc này chưa có gợi ý đã lưu.'),
+      ).toBeVisible()
     })
 
     it('keeps the banner when the latest screening cannot be checked', async () => {

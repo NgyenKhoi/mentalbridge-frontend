@@ -14,7 +14,7 @@ import {
   RotateCcw,
   ShieldCheck,
 } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { Disclosure } from '@/components/ui/Disclosure'
 import type {
@@ -156,6 +156,26 @@ export function CombinedMeaningCard({
   const settled = outcome?.attempt === attempt
   const preparing = needsGuide && !settled
   const guideId = meaning.supportGuideId ?? (settled ? outcome.guideId : null)
+  // After "Tạo gợi ý" the clicked button unmounts, so focus follows the retry: status while
+  // preparing, then the new Guide link (or the retry button on failure) unless the user moved away.
+  const articleRef = useRef<HTMLElement>(null)
+  const statusRef = useRef<HTMLElement>(null)
+  const guideLinkRef = useRef<HTMLAnchorElement>(null)
+  const retryRef = useRef<HTMLButtonElement>(null)
+  const retryFocus = useRef(false)
+  useEffect(() => {
+    if (!retryFocus.current) return
+    if (preparing) return statusRef.current?.focus()
+    retryFocus.current = false
+    const active = document.activeElement
+    if (
+      active &&
+      active !== document.body &&
+      !articleRef.current?.contains(active)
+    )
+      return
+    ;(guideLinkRef.current ?? retryRef.current)?.focus()
+  }, [preparing])
   const occurredAt = meaning.episodeCompletedAt ?? meaning.evaluatedAt
   const isSafety = meaning.presentationPriority === 'SAFETY'
   const SubHeading = isSafety || headingLevel === 'h2' ? 'h3' : 'h2'
@@ -183,6 +203,7 @@ export function CombinedMeaningCard({
 
   return (
     <article
+      ref={articleRef}
       data-page-motion="off"
       className={`combined-meaning priority-${meaning.presentationPriority.toLowerCase()}`}
       aria-labelledby="combined-meaning-title"
@@ -263,7 +284,8 @@ export function CombinedMeaningCard({
           <aside
             className="combined-meaning-guide-status"
             role="status"
-            aria-busy="true"
+            ref={statusRef}
+            tabIndex={-1}
           >
             <LoaderCircle
               className="combined-meaning-spin"
@@ -284,7 +306,11 @@ export function CombinedMeaningCard({
                   <button
                     className="combined-meaning-quiet"
                     type="button"
-                    onClick={() => setAttempt((value) => value + 1)}
+                    ref={retryRef}
+                    onClick={() => {
+                      retryFocus.current = true
+                      setAttempt((value) => value + 1)
+                    }}
                   >
                     Tạo gợi ý
                   </button>
@@ -349,6 +375,7 @@ export function CombinedMeaningCard({
                   : 'combined-meaning-primary'
               }
               href={currentGuideHref}
+              ref={guideLinkRef}
             >
               Tiếp tục xem gợi ý hỗ trợ <ArrowRight aria-hidden="true" />
             </Link>
@@ -374,6 +401,7 @@ export function CombinedMeaningCard({
                   : 'combined-meaning-primary'
               }
               href={guideHref}
+              ref={guideLinkRef}
             >
               {isSafety ? 'Xem gợi ý an toàn đã lưu' : 'Xem gợi ý đã lưu'}{' '}
               <ArrowRight aria-hidden="true" />

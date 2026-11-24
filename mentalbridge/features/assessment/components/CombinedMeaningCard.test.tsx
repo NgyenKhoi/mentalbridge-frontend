@@ -241,7 +241,7 @@ describe('CombinedMeaningCard', () => {
       render(latest())
 
       const status = screen.getByRole('status')
-      expect(status).toHaveAttribute('aria-busy', 'true')
+      expect(status).not.toHaveAttribute('aria-busy')
       expect(status).toHaveTextContent(
         'Đang chuẩn bị gợi ý từ lần sàng lọc này…',
       )
@@ -278,6 +278,46 @@ describe('CombinedMeaningCard', () => {
         await screen.findByRole('link', { name: /Xem gợi ý đã lưu/ }),
       ).toBeVisible()
       expect(ensureCurrentSupportGuide).toHaveBeenCalledTimes(2)
+    })
+
+    it('moves focus to the status on retry, then to the new Guide link', async () => {
+      let resolve!: (guide: { supportGuideId: string }) => void
+      vi.mocked(ensureCurrentSupportGuide)
+        .mockRejectedValueOnce(new Error('down'))
+        .mockReturnValueOnce(new Promise((r) => (resolve = r)) as never)
+      render(latest())
+
+      const retry = await screen.findByRole('button', { name: 'Tạo gợi ý' })
+      retry.focus()
+      fireEvent.click(retry)
+
+      expect(await screen.findByRole('status')).toHaveFocus()
+      resolve({ supportGuideId: '90000000-0000-4000-8000-000000000202' })
+      expect(
+        await screen.findByRole('link', { name: /Xem gợi ý đã lưu/ }),
+      ).toHaveFocus()
+    })
+
+    it('does not steal focus when the user moved outside the card', async () => {
+      let resolve!: (guide: { supportGuideId: string }) => void
+      vi.mocked(ensureCurrentSupportGuide)
+        .mockRejectedValueOnce(new Error('down'))
+        .mockReturnValueOnce(new Promise((r) => (resolve = r)) as never)
+      render(
+        <>
+          <button type="button">outside</button>
+          {latest()}
+        </>,
+      )
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Tạo gợi ý' }))
+      await screen.findByRole('status')
+      const outside = screen.getByRole('button', { name: 'outside' })
+      outside.focus()
+      resolve({ supportGuideId: '90000000-0000-4000-8000-000000000202' })
+
+      await screen.findByRole('link', { name: /Xem gợi ý đã lưu/ })
+      expect(outside).toHaveFocus()
     })
 
     it('does nothing when the Guide is already saved', () => {
