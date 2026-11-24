@@ -4,7 +4,11 @@ import type { ActivityDashboardDay } from '@/features/analytics/api/activity-das
 import type { ReassessmentSummary } from '@/features/assessment/api/care-contract'
 import { makeSummary } from '@/tests/fixtures/reassessment-review'
 
-import { buildJourney } from './look-back-chapters'
+import {
+  buildJourney,
+  defaultClosedChapter,
+  pickableChapters,
+} from './look-back-chapters'
 
 const tz = 'Asia/Ho_Chi_Minh'
 // Local midnight of `date` in Ho Chi Minh (UTC+7).
@@ -241,5 +245,42 @@ describe('buildJourney', () => {
       },
     })
     expect(journey.chapters[0].days).toBeNull()
+  })
+
+  describe('which chặng can be looked at', () => {
+    const daily = Array.from({ length: 20 }, (_, i) =>
+      day(`2026-11-${String(i + 1).padStart(2, '0')}`, 3),
+    )
+    const journey = (cycleArg: ReturnType<typeof cycle> | null) =>
+      buildJourney({
+        summaries: [
+          summary('old', '2026-10-01', '2026-10-10'),
+          summary('in', '2026-11-02', '2026-11-16'),
+        ],
+        dashboard: dashboard(daily),
+        cycle: cycleArg,
+        timeZone: tz,
+      })
+
+    it('offers only chặng whose days the activity window holds', () => {
+      expect(pickableChapters(journey(null)).map((c) => c.summaryId)).toEqual([
+        'in',
+      ])
+      expect(pickableChapters(null)).toEqual([])
+    })
+
+    it('opens the newest pickable chặng only when none is running', () => {
+      expect(defaultClosedChapter(journey(null))?.summaryId).toBe('in')
+      expect(defaultClosedChapter(journey(cycle()))).toBeUndefined()
+      expect(defaultClosedChapter(null)).toBeUndefined()
+    })
+
+    it('a cycle awaiting the choice has no running chặng, so the newest closed one opens', () => {
+      const waiting = journey(
+        cycle({ startedOn: '2026-11-02', state: 'REVIEW_DUE', currentDay: 14 }),
+      )
+      expect(waiting.closedAwaitingChoice).toBe(true)
+      expect(defaultClosedChapter(waiting)?.summaryId).toBe('in')
+    })
   })
 })

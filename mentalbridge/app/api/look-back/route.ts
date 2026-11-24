@@ -1,12 +1,16 @@
 import type { NextRequest } from 'next/server'
 
-import { buildJourney } from '@/features/look-back/look-back-chapters'
+import {
+  buildJourney,
+  defaultClosedChapter,
+} from '@/features/look-back/look-back-chapters'
 import {
   composeLookBack,
   localDateOf,
   latestPerInstrument,
   latestScreeningLevels,
   validTimezone,
+  windowDays,
 } from '@/features/look-back/look-back-model'
 import { ApiError } from '@/lib/api/api-error'
 import { correlationIdFrom } from '@/lib/auth/bff-response'
@@ -29,20 +33,53 @@ import { consultationClient } from '@/lib/consultation/consultation-client'
 const quietlyHidden = (error: unknown) =>
   error instanceof ApiError && (error.status === 403 || error.status === 404)
 
+const MAX_WINDOW_SPAN_DAYS = 31
+const DAY_MS = 86_400_000
+const isLocalDate = (value: string | null): value is string =>
+  !!value &&
+  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+  new Date(`${value}T00:00:00.000Z`).toISOString().startsWith(value)
+
+/** A chặng's own days: both ends or neither, in order, at most 31 days (a legacy chặng is 7-31). */
+function parseWindow(params: URLSearchParams) {
+  const from = params.get('from')
+  const to = params.get('to')
+  if (from === null && to === null) return { from: undefined, to: undefined }
+  if (
+    params.getAll('from').length !== 1 ||
+    params.getAll('to').length !== 1 ||
+    !isLocalDate(from) ||
+    !isLocalDate(to) ||
+    from > to ||
+    (Date.parse(to) - Date.parse(from)) / DAY_MS + 1 > MAX_WINDOW_SPAN_DAYS
+  )
+    return null
+  return { from, to }
+}
+
 export async function GET(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
-  const timezone = request.nextUrl.searchParams.get('timezone')
+  const params = request.nextUrl.searchParams
+  const timezone = params.get('timezone')
   if (
-    [...request.nextUrl.searchParams.keys()].some(
-      (key) => key !== 'timezone',
+    [...params.keys()].some(
+      (key) => !['timezone', 'from', 'to'].includes(key),
     ) ||
-    request.nextUrl.searchParams.getAll('timezone').length !== 1 ||
+    params.getAll('timezone').length !== 1 ||
     !validTimezone(timezone)
   )
     return localProblem(
       400,
       'VALIDATION_FAILED',
       'Múi giờ không hợp lệ.',
+      correlationId,
+    )
+  const asked = parseWindow(params)
+  if (!asked)
+    return localProblem(
+      400,
+      'VALIDATION_FAILED',
+      'Khoảng ngày không hợp lệ.',
       correlationId,
     )
 
@@ -117,13 +154,35 @@ export async function GET(request: NextRequest) {
         })
       : null
 
-  const from = journey?.running?.startLocalDate
-  const last14 = dashboard.value.daily.slice(-14)
-  // The same window the composition uses: a running chapter's own days, else the last 14.
-  const firstDate = (
-    last14.find((day) => !from || day.localDate >= from) ?? last14[0]
-  ).localDate
-  const lastDate = dashboard.value.asOfLocalDate
+  const { daily, asOfLocalDate } = dashboard.value
+  // A chặng can only be looked at while its days are inside the activity window.
+  if (
+    asked.from &&
+    (asked.from < daily[0].localDate || asked.to! > asOfLocalDate)
+  )
+    return carryCareSession(
+      localProblem(
+        400,
+        'VALIDATION_FAILED',
+        'Khoảng ngày nằm ngoài dữ liệu hoạt động.',
+        correlationId,
+      ),
+      user,
+    )
+  // The window: the asked chặng, else the running one so far, else the newest closed one, else the last 14 days.
+  const closed = asked.from
+    ? journey?.chapters.find(
+        (chapter) =>
+          chapter.startLocalDate === asked.from &&
+          chapter.endLocalDate === asked.to,
+      )
+    : defaultClosedChapter(journey)
+  const from =
+    asked.from ?? closed?.startLocalDate ?? journey?.running?.startLocalDate
+  const to = asked.to ?? closed?.endLocalDate
+  // The same window the composition uses.
+  const firstDate = windowDays(daily, from, to)[0].localDate
+  const lastDate = to ?? asOfLocalDate
   const completedSessions =
     appointments.status === 'fulfilled'
       ? appointments.value.data.items.filter((item) => {
@@ -150,6 +209,8 @@ export async function GET(request: NextRequest) {
         degraded,
         journey,
         fromLocalDate: from,
+        toLocalDate: to,
+        chapterScreening: closed?.screening,
       }),
       correlationId,
     ),

@@ -693,6 +693,7 @@ export function parseActionOccurrence(value: unknown): ActionOccurrence | null {
         'PLAN_REPLACED',
         'ACTION_ENDED',
         'SCHEDULE_CHANGED',
+        'REVIEW_DUE',
       ].includes(String(value.stateReason))
     )
   )

@@ -458,8 +458,8 @@ export interface paths {
          * Resume the owner's current initial-check journey and its next authorized action
          * @description Read-only, owner-scoped pointer derived from persisted Care facts: the latest
          *     COMPLETED INITIAL_CHECK screening episode with its exact PHQ-9/GAD-7 pair, the
-         *     persisted Support Guide for that episode's exact SupportEvaluation, and the
-         *     current ACTIVE/PAUSED or DRAFT SupportPlan. It never pairs independently newest
+         *     persisted Support Guide for the latestScreening episode's exact SupportEvaluation,
+         *     and the current ACTIVE/PAUSED or DRAFT SupportPlan. It never pairs independently newest
          *     assessments, creates a Guide or plan, or reads historical episodes.
          *     nextAction is Care's ordered decision for the step after the Guide: positive
          *     PHQ-9 item-9 safety evidence first, then a stored professional-support pathway,
@@ -467,9 +467,9 @@ export interface paths {
          *     episode evaluation is still current-policy compatible, otherwise the Guide's
          *     reviewed resources. latestScreening is the newest COMPLETED screening episode of
          *     either purpose (INITIAL_CHECK or REASSESSMENT, by completedAt then episodeId);
-         *     nextAction is decided from that episode's SupportEvaluation, while stage,
-         *     episodeId, episodeCompletedAt, presentationEvaluationId and supportGuideId keep
-         *     the initial-check meaning. Open episodes never become latestScreening.
+         *     nextAction, stage and supportGuideId follow that episode's SupportEvaluation,
+         *     while episodeId, episodeCompletedAt and presentationEvaluationId keep the
+         *     initial-check meaning. Open episodes never become latestScreening.
          *     Entitlement is checked only when needed; when it
          *     cannot be verified the response fails closed to the always-available resource step
          *     with entitlementStatus UNAVAILABLE. A missing published support policy is not
@@ -1580,7 +1580,8 @@ export interface paths {
         /**
          * Explicitly keep a review-due proposal plan for another 14-day cycle
          * @description Owner-only command for an ACTIVE support-plan-proposal-v1 plan whose
-         *     cycle is REVIEW_DUE. Requires the strong plan If-Match and a durable
+         *     cycle is REVIEW_DUE and a reassessment episode completed on or after
+         *     this cycle's review date. Requires the strong plan If-Match and a durable
          *     Idempotency-Key. Starts cycleNumber + 1 on today's local date in the
          *     cycle timezone, resets pausedDays and schedules a new one-time
          *     reassessment occurrence on day 14. Preserves prior occurrence history,
@@ -3015,7 +3016,7 @@ export interface components {
             /** @constant */
             journeyPolicyVersion: "mb-guided-journey-v1";
             /**
-             * @description ASSESSMENT_REQUIRED has no completed initial check; GUIDE_REQUIRED has a completed episode whose Guide is not yet persisted; GUIDE_READY has the persisted Guide.
+             * @description ASSESSMENT_REQUIRED has no completed initial check; GUIDE_REQUIRED means the latestScreening episode's Guide is not yet persisted; GUIDE_READY has that persisted Guide.
              * @enum {string}
              */
             stage: "ASSESSMENT_REQUIRED" | "GUIDE_REQUIRED" | "GUIDE_READY";
@@ -3770,8 +3771,10 @@ export interface components {
          *     date, in the cycle timezone; an ongoing pause uses today's local date
          *     as the exclusive end. These days do not advance the cycle. A pause
          *     beginning on or after the review date does not move it or add paused days.
-         *     reviewDueOn is startedOn + 13 days + pausedDays. REVIEW_DUE changes no
-         *     lifecycle state and remains until an explicit owner keep/change command.
+         *     reviewDueOn is startedOn + 13 days + pausedDays. REVIEW_DUE pauses
+         *     ordinary activity occurrences and reminders but keeps the plan ACTIVE.
+         *     It remains until a current-cycle reassessment is completed and the user
+         *     explicitly chooses the next rhythm; it never changes lifecycle state.
          *     NOT_STARTED is a DRAFT; CLOSED is COMPLETED, SUPERSEDED or DISCARDED.
          */
         SupportPlanCycle: {
@@ -4268,7 +4271,7 @@ export interface components {
             /** @enum {string} */
             displayState: "SCHEDULED" | "OVERDUE" | "COMPLETED" | "SKIPPED" | "CANCELLED";
             /** @enum {string|null} */
-            stateReason: "PLAN_PAUSED" | "PLAN_COMPLETED" | "PLAN_REPLACED" | "ACTION_ENDED" | "SCHEDULE_CHANGED" | null;
+            stateReason: "PLAN_PAUSED" | "PLAN_COMPLETED" | "PLAN_REPLACED" | "ACTION_ENDED" | "SCHEDULE_CHANGED" | "REVIEW_DUE" | null;
             /** @description Null unless completion is backed by a bounded Care or owner-domain fact. */
             completionEvidence: components["schemas"]["CompletionEvidence"] | null;
             /** Format: date-time */
@@ -4858,7 +4861,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The plan has no proposal cycle, is not ACTIVE and REVIEW_DUE, or reuses a key differently (SUPPORT_PLAN_MODEL_VERSION_UNSUPPORTED, SUPPORT_PLAN_CYCLE_NOT_REVIEW_DUE, or IDEMPOTENCY_KEY_REUSED); no cycle was started */
+        /** @description The plan has no proposal cycle, is not ACTIVE and REVIEW_DUE, lacks a completed current-cycle reassessment, or reuses a key differently (SUPPORT_PLAN_MODEL_VERSION_UNSUPPORTED, SUPPORT_PLAN_CYCLE_NOT_REVIEW_DUE, SUPPORT_PLAN_REASSESSMENT_REQUIRED, or IDEMPOTENCY_KEY_REUSED); no cycle was started */
         SupportPlanCycleConflictProblem: {
             headers: {
                 [name: string]: unknown;

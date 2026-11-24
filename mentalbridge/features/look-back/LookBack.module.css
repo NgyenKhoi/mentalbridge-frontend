@@ -1206,7 +1206,7 @@
   margin-top: calc(var(--space-8) * -1);
 }
 
-/* ---------- Chapters: window head, journey strip, list, detail ---------- */
+/* ---------- Chapters: window head, selector, journey strip, detail ---------- */
 .chapter {
   gap: var(--space-4);
   max-width: none;
@@ -1363,67 +1363,102 @@
   line-height: 1.5;
 }
 
-.chapters {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.chapterItem {
-  border: 1px solid var(--healing-border);
-  border-radius: 24px;
-  background: var(--surface);
-}
-
-.chapterItem > summary {
+/* Chặng selector: the filter's tinted track, with the chosen chặng lifted onto a white ring. */
+.chapterTabs {
+  position: relative; /* offsetParent for the tab centring */
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: 56px;
-  padding: var(--space-3) var(--space-6);
-  border-radius: 24px;
-  list-style: none;
-  cursor: pointer;
+  gap: 2px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  border: 1px solid var(--forest-200);
+  border-radius: 16px;
+  background: var(--forest-50);
 }
 
-.chapterItem > summary::-webkit-details-marker {
+.chapterTabs::-webkit-scrollbar {
   display: none;
 }
 
-.chapterItem > summary:focus-visible {
-  outline: 2px solid var(--forest-500);
-  outline-offset: 2px;
+.chapterTab {
+  display: grid;
+  flex: none;
+  gap: 2px;
+  min-height: 52px;
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--slate-600);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 
-.chapterItem > summary:hover .chapterName {
-  color: var(--forest-600);
+.chapterTab strong {
+  font-size: 15px;
+  font-weight: 650;
 }
 
-.chapterName {
-  color: var(--forest-900);
-  font-size: 17px;
-  font-weight: 700;
-  transition: color var(--motion-fast) var(--ease-standard);
-}
-
-.chapterDates {
-  margin-right: auto;
+.chapterTab small {
   color: var(--healing-muted);
-  font-size: 14px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 
-.chapterItem > summary svg {
-  flex: none;
-  color: var(--slate-500);
-  transition: transform var(--motion-medium) var(--ease-standard);
+.chapterTab:hover {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  color: var(--forest-800);
 }
 
-.chapterItem[open] > summary svg {
-  transform: rotate(180deg);
+.chapterTab[aria-selected='true'] {
+  background: var(--surface);
+  color: var(--forest-900);
+  box-shadow: inset 0 0 0 2px var(--forest-700);
 }
 
-.chapterItem > .chapter {
-  padding: 0 var(--space-6) var(--space-6);
+.chapterTab:active {
+  transform: scale(0.97);
+}
+
+.chapterTab:focus-visible {
+  outline: 3px solid var(--forest-500);
+  outline-offset: -3px;
+}
+
+/* The picked chặng's view keeps the page rhythm, so switching never shifts what sits below. */
+.panel {
+  display: grid;
+  gap: var(--space-8);
+  transition: opacity var(--motion-base) var(--ease-standard);
+}
+
+/* The previous chặng stays put while the picked one loads: dimmed, not collapsed. */
+.panelStale {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* A cycle closed by a reassessment: small, above the selector, never in place of the road. */
+.closedBanner {
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--forest-200);
+  border-radius: 16px;
+  background: var(--forest-50);
+}
+
+.bannerTitle {
+  margin: 0;
+  color: var(--forest-900);
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .stripScroll {
@@ -1554,16 +1589,13 @@
 }
 
 @media (max-width: 560px) {
-  .page {
+  .page,
+  .panel {
     gap: var(--space-5);
   }
 
   .metrics {
     grid-template-columns: 1fr;
-  }
-
-  .chapterItem > .chapter {
-    padding: 0 var(--space-4) var(--space-4);
   }
 
   /* The strip scrolls sideways here: fade its right edge so the next chặng reads as more to swipe. */
@@ -1701,8 +1733,8 @@
   .primary,
   .filters button,
   .next .primary svg,
-  .chapterItem > summary svg,
-  .chapterName {
+  .chapterTab,
+  .panel {
     transition: none;
   }
 
@@ -1711,7 +1743,8 @@
   .primary:active,
   .next .primary:hover,
   .next .primary:hover svg,
-  .filters button:active {
+  .filters button:active,
+  .chapterTab:active {
     transform: none;
   }
 }
