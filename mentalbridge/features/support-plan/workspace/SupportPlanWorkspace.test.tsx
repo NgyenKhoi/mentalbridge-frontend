@@ -939,6 +939,39 @@ describe('SupportPlan workspace', () => {
     expect(api.confirmAdaptiveReviewOption).toHaveBeenCalledTimes(1)
   })
 
+  it('asks for the reassessment, with a link, when keeping the rhythm needs one', async () => {
+    const user = userEvent.setup()
+    withCurrent(duePlan(), [])
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(adaptiveReviewFixture())
+    api.confirmAdaptiveReviewOption.mockRejectedValueOnce(
+      new ApiError({
+        status: 409,
+        code: 'SUPPORT_PLAN_REASSESSMENT_REQUIRED',
+        message: 'Complete a reassessment.',
+      }),
+    )
+    render(<SupportPlanWorkspace />)
+    await user.click(
+      await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
+    )
+    await user.click(
+      await screen.findByRole('radio', { name: /Giữ nhịp này thêm 14 ngày/ }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Giữ nhịp này thêm 14 ngày' }),
+    )
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(
+      'Cần làm bài đánh giá lại trước khi giữ nhịp thêm 14 ngày.',
+    )
+    expect(
+      within(alert).getByRole('link', { name: 'Làm bài đánh giá lại' }),
+    ).toHaveAttribute(
+      'href',
+      '/initial-check?purpose=reassessment&returnTo=plan-review',
+    )
+  })
+
   it('compares a prepared replacement before switching and binds the draft to the choice', async () => {
     const user = userEvent.setup()
     const review = adaptiveReviewFixture()

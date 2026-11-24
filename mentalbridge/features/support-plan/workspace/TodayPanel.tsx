@@ -199,6 +199,9 @@ export function statusLine(item: TodayRow, timezone: string) {
         .filter(Boolean)
         .join(' · ')
     case 'cancelled':
+      // Review-due gap rows are paused, never cancelled or missed, in the user's eyes.
+      if (occurrence.stateReason === 'REVIEW_DUE')
+        return stateReasonLine('REVIEW_DUE')
       return ['Đã hủy', stateReasonLine(occurrence.stateReason)]
         .filter(Boolean)
         .join(' · ')
@@ -325,21 +328,21 @@ export default function TodayPanel({
         <section className="mbw-tile mbw-next" aria-labelledby="mbw-next-title">
           <h2 id="mbw-next-title">Đến lúc cùng xem lại kế hoạch</h2>
           <p>
-            Bạn đã đi qua 14 ngày. Cùng nhìn lại những gì đã ghi nhận rồi chọn
-            cách đi tiếp. Kế hoạch không đổi cho đến khi bạn chọn.
+            Bạn đã đi qua 14 ngày nên các hoạt động đang tạm dừng chờ đánh giá
+            lại. Kế hoạch không đổi cho đến khi bạn chọn.
           </p>
           <div className="mbw-actions">
+            <Link className="mbw-primary" href={REASSESSMENT_HREF}>
+              Làm bài đánh giá lại để tiếp tục
+              <ArrowRight size={18} aria-hidden="true" />
+            </Link>
             <button
               type="button"
-              className="mbw-primary"
+              className="mbw-secondary"
               onClick={onOpenReview}
             >
               Xem lại kế hoạch
-              <ArrowRight size={18} aria-hidden="true" />
             </button>
-            <Link className="mbw-secondary" href={REASSESSMENT_HREF}>
-              Làm bài kiểm tra lại
-            </Link>
           </div>
         </section>
       )}
