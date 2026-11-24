@@ -10,6 +10,8 @@ import type {
 } from '@/features/assessment/api/care-contract'
 import type { CompanionConversationSummary } from '@/lib/companion/companion-contract'
 
+import type { LookBackJourney } from './look-back-chapters'
+
 export const WINDOW_DAYS = 14
 export const MIN_RECORD_DAYS = 5
 const MOOD_THRESHOLD = 0.5
@@ -66,6 +68,8 @@ export type LookBack = Readonly<{
   professionalPointer: boolean
   nextStep: LookBackNextStep
   partial: boolean
+  /** The chapters (one per reassessment) around the window; null when Care could not be read for them. */
+  journey: LookBackJourney | null
 }>
 
 const LEVEL_ORDER: readonly ScreeningLevel[] = [
@@ -249,6 +253,8 @@ export function composeLookBack({
   latestLevels = [],
   completedSessions = null,
   degraded,
+  journey = null,
+  fromLocalDate,
 }: Readonly<{
   dashboard: ActivityDashboard
   conversations: readonly CompanionConversationSummary[] | null
@@ -258,8 +264,15 @@ export function composeLookBack({
   completedSessions?: number | null
   /** An optional source failed for a reason other than missing consent. */
   degraded: boolean
+  journey?: LookBackJourney | null
+  /** A running chapter looks back over its own days so far, never past the rolling 14. */
+  fromLocalDate?: string
 }>): LookBack {
-  const days = dashboard.daily.slice(-WINDOW_DAYS)
+  const recent = dashboard.daily.slice(-WINDOW_DAYS)
+  const inChapter = fromLocalDate
+    ? recent.filter((day) => day.localDate >= fromLocalDate)
+    : recent
+  const days = inChapter.length > 0 ? inChapter : recent
   const start = days[0].localDate
   const asOf = dashboard.asOfLocalDate
   const weeks = [
@@ -321,5 +334,6 @@ export function composeLookBack({
           ? 'CHECK_IN'
           : 'PLAN',
     partial: dashboard.partial || degraded || narrative === 'UNKNOWN',
+    journey,
   }
 }

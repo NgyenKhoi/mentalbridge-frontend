@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 
+import { buildJourney } from '@/features/look-back/look-back-chapters'
 import {
   composeLookBack,
   localDateOf,
@@ -20,6 +21,7 @@ import {
   localProblem,
 } from '@/lib/care/bff-response'
 import { careClient } from '@/lib/care/care-client'
+import { supportPlanActionClient } from '@/lib/care/support-plan-action-client'
 import { companionClient } from '@/lib/companion/companion-client'
 import { consultationClient } from '@/lib/consultation/consultation-client'
 
@@ -52,13 +54,20 @@ export async function GET(request: NextRequest) {
   }
 
   const token = user.accessToken
-  const [dashboard, history, companion, appointments] =
+  const [dashboard, history, companion, appointments, summaries, plan] =
     await Promise.allSettled([
-      // 14 is not an allowed range; the composition keeps the last 14 local days.
-      careClient.activityDashboard(token, timezone, 30, correlationId),
+      // 90 days reach the older chapters; the rolling view keeps the last 14 local days.
+      careClient.activityDashboard(token, timezone, 90, correlationId),
       careClient.history(token, undefined, 20, correlationId),
       companionClient.list(token, correlationId),
       consultationClient.appointments(token, correlationId),
+      careClient.reassessmentSummaryHistory(
+        token,
+        undefined,
+        50,
+        correlationId,
+      ),
+      supportPlanActionClient.current(token, correlationId),
     ])
   // The mood chart is the point of the page: without it there is nothing to show.
   if (dashboard.status === 'rejected')
@@ -93,9 +102,27 @@ export async function GET(request: NextRequest) {
   if (companion.status === 'rejected' && !quietlyHidden(companion.reason))
     degraded = true
   if (appointments.status === 'rejected') degraded = true
+  // No plan (or no access to one) is normal; any other failure leaves the running chapter out.
+  if (plan.status === 'rejected' && !quietlyHidden(plan.reason)) degraded = true
+  // Without the summaries nothing can say which chapter is open or closed.
+  if (summaries.status === 'rejected') degraded = true
+  const journey =
+    summaries.status === 'fulfilled'
+      ? buildJourney({
+          summaries: summaries.value.items,
+          dashboard: dashboard.value,
+          cycle:
+            plan.status === 'fulfilled' ? (plan.value.cycle ?? null) : null,
+          timeZone: timezone,
+        })
+      : null
 
+  const from = journey?.running?.startLocalDate
   const last14 = dashboard.value.daily.slice(-14)
-  const firstDate = last14[0].localDate
+  // The same window the composition uses: a running chapter's own days, else the last 14.
+  const firstDate = (
+    last14.find((day) => !from || day.localDate >= from) ?? last14[0]
+  ).localDate
   const lastDate = dashboard.value.asOfLocalDate
   const completedSessions =
     appointments.status === 'fulfilled'
@@ -121,6 +148,8 @@ export async function GET(request: NextRequest) {
           result.status === 'fulfilled' ? [result.value] : [],
         ),
         degraded,
+        journey,
+        fromLocalDate: from,
       }),
       correlationId,
     ),
