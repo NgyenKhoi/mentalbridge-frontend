@@ -17,6 +17,8 @@ import { setMamHidden, setMamMotionOff } from './mam-preferences'
 import { useMamSuppress } from './mam-suppression'
 import { FLIGHT_MS } from './mam-welcome-flight'
 import { loadMamDockHost } from './testing/load-mam-dock-host'
+import { settleOnboarding } from '@/features/onboarding/onboarding-hold'
+import { onboardingStorageKey } from '@/features/onboarding/tour-storage'
 
 // The welcome airplane on the host (MB-894, docs/ADR_MAM_RIVE_V2_CONTRACT.md).
 
@@ -97,6 +99,8 @@ describe('Mầm welcome airplane', () => {
     resetMamRendererFailure()
     resetMamWelcomeAttempts()
     window.localStorage.clear()
+    // The first-run tour was already seen; the tour-hold test below clears it.
+    window.localStorage.setItem(onboardingStorageKey('u1'), 'completed')
     window.sessionStorage.clear()
     window.history.replaceState(null, '', '/dashboard')
     Object.defineProperty(navigator, 'webdriver', {
@@ -153,6 +157,20 @@ describe('Mầm welcome airplane', () => {
     expect(screen.getByTestId('mam-character').dataset.oneShot).toBe('wave')
     await ms(1000)
     expect(shown()).toHaveLength(0)
+  })
+
+  it('waits for the first-run tour past the 4 s cap and its clicks, then flies once it ends or is skipped', async () => {
+    window.localStorage.removeItem(onboardingStorageKey('u1'))
+    render(app())
+    await ms(TO_FLIGHT + 5000)
+    fireEvent.pointerDown(screen.getByText('Hành động trên trang'))
+    await ms(TO_FLIGHT)
+    expect(mode()).toBe('dock')
+    expect(screen.getByTestId('mam-character').dataset.visible).toBe('false')
+    act(() => settleOnboarding())
+    await ms(TO_FLIGHT)
+    expect(mode()).toBe('welcome')
+    expect(window.sessionStorage.getItem(KEY)).toBe('1')
   })
 
   it('does not repeat after a re-render, a navigation or a remount', async () => {

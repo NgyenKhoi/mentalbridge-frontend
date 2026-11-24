@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createOnboardingTour } from './tour-runtime'
 import { ONBOARDING_TOURS, type OnboardingAudience } from './tour-definitions'
 import { hasSeenOnboarding, rememberOnboarding } from './tour-storage'
+import { settleOnboarding } from './onboarding-hold'
 
 import 'driver.js/dist/driver.css'
 import './onboarding-tour.css'
@@ -62,7 +63,10 @@ export default function OnboardingTour({
           return
         controller = createOnboardingTour(driver, {
           prepareStep,
-          onEnd,
+          onEnd: () => {
+            onEnd()
+            settleOnboarding()
+          },
           steps: definition.steps,
           focusFallbackSelectors: definition.focusFallbackSelectors,
           popoverClass: definition.popoverClass,
@@ -94,7 +98,15 @@ export default function OnboardingTour({
       hasSeenOnboarding(accountId, audience)
     )
       return
-    const timer = window.setTimeout(() => void startRef.current?.(true), 1500)
+    // A tour that decided not to start (a dialog is open, the page changed, it failed to load) releases what waits on it.
+    const timer = window.setTimeout(
+      () =>
+        void startRef.current?.(true).finally(() => {
+          if (!document.body.classList.contains('mb-onboarding-active'))
+            settleOnboarding()
+        }),
+      1500,
+    )
     return () => window.clearTimeout(timer)
   }, [accountId, audience, definition, pathname])
 
