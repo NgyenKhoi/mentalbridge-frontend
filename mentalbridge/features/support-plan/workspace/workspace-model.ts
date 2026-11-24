@@ -305,6 +305,7 @@ export const STATE_REASON_COPY: Readonly<Record<string, string>> = {
   PLAN_REPLACED: 'Đã chuyển sang kế hoạch mới',
   ACTION_ENDED: 'Việc này đã dừng',
   SCHEDULE_CHANGED: 'Lịch đã đổi',
+  REVIEW_DUE: 'Tạm dừng chờ đánh giá lại',
 }
 
 export type Barrier = 'NOT_ENOUGH_TIME' | 'LOW_ENERGY' | 'NOT_A_GOOD_FIT'

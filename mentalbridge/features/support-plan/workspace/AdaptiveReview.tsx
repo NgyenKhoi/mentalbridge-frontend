@@ -178,10 +178,15 @@ function selfReport(review: Review): SelfReport | undefined {
   )
 }
 
+const REASSESSMENT_REQUIRED_COPY =
+  'Cần làm bài đánh giá lại trước khi giữ nhịp thêm 14 ngày.'
+
 function problem(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 401)
       return 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại để tiếp tục.'
+    if (error.code === 'SUPPORT_PLAN_REASSESSMENT_REQUIRED')
+      return REASSESSMENT_REQUIRED_COPY
     if (error.status === 409)
       return 'Thông tin vừa thay đổi. Phần xem lại đã được cập nhật, hãy chọn lại.'
     if (error.status === 412)
@@ -191,6 +196,25 @@ function problem(error: unknown) {
   }
   // A lost reply may hide an applied change; retrying with the same key is safe.
   return 'Chưa xác nhận được kết quả. Hãy thử lại; nếu thay đổi đã được áp dụng, bạn sẽ thấy kết quả đó.'
+}
+
+function ReviewMessage({
+  message,
+  alert,
+}: Readonly<{ message: string; alert?: boolean }>) {
+  return (
+    <p className="mbw-inline-alert" role={alert ? 'alert' : undefined}>
+      {message}
+      {message === REASSESSMENT_REQUIRED_COPY && (
+        <>
+          {' '}
+          <Link className="mbw-text-link" href={REVIEW_REASSESSMENT_HREF}>
+            Làm bài đánh giá lại
+          </Link>
+        </>
+      )}
+    </p>
+  )
 }
 
 function Screening({ summary }: Readonly<{ summary: Summary }>) {
@@ -771,7 +795,7 @@ export default function AdaptiveReview({
               dụng.
             </p>
           )}
-          {message && <p className="mbw-inline-alert">{message}</p>}
+          {message && <ReviewMessage message={message} />}
           <div className="mbw-actions">
             {selected.executionKind === 'NAVIGATE_PROFESSIONAL_SUPPORT' ? (
               <Link className="mbw-primary" href="/specialists">
@@ -840,11 +864,7 @@ export default function AdaptiveReview({
         </details>
       )}
 
-      {message && !selected && (
-        <p className="mbw-inline-alert" role="alert">
-          {message}
-        </p>
-      )}
+      {message && !selected && <ReviewMessage message={message} alert />}
       {stale !== undefined && (stale || recoveringByHand) && (
         <div className="mbw-review-note">
           {stale && <p role="alert">{stale}</p>}

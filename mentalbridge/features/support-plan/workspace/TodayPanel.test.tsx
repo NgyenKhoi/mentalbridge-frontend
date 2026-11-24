@@ -9,7 +9,8 @@ import {
   emotionOccurrenceFixture,
   nativeSupportPlanFixture,
 } from '../testing/native-support-plan-fixture'
-import TodayPanel, { acceptedJournalHref } from './TodayPanel'
+import { adaptiveReviewFixture } from '../testing/adaptive-review-fixture'
+import TodayPanel, { acceptedJournalHref, statusLine } from './TodayPanel'
 import {
   planActions,
   selectTodayFocus,
@@ -67,6 +68,52 @@ describe('accepted Journal entry link', () => {
         journalItem({ state: 'SKIPPED', displayState: 'SKIPPED' }),
       ),
     ).toBeUndefined()
+  })
+})
+
+describe('review due', () => {
+  it('names the paused row and offers the reassessment as the one primary step', () => {
+    const due = journalItem({
+      state: 'CANCELLED',
+      displayState: 'CANCELLED',
+      stateReason: 'REVIEW_DUE',
+      completionEvidence: null,
+    })
+    expect(
+      statusLine({ ...due, status: 'cancelled' }, 'Asia/Ho_Chi_Minh'),
+    ).toBe('Tạm dừng chờ đánh giá lại')
+    const plan = {
+      ...nativeSupportPlanFixture(),
+      cycle: adaptiveReviewFixture().cycle,
+    }
+    render(
+      <TodayPanel
+        plan={plan}
+        focus={selectTodayFocus(plan, [], '2026-10-13')}
+        occurrences={[]}
+        today="2026-10-13"
+        timezone="Asia/Ho_Chi_Minh"
+        ready
+        loadError={false}
+        rows={{ busy: {}, messages: {} }}
+        busy={false}
+        engageable={new Set()}
+        companion={{ request: vi.fn() } as never}
+        onRetry={vi.fn()}
+        onSkip={vi.fn()}
+        onReopen={vi.fn()}
+        onAcknowledge={vi.fn()}
+        onRate={vi.fn()}
+        onBarrier={vi.fn()}
+        onResume={vi.fn()}
+        onOpenReview={vi.fn()}
+        onOpenPlan={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('link', { name: 'Làm bài đánh giá lại để tiếp tục' }),
+    ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
+    expect(screen.queryByText('Hoạt động hôm nay')).toBeNull()
   })
 })
 
