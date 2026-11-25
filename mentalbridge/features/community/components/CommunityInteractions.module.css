@@ -96,7 +96,8 @@
 }
 
 .empty {
-  opacity: 0.6;
+  /* The idle white heart is near-invisible on white: grey it instead of fading it. */
+  filter: grayscale(1) brightness(0.62);
 }
 
 .main.selected,
@@ -395,5 +396,153 @@
   .celebrating::after,
   .sparkles {
     display: none;
+  }
+}
+
+/* Feed card bar: counts row, then three equal actions between two hairlines. */
+.bar {
+  display: grid;
+  gap: 0;
+  padding-bottom: 0;
+}
+
+.stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 40px;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.statsReactions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.statsMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--teal-pale);
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+.bar .countButton,
+.bar .count {
+  min-height: 40px;
+  padding: 0 6px;
+  font-size: 0.8125rem;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px 0;
+  border-block: 1px solid var(--line); /* taste-skill-ignore: owner mock frames the action bar */
+}
+
+.bar .reactions {
+  min-width: 0;
+}
+
+.bar .main,
+.bar .bookmark,
+.commentAction {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  justify-content: center;
+  margin-left: 0;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.bar .main.selected,
+.bar .bookmark.selected {
+  border-color: transparent;
+}
+
+.commentAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+.commentAction svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .commentAction:hover {
+    color: var(--teal-deep);
+    background: var(--bg);
+  }
+}
+
+.commentAction:active {
+  transform: translateY(1px);
+}
+
+.commentAction:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus-ring); /* taste-skill-ignore: focus ring */
+}
+
+/* The bar does not grow while a reaction is sent: the busy line is for screen readers only. */
+.bar .status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.bar .error {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 400px) {
+  .bar .main,
+  .bar .bookmark,
+  .commentAction {
+    padding-inline: 4px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commentAction {
+    transition: none;
+  }
+
+  .commentAction:active {
+    transform: none;
   }
 }

@@ -21,6 +21,9 @@ vi.mock('@/features/community/api/browser-community', () => ({
   putCommunityBookmark: vi.fn(),
   deleteCommunityReaction: vi.fn(),
   putCommunityReaction: vi.fn(),
+  getCommunityProfile: vi.fn().mockRejectedValue(new Error('none')),
+  createCommunityComment: vi.fn(),
+  COMMUNITY_PROFILE_CHANGED: 'community-profile-changed',
 }))
 
 import CommunityFeed from './CommunityFeed'

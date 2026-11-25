@@ -445,7 +445,7 @@ describe('SpecialistChatView', () => {
     )
 
     expect(
-      await screen.findByText('Chưa có tin nhắn trong phiên này'),
+      await screen.findByText('Buổi này không có tin nhắn nào'),
     ).toBeVisible()
   })
 
@@ -560,7 +560,7 @@ describe('SpecialistChatView', () => {
     )
 
     expect(
-      await screen.findByText('Không thể tải lịch sử trò chuyện'),
+      await screen.findByText('Chưa tải được lịch sử trò chuyện'),
     ).toBeVisible()
   })
 
@@ -574,9 +574,7 @@ describe('SpecialistChatView', () => {
 
     await screen.findByRole('heading', { level: 1, name: 'ThS. BS. Minh Anh' })
 
-    const input = screen.getByPlaceholderText(
-      'Phiên tư vấn đã kết thúc • Khung chat chỉ đọc',
-    )
+    const input = screen.getByPlaceholderText('Khung chat chỉ đọc')
     expect(input).toBeDisabled()
 
     const sendBtn = screen.getByRole('button', { name: 'Gửi tin nhắn' })
@@ -624,10 +622,10 @@ describe('SpecialistChatView', () => {
     expect(
       screen.queryByRole('button', { name: 'Gửi tin nhắn' }),
     ).not.toBeInTheDocument()
-    // The live panel already shows the appointment info, so the drawer starts closed.
+    // The live thread has no info card of its own: the drawer opens as for an ended session.
     expect(
       document.getElementById('appointment-info-drawer')?.className,
-    ).toContain('emrDrawerHidden')
+    ).not.toContain('emrDrawerHidden')
   })
 
   it('never shows the previous appointment summary under a newly selected appointment', async () => {

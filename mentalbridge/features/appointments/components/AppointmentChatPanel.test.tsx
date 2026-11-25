@@ -241,6 +241,76 @@ describe('AppointmentChatPanel', () => {
     )
   })
 
+  it('bare thread drops the panel header and says when the room opens', async () => {
+    api.chatEligibility.mockResolvedValue({
+      ...baseDecision,
+      phase: 'TOO_EARLY',
+      reasonCode: 'APPOINTMENT_TOO_EARLY',
+      checkInAllowed: false,
+      serverTime: '2099-09-27T01:00:00Z',
+    })
+    render(
+      <AppointmentChatPanel
+        appointmentId={appointmentId}
+        timezone="UTC"
+        timelineLabel="Phiên tham vấn lúc 02:00 – 03:00"
+        bare
+      />,
+    )
+
+    expect(await screen.findByText('Phòng chat chưa mở')).toBeInTheDocument()
+    expect(
+      screen.getByText('Phòng chờ mở lúc 01:50, 10 phút trước buổi hẹn.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Phiên tham vấn lúc 02:00 – 03:00'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Phòng chat lịch hẹn')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /thông tin buổi hẹn/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toBeDisabled()
+  })
+
+  it('bare thread names the specialist and keeps the composer while ACTIVE', async () => {
+    api.chatEligibility.mockResolvedValue({
+      ...baseDecision,
+      phase: 'ACTIVE',
+      reasonCode: 'APPOINTMENT_ACTIVE',
+      sendAllowed: true,
+      serverTime: '2099-09-27T02:05:00Z',
+    })
+    api.chatHistory.mockResolvedValue({
+      items: [
+        {
+          messageId: '30000000-0000-4000-8000-000000000001',
+          conversationId: appointmentId,
+          senderId: baseDecision.specialistAccountId,
+          clientMessageId: '30000000-0000-4000-8000-000000000002',
+          type: 'TEXT',
+          content: 'Chào bạn',
+          sentAt: '2099-09-27T02:01:00Z',
+          state: 'VISIBLE',
+          deletedAt: null,
+          schemaVersion: 1,
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    })
+    render(
+      <AppointmentChatPanel
+        appointmentId={appointmentId}
+        specialistName="ThS. Trần Minh Khuê"
+        bare
+      />,
+    )
+
+    expect(await screen.findByText('Chào bạn')).toBeInTheDocument()
+    expect(screen.getByText('ThS. Trần Minh Khuê')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toBeEnabled()
+  })
+
   it('shows ended history as read-only without opening a socket', async () => {
     api.chatEligibility.mockResolvedValue({
       ...baseDecision,
