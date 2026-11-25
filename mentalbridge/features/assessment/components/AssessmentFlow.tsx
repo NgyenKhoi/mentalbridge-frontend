@@ -303,8 +303,8 @@ function ResultPanel({
           <h2 id="care-next-steps-title">Chọn cách hỗ trợ phù hợp với bạn</h2>
           <p>
             Đây là kết quả của một bài sàng lọc. Hoàn thành cả PHQ-9 và GAD-7
-            trong kiểm tra ban đầu để xem gợi ý hỗ trợ tổng hợp và kế hoạch theo
-            dõi của riêng bạn.
+            trong bài sàng lọc để xem gợi ý hỗ trợ tổng hợp và kế hoạch theo dõi
+            của riêng bạn.
           </p>
         </div>
         <div className="care-next-steps-grid">

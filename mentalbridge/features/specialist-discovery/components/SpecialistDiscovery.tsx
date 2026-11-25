@@ -15,11 +15,12 @@ import {
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
-import type {
-  DiscoverySlot,
-  ServiceCreditAccount,
-  SpecialistDiscoveryItem,
-  SpecialistDiscoveryPage,
+import {
+  SERVICE_PACKAGE_LABELS,
+  type DiscoverySlot,
+  type ServiceCreditAccount,
+  type SpecialistDiscoveryItem,
+  type SpecialistDiscoveryPage,
 } from '@/lib/consultation/consultation-validation'
 import { browserServiceCredits } from '@/features/service-credits/api/browser-client'
 import type { VerifiedCredentialBadge } from '@/features/specialist-profile/api/credential-validation'
@@ -419,13 +420,7 @@ export default function SpecialistDiscovery({
                 <div className={styles.statDarkTitle}>
                   <strong>
                     {page
-                      ? `Gói ${
-                          page.packageCode === 'FREE'
-                            ? 'Free'
-                            : page.packageCode === 'PREMIUM'
-                              ? 'Premium'
-                              : 'Plus'
-                        } của bạn`
+                      ? `Gói ${SERVICE_PACKAGE_LABELS[page.packageCode]} của bạn`
                       : 'Gói của bạn'}
                   </strong>
                   <span className={styles.onlineDot} />
@@ -555,13 +550,13 @@ export default function SpecialistDiscovery({
             <div className={styles.benefitLeft}>
               {page.packageCode === 'FREE' ? (
                 <span>
-                  <strong>Bạn đang dùng gói Free.</strong> Bạn có thể xem hồ sơ
-                  và khung giờ; đặt lịch cần gói Plus hoặc Premium.
+                  <strong>Bạn đang dùng gói Miễn phí.</strong> Bạn có thể xem hồ
+                  sơ và khung giờ; đặt lịch cần gói Plus hoặc Premium.
                 </span>
               ) : (
                 <span>
                   <strong>
-                    Gói {page.packageCode === 'PLUS' ? 'Plus' : 'Premium'}.
+                    Gói {SERVICE_PACKAGE_LABELS[page.packageCode]}.
                   </strong>{' '}
                   Khi gửi yêu cầu, quyền lợi và lượt tư vấn sẽ được kiểm tra
                   lại.

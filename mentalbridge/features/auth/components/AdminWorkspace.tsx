@@ -12,13 +12,11 @@ import {
   BrainCircuit,
   ShieldCheck,
   Calendar,
-  Scale,
   FileText,
   BarChart3,
   CreditCard,
   Coins,
   ArrowLeftRight,
-  MessageSquareQuote,
   User,
 } from 'lucide-react'
 
@@ -31,12 +29,10 @@ import AdminCommunityModerationSection from '@/features/community/components/Adm
 import AdminAuditLog from '@/features/audit/components/AdminAuditLog'
 import AdminOperationsDashboard from '@/features/dashboard/components/AdminOperationsDashboard'
 import AdminAppointmentMonitor from '@/features/appointments/components/AdminAppointmentMonitor'
-import AdminAppointmentDisputes from '@/features/appointments/components/AdminAppointmentDisputes'
 import AdminReportsSection from '@/features/reports/components/AdminReportsSection'
 import AdminPaymentsManager from '@/components/AdminPaymentsManager'
 import AdminPayoutsManager from '@/components/AdminPayoutsManager'
 import AdminCommercialReconciliationManager from '@/features/reconciliation/components/AdminCommercialReconciliationManager'
-import AdminFeedbackManager from '@/features/feedback/components/AdminFeedbackManager'
 import AdminRetentionGovernance from '@/features/retention/components/AdminRetentionGovernance'
 import AdminBenchmarkGovernance from '@/features/benchmarks/AdminBenchmarkGovernance'
 import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
@@ -82,10 +78,6 @@ export const SECTIONS = {
     label: 'Lịch hẹn',
     icon: Calendar,
   },
-  disputes: {
-    label: 'Xem xét phiên tư vấn',
-    icon: Scale,
-  },
   audit: {
     label: 'Nhật ký kiểm toán',
     icon: FileText,
@@ -103,12 +95,6 @@ export const SECTIONS = {
   payouts: {
     label: 'Chi trả chuyên gia',
     icon: Coins,
-  },
-  feedback: {
-    label: 'Ý kiến & Phản hồi',
-    description:
-      'Thu thập, phân tích chỉ số hài lòng (CSAT/NPS) và điều phối xử lý ý kiến đóng góp từ Khách hàng và Chuyên gia y tế.',
-    icon: MessageSquareQuote,
   },
   reconciliation: {
     label: 'Đối soát thương mại',
@@ -149,8 +135,6 @@ function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
       return <AdminCommunityModerationSection />
     case 'appointments':
       return <AdminAppointmentMonitor />
-    case 'disputes':
-      return <AdminAppointmentDisputes />
     case 'audit':
       return <AdminAuditLog />
     case 'reports':
@@ -159,8 +143,6 @@ function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
       return <AdminPaymentsManager />
     case 'payouts':
       return <AdminPayoutsManager />
-    case 'feedback':
-      return <AdminFeedbackManager />
     case 'reconciliation':
       return <AdminCommercialReconciliationManager />
   }

@@ -1198,37 +1198,6 @@
   color: #b91c1c !important;
 }
 
-/* Floating Chat Bubble */
-.floatingChatBtn {
-  position: fixed;
-  /* Stack above the global crisis-support button (bottom-right, 24px) so it never covers it. */
-  bottom: calc(96px + env(safe-area-inset-bottom));
-  right: calc(26px + env(safe-area-inset-right));
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: #12382c !important;
-  color: #ffffff !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 16px rgba(18, 56, 44, 0.3);
-  z-index: 50;
-  transition:
-    transform 0.15s ease,
-    background-color 0.15s ease;
-}
-
-.floatingChatBtn:focus-visible {
-  outline: 3px solid #165b44;
-  outline-offset: 3px;
-}
-
-.floatingChatBtn:hover {
-  transform: scale(1.05);
-  background: #0d2a21 !important;
-}
-
 /* Detail view styles for focusAppointmentId subpage */
 .detailPanel {
   background: #ffffff !important;
@@ -1467,11 +1436,6 @@
 }
 
 @media (max-width: 640px) {
-  .floatingChatBtn {
-    right: calc(18px + env(safe-area-inset-right));
-    bottom: calc(84px + env(safe-area-inset-bottom));
-  }
-
   .appointmentRow {
     flex-wrap: wrap;
   }

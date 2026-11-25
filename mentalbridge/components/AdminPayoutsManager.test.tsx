@@ -18,6 +18,10 @@ const api = vi.hoisted(() => ({
 vi.mock('@/features/specialist-earnings/api/browser-client', () => ({
   adminPayoutsBrowserClient: api,
 }))
+const profile = vi.hoisted(() => ({ detail: vi.fn() }))
+vi.mock('@/features/specialist-profile/api/browser-client', () => ({
+  browserConsultation: profile,
+}))
 
 const at = '2026-11-04T03:00:00Z'
 const destinationId = '78700000-0000-4000-8000-000000000001'
@@ -333,6 +337,42 @@ describe('AdminPayoutsManager', () => {
     expect(
       screen.getAllByRole('button', { name: 'Đóng yêu cầu' }),
     ).toHaveLength(1)
+  })
+
+  it('names the specialist, drops MoMo and shows no placeholder client', async () => {
+    const user = userEvent.setup()
+    const namedId = 'a1b2c3d4-0000-4000-8000-000000000099'
+    profile.detail.mockResolvedValue({ data: { displayName: 'ThS. Lan Anh' } })
+    api.pendingDestinations.mockResolvedValue(queue(0))
+    api.get.mockResolvedValue(
+      ledger([{ ...row, specialistAccountId: namedId }]),
+    )
+    api.detail.mockResolvedValue({
+      ...failedDetail(),
+      payout: { ...row, specialistAccountId: namedId },
+      earnings: [
+        {
+          earningId: '78700000-0000-4000-8000-000000000020',
+          appointmentId: '78700000-0000-4000-8000-000000000021',
+          amountVnd: 210000,
+          status: 'AVAILABLE',
+          earnedAt: at,
+        },
+      ],
+    })
+    renderManager()
+    expect(await screen.findByText('ThS. Lan Anh')).toBeInTheDocument()
+    expect(screen.queryByText(/Chuyên gia a1b2c3d4/)).not.toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent(/MoMo/i)
+
+    await user.click(screen.getByRole('button', { name: /ThS. Lan Anh/ }))
+    const panel = await screen.findByRole('complementary')
+    expect(
+      within(panel).getByRole('heading', { name: 'ThS. Lan Anh' }),
+    ).toBeVisible()
+    expect(await within(panel).findByText(/Phiên tư vấn/)).toBeInTheDocument()
+    expect(panel).not.toHaveTextContent(/Thân chủ|Khách trả/)
+    expect(panel).not.toHaveTextContent(/Chuyên gia a1b2c3d4/)
   })
 
   it('shows a closed row as closed with no actions and no stale failure line', async () => {

@@ -7,6 +7,7 @@ import type {
   OwnSubscription,
   SubscriptionCancellation,
 } from '@/lib/consultation/billing-validation'
+import { SERVICE_PACKAGE_LABELS } from '@/lib/consultation/consultation-validation'
 import {
   browserSubscription,
   SubscriptionBrowserError,
@@ -39,7 +40,7 @@ function loadErrorCopy(error: unknown) {
     error.code === 'UNAUTHENTICATED'
   )
     return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
-  return 'Chưa thể tải trạng thái gói từ máy chủ. Vui lòng thử kiểm tra lại.'
+  return 'Chưa tải được trạng thái gói. Hãy thử lại.'
 }
 
 function isDefinitiveFailure(error: unknown) {
@@ -166,7 +167,7 @@ export default function SubscriptionCancellationPanel({
         setSubscription(refreshed)
       } catch {
         setError(
-          'Gói đã được máy chủ xác nhận hủy, nhưng chưa thể làm mới toàn bộ thông tin. Hãy kiểm tra lại sau.',
+          'Gói đã được hủy, nhưng chưa làm mới được toàn bộ thông tin. Hãy tải lại trang sau.',
         )
       }
     } catch (caught) {
@@ -183,7 +184,7 @@ export default function SubscriptionCancellationPanel({
       } else {
         setReconciliationRequired(true)
         setError(
-          'Kết quả yêu cầu chưa xác định vì kết nối bị gián đoạn. Không gửi yêu cầu mới; hãy kiểm tra trạng thái máy chủ.',
+          'Kết quả yêu cầu chưa xác định vì kết nối bị gián đoạn. Đừng gửi lại yêu cầu; hãy tải lại trang để xem trạng thái gói.',
         )
         try {
           const reconciled = await browserSubscription.current()
@@ -242,7 +243,9 @@ export default function SubscriptionCancellationPanel({
       <div className={styles.heading}>
         <div>
           <span>GÓI HIỆN TẠI</span>
-          <h2 id="current-subscription-title">{subscription.planCode}</h2>
+          <h2 id="current-subscription-title">
+            {SERVICE_PACKAGE_LABELS[subscription.planCode]}
+          </h2>
         </div>
         <strong data-state={subscription.status}>
           {cancelled
@@ -257,7 +260,7 @@ export default function SubscriptionCancellationPanel({
         <>
           <p>
             Gói có hiệu lực đến {date(subscription.currentPeriodEnd)}. Bạn có
-            thể hủy ngay; hệ thống không hoàn tiền và các lượt chưa dùng sẽ
+            thể hủy ngay; hệ thống không hoàn tiền và các buổi chưa dùng sẽ
             không còn hiệu lực.
           </p>
           <button
@@ -308,7 +311,7 @@ export default function SubscriptionCancellationPanel({
             ? {
                 title: 'Hủy gói hiện tại?',
                 description:
-                  'Quyền lợi trả phí sẽ kết thúc ngay. Lịch tư vấn tương lai và lượt chưa dùng sẽ bị hủy; giao dịch này không hoàn tiền.',
+                  'Quyền lợi trả phí sẽ kết thúc ngay. Lịch tư vấn tương lai và buổi chưa dùng sẽ bị hủy; giao dịch này không hoàn tiền.',
                 confirmLabel: 'Xác nhận hủy gói',
                 cancelLabel: 'Giữ gói',
               }

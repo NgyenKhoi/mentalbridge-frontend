@@ -49,10 +49,6 @@ vi.mock('@/features/appointments/components/AdminAppointmentMonitor', () => ({
   default: () => <section aria-label="appointments-authority" />,
 }))
 
-vi.mock('@/features/appointments/components/AdminAppointmentDisputes', () => ({
-  default: () => <section aria-label="disputes-authority" />,
-}))
-
 vi.mock('@/features/audit/components/AdminAuditLog', () => ({
   default: () => <section aria-label="audit-authority" />,
 }))
@@ -97,7 +93,7 @@ describe('AdminWorkspace', () => {
       name: 'Điều hướng quản trị',
     })
 
-    expect(within(navigation).getAllByRole('link')).toHaveLength(11)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(9)
     expect(
       within(navigation)
         .getAllByRole('link')
@@ -110,10 +106,8 @@ describe('AdminWorkspace', () => {
       '/admin/benchmarks',
       '/admin/moderation',
       '/admin/appointments',
-      '/admin/disputes',
       '/admin/payments',
       '/admin/payouts',
-      '/admin/feedback',
     ])
     expect(container).not.toHaveTextContent('@example.com')
     expect(container).not.toHaveTextContent('Nguyễn Minh Anh')
@@ -136,9 +130,6 @@ describe('AdminWorkspace', () => {
     expect(
       within(navigation).getByRole('link', { name: 'Chi trả chuyên gia' }),
     ).toHaveAttribute('href', '/admin/payouts')
-    expect(
-      within(navigation).getByRole('link', { name: 'Ý kiến & Phản hồi' }),
-    ).toHaveAttribute('href', '/admin/feedback')
     expect(
       within(navigation).getByRole('link', { name: 'Benchmark AI' }),
     ).toHaveAttribute('href', '/admin/benchmarks')
@@ -163,7 +154,6 @@ describe('AdminWorkspace', () => {
     ['benchmarks', 'benchmarks-authority'],
     ['moderation', 'moderation-authority'],
     ['appointments', 'appointments-authority'],
-    ['disputes', 'disputes-authority'],
     ['audit', 'audit-authority'],
     ['reports', 'reports-authority'],
     ['payments', 'payments-authority'],

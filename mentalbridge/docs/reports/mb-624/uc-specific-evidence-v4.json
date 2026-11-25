@@ -755,8 +755,8 @@
         "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
         "scenario": "renders server prices and names no provider but the configured one",
         "assertions": [
-          "screen.getByText('4 lượt tư vấn')",
-          "screen.getByText('2 lịch')"
+          "screen.getByText('4 buổi tư vấn')",
+          "screen.getByText('2 buổi')"
         ]
       },
       "mobile": {
@@ -877,7 +877,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/service-credits/components/ServiceCreditsPanel.test.tsx",
         "scenario": "shows the provider balance and labels demo provenance truthfully",
-        "assertions": ["name: 'Lịch sử lượt tư vấn'", "name: '2/2 lịch'"]
+        "assertions": ["name: 'Lịch sử buổi tư vấn'", "name: '2/2 lịch'"]
       },
       "mobile": {
         "state": "NONE",

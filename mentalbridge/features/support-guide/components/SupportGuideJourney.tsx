@@ -181,7 +181,7 @@ export default function SupportGuideJourney({
           <p>
             {historical
               ? 'Nội dung này được mở lại đúng như đã lưu cùng lần sàng lọc trước đây; trang không tạo lại hoặc thay đổi gợi ý lịch sử.'
-              : 'Xem các bước hỗ trợ dựa trên cặp kết quả PHQ-9 và GAD-7 trong Kiểm tra ban đầu, rồi chủ động chọn điều phù hợp với bạn.'}
+              : 'Xem các bước hỗ trợ dựa trên cặp kết quả PHQ-9 và GAD-7 trong bài sàng lọc, rồi chủ động chọn điều phù hợp với bạn.'}
           </p>
         </header>
       )}
@@ -227,10 +227,10 @@ export default function SupportGuideJourney({
           <strong>Chưa có gợi ý hỗ trợ</strong>
           <p>
             Các bài trong lịch sử không tự động được ghép. Hãy hoàn tất PHQ-9 và
-            GAD-7 trong cùng lượt Kiểm tra ban đầu để nhận gợi ý đầu tiên.
+            GAD-7 trong cùng lượt sàng lọc để nhận gợi ý đầu tiên.
           </p>
           <Link className="btn btn-ghost" href="/initial-check">
-            Đi tới kiểm tra ban đầu
+            Đi tới bài sàng lọc
           </Link>
         </div>
       )}

@@ -211,6 +211,11 @@ describe('accessible AI Voice dialog', () => {
       expect(await screen.findByText('Tối đa 2 phút')).toBeVisible()
       expect(
         screen.getByText(
+          plan === 'PLUS' ? 'Plus · Giọng nói' : 'Premium · Giọng nói',
+        ),
+      ).toBeVisible()
+      expect(
+        screen.getByText(
           new RegExp(
             `Trần mỗi phiên của gói: ${plan === 'PLUS' ? 5 : 10} phút`,
           ),

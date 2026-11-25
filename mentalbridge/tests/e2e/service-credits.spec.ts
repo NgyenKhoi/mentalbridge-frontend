@@ -30,18 +30,16 @@ test('MB-558 separates Consultation-owned credits from reservation capacity on m
     creditPanel.getByText('Còn lại', { exact: true }).locator('..'),
   ).toContainText('4')
   await expect(
-    creditPanel.getByText(/Bạn đang giữ 1 lịch hẹn tư vấn/),
+    creditPanel.getByText('Hiện tại chưa có lịch hẹn tư vấn nào đang chờ.'),
   ).toBeVisible()
   const plus = page.getByRole('article').filter({
     has: page.getByRole('heading', { name: 'Plus', exact: true }),
   })
-  await expect(plus.getByText('2 lịch', { exact: true })).toBeVisible()
+  await expect(plus.getByText('2 buổi', { exact: true })).toBeVisible()
+  await expect(page.getByText(/Gói thử nghiệm:/)).toHaveCount(0)
+  await creditPanel.getByRole('button', { name: 'Lịch sử buổi tư vấn' }).click()
   await expect(
-    page.getByText(/Nâng Plus lên Premium thu đủ giá Premium/),
-  ).toBeVisible()
-  await creditPanel.getByRole('button', { name: 'Lịch sử lượt tư vấn' }).click()
-  await expect(
-    creditPanel.getByRole('heading', { name: 'Lịch sử lượt tư vấn' }),
+    creditPanel.getByRole('heading', { name: 'Lịch sử buổi tư vấn' }),
   ).toBeVisible()
   await expect(
     creditPanel.getByRole('heading', { name: '1/2 lịch' }),

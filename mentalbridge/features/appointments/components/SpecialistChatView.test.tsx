@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Appointment } from '@/lib/consultation/consultation-validation'
@@ -119,6 +125,7 @@ describe('SpecialistChatView', () => {
           createdAt: '2026-10-01T17:00:00Z',
           updatedAt: '2026-10-01T17:00:00Z',
           publishedToUserAt: '2026-10-01T17:00:00Z',
+          specialistNoteForUser: 'Duy trì bài tập thở mỗi tối',
           agreedNextSteps: [
             {
               stepId: 'step-1',
@@ -169,7 +176,7 @@ describe('SpecialistChatView', () => {
 
     // Col 1: Appointments List
     expect(
-      await screen.findByRole('heading', { name: /Lịch hẹn chat/i }),
+      await screen.findByRole('heading', { name: /Cuộc trò chuyện/i }),
     ).toBeVisible()
     expect(await screen.findAllByText('Đã hoàn thành')).not.toHaveLength(0)
     expect(screen.queryByText('Đã xong')).not.toBeInTheDocument()
@@ -183,23 +190,32 @@ describe('SpecialistChatView', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'ThS. BS. Minh Anh' }),
     ).toBeVisible()
-    expect(
-      screen.getAllByText(/Khoa Sức khỏe Tâm thần/i).length,
-    ).toBeGreaterThanOrEqual(1)
+    // No invented affiliation or specialty line.
+    expect(screen.queryByText(/Khoa |BV ĐHYD/)).not.toBeInTheDocument()
     expect(screen.getByText(/Thời lượng:/i)).toBeVisible()
     expect(
-      screen.getByText(
-        /Phiên đã kết thúc và được lưu trữ an toàn trong hồ sơ bệnh án EMR/i,
-      ),
+      screen.getByText('Phiên đã kết thúc. Khung chat chỉ đọc.'),
     ).toBeVisible()
 
-    // Col 3: EMR Drawer is initially open
-    expect(screen.getByText('Thông tin buổi hẹn & EMR')).toBeVisible()
-    expect(screen.getByText('Đánh giá lâm sàng phiên này')).toBeVisible()
-    expect(screen.getByText('Toa dặn dò & Lộ trình')).toBeVisible()
+    // Col 3: the appointment info drawer is initially open
+    expect(screen.getByText('Thông tin buổi hẹn')).toBeVisible()
+    await waitFor(() =>
+      expect(
+        within(document.getElementById('appointment-info-drawer')!).getByText(
+          'Chat trực tuyến',
+        ),
+      ).toBeVisible(),
+    )
+    expect(
+      within(document.getElementById('appointment-info-drawer')!).getByText(
+        'Duy trì bài tập thở mỗi tối',
+      ),
+    ).toBeVisible()
+    expect(screen.getByText('Bước tiếp theo')).toBeVisible()
+    expect(screen.getByText('Đã dùng 1 lượt tư vấn')).toBeVisible()
   })
 
-  it('allows toggling the EMR drawer open and closed', async () => {
+  it('shows no EMR, clinical, invoice, PDF or AI-pill content', async () => {
     render(
       <SpecialistChatView
         initialAppointmentId={testAppointment.id}
@@ -207,8 +223,107 @@ describe('SpecialistChatView', () => {
       />,
     )
 
-    expect(await screen.findByText('Thông tin buổi hẹn & EMR')).toBeVisible()
-    const drawer = document.getElementById('emr-drawer')
+    expect(await screen.findByText('Đã dùng 1 lượt tư vấn')).toBeVisible()
+    const text = document.body.textContent ?? ''
+    for (const banned of [
+      /EMR/,
+      /lâm sàng/i,
+      /bệnh án/i,
+      /INV-MB/,
+      /#MB-/,
+      /Credit/,
+      /Xuất PDF/,
+      /Hóa đơn/i,
+      /Tâm sự 24\/7/,
+    ]) {
+      expect(text).not.toMatch(banned)
+    }
+    expect(screen.queryByRole('link', { name: /Tâm sự/ })).toBeNull()
+  })
+
+  it('never prints a raw modality enum', async () => {
+    appointmentApi.list.mockResolvedValue({
+      items: [{ ...testAppointment, modality: 'IN_APP_VIDEO' }],
+      count: 1,
+      generatedAt: '2026-10-01T17:00:00Z',
+    })
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    expect(
+      await within(
+        document.getElementById('appointment-info-drawer')!,
+      ).findByText('Gọi video'),
+    ).toBeVisible()
+    expect(document.body.textContent).not.toMatch(/IN_APP_/)
+  })
+
+  it.each([
+    ['CONFIRMED', 'Đã xác nhận'],
+    ['REQUESTED', 'Chờ xác nhận'],
+    ['REJECTED', 'Chuyên gia chưa thể nhận lịch'],
+    ['EXPIRED', 'Hết thời gian xác nhận'],
+  ] as const)(
+    'labels a %s booking whose end time has passed like /appointments, never "Sắp tới"',
+    async (status, label) => {
+      appointmentApi.list.mockResolvedValue({
+        items: [
+          {
+            ...testAppointment,
+            status,
+            scheduledStartAt: '2020-01-01T08:00:00Z',
+            scheduledEndAt: '2020-01-01T09:00:00Z',
+          },
+        ],
+        count: 1,
+        generatedAt: '2026-10-01T17:00:00Z',
+      })
+      render(
+        <SpecialistChatView
+          initialAppointmentId={testAppointment.id}
+          viewerRole="USER"
+        />,
+      )
+
+      expect((await screen.findAllByText(label)).length).toBeGreaterThanOrEqual(
+        1,
+      )
+      expect(screen.queryByText('Sắp tới')).not.toBeInTheDocument()
+    },
+  )
+
+  it('uses the specialist wording in the list pill for a pending request', async () => {
+    appointmentApi.assigned.mockResolvedValue({
+      items: [{ ...testAppointment, status: 'REQUESTED' }],
+      count: 1,
+      generatedAt: '2026-10-01T10:00:00Z',
+    })
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="SPECIALIST"
+      />,
+    )
+
+    expect(
+      (await screen.findAllByText('Chờ phản hồi')).length,
+    ).toBeGreaterThanOrEqual(1)
+  })
+
+  it('allows toggling the info drawer open and closed', async () => {
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    expect(await screen.findByText('Thông tin buổi hẹn')).toBeVisible()
+    const drawer = document.getElementById('appointment-info-drawer')
     // Ended session: the drawer opens once the appointment has loaded.
     await waitFor(() =>
       expect(drawer?.className).not.toContain('emrDrawerHidden'),
@@ -218,46 +333,17 @@ describe('SpecialistChatView', () => {
     const closeBtn = screen.getByRole('button', { name: 'Đóng ngăn kéo' })
     fireEvent.click(closeBtn)
 
-    // EMR drawer should have hidden class
+    // Info drawer should have hidden class
     expect(drawer?.className).toContain('emrDrawerHidden')
 
     // Click split button in chat header to reopen
     const openBtn = screen.getByRole('button', {
-      name: 'Hồ sơ & EMR',
+      name: 'Thông tin buổi hẹn',
     })
     fireEvent.click(openBtn)
 
-    // EMR drawer is reopened
+    // Info drawer is reopened
     expect(drawer?.className).not.toContain('emrDrawerHidden')
-  })
-
-  it('opens the full EMR modal when clicking Xem biên bản EMR & Hóa đơn', async () => {
-    render(
-      <SpecialistChatView
-        initialAppointmentId={testAppointment.id}
-        viewerRole="USER"
-      />,
-    )
-
-    expect(await screen.findByText('Xem biên bản EMR & Hóa đơn')).toBeVisible()
-    const invoiceBtn = screen.getByText('Xem biên bản EMR & Hóa đơn')
-    fireEvent.click(invoiceBtn)
-
-    // Full modal should open
-    expect(
-      await screen.findByText('Biên bản EMR & Hóa đơn lâm sàng'),
-    ).toBeVisible()
-    expect(screen.getByText(/HỒ SƠ TƯ VẤN LÂM SÀNG/i)).toBeVisible()
-
-    // Close modal via footer button "Đóng"
-    const closeBtn = screen.getByRole('button', { name: /^Đóng$/i })
-    fireEvent.click(closeBtn)
-
-    await waitFor(() => {
-      expect(
-        screen.queryByText('Biên bản EMR & Hóa đơn lâm sàng'),
-      ).not.toBeInTheDocument()
-    })
   })
 
   it('does not offer rating inside the messages drawer', async () => {
@@ -268,7 +354,7 @@ describe('SpecialistChatView', () => {
       />,
     )
 
-    expect(await screen.findByText('Xem biên bản EMR & Hóa đơn')).toBeVisible()
+    expect(await screen.findByText('Đã dùng 1 lượt tư vấn')).toBeVisible()
     expect(screen.queryByText(/Đánh giá phiên/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Gửi đánh giá/)).not.toBeInTheDocument()
   })
@@ -489,9 +575,9 @@ describe('SpecialistChatView', () => {
       screen.queryByRole('button', { name: 'Gửi tin nhắn' }),
     ).not.toBeInTheDocument()
     // The live panel already shows the appointment info, so the drawer starts closed.
-    expect(document.getElementById('emr-drawer')?.className).toContain(
-      'emrDrawerHidden',
-    )
+    expect(
+      document.getElementById('appointment-info-drawer')?.className,
+    ).toContain('emrDrawerHidden')
   })
 
   it('never shows the previous appointment summary under a newly selected appointment', async () => {

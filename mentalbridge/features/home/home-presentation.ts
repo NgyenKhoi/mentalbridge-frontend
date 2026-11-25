@@ -32,7 +32,7 @@ export function homeJourneyTrail(home: HomeNextStep) {
           ? 2
           : 1
   return [
-    'Kiểm tra ban đầu',
+    'Sàng lọc',
     'Hướng dẫn',
     plan
       ? `Kế hoạch${plan.cycleDay != null ? ` · ngày ${plan.cycleDay}` : ''}`
