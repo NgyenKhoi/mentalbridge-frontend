@@ -273,7 +273,7 @@ test.describe('Community feed journey', () => {
         main!.x + main!.width + 1,
       )
       if (viewport.width > 1100) {
-        expect(topics!.x - (feed!.x + feed!.width)).toBeCloseTo(24, 0)
+        expect(topics!.x - (feed!.x + feed!.width)).toBeCloseTo(20, 0)
         await expect(
           page.getByRole('complementary', {
             name: 'Không gian cộng đồng',

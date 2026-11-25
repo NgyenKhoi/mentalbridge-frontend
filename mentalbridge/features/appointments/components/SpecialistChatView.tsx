@@ -180,8 +180,8 @@ function calculateDurationMinutes(startIso: string, endIso: string) {
   }
 }
 
-// Below 768px the info drawer covers the chat, so it starts closed there.
-const NARROW_QUERY = '(max-width: 767px)'
+// At 768px and below the info drawer covers the chat, so it starts closed there.
+const NARROW_QUERY = '(max-width: 768px)'
 function subscribeNarrow(onChange: () => void) {
   const query = window.matchMedia?.(NARROW_QUERY)
   query?.addEventListener('change', onChange)
@@ -545,12 +545,12 @@ export default function SpecialistChatView({
     !!selectedAppointment &&
     ['CONFIRMED', 'IN_PROGRESS'].includes(selectedAppointment.status)
   const isEmrDrawerOpen =
-    emrDrawerOverride ?? (!!selectedAppointment && !isLiveSession && !isNarrow)
+    emrDrawerOverride ?? (!!selectedAppointment && !isNarrow)
   const nextSessionHref = selectedAppointment
     ? `/specialists?specialist=${encodeURIComponent(selectedAppointment.specialistAccountId)}`
     : '/specialists'
   const composerDisabledReason = isSessionEnded
-    ? 'Phiên tư vấn đã kết thúc • Khung chat chỉ đọc'
+    ? 'Khung chat chỉ đọc'
     : 'Khung chat hiện không khả dụng cho phiên này'
 
   return (
@@ -819,9 +819,13 @@ export default function SpecialistChatView({
               {/* Action Toolbar */}
               <div className={styles.headerActions}>
                 {viewerRole !== 'SPECIALIST' && (
-                  <Link href={nextSessionHref} className={styles.btnPrimary}>
+                  <Link
+                    href={nextSessionHref}
+                    className={styles.btnPrimary}
+                    aria-label="Đặt buổi tiếp theo"
+                  >
                     <CalendarDays size={14} />
-                    <span>Đặt buổi tiếp theo</span>
+                    <span className={styles.btnLabel}>Đặt buổi tiếp theo</span>
                   </Link>
                 )}
 
@@ -865,6 +869,54 @@ export default function SpecialistChatView({
               </div>
             </header>
 
+            {/* Bento Metric Strip over Conversation: same for live and ended sessions */}
+            {emrData && (
+              <div
+                className={styles.bentoMetricStrip}
+                data-purpose="chat-session-bento-strip"
+              >
+                <div className={styles.metricStripContent}>
+                  <div className={styles.metricLeft}>
+                    <span>
+                      <span className={styles.metricDot} />
+                      Thời lượng:{' '}
+                      <strong className="text-slate-800 font-semibold">
+                        {emrData.consultationTime.durationLabel}
+                      </strong>
+                    </span>
+                    <span className={`text-slate-300 ${styles.metricSep}`}>
+                      •
+                    </span>
+                    {isLiveSession && selectedAppointment ? (
+                      <span>
+                        Trạng thái:{' '}
+                        <strong className="text-emerald-800 font-semibold">
+                          {appointmentStatusLabel(
+                            selectedAppointment,
+                            viewerRole,
+                          )}
+                        </strong>
+                      </span>
+                    ) : (
+                      <span>
+                        Tóm tắt phiên:{' '}
+                        <strong className="text-emerald-800 font-semibold">
+                          {sessionSummary
+                            ? 'Đã có tóm tắt phiên'
+                            : 'Chưa có tóm tắt'}
+                        </strong>
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-slate-500 text-[11px]">
+                    <strong className="text-slate-700 font-semibold">
+                      {emrData.creditLabel}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+            )}
+
             {isLiveSession && selectedAppointment ? (
               <div className={styles.liveChat} data-purpose="live-chat">
                 <AppointmentChatPanel
@@ -872,45 +924,21 @@ export default function SpecialistChatView({
                   appointmentId={selectedAppointment.id}
                   viewerRole={viewerRole}
                   timezone={selectedAppointment.timezone}
+                  specialistName={
+                    selectedAppointment.specialistDisplayName ||
+                    'Chuyên gia Tâm lý'
+                  }
+                  timelineLabel={
+                    emrData
+                      ? `Phiên tham vấn lúc ${emrData.consultationTime.timeRange} • ${emrData.consultationTime.date}`
+                      : undefined
+                  }
                   embedded
+                  bare
                 />
               </div>
             ) : (
               <>
-                {/* Bento Metric Strip over Conversation */}
-                {emrData && (
-                  <div
-                    className={styles.bentoMetricStrip}
-                    data-purpose="chat-session-bento-strip"
-                  >
-                    <div className={styles.metricStripContent}>
-                      <div className={styles.metricLeft}>
-                        <span>
-                          <span className={styles.metricDot} />
-                          Thời lượng:{' '}
-                          <strong className="text-slate-800 font-semibold">
-                            {emrData.consultationTime.durationLabel}
-                          </strong>
-                        </span>
-                        <span className="text-slate-300">•</span>
-                        <span>
-                          Tóm tắt phiên:{' '}
-                          <strong className="text-emerald-800 font-semibold">
-                            {sessionSummary
-                              ? 'Đã có tóm tắt phiên'
-                              : 'Chưa có tóm tắt'}
-                          </strong>
-                        </span>
-                      </div>
-                      <span className="text-slate-500 text-[11px]">
-                        <strong className="text-slate-700 font-semibold">
-                          {emrData.creditLabel}
-                        </strong>
-                      </span>
-                    </div>
-                  </div>
-                )}
-
                 {/* Dialogue Message Stream Area */}
                 <div
                   className={`${styles.messagesContainer} ${styles.customScroll}`}
@@ -929,61 +957,51 @@ export default function SpecialistChatView({
                   {/* Message Stream with Truthful Status Handling */}
                   {chatStatus === 'loading' && (
                     <div
-                      className="py-12 text-center text-sm text-slate-500"
+                      className={styles.emptyNote}
                       data-testid="chat-loading-state"
+                      role="status"
                     >
-                      Đang tải lịch sử hội thoại...
+                      <p>Đang tải lịch sử hội thoại…</p>
                     </div>
                   )}
 
                   {chatStatus === 'notOpen' && (
                     <div
-                      className="py-12 text-center px-4"
+                      className={styles.emptyNote}
                       data-testid="chat-not-open-state"
                       role="status"
                     >
-                      <div className="inline-flex p-3 rounded-full bg-slate-100 text-slate-500 mb-2">
-                        <Clock size={20} />
-                      </div>
-                      <p className="text-sm font-semibold text-slate-700">
-                        {notOpenNotice}
-                      </p>
+                      <span className={styles.emptyNoteIcon} aria-hidden="true">
+                        <Clock size={18} />
+                      </span>
+                      <strong>{notOpenNotice}</strong>
                     </div>
                   )}
 
                   {chatStatus === 'error' && (
                     <div
-                      className="py-12 text-center px-4"
+                      className={styles.emptyNote}
                       data-testid="chat-error-state"
+                      role="alert"
                     >
-                      <div className="inline-flex p-3 rounded-full bg-rose-50 text-rose-700 mb-2">
-                        <AlertCircle size={20} />
-                      </div>
-                      <p className="text-sm font-semibold text-slate-800">
-                        Không thể tải lịch sử trò chuyện
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Đã xảy ra lỗi kết nối khi tải lịch sử phiên. Vui lòng
-                        thử lại sau.
-                      </p>
+                      <span className={styles.emptyNoteIcon} aria-hidden="true">
+                        <AlertCircle size={18} />
+                      </span>
+                      <strong>Chưa tải được lịch sử trò chuyện</strong>
+                      <p>Kiểm tra kết nối rồi mở lại cuộc trò chuyện này.</p>
                     </div>
                   )}
 
                   {chatStatus === 'empty' && (
                     <div
-                      className="py-12 text-center px-4"
+                      className={styles.emptyNote}
                       data-testid="chat-empty-state"
+                      role="status"
                     >
-                      <div className="inline-flex p-3 rounded-full bg-slate-100 text-slate-500 mb-2">
-                        <MessageSquare size={20} />
-                      </div>
-                      <p className="text-sm font-semibold text-slate-700">
-                        Chưa có tin nhắn trong phiên này
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        Phiên tư vấn này chưa có lịch sử tin nhắn nào được lưu
-                        trữ.
-                      </p>
+                      <span className={styles.emptyNoteIcon} aria-hidden="true">
+                        <MessageSquare size={18} />
+                      </span>
+                      <strong>Buổi này không có tin nhắn nào</strong>
                     </div>
                   )}
 

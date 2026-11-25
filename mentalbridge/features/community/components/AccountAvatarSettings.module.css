@@ -64,3 +64,8 @@
     transform: none;
   }
 }
+/* On the account page the card is its own panel: no divider or trailing gap under it. */
+.editor > section {
+  padding-bottom: 0;
+  border-bottom: 0;
+}

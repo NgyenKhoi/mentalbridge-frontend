@@ -1281,10 +1281,42 @@
   border: 1px solid #d1d5db;
 }
 
+/* Same shape as the neighbouring secondary/outline button; only the tone says "danger". */
 .dangerAction {
-  background: #fef2f2;
-  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: #ffffff;
+  color: #b91c1c;
   border: 1px solid #fecaca;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.dialogActions .dangerAction {
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.dangerAction:hover:not(:disabled):not([aria-disabled='true']) {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.dangerAction:focus-visible {
+  outline: 2px solid #b91c1c;
+  outline-offset: 2px;
+}
+
+.dangerAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .pageError {

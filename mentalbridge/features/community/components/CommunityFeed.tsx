@@ -19,6 +19,8 @@ import CommunitySensitiveContent from './CommunitySensitiveContent'
 import CommunityAvatar from './CommunityAvatar'
 import CommunityAuthorLink from './CommunityAuthorLink'
 import CommunityInteractions from './CommunityInteractions'
+import CommunityInlineReply from './CommunityInlineReply'
+import { useOwnCommunityAvatar } from './useOwnCommunityAvatar'
 import CommunityResourceAttachment from './CommunityResourceAttachment'
 import {
   CommunityHelpCard,
@@ -28,7 +30,6 @@ import {
 } from './CommunityDiscovery'
 import CommunitySafetyActions from './CommunitySafetyActions'
 import CommunityCommentsDialog from './CommunityCommentsDialog'
-import discussionStyles from './CommunityCommentsDialog.module.css'
 
 type FeedPost = Omit<CommunityPostDetail, 'content'> & {
   contentPreview: string
@@ -96,6 +97,7 @@ export default function CommunityFeed({
   openReels = false,
 }: CommunityFeedProps) {
   const savedView = view === 'saved'
+  const ownAvatar = useOwnCommunityAvatar()
   const [topics, setTopics] = useState<CommunityTopic[]>([])
   const [selectedTopics, setSelectedTopics] = useState<CommunityTopicCode[]>([])
   const [items, setItems] = useState<FeedPost[]>([])
@@ -593,7 +595,10 @@ export default function CommunityFeed({
                     }
                   />
                 ) : (
-                  <article className="community-card" key={post.postId}>
+                  <article
+                    className="community-card community-post"
+                    key={post.postId}
+                  >
                     <header>
                       <CommunityAuthorLink author={post.author}>
                         <CommunityAvatar
@@ -604,13 +609,28 @@ export default function CommunityFeed({
                           anonymous={post.author.state === 'ANONYMOUS'}
                         />
                       </CommunityAuthorLink>
-                      <div>
-                        <strong>
-                          <CommunityAuthorLink author={post.author} />
-                        </strong>
-                        <time dateTime={post.publishedAt}>
-                          {communityTime(post.publishedAt)}
-                        </time>
+                      <div className="community-post-meta">
+                        <div className="community-post-byline">
+                          <strong>
+                            <CommunityAuthorLink author={post.author} />
+                          </strong>
+                          {post.topics.map((topic) => (
+                            <span key={topic} className="community-post-topic">
+                              {topics.find((value) => value.code === topic)
+                                ?.label ?? topic}
+                            </span>
+                          ))}
+                        </div>
+                        {/* Like most feeds, the time opens the post. */}
+                        <Link
+                          className="community-post-time"
+                          href={`/community/${post.postId}`}
+                          aria-label={`Đọc bài viết, đăng lúc ${communityTime(post.publishedAt)}`}
+                        >
+                          <time dateTime={post.publishedAt}>
+                            {communityTime(post.publishedAt)}
+                          </time>
+                        </Link>
                       </div>
                       <CommunitySafetyActions
                         targetType="POST"
@@ -625,14 +645,6 @@ export default function CommunityFeed({
                         }
                       />
                     </header>
-                    <div className="community-card-topics">
-                      {post.topics.map((topic) => (
-                        <span key={topic}>
-                          {topics.find((value) => value.code === topic)
-                            ?.label ?? topic}
-                        </span>
-                      ))}
-                    </div>
                     <CommunitySensitiveContent
                       warned={
                         post.sensitiveContentWarning === 'SENSITIVE_CONTENT'
@@ -649,12 +661,33 @@ export default function CommunityFeed({
                         />
                       )}
                     </CommunitySensitiveContent>
-                    <footer>
+                    <footer className="community-post-footer">
                       {post.viewerState ? (
                         <CommunityInteractions
                           postId={post.postId}
                           viewerState={post.viewerState}
                           reactionCount={post.counts.reactions}
+                          layout="bar"
+                          meta={
+                            <button
+                              type="button"
+                              className="community-post-comments"
+                              aria-label={`${post.counts.comments} bình luận, mở bình luận bài viết của ${post.author.displayName}`}
+                              aria-haspopup="dialog"
+                              onClick={(event) =>
+                                openDiscussion(post, event.currentTarget)
+                              }
+                            >
+                              {post.counts.comments} bình luận
+                            </button>
+                          }
+                          onComment={(trigger) => {
+                            const input = document.getElementById(
+                              `reply-${post.postId}`,
+                            )
+                            if (input) input.focus()
+                            else openDiscussion(post, trigger)
+                          }}
                           onChange={(viewerState, reactions) =>
                             updateInteractions(
                               post.postId,
@@ -664,43 +697,54 @@ export default function CommunityFeed({
                           }
                         />
                       ) : (
-                        <span className="community-card-stat">
-                          <FeedIcon name="heart" />
-                          {post.counts.reactions} lượt đồng hành
-                        </span>
+                        <div className="community-post-stats">
+                          <span className="community-card-stat">
+                            <FeedIcon name="heart" />
+                            {post.counts.reactions} lượt đồng hành
+                          </span>
+                          <button
+                            type="button"
+                            className="community-post-comments"
+                            aria-label={`${post.counts.comments} bình luận, mở bình luận bài viết của ${post.author.displayName}`}
+                            aria-haspopup="dialog"
+                            onClick={(event) =>
+                              openDiscussion(post, event.currentTarget)
+                            }
+                          >
+                            {post.counts.comments} bình luận
+                          </button>
+                        </div>
                       )}
-                      <button
-                        type="button"
-                        className={`community-comment-link ${discussionStyles.commentButton}`}
-                        aria-label={`Bình luận bài viết của ${post.author.displayName}`}
-                        aria-haspopup="dialog"
-                        onClick={(event) =>
-                          openDiscussion(post, event.currentTarget)
-                        }
-                      >
-                        <FeedIcon name="comment" />
-                        {post.counts.comments} bình luận
-                      </button>
-                      <Link href={`/community/${post.postId}`}>
-                        Đọc bài viết <span aria-hidden="true">→</span>
-                      </Link>
                     </footer>
-                    {!post.sensitiveContentWarning && (
-                      <button
-                        type="button"
-                        className={discussionStyles.replyTrigger}
-                        aria-label={`Viết bình luận cho bài viết của ${post.author.displayName}`}
-                        aria-haspopup="dialog"
-                        onClick={(event) =>
-                          openDiscussion(post, event.currentTarget)
+                    {!post.sensitiveContentWarning && post.viewerState && (
+                      <CommunityInlineReply
+                        postId={post.postId}
+                        authorName={post.author.displayName}
+                        avatar={
+                          ownAvatar ? (
+                            <CommunityAvatar
+                              displayName={ownAvatar.displayName}
+                              avatarPreset={ownAvatar.avatarPreset}
+                              avatarImage={ownAvatar.avatarImage}
+                            />
+                          ) : undefined
                         }
-                      >
-                        <span className={discussionStyles.replyMark}>
-                          <FeedIcon name="comment" />
-                        </span>
-                        <span>Viết một bình luận tử tế…</span>
-                        <span aria-hidden="true">↗</span>
-                      </button>
+                        onCreated={() =>
+                          setItems((current) =>
+                            current.map((item) =>
+                              item.postId === post.postId
+                                ? {
+                                    ...item,
+                                    counts: {
+                                      ...item.counts,
+                                      comments: item.counts.comments + 1,
+                                    },
+                                  }
+                                : item,
+                            ),
+                          )
+                        }
+                      />
                     )}
                   </article>
                 ),
