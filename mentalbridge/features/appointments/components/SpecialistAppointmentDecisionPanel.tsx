@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  CalendarDays,
   Video,
   Check,
   ChevronRight,
@@ -24,6 +23,7 @@ import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
 import { consultationBriefBrowserClient } from '../api/consultation-brief-browser-client'
 import {
+  appointmentCreditLabel,
   appointmentStatusLabel,
   matchesAppointmentFilter,
   nextAppointment,
@@ -36,14 +36,6 @@ import { SessionSummaryPanel } from './SessionSummaryPanel'
 import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 
 type Decision = 'accept' | 'reject'
-
-const CREDIT_LABELS: Record<Appointment['creditState'], string> = {
-  AVAILABLE: 'Lượt tư vấn đã được hoàn lại',
-  HELD: 'Lượt tư vấn vẫn được giữ cho lịch hẹn',
-  CONSUMED: 'Lượt tư vấn đã được sử dụng',
-  FORFEITED: 'Lượt tư vấn không còn hiệu lực',
-  REVOKED: 'Lượt tư vấn đã bị thu hồi khi chủ gói hủy đăng ký',
-}
 
 const RELOAD_CODES = new Set([
   'APPOINTMENT_VERSION_MISMATCH',
@@ -59,13 +51,13 @@ const DECISION_LABELS = {
 } as const
 
 const CANCELLATION_LABELS = {
-  USER_CANCELLED: 'Thân chủ đã hủy lịch hẹn',
-  USER_RESCHEDULED: 'Thân chủ đã đổi sang lịch khác',
-  OWNER_SUBSCRIPTION_CANCELLED: 'Lịch bị hủy vì gói của thân chủ đã kết thúc',
+  USER_CANCELLED: 'Khách hàng đã hủy lịch hẹn',
+  USER_RESCHEDULED: 'Khách hàng đã đổi sang lịch khác',
+  OWNER_SUBSCRIPTION_CANCELLED: 'Lịch bị hủy vì gói của khách hàng đã kết thúc',
   SPECIALIST_SUSPENDED: 'Lịch bị hủy vì tài khoản chuyên gia tạm ngưng',
 } as const
 
-const FALLBACK_CLIENT = 'Thân chủ'
+const FALLBACK_CLIENT = 'Khách hàng'
 
 function displayMoment(value: string, timezone: string) {
   return new Intl.DateTimeFormat('vi-VN', {
@@ -145,7 +137,7 @@ function friendlyError(error: unknown, reloaded = false) {
       case 'APPOINTMENT_NOT_ASSIGNED':
         return 'Bạn chỉ có thể xử lý lịch hẹn được giao cho mình.'
       case 'APPOINTMENT_CREDIT_CONFLICT':
-        return 'Lượt tư vấn của yêu cầu này đang có thay đổi. Vui lòng tải lại trước khi tiếp tục.'
+        return 'Buổi tư vấn của yêu cầu này đang có thay đổi. Vui lòng tải lại trước khi tiếp tục.'
       case 'IDEMPOTENCY_KEY_REUSED':
         return 'Lần gửi trước không khớp với thao tác này. Hãy thử lại.'
       case 'UNAUTHENTICATED':
@@ -221,7 +213,7 @@ function SessionDetailDrawer({
           </header>
           <dl className={styles.drawerFacts}>
             <div>
-              <dt>Thân chủ</dt>
+              <dt>Khách hàng</dt>
               <dd>{clientName}</dd>
             </div>
             <div>
@@ -276,8 +268,8 @@ function SessionDetailDrawer({
               </div>
             )}
             <div>
-              <dt>Lượt tư vấn</dt>
-              <dd>{CREDIT_LABELS[appointment.creditState]}</dd>
+              <dt>Buổi tư vấn</dt>
+              <dd>{appointmentCreditLabel(appointment)}</dd>
             </div>
           </dl>
           {hasLinks && (
@@ -518,7 +510,7 @@ export default function SpecialistAppointmentDecisionPanel({
       const confirmed = await confirm({
         title: 'Từ chối yêu cầu lịch hẹn?',
         description:
-          'Khung giờ sẽ được mở lại và lượt tư vấn của người dùng được hoàn lại. Quyết định này không thể thay đổi.',
+          'Khung giờ sẽ được mở lại và buổi tư vấn của người dùng được hoàn lại. Quyết định này không thể thay đổi.',
         confirmLabel: 'Từ chối yêu cầu',
         tone: 'warning',
       })
@@ -551,7 +543,7 @@ export default function SpecialistAppointmentDecisionPanel({
         description:
           decision === 'accept'
             ? 'Lịch hẹn đã được giữ trong lịch làm việc của bạn.'
-            : 'Khung giờ đã được mở lại và lượt tư vấn được hoàn lại.',
+            : 'Khung giờ đã được mở lại và buổi tư vấn được hoàn lại.',
         tone: 'success',
       })
       requestAnimationFrame(() => {
@@ -624,7 +616,7 @@ export default function SpecialistAppointmentDecisionPanel({
                   <span className={styles.metaDivider} aria-hidden="true">
                     ·
                   </span>
-                  <span>{CREDIT_LABELS[appointment.creditState]}</span>
+                  <span>{appointmentCreditLabel(appointment)}</span>
                 </p>
               </div>
               <div className={styles.method}>
@@ -650,8 +642,8 @@ export default function SpecialistAppointmentDecisionPanel({
                 </span>
               </div>
               <p>
-                Tóm tắt do thân chủ phê duyệt chỉ hiển thị khi đủ điều kiện truy
-                cập trước buổi tư vấn.
+                Tóm tắt do khách hàng phê duyệt chỉ hiển thị khi đủ điều kiện
+                truy cập trước buổi tư vấn.
               </p>
             </div>
             <button
@@ -740,7 +732,7 @@ export default function SpecialistAppointmentDecisionPanel({
             </h3>
             <p>
               {clientName(appointment)} <span aria-hidden="true">·</span>{' '}
-              <span>{CREDIT_LABELS[appointment.creditState]}</span>
+              <span>{appointmentCreditLabel(appointment)}</span>
             </p>
             {appointment.modality === 'IN_APP_VIDEO' &&
               [
@@ -795,11 +787,11 @@ export default function SpecialistAppointmentDecisionPanel({
         <div className={styles.headingCopy}>
           <span className={styles.eyebrow}>
             <ShieldCheck size={17} strokeWidth={1.75} aria-hidden="true" />
-            TRUNG TÂM LÂM SÀNG TRỰC TUYẾN
+            Không gian chuyên gia
           </span>
           <h1 id="appointment-title">Phản hồi yêu cầu lịch hẹn</h1>
           <p>
-            Phản hồi kịp thời giúp thân chủ chuẩn bị tâm lý tốt nhất. Lịch hẹn
+            Phản hồi kịp thời giúp khách hàng chuẩn bị tâm lý tốt nhất. Lịch hẹn
             chưa phản hồi sẽ tự động hoàn trả sau khi hết hạn.
           </p>
         </div>
@@ -814,16 +806,6 @@ export default function SpecialistAppointmentDecisionPanel({
           >
             <RefreshCw size={17} strokeWidth={1.75} aria-hidden="true" />
             {loading ? 'Đang tải…' : 'Làm mới danh sách'}
-          </button>
-          <button
-            data-appointment-ui
-            className={styles.calendarSync}
-            type="button"
-            disabled
-            title="Chưa hỗ trợ đồng bộ Google Calendar"
-          >
-            <CalendarDays size={17} strokeWidth={1.75} aria-hidden="true" />
-            Đồng bộ Google Calendar
           </button>
         </div>
       </header>
@@ -950,7 +932,10 @@ export default function SpecialistAppointmentDecisionPanel({
           )}
         </div>
 
-        <aside className={styles.sideColumn} aria-label="Lịch trình lâm sàng">
+        <aside
+          className={styles.sideColumn}
+          aria-label="Lịch trình buổi tư vấn"
+        >
           <div className={styles.sideHeading}>
             <h2>Lịch Trình Lâm Sàng</h2>
             <span>
@@ -984,7 +969,7 @@ export default function SpecialistAppointmentDecisionPanel({
               </div>
               <div className={styles.nextClient}>
                 <div>
-                  <span>Thân chủ:</span>
+                  <span>Khách hàng:</span>
                   <strong>{clientName(next)}</strong>
                 </div>
                 <div>
@@ -1079,8 +1064,8 @@ export default function SpecialistAppointmentDecisionPanel({
                 điểm ghi trên thẻ lịch hẹn.
               </li>
               <li>
-                <strong>Bảo mật thông tin:</strong> Chỉ xem tóm tắt do thân chủ
-                phê duyệt khi đủ điều kiện truy cập.
+                <strong>Bảo mật thông tin:</strong> Chỉ xem tóm tắt do khách
+                hàng phê duyệt khi đủ điều kiện truy cập.
               </li>
               <li>
                 <strong>Từ chối ca:</strong> Khung giờ được mở lại và lượt tư

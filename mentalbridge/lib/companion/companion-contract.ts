@@ -33,6 +33,7 @@ export type CompanionMessage = Readonly<{
   createdAt: string
   contextKinds: CompanionContextKind[]
   suggestion?: CompanionSuggestion | null
+  channel?: 'VOICE'
 }>
 
 export type CompanionConversation = Readonly<{

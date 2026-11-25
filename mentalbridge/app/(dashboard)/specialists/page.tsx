@@ -5,6 +5,7 @@ type Props = Readonly<{
   searchParams: Promise<{
     from?: string | string[]
     supportGuideId?: string | string[]
+    specialist?: string | string[]
   }>
 }>
 
@@ -17,6 +18,7 @@ export default async function SpecialistsPage({ searchParams }: Props) {
           ? query.supportGuideId
           : undefined
       }
+      openSpecialistId={isUuid(query.specialist) ? query.specialist : undefined}
     />
   )
 }

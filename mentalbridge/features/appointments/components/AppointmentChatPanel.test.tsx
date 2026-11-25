@@ -344,7 +344,7 @@ describe('AppointmentChatPanel', () => {
     expect(await screen.findByLabelText('Tin nhắn của bạn')).toHaveTextContent(
       'Tin nhắn từ chuyên gia',
     )
-    expect(screen.getByLabelText('Tin nhắn từ Người dùng')).toHaveTextContent(
+    expect(screen.getByLabelText('Tin nhắn từ Khách hàng')).toHaveTextContent(
       'Tin nhắn từ người dùng',
     )
   })

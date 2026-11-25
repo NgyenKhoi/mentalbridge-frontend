@@ -306,6 +306,7 @@ Mầm notices what the user really does and how their days are going. It reacts 
 
 - Names: `mam:journal-saved`, `mam:checkin-saved`, `mam:support-done`, `mam:resource-done`, `mam:reassessment-done`. A payload carries enums, numbers and dates only, never text:
   - `checkin-saved`: `emotion` (the Care enum), `intensity`, `localDate`;
+  - `journal-saved`: optional `mood` (the Journal enum the user picked);
   - `reassessment-done`: `band` (`LOWER | SAME | HIGHER`), `moderatePlus`, `id` (the summary id);
   - the others: no field of their own.
 - `dispatchMamEvent` stamps the signed-in account id and the browser's local date last, so a caller cannot override them. With no signed-in slot nothing is sent. `parseMamEvent` whitelists each type's fields (a stray `note` or `text` never passes) and drops an event stamped with another account.
@@ -320,7 +321,7 @@ Mầm notices what the user really does and how their days are going. It reacts 
 
 ### Trajectory
 
-- Input: the check-in level (1 very low to 5 great, Care's own mapping) of the last 14 local days, from the slim BFF route below. Journal mood is not used (a known limit). Intensity is the strength of a feeling, not wellness, so it is not used either. A day without a check-in is a gap.
+- Input: the check-in level (1 very low to 5 great, Care's own mapping) of the last 14 local days, from the slim BFF route below. Journal mood feeds the event reaction instead (below). Intensity is the strength of a feeling, not wellness, so it is not used either. A day without a check-in is a gap.
 - Thresholds: low is level 2 or less, good is 4 or more, improving is the 3-day mean up by 0.7 or more against the 3 recorded days before it, absent is 3 or more days, flat is a spread of 1 or less over 5 recorded days with a mean from 2.5 to 3.5.
 - Precedence: PERSISTENT_LOW, DIP_AFTER_GOOD, FIRST_LOW, BOUNCE_BACK, IMPROVING, STEADY_GOOD, FLAT, WELCOME_BACK, NO_DATA.
 - Guards:
@@ -345,7 +346,8 @@ Mầm notices what the user really does and how their days are going. It reacts 
 - The daily moment: the first FULL-route visit of each local day, once per account, reads the series and answers its state. It is read again for the new day on FULL-to-FULL navigation across midnight.
 - At most 3 bubbles a day, shared by the daily line and the events (awards keep their own caps). A reaction past the cap is dropped.
 - At least 60 s between two bubbles. A reaction inside the spacing is deferred (kept, and shown when it has passed), not dropped; a check-in made right after the daily line is therefore still answered.
-- A reaction from a QUIET route (journal, plan) waits for the next FULL route, and is dropped after 10 minutes.
+- Owner decision 2026-11-25: Mầm answers what the user just did where it happened. A comfort, listen or encourage reaction plays on FULL and QUIET routes; only a celebration waits for the next FULL route (dropped after 10 minutes).
+- `journal-saved` carries the mood the user picked (`GREAT`…`VERY_LOW`, never text). A low pick (level 2 or less) comforts: `DIP_AFTER_GOOD` when the previous entry within 14 days was good (level 4 or more, kept per device as `date|MOOD`), else `FIRST_LOW`.
 - Gates: `hard` (hidden, away by a modal or a safety zone, muted, a failed renderer) drops a reaction. Not ready (a form being edited or just saved, a menu, a summon, the welcome, a running look, a page action under the dock, an award bubble, a save nod) only waits.
 - The bubble: the award bubble, dismissible, no focus taken, shown for `max(6 s, 4 s + 60 ms per character)` with the usual hover and focus pause. An award's own bubble keeps 8 s; the two never show together, and a trajectory bubble holds the award back. Under reduced motion the bubble shows and no look plays. An emoji in a line is drawn but hidden from the screen reader (`aria-hidden`).
 - The look is played through the orchestrator with the source `trajectory`.
@@ -368,4 +370,4 @@ Mầm notices what the user really does and how their days are going. It reacts 
 
 - QA: `?mamIntent=` is unchanged; `data-mam-intent` on the dock root is the test hook.
 - Rollback: removing the `useMamTrajectory` call from the host silences the feature; the dispatchers then send events nobody hears.
-- Known limits: journal mood is not used; "days since the last journal entry" is per device; a reassessment is answered only from the plan review; a reaction on a QUIET route waits at most 10 minutes. Fixed in round 2: a first moderate-or-higher screening (nothing to compare) now counts as moderate-or-higher in both the trajectory view and the look-back page model.
+- Known limits: "days since the last journal entry" and the previous journal mood are per device; a reassessment is answered only from the plan review; a celebration from a QUIET route waits at most 10 minutes. Fixed in round 2: a first moderate-or-higher screening (nothing to compare) now counts as moderate-or-higher in both the trajectory view and the look-back page model.

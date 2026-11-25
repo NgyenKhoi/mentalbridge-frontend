@@ -5,6 +5,7 @@ import {
   isCommunityEtag,
   parseCommunityFeedPage,
   parseCommunityProfile,
+  parseCommunityAvatars,
   parseCommunityPostDetail,
   parseCommunityProblem,
   parseOwnerVersion,
@@ -290,6 +291,20 @@ export const communityClient = {
       )
     }
     return { post: response.data, version }
+  },
+  async avatars(
+    accessToken: string,
+    accountIds: string,
+    correlationId: string,
+  ) {
+    return (
+      await request(
+        `/api/v1/community/avatars?accountIds=${encodeURIComponent(accountIds)}`,
+        accessToken,
+        correlationId,
+        parseCommunityAvatars,
+      )
+    ).data
   },
   async topics(accessToken: string, correlationId: string) {
     return (

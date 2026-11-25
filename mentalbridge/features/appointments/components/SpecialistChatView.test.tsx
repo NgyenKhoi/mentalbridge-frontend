@@ -99,7 +99,18 @@ const testAppointment: Appointment = {
   sessionSettledAt: '2026-10-01T17:00:00Z',
   completionFactId: 'fact-1',
   creditState: 'CONSUMED',
-  history: [],
+  history: [
+    {
+      eventId: 'event-confirmed',
+      fromStatus: 'REQUESTED',
+      toStatus: 'CONFIRMED',
+      actorType: 'SPECIALIST',
+      actorId: null,
+      reason: 'SPECIALIST_ACCEPTED',
+      creditOutcome: null,
+      occurredAt: '2026-09-30T12:00:00Z',
+    },
+  ],
   version: 2,
 }
 
@@ -212,7 +223,7 @@ describe('SpecialistChatView', () => {
       ),
     ).toBeVisible()
     expect(screen.getByText('Bước tiếp theo')).toBeVisible()
-    expect(screen.getByText('Đã dùng 1 lượt tư vấn')).toBeVisible()
+    expect(screen.getAllByText('Đã dùng 1 buổi tư vấn')[0]).toBeVisible()
   })
 
   it('shows no EMR, clinical, invoice, PDF or AI-pill content', async () => {
@@ -223,7 +234,9 @@ describe('SpecialistChatView', () => {
       />,
     )
 
-    expect(await screen.findByText('Đã dùng 1 lượt tư vấn')).toBeVisible()
+    expect(
+      (await screen.findAllByText('Đã dùng 1 buổi tư vấn'))[0],
+    ).toBeVisible()
     const text = document.body.textContent ?? ''
     for (const banned of [
       /EMR/,
@@ -243,7 +256,7 @@ describe('SpecialistChatView', () => {
 
   it('never prints a raw modality enum', async () => {
     appointmentApi.list.mockResolvedValue({
-      items: [{ ...testAppointment, modality: 'IN_APP_VIDEO' }],
+      items: [testAppointment],
       count: 1,
       generatedAt: '2026-10-01T17:00:00Z',
     })
@@ -257,16 +270,14 @@ describe('SpecialistChatView', () => {
     expect(
       await within(
         document.getElementById('appointment-info-drawer')!,
-      ).findByText('Gọi video'),
+      ).findByText('Chat trực tuyến'),
     ).toBeVisible()
     expect(document.body.textContent).not.toMatch(/IN_APP_/)
   })
 
   it.each([
     ['CONFIRMED', 'Đã xác nhận'],
-    ['REQUESTED', 'Chờ xác nhận'],
-    ['REJECTED', 'Chuyên gia chưa thể nhận lịch'],
-    ['EXPIRED', 'Hết thời gian xác nhận'],
+    ['CANCELLED', 'Đã hủy'],
   ] as const)(
     'labels a %s booking whose end time has passed like /appointments, never "Sắp tới"',
     async (status, label) => {
@@ -296,22 +307,55 @@ describe('SpecialistChatView', () => {
     },
   )
 
-  it('uses the specialist wording in the list pill for a pending request', async () => {
-    appointmentApi.assigned.mockResolvedValue({
-      items: [{ ...testAppointment, status: 'REQUESTED' }],
-      count: 1,
-      generatedAt: '2026-10-01T10:00:00Z',
+  it('lists only conversations that can open and selects the first one', async () => {
+    const requested: Appointment = {
+      ...testAppointment,
+      id: '60b3dce0-1d5d-44a2-81dd-b8e0dd9fb379',
+      specialistDisplayName: 'ThS. Đang chờ',
+      status: 'REQUESTED',
+      history: [],
+    }
+    const video: Appointment = {
+      ...testAppointment,
+      id: '70b3dce0-1d5d-44a2-81dd-b8e0dd9fb380',
+      specialistDisplayName: 'ThS. Gọi video',
+      modality: 'IN_APP_VIDEO',
+    }
+    appointmentApi.list.mockResolvedValue({
+      items: [requested, video, testAppointment],
+      count: 3,
+      generatedAt: '2026-10-01T17:00:00Z',
     })
+    render(<SpecialistChatView viewerRole="USER" />)
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'ThS. BS. Minh Anh',
+      }),
+    ).toBeVisible()
+    expect(screen.queryByText('ThS. Đang chờ')).not.toBeInTheDocument()
+    expect(screen.queryByText('ThS. Gọi video')).not.toBeInTheDocument()
+  })
+
+  it('offers the next session with the same specialist', async () => {
     render(
       <SpecialistChatView
         initialAppointmentId={testAppointment.id}
-        viewerRole="SPECIALIST"
+        viewerRole="USER"
       />,
     )
 
-    expect(
-      (await screen.findAllByText('Chờ phản hồi')).length,
-    ).toBeGreaterThanOrEqual(1)
+    const links = await screen.findAllByRole('link', {
+      name: /Đặt buổi tiếp theo/,
+    })
+    for (const link of links) {
+      expect(link).toHaveAttribute(
+        'href',
+        `/specialists?specialist=${testAppointment.specialistAccountId}`,
+      )
+    }
+    expect(screen.queryByText(/tái khám/i)).not.toBeInTheDocument()
   })
 
   it('allows toggling the info drawer open and closed', async () => {
@@ -346,6 +390,34 @@ describe('SpecialistChatView', () => {
     expect(drawer?.className).not.toContain('emrDrawerHidden')
   })
 
+  it('keeps the info drawer closed by default on a narrow screen', async () => {
+    const original = window.matchMedia
+    window.matchMedia = vi.fn((query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia
+    try {
+      render(
+        <SpecialistChatView
+          initialAppointmentId={testAppointment.id}
+          viewerRole="USER"
+        />,
+      )
+
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'ThS. BS. Minh Anh',
+      })
+      expect(
+        document.getElementById('appointment-info-drawer')?.className,
+      ).toContain('emrDrawerHidden')
+    } finally {
+      window.matchMedia = original
+    }
+  })
+
   it('does not offer rating inside the messages drawer', async () => {
     render(
       <SpecialistChatView
@@ -354,7 +426,9 @@ describe('SpecialistChatView', () => {
       />,
     )
 
-    expect(await screen.findByText('Đã dùng 1 lượt tư vấn')).toBeVisible()
+    expect(
+      (await screen.findAllByText('Đã dùng 1 buổi tư vấn'))[0],
+    ).toBeVisible()
     expect(screen.queryByText(/Đánh giá phiên/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Gửi đánh giá/)).not.toBeInTheDocument()
   })
@@ -374,34 +448,9 @@ describe('SpecialistChatView', () => {
     ).toBeVisible()
   })
 
-  it('says a requested appointment is waiting for the specialist, without a 403', async () => {
-    appointmentApi.list.mockResolvedValue({
-      items: [{ ...testAppointment, status: 'REQUESTED' }],
-      count: 1,
-      generatedAt: '2026-10-01T10:00:00Z',
-    })
-    chatApi.chatEligibility.mockResolvedValue({
-      historyAllowed: false,
-      sendAllowed: false,
-      phase: 'NOT_AVAILABLE',
-    })
-
-    render(
-      <SpecialistChatView
-        initialAppointmentId={testAppointment.id}
-        viewerRole="USER"
-      />,
-    )
-
-    expect(
-      await screen.findByText('Chờ chuyên gia xác nhận lịch'),
-    ).toBeVisible()
-    expect(screen.queryByText(/403|Không có quyền/)).not.toBeInTheDocument()
-  })
-
   it('shows when the room opens before the window and a neutral line otherwise', async () => {
     appointmentApi.list.mockResolvedValue({
-      items: [{ ...testAppointment, status: 'EXPIRED' }],
+      items: [{ ...testAppointment, status: 'CANCELLED' }],
       count: 1,
       generatedAt: '2026-10-01T10:00:00Z',
     })

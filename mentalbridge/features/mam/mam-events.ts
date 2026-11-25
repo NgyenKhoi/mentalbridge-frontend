@@ -13,7 +13,7 @@ export type MamEmotion = keyof typeof MAM_EMOTION_LEVEL
 export type MamBandChange = 'LOWER' | 'SAME' | 'HIGHER'
 
 export type MamEvent =
-  | Readonly<{ type: 'journal-saved' }>
+  | Readonly<{ type: 'journal-saved'; mood?: MamEmotion }>
   | Readonly<{
       type: 'checkin-saved'
       emotion: MamEmotion
@@ -78,6 +78,9 @@ export function parseMamEvent(
   const base = { accountId, localDate: value.localDate }
   switch (type) {
     case 'journal-saved':
+      return typeof value.mood === 'string' && value.mood in MAM_EMOTION_LEVEL
+        ? { ...base, type, mood: value.mood as MamEmotion }
+        : { ...base, type }
     case 'support-done':
     case 'resource-done':
       return { ...base, type }
@@ -191,6 +194,9 @@ export const MAM_SUPPORT_CELEBRATE_EVERY = 3
  * moderate-or-higher band, nothing missing); null is unknown. Both celebrations (the third support step and a
  * lower reassessment band) need a known calm, so neither ever rests on a guess.
  * `daysSinceJournal` is null for a first entry or an unknown history, which is a plain nod.
+ * `previousJournalMood` is the mood the user picked on their previous entry within the 14-day window, else null:
+ * a low mood picked now comforts, as a dip when that previous entry was good (only the picked level is read,
+ * never the text).
  */
 export function mamEventReaction(
   event: MamEvent,
@@ -198,10 +204,17 @@ export function mamEventReaction(
     calm: boolean | null
     supportToday: number
     daysSinceJournal: number | null
+    previousJournalMood?: MamEmotion | null
   }>,
 ): MamEventReaction | null {
   switch (event.type) {
     case 'journal-saved':
+      if (event.mood && MAM_EMOTION_LEVEL[event.mood] <= 2) {
+        const previous = context.previousJournalMood
+        return previous && MAM_EMOTION_LEVEL[previous] >= 4
+          ? { intent: 'COMFORT', line: 'DIP_AFTER_GOOD' }
+          : { intent: 'COMFORT', line: 'FIRST_LOW' }
+      }
       return context.daysSinceJournal !== null &&
         context.daysSinceJournal >= MAM_RETURN_DAYS
         ? { intent: 'ENCOURAGE', line: 'JOURNAL_RETURN' }

@@ -686,6 +686,17 @@
   font-size: 12px;
   font-weight: 800;
 }
+.voiceCaption {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: -2px 0 6px;
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+.userMessage .voiceCaption {
+  color: rgb(255 255 255 / 68%);
+}
 .messageBubble time {
   color: var(--ink-faint);
   font-size: 10px;

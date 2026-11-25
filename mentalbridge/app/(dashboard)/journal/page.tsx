@@ -771,7 +771,11 @@ export default function JournalPage() {
         },
         parseJournalEntry,
       )
-      if (mountedRef.current) dispatchMamEvent({ type: 'journal-saved' })
+      if (mountedRef.current)
+        dispatchMamEvent({
+          type: 'journal-saved',
+          mood: created.mood ?? undefined,
+        })
       setPageNotice('Nhật ký đã được lưu.')
       showActionToast({ title: 'Đã lưu nhật ký' })
       if (capturedOrigin) {
@@ -808,7 +812,11 @@ export default function JournalPage() {
         },
         parseJournalEntry,
       )
-      if (mountedRef.current) dispatchMamEvent({ type: 'journal-saved' })
+      if (mountedRef.current)
+        dispatchMamEvent({
+          type: 'journal-saved',
+          mood: updated.mood ?? undefined,
+        })
       setSelected(updated)
       updateMood(updated.mood)
       setEditorBaseline(null)

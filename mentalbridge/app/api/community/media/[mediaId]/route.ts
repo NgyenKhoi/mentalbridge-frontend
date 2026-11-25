@@ -20,7 +20,10 @@ export async function DELETE(request: NextRequest, context: Context) {
   const correlationId = correlationIdFrom(request)
   let user: Awaited<ReturnType<typeof authenticatedCommunityUser>>
   try {
-    user = await authenticatedCommunityUser(request, correlationId)
+    user = await authenticatedCommunityUser(request, correlationId, [
+      'USER',
+      'SPECIALIST',
+    ])
   } catch (error) {
     return communityAuthenticationFailure(error, correlationId)
   }

@@ -31,6 +31,8 @@ export type CommunityProfile = components['schemas']['CommunityProfile']
 export type CommunityAvatarPreset =
   components['schemas']['CommunityAvatarPreset']
 export type CommunityAvatarImage = components['schemas']['CommunityAvatarImage']
+export type CommunityAvatarSummary =
+  components['schemas']['CommunityAccountAvatar']
 export type PutCommunityAvatarRequest =
   components['schemas']['PutCommunityAvatarRequest']
 export type PutCommunityProfileRequest =
@@ -403,6 +405,42 @@ export function parseCommunityProfile(value: unknown): CommunityProfile | null {
     return null
   }
   return profile as CommunityProfile
+}
+
+export function parseCommunityAvatars(
+  value: unknown,
+): { items: CommunityAvatarSummary[] } | null {
+  const page = record(value)
+  if (!page || !exactKeys(page, ['items']) || !Array.isArray(page.items))
+    return null
+  if (page.items.length > 50) return null
+  const items: CommunityAvatarSummary[] = []
+  for (const entry of page.items) {
+    const item = record(entry)
+    if (
+      !item ||
+      !exactKeys(item, [
+        'accountId',
+        'avatarPreset',
+        ...(Object.hasOwn(item, 'avatarImage') ? ['avatarImage'] : []),
+      ]) ||
+      typeof item.accountId !== 'string' ||
+      !UUID.test(item.accountId) ||
+      !avatarPreset(item.avatarPreset)
+    )
+      return null
+    const avatarImage =
+      item.avatarImage == null
+        ? null
+        : parseCommunityAvatarImage(item.avatarImage)
+    if (item.avatarImage != null && !avatarImage) return null
+    items.push({
+      accountId: item.accountId,
+      avatarPreset: item.avatarPreset,
+      avatarImage,
+    })
+  }
+  return { items }
 }
 
 export function parseCommunityProfileInput(

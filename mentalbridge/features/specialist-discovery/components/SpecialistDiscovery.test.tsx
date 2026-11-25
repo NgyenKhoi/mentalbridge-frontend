@@ -19,6 +19,7 @@ const discoveryClient = vi.hoisted(() => ({
 }))
 const appointmentClient = vi.hoisted(() => ({ request: vi.fn() }))
 const creditsClient = vi.hoisted(() => ({ get: vi.fn() }))
+const communityApi = vi.hoisted(() => ({ getCommunityAvatars: vi.fn() }))
 
 vi.mock('../api/browser-client', () => ({
   specialistDiscoveryBrowserClient: discoveryClient,
@@ -26,6 +27,7 @@ vi.mock('../api/browser-client', () => ({
 vi.mock('@/features/appointments/api/browser-client', () => ({
   appointmentBrowserClient: appointmentClient,
 }))
+vi.mock('@/features/community/api/browser-community', () => communityApi)
 vi.mock('@/features/service-credits/api/browser-client', () => ({
   browserServiceCredits: creditsClient,
 }))
@@ -94,6 +96,7 @@ describe('SpecialistDiscovery', () => {
     discoveryClient.detail.mockReset().mockResolvedValue(item)
     discoveryClient.badges.mockReset().mockResolvedValue([])
     appointmentClient.request.mockReset()
+    communityApi.getCommunityAvatars.mockReset().mockResolvedValue([])
     creditsClient.get
       .mockReset()
       .mockResolvedValue({ balance: { available: 2 } })
@@ -150,6 +153,96 @@ describe('SpecialistDiscovery', () => {
     await user.click(within(dialog).getByRole('tab', { name: 'Lịch trống' }))
     expect(within(dialog).getByRole('radio')).toBeInTheDocument()
     expect(appointmentClient.request).not.toHaveBeenCalled()
+  })
+
+  it('shows a specialist photo from one avatar lookup per page', async () => {
+    discoveryClient.list.mockResolvedValue(page('PLUS'))
+    communityApi.getCommunityAvatars.mockResolvedValue([
+      {
+        accountId: item.specialistAccountId,
+        avatarPreset: null,
+        avatarImage: {
+          mediaId: '22222222-2222-4222-8222-222222222222',
+          url: 'https://cdn.example.test/an.webp',
+          width: 96,
+          height: 96,
+        },
+      },
+    ])
+    renderDiscovery()
+
+    const card = (
+      await screen.findByRole('heading', { name: item.displayName })
+    ).closest('article')!
+    await waitFor(() =>
+      expect(card.querySelector('img')).toHaveAttribute(
+        'src',
+        'https://cdn.example.test/an.webp',
+      ),
+    )
+    expect(communityApi.getCommunityAvatars).toHaveBeenCalledTimes(1)
+    expect(communityApi.getCommunityAvatars).toHaveBeenCalledWith([
+      item.specialistAccountId,
+    ])
+  })
+
+  it('keeps initials when the avatar lookup fails', async () => {
+    discoveryClient.list.mockResolvedValue(page('PLUS'))
+    communityApi.getCommunityAvatars.mockRejectedValue(new Error('down'))
+    renderDiscovery()
+
+    const card = (
+      await screen.findByRole('heading', { name: item.displayName })
+    ).closest('article')!
+    await waitFor(() =>
+      expect(communityApi.getCommunityAvatars).toHaveBeenCalled(),
+    )
+    expect(card.querySelector('img')).toBeNull()
+    expect(within(card).getByText('GA')).toBeInTheDocument()
+  })
+
+  it('opens the slots of the specialist named by a rebook link', async () => {
+    discoveryClient.list.mockResolvedValue(page('PLUS'))
+    render(
+      <FeedbackProvider>
+        <SpecialistDiscovery openSpecialistId={item.specialistAccountId} />
+      </FeedbackProvider>,
+    )
+
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      await within(dialog).findByRole('tab', {
+        name: 'Lịch trống',
+        selected: true,
+      }),
+    ).toBeInTheDocument()
+    expect(discoveryClient.detail).toHaveBeenCalledWith(
+      item.specialistAccountId,
+      expect.anything(),
+    )
+  })
+
+  it('names the active filter when nothing matches', async () => {
+    const user = userEvent.setup()
+    discoveryClient.list.mockResolvedValue({
+      ...page('PLUS'),
+      items: [],
+      count: 0,
+    })
+    renderDiscovery()
+    await screen.findByText('Chưa có chuyên gia phù hợp')
+    expect(
+      screen.queryByText(/quay lại sau khi có hồ sơ được phê duyệt/),
+    ).not.toBeInTheDocument()
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /Ưu tiên ngôn ngữ/i }),
+      'en',
+    )
+
+    expect(
+      await screen.findByText(/Chưa có chuyên gia khớp với ưu tiên English/),
+    ).toBeInTheDocument()
   })
 
   it('lets the user choose chat or video and books the chosen modality', async () => {
@@ -336,7 +429,7 @@ describe('SpecialistDiscovery', () => {
         within(dialog).getByRole('button', { name: 'Đặt lịch gần nhất' }),
       ).toBeEnabled(),
     )
-    expect(within(dialog).getByText(/1 lượt khả dụng/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/1 buổi khả dụng/)).toBeInTheDocument()
   })
 
   it('keeps the newest balance when an older zero read finishes last', async () => {
@@ -365,7 +458,7 @@ describe('SpecialistDiscovery', () => {
     expect(
       within(dialog).getByRole('button', { name: 'Đặt lịch gần nhất' }),
     ).toBeEnabled()
-    expect(within(dialog).getByText(/1 lượt khả dụng/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/1 buổi khả dụng/)).toBeInTheDocument()
   })
 
   describe('booking reason card', () => {
@@ -423,7 +516,7 @@ describe('SpecialistDiscovery', () => {
       const { dialog } = await openSlots()
 
       const notice = await within(dialog).findByRole('status')
-      expect(notice).toHaveTextContent('Bạn đã dùng hết lượt tư vấn.')
+      expect(notice).toHaveTextContent('Bạn đã dùng hết buổi tư vấn.')
       expect(
         within(notice).getByRole('link', { name: 'Xem gói dịch vụ' }),
       ).toHaveAttribute('href', '/subscription')

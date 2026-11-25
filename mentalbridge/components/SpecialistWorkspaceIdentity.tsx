@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import SessionActions from '@/features/auth/components/SessionActions'
+import AccountAvatar from '@/features/community/components/AccountAvatar'
+import { useOwnCommunityAvatar } from '@/features/community/components/useOwnCommunityAvatar'
 
 import {
   browserConsultation,
@@ -33,6 +35,7 @@ export default function SpecialistWorkspaceIdentity({
 }: {
   compact?: boolean
 }) {
+  const ownAvatar = useOwnCommunityAvatar()
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [state, setState] = useState<'loading' | 'missing' | 'unavailable'>(
     'loading',
@@ -73,7 +76,12 @@ export default function SpecialistWorkspaceIdentity({
       compact={compact}
       accountKind="specialist"
       displayName={displayName}
-      avatar={profile ? initials(displayName) : 'CG'}
+      avatar={
+        <AccountAvatar
+          avatar={ownAvatar}
+          fallback={profile ? initials(displayName) : 'CG'}
+        />
+      }
       description={status}
     />
   )

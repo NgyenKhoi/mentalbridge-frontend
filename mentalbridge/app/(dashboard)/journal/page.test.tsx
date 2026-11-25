@@ -153,12 +153,13 @@ describe('Journal page', () => {
     )
     expect(modal.getByLabelText('Nội dung')).toHaveValue('bản nháp an toàn')
     expect(modal.getByRole('radio', { name: 'Tốt' })).toBeChecked()
-    // The failed attempt told Mầm nothing; the confirmed one tells it once, with no text.
+    // The failed attempt told Mầm nothing; the confirmed one tells it once, with the picked mood and no text.
     expect(mam.dispatch).not.toHaveBeenCalled()
     await user.click(modal.getByRole('button', { name: 'Lưu nhật ký' }))
     await waitFor(() =>
       expect(mam.dispatch).toHaveBeenCalledExactlyOnceWith({
         type: 'journal-saved',
+        mood: 'GOOD',
       }),
     )
 

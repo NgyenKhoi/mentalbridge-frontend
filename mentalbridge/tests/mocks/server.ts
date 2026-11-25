@@ -3,6 +3,14 @@ import { http, HttpResponse } from 'msw'
 
 // Default handlers for common endpoints
 const defaultHandlers = [
+  // Shells and settings ask for the account avatar; by default there is no community profile yet.
+  http.get('/api/community/profile', () =>
+    HttpResponse.json(
+      { code: 'COMMUNITY_PROFILE_NOT_FOUND', status: 404 },
+      { status: 404 },
+    ),
+  ),
+  http.get('/api/community/avatars', () => HttpResponse.json({ items: [] })),
   // A result card asks Care whether it shows the latest screening; by default it never is.
   http.get('/api/care/guided-journey', () =>
     HttpResponse.json({

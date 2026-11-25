@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { Mic } from 'lucide-react'
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
@@ -794,6 +795,12 @@ export default function AiCompanionChat({
                           }).format(new Date(item.createdAt))}
                         </time>
                       </header>
+                      {item.channel === 'VOICE' ? (
+                        <div className={styles.voiceCaption}>
+                          <Mic size={12} aria-hidden="true" />
+                          Qua giọng nói
+                        </div>
+                      ) : null}
                       <p>
                         {streamingId === item.messageId ? (
                           <StreamingText

@@ -313,7 +313,7 @@ test('MB-716 keeps the saved credit transfer and replacement link on a reschedul
   await page.goto(`/appointments/${appointmentId}`)
   const info = page.getByRole('region', { name: 'Thông tin hủy lịch' })
   await expect(
-    info.getByText('Lượt tư vấn đã chuyển sang lịch mới'),
+    info.getByText('Buổi tư vấn đã chuyển sang lịch mới'),
   ).toBeVisible()
   await expect(info.getByText(/^Đã đổi sang /)).toBeVisible()
   await expect(info.getByText('Lý do: bạn đã đổi lịch')).toBeVisible()
