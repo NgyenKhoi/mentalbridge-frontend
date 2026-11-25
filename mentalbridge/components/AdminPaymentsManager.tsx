@@ -11,6 +11,7 @@ import {
   Wallet,
   Zap,
 } from 'lucide-react'
+import { useSubscriptionBuyerLabels } from '@/features/auth/api/use-account-labels'
 import { browserSubscription } from '@/features/subscription/api/browser-client'
 import type { AdminPaymentList } from '@/lib/consultation/billing-validation'
 import { Disclosure } from './ui/Disclosure'
@@ -275,7 +276,7 @@ function PaymentMetrics({
   )
 }
 
-function PaymentRow({ item }: { item: Payment }) {
+function PaymentRow({ item, buyer }: { item: Payment; buyer?: string }) {
   const plus = item.planCode === 'PLUS'
   const isFakeProvider = item.provider === 'FAKE'
 
@@ -308,13 +309,20 @@ function PaymentRow({ item }: { item: Payment }) {
               {dateTime.format(new Date(item.createdAt))}
             </time>
           </p>
+          {buyer && (
+            <p className="apm-entry-note">
+              Người mua: <strong>{buyer}</strong>
+            </p>
+          )}
           {isFakeProvider ? (
             <p className="apm-entry-note">
               Giao dịch qua cổng thử nghiệm, không phải doanh thu thương mại.
             </p>
           ) : (
             <p className="apm-entry-note">
-              Giao dịch thanh toán gói {plus ? 'MentalBridge Plus' : 'MentalBridge Premium'} qua cổng {providers[item.provider]}.
+              Giao dịch thanh toán gói{' '}
+              {plus ? 'MentalBridge Plus' : 'MentalBridge Premium'} qua cổng{' '}
+              {providers[item.provider]}.
             </p>
           )}
         </div>
@@ -326,6 +334,12 @@ function PaymentRow({ item }: { item: Payment }) {
         summaryLabel={`Thông tin kỹ thuật giao dịch ${item.paymentId}`}
       >
         <dl className="apm-detail-grid">
+          {buyer && (
+            <div>
+              <dt>Người mua</dt>
+              <dd>{buyer}</dd>
+            </div>
+          )}
           <div>
             <dt>Giao dịch</dt>
             <dd>{item.paymentId}</dd>
@@ -417,6 +431,9 @@ export default function AdminPaymentsManager({
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
   const start = (page - 1) * pageSize
   const displayed = filtered.slice(start, start + pageSize)
+  const buyers = useSubscriptionBuyerLabels(
+    displayed.map((item) => item.subscriptionId),
+  )
 
   function filterProvider(value: Provider | 'ALL') {
     setProvider(value)
@@ -595,7 +612,11 @@ export default function AdminPaymentsManager({
             {displayed.length ? (
               <div className="apm-transaction-list">
                 {displayed.map((item) => (
-                  <PaymentRow key={item.paymentId} item={item} />
+                  <PaymentRow
+                    key={item.paymentId}
+                    item={item}
+                    buyer={buyers[item.subscriptionId]}
+                  />
                 ))}
               </div>
             ) : (

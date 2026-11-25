@@ -56,7 +56,7 @@ describe('ServiceCreditsPanel', () => {
     expect(await screen.findByText('Gói Plus dùng thử')).toBeInTheDocument()
     expect(screen.getByText('Còn lại').nextSibling).toHaveTextContent('4')
     await user.click(
-      screen.getByRole('button', { name: 'Lịch sử lượt tư vấn' }),
+      screen.getByRole('button', { name: 'Lịch sử buổi tư vấn' }),
     )
     expect(
       screen.getByRole('heading', { name: '2/2 lịch' }),
@@ -118,7 +118,7 @@ describe('ServiceCreditsPanel', () => {
     const user = userEvent.setup()
     render(<ServiceCreditsPanel />)
     await user.click(
-      await screen.findByRole('button', { name: 'Lịch sử lượt tư vấn' }),
+      await screen.findByRole('button', { name: 'Lịch sử buổi tư vấn' }),
     )
     expect(screen.getByText('Đã thu hồi khi hủy gói')).toBeInTheDocument()
   })

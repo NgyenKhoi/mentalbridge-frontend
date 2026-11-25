@@ -8,8 +8,6 @@ import {
   adminPayoutStatusLabel,
   maskedHint,
   payoutProviderName,
-  resolveSpecialistName,
-  resolveClientPaidInfo,
 } from '@/features/specialist-earnings/payout-labels'
 import type { AdminPayoutList } from '@/lib/consultation/consultation-validation'
 import type { AdminPayoutDetail } from '@/lib/consultation/reconciliation-validation'
@@ -20,6 +18,7 @@ type Props = {
   payout?: AdminPayoutList['items'][number]
   history: boolean
   refresh: number
+  specialistName: string
 }
 
 const currency = new Intl.NumberFormat('vi-VN', {
@@ -136,6 +135,7 @@ export default function AdminPayoutDetailPanel({
   payout,
   history,
   refresh,
+  specialistName,
 }: Props) {
   const [detail, setDetail] = useState<AdminPayoutDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -201,30 +201,17 @@ export default function AdminPayoutDetailPanel({
   const isSucceeded = current.status === 'SUCCEEDED'
 
   const apiEarnings = detail?.earnings ?? []
-  const itemsToDisplay = apiEarnings.map((earning) => {
-    const clientInfo = resolveClientPaidInfo(
-      earning.appointmentId,
-      earning.amountVnd,
-    )
-    return {
-      id: earning.earningId,
-      title: `Phiên tư vấn · #${earning.appointmentId.slice(0, 8)}`,
-      subtitle: `Ghi nhận ${timestamp.format(new Date(earning.earnedAt))}`,
-      amount: earning.amountVnd,
-      clientName: clientInfo.clientName,
-      clientPaid: clientInfo.clientPaid,
-    }
-  })
+  const itemsToDisplay = apiEarnings.map((earning) => ({
+    id: earning.earningId,
+    title: `Phiên tư vấn · #${earning.appointmentId.slice(0, 8)}`,
+    subtitle: `Ghi nhận ${timestamp.format(new Date(earning.earnedAt))}`,
+    amount: earning.amountVnd,
+  }))
   const earningsTotal = apiEarnings.reduce(
     (sum, earning) => sum + earning.amountVnd,
     0,
   )
-  const totalClientPaid = itemsToDisplay.reduce(
-    (sum, item) => sum + item.clientPaid,
-    0,
-  )
   const bankBrand = payoutProviderName[current.provider]
-  const specialistName = resolveSpecialistName(current.specialistAccountId)
   return (
     <aside
       className="apo-detail-panel"
@@ -237,9 +224,7 @@ export default function AdminPayoutDetailPanel({
         <div>
           <span className="apo-detail-label">CHI TIẾT ĐỐI SOÁT</span>
           <div className="apo-detail-title-row">
-            <h2 id="apo-detail-title">
-              {specialistName}
-            </h2>
+            <h2 id="apo-detail-title">{specialistName}</h2>
             <span className={`apo-status-badge is-${statusClass}`}>
               {isSucceeded && !current.closedAt
                 ? 'Hoàn tất'
@@ -317,22 +302,9 @@ export default function AdminPayoutDetailPanel({
                 <div className="apo-breakdown-info">
                   <div className="apo-breakdown-title-row">
                     <strong>{item.title}</strong>
-                    {item.clientName && (
-                      <span className="apo-client-paid-badge">
-                        Thân chủ: <strong>{item.clientName}</strong>
-                      </span>
-                    )}
                   </div>
                   <div className="apo-breakdown-client-meta">
                     <span>{item.subtitle}</span>
-                    {item.clientPaid > 0 && (
-                      <>
-                        <span className="apo-meta-sep">•</span>
-                        <span className="apo-client-paid-amount">
-                          Khách trả: <strong>{currency.format(item.clientPaid)}</strong>
-                        </span>
-                      </>
-                    )}
                   </div>
                 </div>
                 <div className="apo-breakdown-amount-col">
@@ -354,10 +326,6 @@ export default function AdminPayoutDetailPanel({
           <div className="apo-financial-summary">
             {apiEarnings.length > 0 && (
               <>
-                <div className="apo-summary-row">
-                  <span>Tổng số tiền khách hàng đã trả</span>
-                  <b>{currency.format(totalClientPaid)}</b>
-                </div>
                 <div className="apo-summary-row">
                   <span>Tổng thù lao chuyên gia trong yêu cầu</span>
                   <b>{currency.format(earningsTotal)}</b>

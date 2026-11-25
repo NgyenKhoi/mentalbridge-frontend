@@ -1,7 +1,7 @@
 'use client'
 
 import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { browserServiceCredits } from '@/features/service-credits/api/browser-client'
 import PlanUpgradeContinue from '@/features/support-plan-access/PlanUpgradeContinue'
 import {
@@ -23,23 +23,51 @@ import PayosPaymentPanel from './PayosPaymentPanel'
 
 const PLAN_COPY: Record<
   PlanCode,
-  Readonly<{ eyebrow: string; description: string }>
+  Readonly<{
+    eyebrow: string
+    description: (plan: ServicePlanVersion) => string
+  }>
 > = {
   FREE: {
     eyebrow: 'CƠ BẢN',
-    description:
-      'Duy trì các công cụ tự chăm sóc thiết yếu và 5 phản hồi AI được gửi thành công mỗi ngày.',
+    description: () => 'Các công cụ tự chăm sóc để bạn hiểu mình hơn mỗi ngày.',
   },
   PLUS: {
     eyebrow: 'ĐỒNG HÀNH',
-    description:
-      'Thêm kế hoạch hỗ trợ cá nhân và 4 lượt tư vấn trong mỗi kỳ dịch vụ.',
+    description: (plan) =>
+      `Có kế hoạch hỗ trợ 14 ngày và ${plan.consultationCredits} buổi tư vấn với chuyên gia mỗi tháng.`,
   },
   PREMIUM: {
     eyebrow: 'TOÀN DIỆN',
-    description:
-      'Mở rộng hỗ trợ chuyên sâu với 10 lượt tư vấn và đề xuất nâng cao trong mỗi kỳ.',
+    description: (plan) =>
+      `Dành cho bạn cần chuyên gia đồng hành sát hơn: ${plan.consultationCredits} buổi tư vấn mỗi tháng.`,
   },
+}
+
+const FREE_PERKS = [
+  'Bài sàng lọc và gợi ý hỗ trợ',
+  'Nhật ký và check-in cảm xúc',
+  'Trò chuyện với Mầm mỗi ngày',
+]
+
+// Zero-valued API limits are omitted; a plan with nothing left shows the free perks.
+function planPerks(plan: ServicePlanVersion): ReactNode[] {
+  const perks: ReactNode[] = []
+  if (plan.consultationCredits > 0)
+    perks.push(
+      <>
+        <strong>{plan.consultationCredits} buổi tư vấn</strong> mỗi tháng
+      </>,
+    )
+  if (plan.maxActiveReservations > 0)
+    perks.push(
+      <>
+        Đặt trước tối đa <strong>{plan.maxActiveReservations} buổi</strong> cùng
+        lúc
+      </>,
+    )
+  if (plan.supportPlanEnabled) perks.push('Kế hoạch hỗ trợ cá nhân')
+  return perks.length > 0 ? perks : FREE_PERKS
 }
 
 function formatVnd(value: number) {
@@ -279,14 +307,10 @@ export default function PlanCheckoutPanel() {
     >
       <div className="svc-section-heading">
         <span className="svc-kicker">
-          <ShieldCheck size={14} aria-hidden="true" /> GIÁ VÀ QUYỀN LỢI TỪ HỆ
-          THỐNG
+          <ShieldCheck size={14} aria-hidden="true" /> CÁC GÓI DỊCH VỤ
         </span>
         <h2 id="subscription-plans-title">Chọn mức đồng hành phù hợp</h2>
-        <p>
-          Mỗi gói có giá VND, số lượt tư vấn và giới hạn lịch đang giữ riêng.{' '}
-          {PROVIDER_LINE[catalogue.paymentProvider]}
-        </p>
+        <p>{PROVIDER_LINE[catalogue.paymentProvider]}</p>
       </div>
 
       {payment &&
@@ -380,40 +404,24 @@ export default function PlanCheckoutPanel() {
                   )}
                   <div className="svc-tier-top">
                     <span>{PLAN_COPY[plan.planCode].eyebrow}</span>
-                    <small>{plan.consultationCredits} lượt / kỳ</small>
                   </div>
                   <h3>{SERVICE_PACKAGE_LABELS[plan.planCode]}</h3>
-                  <p>{PLAN_COPY[plan.planCode].description}</p>
+                  <p>{PLAN_COPY[plan.planCode].description(plan)}</p>
                   <div className="svc-tier-price">
-                    <strong>{formatVnd(plan.priceVnd)}</strong>
-                    <span>
-                      / {plan.planCode === 'FREE' ? 'không thời hạn' : 'tháng'}
-                    </span>
+                    <strong>
+                      {plan.priceVnd === 0
+                        ? 'Miễn phí'
+                        : formatVnd(plan.priceVnd)}
+                    </strong>
+                    {plan.priceVnd > 0 && <span>/ tháng</span>}
                   </div>
                   <ul className="svc-tier-facts">
-                    <li>
-                      <CheckCircle2 size={17} aria-hidden="true" />{' '}
-                      <span>
-                        <strong>{plan.consultationCredits} lượt tư vấn</strong>{' '}
-                        trong mỗi kỳ, không cộng dồn
-                      </span>
-                    </li>
-                    <li>
-                      <CheckCircle2 size={17} aria-hidden="true" />{' '}
-                      <span>
-                        Giữ tối đa{' '}
-                        <strong>{plan.maxActiveReservations} lịch</strong> cùng
-                        lúc
-                      </span>
-                    </li>
-                    <li>
-                      <CheckCircle2 size={17} aria-hidden="true" />{' '}
-                      <span>
-                        {plan.supportPlanEnabled
-                          ? 'Có kế hoạch hỗ trợ cá nhân'
-                          : 'Công cụ tự chăm sóc cơ bản'}
-                      </span>
-                    </li>
+                    {planPerks(plan).map((perk, index) => (
+                      <li key={index}>
+                        <CheckCircle2 size={17} aria-hidden="true" />{' '}
+                        <span>{perk}</span>
+                      </li>
+                    ))}
                   </ul>
                   <button
                     type="button"
@@ -436,8 +444,7 @@ export default function PlanCheckoutPanel() {
           </div>
 
           <p className="svc-price-note">
-            Giá và quyền lợi do máy chủ xác nhận theo đúng phiên bản gói; lượt
-            tư vấn hết hạn cùng kỳ và không chuyển sang kỳ sau.
+            Buổi chưa dùng không cộng dồn sang tháng sau.
           </p>
         </>
       )}

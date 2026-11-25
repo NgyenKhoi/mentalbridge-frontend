@@ -120,7 +120,9 @@ describe('SubscriptionCancellationPanel', () => {
 
     await confirmCancellation(user)
     expect(await screen.findByText(/Gói đã được hủy từ/)).toBeInTheDocument()
-    expect(screen.getByText(/đã được máy chủ xác nhận hủy/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Gói đã được hủy, nhưng chưa làm mới/),
+    ).toBeInTheDocument()
     expect(onConfirmedCancellation).toHaveBeenCalledTimes(1)
   })
 

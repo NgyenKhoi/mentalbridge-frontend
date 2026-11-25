@@ -34,7 +34,6 @@ import {
   parseAppointmentRating,
   parseAppointmentList,
   parseAppointmentDispute,
-  parseAppointmentDisputeList,
   parseAppointmentChatEligibility,
   parseBookableSlotList,
   parsePendingProfiles,
@@ -84,9 +83,7 @@ import {
   type AppointmentRating,
   type AppointmentList,
   type AppointmentDispute,
-  type AppointmentDisputeList,
   type OpenAppointmentDisputeInput,
-  type ResolveAppointmentDisputeInput,
   type AppointmentChatEligibility,
   type AppointmentRequestInput,
   type BookableSlotList,
@@ -547,38 +544,6 @@ export const consultationClient = {
       token,
       correlationId,
       body,
-      idempotencyKey,
-      parse: parseAppointmentDispute,
-    })
-  },
-  appointmentDisputes(
-    token: string,
-    correlationId: string,
-    status: 'OPEN' | 'RESOLVED',
-  ) {
-    return request<AppointmentDisputeList>({
-      method: 'GET',
-      path: `/api/v1/admin/appointment-disputes?status=${status}`,
-      token,
-      correlationId,
-      parse: parseAppointmentDisputeList,
-    })
-  },
-  resolveAppointmentDispute(
-    token: string,
-    correlationId: string,
-    disputeId: string,
-    body: ResolveAppointmentDisputeInput,
-    etag: string,
-    idempotencyKey: string,
-  ) {
-    return request<AppointmentDispute>({
-      method: 'POST',
-      path: `/api/v1/admin/appointment-disputes/${encodeURIComponent(disputeId)}/resolve`,
-      token,
-      correlationId,
-      body,
-      ifMatch: etag,
       idempotencyKey,
       parse: parseAppointmentDispute,
     })
