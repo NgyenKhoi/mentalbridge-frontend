@@ -220,6 +220,33 @@
   font-weight: 700;
 }
 
+.detail dl div:has(> .email) {
+  grid-column: 1 / -1;
+}
+
+.email {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.email span {
+  overflow-wrap: anywhere;
+}
+
+.email svg {
+  flex: none;
+}
+
+.verified {
+  color: var(--teal);
+}
+
+.unverified {
+  color: var(--amber-deep);
+}
+
 .actions {
   display: grid;
   gap: 14px;

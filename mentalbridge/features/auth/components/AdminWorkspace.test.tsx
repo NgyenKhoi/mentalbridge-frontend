@@ -39,13 +39,6 @@ vi.mock('@/features/benchmarks/AdminBenchmarkGovernance', () => ({
 }))
 
 vi.mock(
-  '@/features/safety-directory-admin/components/AdminSafetyDirectoryManager',
-  () => ({
-    default: () => <section aria-label="safety-directory-authority" />,
-  }),
-)
-
-vi.mock(
   '@/features/community/components/AdminCommunityModerationSection',
   () => ({
     default: () => <section aria-label="moderation-authority" />,
@@ -104,7 +97,7 @@ describe('AdminWorkspace', () => {
       name: 'Điều hướng quản trị',
     })
 
-    expect(within(navigation).getAllByRole('link')).toHaveLength(12)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(11)
     expect(
       within(navigation)
         .getAllByRole('link')
@@ -114,7 +107,6 @@ describe('AdminWorkspace', () => {
       '/admin/accounts',
       '/admin/specialists',
       '/admin/content',
-      '/admin/safety-directory',
       '/admin/benchmarks',
       '/admin/moderation',
       '/admin/appointments',
@@ -168,7 +160,6 @@ describe('AdminWorkspace', () => {
     ['retention', 'retention-authority'],
     ['specialists', 'specialists-authority'],
     ['content', 'content-authority'],
-    ['safety-directory', 'safety-directory-authority'],
     ['benchmarks', 'benchmarks-authority'],
     ['moderation', 'moderation-authority'],
     ['appointments', 'appointments-authority'],
@@ -190,13 +181,15 @@ describe('AdminWorkspace', () => {
   it('renders administrator profile badge in topbar with proper admin identity without clinical doctor prefix', () => {
     renderSection('dashboard')
 
-    const profileBadge = screen.getByRole('link', { name: /hồ sơ quản trị/i })
-    expect(profileBadge).toBeInTheDocument()
+    const profileBadge = screen.getByRole('link', { name: /quản trị viên/i })
+    expect(profileBadge).toHaveAttribute('href', '/admin/dashboard')
     expect(within(profileBadge).getByText('AD')).toBeInTheDocument()
     expect(within(profileBadge).getByText('Quản trị viên')).toBeInTheDocument()
     expect(
       within(profileBadge).getByText(/admin \/ quyền tối cao/i),
     ).toBeInTheDocument()
     expect(screen.queryByText(/BS\. Hoàng Khang/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Hệ thống ổn định/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 })

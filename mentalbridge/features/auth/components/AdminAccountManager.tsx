@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { BadgeCheck, CircleAlert } from 'lucide-react'
 import { ApiError } from '@/lib/api/api-error'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import type {
@@ -12,6 +13,7 @@ import {
   browserAdminAccounts,
   type AccountSearch,
 } from '../api/browser-admin-accounts'
+import { browserConsultation } from '@/features/specialist-profile/api/browser-client'
 import styles from './AdminAccountManager.module.css'
 
 const statusLabels: Record<AccountStatus, string> = {
@@ -43,6 +45,23 @@ const suspensionReasons = {
 
 type SuspensionReason = keyof typeof suspensionReasons
 
+// Identity keeps no names; only specialists have one, in their consultation profile.
+async function specialistNames(accounts: readonly AccountDetail[]) {
+  const ids = accounts
+    .filter((account) => account.roles.includes('SPECIALIST'))
+    .map((account) => account.accountId)
+  const results = await Promise.allSettled(
+    ids.map((id) => browserConsultation.detail(id)),
+  )
+  return Object.fromEntries(
+    results.flatMap((result, index) =>
+      result.status === 'fulfilled' && result.value.data.displayName
+        ? [[ids[index], result.value.data.displayName] as const]
+        : [],
+    ),
+  )
+}
+
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 403) return 'Bạn không có quyền quản trị tài khoản.'
@@ -60,6 +79,7 @@ export default function AdminAccountManager() {
   const [role, setRole] = useState('')
   const [email, setEmail] = useState('')
   const [items, setItems] = useState<AccountDetail[]>([])
+  const [names, setNames] = useState<Record<string, string>>({})
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [cursorHistory, setCursorHistory] = useState<string[]>([])
   const [currentCursor, setCurrentCursor] = useState<string | undefined>()
@@ -88,6 +108,9 @@ export default function AdminAccountManager() {
         setItems(page.items)
         setNextCursor(page.nextCursor ?? null)
         setCurrentCursor(cursor)
+        void specialistNames(page.items).then((found) =>
+          setNames((known) => ({ ...known, ...found })),
+        )
       } catch (cause) {
         setError(errorMessage(cause))
       } finally {
@@ -105,6 +128,9 @@ export default function AdminAccountManager() {
         if (!active) return
         setItems(page.items)
         setNextCursor(page.nextCursor ?? null)
+        void specialistNames(page.items).then((found) => {
+          if (active) setNames((known) => ({ ...known, ...found }))
+        })
       })
       .catch((cause: unknown) => {
         if (active) setError(errorMessage(cause))
@@ -248,11 +274,13 @@ export default function AdminAccountManager() {
             onChange={(event) => setRole(event.target.value)}
           >
             <option value="">Tất cả</option>
-            {Object.entries(roleLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
+            {Object.entries(roleLabels)
+              .filter(([value]) => value !== 'ADMIN')
+              .map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
           </select>
         </label>
         <label>
@@ -300,7 +328,8 @@ export default function AdminAccountManager() {
                 onClick={() => void inspect(account.accountId)}
                 aria-pressed={selected?.accountId === account.accountId}
               >
-                <strong>{account.email}</strong>
+                <strong>{names[account.accountId] ?? account.email}</strong>
+                {names[account.accountId] && <span>{account.email}</span>}
                 <span>
                   {account.roles.map((item) => roleLabels[item]).join(', ')}
                 </span>
@@ -330,10 +359,7 @@ export default function AdminAccountManager() {
           ) : (
             <>
               <div className={styles.detailHeader}>
-                <div>
-                  <small>#{selected.accountId.slice(0, 8)}</small>
-                  <h2>{selected.email}</h2>
-                </div>
+                <h2>{names[selected.accountId] ?? selected.email}</h2>
                 <span>{statusLabels[selected.status]}</span>
               </div>
               <dl>
@@ -345,13 +371,28 @@ export default function AdminAccountManager() {
                 </div>
                 <div>
                   <dt>Email</dt>
-                  <dd>
-                    {selected.emailVerified ? 'Đã xác minh' : 'Chưa xác minh'}
+                  <dd className={styles.email}>
+                    <span>{selected.email}</span>
+                    {selected.emailVerified ? (
+                      <BadgeCheck
+                        size={16}
+                        className={styles.verified}
+                        aria-label="Đã xác minh"
+                        role="img"
+                      >
+                        <title>Đã xác minh</title>
+                      </BadgeCheck>
+                    ) : (
+                      <CircleAlert
+                        size={16}
+                        className={styles.unverified}
+                        aria-label="Chưa xác minh"
+                        role="img"
+                      >
+                        <title>Chưa xác minh</title>
+                      </CircleAlert>
+                    )}
                   </dd>
-                </div>
-                <div>
-                  <dt>Phiên bản</dt>
-                  <dd>{selected.version}</dd>
                 </div>
                 <div>
                   <dt>Cập nhật</dt>
