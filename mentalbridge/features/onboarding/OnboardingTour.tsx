@@ -6,9 +6,16 @@ import { createOnboardingTour } from './tour-runtime'
 import { ONBOARDING_TOURS, type OnboardingAudience } from './tour-definitions'
 import { hasSeenOnboarding, rememberOnboarding } from './tour-storage'
 import { settleOnboarding } from './onboarding-hold'
+import { getGuidedJourney } from '@/features/support-guide/api/browser-support-guide'
 
 import 'driver.js/dist/driver.css'
 import './onboarding-tour.css'
+
+// A failed lookup keeps the first-run tour: showing it twice beats hiding it from a new account.
+const hasScreened = () =>
+  getGuidedJourney()
+    .then((journey) => Boolean(journey?.episodeId))
+    .catch(() => false)
 
 type Props = Readonly<{
   accountId: string
@@ -51,6 +58,11 @@ export default function OnboardingTour({
       loading = true
       setUnavailable(false)
       try {
+        // The seen flag lives in this browser only; an account that already screened is not new on another device.
+        if (automatic && audience === 'user' && (await hasScreened())) {
+          rememberOnboarding(accountId, 'skipped', audience)
+          return
+        }
         const { driver } = await import('driver.js')
         if (
           disposed ||

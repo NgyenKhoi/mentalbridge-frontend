@@ -343,9 +343,7 @@ describe('Notification preferences page', () => {
     expect(await screen.findByText('Tài nguyên mới')).toBeVisible()
     expect(inboxApi.get).toHaveBeenNthCalledWith(2, 'next-page')
 
-    await user.click(
-      screen.getByRole('button', { name: /Đánh dấu đã đọc tất cả/i }),
-    )
+    await user.click(screen.getByRole('button', { name: /Đọc tất cả/i }))
     await waitFor(() => expect(inboxApi.readAll).toHaveBeenCalledTimes(1))
     expect(
       await screen.findByText('Bạn đã xem tất cả thông báo.'),

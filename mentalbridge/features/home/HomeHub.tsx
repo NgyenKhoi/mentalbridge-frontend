@@ -166,7 +166,8 @@ export function HomeHub() {
           )
         )}
       </div>
-      {home && !planEmotion && !safety && (
+      {/* At REVIEW_DUE the next-step card already leads to the look-back; a second card would compete with it. */}
+      {home && !planEmotion && !safety && home.plan?.focus !== 'REVIEW_DUE' && (
         <HomeReviewEntry onResolved={setReviewExists} />
       )}
       {!planEmotion && (
@@ -182,9 +183,11 @@ export function HomeHub() {
       </div>
       <HomeQuickActions home={home} />
       {/* Last, so it appearing after its lookups moves nothing above it. */}
-      {home && !planEmotion && !safety && reviewExists === false && (
-        <HomeLookBackEntry />
-      )}
+      {home &&
+        !planEmotion &&
+        !safety &&
+        home.plan?.focus !== 'REVIEW_DUE' &&
+        reviewExists === false && <HomeLookBackEntry />}
     </div>
   )
 }

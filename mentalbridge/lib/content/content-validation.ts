@@ -41,10 +41,6 @@ export type ResourceRewardReadModel =
   components['schemas']['ResourceRewardReadModel']
 export type ResourceRewardVisibilityUpdate =
   components['schemas']['ResourceRewardVisibilityUpdate']
-export type SafetyDirectoryAdminEntry =
-  components['schemas']['SafetyDirectoryAdminEntry']
-export type SafetyDirectoryEntryWrite =
-  components['schemas']['SafetyDirectoryEntryWrite']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -201,70 +197,6 @@ export function isLocalDate(value: string): boolean {
 
 export function isIdempotencyKey(value: string | null): value is string {
   return value !== null && /^[A-Za-z0-9_-]{1,128}$/.test(value)
-}
-
-function validSafetyDirectoryCoverage(value: unknown) {
-  const coverage = record(value)
-  if (
-    !coverage ||
-    !['NATIONWIDE', 'PROVINCE', 'DISTRICT'].includes(String(coverage.level))
-  )
-    return false
-  return ['provinceCode', 'provinceName', 'districtCode', 'districtName'].every(
-    (key) => coverage[key] === null || typeof coverage[key] === 'string',
-  )
-}
-
-export function parseSafetyDirectoryAdminEntry(
-  value: unknown,
-): SafetyDirectoryAdminEntry | null {
-  const item = record(value)
-  if (
-    !item ||
-    typeof item.directoryEntryId !== 'string' ||
-    !UUID.test(item.directoryEntryId) ||
-    typeof item.name !== 'string' ||
-    !['FACILITY', 'HOTLINE'].includes(String(item.type)) ||
-    typeof item.phone !== 'string' ||
-    !(item.address === null || typeof item.address === 'string') ||
-    !Array.isArray(item.coverage) ||
-    item.coverage.length === 0 ||
-    !item.coverage.every(validSafetyDirectoryCoverage) ||
-    typeof item.sourceName !== 'string' ||
-    typeof item.sourceReference !== 'string' ||
-    !dateTime(item.reviewedAt) ||
-    !dateTime(item.verifiedAt) ||
-    !Number.isSafeInteger(item.recordVersion) ||
-    (item.recordVersion as number) < 0 ||
-    typeof item.active !== 'boolean' ||
-    !['UNREVIEWED', 'CURRENT', 'STALE', 'INACTIVE'].includes(
-      String(item.reviewState),
-    ) ||
-    ![item.reviewedBy, item.verifiedBy].every(
-      (id) => id === null || (typeof id === 'string' && UUID.test(id)),
-    ) ||
-    !dateTime(item.sourceRetrievedAt) ||
-    !(
-      item.sourceChecksum === null ||
-      (typeof item.sourceChecksum === 'string' &&
-        /^[a-f0-9]{64}$/i.test(item.sourceChecksum))
-    ) ||
-    !(item.seedKey === null || typeof item.seedKey === 'string') ||
-    !dateTime(item.createdAt) ||
-    !dateTime(item.updatedAt)
-  )
-    return null
-  return item as SafetyDirectoryAdminEntry
-}
-
-export function parseSafetyDirectoryAdminEntries(
-  value: unknown,
-): SafetyDirectoryAdminEntry[] | null {
-  if (!Array.isArray(value)) return null
-  const entries = value.map(parseSafetyDirectoryAdminEntry)
-  return entries.every((entry) => entry !== null)
-    ? (entries as SafetyDirectoryAdminEntry[])
-    : null
 }
 
 export function parseResourceSummary(value: unknown): ResourceSummary | null {

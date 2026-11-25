@@ -254,8 +254,9 @@ export default function NotificationBell({
               className={styles.textButton}
               onClick={markAll}
               disabled={marking || unread === 0}
+              title="Đánh dấu tất cả thông báo là đã đọc"
             >
-              Đánh dấu đã đọc tất cả
+              Đọc tất cả
             </button>
           </div>
           {preview.length > 0 ? (

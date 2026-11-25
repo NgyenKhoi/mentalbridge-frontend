@@ -279,7 +279,7 @@ export default function TodayOverview({
           </Link>
           <Link className="mbw-companion-link" href="/ai-companion">
             <MessageCircle size={17} aria-hidden="true" />
-            Trò chuyện cùng AI Companion
+            Trò chuyện cùng Mầm
           </Link>
         </section>
       </div>

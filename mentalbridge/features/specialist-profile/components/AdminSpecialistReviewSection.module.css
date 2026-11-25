@@ -232,7 +232,9 @@
 .queueCard[aria-pressed='true'] {
   border-color: #059669;
   background: #f0fdf4;
-  box-shadow: 0 0 0 1px #059669, 0 2px 6px rgba(5, 150, 105, 0.08);
+  box-shadow:
+    0 0 0 1px #059669,
+    0 2px 6px rgba(5, 150, 105, 0.08);
 }
 
 .cardTop {
@@ -685,7 +687,7 @@
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
-  color: #0E4A37;
+  color: #0e4a37;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -694,8 +696,8 @@
 }
 
 .docEyeBtn:hover {
-  background: #0E4A37;
-  border-color: #0E4A37;
+  background: #0e4a37;
+  border-color: #0e4a37;
   color: #ffffff;
   box-shadow: 0 2px 6px rgba(14, 74, 55, 0.2);
 }
@@ -1085,6 +1087,8 @@
   font-size: 0.8rem;
   color: #0f172a;
   flex: 1;
+  /* A select sizes to its longest option; let it shrink instead of overlapping the buttons. */
+  min-width: 0;
 }
 
 .actionButtonsGroup {
@@ -1236,7 +1240,6 @@
     justify-content: flex-end;
   }
 }
-
 
 /* ==========================================================================
    AI Verification Suite Hub Styles (Admin Specialist Review)
@@ -1545,5 +1548,29 @@
 @media (max-width: 1023px) {
   .aiPillGrid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.queueEmpty {
+  color: var(--ink-soft, #52604f);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 1023px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .rejectionFieldGroup {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .rejectionSelect {
+    flex-basis: 100%;
+  }
+  .metaCard dd {
+    overflow-wrap: anywhere;
   }
 }

@@ -120,9 +120,7 @@ describe('NotificationBell', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Thông báo, 1 chưa đọc' }),
     )
-    await user.click(
-      screen.getByRole('button', { name: 'Đánh dấu đã đọc tất cả' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Đọc tất cả' }))
     expect(markAllNotificationsRead).toHaveBeenCalledTimes(1)
     expect(
       await screen.findByRole('button', { name: 'Thông báo' }),

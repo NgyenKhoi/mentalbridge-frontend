@@ -19,11 +19,7 @@ import {
   Coins,
   ArrowLeftRight,
   MessageSquareQuote,
-  Search,
-  Bell,
-  HelpCircle,
   User,
-  MapPinned,
 } from 'lucide-react'
 
 import SessionActions from './SessionActions'
@@ -42,7 +38,6 @@ import AdminPayoutsManager from '@/components/AdminPayoutsManager'
 import AdminCommercialReconciliationManager from '@/features/reconciliation/components/AdminCommercialReconciliationManager'
 import AdminFeedbackManager from '@/features/feedback/components/AdminFeedbackManager'
 import AdminRetentionGovernance from '@/features/retention/components/AdminRetentionGovernance'
-import AdminSafetyDirectoryManager from '@/features/safety-directory-admin/components/AdminSafetyDirectoryManager'
 import AdminBenchmarkGovernance from '@/features/benchmarks/AdminBenchmarkGovernance'
 import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
 import type { Workspace } from '../model/workspace'
@@ -73,10 +68,6 @@ export const SECTIONS = {
   content: {
     label: 'Tài nguyên tự chăm sóc',
     icon: BookOpen,
-  },
-  'safety-directory': {
-    label: 'Thư mục hỗ trợ an toàn',
-    icon: MapPinned,
   },
   benchmarks: {
     label: 'Benchmark AI',
@@ -152,8 +143,6 @@ function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
       return <AdminSpecialistReviewSection />
     case 'content':
       return <AdminContentSection />
-    case 'safety-directory':
-      return <AdminSafetyDirectoryManager />
     case 'benchmarks':
       return <AdminBenchmarkGovernance />
     case 'moderation':
@@ -189,7 +178,6 @@ export default function AdminWorkspace({
   const sidebarRef = useRef<HTMLElement>(null)
   const wasMobileOpen = useRef(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -210,17 +198,6 @@ export default function AdminWorkspace({
       return nextValue
     })
   }
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        searchInputRef.current?.focus()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
 
   useEffect(() => {
     const handleResize = () => {
@@ -369,56 +346,13 @@ export default function AdminWorkspace({
                       : currentSectionLabel}
               </span>
             </div>
-            <div className="clinical-topbar-status-pill">
-              <span className="clinical-topbar-status-dot" aria-hidden="true" />
-              <span>Hệ thống ổn định • live 102.52s</span>
-            </div>
           </div>
 
           <div className="clinical-topbar-right">
-            <div className="clinical-search-wrapper">
-              <Search
-                size={15}
-                strokeWidth={1.75}
-                className="clinical-search-icon"
-              />
-              <input
-                ref={searchInputRef}
-                type="text"
-                className="clinical-search-input"
-                placeholder={
-                  section === 'accounts'
-                    ? 'Tìm kiếm tài khoản, email…'
-                    : section === 'specialists'
-                      ? 'Tìm kiếm chuyên gia, hồ sơ…'
-                      : 'Tìm kiếm hồ sơ, bệnh án…'
-                }
-                aria-label="Tìm kiếm trong hệ thống quản trị"
-              />
-              <kbd className="clinical-search-kbd">⌘K</kbd>
-            </div>
-
-            <Link
-              href="/admin/feedback"
-              className="clinical-topbar-btn"
-              aria-label="Ý kiến & Phản hồi"
-              title="Ý kiến & Phản hồi"
-            >
-              <Bell size={17} strokeWidth={1.75} />
-            </Link>
             <Link
               href="/admin/dashboard"
-              className="clinical-topbar-btn"
-              aria-label="Trợ giúp & hướng dẫn"
-              title="Trợ giúp & hướng dẫn"
-            >
-              <HelpCircle size={17} strokeWidth={1.75} />
-            </Link>
-            <Link
-              href="/admin/accounts"
               className="clinical-topbar-profile-badge"
-              aria-label="Hồ sơ quản trị"
-              title="Tài khoản quản trị"
+              title="Về Tổng quan"
             >
               <div className="clinical-profile-avatar">AD</div>
               <div className="clinical-profile-info">

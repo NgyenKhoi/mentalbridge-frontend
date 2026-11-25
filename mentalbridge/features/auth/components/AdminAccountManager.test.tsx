@@ -30,6 +30,10 @@ vi.mock('../api/browser-admin-accounts', () => ({
 vi.mock('@/components/ui/FeedbackProvider', () => ({
   useFeedback: () => feedback,
 }))
+const consultation = vi.hoisted(() => ({ detail: vi.fn() }))
+vi.mock('@/features/specialist-profile/api/browser-client', () => ({
+  browserConsultation: consultation,
+}))
 
 describe('AdminAccountManager', () => {
   beforeEach(() => {
@@ -41,6 +45,43 @@ describe('AdminAccountManager', () => {
       etag: '"3"',
     })
     feedback.confirm.mockResolvedValue(true)
+  })
+
+  it('names specialists, shows the real email with its verification and hides internals', async () => {
+    const specialist = {
+      ...userAccount,
+      accountId: '8a43e8e2-5dc5-495d-ae95-fbb7346473e8',
+      email: 'doctor@example.com',
+      roles: ['SPECIALIST' as const],
+      emailVerified: false,
+    }
+    api.search.mockResolvedValue({
+      items: [userAccount, specialist],
+      nextCursor: null,
+    })
+    api.detail.mockResolvedValue({ data: specialist, etag: '"2"' })
+    consultation.detail.mockResolvedValue({
+      data: { displayName: 'ThS. Thảo Nguyên' },
+      etag: '"1"',
+    })
+    const user = userEvent.setup()
+    render(<AdminAccountManager />)
+
+    const card = await screen.findByRole('button', { name: /ThS. Thảo Nguyên/ })
+    expect(card).toHaveTextContent('doctor@example.com')
+    expect(consultation.detail).toHaveBeenCalledTimes(1)
+    expect(consultation.detail).toHaveBeenCalledWith(specialist.accountId)
+    expect(
+      screen.queryByRole('option', { name: 'Quản trị viên' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(card)
+    expect(
+      await screen.findByRole('heading', { name: 'ThS. Thảo Nguyên' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Chưa xác minh' })).toBeVisible()
+    expect(screen.queryByText('Phiên bản')).not.toBeInTheDocument()
+    expect(screen.queryByText('#8a43e8e2')).not.toBeInTheDocument()
   })
 
   it('searches by status, role and exact email', async () => {

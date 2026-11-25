@@ -1,4 +1,6 @@
 import type { HomeNextStep } from '@/features/assessment/api/care-contract'
+import { REASSESSMENT_HREF } from '@/features/support-plan/workspace/workspace-links'
+import { reassessedForReview } from '@/features/support-plan/workspace/workspace-model'
 
 type HomeLink = Readonly<{ label: string; href: string }>
 
@@ -93,16 +95,39 @@ export function homeNextStepView(
           contextual: [],
         }
       case 'REVIEW_DUE':
-        return {
-          state: plan.focus,
-          title: 'Đến lúc nhìn lại 14 ngày qua',
-          description: 'Nhìn lại những gì đã giúp bạn và chọn bước tiếp theo.',
-          primary: {
-            label: 'Xem lại kế hoạch',
-            href: '/support-plan?review=open',
-          },
-          contextual: [{ label: 'Mở kế hoạch hôm nay', href: '/support-plan' }],
-        }
+        // Same rule as the plan page: the activities wait for the reassessment, then for the chosen rhythm.
+        return reassessedForReview(
+          journey.latestScreening,
+          plan.reviewDueOn,
+          plan.timeZone,
+        )
+          ? {
+              state: plan.focus,
+              title: 'Đến lúc chọn nhịp tiếp theo',
+              description:
+                'Bạn đã làm bài đánh giá lại. Xem kết quả và chọn nhịp cho 14 ngày tới.',
+              primary: {
+                label: 'Chọn nhịp tiếp theo',
+                href: '/support-plan?review=open',
+              },
+              contextual: [{ label: 'Xem nhìn lại', href: '/nhin-lai' }],
+            }
+          : {
+              state: plan.focus,
+              title: 'Đến lúc nhìn lại 14 ngày qua',
+              description:
+                'Kế hoạch đang tạm dừng chờ bạn làm bài đánh giá lại.',
+              primary: {
+                label: 'Làm bài đánh giá lại',
+                href: REASSESSMENT_HREF,
+              },
+              contextual: [
+                {
+                  label: 'Xem lại kế hoạch',
+                  href: '/support-plan?review=open',
+                },
+              ],
+            }
     }
   }
 
