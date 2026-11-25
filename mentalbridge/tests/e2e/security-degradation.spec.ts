@@ -136,7 +136,7 @@ test.describe('AC1: Cross-user authorization boundaries', () => {
     await page.goto('/ai-companion')
     await expect(page).toHaveURL(/\/specialist\/dashboard/)
     await expect(
-      page.getByRole('region', { name: 'AI Companion' }),
+      page.getByRole('region', { name: 'Trò chuyện với Mầm' }),
     ).toHaveCount(0)
   })
 
@@ -672,7 +672,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     ).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText(inboxItem.title)).toBeVisible()
     await expect(page.getByLabel('Chưa đọc')).toBeVisible()
-    await page.getByRole('button', { name: /Đánh dấu đã đọc tất cả/i }).click()
+    await page.getByRole('button', { name: /Đọc tất cả/i }).click()
     await expect(page.getByText('Bạn đã xem tất cả thông báo.')).toBeVisible()
     await page.reload()
     await expect(page.getByText(inboxItem.title)).toBeVisible()

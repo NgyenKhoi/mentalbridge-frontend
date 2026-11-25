@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
+import { CheckCheck } from 'lucide-react'
 
 import { ApiError } from '@/lib/api/api-error'
 import {
@@ -1093,8 +1094,10 @@ export default function NotificationsPage() {
                 type="button"
                 disabled={inboxActionId !== ''}
                 onClick={() => void markAllRead()}
+                title="Đánh dấu tất cả thông báo là đã đọc"
               >
-                ✓ Đánh dấu đã đọc tất cả
+                <CheckCheck size={18} aria-hidden="true" />
+                Đọc tất cả
               </button>
             )}
           </div>

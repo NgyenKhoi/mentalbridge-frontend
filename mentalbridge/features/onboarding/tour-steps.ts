@@ -32,7 +32,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
   },
   {
     target: 'companion',
-    title: 'Trò chuyện cùng AI Companion',
+    title: 'Trò chuyện cùng Mầm',
     description:
       'Diễn đạt suy nghĩ và khám phá các gợi ý hỗ trợ qua trò chuyện với AI. AI không thay thế chuyên gia hoặc hỗ trợ khẩn cấp.',
     inSidebar: true,

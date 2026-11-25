@@ -41,21 +41,14 @@ const CommunityIcon = () => (
 
 const groups = [
   {
-    title: 'Tổng quan',
+    // Ordered as the journey runs: screen, guide, plan, look back.
+    title: 'Hành trình của bạn',
     items: [
       [
         '/dashboard',
         'Tổng quan',
         <Svg key="h">
           <path d="M4 11 12 4l8 7M6 9.5V20h12V9.5" />
-        </Svg>,
-      ],
-      [
-        '/journal',
-        'Nhật ký',
-        <Svg key="j">
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
         </Svg>,
       ],
       [
@@ -98,7 +91,35 @@ const groups = [
     ],
   },
   {
-    title: 'Chăm sóc',
+    title: 'Mỗi ngày',
+    items: [
+      [
+        '/journal',
+        'Nhật ký',
+        <Svg key="j">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+        </Svg>,
+      ],
+      [
+        '/ai-companion',
+        'Trò chuyện với Mầm',
+        <Svg key="ai">
+          <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
+        </Svg>,
+      ],
+      [
+        '/resources',
+        'Tài nguyên',
+        <Svg key="r">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 8v4l3 2" />
+        </Svg>,
+      ],
+    ],
+  },
+  {
+    title: 'Khi cần thêm hỗ trợ',
     items: [
       [
         '/specialists',
@@ -123,26 +144,11 @@ const groups = [
           <path d="M4 5h16v11H8l-4 4V5Z" />
         </Svg>,
       ],
-      [
-        '/ai-companion',
-        'AI Companion',
-        <Svg key="ai">
-          <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
-        </Svg>,
-      ],
     ],
   },
   {
-    title: 'Thông tin',
+    title: 'Tài khoản',
     items: [
-      [
-        '/resources',
-        'Tài nguyên',
-        <Svg key="r">
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="M12 8v4l3 2" />
-        </Svg>,
-      ],
       [
         '/achievements',
         'Thành tựu',
@@ -181,7 +187,7 @@ const labels: Record<string, string> = {
   '/specialists': 'Chuyên gia tư vấn',
   '/appointments': 'Lịch hẹn',
   '/messages': 'Tin nhắn',
-  '/ai-companion': 'AI Companion',
+  '/ai-companion': 'Trò chuyện với Mầm',
   '/resources': 'Tài nguyên',
   '/achievements': 'Bộ sưu tập hành trình',
   '/subscription': 'Gói dịch vụ',

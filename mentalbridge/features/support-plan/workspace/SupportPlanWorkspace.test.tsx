@@ -831,13 +831,13 @@ describe('SupportPlan workspace', () => {
     await user.click(screen.getByRole('button', { name: /Xem lại kế hoạch/ }))
 
     const evidence = await screen.findByLabelText('Những gì đã ghi nhận')
-    expect(
-      within(evidence).getByText(/9 lần đã làm, 3 lần bỏ qua/),
-    ).toBeVisible()
+    expect(within(evidence).getByText(/Đã làm 9\/\d+ lần đã hẹn/)).toBeVisible()
     expect(
       within(evidence).getByText(/2 lần bạn ghi là thiếu năng lượng/),
     ).toBeVisible()
-    expect(within(evidence).getByText('Khó khăn hơn trước')).toBeVisible()
+    expect(
+      within(evidence).getByText('Cảm nhận: Khó khăn hơn trước'),
+    ).toBeVisible()
     expect(
       screen.getByText(/Hai bài sàng lọc đang đi theo hai hướng khác nhau/),
     ).toBeVisible()
@@ -1236,7 +1236,9 @@ describe('SupportPlan workspace', () => {
     const evidence = await screen.findByRole('group', {
       name: 'Những gì đã ghi nhận',
     })
-    expect(within(evidence).getByText('Khó khăn hơn trước')).toBeVisible()
+    expect(
+      within(evidence).getByText('Cảm nhận: Khó khăn hơn trước'),
+    ).toBeVisible()
     expect(
       screen.getByRole('radio', { name: /Dựa trên: Cảm nhận bạn đã chia sẻ/ }),
     ).toBeVisible()
@@ -1259,7 +1261,7 @@ describe('SupportPlan workspace', () => {
     expect(
       await screen.findByText(/Bạn đã xoá câu trả lời cho giai đoạn này/),
     ).toBeVisible()
-    expect(screen.queryByText('Khó khăn hơn trước')).toBeNull()
+    expect(screen.queryByText(/Khó khăn hơn trước/)).toBeNull()
   })
 
   it('offers keep only when Care does and names each reassessment state', async () => {
@@ -1278,7 +1280,7 @@ describe('SupportPlan workspace', () => {
       await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
     )
     expect(
-      await screen.findByText(/Bài kiểm tra lại cần được cập nhật/),
+      await screen.findByText(/Bài đánh giá lại cần được cập nhật/),
     ).toBeVisible()
     expect(screen.queryByText(/Bạn vẫn có thể giữ kế hoạch/)).toBeNull()
     expect(
@@ -1463,9 +1465,7 @@ describe('SupportPlan workspace', () => {
     await user.click(
       await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
     )
-    expect(
-      await screen.findByText(/9 trong 14 ngày gần nhất có ghi lại/),
-    ).toBeVisible()
+    expect(await screen.findByText(/9\/14 ngày có ghi lại/)).toBeVisible()
     expect(screen.getByText(/17\/10\/2026/)).toBeVisible()
     expect(
       screen.getByText('Chỉ để bạn tham khảo, không dùng cho gợi ý.'),
@@ -1503,10 +1503,10 @@ describe('SupportPlan workspace', () => {
       await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
     )
     expect(
-      await screen.findByText(/Bạn chưa làm bài kiểm tra lại/),
+      await screen.findByText(/Bạn chưa làm bài đánh giá lại/),
     ).toBeVisible()
     expect(
-      screen.getByRole('link', { name: 'Làm bài kiểm tra lại' }),
+      screen.getByRole('link', { name: 'Làm bài đánh giá lại' }),
     ).toHaveAttribute(
       'href',
       '/initial-check?purpose=reassessment&returnTo=plan-review',
@@ -2543,7 +2543,7 @@ describe('SupportPlan workspace replacement', () => {
     await user.click(screen.getByRole('button', { name: 'Xem phương án mới' }))
     await user.click(
       await screen.findByRole('button', {
-        name: 'So sánh với kế hoạch hiện tại',
+        name: 'Kiểm tra phương án này',
       }),
     )
     return screen.findByRole('button', { name: 'Chuyển sang phương án mới' })
@@ -2707,7 +2707,7 @@ describe('SupportPlan workspace replacement', () => {
     await user.click(propose)
     expect(await screen.findByRole('alert')).toHaveTextContent('Hãy thử lại')
     await user.click(propose)
-    await screen.findByRole('button', { name: 'So sánh với kế hoạch hiện tại' })
+    await screen.findByRole('button', { name: 'Kiểm tra phương án này' })
     const [first, second] = api.proposeNativeSupportPlanDraft.mock.calls
     expect(first[0]).toBe(reassessmentId)
     expect(second).toEqual(first)
@@ -2730,7 +2730,7 @@ describe('SupportPlan workspace replacement', () => {
     )
     expect(api.getCurrentSupportPlanActions).toHaveBeenCalledTimes(reads)
     expect(
-      screen.getByRole('group', { name: 'So sánh hai phương án' }),
+      screen.getByRole('list', { name: 'Hoạt động trong phương án mới' }),
     ).toBeVisible()
   })
 })

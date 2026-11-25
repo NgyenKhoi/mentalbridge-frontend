@@ -32,6 +32,31 @@ export function planActions(plan: SupportPlanV3) {
   return (plan.focuses ?? []).flatMap((focus) => focus.actions ?? [])
 }
 
+/** What a replacement plan keeps, adds and drops, by activity title (draft actions get new ids). */
+export function replacementDiff(current: SupportPlanV3, next: SupportPlanV3) {
+  const currentTitles = new Set(
+    planActions(current).map((action) => action.presentation.title),
+  )
+  const nextActions = planActions(next).map((action) => ({
+    actionId: action.actionId,
+    title: action.presentation.title,
+    kept: currentTitles.has(action.presentation.title),
+  }))
+  const nextTitles = new Set(nextActions.map((action) => action.title))
+  const removed = [...currentTitles].filter((title) => !nextTitles.has(title))
+  const added = nextActions.filter((action) => !action.kept).length
+  const summary =
+    added === 0 && removed.length === 0
+      ? `Phương án mới giữ nguyên ${nextActions.length} hoạt động đang dùng`
+      : `Phương án mới ${[
+          added > 0 ? `thêm ${added} hoạt động mới` : '',
+          removed.length > 0 ? `bỏ ${removed.length} hoạt động` : '',
+        ]
+          .filter(Boolean)
+          .join(', ')}`
+  return { next: nextActions, removed, summary }
+}
+
 function validTimezone(timezone: unknown): timezone is string {
   if (typeof timezone !== 'string' || !timezone) return false
   try {
@@ -95,6 +120,25 @@ export function localDateIn(timezone: string, now = new Date()) {
   }).formatToParts(now)
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]))
   return `${value.year}-${value.month}-${value.day}`
+}
+
+/** Care lets a REVIEW_DUE plan continue only after a REASSESSMENT completed on or after the review date in the plan timezone. */
+export function reassessedForReview(
+  latest:
+    | Readonly<{
+        purpose: 'INITIAL_CHECK' | 'REASSESSMENT'
+        completedAt: string
+      }>
+    | null
+    | undefined,
+  reviewDueOn: string | null | undefined,
+  timezone: string,
+) {
+  return Boolean(
+    latest?.purpose === 'REASSESSMENT' &&
+    reviewDueOn &&
+    localDateIn(timezone, new Date(latest.completedAt)) >= reviewDueOn,
+  )
 }
 
 /** Milliseconds until the next local calendar day starts in the plan timezone. */
@@ -689,3 +733,7 @@ export function periodCounts(
 /** "30/10" from a local date. */
 export const shortDate = (date: string) =>
   `${Number(date.slice(8, 10))}/${Number(date.slice(5, 7))}`
+
+// shortcut: Care's disclaimer still names the internal "SupportPlan"; drop once Care sends the Vietnamese name.
+export const planDisclaimer = (text: string) =>
+  text.replace(/SupportPlan/g, 'Kế hoạch hỗ trợ')

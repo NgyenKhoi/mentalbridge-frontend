@@ -18,7 +18,7 @@ import type {
   SupportPlanV3,
 } from '../api/support-plan-contract'
 import { REVIEW_REASSESSMENT_HREF } from './workspace-links'
-import { planActions } from './workspace-model'
+import { planActions, replacementDiff } from './workspace-model'
 
 type Review = AdaptiveSupportPlanReview
 type Summary = NonNullable<Review['reassessment']['summary']>
@@ -36,9 +36,16 @@ type Props = Readonly<{
   onRefreshPlan: () => Promise<void> | void
   /** Prepares a replacement draft from the reassessment result; the plan changes only after the owner confirms. */
   onProposeReplacement?: () => void
+  /** Shows the prepared replacement where it is checked and applied. */
+  onOpenAlternatives?: () => void
 }>
 
+/** Choices the page adds beside Care's options; they only navigate or prepare a draft, never apply. */
+const NEW_PLAN = 'local:new-plan'
+const SPECIALIST = 'local:specialist'
+
 const domain = { PHQ9: 'Dấu hiệu trầm cảm', GAD7: 'Dấu hiệu lo âu' } as const
+const shortDomain = { PHQ9: 'Trầm cảm', GAD7: 'Lo âu' } as const
 const direction = {
   DECREASED: 'ít hơn lần trước một chút',
   INCREASED: 'nhiều hơn lần trước một chút',
@@ -75,7 +82,7 @@ const unavailableReason = {
   NO_SUPPORTING_PATTERN: 'chưa có đủ ghi nhận lặp lại để gợi ý',
   NO_TIME_PREFERENCE: 'bạn chưa chọn khung giờ mong muốn',
   NO_ADMITTED_CANDIDATE: 'chưa có lựa chọn phù hợp',
-  REASSESSMENT_REQUIRED: 'cần bài kiểm tra lại của giai đoạn này',
+  REASSESSMENT_REQUIRED: 'cần bài đánh giá lại của giai đoạn này',
   ADMISSION_UNAVAILABLE: 'chưa kiểm tra được lúc này',
   CURRENT_PLAN_NOT_ADMISSIBLE: 'kế hoạch hiện tại không còn phù hợp',
   PLAN_PAUSED: 'kế hoạch đang tạm dừng',
@@ -218,6 +225,24 @@ function ReviewMessage({
 }
 
 function Screening({ summary }: Readonly<{ summary: Summary }>) {
+  const levels = summary.screening.trends.flatMap((trend) =>
+    trend.state === 'AVAILABLE' && trend.current
+      ? [
+          `${shortDomain[trend.instrument]}: ${levelLabels[trend.current.screeningLevel]}`,
+        ]
+      : [],
+  )
+  return (
+    <>
+      {levels.length > 0 && (
+        <p className="mbw-evidence-value">{levels.join(' · ')}</p>
+      )}
+      <ScreeningLines summary={summary} />
+    </>
+  )
+}
+
+function ScreeningLines({ summary }: Readonly<{ summary: Summary }>) {
   return (
     <ul className="mbw-evidence-lines">
       {summary.screening.trends.map((trend) => (
@@ -242,7 +267,7 @@ function Screening({ summary }: Readonly<{ summary: Summary }>) {
 
 function SelfReportText({ report }: Readonly<{ report?: SelfReport }>) {
   if (report?.source)
-    return <p>{experience[report.source.currentExperience]}</p>
+    return <p>Cảm nhận: {experience[report.source.currentExperience]}</p>
   if (report?.unavailableReason === 'SOURCE_DELETED')
     return (
       <p className="mbw-quiet">
@@ -282,13 +307,18 @@ function EmotionContext() {
       {progress === undefined ? (
         <span className="mbw-skeleton mbw-skeleton-line" aria-hidden="true" />
       ) : progress && window14 ? (
-        <p>
-          {window14.checkedInDays} trong 14 ngày gần nhất có ghi lại, tính đến{' '}
-          {new Date(`${progress.asOfLocalDate}T00:00:00`).toLocaleDateString(
-            'vi-VN',
-          )}
-          .
-        </p>
+        <>
+          <p className="mbw-evidence-value">
+            {window14.checkedInDays}/14 ngày có ghi lại
+          </p>
+          <p className="mbw-quiet">
+            Tính đến{' '}
+            {new Date(`${progress.asOfLocalDate}T00:00:00`).toLocaleDateString(
+              'vi-VN',
+            )}
+            .
+          </p>
+        </>
       ) : (
         <p className="mbw-quiet">Tạm thời chưa đọc được check-in cảm xúc.</p>
       )}
@@ -315,12 +345,14 @@ function Evidence({ review }: Readonly<{ review: Review }>) {
     >
       <section className="mbw-evidence-item" aria-labelledby="mbw-ev-pace">
         <h3 id="mbw-ev-pace">Nhịp thực hiện</h3>
-        <p>
-          {period.completedCount} lần đã làm, {period.skippedCount} lần bỏ qua
+        <p className="mbw-evidence-value">
+          Đã làm {period.completedCount}/{period.scheduledCount} lần đã hẹn
+        </p>
+        <p className="mbw-quiet">
+          {period.skippedCount} lần bỏ qua
           {period.openCount > 0
-            ? `, ${period.openCount} lần chưa ghi lại`
-            : ''}{' '}
-          trong {period.scheduledCount} lần đã hẹn.
+            ? ` · ${period.openCount} lần chưa ghi lại`
+            : ''}
         </p>
         {barriers.map((pattern) => (
           <p key={pattern.patternId} className="mbw-quiet">
@@ -335,11 +367,6 @@ function Evidence({ review }: Readonly<{ review: Review }>) {
         ))}
       </section>
 
-      <section className="mbw-evidence-item" aria-labelledby="mbw-ev-self">
-        <h3 id="mbw-ev-self">Cảm nhận của bạn</h3>
-        <SelfReportText report={selfReport(review)} />
-      </section>
-
       <section className="mbw-evidence-item" aria-labelledby="mbw-ev-screen">
         <h3 id="mbw-ev-screen">Bài sàng lọc</h3>
         {summary ? (
@@ -349,35 +376,38 @@ function Evidence({ review }: Readonly<{ review: Review }>) {
         )}
       </section>
 
+      <EmotionContext />
+
       <section className="mbw-evidence-item" aria-labelledby="mbw-ev-journal">
-        <h3 id="mbw-ev-journal">Nhật ký</h3>
+        <h3 id="mbw-ev-journal">Nhật ký và cảm nhận</h3>
         {!journal ? (
           <p className="mbw-quiet">Chưa có trong phần xem lại này.</p>
         ) : journal.state === 'UNAVAILABLE' ? (
           <p className="mbw-quiet">Tạm thời chưa đọc được nhật ký.</p>
         ) : journal.dataCoverage ? (
-          <p className={journal.state === 'AVAILABLE' ? '' : 'mbw-quiet'}>
-            {journal.dataCoverage.currentPeriodJournalEntryCount} bài viết trong
-            giai đoạn này
-            {journal.dataCoverage.sufficientForComparison
-              ? '.'
-              : ', chưa đủ để so sánh với trước.'}
-          </p>
+          <>
+            <p className="mbw-evidence-value">
+              {journal.dataCoverage.currentPeriodJournalEntryCount} bài viết
+              trong giai đoạn này
+            </p>
+            {!journal.dataCoverage.sufficientForComparison && (
+              <p className="mbw-quiet">Chưa đủ để so sánh với trước.</p>
+            )}
+          </>
         ) : (
           <p className="mbw-quiet">Chưa đủ bài viết để so sánh với trước.</p>
         )}
+        <SelfReportText report={selfReport(review)} />
       </section>
-
-      <EmotionContext />
     </div>
   )
 }
 
 const reassessmentNote = {
-  NOT_STARTED: 'Bạn chưa làm bài kiểm tra lại cho giai đoạn này.',
-  INCOMPLETE: 'Bài kiểm tra lại của giai đoạn này chưa hoàn tất.',
-  STALE: 'Bài kiểm tra lại cần được cập nhật.',
-  UNAVAILABLE: 'Tạm thời chưa đọc được bài kiểm tra lại.',
+  NOT_STARTED: 'Bạn chưa làm bài đánh giá lại cho giai đoạn này.',
+  INCOMPLETE: 'Bài đánh giá lại của giai đoạn này chưa hoàn tất.',
+  STALE: 'Bài đánh giá lại cần được cập nhật.',
+  UNAVAILABLE: 'Tạm thời chưa đọc được bài đánh giá lại.',
 } as const
 
 export default function AdaptiveReview({
@@ -388,6 +418,7 @@ export default function AdaptiveReview({
   onDiscardDraft,
   onRefreshPlan,
   onProposeReplacement,
+  onOpenAlternatives,
 }: Props) {
   const [review, setReview] = useState<Review>()
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>(
@@ -625,6 +656,13 @@ export default function AdaptiveReview({
   const currentTitles = planActions(plan).map(
     (action) => action.presentation.title,
   )
+  const offerNewPlan =
+    reassessmentState === 'AVAILABLE' && !!onProposeReplacement
+  // A draft no Care option prepared here is the plan made from the reassessment.
+  const proposal = draftOptionId ? undefined : pendingDraft
+  const offerSpecialist = !review.options.some(
+    (option) => option.kind === 'PROFESSIONAL_SUPPORT_NEXT_STEP',
+  )
 
   return (
     <div className="mbw-review" ref={reviewRef} tabIndex={-1}>
@@ -644,28 +682,11 @@ export default function AdaptiveReview({
           <p>
             {reassessmentNote[reassessmentState]}{' '}
             {canKeep ? 'Bạn vẫn có thể giữ kế hoạch. ' : ''}Để xem phương án đổi
-            hoạt động, hãy làm bài kiểm tra lại trước.
+            hoạt động, hãy làm bài đánh giá lại trước.
           </p>
           <Link className="mbw-text-link" href={REVIEW_REASSESSMENT_HREF}>
-            Làm bài kiểm tra lại
+            Làm bài đánh giá lại
           </Link>
-        </div>
-      )}
-
-      {reassessmentState === 'AVAILABLE' && onProposeReplacement && (
-        <div className="mbw-review-note">
-          <p>
-            Bạn đã làm bài kiểm tra lại. Phương án mới dựa trên kết quả đó; kế
-            hoạch hiện tại không đổi cho đến khi bạn xác nhận.
-          </p>
-          <button
-            type="button"
-            className="mbw-secondary"
-            disabled={locked}
-            onClick={onProposeReplacement}
-          >
-            Lập kế hoạch mới từ kết quả đánh giá
-          </button>
         </div>
       )}
 
@@ -682,12 +703,31 @@ export default function AdaptiveReview({
         </p>
       )}
 
-      {review.options.length > 0 && !showCompare && (
+      {(review.options.length > 0 || offerNewPlan) && !showCompare && (
         <fieldset
           className="mbw-options"
           disabled={submitting || loadState !== 'ready' || stale !== undefined}
         >
           <legend>Bạn muốn đi tiếp thế nào?</legend>
+          {offerNewPlan && (
+            <label className="mbw-option">
+              <input
+                type="radio"
+                name={`adaptive-option-${review.supportPlanId}`}
+                value={NEW_PLAN}
+                checked={choice === NEW_PLAN}
+                onChange={() => choose(NEW_PLAN)}
+              />
+              <span>
+                <strong>Lập kế hoạch mới</strong>
+                <span className="mbw-quiet">
+                  {proposal
+                    ? 'Đã có phương án mới, chưa áp dụng.'
+                    : 'Dựa trên kết quả bài đánh giá lại của bạn.'}
+                </span>
+              </span>
+            </label>
+          )}
           {review.options.map((option) => {
             // A source the user never gave is not shown as a reason.
             const why = option.evidenceRefs
@@ -713,6 +753,12 @@ export default function AdaptiveReview({
                 />
                 <span>
                   <strong>{optionTitle(option, review)}</strong>
+                  {option.executionKind === 'CONTINUE_CYCLE' && (
+                    <span className="mbw-quiet">
+                      Tiếp tục {currentTitles.length} hoạt động hiện tại thêm
+                      một chu kỳ.
+                    </span>
+                  )}
                   {(option.changes ?? []).map((change) => (
                     <span key={change.field}>{changeText(change)}</span>
                   ))}
@@ -735,7 +781,74 @@ export default function AdaptiveReview({
               </label>
             )
           })}
+          {offerSpecialist && (
+            <label className="mbw-option">
+              <input
+                type="radio"
+                name={`adaptive-option-${review.supportPlanId}`}
+                value={SPECIALIST}
+                checked={choice === SPECIALIST}
+                onChange={() => choose(SPECIALIST)}
+              />
+              <span>
+                <strong>Cần chuyên gia hỗ trợ</strong>
+                <span className="mbw-quiet">
+                  Bạn tự chọn chuyên gia và tự đặt lịch.
+                </span>
+              </span>
+            </label>
+          )}
         </fieldset>
+      )}
+
+      {choice === NEW_PLAN && (
+        <div ref={checkRef} className="mbw-check" aria-live="polite">
+          <p>
+            <strong>Bạn chọn:</strong> Lập kế hoạch mới.
+          </p>
+          <p className="mbw-quiet">
+            {proposal
+              ? `${replacementDiff(plan, proposal).summary}. Kế hoạch hiện tại không đổi cho đến khi bạn áp dụng.`
+              : 'Bạn sẽ xem phương án mới trước. Kế hoạch hiện tại không đổi cho đến khi bạn xác nhận.'}
+          </p>
+          <div className="mbw-actions">
+            {proposal && onOpenAlternatives ? (
+              <button
+                type="button"
+                className="mbw-primary"
+                onClick={onOpenAlternatives}
+              >
+                Xem phương án mới
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="mbw-primary"
+                disabled={locked}
+                onClick={onProposeReplacement}
+              >
+                Lập kế hoạch mới từ kết quả đánh giá
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {choice === SPECIALIST && (
+        <div ref={checkRef} className="mbw-check" aria-live="polite">
+          <p>
+            <strong>Bạn chọn:</strong> Cần chuyên gia hỗ trợ.
+          </p>
+          <p className="mbw-quiet">
+            Bạn tự chọn chuyên gia và tự xác nhận lịch hẹn. Kế hoạch không tự
+            đặt lịch.
+          </p>
+          <div className="mbw-actions">
+            <Link className="mbw-primary" href="/specialists">
+              Tìm chuyên gia
+            </Link>
+          </div>
+        </div>
       )}
 
       {showCompare && draft && (

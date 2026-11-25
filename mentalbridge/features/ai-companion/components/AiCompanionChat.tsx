@@ -56,21 +56,21 @@ const errorCopy: Record<string, string> = {
   CHAT_TOKEN_BUDGET_EXHAUSTED:
     'Giới hạn sử dụng an toàn hôm nay đã đạt mức tối đa.',
   CHAT_PROVIDER_UNAVAILABLE:
-    'AI Companion đang gián đoạn. Nhật ký, kế hoạch và mục “Cần trợ giúp ngay” vẫn hoạt động độc lập.',
+    'Mầm đang gián đoạn. Nhật ký, kế hoạch và mục “Cần trợ giúp ngay” vẫn hoạt động độc lập.',
   CHAT_CONTEXT_UNAVAILABLE:
     'Không thể xác minh bối cảnh đã cho phép nên yêu cầu đã dừng an toàn.',
   COMPANION_OUTCOME_UNKNOWN:
     'Chưa thể xác nhận lần gửi trước. Hãy thử gửi lại; nội dung sẽ không bị lặp.',
-  COMPANION_UNAVAILABLE: 'AI Companion tạm thời không khả dụng.',
+  COMPANION_UNAVAILABLE: 'Mầm tạm thời chưa trả lời được.',
 }
 
 const friendlyError = (error: unknown) =>
   error instanceof CompanionBrowserError
     ? (errorCopy[error.code] ?? error.message)
-    : 'AI Companion tạm thời không khả dụng.'
+    : 'Mầm tạm thời chưa trả lời được.'
 
 const quotaCopy = (quota: CompanionQuota | null) => {
-  if (!quota) return 'Lượt dùng còn lại sẽ hiện sau câu trả lời đầu tiên.'
+  if (!quota) return ''
   if (quota.plan === 'PREMIUM')
     return 'Premium không hiển thị giới hạn trả lời hằng ngày; giới hạn token, tốc độ và sử dụng hợp lý vẫn áp dụng.'
   return `Còn ${String(quota.remaining)} lượt · đặt lại ${new Intl.DateTimeFormat(
@@ -525,7 +525,7 @@ export default function AiCompanionChat({
   if (loading)
     return (
       <main className={styles.loading} aria-busy="true">
-        Đang tải AI Companion…
+        Đang tải cuộc trò chuyện với Mầm…
       </main>
     )
 
@@ -534,7 +534,7 @@ export default function AiCompanionChat({
       <aside className={styles.sidebar} aria-label="Danh sách hội thoại">
         <div className={styles.sidebarHeader}>
           <div>
-            <span>AI Companion</span>
+            <span>Mầm · bạn đồng hành AI</span>
             <h1>Hội thoại</h1>
           </div>
           <button type="button" onClick={() => void createConversation()}>
@@ -624,7 +624,7 @@ export default function AiCompanionChat({
         </div>
       </aside>
 
-      <section className={styles.chat} aria-label="AI Companion">
+      <section className={styles.chat} aria-label="Trò chuyện với Mầm">
         <header className={styles.chatHeader}>
           <div className={styles.chatIdentity}>
             <button
@@ -641,10 +641,10 @@ export default function AiCompanionChat({
               <SparkIcon />
             </span>
             <div>
-              <strong>{active?.title ?? 'AI Companion'}</strong>
+              <strong>{active?.title ?? 'Trò chuyện với Mầm'}</strong>
               <small>
                 {active
-                  ? `Bắt đầu ${formatConversationTime(active.createdAt)} · ${quotaCopy(quota)}`
+                  ? `Bắt đầu ${formatConversationTime(active.createdAt)}${quota ? ` · ${quotaCopy(quota)}` : ''}`
                   : 'Một không gian riêng để bạn chia sẻ'}
               </small>
             </div>
@@ -786,9 +786,7 @@ export default function AiCompanionChat({
                     </span>
                     <div className={styles.messageBubble}>
                       <header>
-                        <strong>
-                          {item.role === 'USER' ? 'Bạn' : 'AI Companion'}
-                        </strong>
+                        <strong>{item.role === 'USER' ? 'Bạn' : 'Mầm'}</strong>
                         <time dateTime={item.createdAt}>
                           {new Intl.DateTimeFormat('vi-VN', {
                             hour: '2-digit',
@@ -847,7 +845,7 @@ export default function AiCompanionChat({
                     className={`${styles.messageBubble} ${styles.thinking}`}
                     role="status"
                   >
-                    <span>AI Companion đang suy nghĩ</span>
+                    <span>Mầm đang suy nghĩ</span>
                     <i aria-hidden="true">
                       <i />
                       <i />
@@ -878,10 +876,11 @@ export default function AiCompanionChat({
                 <button
                   type="button"
                   onClick={() => setContextVisibility(true)}
-                  aria-label={`Mở nguồn ngữ cảnh, ${String(contextCount)} nguồn đang bật`}
                 >
                   <InfoIcon />
-                  Ngữ cảnh: {contextCount} nguồn
+                  {contextCount > 0
+                    ? `Mầm đang dùng ${String(contextCount)} nguồn bạn cho phép`
+                    : 'Chọn điều Mầm được biết về bạn'}
                 </button>
               </div>
               <div className={styles.composerBox}>

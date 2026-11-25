@@ -139,13 +139,13 @@ describe('AuthenticatedShell', () => {
       screen.getByRole('navigation', { name: 'Điều hướng chính' }),
     )
     expect(
-      navigationMenu.getByRole('link', { name: 'AI Companion' }),
+      navigationMenu.getByRole('link', { name: 'Trò chuyện với Mầm' }),
     ).toHaveAttribute('href', '/ai-companion')
     expect(
       navigationMenu.getByRole('link', { name: 'Tin nhắn' }),
     ).toHaveAttribute('href', '/messages')
     expect(
-      within(screen.getByRole('banner')).getByText('AI Companion'),
+      within(screen.getByRole('banner')).getByText('Trò chuyện với Mầm'),
     ).toBeVisible()
   })
 
