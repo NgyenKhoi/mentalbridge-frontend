@@ -1,6 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import Link from 'next/link'
 import { createPortal } from 'react-dom'
 import { useRouter, usePathname } from 'next/navigation'
@@ -32,8 +39,10 @@ import {
   type ChatMessage,
 } from '../api/chat-browser-client'
 import {
+  appointmentCreditLabel,
   appointmentModalityLabel,
   appointmentStatusLabel,
+  canOpenChat,
 } from '../model/appointment-view'
 import AppointmentChatPanel from './AppointmentChatPanel'
 import styles from './SpecialistChatView.module.css'
@@ -93,7 +102,7 @@ export interface EmrSessionData {
     description?: string
     isDone?: boolean
   }> | null
-  creditsUsed: number
+  creditLabel: string
 }
 
 interface SpecialistChatViewProps {
@@ -171,6 +180,17 @@ function calculateDurationMinutes(startIso: string, endIso: string) {
   }
 }
 
+// Below 768px the info drawer covers the chat, so it starts closed there.
+const NARROW_QUERY = '(max-width: 767px)'
+function subscribeNarrow(onChange: () => void) {
+  const query = window.matchMedia?.(NARROW_QUERY)
+  query?.addEventListener('change', onChange)
+  return () => query?.removeEventListener('change', onChange)
+}
+function isNarrowViewport() {
+  return window.matchMedia?.(NARROW_QUERY).matches ?? false
+}
+
 const NOT_OPEN_FALLBACK = 'Chưa có nội dung trò chuyện để xem.'
 
 // Calm reason and time for a conversation whose history cannot be opened yet.
@@ -178,7 +198,6 @@ function chatNotOpenNotice(
   appointment: Appointment,
   eligibility: AppointmentChatEligibility,
 ) {
-  if (appointment.status === 'REQUESTED') return 'Chờ chuyên gia xác nhận lịch'
   // The waiting room opens 10 minutes before the appointment (see AppointmentChatPanel).
   const opensAt = Date.parse(eligibility.scheduledStartAt) - 10 * 60_000
   if (eligibility.phase === 'TOO_EARLY' && Number.isFinite(opensAt)) {
@@ -203,6 +222,11 @@ export default function SpecialistChatView({
 }: SpecialistChatViewProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const isNarrow = useSyncExternalStore(
+    subscribeNarrow,
+    isNarrowViewport,
+    () => false,
+  )
 
   // State
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -245,18 +269,14 @@ export default function SpecialistChatView({
         viewerRole === 'SPECIALIST'
           ? await appointmentBrowserClient.assigned()
           : await appointmentBrowserClient.list()
-      const items = response.items || []
+      // Only conversations that can be opened are listed.
+      const items = (response.items || []).filter(canOpenChat)
       setAppointments(items)
 
       // Set initial selected appointment if none or if missing
       if (!selectedId && items.length > 0) {
-        // Find first completed or confirmed appointment
         const match =
-          items.find((a) => a.id === initialAppointmentId) ||
-          items.find(
-            (a) => a.status === 'COMPLETED' || a.status === 'SESSION_ENDED',
-          ) ||
-          items[0]
+          items.find((a) => a.id === initialAppointmentId) || items[0]
         if (match) setSelectedId(match.id)
       }
     } catch (err) {
@@ -511,7 +531,7 @@ export default function SpecialistChatView({
         sessionSummary?.progressSummary ||
         null,
       nextSteps: rawSteps,
-      creditsUsed: apt.creditState === 'CONSUMED' || apt.heldCreditId ? 1 : 0,
+      creditLabel: appointmentCreditLabel(apt),
     }
   }, [selectedAppointment, sessionSummary])
 
@@ -525,7 +545,10 @@ export default function SpecialistChatView({
     !!selectedAppointment &&
     ['CONFIRMED', 'IN_PROGRESS'].includes(selectedAppointment.status)
   const isEmrDrawerOpen =
-    emrDrawerOverride ?? (!!selectedAppointment && !isLiveSession)
+    emrDrawerOverride ?? (!!selectedAppointment && !isLiveSession && !isNarrow)
+  const nextSessionHref = selectedAppointment
+    ? `/specialists?specialist=${encodeURIComponent(selectedAppointment.specialistAccountId)}`
+    : '/specialists'
   const composerDisabledReason = isSessionEnded
     ? 'Phiên tư vấn đã kết thúc • Khung chat chỉ đọc'
     : 'Khung chat hiện không khả dụng cho phiên này'
@@ -795,10 +818,12 @@ export default function SpecialistChatView({
 
               {/* Action Toolbar */}
               <div className={styles.headerActions}>
-                <Link href="/specialists" className={styles.btnPrimary}>
-                  <CalendarDays size={14} />
-                  <span>Đặt lịch tái khám</span>
-                </Link>
+                {viewerRole !== 'SPECIALIST' && (
+                  <Link href={nextSessionHref} className={styles.btnPrimary}>
+                    <CalendarDays size={14} />
+                    <span>Đặt buổi tiếp theo</span>
+                  </Link>
+                )}
 
                 {/* Split-Panel Drawer Toggle Button (Theo mẫu Stitch design) */}
                 <button
@@ -878,16 +903,9 @@ export default function SpecialistChatView({
                         </span>
                       </div>
                       <span className="text-slate-500 text-[11px]">
-                        {emrData.creditsUsed > 0 ? (
-                          <span>
-                            Đã dùng:{' '}
-                            <strong className="text-slate-700 font-semibold">
-                              {emrData.creditsUsed} lượt tư vấn
-                            </strong>
-                          </span>
-                        ) : (
-                          <span>Không dùng lượt tư vấn</span>
-                        )}
+                        <strong className="text-slate-700 font-semibold">
+                          {emrData.creditLabel}
+                        </strong>
                       </span>
                     </div>
                   </div>
@@ -1077,16 +1095,18 @@ export default function SpecialistChatView({
                           <FileText size={14} className="text-brand-600" />
                           <span>Xem thông tin buổi hẹn</span>
                         </button>
-                        <Link
-                          href="/specialists"
-                          className={`${styles.btnSecondary} text-brand-700 bg-brand-50 border-brand-200`}
-                        >
-                          <CalendarDays
-                            size={14}
-                            className="text-emerald-600"
-                          />
-                          <span>Tái khám</span>
-                        </Link>
+                        {viewerRole !== 'SPECIALIST' && (
+                          <Link
+                            href={nextSessionHref}
+                            className={`${styles.btnSecondary} text-brand-700 bg-brand-50 border-brand-200`}
+                          >
+                            <CalendarDays
+                              size={14}
+                              className="text-emerald-600"
+                            />
+                            <span>Đặt buổi tiếp theo</span>
+                          </Link>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1237,12 +1257,10 @@ export default function SpecialistChatView({
               )}
             </div>
 
-            {/* Card 4: Lượt tư vấn đã dùng */}
+            {/* Card 4: trạng thái buổi tư vấn */}
             <div className={styles.bentoCard}>
               <span className="text-xs font-semibold text-emerald-700">
-                {emrData.creditsUsed > 0
-                  ? 'Đã dùng 1 lượt tư vấn'
-                  : 'Không dùng lượt tư vấn'}
+                {emrData.creditLabel}
               </span>
             </div>
           </>

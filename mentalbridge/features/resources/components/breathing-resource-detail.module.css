@@ -765,9 +765,10 @@
 
 .confirmDialog {
   width: min(430px, calc(100vw - 32px));
-  padding: 24px;
   border-radius: 20px;
-  background: #fff;
+}
+.confirmContent {
+  padding: 24px;
   color: var(--breath-ink);
 }
 .confirmDialog h2 {
@@ -781,7 +782,7 @@
   font-size: 13px;
   line-height: 1.6;
 }
-.confirmDialog > div {
+.confirmActions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;

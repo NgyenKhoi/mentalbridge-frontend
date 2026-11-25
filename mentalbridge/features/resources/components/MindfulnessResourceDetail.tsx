@@ -542,18 +542,27 @@ export function MindfulnessResourceDetail({
         describedBy="mindfulness-confirm-description"
         className={styles.confirmDialog}
       >
-        <h2 id="mindfulness-confirm-title">Ghi nhận bài tập?</h2>
-        <p id="mindfulness-confirm-description">
-          MentalBridge sẽ lưu lần thực hành này vào tiến độ Tài nguyên. Bạn vẫn
-          có thể quay lại tập vào lúc khác.
-        </p>
-        <div>
-          <button type="button" onClick={() => onConfirmationOpenChange(false)}>
-            Để sau
-          </button>
-          <button type="button" disabled={saving} onClick={onConfirmCompletion}>
-            {saving ? 'Đang lưu…' : 'Xác nhận hoàn thành'}
-          </button>
+        <div className={styles.confirmContent}>
+          <h2 id="mindfulness-confirm-title">Ghi nhận bài tập?</h2>
+          <p id="mindfulness-confirm-description">
+            MentalBridge sẽ lưu lần thực hành này vào tiến độ Tài nguyên. Bạn
+            vẫn có thể quay lại tập vào lúc khác.
+          </p>
+          <div className={styles.confirmActions}>
+            <button
+              type="button"
+              onClick={() => onConfirmationOpenChange(false)}
+            >
+              Để sau
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={onConfirmCompletion}
+            >
+              {saving ? 'Đang lưu…' : 'Xác nhận hoàn thành'}
+            </button>
+          </div>
         </div>
       </Dialog>
     </main>

@@ -23,6 +23,9 @@ import type {
   SpecialistDiscoveryItem,
   SpecialistDiscoveryPage,
 } from '@/lib/consultation/consultation-validation'
+import AccountAvatar, {
+  type AccountAvatarSource,
+} from '@/features/community/components/AccountAvatar'
 import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
 import type { VerifiedCredentialBadge } from '@/features/specialist-profile/api/credential-validation'
 import styles from './SpecialistDetailDialog.module.css'
@@ -113,7 +116,7 @@ function bookingError(error: unknown) {
     return 'Không thể gửi yêu cầu đặt lịch. Vui lòng thử lại.'
   const messages: Record<string, string> = {
     PAID_PLAN_REQUIRED: 'Bạn cần gói Plus hoặc Premium để đặt lịch.',
-    APPOINTMENT_CREDIT_UNAVAILABLE: 'Bạn hiện không còn lượt tư vấn phù hợp.',
+    APPOINTMENT_CREDIT_UNAVAILABLE: 'Bạn hiện không còn buổi tư vấn phù hợp.',
     APPOINTMENT_RESERVATION_LIMIT_REACHED:
       'Bạn đã đạt giới hạn lịch đang hoạt động của gói.',
     APPOINTMENT_SLOT_UNAVAILABLE:
@@ -156,7 +159,7 @@ function bookingBlock(
     }
   if (availableCredits === 0)
     return {
-      text: 'Bạn đã dùng hết lượt tư vấn.',
+      text: 'Bạn đã dùng hết buổi tư vấn.',
       href: '/subscription',
       label: 'Xem gói dịch vụ',
     }
@@ -165,6 +168,7 @@ function bookingBlock(
 
 type Props = Readonly<{
   item: SpecialistDiscoveryItem | null
+  avatar?: AccountAvatarSource | null
   badges: VerifiedCredentialBadge[]
   loading: boolean
   error: string
@@ -180,6 +184,7 @@ type Props = Readonly<{
 }>
 
 export default function SpecialistDetailDialog({
+  avatar = null,
   item,
   badges,
   loading,
@@ -341,7 +346,10 @@ export default function SpecialistDetailDialog({
       <div className={styles.shell}>
         <header className={styles.header}>
           <div className={styles.avatar} aria-hidden="true">
-            {item ? initials(item.displayName) : 'MB'}
+            <AccountAvatar
+              avatar={avatar}
+              fallback={item ? initials(item.displayName) : 'MB'}
+            />
           </div>
           <div className={styles.heading}>
             <h2 id="specialist-detail-title">
@@ -432,14 +440,14 @@ export default function SpecialistDetailDialog({
                 </div>
                 <div>
                   <dt>Chi phí</dt>
-                  <dd>1 lượt tư vấn theo gói hiện tại</dd>
+                  <dd>1 buổi tư vấn theo gói hiện tại</dd>
                 </div>
                 <div>
                   <dt>Quyền lợi</dt>
                   <dd>
                     {availableCredits === null
-                      ? 'Kiểm tra lượt theo gói khi gửi yêu cầu'
-                      : `${availableCredits} lượt tư vấn khả dụng theo gói`}
+                      ? 'Kiểm tra số buổi theo gói khi gửi yêu cầu'
+                      : `${availableCredits} buổi tư vấn khả dụng theo gói`}
                   </dd>
                 </div>
               </dl>
@@ -533,10 +541,6 @@ export default function SpecialistDetailDialog({
                   <div>
                     <dt>Kinh nghiệm</dt>
                     <dd>{item.yearsOfExperience} năm</dd>
-                  </div>
-                  <div>
-                    <dt>Phương pháp</dt>
-                    <dd>Chưa được cung cấp riêng</dd>
                   </div>
                   <div>
                     <dt>Ngôn ngữ trao đổi</dt>
@@ -711,8 +715,8 @@ export default function SpecialistDetailDialog({
                       : 'Chưa có lịch trống'}{' '}
                     ·{' '}
                     {availableCredits === null
-                      ? 'Kiểm tra lượt theo gói khi đặt'
-                      : `${availableCredits} lượt khả dụng`}
+                      ? 'Kiểm tra số buổi theo gói khi đặt'
+                      : `${availableCredits} buổi khả dụng`}
                   </p>
                 </>
               ) : (

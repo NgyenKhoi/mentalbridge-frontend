@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import {
+  appointmentCreditLabel,
   appointmentModalityLabel,
   appointmentTimingCopy,
+  canOpenChat,
   matchesAppointmentFilter,
   nextAppointment,
   orderAppointmentsForDisplay,
@@ -114,6 +116,62 @@ describe('appointment view', () => {
       newerHistory.id,
       olderHistory.id,
     ])
+  })
+
+  it('keeps an ended session active only until its outcome is known', () => {
+    const pending = appointment({
+      id: 'p',
+      status: 'SESSION_ENDED',
+      scheduledStartAt: '2026-10-04T07:00:00Z',
+    })
+    const settled = appointment({
+      id: 's',
+      status: 'SESSION_ENDED',
+      sessionOutcome: 'USER_NO_SHOW',
+      scheduledStartAt: '2026-10-05T07:00:00Z',
+    })
+    const completed = appointment({
+      id: 'c',
+      status: 'COMPLETED',
+      scheduledStartAt: '2026-10-01T07:00:00Z',
+    })
+
+    expect(
+      orderAppointmentsForDisplay([completed, settled, pending]).map(
+        (item) => item.id,
+      ),
+    ).toEqual(['p', 's', 'c'])
+  })
+
+  it('words the credit the same way for every viewer', () => {
+    const label = (creditState: Appointment['creditState']) =>
+      appointmentCreditLabel(appointment({ creditState }))
+
+    expect(label('CONSUMED')).toBe('Đã dùng 1 buổi tư vấn')
+    expect(label('HELD')).toBe('Buổi tư vấn đang được giữ cho lịch hẹn')
+    expect(label('AVAILABLE')).toBe('Buổi tư vấn đã được hoàn lại')
+  })
+
+  it('opens a chat only for chat appointments that were confirmed', () => {
+    const confirmedEvent = {
+      eventId: 'e',
+      fromStatus: 'REQUESTED',
+      toStatus: 'CONFIRMED',
+      actorType: 'SPECIALIST',
+      actorId: null,
+      reason: 'SPECIALIST_ACCEPTED',
+      creditOutcome: null,
+      occurredAt: '2026-10-01T09:00:00Z',
+    } as const
+
+    expect(canOpenChat(appointment({ status: 'REQUESTED' }))).toBe(false)
+    expect(canOpenChat(appointment({ status: 'EXPIRED' }))).toBe(false)
+    expect(
+      canOpenChat(
+        appointment({ status: 'CANCELLED', history: [confirmedEvent] }),
+      ),
+    ).toBe(true)
+    expect(canOpenChat(appointment({ modality: 'IN_APP_VIDEO' }))).toBe(false)
   })
 
   it('orders the specialist list: in progress, upcoming, requests by deadline, ended, history', () => {

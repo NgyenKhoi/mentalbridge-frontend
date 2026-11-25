@@ -19,6 +19,9 @@ import { useFeedback } from '@/components/ui/FeedbackProvider'
 import PasswordChangeForm from '@/features/auth/components/PasswordChangeForm'
 import { ApiError } from '@/lib/api/api-error'
 import { validateProfileUpdate } from '@/lib/care/care-validation'
+import AccountAvatar from '@/features/community/components/AccountAvatar'
+import AccountAvatarSettings from '@/features/community/components/AccountAvatarSettings'
+import { useOwnCommunityAvatar } from '@/features/community/components/useOwnCommunityAvatar'
 import AccountStatusCard from './AccountStatusCard'
 
 import './profile.css'
@@ -94,6 +97,7 @@ export default function ProfilePage() {
     | '/initial-check?purpose=reassessment&returnTo=plan-review'
     | null
   >(null)
+  const ownAvatar = useOwnCommunityAvatar()
   const displayNameRef = useRef<HTMLInputElement>(null)
   const dateOfBirthRef = useRef<HTMLInputElement>(null)
 
@@ -346,10 +350,9 @@ export default function ProfilePage() {
       <section className="settings-profile-summary">
         <div className="settings-summary-left">
           <div className="settings-avatar-wrap">
-            <svg viewBox="0 0 110 56" aria-hidden="true">
-              <path d="M10 48Q55-4 100 48" />
-            </svg>
-            <div className="settings-avatar">{initials}</div>
+            <div className="settings-avatar">
+              <AccountAvatar avatar={ownAvatar} fallback={initials} />
+            </div>
           </div>
           <div>
             <div className="settings-name-row">
@@ -377,6 +380,17 @@ export default function ProfilePage() {
       </p>
 
       <div className="settings-grid">
+        <section className="settings-group">
+          <div className="settings-accordion open">
+            <div className="settings-accordion-body">
+              <AccountAvatarSettings
+                displayName={profile?.displayName ?? ''}
+                initials={initials}
+              />
+            </div>
+          </div>
+        </section>
+
         <section className="settings-group">
           <p className="settings-group-label">Thông tin cá nhân</p>
           <div className="settings-accordion open">

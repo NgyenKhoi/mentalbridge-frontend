@@ -189,7 +189,7 @@ describe('AdminSpecialistReviewSection', () => {
       ),
     )
     expect(
-      await screen.findByText(/rút 2 lịch, hủy 1 cuộc hẹn và hoàn 1 lượt/),
+      await screen.findByText(/rút 2 lịch, hủy 1 cuộc hẹn và hoàn 1 buổi/),
     ).toBeInTheDocument()
   })
 

@@ -149,7 +149,9 @@ export const parseConversation = (
         'createdAt',
         'contextKinds',
         'suggestion',
+        'channel',
       ]) ||
+      (message.channel !== undefined && message.channel !== 'VOICE') ||
       typeof message.messageId !== 'string' ||
       !uuid.test(message.messageId) ||
       !['USER', 'ASSISTANT'].includes(String(message.role)) ||

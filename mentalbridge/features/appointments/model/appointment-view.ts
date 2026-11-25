@@ -45,25 +45,36 @@ export function nextAppointment(
     )[0]
 }
 
-const ACTIVE_STATUSES: readonly Appointment['status'][] = [
-  'REQUESTED',
-  'CONFIRMED',
-  'IN_PROGRESS',
-  'SESSION_ENDED',
-]
+// An ended session stays active only while its outcome is still unknown.
+function isActiveForDisplay(appointment: Appointment) {
+  return appointment.status === 'SESSION_ENDED'
+    ? !appointment.sessionOutcome
+    : ['REQUESTED', 'CONFIRMED', 'IN_PROGRESS'].includes(appointment.status)
+}
 
 export function orderAppointmentsForDisplay(
   appointments: readonly Appointment[],
 ) {
   return [...appointments].sort((left, right) => {
-    const leftActive = ACTIVE_STATUSES.includes(left.status)
-    const rightActive = ACTIVE_STATUSES.includes(right.status)
+    const leftActive = isActiveForDisplay(left)
+    const rightActive = isActiveForDisplay(right)
     if (leftActive !== rightActive) return leftActive ? -1 : 1
 
     const difference =
       Date.parse(left.scheduledStartAt) - Date.parse(right.scheduledStartAt)
     return leftActive ? difference : -difference
   })
+}
+
+/** True once the chat history of this appointment can be opened. */
+export function canOpenChat(appointment: Appointment) {
+  return (
+    appointment.modality === 'IN_APP_CHAT' &&
+    (appointment.status === 'CONFIRMED' ||
+      appointment.status === 'IN_PROGRESS' ||
+      appointment.status === 'COMPLETED' ||
+      appointment.history.some((event) => event.toStatus === 'CONFIRMED'))
+  )
 }
 
 export function appointmentTimingCopy(appointment: Appointment) {
@@ -169,4 +180,19 @@ export function appointmentModalityLabel(
   modality: Appointment['modality'] | string | null | undefined,
 ) {
   return modality === 'IN_APP_VIDEO' ? 'Gọi video' : 'Chat trực tuyến'
+}
+
+/** The single credit wording for both sides of an appointment. */
+const CREDIT_LABELS: Record<Appointment['creditState'], string> = {
+  AVAILABLE: 'Buổi tư vấn đã được hoàn lại',
+  HELD: 'Buổi tư vấn đang được giữ cho lịch hẹn',
+  CONSUMED: 'Đã dùng 1 buổi tư vấn',
+  FORFEITED: 'Buổi tư vấn không còn hiệu lực',
+  REVOKED: 'Buổi tư vấn đã bị thu hồi khi chủ gói hủy đăng ký',
+}
+
+export function appointmentCreditLabel(
+  appointment: Pick<Appointment, 'creditState'>,
+) {
+  return CREDIT_LABELS[appointment.creditState]
 }

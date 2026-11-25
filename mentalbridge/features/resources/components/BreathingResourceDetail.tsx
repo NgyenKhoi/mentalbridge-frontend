@@ -515,27 +515,29 @@ export function BreathingResourceDetail({
         describedBy="breathing-confirm-description"
         className={styles.confirmDialog}
       >
-        <h2 id="breathing-confirm-title">Ghi nhận phiên tập?</h2>
-        <p id="breathing-confirm-description">
-          MentalBridge sẽ lưu kết quả hoàn thành cho ngày này. Bạn vẫn có thể
-          quay lại thực hành vào lúc khác.
-        </p>
-        <div>
-          <button
-            type="button"
-            aria-label="Để sau"
-            onClick={() => onConfirmationOpenChange(false)}
-          >
-            Để sau
-          </button>
-          <button
-            type="button"
-            aria-label="Xác nhận hoàn thành phiên tập"
-            disabled={saving}
-            onClick={onConfirmCompletion}
-          >
-            {saving ? 'Đang lưu…' : 'Xác nhận hoàn thành'}
-          </button>
+        <div className={styles.confirmContent}>
+          <h2 id="breathing-confirm-title">Ghi nhận phiên tập?</h2>
+          <p id="breathing-confirm-description">
+            MentalBridge sẽ lưu kết quả hoàn thành cho ngày này. Bạn vẫn có thể
+            quay lại thực hành vào lúc khác.
+          </p>
+          <div className={styles.confirmActions}>
+            <button
+              type="button"
+              aria-label="Để sau"
+              onClick={() => onConfirmationOpenChange(false)}
+            >
+              Để sau
+            </button>
+            <button
+              type="button"
+              aria-label="Xác nhận hoàn thành phiên tập"
+              disabled={saving}
+              onClick={onConfirmCompletion}
+            >
+              {saving ? 'Đang lưu…' : 'Xác nhận hoàn thành'}
+            </button>
+          </div>
         </div>
       </Dialog>
     </main>

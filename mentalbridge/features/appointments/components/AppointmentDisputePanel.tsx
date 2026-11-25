@@ -43,7 +43,7 @@ function statusCopy(dispute: AppointmentDispute) {
     }
   if (dispute.resolutionOutcome === 'RELEASE_USER_CREDIT')
     return {
-      title: 'Đã trả lại lượt tư vấn',
+      title: 'Đã trả lại buổi tư vấn',
       description:
         'Quyết định đã được ghi nhận mà không thay đổi âm thầm kết quả phiên trước đó.',
     }

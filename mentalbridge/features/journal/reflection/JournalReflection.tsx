@@ -624,24 +624,6 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
               ))}
             </div>
           )}
-          <details className={styles.technicalDetails}>
-            <summary>Thông tin kỹ thuật</summary>
-            {job.result.modelConfidence !== undefined && (
-              <p className={styles.confidence}>
-                Độ chắc chắn do mô hình tự báo cáo:{' '}
-                {new Intl.NumberFormat('vi-VN', {
-                  style: 'percent',
-                  maximumFractionDigits: 0,
-                }).format(job.result.modelConfidence)}
-                .
-              </p>
-            )}
-            <small className={styles.provenance}>
-              Lần chỉnh sửa {job.journalRevision} · Nhà cung cấp{' '}
-              {job.result.provider} · Mô hình {job.result.model} · Định dạng{' '}
-              {job.result.schemaVersion}
-            </small>
-          </details>
           {action && (
             <div className={styles.actions}>
               <Link href={action.href}>{action.label}</Link>

@@ -343,6 +343,18 @@ test.describe('MB-895 Mầm route surface matrix', () => {
           headers: { ETag: '"0"' },
         }),
       )
+      // The earned awards were already celebrated: their 0.9 s popup would cover the page under test.
+      await page.evaluate(
+        (keys) => {
+          localStorage.setItem(
+            'mentalbridge_seen_achievements',
+            JSON.stringify(keys),
+          )
+        },
+        achievements.items
+          .filter((item) => item.unlockedAt)
+          .map((item) => `${item.definitionId}:${item.unlockedAt}`),
+      )
       await page.goto('/achievements')
       await expect(
         page.getByRole('heading', { name: 'Bộ sưu tập hành trình' }),

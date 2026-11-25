@@ -852,6 +852,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/community/avatars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Batch avatar lookup by Identity account ID for any authenticated account (for example specialist cards and the viewer's own shell avatar). Returns only ACTIVE, unrestricted Community profiles that have not blocked or been blocked by the viewer; unknown, inactive, restricted and blocked accounts are omitted rather than reported. Never creates a profile and never returns display names or profile IDs. */
+        get: operations["lookupCommunityAvatars"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/community/profile": {
         parameters: {
             query?: never;
@@ -1468,6 +1485,15 @@ export interface components {
             url: string;
             width: number;
             height: number;
+        };
+        CommunityAccountAvatar: {
+            /** Format: uuid */
+            accountId: string;
+            avatarPreset: components["schemas"]["CommunityAvatarPreset"] | null;
+            avatarImage: components["schemas"]["CommunityAvatarImage"] | null;
+        };
+        CommunityAvatarPage: {
+            items: components["schemas"]["CommunityAccountAvatar"][];
         };
         /**
          * @description Closed, Community-owned visual preset. Arbitrary image URLs and account-profile avatars are never accepted.
@@ -4860,6 +4886,33 @@ export interface operations {
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             412: components["responses"]["Problem"];
+        };
+    };
+    lookupCommunityAvatars: {
+        parameters: {
+            query: {
+                /** @description Comma-separated canonical UUIDs, 1 to 50 distinct values. */
+                accountIds: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Avatars for the requested accounts that have a visible Community profile, in no particular order. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityAvatarPage"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
     getOwnCommunityProfile: {

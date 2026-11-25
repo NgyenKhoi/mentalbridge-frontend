@@ -129,7 +129,7 @@ describe('SpecialistAppointmentDecisionPanel', () => {
     expect(await screen.findByText('Chờ phản hồi')).toBeInTheDocument()
     expect(screen.getByText(/Phản hồi trước/)).toBeInTheDocument()
     expect(
-      screen.getByText('Lượt tư vấn vẫn được giữ cho lịch hẹn'),
+      screen.getByText('Buổi tư vấn đang được giữ cho lịch hẹn'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Từ chối' })).toBeEnabled()
@@ -216,7 +216,7 @@ describe('SpecialistAppointmentDecisionPanel', () => {
       expect.stringMatching(/^[0-9a-f-]{36}$/),
     )
     expect(await screen.findByText('Đã từ chối')).toBeInTheDocument()
-    expect(screen.getByText('Lượt tư vấn đã được hoàn lại')).toBeInTheDocument()
+    expect(screen.getByText('Buổi tư vấn đã được hoàn lại')).toBeInTheDocument()
   })
 
   it('reloads a stale request before explaining that it changed', async () => {
@@ -341,7 +341,7 @@ describe('SpecialistAppointmentDecisionPanel', () => {
 
       expect((await screen.findAllByText(/Lan Anh/)).length).toBeGreaterThan(0)
       expect(screen.queryByText(/Người đặt lịch/)).not.toBeInTheDocument()
-      const waiting = (await screen.findAllByText('Thân chủ'))[0]
+      const waiting = (await screen.findAllByText('Khách hàng'))[0]
       expect(waiting).toBeInTheDocument()
     })
 
@@ -481,7 +481,7 @@ describe('SpecialistAppointmentDecisionPanel', () => {
 
       await user.click(buttons[0])
       drawer = await screen.findByRole('dialog', { name: 'Chi tiết phiên' })
-      expect(drawer).toHaveTextContent('Thân chủ đã hủy lịch hẹn')
+      expect(drawer).toHaveTextContent('Khách hàng đã hủy lịch hẹn')
     })
   })
 

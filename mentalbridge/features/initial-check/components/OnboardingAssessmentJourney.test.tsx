@@ -10,6 +10,7 @@ import {
   proposeSupportPlanDraft,
 } from '@/features/support-plan/api/browser-support-plan'
 import { getHomeNextStep } from '@/features/home/browser-home-next-step'
+import { saveCareProfile } from '@/features/assessment/api/browser-care'
 import OnboardingAssessmentJourney, {
   PHQ9_QUESTIONS,
   GAD7_QUESTIONS,
@@ -139,7 +140,10 @@ describe('OnboardingAssessmentJourney', () => {
     ).toBeInTheDocument()
     expect(screen.getByLabelText(/Tên gọi thân mật/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Năm sinh/i)).toBeInTheDocument()
-    expect(screen.getByText('Cải thiện giấc ngủ')).toBeInTheDocument()
+    expect(screen.queryByText('Cải thiện giấc ngủ')).not.toBeInTheDocument()
+    expect(
+      screen.queryByLabelText(/Môi trường làm việc/i),
+    ).not.toBeInTheDocument()
     expect(
       screen.getByText(/Lưu thông tin & Bắt đầu bài sàng lọc đầu tiên/i),
     ).toBeInTheDocument()
@@ -163,6 +167,23 @@ describe('OnboardingAssessmentJourney', () => {
       await screen.findByText('PHQ-9 — Sàng lọc triệu chứng'),
     ).toBeInTheDocument()
     expect(screen.getByText(/Câu 1 \/ 9/i)).toBeInTheDocument()
+  })
+
+  it('stays on the profile step with an error when saving the profile fails', async () => {
+    vi.mocked(saveCareProfile).mockRejectedValueOnce(new Error('down'))
+    render(<OnboardingAssessmentJourney />)
+
+    fireEvent.click(
+      await screen.findByText(/Lưu thông tin & Bắt đầu bài sàng lọc đầu tiên/i),
+    )
+
+    await waitFor(() =>
+      expect(mockShowActionToast).toHaveBeenCalledWith(
+        expect.objectContaining({ tone: 'error' }),
+      ),
+    )
+    expect(screen.queryByText('PHQ-9 — Sàng lọc triệu chứng')).toBeNull()
+    expect(screen.getByLabelText(/Tên gọi thân mật/i)).toBeInTheDocument()
   })
 
   it('allows answering PHQ-9 (9 questions) and transitioning smoothly to GAD-7 (7 questions)', async () => {
@@ -248,7 +269,7 @@ describe('OnboardingAssessmentJourney', () => {
       screen.getByText(/Chuẩn thang đo quốc tế GAD-7/i),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('Ý nghĩa lâm sàng (Clinical Meaning)'),
+      screen.getByText('Ý nghĩa kết quả', { selector: 'span' }),
     ).toBeInTheDocument()
     expect(
       screen.getByText('Cơ chế giao cảm cảnh giác cao'),
@@ -319,9 +340,13 @@ describe('OnboardingAssessmentJourney', () => {
     render(
       <OnboardingAssessmentJourney purpose={purpose} planReview={planReview} />,
     )
-    fireEvent.click(
-      await screen.findByText(/Lưu thông tin & Bắt đầu bài sàng lọc đầu tiên/i),
-    )
+    if (purpose !== 'REASSESSMENT') {
+      fireEvent.click(
+        await screen.findByText(
+          /Lưu thông tin & Bắt đầu bài sàng lọc đầu tiên/i,
+        ),
+      )
+    }
     await screen.findByText('PHQ-9 — Sàng lọc triệu chứng')
     for (let i = 0; i < 9; i++) {
       fireEvent.click(screen.getByText('Vài ngày'))

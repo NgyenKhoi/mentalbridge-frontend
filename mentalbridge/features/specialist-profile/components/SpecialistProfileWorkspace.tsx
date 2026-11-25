@@ -25,6 +25,9 @@ import {
   UserRound,
 } from 'lucide-react'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
+import AccountAvatar from '@/features/community/components/AccountAvatar'
+import AccountAvatarSettings from '@/features/community/components/AccountAvatarSettings'
+import { useOwnCommunityAvatar } from '@/features/community/components/useOwnCommunityAvatar'
 import type {
   SpecialistDecisionReason,
   SpecialistProfile,
@@ -89,6 +92,7 @@ function initials(name: string) {
 
 export default function SpecialistProfileWorkspace() {
   const { showActionToast } = useFeedback()
+  const ownAvatar = useOwnCommunityAvatar()
   const [form, setForm] = useState<SpecialistProfileInput>(empty)
   const [savedForm, setSavedForm] = useState<SpecialistProfileInput>(empty)
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
@@ -488,7 +492,10 @@ export default function SpecialistProfileWorkspace() {
             <div className={styles.banner} aria-hidden="true" />
             <div className={styles.profileSummary}>
               <div className={styles.avatar} aria-hidden="true">
-                {initials(form.displayName)}
+                <AccountAvatar
+                  avatar={ownAvatar}
+                  fallback={initials(form.displayName)}
+                />
               </div>
               <div className={styles.profileIdentity}>
                 <h2>{form.displayName || 'Tên hiển thị của bạn'}</h2>
@@ -560,6 +567,14 @@ export default function SpecialistProfileWorkspace() {
               <strong>Lý do:</strong> {reasonLabels[profile.decisionReasonCode]}
             </p>
           )}
+
+          <section className={`${styles.card} ${styles.section}`}>
+            <AccountAvatarSettings
+              displayName={profile?.displayName ?? form.displayName}
+              initials={initials(form.displayName)}
+              description="Ảnh hiển thị cạnh tên bạn ở tài khoản, cộng đồng và danh sách chuyên gia."
+            />
+          </section>
 
           <section className={`${styles.card} ${styles.section}`}>
             <div className={styles.sectionHead}>
@@ -878,7 +893,10 @@ export default function SpecialistProfileWorkspace() {
               </span>
             </div>
             <div className={styles.previewAvatar} aria-hidden="true">
-              {initials(form.displayName)}
+              <AccountAvatar
+                avatar={ownAvatar}
+                fallback={initials(form.displayName)}
+              />
             </div>
             <h2>{form.displayName || 'Tên hiển thị của bạn'}</h2>
             <p className={styles.previewRole}>Chuyên gia tâm lý</p>

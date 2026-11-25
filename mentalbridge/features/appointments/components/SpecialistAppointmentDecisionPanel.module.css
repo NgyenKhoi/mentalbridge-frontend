@@ -69,8 +69,7 @@
   gap: 14px;
 }
 
-.refresh,
-.calendarSync {
+.refresh {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -88,14 +87,6 @@
   line-height: 1.4;
   text-align: center;
   cursor: pointer;
-}
-
-.calendarSync {
-  background: #f2f8f4;
-  border-color: #cfe3d8;
-  color: var(--color-primary, #1f5c3f);
-  opacity: 1;
-  cursor: not-allowed;
 }
 
 .filterBar {

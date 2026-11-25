@@ -83,12 +83,10 @@ export async function installMocks(page: Page) {
   )
 }
 
-/** Steps 1 to 3 of the reassessment flow with the Care calls mocked. */
+/** Steps 2 to 3 of the reassessment flow with the Care calls mocked. */
 export async function walkToStep3(page: Page) {
   await page.goto('/initial-check?purpose=reassessment')
-  await page.getByLabel(/Tên gọi thân mật/i).fill('Minh Khôi')
-  await page.getByLabel(/Năm sinh/i).fill('1998')
-  await page.getByText(/Lưu thông tin & Bắt đầu bài sàng lọc đầu tiên/i).click()
+  // A reassessment starts at the questions: the profile was filled at the first check.
   for (const [count, finish] of [
     [9, 'Lưu PHQ-9 và tiếp tục sang GAD-7 →'],
     [7, 'Nộp bài & Xem phân tích ý nghĩa kết quả →'],

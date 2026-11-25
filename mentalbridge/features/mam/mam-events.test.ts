@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
 import { MamDockSlot } from './MamDockSlot'
+import { mamSpeaks } from './use-mam-trajectory'
 import {
   MAM_DEDUPE_MS,
   dispatchMamEvent,
@@ -104,6 +105,9 @@ describe('parseMamEvent', () => {
         { ...base, text: 'dear diary', mood: 'LOW' },
         ACCOUNT,
       ),
+    ).toEqual({ ...base, type: 'journal-saved', mood: 'LOW' })
+    expect(
+      parseMamEvent('journal-saved', { ...base, mood: 'SAD' }, ACCOUNT),
     ).toEqual({ ...base, type: 'journal-saved' })
     expect(
       parseMamEvent(
@@ -247,6 +251,26 @@ describe('mamEventReaction', () => {
     })
   })
 
+  it('journal: a low picked mood comforts, as a dip after a good previous entry', () => {
+    const low: MamEvent = { type: 'journal-saved', mood: 'LOW' }
+    expect(mamEventReaction(low, ctx)).toEqual({
+      intent: 'COMFORT',
+      line: 'FIRST_LOW',
+    })
+    expect(
+      mamEventReaction(
+        { type: 'journal-saved', mood: 'VERY_LOW' },
+        { ...ctx, previousJournalMood: 'GREAT', daysSinceJournal: 13 },
+      ),
+    ).toEqual({ intent: 'COMFORT', line: 'DIP_AFTER_GOOD' })
+    expect(
+      mamEventReaction(low, { ...ctx, previousJournalMood: 'OKAY' }),
+    ).toMatchObject({ line: 'FIRST_LOW' })
+    expect(
+      mamEventReaction({ type: 'journal-saved', mood: 'OKAY' }, ctx),
+    ).toMatchObject({ intent: 'LISTEN' })
+  })
+
   it('support: encouragement, a soft celebration on every 3rd of the day only on a known calm', () => {
     const at = (supportToday: number, calm: boolean | null) =>
       mamEventReaction({ type: 'support-done' }, { ...ctx, supportToday, calm })
@@ -324,5 +348,15 @@ describe('mamEventReaction', () => {
         ctx,
       ),
     ).toBeNull()
+  })
+})
+
+describe('mamSpeaks', () => {
+  it('answers on FULL and QUIET routes; a celebration needs FULL', () => {
+    expect(mamSpeaks('quiet', 'COMFORT')).toBe(true)
+    expect(mamSpeaks('quiet', 'ENCOURAGE')).toBe(true)
+    expect(mamSpeaks('quiet', 'CELEBRATE')).toBe(false)
+    expect(mamSpeaks('full', 'CELEBRATE')).toBe(true)
+    expect(mamSpeaks('hidden', 'COMFORT')).toBe(false)
   })
 })

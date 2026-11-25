@@ -775,10 +775,12 @@
 }
 
 .confirmDialog {
-  max-width: 440px;
-  padding: 24px;
+  width: min(440px, calc(100vw - 32px));
   border-radius: var(--radius-shell);
-  background: var(--surface);
+}
+
+.confirmContent {
+  padding: 24px;
   color: var(--ink);
 }
 
@@ -794,7 +796,7 @@
   line-height: 1.6;
 }
 
-.confirmDialog > div {
+.confirmActions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;

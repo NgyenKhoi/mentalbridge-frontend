@@ -43,8 +43,7 @@
 .header p,
 .state p,
 .consent p,
-.result p,
-.provenance {
+.result p {
   margin: 0;
   color: var(--ink-soft);
   font-size: 15px;
@@ -470,41 +469,6 @@
   overflow-wrap: anywhere;
 }
 
-.confidence {
-  font-variant-numeric: tabular-nums;
-}
-
-.provenance {
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-
-.technicalDetails {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface-soft);
-}
-
-.technicalDetails summary {
-  min-height: 44px;
-  padding: 10px 13px;
-  color: var(--ink-soft);
-  font-size: 13px;
-  font-weight: 750;
-  cursor: pointer;
-}
-
-.technicalDetails > p,
-.technicalDetails > small {
-  display: block;
-  margin: 0 13px 12px;
-}
-
-.technicalDetails summary:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--teal) 38%, transparent);
-  outline-offset: -3px;
-}
 
 @media (max-width: 620px) {
   .reflection {

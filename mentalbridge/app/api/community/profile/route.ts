@@ -19,7 +19,10 @@ import {
 } from '@/lib/community/community-validation'
 
 async function authorize(request: NextRequest, correlationId: string) {
-  return authenticatedCommunityUser(request, correlationId)
+  return authenticatedCommunityUser(request, correlationId, [
+    'USER',
+    'SPECIALIST',
+  ])
 }
 
 export async function GET(request: NextRequest) {

@@ -1,5 +1,7 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
@@ -26,7 +28,7 @@ vi.mock('@/features/auth/components/SessionActions', () => ({
   }: {
     displayName: string
     accountLabel: string
-    avatar: string
+    avatar: ReactNode
   }) => (
     <div data-testid="sidebar-account">
       Phiên người dùng <span>{displayName}</span> <span>{accountLabel}</span>{' '}
@@ -42,6 +44,7 @@ vi.mock('@/features/resources/components/ResourceNavBadge', () => ({
   default: () => null,
 }))
 
+import { mockServer } from '@/tests/mocks/server'
 import AuthenticatedShell from './AuthenticatedShell'
 
 describe('AuthenticatedShell', () => {
@@ -88,6 +91,46 @@ describe('AuthenticatedShell', () => {
     expect(
       screen.getByRole('link', { name: 'Hồ sơ Nguyễn Minh An' }),
     ).toHaveTextContent('MA')
+  })
+
+  it('shows the community photo in the header and sidebar when there is one, initials otherwise', async () => {
+    profileApi.getCareProfile.mockResolvedValue({
+      displayName: 'Nguyễn Minh An',
+    })
+    mockServer.use(
+      http.get('/api/community/profile', () =>
+        HttpResponse.json({
+          communityProfileId: '11111111-1111-4111-8111-111111111111',
+          displayName: 'Minh An',
+          avatarPreset: null,
+          avatarImage: {
+            mediaId: '22222222-2222-4222-8222-222222222222',
+            url: 'https://cdn.example.test/avatar.webp',
+            width: 96,
+            height: 96,
+          },
+          status: 'ACTIVE',
+          version: 1,
+          createdAt: '2026-09-20T08:00:00Z',
+          updatedAt: '2026-09-20T08:00:00Z',
+        }),
+      ),
+    )
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+
+    const link = await screen.findByRole('link', {
+      name: 'Hồ sơ Nguyễn Minh An',
+    })
+    await waitFor(() =>
+      expect(link.querySelector('img')).toHaveAttribute(
+        'src',
+        'https://cdn.example.test/avatar.webp',
+      ),
+    )
+    expect(link).not.toHaveTextContent('MA')
+    expect(
+      screen.getByTestId('sidebar-account').querySelector('img'),
+    ).toBeInTheDocument()
   })
 
   it('invites an account without a profile to add their own name', async () => {

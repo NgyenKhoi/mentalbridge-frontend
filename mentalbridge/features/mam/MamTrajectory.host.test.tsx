@@ -194,22 +194,22 @@ describe('Mầm trajectory at the host', () => {
     await waitFor(() => expect(saysOneOf(MAM_LINES.DIP_AFTER_GOOD)).toBe(true))
   })
 
-  it('answers a saved check-in, and a verified event from a QUIET route waits for a FULL one', async () => {
+  it('answers a verified event right on the QUIET route where it happened', async () => {
     window.localStorage.setItem(`mentalbridge_mam_daily:acct-1:${today()}`, '1')
     navigation.pathname = '/support-plan'
-    const view = mountDock()
+    mountDock()
     await screen.findByTestId('mam-character')
     act(() => dispatchMamEvent({ type: 'support-done' }))
-    await act(async () => {})
-    expect(bubble()).toBeNull()
-    navigation.pathname = '/dashboard'
-    view.rerender(
-      <>
-        <MamDockSlot accountId="acct-1" />
-        <MamDock />
-      </>,
-    )
     await waitFor(() => expect(saysOneOf(MAM_LINES.SUPPORT_DONE)).toBe(true))
+  })
+
+  it('comforts on the journal page after a low journal mood', async () => {
+    window.localStorage.setItem(`mentalbridge_mam_daily:acct-1:${today()}`, '1')
+    navigation.pathname = '/journal'
+    mountDock()
+    await screen.findByTestId('mam-character')
+    act(() => dispatchMamEvent({ type: 'journal-saved', mood: 'VERY_LOW' }))
+    await waitFor(() => expect(saysOneOf(MAM_LINES.FIRST_LOW)).toBe(true))
   })
 
   it('shows a COMFORT line after a low check-in, with no celebration look', async () => {
