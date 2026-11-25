@@ -383,10 +383,12 @@ export default function ProfilePage() {
         <section className="settings-group">
           <div className="settings-accordion open">
             <div className="settings-accordion-body">
-              <AccountAvatarSettings
-                displayName={profile?.displayName ?? ''}
-                initials={initials}
-              />
+              <div className="settings-avatar-body">
+                <AccountAvatarSettings
+                  displayName={profile?.displayName ?? ''}
+                  initials={initials}
+                />
+              </div>
             </div>
           </div>
         </section>
