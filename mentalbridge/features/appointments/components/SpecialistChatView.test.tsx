@@ -217,10 +217,11 @@ describe('SpecialistChatView', () => {
         ),
       ).toBeVisible(),
     )
+    // The summary loads after the appointment: wait for it instead of racing it.
     expect(
-      within(document.getElementById('appointment-info-drawer')!).getByText(
-        'Duy trì bài tập thở mỗi tối',
-      ),
+      await within(
+        document.getElementById('appointment-info-drawer')!,
+      ).findByText('Duy trì bài tập thở mỗi tối'),
     ).toBeVisible()
     expect(screen.getByText('Bước tiếp theo')).toBeVisible()
     expect(screen.getAllByText('Đã dùng 1 buổi tư vấn')[0]).toBeVisible()

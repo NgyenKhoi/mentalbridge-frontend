@@ -233,6 +233,7 @@
   overflow: visible;
 }
 .settings-accordion-body form,
+.settings-avatar-body,
 .settings-security,
 .settings-consent {
   padding: 3px 24px 23px;
@@ -1446,4 +1447,7 @@
     justify-self: flex-start !important;
     margin-top: 4px !important;
   }
+}
+.settings-avatar-body {
+  padding-top: 20px;
 }
