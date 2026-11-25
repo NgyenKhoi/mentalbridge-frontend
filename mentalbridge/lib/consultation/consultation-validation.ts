@@ -474,6 +474,11 @@ export type AdminAppointmentPage = Readonly<{
 }>
 
 export type ServicePackage = 'FREE' | 'PLUS' | 'PREMIUM'
+export const SERVICE_PACKAGE_LABELS: Record<ServicePackage, string> = {
+  FREE: 'Miễn phí',
+  PLUS: 'Plus',
+  PREMIUM: 'Premium',
+}
 export type CreditSource = 'DEFAULT_FREE' | 'DEMO' | 'PAID'
 export type ConsultationCreditPolicyVersion =
   'consultation-credit-v1' | 'consultation-credit-v2'

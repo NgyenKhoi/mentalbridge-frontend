@@ -310,15 +310,6 @@
   color: var(--ink);
   font: 12px var(--font-be-vietnam);
 }
-.ref-topbar kbd {
-  padding: 2px 7px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface-soft);
-  color: var(--ink-faint);
-  font: 9px var(--font-be-vietnam);
-  white-space: nowrap;
-}
 .ref-top-actions {
   display: flex;
   align-items: center;
@@ -534,9 +525,6 @@
   .ref-topbar > label {
     padding: 9px 12px;
   }
-  .ref-topbar kbd {
-    display: none;
-  }
   .ref-top-actions {
     gap: var(--space-2);
   }
@@ -654,9 +642,6 @@
 }
 .ref-topbar input {
   font-size: 13px;
-}
-.ref-topbar kbd {
-  font-size: 10px;
 }
 .ref-notify {
   border-radius: 10px;

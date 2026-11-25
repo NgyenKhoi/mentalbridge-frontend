@@ -30,7 +30,7 @@ const actionPresentation = {
   EMOTION_CHECK_IN: { label: 'Cảm xúc', Icon: HeartHandshake },
   ROUTINE_SELF_MANAGEMENT: { label: 'Chăm sóc bản thân', Icon: Leaf },
   PROFESSIONAL_SUPPORT: { label: 'Hỗ trợ từ chuyên gia', Icon: MessageCircle },
-  REASSESSMENT_SCREENING: { label: 'Kiểm tra lại', Icon: ClipboardCheck },
+  REASSESSMENT_SCREENING: { label: 'Đánh giá lại', Icon: ClipboardCheck },
   SELF_REPORT_REVIEW: { label: 'Nhìn lại cảm nhận', Icon: ClipboardCheck },
 } as const
 
@@ -232,7 +232,7 @@ export default function HomeNextStepCard({
               : view.occurrence
                 ? 'Việc tiếp theo hôm nay'
                 : view.state.startsWith('ASSESSMENT')
-                  ? 'Kiểm tra ban đầu'
+                  ? 'Bài sàng lọc'
                   : 'Bước tiếp theo'}
           </div>
           <h2 className={`home-title${view.safety ? '' : ' home-wipe'}`}>

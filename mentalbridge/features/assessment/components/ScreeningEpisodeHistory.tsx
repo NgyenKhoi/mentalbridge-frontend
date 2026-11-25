@@ -162,7 +162,7 @@ function EpisodeCard({
         evidence.safetyStatus === 'POSITIVE_SAFETY_SCREEN',
     )
   const purposeLabel =
-    item.purpose === 'REASSESSMENT' ? 'Đánh giá lại' : 'Kiểm tra ban đầu'
+    item.purpose === 'REASSESSMENT' ? 'Đánh giá lại' : 'Bài sàng lọc'
   const resumeHref =
     item.purpose === 'REASSESSMENT'
       ? '/initial-check?purpose=reassessment'
@@ -387,7 +387,7 @@ export function ScreeningEpisodeHistory() {
           {(
             [
               ['ALL', 'Tất cả'],
-              ['INITIAL_CHECK', 'Kiểm tra ban đầu'],
+              ['INITIAL_CHECK', 'Bài sàng lọc'],
               ['REASSESSMENT', 'Đánh giá lại'],
             ] as const
           ).map(([value, label]) => (
@@ -429,7 +429,7 @@ export function ScreeningEpisodeHistory() {
             Bắt đầu một lượt kiểm tra để lưu PHQ-9 và GAD-7 cùng nhau. Ý nghĩa
             tổng hợp chỉ xuất hiện sau khi cả hai bài hoàn tất.
           </p>
-          <Link href="/initial-check">Bắt đầu kiểm tra ban đầu</Link>
+          <Link href="/initial-check">Bắt đầu bài sàng lọc</Link>
         </div>
       )}
 

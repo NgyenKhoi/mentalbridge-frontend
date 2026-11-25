@@ -524,7 +524,7 @@ describe('SupportPlan workspace', () => {
     const first = render(<SupportPlanWorkspace />)
     expect(await screen.findByRole('figure')).toBeVisible()
     expect(
-      screen.getByRole('link', { name: 'Làm bài kiểm tra ngắn' }),
+      screen.getByRole('link', { name: 'Làm bài sàng lọc' }),
     ).toHaveAttribute('href', '/initial-check')
     first.unmount()
     render(<SupportPlanWorkspace />)

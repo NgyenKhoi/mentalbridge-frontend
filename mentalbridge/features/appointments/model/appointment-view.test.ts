@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import {
+  appointmentModalityLabel,
   appointmentTimingCopy,
   matchesAppointmentFilter,
   nextAppointment,
@@ -164,5 +165,13 @@ describe('appointment view', () => {
         live,
       ]).map((item) => item.id),
     ).toEqual(['p', 'c1', 'c2', 'r1', 'r2', 'e', 'h2', 'h1'])
+  })
+})
+
+describe('appointmentModalityLabel', () => {
+  it('maps every modality to Vietnamese and never echoes the enum', () => {
+    expect(appointmentModalityLabel('IN_APP_CHAT')).toBe('Chat trực tuyến')
+    expect(appointmentModalityLabel('IN_APP_VIDEO')).toBe('Gọi video')
+    expect(appointmentModalityLabel(undefined)).toBe('Chat trực tuyến')
   })
 })

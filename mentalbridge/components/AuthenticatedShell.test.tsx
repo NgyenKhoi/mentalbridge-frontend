@@ -1,6 +1,5 @@
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { ApiError } from '@/lib/api/api-error'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
@@ -59,6 +58,24 @@ describe('AuthenticatedShell', () => {
     expect(link).toHaveClass('active')
   })
 
+  it('shows the specialist search only on the specialist directory', () => {
+    navigation.pathname = '/dashboard'
+    const { rerender } = render(
+      <AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>,
+    )
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    expect(screen.queryByText('Không gian cá nhân')).not.toBeInTheDocument()
+    expect(screen.queryByText('⌘K')).not.toBeInTheDocument()
+
+    navigation.pathname = '/specialists'
+    rerender(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    expect(
+      screen.getByRole('searchbox', {
+        name: 'Tìm chuyên gia theo tên hoặc chuyên môn',
+      }),
+    ).toBeVisible()
+  })
+
   it('shows the real profile name and initials in the sidebar and header', async () => {
     profileApi.getCareProfile.mockResolvedValue({
       displayName: '  Nguyễn Minh An  ',
@@ -74,13 +91,7 @@ describe('AuthenticatedShell', () => {
   })
 
   it('invites an account without a profile to add their own name', async () => {
-    profileApi.getCareProfile.mockRejectedValue(
-      new ApiError({
-        message: 'Missing profile',
-        code: 'PROFILE_NOT_FOUND',
-        status: 404,
-      }),
-    )
+    profileApi.getCareProfile.mockResolvedValue(null)
     render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
     const account = within(screen.getByTestId('sidebar-account'))
     expect(await account.findByText('Hoàn thiện hồ sơ')).toBeVisible()

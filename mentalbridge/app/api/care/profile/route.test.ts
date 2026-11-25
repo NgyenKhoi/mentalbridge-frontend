@@ -25,7 +25,7 @@ vi.mock('@/lib/auth/session-service', () => ({
   ensureRole: sessionMocks.ensureRole,
 }))
 
-import { PUT } from './route'
+import { GET, PUT } from './route'
 
 function request(body: unknown) {
   return new NextRequest('http://localhost/api/care/profile', {
@@ -121,5 +121,53 @@ describe('PUT /api/care/profile', () => {
       code: 'VALIDATION_FAILED',
       violations: [{ field: 'dateOfBirth', code: 'MINIMUM_AGE_NOT_MET' }],
     })
+  })
+})
+
+describe('GET /api/care/profile', () => {
+  const get = () =>
+    GET(
+      new NextRequest('http://localhost/api/care/profile', {
+        headers: { cookie: `${ACCESS_COOKIE_NAME}=identity-access-secret` },
+      }),
+    )
+
+  beforeEach(() => {
+    careMocks.getProfile.mockReset()
+    sessionMocks.resolveSession.mockResolvedValue({
+      account: {
+        accountId: '10000000-0000-4000-8000-000000000009',
+        status: 'ACTIVE',
+        roles: ['USER'],
+        emailVerified: true,
+      },
+    })
+  })
+
+  it('answers 200 with null while the account has no profile yet', async () => {
+    careMocks.getProfile.mockRejectedValue(
+      new ApiError({
+        message: 'Care profile was not found',
+        code: 'PROFILE_NOT_FOUND',
+        status: 404,
+      }),
+    )
+
+    const response = await get()
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toBeNull()
+  })
+
+  it('keeps other upstream failures as errors', async () => {
+    careMocks.getProfile.mockRejectedValue(
+      new ApiError({
+        message: 'Care is down',
+        code: 'CARE_UNAVAILABLE',
+        status: 503,
+      }),
+    )
+
+    expect((await get()).status).toBe(503)
   })
 })

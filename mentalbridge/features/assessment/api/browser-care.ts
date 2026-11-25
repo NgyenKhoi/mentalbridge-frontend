@@ -55,8 +55,9 @@ export async function getPrivacyDisclosure() {
   ).data
 }
 
+/** Resolves null while the account has no profile yet. */
 export async function getCareProfile() {
-  return (await browserApiClient.get<CareProfile>('/care/profile')).data
+  return (await browserApiClient.get<CareProfile | null>('/care/profile')).data
 }
 
 export async function saveCareProfile(

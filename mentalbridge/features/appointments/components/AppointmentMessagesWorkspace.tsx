@@ -202,7 +202,7 @@ export default function AppointmentMessagesWorkspace({
           <header>
             <div>
               {!isSpecialist && <span>HỘP THƯ</span>}
-              <h1>{isSpecialist ? 'Hộp thư' : 'Lịch hẹn chat'}</h1>
+              <h1>{isSpecialist ? 'Hộp thư' : 'Cuộc trò chuyện'}</h1>
             </div>
             <div className={styles.inboxActions}>
               <strong>{conversations.length}</strong>

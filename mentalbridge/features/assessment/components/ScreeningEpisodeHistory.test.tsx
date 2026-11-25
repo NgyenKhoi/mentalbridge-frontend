@@ -434,7 +434,7 @@ describe('ScreeningEpisodeHistory', () => {
 
     expect(await screen.findByText('Chưa có lượt sàng lọc nào')).toBeVisible()
     expect(
-      screen.getByRole('link', { name: 'Bắt đầu kiểm tra ban đầu' }),
+      screen.getByRole('link', { name: 'Bắt đầu bài sàng lọc' }),
     ).toHaveAttribute('href', '/initial-check')
   })
 

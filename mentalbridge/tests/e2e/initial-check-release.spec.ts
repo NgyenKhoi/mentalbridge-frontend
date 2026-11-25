@@ -588,7 +588,7 @@ test.describe('MB-273 initial-check release readiness', () => {
 
     await context.clearCookies({ name: gad7Cookie })
     await page.goto('/dashboard')
-    await page.getByRole('link', { name: /Bắt đầu kiểm tra ban đầu/ }).click()
+    await page.getByRole('link', { name: /Bắt đầu bài sàng lọc/ }).click()
     await expect(resultHeading).toBeVisible()
 
     const cookies = await context.cookies()

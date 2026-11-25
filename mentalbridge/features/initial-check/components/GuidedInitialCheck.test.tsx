@@ -206,7 +206,7 @@ describe('GuidedInitialCheck', () => {
       level: 1,
       name: 'Dấu hiệu trầm cảm ở mức nhẹ, lo âu rất ít.',
     })
-    expect(screen.getByText(/Đã lưu kết quả kiểm tra ban đầu/)).toBeVisible()
+    expect(screen.getByText(/Đã lưu kết quả bài sàng lọc/)).toBeVisible()
     expect(
       screen.getByRole('heading', { name: 'Dấu hiệu trầm cảm' }),
     ).toBeVisible()

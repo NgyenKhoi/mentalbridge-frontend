@@ -269,27 +269,6 @@ body .ref-shell,
   text-overflow: ellipsis;
 }
 
-.ref-shell .ref-workspace-label {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-soft);
-  color: var(--color-primary) !important;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.ref-workspace-label i {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary);
-}
-
 .ref-shell .ref-topbar > label {
   width: min(280px, 28vw);
   background: var(--color-surface) !important;
@@ -434,12 +413,6 @@ body .ref-shell,
 .ref-shell [data-user-page-heading] > .mbw-strip {
   flex-basis: auto;
   margin-top: var(--space-1);
-}
-
-@media (max-width: 1200px) {
-  .ref-shell .ref-workspace-label {
-    display: none;
-  }
 }
 
 @media (max-width: 1000px) {

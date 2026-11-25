@@ -57,18 +57,14 @@ test.describe('consolidated admin console', () => {
     })
     const expectedRoutes = [
       '/admin/dashboard',
-      '/admin/retention',
       '/admin/accounts',
       '/admin/specialists',
       '/admin/content',
+      '/admin/benchmarks',
       '/admin/moderation',
       '/admin/appointments',
-      '/admin/disputes',
-      '/admin/audit',
-      '/admin/reports',
       '/admin/payments',
       '/admin/payouts',
-      '/admin/reconciliation',
     ]
 
     await expect(navigation.getByRole('link')).toHaveCount(
@@ -86,7 +82,7 @@ test.describe('consolidated admin console', () => {
     await expect(page.getByText('99,98%')).toHaveCount(0)
     await expect(page.getByText('96/100')).toHaveCount(0)
     await expect(
-      navigation.getByRole('link', { name: /assessment|AI/i }),
+      navigation.getByRole('link', { name: /assessment/i }),
     ).toHaveCount(0)
 
     testInfo.annotations.push(

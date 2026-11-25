@@ -19,6 +19,7 @@ import type {
 } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
 import {
+  appointmentModalityLabel,
   appointmentStatusLabel,
   appointmentTimingCopy,
   nextAppointment,
@@ -1286,11 +1287,7 @@ export default function AppointmentRequestPanel({
                         ) : (
                           <MessageSquare size={14} aria-hidden="true" />
                         )}
-                        <span>
-                          {item.modality === 'IN_APP_CHAT'
-                            ? 'Chat trực tuyến'
-                            : 'Video Call'}
-                        </span>
+                        <span>{appointmentModalityLabel(item.modality)}</span>
                       </p>
 
                       <p className={styles.rowNote}>{item.guidance}</p>
@@ -1765,14 +1762,6 @@ export default function AppointmentRequestPanel({
       </Dialog>
 
       {bookingDialog}
-
-      <Link
-        href="/messages"
-        className={styles.floatingChatBtn}
-        aria-label="Mở tin nhắn trực tuyến"
-      >
-        <MessageSquare size={22} aria-hidden="true" />
-      </Link>
     </main>
   )
 }

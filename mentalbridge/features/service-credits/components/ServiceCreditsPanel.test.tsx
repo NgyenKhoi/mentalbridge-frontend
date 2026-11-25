@@ -56,13 +56,28 @@ describe('ServiceCreditsPanel', () => {
     expect(await screen.findByText('Gói Plus dùng thử')).toBeInTheDocument()
     expect(screen.getByText('Còn lại').nextSibling).toHaveTextContent('4')
     await user.click(
-      screen.getByRole('button', { name: 'Lịch sử lượt tư vấn' }),
+      screen.getByRole('button', { name: 'Lịch sử buổi tư vấn' }),
     )
     expect(
       screen.getByRole('heading', { name: '2/2 lịch' }),
     ).toBeInTheDocument()
     expect(screen.getByText(/đang diễn ra/)).toBeInTheDocument()
     expect(screen.getByText(/chỉ cấp thêm phần chênh lệch/)).toBeInTheDocument()
+  })
+
+  it('words the status banner from the same held count as the stat', async () => {
+    get.mockResolvedValue({ ...demo, balance: { ...demo.balance, held: 2 } })
+    const { unmount } = render(<ServiceCreditsPanel />)
+    expect(
+      await screen.findByText(/Bạn đang giữ 2 buổi cho lịch hẹn[.]/),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Đang giữ lịch').nextSibling).toHaveTextContent('2')
+    unmount()
+    get.mockResolvedValue(demo)
+    render(<ServiceCreditsPanel />)
+    expect(
+      await screen.findByText(/chưa có lịch hẹn tư vấn nào đang chờ/),
+    ).toBeInTheDocument()
   })
 
   it('reloads the owner balance after a transient failure', async () => {
@@ -103,7 +118,7 @@ describe('ServiceCreditsPanel', () => {
     const user = userEvent.setup()
     render(<ServiceCreditsPanel />)
     await user.click(
-      await screen.findByRole('button', { name: 'Lịch sử lượt tư vấn' }),
+      await screen.findByRole('button', { name: 'Lịch sử buổi tư vấn' }),
     )
     expect(screen.getByText('Đã thu hồi khi hủy gói')).toBeInTheDocument()
   })
