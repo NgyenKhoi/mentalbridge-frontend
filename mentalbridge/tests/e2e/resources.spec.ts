@@ -368,9 +368,8 @@ test.describe('Resources journey', () => {
         .locator('body')
         .evaluate((element) => getComputedStyle(element).fontFamily),
     ).toMatch(/Vietnam/i)
-    // Bingo is scoped to the separately loaded plan section; the daily
-    // catalogue journey remains usable without a current-plan projection.
-    await expect(page.getByText('Chưa có chuỗi thực hành')).toBeVisible()
+    // The daily journey needs an ACTIVE plan, so no streak line without one.
+    await expect(page.getByText('Chưa có chuỗi thực hành')).toHaveCount(0)
     await expect(page.getByText(/\bXP\b/i)).toHaveCount(0)
     await expect(page.getByText(/huy hiệu|cấp độ/i)).toHaveCount(0)
     await expect(
@@ -960,11 +959,11 @@ test.describe('MB-670 plan resources and plan-scoped Bingo', () => {
     await jump.click()
     await expect(page).toHaveURL(/\/resources#plan-resources$/)
     await expect(planSection(page)).toBeInViewport()
+    // A paused plan has no "today" to count; the section link stays.
     world.projection.planState = 'PAUSED'
     await page.reload()
-    await expect(progress).toContainText(
-      `${completed}/${todayActions.length} hoạt động hôm nay đã ghi nhận`,
-    )
+    await expect(jump).toBeVisible()
+    await expect(progress).toHaveCount(0)
   })
 
   test('keeps the Bingo board and previous check when a save fails, focuses retry, and retries only the save', async ({

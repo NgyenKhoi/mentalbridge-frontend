@@ -199,7 +199,7 @@ describe('SupportGuideOverview', () => {
     render(<SupportGuideOverview />)
 
     expect(
-      await screen.findByRole('link', { name: 'Tiếp tục kiểm tra ban đầu' }),
+      await screen.findByRole('link', { name: 'Tiếp tục bài sàng lọc' }),
     ).toHaveAttribute('href', '/initial-check')
     expect(ensureCalls).toBe(0)
   })

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { Target } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/api/api-error'
 import { usePlanAccess } from '@/features/support-plan-access/use-plan-access'
@@ -350,7 +351,7 @@ export function PlanResourcesSection({
                         className={styles.bingoBannerIcon}
                         aria-hidden="true"
                       >
-                        🎯
+                        <Target size={22} />
                       </div>
                       <div className={styles.bingoBannerInfo}>
                         <div className={styles.bingoBannerTitleRow}>
@@ -380,7 +381,7 @@ export function PlanResourcesSection({
                       aria-haspopup="dialog"
                     >
                       <span>Mở bảng Bingo</span>
-                      <span aria-hidden="true">🎯</span>
+                      <Target size={16} aria-hidden="true" />
                     </button>
                   </div>
 
@@ -396,7 +397,7 @@ export function PlanResourcesSection({
                           className={styles.bingoModalIcon}
                           aria-hidden="true"
                         >
-                          🎯
+                          <Target size={22} />
                         </span>
                         <div>
                           <h2

@@ -10,18 +10,16 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import type { ServiceCreditAccount } from '@/lib/consultation/consultation-validation'
+import {
+  SERVICE_PACKAGE_LABELS,
+  type ServiceCreditAccount,
+} from '@/lib/consultation/consultation-validation'
 import {
   browserServiceCredits,
   ServiceCreditsBrowserError,
 } from '../api/browser-client'
 import styles from './ServiceCreditsPanel.module.css'
 
-const PACKAGE_LABELS = {
-  FREE: 'Miễn phí',
-  PLUS: 'Plus',
-  PREMIUM: 'Premium',
-} as const
 const EVENT_LABELS = {
   PROVISIONED: 'Đã cấp',
   HELD: 'Đã dành cho lịch hẹn',
@@ -132,13 +130,13 @@ export default function ServiceCreditsPanel() {
           <p>
             Bạn đang sử dụng{' '}
             <strong id="credit-title">
-              Gói {PACKAGE_LABELS[account.packageCode]}
+              Gói {SERVICE_PACKAGE_LABELS[account.packageCode]}
               {demo ? ' dùng thử' : ''}
             </strong>
             .{' '}
-            {account.reservationCapacity.active === 0
-              ? 'Hiện tại chưa có lịch hẹn tư vấn nào đang chờ.'
-              : `Bạn đang giữ ${account.reservationCapacity.active} lịch hẹn tư vấn.`}
+            {account.balance.held > 0
+              ? `Bạn đang giữ ${account.balance.held} buổi cho lịch hẹn.`
+              : 'Hiện tại chưa có lịch hẹn tư vấn nào đang chờ.'}
           </p>
         </div>
         <div className={styles.actions}>

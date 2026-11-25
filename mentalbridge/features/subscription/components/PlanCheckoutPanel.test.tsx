@@ -179,7 +179,8 @@ describe('PlanCheckoutPanel', () => {
     const assign = vi.fn()
     vi.stubGlobal('location', { ...window.location, assign })
     render(<PlanCheckoutPanel />)
-    expect(await screen.findByText(/Gói thử nghiệm:/)).toBeInTheDocument()
+    await screen.findByRole('button', { name: /Chọn Plus/ })
+    expect(screen.queryByText(/Gói thử nghiệm:/)).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Chọn Plus/ }))
     expect(
       await screen.findByRole('img', { name: /Mã QR chuyển khoản 5\.000đ/ }),
@@ -341,6 +342,13 @@ describe('PlanCheckoutPanel', () => {
     expect(
       screen.queryByRole('button', { name: /Nâng cấp lên/ }),
     ).not.toBeInTheDocument()
+  })
+
+  it('stays silent about an old failed payment present on load', async () => {
+    history({ ...pendingPayment, status: 'FAILED' } as never)
+    render(<PlanCheckoutPanel />)
+    await screen.findByRole('button', { name: /Chọn Plus/ })
+    expect(screen.queryByText(/Giao dịch chưa thành công/)).toBeNull()
   })
 
   it('closes an expired code on the server before creating a new one', async () => {

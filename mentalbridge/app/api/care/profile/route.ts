@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 
+import { ApiError } from '@/lib/api/api-error'
 import { correlationIdFrom } from '@/lib/auth/bff-response'
 import { readBoundedJson, RequestBodyError } from '@/lib/auth/request-body'
 import {
@@ -32,6 +33,9 @@ export async function GET(request: NextRequest) {
       user,
     )
   } catch (error) {
+    // A new account has no profile yet: answer null so the browser logs no failed request.
+    if (error instanceof ApiError && error.code === 'PROFILE_NOT_FOUND')
+      return carryCareSession(careSuccessResponse(null, correlationId), user)
     return carryCareSession(careErrorResponse(error, correlationId), user)
   }
 }

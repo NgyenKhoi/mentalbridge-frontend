@@ -163,3 +163,10 @@ export function appointmentStatusLabel(
     ? sessionEndedLabel(appointment.sessionOutcome ?? null, viewer)
     : STATUS_LABELS[viewer][appointment.status]
 }
+
+/** Vietnamese wording of a consultation channel; never print the raw enum. */
+export function appointmentModalityLabel(
+  modality: Appointment['modality'] | string | null | undefined,
+) {
+  return modality === 'IN_APP_VIDEO' ? 'Gọi video' : 'Chat trực tuyến'
+}

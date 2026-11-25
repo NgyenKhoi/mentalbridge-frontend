@@ -28,10 +28,6 @@ import {
   resourcePresentation,
   shiftDate,
 } from '../model/resource-experience'
-import {
-  getAchievements,
-  type AchievementCollection,
-} from '@/features/achievements/api/browser-achievements'
 import { AnimatedResourceSticker } from './AnimatedResourceSticker'
 import { resourceArtwork } from '../model/resource-artwork'
 import { PlanResourcesSection } from './PlanResourcesSection'
@@ -40,19 +36,6 @@ import styles from './resources-showcase.module.css'
 type Filter = 'all' | 'short' | 'medium' | 'challenge'
 
 const VIEW_STATE_KEY = 'mentalbridge:resources:view'
-
-const ACHIEVEMENT_ICONS: Record<string, string> = {
-  'journal.first-entry': '✍️',
-  'journal.streak-3-days': '🔥',
-  'journal.streak-7-days': '✨',
-  'emotion.first-check-in': '❤️',
-  'emotion.streak-3-days': '🌱',
-  'emotion.streak-7-days': '🌸',
-  'resource.first-completion': '🏆',
-  'resource.variety-3': '🧭',
-  'resource.practice-3-days': '⭐',
-  'resource.practice-7-days': '🌟',
-}
 
 function resourceHref(resource: PublicResourceSummary, date: string) {
   return `/resources/${resource.id}?from=resources&date=${date}`
@@ -106,29 +89,6 @@ function MamResourceTarget({
   )
 }
 
-const DEFAULT_BINGO_TILES = [
-  { id: 'water', label: 'Uống đủ 2L nước', icon: '💧' },
-  { id: 'breathing', label: 'Hít thở sâu 3 phút', icon: '🌿' },
-  { id: 'gratitude', label: 'Viết lời cảm ơn', icon: '✍️' },
-  { id: 'walk', label: 'Đi dạo ngắm cây xanh', icon: '🚶' },
-  { id: 'relax', label: 'Thư giãn toàn thân', icon: '🧘' },
-  { id: 'tea', label: 'Uống một tách trà ấm', icon: '🍵' },
-  { id: 'screen', label: 'Tắt màn hình trước ngủ', icon: '📵' },
-  { id: 'music', label: 'Nghe nhạc êm dịu', icon: '🎵' },
-  { id: 'sleep', label: 'Đi ngủ trước 23h', icon: '😴' },
-] as const
-
-const BINGO_WIN_LINES = [
-  [0, 1, 2],
-  [3, 4, 5],
-  [6, 7, 8],
-  [0, 3, 6],
-  [1, 4, 7],
-  [2, 5, 8],
-  [0, 4, 8],
-  [2, 4, 6],
-]
-
 export default function ResourcesShowcase() {
   useMamPageTarget({ kind: 'resources.page' })
   const today = useMemo(() => localDate(), [])
@@ -148,49 +108,12 @@ export default function ResourcesShowcase() {
   const [journeyState, setJourneyState] = useState<
     'loading' | 'ready' | 'plan-required' | 'missing' | 'error'
   >('loading')
-  const [achievements, setAchievements] =
-    useState<AchievementCollection | null>(null)
-  const [achievementsState, setAchievementsState] = useState<
-    'loading' | 'ready' | 'error'
-  >('loading')
   const [partialHistory, setPartialHistory] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
   const [expanded, setExpanded] = useState(false)
   const [hydrated, setHydrated] = useState(false)
-  const [bingoMarks, setBingoMarks] = useState<Record<string, boolean>>(() => {
-    if (typeof window === 'undefined') return {}
-    try {
-      const key = `mentalbridge:resources:bingo:${localDate().slice(0, 7)}`
-      const saved = localStorage.getItem(key)
-      return saved ? (JSON.parse(saved) as Record<string, boolean>) : {}
-    } catch {
-      return {}
-    }
-  })
-
-  const toggleBingoTile = (id: string) => {
-    setBingoMarks((prev) => {
-      const updated = { ...prev, [id]: !prev[id] }
-      try {
-        const key = `mentalbridge:resources:bingo:${today.slice(0, 7)}`
-        localStorage.setItem(key, JSON.stringify(updated))
-      } catch {
-        // Storage unavailable
-      }
-      return updated
-    })
-  }
-
-  const completedBingoCount = useMemo(
-    () => DEFAULT_BINGO_TILES.filter((tile) => bingoMarks[tile.id]).length,
-    [bingoMarks],
-  )
-
-  const hasBingoWin = useMemo(() => {
-    return BINGO_WIN_LINES.some((line) =>
-      line.every((idx) => bingoMarks[DEFAULT_BINGO_TILES[idx].id]),
-    )
-  }, [bingoMarks])
+  // The journey BFF answers 409 without an ACTIVE plan, so do not ask for it.
+  const planActive = planProjection?.planState === 'ACTIVE'
 
   useEffect(
     () =>
@@ -245,7 +168,6 @@ export default function ResourcesShowcase() {
   useEffect(() => {
     const controller = new AbortController()
     let active = true
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
     void getResourceCatalogue(controller.signal, 'vi-VN')
       .then((catalogue) => {
         if (!active) return
@@ -267,16 +189,17 @@ export default function ResourcesShowcase() {
       .catch(() => {
         if (active) setProgressState('error')
       })
-    void getAchievements(timeZone)
-      .then((result) => {
-        if (active) {
-          setAchievements(result.collection)
-          setAchievementsState('ready')
-        }
-      })
-      .catch(() => {
-        if (active) setAchievementsState('error')
-      })
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [today])
+
+  useEffect(() => {
+    if (!planActive) return
+    const controller = new AbortController()
+    let active = true
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
     void Promise.all(
       dates.map(async (date) => {
         try {
@@ -345,7 +268,7 @@ export default function ResourcesShowcase() {
       active = false
       controller.abort()
     }
-  }, [dates, today])
+  }, [dates, today, planActive])
 
   const feature =
     resources.find((resource) =>
@@ -385,7 +308,7 @@ export default function ResourcesShowcase() {
       all.findIndex((candidate) => candidate.id === resource.id) === index,
   )
   const visible = expanded ? curated : curated.slice(0, 5)
-  const journey = journeys[today]
+  const journey = planActive ? journeys[today] : undefined
   const todayPlanActions =
     planProjection?.actions.filter(
       (action) => action.today && action.today.displayState !== 'SKIPPED',
@@ -409,84 +332,6 @@ export default function ResourcesShowcase() {
     day: 'numeric',
     month: 'long',
   }).format(new Date(`${today}T12:00:00`))
-
-  const earnedCount = useMemo(() => {
-    if (!achievements?.items) return 0
-    return achievements.items.filter(
-      (item) => item.status === 'EARNED' || item.status === 'GRANDFATHERED',
-    ).length
-  }, [achievements])
-
-  const displayBadges = useMemo(() => {
-    if (!achievements?.items || achievements.items.length === 0) {
-      return [
-        {
-          id: 'resource.first-completion',
-          title: 'Tài nguyên đầu tiên',
-          icon: '🏆',
-          isEarned: false,
-          statusText: 'Chưa đạt',
-        },
-        {
-          id: 'resource.practice-3-days',
-          title: 'Ba ngày thực hành',
-          icon: '⭐',
-          isEarned: false,
-          statusText: 'Chưa đạt',
-        },
-        {
-          id: 'journal.first-entry',
-          title: 'Trang viết đầu tiên',
-          icon: '✍️',
-          isEarned: false,
-          statusText: 'Chưa đạt',
-        },
-      ]
-    }
-
-    const items = achievements.items
-    const earned = items.filter(
-      (i) => i.status === 'EARNED' || i.status === 'GRANDFATHERED',
-    )
-    const unearned = items.filter(
-      (i) => i.status !== 'EARNED' && i.status !== 'GRANDFATHERED',
-    )
-
-    let selected: typeof items = []
-    if (earned.length >= 3) {
-      selected = earned.slice(0, 3)
-    } else if (earned.length > 0) {
-      selected = [...earned, ...unearned.slice(0, 3 - earned.length)]
-    } else {
-      selected = unearned.slice(0, 3)
-    }
-
-    return selected.map((item) => {
-      const isEarned =
-        item.status === 'EARNED' || item.status === 'GRANDFATHERED'
-      let statusText = 'Chưa đạt'
-      if (isEarned) {
-        statusText = 'Đã ghi nhận'
-      } else if (item.progress) {
-        const unit =
-          item.progress.unit === 'CONSECUTIVE_DAY'
-            ? 'ngày'
-            : item.progress.unit === 'DISTINCT_RESOURCE'
-              ? 'tài nguyên'
-              : item.progress.unit === 'PRACTICE_DAY'
-                ? 'ngày'
-                : 'lần'
-        statusText = `${item.progress.current}/${item.progress.target} ${unit}`
-      }
-      return {
-        id: item.definitionId,
-        title: item.title,
-        icon: ACHIEVEMENT_ICONS[item.definitionId] ?? (isEarned ? '🏆' : '🌱'),
-        isEarned,
-        statusText,
-      }
-    })
-  }, [achievements])
 
   if (catalogueState !== 'ready') {
     return (
@@ -600,7 +445,7 @@ export default function ResourcesShowcase() {
               lưu.
             </p>
           )}
-          {planProjection && (
+          {planActive && (
             <>
               <div
                 className={styles.energyProgress}
@@ -638,10 +483,12 @@ export default function ResourcesShowcase() {
                   </span>
                 ))}
               </div>
-              <Link className={styles.planJump} href="#plan-resources">
-                Hoạt động trong kế hoạch hôm nay
-              </Link>
             </>
+          )}
+          {planProjection && (
+            <Link className={styles.planJump} href="#plan-resources">
+              Hoạt động trong kế hoạch hôm nay
+            </Link>
           )}
         </aside>
       </div>
@@ -813,178 +660,50 @@ export default function ResourcesShowcase() {
       </section>
 
       <div className={styles.lowerRow}>
-        <section className={styles.bingo} aria-labelledby="bingo-title">
+        <section className={styles.recent} aria-labelledby="recent-title">
           <div className={styles.panelHead}>
-            <div>
-              <h2 id="bingo-title">Bingo Thói Quen Tâm Trí</h2>
-              <p>Hoàn thành 3 ô thẳng hàng để nuôi dưỡng thói quen tích cực</p>
-            </div>
-            <div className={styles.bingoHeadBadges}>
-              <span className={styles.bingoWeekBadge}>Tuần này</span>
-              <span className={styles.bingoCountBadge}>
-                {completedBingoCount}/9 ô hoàn thành
-              </span>
-            </div>
+            <h2 id="recent-title">Hoạt động đã lưu gần đây</h2>
+            <span>14 ngày</span>
           </div>
-
-          <div
-            className={styles.bingoGrid}
-            role="list"
-            aria-label="Bảng Bingo 9 ô thói quen"
-          >
-            {DEFAULT_BINGO_TILES.map((tile, index) => {
-              const isChecked = Boolean(bingoMarks[tile.id])
-              return (
-                <button
-                  type="button"
-                  key={tile.id}
-                  className={`${styles.bingoTile} ${isChecked ? styles.bingoVerified : styles.bingoUnmarked}`}
-                  aria-pressed={isChecked}
-                  aria-label={`${tile.label}: ${isChecked ? 'Đã hoàn thành' : 'Chưa hoàn thành'}`}
-                  onClick={() => toggleBingoTile(tile.id)}
+          {progressState !== 'ready' ? (
+            <p className={styles.panelEmpty} role="status">
+              {progressState === 'loading'
+                ? 'Đang tải hoạt động đã hoàn thành…'
+                : 'Chưa tải được lịch sử hoạt động.'}
+            </p>
+          ) : completedRecent.length ? (
+            <div className={styles.recentList}>
+              {completedRecent.map(({ entry, resource }) => (
+                <Link
+                  key={`${entry.localDate}:${resource.id}`}
+                  href={resourceHref(resource, entry.localDate)}
                 >
-                  <div className={styles.bingoTileTop}>
-                    <span className={styles.bingoTileNumber}>#{index + 1}</span>
-                    <span className={styles.bingoTileIcon} aria-hidden="true">
-                      {isChecked ? '✓' : tile.icon}
-                    </span>
-                  </div>
-                  <strong className={styles.bingoTileTitle}>
-                    {tile.label}
+                  <span aria-hidden="true">✓</span>
+                  <strong>
+                    {resource.title}
+                    <small>
+                      {entry.completedAt
+                        ? new Intl.DateTimeFormat('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            day: '2-digit',
+                            month: '2-digit',
+                          }).format(new Date(entry.completedAt))
+                        : entry.localDate}
+                    </small>
                   </strong>
-                  <div className={styles.bingoTileBottom}>
-                    <span
-                      className={
-                        isChecked
-                          ? styles.bingoPillVerified
-                          : styles.bingoPillAction
-                      }
-                    >
-                      {isChecked ? 'Đã hoàn thành' : 'Chạm để tick'}
-                    </span>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-
-          <p
-            className={`${styles.bingoNote} ${hasBingoWin ? styles.bingoNoteComplete : ''}`}
-            role="status"
-          >
-            {hasBingoWin
-              ? '🎉 Tuyệt vời! Bạn đã hoàn thành một đường Bingo 3 ô thẳng hàng!'
-              : '💡 Gợi ý: Chạm vào từng ô để đánh dấu thói quen bạn đã thực hiện hôm nay.'}
-          </p>
+                  <em className={styles.recentReward}>
+                    Đã lưu · bản {entry.contentVersion}
+                  </em>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.panelEmpty}>
+              Chưa có hoạt động hoàn thành nào được lưu trong 14 ngày gần đây.
+            </p>
+          )}
         </section>
-
-        <div className={styles.sideStack}>
-          <section className={styles.badges} aria-labelledby="badges-title">
-            <div className={styles.panelHead}>
-              <div>
-                <h2 id="badges-title">Bộ sưu tập hành trình</h2>
-                <p>Dấu mốc ghi nhận từ hoạt động của bạn</p>
-              </div>
-              <Link href="/achievements" className={styles.panelHeadLink}>
-                {achievementsState === 'ready' && achievements
-                  ? `${earnedCount}/${achievements.items.length} đã đạt`
-                  : 'Xem tất cả'}{' '}
-                →
-              </Link>
-            </div>
-            {achievementsState === 'loading' ? (
-              <div className={styles.badgeGrid}>
-                <div className={styles.lockedBadge}>
-                  <span aria-hidden="true">🌱</span>
-                  <strong>Đang tải…</strong>
-                  <small>Dấu mốc</small>
-                </div>
-                <div className={styles.lockedBadge}>
-                  <span aria-hidden="true">✨</span>
-                  <strong>Đang tải…</strong>
-                  <small>Dấu mốc</small>
-                </div>
-                <div className={styles.lockedBadge}>
-                  <span aria-hidden="true">🏆</span>
-                  <strong>Đang tải…</strong>
-                  <small>Dấu mốc</small>
-                </div>
-              </div>
-            ) : achievementsState === 'error' ? (
-              <p className={styles.panelEmpty} role="status">
-                Chưa tải được bộ sưu tập.{' '}
-                <button type="button" onClick={() => window.location.reload()}>
-                  Thử lại
-                </button>
-              </p>
-            ) : achievements?.items.length === 0 ? (
-              <p className={styles.panelEmpty} role="status">
-                Chưa có dấu mốc trong bộ sưu tập.
-              </p>
-            ) : (
-              <div className={styles.badgeGrid}>
-                {displayBadges.map((badge) => (
-                  <Link
-                    key={badge.id}
-                    href="/achievements"
-                    className={`${styles.badgeItemLink} ${badge.isEarned ? '' : styles.lockedBadge}`}
-                  >
-                    <span aria-hidden="true">{badge.icon}</span>
-                    <strong>{badge.title}</strong>
-                    <small>{badge.statusText}</small>
-                  </Link>
-                ))}
-              </div>
-            )}
-            <Link href="/achievements" className={styles.badgeFooterLink}>
-              Xem chi tiết bộ sưu tập thành tựu →
-            </Link>
-          </section>
-          <section className={styles.recent} aria-labelledby="recent-title">
-            <div className={styles.panelHead}>
-              <h2 id="recent-title">Hoạt động đã lưu gần đây</h2>
-              <span>14 ngày</span>
-            </div>
-            {progressState !== 'ready' ? (
-              <p className={styles.panelEmpty} role="status">
-                {progressState === 'loading'
-                  ? 'Đang tải hoạt động đã hoàn thành…'
-                  : 'Chưa tải được lịch sử hoạt động.'}
-              </p>
-            ) : completedRecent.length ? (
-              <div className={styles.recentList}>
-                {completedRecent.map(({ entry, resource }) => (
-                  <Link
-                    key={`${entry.localDate}:${resource.id}`}
-                    href={resourceHref(resource, entry.localDate)}
-                  >
-                    <span aria-hidden="true">✓</span>
-                    <strong>
-                      {resource.title}
-                      <small>
-                        {entry.completedAt
-                          ? new Intl.DateTimeFormat('vi-VN', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              day: '2-digit',
-                              month: '2-digit',
-                            }).format(new Date(entry.completedAt))
-                          : entry.localDate}
-                      </small>
-                    </strong>
-                    <em className={styles.recentReward}>
-                      Đã lưu · bản {entry.contentVersion}
-                    </em>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.panelEmpty}>
-                Chưa có hoạt động hoàn thành nào được lưu trong 14 ngày gần đây.
-              </p>
-            )}
-          </section>
-        </div>
       </div>
     </div>
   )

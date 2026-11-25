@@ -139,7 +139,7 @@ function JourneyProgress({ phase }: { phase: InitialCheckState['phase'] }) {
   return (
     <nav
       className="initial-check-progress"
-      aria-label="Tiến trình kiểm tra ban đầu"
+      aria-label="Tiến trình bài sàng lọc"
     >
       <ol>
         {steps.map((label, index) => {
@@ -481,7 +481,7 @@ export default function GuidedInitialCheck({
               Quay lại xem lại kế hoạch
             </h2>
             <p>
-              Bài kiểm tra lại đã xong. Kế hoạch chưa thay đổi cho đến khi bạn
+              Bài đánh giá lại đã xong. Kế hoạch chưa thay đổi cho đến khi bạn
               chọn.
             </p>
             <Link className="btn btn-outline" href="/support-plan?review=open">

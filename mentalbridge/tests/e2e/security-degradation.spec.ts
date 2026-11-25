@@ -515,7 +515,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.goto('/dashboard')
 
     await expect(
-      page.getByRole('link', { name: 'Bắt đầu kiểm tra ban đầu', exact: true }),
+      page.getByRole('link', { name: 'Bắt đầu bài sàng lọc', exact: true }),
     ).toBeVisible({ timeout: 10_000 })
 
     const html = await page.evaluate(() => document.body.innerHTML)
@@ -541,7 +541,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.goto('/dashboard')
 
     await expect(
-      page.getByRole('link', { name: 'Bắt đầu kiểm tra ban đầu', exact: true }),
+      page.getByRole('link', { name: 'Bắt đầu bài sàng lọc', exact: true }),
     ).toBeVisible({ timeout: 10_000 })
 
     // Entitlements are enforced by the backend when booking; the dashboard must
@@ -785,7 +785,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     ).toBeVisible({ timeout: 10_000 })
 
     await expect(page.getByText('Chuyên gia An')).toBeVisible()
-    await expect(page.getByText(/Bạn đang dùng gói Free/)).toBeVisible()
+    await expect(page.getByText(/Bạn đang dùng gói Miễn phí/)).toBeVisible()
     await page.getByRole('button', { name: 'Hồ sơ', exact: true }).click()
     const detail = page.getByRole('dialog')
     await expect(detail.getByText(item.bio)).toBeVisible()

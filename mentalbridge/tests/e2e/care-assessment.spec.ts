@@ -533,7 +533,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
     const start = page
       .getByRole('navigation', { name: 'Hành động nhanh' })
       .getByRole('link', {
-        name: 'Kiểm tra ban đầu Hiểu rõ 14 ngày gần đây',
+        name: 'Bài sàng lọc Hiểu rõ 14 ngày gần đây',
         exact: true,
       })
     await expect(start).toBeVisible()

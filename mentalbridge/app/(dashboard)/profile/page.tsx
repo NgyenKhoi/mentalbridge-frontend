@@ -138,8 +138,10 @@ export default function ProfilePage() {
         if (!active) return
 
         if (profileResult.status === 'fulfilled') {
-          setProfile(profileResult.value)
-          setForm(profileForm(profileResult.value))
+          if (profileResult.value) {
+            setProfile(profileResult.value)
+            setForm(profileForm(profileResult.value))
+          }
         } else if (!(
           profileResult.reason instanceof ApiError &&
           profileResult.reason.code === 'PROFILE_NOT_FOUND'
@@ -311,7 +313,7 @@ export default function ProfilePage() {
               Bạn có thể tiếp tục{' '}
               {initialCheckReturnTo.includes('reassessment')
                 ? 'đánh giá lại'
-                : 'kiểm tra ban đầu'}
+                : 'bài sàng lọc'}
             </h2>
             <p>Hồ sơ và lựa chọn quyền riêng tư hiện đã đầy đủ.</p>
           </div>

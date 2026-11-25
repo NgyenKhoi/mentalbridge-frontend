@@ -189,7 +189,7 @@ export function CombinedMeaningCard({
     meaning.episodePurpose === 'REASSESSMENT'
       ? 'Đánh giá lại'
       : meaning.episodePurpose === 'INITIAL_CHECK'
-        ? 'Kiểm tra ban đầu'
+        ? 'Bài sàng lọc'
         : 'Kết quả sàng lọc'
   // A current reassessment continues only to its own saved Guide, never the initial-check one.
   const continuesToGuide =

@@ -1373,7 +1373,7 @@ export default function SupportPlanWorkspace({
     const freeNext = guideId
       ? { label: 'Xem lại gợi ý hỗ trợ', href: `/support-guides/${guideId}` }
       : loaded.journey?.stage === 'ASSESSMENT_REQUIRED'
-        ? { label: 'Làm bài kiểm tra ngắn', href: '/initial-check' }
+        ? { label: 'Làm bài sàng lọc', href: '/initial-check' }
         : { label: 'Xem gợi ý hỗ trợ', href: '/support-guides' }
     return (
       <div className="mbw-page" data-page-motion="off">
@@ -1476,11 +1476,11 @@ export default function SupportPlanWorkspace({
         ) : proposal === 'no-screening' ||
           loaded.journey?.stage === 'ASSESSMENT_REQUIRED' ? (
           <WorkspaceMessage
-            title="Bắt đầu bằng một bài kiểm tra ngắn"
-            primary={{ label: 'Làm bài kiểm tra', href: '/initial-check' }}
+            title="Bắt đầu bằng một bài sàng lọc"
+            primary={{ label: 'Làm bài sàng lọc', href: '/initial-check' }}
           >
             <p>
-              Kế hoạch được soạn từ kết quả của bạn, nên cần bài kiểm tra trước.
+              Kế hoạch được soạn từ kết quả của bạn, nên cần bài sàng lọc trước.
             </p>
           </WorkspaceMessage>
         ) : proposal === 'failed' ? (

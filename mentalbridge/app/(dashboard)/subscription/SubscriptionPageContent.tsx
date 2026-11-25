@@ -32,7 +32,7 @@ export default function SubscriptionPageContent() {
         </span>
         <h1>Gói dịch vụ &amp; quyền lợi tư vấn</h1>
         <p>
-          Theo dõi lượt tư vấn hiện có, so sánh quyền lợi từ catalogue chính
+          Theo dõi lượt tư vấn hiện có, so sánh quyền lợi từ danh mục gói chính
           thức và thanh toán an toàn khi bạn muốn đồng hành sâu hơn.
         </p>
       </header>
@@ -74,45 +74,6 @@ export default function SubscriptionPageContent() {
                 Trình duyệt không tự tính giá, quyền lợi hay số lượt tư vấn.
               </span>
             </div>
-          </div>
-        </div>
-        <div className="svc-preview" aria-hidden="true">
-          <div className="svc-preview-sidebar">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="svc-preview-main">
-            <div className="svc-preview-top">
-              <span />
-              <i />
-              <i />
-            </div>
-            <div className="svc-preview-title">Quyền lợi tư vấn minh bạch</div>
-            <div className="svc-preview-summary">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className="svc-preview-line" />
-            <div className="svc-preview-cards">
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className="svc-preview-table">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-          </div>
-          <div className="svc-preview-caption">
-            Thông tin quyền lợi của bạn luôn rõ ràng
           </div>
         </div>
       </section>

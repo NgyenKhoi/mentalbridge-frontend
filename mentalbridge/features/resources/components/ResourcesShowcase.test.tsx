@@ -31,11 +31,7 @@ const api = vi.hoisted(() => ({
   getResourceBookmarks: vi.fn(),
   saveResourceBookmark: vi.fn(),
   deleteResourceBookmark: vi.fn(),
-  getAchievements: vi.fn(),
   planProjection: null as PlanResourceActionsV1 | null,
-}))
-vi.mock('@/features/achievements/api/browser-achievements', () => ({
-  getAchievements: api.getAchievements,
 }))
 
 vi.mock('../api/browser-resources', () => ({
@@ -134,7 +130,6 @@ describe('ResourcesShowcase owner data', () => {
     vi.setSystemTime(new Date(2026, 8, 29, 9))
     vi.clearAllMocks()
     api.planProjection = planProjection()
-    api.getAchievements.mockResolvedValue({ collection: { items: [] } })
     api.getResourceCatalogue.mockResolvedValue({
       items: [resource],
       hasMore: false,
@@ -154,12 +149,11 @@ describe('ResourcesShowcase owner data', () => {
 
   afterEach(() => vi.useRealTimers())
 
-  it('does not invent unearned badges when the collection is unavailable', async () => {
-    api.getAchievements.mockRejectedValue(new Error('unavailable'))
+  it('leaves the static habit bingo and the achievements copy to their own pages', async () => {
     render(<ResourcesShowcase />)
-    expect(await screen.findByText(/Chưa tải được bộ sưu tập/)).toBeVisible()
-    expect(screen.queryByText('Chưa đạt')).not.toBeInTheDocument()
-    expect(screen.queryByText('Tài nguyên đầu tiên')).not.toBeInTheDocument()
+    await screen.findByRole('heading', { level: 1, name: resource.title })
+    expect(screen.queryByText('Bingo Thói Quen Tâm Trí')).toBeNull()
+    expect(screen.queryByText('Bộ sưu tập hành trình')).toBeNull()
   })
 
   it('shows saved plan activity without invented XP or streaks', async () => {
@@ -167,7 +161,7 @@ describe('ResourcesShowcase owner data', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: resource.title }),
     ).toBeVisible()
-    expect(screen.getByText('Chưa có chuỗi thực hành')).toBeVisible()
+    expect(await screen.findByText('Chưa có chuỗi thực hành')).toBeVisible()
     expect(
       await screen.findByText('0/1 hoạt động hôm nay đã ghi nhận'),
     ).toBeVisible()
@@ -193,33 +187,43 @@ describe('ResourcesShowcase owner data', () => {
     ).toBeVisible()
   })
 
-  it.each(['ACTIVE', 'PAUSED'] as const)(
-    'uses the %s plan projection for today count independently of journey totals',
-    async (planState) => {
-      const projection = planProjection()
-      const first = projection.actions[0]
-      projection.planState = planState
-      projection.actions = [
-        { ...first, today: { ...first.today!, displayState: 'COMPLETED' } },
-        { ...first, actionId: 'plan-action-2' },
-        { ...first, actionId: 'plan-action-3', today: null },
-        {
-          ...first,
-          actionId: 'plan-action-skipped',
-          today: { ...first.today!, displayState: 'SKIPPED' },
-        },
-      ]
-      api.planProjection = projection
-      render(<ResourcesShowcase />)
-      expect(
-        await screen.findByText('1/2 hoạt động hôm nay đã ghi nhận'),
-      ).toBeVisible()
-      expect(screen.queryByText('0/1 hoạt động đã hoàn thành')).toBeNull()
-      expect(
-        screen.getByRole('link', { name: 'Hoạt động trong kế hoạch hôm nay' }),
-      ).toHaveAttribute('href', '#plan-resources')
-    },
-  )
+  it('uses the ACTIVE plan projection for today count independently of journey totals', async () => {
+    const projection = planProjection()
+    const first = projection.actions[0]
+    projection.planState = 'ACTIVE'
+    projection.actions = [
+      { ...first, today: { ...first.today!, displayState: 'COMPLETED' } },
+      { ...first, actionId: 'plan-action-2' },
+      { ...first, actionId: 'plan-action-3', today: null },
+      {
+        ...first,
+        actionId: 'plan-action-skipped',
+        today: { ...first.today!, displayState: 'SKIPPED' },
+      },
+    ]
+    api.planProjection = projection
+    render(<ResourcesShowcase />)
+    expect(
+      await screen.findByText('1/2 hoạt động hôm nay đã ghi nhận'),
+    ).toBeVisible()
+    expect(screen.queryByText('0/1 hoạt động đã hoàn thành')).toBeNull()
+    expect(
+      screen.getByRole('link', { name: 'Hoạt động trong kế hoạch hôm nay' }),
+    ).toHaveAttribute('href', '#plan-resources')
+  })
+
+  it('neither counts today nor asks for the journey while the plan is paused', async () => {
+    api.planProjection!.planState = 'PAUSED'
+    render(<ResourcesShowcase />)
+    expect(
+      await screen.findByRole('link', {
+        name: 'Hoạt động trong kế hoạch hôm nay',
+      }),
+    ).toHaveAttribute('href', '#plan-resources')
+    expect(screen.queryByTestId('today-plan-progress')).toBeNull()
+    expect(screen.queryByLabelText('Bảy ngày gần đây')).toBeNull()
+    expect(api.getResourceJourney).not.toHaveBeenCalled()
+  })
 
   it('hides the side plan count and week strip when the plan is unavailable', async () => {
     api.planProjection = null

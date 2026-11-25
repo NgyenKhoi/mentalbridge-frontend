@@ -17,13 +17,13 @@ const firstUse = homeFirstUseFixture()
 
 describe('HomeNextStepCard', () => {
   it.each([
-    [firstUse, 'Bắt đầu kiểm tra ban đầu'],
+    [firstUse, 'Bắt đầu bài sàng lọc'],
     [
       {
         ...firstUse,
         journey: { ...firstUse.journey, assessmentInProgress: true },
       },
-      'Tiếp tục kiểm tra ban đầu',
+      'Tiếp tục bài sàng lọc',
     ],
   ])(
     'opens the initial check for the Care assessment state',
@@ -59,7 +59,7 @@ describe('HomeNextStepCard', () => {
   })
 
   it.each([
-    [firstUse, 'Bắt đầu kiểm tra ban đầu', '/initial-check'],
+    [firstUse, 'Bắt đầu bài sàng lọc', '/initial-check'],
     [
       home({
         journey: journey({ stage: 'GUIDE_REQUIRED', supportGuideId: null }),

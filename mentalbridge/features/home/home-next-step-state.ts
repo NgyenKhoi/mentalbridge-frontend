@@ -134,8 +134,8 @@ export function homeNextStepView(
   let view: HomeNextStepView
   if (journey.stage === 'ASSESSMENT_REQUIRED') {
     const label = journey.assessmentInProgress
-      ? 'Tiếp tục kiểm tra ban đầu'
-      : 'Bắt đầu kiểm tra ban đầu'
+      ? 'Tiếp tục bài sàng lọc'
+      : 'Bắt đầu bài sàng lọc'
     view = {
       state: journey.assessmentInProgress
         ? 'ASSESSMENT_IN_PROGRESS'

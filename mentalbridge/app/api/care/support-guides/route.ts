@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         localProblem(
           409,
           'INITIAL_CHECK_INCOMPLETE',
-          'Cần hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu trước khi tạo gợi ý hỗ trợ.',
+          'Cần hoàn tất PHQ-9 và GAD-7 trong cùng lượt sàng lọc trước khi tạo gợi ý hỗ trợ.',
           correlationId,
         ),
         user,

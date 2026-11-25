@@ -65,6 +65,21 @@ describe('ServiceCreditsPanel', () => {
     expect(screen.getByText(/chỉ cấp thêm phần chênh lệch/)).toBeInTheDocument()
   })
 
+  it('words the status banner from the same held count as the stat', async () => {
+    get.mockResolvedValue({ ...demo, balance: { ...demo.balance, held: 2 } })
+    const { unmount } = render(<ServiceCreditsPanel />)
+    expect(
+      await screen.findByText(/Bạn đang giữ 2 buổi cho lịch hẹn[.]/),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Đang giữ lịch').nextSibling).toHaveTextContent('2')
+    unmount()
+    get.mockResolvedValue(demo)
+    render(<ServiceCreditsPanel />)
+    expect(
+      await screen.findByText(/chưa có lịch hẹn tư vấn nào đang chờ/),
+    ).toBeInTheDocument()
+  })
+
   it('reloads the owner balance after a transient failure', async () => {
     get.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(demo)
     const user = userEvent.setup()

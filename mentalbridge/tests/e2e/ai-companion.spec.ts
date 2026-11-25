@@ -239,7 +239,7 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
   expect(deleted).toBe(true)
   await page.goto('/messages')
   await expect(
-    page.getByRole('heading', { name: 'Lịch hẹn chat' }),
+    page.getByRole('heading', { name: 'Cuộc trò chuyện' }),
   ).toBeVisible()
 })
 

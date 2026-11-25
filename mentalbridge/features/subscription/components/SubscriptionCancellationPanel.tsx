@@ -7,6 +7,7 @@ import type {
   OwnSubscription,
   SubscriptionCancellation,
 } from '@/lib/consultation/billing-validation'
+import { SERVICE_PACKAGE_LABELS } from '@/lib/consultation/consultation-validation'
 import {
   browserSubscription,
   SubscriptionBrowserError,
@@ -242,7 +243,9 @@ export default function SubscriptionCancellationPanel({
       <div className={styles.heading}>
         <div>
           <span>GÓI HIỆN TẠI</span>
-          <h2 id="current-subscription-title">{subscription.planCode}</h2>
+          <h2 id="current-subscription-title">
+            {SERVICE_PACKAGE_LABELS[subscription.planCode]}
+          </h2>
         </div>
         <strong data-state={subscription.status}>
           {cancelled

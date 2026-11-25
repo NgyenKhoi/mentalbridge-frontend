@@ -248,7 +248,6 @@ export default function AuthenticatedShell({
     'loading' | 'ready' | 'missing' | 'error'
   >('loading')
   const [specialistSearch, setSpecialistSearch] = useState('')
-  const [generalSearch, setGeneralSearch] = useState('')
   const [appointmentCount, setAppointmentCount] = useState<number | null>(null)
   // MB-744: the page entrance (globals.css) plays only while a route is fresh,
   // so dialogs, async rows and re-renders later never replay it.
@@ -515,57 +514,29 @@ export default function AuthenticatedShell({
                 </span>
               </nav>
             )}
-            {!isProgressiveRelaxation && (
-              <span className="ref-workspace-label">
-                <i aria-hidden="true" />
-                Không gian cá nhân
-              </span>
-            )}
           </div>
-          <label>
-            <Svg>
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3" />
-            </Svg>
-            <input
-              key={
-                pathname === '/specialists'
-                  ? 'specialist-search'
-                  : 'general-search'
-              }
-              type="search"
-              aria-label={
-                pathname === '/specialists'
-                  ? 'Tìm chuyên gia theo tên hoặc chuyên môn'
-                  : 'Tìm kiếm'
-              }
-              value={
-                pathname === '/specialists' ? specialistSearch : generalSearch
-              }
-              onChange={(event) => {
-                if (pathname === '/specialists') {
+          {pathname === '/specialists' && (
+            <label>
+              <Svg>
+                <circle cx="11" cy="11" r="7" />
+                <path d="m21 21-4.3-4.3" />
+              </Svg>
+              <input
+                type="search"
+                aria-label="Tìm chuyên gia theo tên hoặc chuyên môn"
+                value={specialistSearch}
+                onChange={(event) => {
                   setSpecialistSearch(event.target.value)
                   window.dispatchEvent(
                     new CustomEvent('mentalbridge:specialist-search', {
                       detail: event.target.value,
                     }),
                   )
-                } else {
-                  setGeneralSearch(event.target.value)
-                }
-              }}
-              placeholder={
-                pathname === '/specialists'
-                  ? 'Tìm theo chuyên môn, tên bác sĩ...'
-                  : pathname === '/appointments'
-                    ? 'Tìm chuyên gia, nhật ký phiên...'
-                    : isProgressiveRelaxation
-                      ? 'Tìm kiếm chuyên gia, bài tập, nhật ký...'
-                      : 'Tìm kiếm chuyên gia, nhật ký...'
-              }
-            />
-            <kbd>⌘K</kbd>
-          </label>
+                }}
+                placeholder="Tìm theo chuyên môn, tên bác sĩ..."
+              />
+            </label>
+          )}
           <div className="ref-top-actions">
             {pathname === '/appointments' && (
               <button

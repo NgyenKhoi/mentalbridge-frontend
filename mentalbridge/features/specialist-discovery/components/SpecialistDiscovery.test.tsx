@@ -138,6 +138,8 @@ describe('SpecialistDiscovery', () => {
     expect(
       screen.getByRole('button', { name: 'Video · sắp có' }),
     ).toBeDisabled()
+    expect(screen.getByText('Bạn đang dùng gói Miễn phí.')).toBeInTheDocument()
+    expect(screen.queryByText('Free')).not.toBeInTheDocument()
     expect(screen.queryByText(item.bio)).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Hồ sơ' }))
     const dialog = await screen.findByRole('dialog')
