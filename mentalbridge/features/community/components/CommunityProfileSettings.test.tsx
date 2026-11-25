@@ -62,10 +62,30 @@ function chooseFile(
   })
 }
 
+const cropDialog = () =>
+  screen.findByRole('dialog', { name: 'Chỉnh sửa ảnh đại diện' })
+const saveCrop = async (user: ReturnType<typeof userEvent.setup>) =>
+  user.click(
+    within(await cropDialog()).getByRole('button', { name: 'Lưu thay đổi' }),
+  )
+const cropClosed = () =>
+  waitFor(() =>
+    expect(
+      screen.queryByRole('dialog', { name: 'Chỉnh sửa ảnh đại diện' }),
+    ).toBeNull(),
+  )
+const cancelCrop = async (user: ReturnType<typeof userEvent.setup>) => {
+  const dialog = await cropDialog()
+  await user.click(within(dialog).getByRole('button', { name: 'Hủy' }))
+  await waitFor(() => expect(dialog).not.toHaveAttribute('open'))
+}
+
 describe('CommunityProfileSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     decodes.length = 0
+    // jsdom has no canvas: the editor then uploads the original file.
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
     createUrl.mockImplementation(() => `blob:preview-${decodes.length}`)
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
@@ -194,12 +214,15 @@ describe('CommunityProfileSettings', () => {
     const name = await screen.findByLabelText('Tên hiển thị hoặc biệt danh')
     await user.clear(name)
     await user.type(name, 'Tên đang sửa')
+    await user.click(screen.getByRole('button', { name: 'Chỉnh sửa ảnh' }))
     chooseFile()
-    expect(await screen.findByText('avatar.webp')).toBeVisible()
+    const dialog = await cropDialog()
     expect(
-      screen.getByLabelText('Xem trước ảnh đang chọn').querySelector('img'),
+      within(dialog)
+        .getByLabelText(/Khung căn ảnh/)
+        .querySelector('img'),
     ).toHaveAttribute('src', 'blob:preview-0')
-    await user.click(screen.getByRole('button', { name: 'Hủy lựa chọn' }))
+    await cancelCrop(user)
     expect(name).toHaveValue('Tên đang sửa')
     expect(
       screen
@@ -208,10 +231,10 @@ describe('CommunityProfileSettings', () => {
     ).not.toBeNull()
     expect(api.avatar).not.toHaveBeenCalled()
     expect(api.upload).not.toHaveBeenCalled()
-    expect(revokeUrl).toHaveBeenCalledWith('blob:preview-0')
-    expect(
-      screen.getByRole('button', { name: 'Chọn ảnh từ máy' }),
-    ).toHaveFocus()
+    await waitFor(() =>
+      expect(revokeUrl).toHaveBeenCalledWith('blob:preview-0'),
+    )
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa ảnh' })).toHaveFocus()
   })
 
   it('rejects empty, unsupported and corrupt files while preserving the saved photo', async () => {
@@ -254,13 +277,13 @@ describe('CommunityProfileSettings', () => {
     await user.clear(name)
     await user.type(name, 'Tên đang sửa')
     chooseFile()
-    await screen.findByText('avatar.webp')
-    await user.click(screen.getByRole('button', { name: 'Lưu ảnh đại diện' }))
+    await cropDialog()
+    await saveCrop(user)
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Lựa chọn của bạn vẫn được giữ',
     )
     expect(name).toHaveValue('Tên đang sửa')
-    await user.click(screen.getByRole('button', { name: 'Lưu ảnh đại diện' }))
+    await saveCrop(user)
     await waitFor(() =>
       expect(screen.getByRole('status')).toHaveTextContent(
         'Đã lưu ảnh đại diện',
@@ -274,6 +297,7 @@ describe('CommunityProfileSettings', () => {
       expect.any(AbortSignal),
     )
     expect(name).toHaveValue('Tên đang sửa')
+    await cropClosed()
     expect(
       screen.getByLabelText('Ảnh đại diện hiện tại').querySelector('img'),
     ).toHaveAttribute('src', image.url)
@@ -298,14 +322,14 @@ describe('CommunityProfileSettings', () => {
     await user.clear(name)
     await user.type(name, 'Tên của tôi')
     chooseFile()
-    await screen.findByText('avatar.webp')
-    await user.click(screen.getByRole('button', { name: 'Lưu ảnh đại diện' }))
+    await cropDialog()
+    await saveCrop(user)
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Tải thông tin mới',
     )
     expect(api.get).toHaveBeenCalledTimes(1)
     expect(
-      screen.getByRole('button', { name: 'Lưu ảnh đại diện' }),
+      within(await cropDialog()).getByRole('button', { name: 'Lưu thay đổi' }),
     ).toBeDisabled()
     api.get.mockRejectedValueOnce(new Error('Offline'))
     await user.click(screen.getByRole('button', { name: 'Tải thông tin mới' }))
@@ -318,14 +342,15 @@ describe('CommunityProfileSettings', () => {
       etag: '"4"',
     })
     await user.click(screen.getByRole('button', { name: 'Tải thông tin mới' }))
-    await waitFor(() =>
+    await waitFor(async () =>
       expect(
-        screen.getByRole('button', { name: 'Lưu ảnh đại diện' }),
+        within(await cropDialog()).getByRole('button', {
+          name: 'Lưu thay đổi',
+        }),
       ).toBeEnabled(),
     )
     expect(name).toHaveValue('Tên của tôi')
-    expect(screen.getByText('avatar.webp')).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Lưu ảnh đại diện' }))
+    await saveCrop(user)
     await waitFor(() =>
       expect(api.avatar).toHaveBeenLastCalledWith(
         image.mediaId,
@@ -425,9 +450,10 @@ describe('CommunityProfileSettings', () => {
     await user.clear(name)
     await user.type(name, 'Bản nháp độc lập')
     chooseFile()
-    await screen.findByText('avatar.webp')
-    await user.click(screen.getByRole('button', { name: 'Lưu ảnh đại diện' }))
+    await cropDialog()
+    await saveCrop(user)
     await screen.findByRole('alert')
+    await cancelCrop(user)
     await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
     await waitFor(() =>
       expect(
@@ -442,14 +468,10 @@ describe('CommunityProfileSettings', () => {
     await user.click(reloads[1])
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: 'Lưu ảnh đại diện' }),
-      ).toBeEnabled(),
+        screen.queryByRole('button', { name: 'Tải thông tin mới' }),
+      ).not.toBeInTheDocument(),
     )
-    expect(
-      screen.queryByRole('button', { name: 'Tải thông tin mới' }),
-    ).not.toBeInTheDocument()
     expect(name).toHaveValue('Bản nháp độc lập')
-    expect(screen.getByText('avatar.webp')).toBeVisible()
     expect(api.upload).toHaveBeenCalledTimes(1)
     expect(api.get).toHaveBeenCalledTimes(2)
   })
@@ -466,8 +488,8 @@ describe('CommunityProfileSettings', () => {
     render(<CommunityProfileSettings />)
     await screen.findByDisplayValue('Mầm Xanh')
     chooseFile()
-    await screen.findByText('avatar.webp')
-    await user.click(screen.getByRole('button', { name: 'Lưu ảnh đại diện' }))
+    await cropDialog()
+    await saveCrop(user)
     await screen.findByRole('alert')
     api.get.mockResolvedValueOnce({
       data: {
@@ -485,7 +507,7 @@ describe('CommunityProfileSettings', () => {
       ),
     )
     expect(screen.getByRole('radio', { name: 'Lá xanh' })).toBeChecked()
-    expect(screen.getByText('avatar.webp')).toBeVisible()
+    await cancelCrop(user)
     await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
     expect(api.put).toHaveBeenLastCalledWith(
       { displayName: 'Tên mới ở nơi khác', avatarPreset: 'LEAF' },
@@ -499,11 +521,12 @@ describe('CommunityProfileSettings', () => {
     const view = render(<CommunityProfileSettings />)
     await screen.findByLabelText('Tên hiển thị hoặc biệt danh')
     chooseFile()
-    await screen.findByText('avatar.webp')
+    await cropDialog()
     await user.dblClick(
-      screen.getByRole('button', { name: 'Lưu ảnh đại diện' }),
+      within(await cropDialog()).getByRole('button', { name: 'Lưu thay đổi' }),
     )
     expect(api.upload).toHaveBeenCalledTimes(1)
+    // The dialog button now reads "Đang lưu ảnh…", so only the name form's save matches.
     expect(screen.getByRole('button', { name: 'Lưu thay đổi' })).toBeDisabled()
     const signal: AbortSignal = api.upload.mock.calls[0][1]
     expect(signal.aborted).toBe(false)
@@ -511,5 +534,136 @@ describe('CommunityProfileSettings', () => {
     expect(signal.aborted).toBe(true)
     expect(revokeUrl).toHaveBeenCalledWith('blob:preview-0')
     expect(api.avatar).not.toHaveBeenCalled()
+  })
+
+  it('opens the saved photo in the crop stage with an anonymous load and offers a device photo', async () => {
+    const user = userEvent.setup()
+    api.get.mockResolvedValue({
+      data: { ...profile, avatarImage: image },
+      etag: '"2"',
+    })
+    render(<CommunityProfileSettings />)
+    await screen.findByLabelText('Tên hiển thị hoặc biệt danh')
+    await user.click(screen.getByRole('button', { name: 'Chỉnh sửa ảnh' }))
+    const dialog = await cropDialog()
+    await waitFor(() =>
+      expect(
+        within(dialog)
+          .getByLabelText(/Khung căn ảnh/)
+          .querySelector('img'),
+      ).toHaveAttribute('src', `${image.url}?crop=1`),
+    )
+    expect(decodes[0]).toMatchObject({ crossOrigin: 'anonymous' })
+    for (const label of ['Hồ sơ', 'Cộng đồng', 'Menu'])
+      expect(within(dialog).getByText(label)).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('button', { name: 'Chọn ảnh từ máy' }),
+    ).toBeEnabled()
+  })
+
+  it('says so calmly when the saved photo cannot be opened for editing', async () => {
+    const user = userEvent.setup()
+    api.get.mockResolvedValue({
+      data: { ...profile, avatarImage: image },
+      etag: '"2"',
+    })
+    render(<CommunityProfileSettings />)
+    await screen.findByLabelText('Tên hiển thị hoặc biệt danh')
+    vi.stubGlobal(
+      'Image',
+      class {
+        onerror: (() => void) | null = null
+        set src(_value: string) {
+          queueMicrotask(() => this.onerror?.())
+        }
+      },
+    )
+    await user.click(screen.getByRole('button', { name: 'Chỉnh sửa ảnh' }))
+    const dialog = await cropDialog()
+    expect(
+      await within(dialog).findByText(
+        'Chưa mở được ảnh hiện tại để chỉnh. Chọn ảnh từ máy để thay.',
+      ),
+    ).toBeVisible()
+    expect(within(dialog).queryByLabelText(/Khung căn ảnh/)).toBeNull()
+    expect(
+      within(dialog).getByRole('button', { name: 'Lưu thay đổi' }),
+    ).toBeDisabled()
+  })
+
+  it('zooms and pans inside the frame and saves the cropped square instead of the original', async () => {
+    const user = userEvent.setup()
+    const drawImage = vi.fn()
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage,
+    } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(
+      (callback, type) => callback(new Blob(['crop'], { type })),
+    )
+    render(<CommunityProfileSettings />)
+    await screen.findByLabelText('Tên hiển thị hoặc biệt danh')
+    chooseFile('photo.png', 'image/png')
+    const dialog = await cropDialog()
+    const stage = within(dialog).getByLabelText(/Khung căn ảnh/)
+    const slider = within(dialog).getByLabelText('Thu phóng')
+    expect(slider).toHaveAttribute('aria-valuetext', '100%')
+
+    fireEvent.change(slider, { target: { value: '200' } })
+    expect(slider).toHaveAttribute('aria-valuetext', '200%')
+    fireEvent.keyDown(stage, { key: 'ArrowRight' })
+    expect(
+      parseFloat((stage.querySelector('img') as HTMLElement).style.left),
+    ).toBeCloseTo(-48)
+    await user.click(within(dialog).getByRole('button', { name: 'Đặt lại' }))
+    expect(slider).toHaveAttribute('aria-valuetext', '100%')
+    fireEvent.change(slider, { target: { value: '200' } })
+
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Lưu thay đổi' }),
+    )
+    await waitFor(() => expect(api.avatar).toHaveBeenCalled())
+    // 512px square at 2x: the window is 256px wide and starts 128px in.
+    expect(drawImage).toHaveBeenCalledWith(
+      expect.anything(),
+      128,
+      128,
+      256,
+      256,
+      0,
+      0,
+      512,
+      512,
+    )
+    const uploaded: File = api.upload.mock.calls[0][0]
+    expect(uploaded.name).toBe('avatar.webp')
+    vi.restoreAllMocks()
+  })
+
+  it('keeps pan inside the photo and asks for a device photo when the canvas cannot export', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(() => {
+      throw new DOMException('tainted', 'SecurityError')
+    })
+    render(<CommunityProfileSettings />)
+    await screen.findByLabelText('Tên hiển thị hoặc biệt danh')
+    chooseFile()
+    const dialog = await cropDialog()
+    const stage = within(dialog).getByLabelText(/Khung căn ảnh/)
+    fireEvent.keyDown(stage, { key: 'ArrowLeft' })
+    // At 100% the photo exactly fills the frame, so it cannot move.
+    expect(
+      parseFloat((stage.querySelector('img') as HTMLElement).style.left),
+    ).toBeCloseTo(0)
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Lưu thay đổi' }),
+    )
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Chưa lưu được ảnh này. Hãy chọn ảnh từ máy.',
+    )
+    expect(api.upload).not.toHaveBeenCalled()
+    vi.restoreAllMocks()
   })
 })

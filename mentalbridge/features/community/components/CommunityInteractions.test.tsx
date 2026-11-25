@@ -50,6 +50,34 @@ async function pickFromTray(
 describe('CommunityInteractions', () => {
   beforeEach(() => vi.resetAllMocks())
 
+  it('bar layout puts counts first, then reaction, comment and save as three actions', async () => {
+    const user = userEvent.setup()
+    const onComment = vi.fn()
+    render(
+      <CommunityInteractions
+        postId="post-1"
+        viewerState={{ reaction: null, bookmarked: false }}
+        reactionCount={4}
+        layout="bar"
+        meta={<span>2 bình luận</span>}
+        onComment={onComment}
+      />,
+    )
+
+    const buttons = screen.getAllByRole('button')
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
+      '4 lượt',
+      '🤍Thương',
+      'Bình luận',
+      'Lưu bài',
+    ])
+    expect(screen.getByText('2 bình luận')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Bình luận' }))
+    expect(onComment).toHaveBeenCalledWith(
+      screen.getByRole('button', { name: 'Bình luận' }),
+    )
+  })
+
   it('opens the seven-emoji tray from the keyboard, Like first, and sends a new kind', async () => {
     const user = userEvent.setup()
     api.putReaction.mockResolvedValue({ postId: 'post-1', reaction: 'GROWTH' })

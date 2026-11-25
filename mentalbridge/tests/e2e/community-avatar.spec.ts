@@ -142,7 +142,9 @@ test.describe('Community uploaded avatar', () => {
     await page
       .getByLabel('Chọn tệp ảnh đại diện')
       .setInputFiles({ name: 'avatar.png', mimeType: 'image/png', buffer: png })
-    await expect(page.getByText('avatar.png', { exact: true })).toBeVisible()
+    const crop = page.getByRole('dialog', { name: 'Chỉnh sửa ảnh đại diện' })
+    await expect(crop).toBeVisible()
+    await expect(crop.getByLabel(/Khung căn ảnh/).locator('img')).toBeVisible()
     await page.goBack()
     const leave = page.getByRole('dialog', { name: 'Rời trang khi chưa lưu?' })
     await expect(leave).toBeVisible()
@@ -150,13 +152,11 @@ test.describe('Community uploaded avatar', () => {
     await expect(page.getByLabel('Tên hiển thị hoặc biệt danh')).toHaveValue(
       'Tên đang sửa',
     )
-    await page.getByRole('button', { name: 'Lưu ảnh đại diện' }).click()
-    await expect(
-      page
-        .getByRole('region', { name: 'Ảnh đại diện cộng đồng' })
-        .getByRole('alert'),
-    ).toContainText('Chưa lưu được ảnh')
-    await page.getByRole('button', { name: 'Lưu ảnh đại diện' }).click()
+    await crop.getByRole('button', { name: 'Lưu thay đổi' }).click()
+    await expect(crop.getByRole('alert')).toContainText('Chưa lưu được ảnh')
+    // Same crop, so the retry reuses the uploaded media instead of uploading again.
+    await crop.getByRole('button', { name: 'Lưu thay đổi' }).click()
+    await expect(crop).toBeHidden()
     await expect(page.getByRole('status')).toContainText('Đã lưu ảnh đại diện')
     expect(intents).toBe(1)
     expect(uploaded).toBe(1)

@@ -88,6 +88,26 @@ function isLateConfirmed(appointment: Appointment, generatedAt: string) {
   )
 }
 
+/** Up to three ended sessions before `current`, newest first: their summaries feed the next prep. */
+function earlierSessions(
+  appointments: readonly Appointment[],
+  current: Appointment,
+) {
+  const start = Date.parse(current.scheduledStartAt)
+  return appointments
+    .filter(
+      (item) =>
+        item.id !== current.id &&
+        (item.status === 'COMPLETED' || item.status === 'SESSION_ENDED') &&
+        Date.parse(item.scheduledEndAt) <= start,
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(right.scheduledStartAt) - Date.parse(left.scheduledStartAt),
+    )
+    .slice(0, 3)
+}
+
 function isChangeable(appointment: Appointment | undefined) {
   return (
     appointment?.status === 'REQUESTED' || appointment?.status === 'CONFIRMED'
@@ -993,6 +1013,10 @@ export default function AppointmentRequestPanel({
                 <div style={{ marginTop: '20px' }}>
                   <ConsultationBriefEditor
                     appointmentId={focusedAppointment.id}
+                    earlierAppointments={earlierSessions(
+                      appointments,
+                      focusedAppointment,
+                    )}
                   />
                 </div>
               )}
@@ -1704,6 +1728,10 @@ export default function AppointmentRequestPanel({
                 detailAppointment.status === 'CONFIRMED' ? (
                   <ConsultationBriefEditor
                     appointmentId={detailAppointment.id}
+                    earlierAppointments={earlierSessions(
+                      appointments,
+                      detailAppointment,
+                    )}
                   />
                 ) : (
                   <SessionSummaryPanel
