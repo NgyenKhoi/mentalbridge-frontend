@@ -404,21 +404,18 @@ describe('useMamTrajectory', () => {
       expect(result.current.reaction).toBeNull()
     })
 
-    it('a QUIET-route event waits for the next FULL route and is dropped after 10 minutes', async () => {
+    it('a QUIET-route event plays there; one from a hidden route waits and is dropped after 10 minutes', async () => {
       window.localStorage.setItem(
         `mentalbridge_mam_daily:${ACCOUNT}:${TODAY}`,
         '1',
       )
       const quiet = mount({ mode: 'quiet' })
-      fire({ type: 'journal-saved' })
+      fire({ type: 'journal-saved', mood: 'LOW' })
       await flush()
-      expect(quiet.result.current.reaction).toBeNull()
-      quiet.rerender({ ...FULL })
-      await flush()
-      expect(quiet.result.current.reaction).toMatchObject({ intent: 'LISTEN' })
+      expect(quiet.result.current.reaction).toMatchObject({ intent: 'COMFORT' })
       quiet.unmount()
 
-      const late = mount({ mode: 'quiet' })
+      const late = mount({ mode: 'hidden' })
       fire({ type: 'resource-done' })
       vi.setSystemTime(new Date(`${TODAY}T09:11:00`))
       late.rerender({ ...FULL })
@@ -729,7 +726,7 @@ describe('useMamTrajectory', () => {
     })
   })
 
-  it('ends what is on screen when the route stops being FULL', async () => {
+  it('ends what is on screen when the route becomes hidden, not when it turns QUIET', async () => {
     window.localStorage.setItem(
       `mentalbridge_mam_daily:${ACCOUNT}:${TODAY}`,
       '1',
@@ -739,6 +736,8 @@ describe('useMamTrajectory', () => {
     await flush()
     expect(result.current.reaction).not.toBeNull()
     rerender({ ...FULL, mode: 'quiet' })
+    expect(result.current.reaction).not.toBeNull()
+    rerender({ ...FULL, mode: 'hidden' })
     expect(result.current.reaction).toBeNull()
     rerender({ ...FULL })
     expect(result.current.reaction).toBeNull()

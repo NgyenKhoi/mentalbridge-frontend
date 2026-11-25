@@ -102,6 +102,36 @@ describe('AiCompanionChat', () => {
     )
   })
 
+  it('marks messages spoken in a voice call, and only those', async () => {
+    vi.mocked(companionBrowserClient.get).mockResolvedValue({
+      ...conversation,
+      messages: [
+        {
+          messageId: '44444444-4444-4444-8444-444444444444',
+          role: 'USER',
+          content: 'Mình vừa nói qua điện thoại',
+          createdAt: '2026-09-20T08:01:00Z',
+          contextKinds: [],
+          channel: 'VOICE',
+        },
+        {
+          messageId: '55555555-5555-4555-8555-555555555555',
+          role: 'ASSISTANT',
+          content: 'Mầm nghe rồi nè.',
+          createdAt: '2026-09-20T08:01:00Z',
+          contextKinds: [],
+        },
+      ],
+    })
+    render(<AiCompanionChat accountId={accountId} />)
+
+    const spoken = (
+      await screen.findByText('Mình vừa nói qua điện thoại')
+    ).closest('article')!
+    expect(within(spoken).getByText('Qua giọng nói')).toBeVisible()
+    expect(screen.getAllByText('Qua giọng nói')).toHaveLength(1)
+  })
+
   it('persists context per conversation and sends only the message', async () => {
     const answered: CompanionConversation = {
       ...conversation,

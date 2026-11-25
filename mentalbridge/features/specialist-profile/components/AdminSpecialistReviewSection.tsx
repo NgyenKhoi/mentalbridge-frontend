@@ -269,7 +269,7 @@ export default function AdminSpecialistReviewSection() {
         description:
           action === 'REJECT'
             ? 'Lý do đã chọn sẽ được lưu để chuyên gia chỉnh sửa và gửi lại hồ sơ.'
-            : 'Các khung giờ khả dụng sẽ bị rút, cuộc hẹn liên quan bị hủy và lượt tư vấn được hoàn theo chính sách.',
+            : 'Các khung giờ khả dụng sẽ bị rút, cuộc hẹn liên quan bị hủy và buổi tư vấn được hoàn theo chính sách.',
         confirmLabel: action === 'REJECT' ? 'Từ chối hồ sơ' : 'Tạm ngưng',
         tone: 'danger',
       })
@@ -296,7 +296,7 @@ export default function AdminSpecialistReviewSection() {
           suspensionReason,
         )
         completed(
-          `Đã tạm ngưng: rút ${result.data.effects.withdrawnAvailabilitySlots} lịch, hủy ${result.data.effects.cancelledAppointments} cuộc hẹn và hoàn ${result.data.effects.releasedCredits} lượt tư vấn.`,
+          `Đã tạm ngưng: rút ${result.data.effects.withdrawnAvailabilitySlots} lịch, hủy ${result.data.effects.cancelledAppointments} cuộc hẹn và hoàn ${result.data.effects.releasedCredits} buổi tư vấn.`,
         )
       } else {
         await browserConsultation.restore(selected.accountId, activeEtag)

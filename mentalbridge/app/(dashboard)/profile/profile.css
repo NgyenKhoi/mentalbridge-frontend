@@ -60,17 +60,6 @@
   width: 70px;
   height: 70px;
 }
-.settings-avatar-wrap svg {
-  position: absolute;
-  top: -13px;
-  left: -17px;
-  width: 104px;
-  height: 54px;
-  fill: none;
-  stroke: var(--amber);
-  stroke-width: 1.8;
-  opacity: 0.55;
-}
 .settings-avatar {
   position: relative;
   z-index: 1;
@@ -1158,10 +1147,6 @@
 .settings-privacy-runtime > div,
 .settings-danger > div {
   padding-bottom: 24px;
-}
-
-.settings-avatar-wrap svg {
-  stroke: var(--teal);
 }
 
 .settings-activity .neutral {

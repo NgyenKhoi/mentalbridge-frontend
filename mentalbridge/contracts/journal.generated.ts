@@ -140,7 +140,7 @@ export interface paths {
         put?: never;
         /**
          * Prepare an explicitly selected owner Text conversation for Voice.
-         * @description Disabled by default. Requires effective L1 AI_PROCESSING, Voice disclosure v2 and PLUS/PREMIUM. Return a content-free signed ticket expiring in 120 seconds; no admission, provider or microphone. Only the last two complete adjacent pairs with empty contextKinds and at most 1200 UTF-8 bytes are eligible; stop at an ineligible/oversized pair rather than silently cross a private-context gap. START rechecks owner, current authority and exact unexpired snapshot. A ticket is bound once to one session through the admission transaction. Wrong/missing/deleted/expired conversation returns404; no eligible pair returns422. Errors never contain Text, ticket or owner identifiers. No automatic fallback.
+         * @description Disabled by default. Requires effective L1 AI_PROCESSING, Voice disclosure v2 and PLUS/PREMIUM. Return a content-free signed ticket expiring in 120 seconds; no admission, provider or microphone. Only the last two complete adjacent pairs with empty contextKinds and at most 1200 UTF-8 bytes are eligible; stop at an ineligible/oversized pair rather than silently cross a private-context gap. START rechecks owner, current authority and exact unexpired snapshot. A ticket is bound once to one session through the admission transaction. Wrong/missing/deleted/expired conversation returns404; no eligible pair returns422. Errors never contain Text, ticket or owner identifiers. No automatic fallback. When the bound Voice session ends, the pairs spoken in it (not the handed-off pairs) are appended once, in order, to this conversation as messages with channel VOICE, within the 400-message bound.
          */
         post: operations["prepareVoiceContextHandoff"];
         delete?: never;
@@ -1547,6 +1547,11 @@ export interface components {
             createdAt: string;
             contextKinds: components["schemas"]["AiContextKind"][];
             suggestion: components["schemas"]["AiCompanionSuggestion"];
+            /**
+             * @description Present only on a message spoken in a Voice call that continued this conversation through a Text handoff and was written back when the call ended. Absent means a Text message.
+             * @enum {string}
+             */
+            channel?: "VOICE";
         };
         AiConversation: {
             /** Format: uuid */
@@ -1594,7 +1599,7 @@ export interface components {
             userMessageId: string;
             /** Format: uuid */
             assistantMessageId: string;
-            /** @description FREE replies stay at most 500 characters; PLUS and PREMIUM Text replies may reach 900 (MB-869). */
+            /** @description FREE replies stay at most 500 characters; PLUS and PREMIUM Text replies may reach 900 (MB-869). While Mầm TEXT v3 is enabled, every package may reach 1500 (MB-846). */
             assistant: string;
             /** Format: date-time */
             createdAt: string;

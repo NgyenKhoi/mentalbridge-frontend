@@ -324,7 +324,7 @@ export function VideoSessionPanel({
         const accepted = await confirm({
           title: 'Xác nhận buổi tư vấn đã kết thúc?',
           description:
-            'Thao tác này đóng cuộc gọi cho cả hai người và gửi xác nhận của bạn. Lượt tư vấn vẫn được giữ nếu thông tin tham gia chưa được xác minh.',
+            'Thao tác này đóng cuộc gọi cho cả hai người và gửi xác nhận của bạn. Buổi tư vấn vẫn được giữ nếu thông tin tham gia chưa được xác minh.',
           confirmLabel: 'Kết thúc và gửi xác nhận',
           cancelLabel: 'Tiếp tục tư vấn',
           tone: 'danger',
@@ -510,8 +510,8 @@ export function VideoSessionPanel({
             {session.completion.verificationState === 'VERIFIED'
               ? 'Bạn có thể xem tóm tắt sau buổi tư vấn.'
               : session.completion.verificationState === 'EVIDENCE_REVIEW'
-                ? 'Phiên cần được kiểm tra thêm. Lượt tư vấn vẫn được giữ; chưa có kết luận hoàn tất.'
-                : 'Đã nhận xác nhận. Đang kiểm tra thông tin tham gia; lượt tư vấn vẫn được giữ.'}
+                ? 'Phiên cần được kiểm tra thêm. Buổi tư vấn vẫn được giữ; chưa có kết luận hoàn tất.'
+                : 'Đã nhận xác nhận. Đang kiểm tra thông tin tham gia; buổi tư vấn vẫn được giữ.'}
           </p>
         )}
         {popupBlocked && (

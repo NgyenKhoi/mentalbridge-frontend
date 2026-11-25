@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import SessionActions from '@/features/auth/components/SessionActions'
+import AccountAvatar from '@/features/community/components/AccountAvatar'
+import { useOwnCommunityAvatar } from '@/features/community/components/useOwnCommunityAvatar'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
 import { browserConsultation } from '@/features/specialist-profile/api/browser-client'
@@ -192,6 +194,7 @@ export default function RoleWorkspace({
     }
   }, [sectionKey])
 
+  const ownAvatar = useOwnCommunityAvatar()
   const accountAvatar = accountName
     ? accountName
         .split(/\s+/)
@@ -277,7 +280,9 @@ export default function RoleWorkspace({
           <SessionActions
             compact={sidebarCollapsed}
             displayName={accountName ?? 'Tài khoản của bạn'}
-            avatar={accountAvatar}
+            avatar={
+              <AccountAvatar avatar={ownAvatar} fallback={accountAvatar} />
+            }
             accountKind="specialist"
             description="Tài khoản chuyên gia"
             accountLabel={

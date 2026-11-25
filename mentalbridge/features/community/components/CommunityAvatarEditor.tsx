@@ -41,6 +41,8 @@ export default function CommunityAvatarEditor({
   onReload,
   onBusyChange,
   onDirtyChange,
+  title = 'Ảnh đại diện cộng đồng',
+  description = 'Ảnh xuất hiện cùng bài viết và bình luận có danh tính của bạn; không hiển thị khi đăng ẩn danh.',
 }: Readonly<{
   profile: CommunityProfile
   etag: string | null
@@ -49,6 +51,8 @@ export default function CommunityAvatarEditor({
   onReload: () => Promise<void>
   onBusyChange: (busy: boolean) => void
   onDirtyChange: (dirty: boolean) => void
+  title?: string
+  description?: string
 }>) {
   const id = useId()
   const input = useRef<HTMLInputElement>(null)
@@ -254,11 +258,8 @@ export default function CommunityAvatarEditor({
       aria-labelledby={`${id}-title`}
       aria-busy={busy || decoding}
     >
-      <h2 id={`${id}-title`}>Ảnh đại diện cộng đồng</h2>
-      <p>
-        Ảnh xuất hiện cùng bài viết và bình luận có danh tính của bạn; không
-        hiển thị khi đăng ẩn danh.
-      </p>
+      <h2 id={`${id}-title`}>{title}</h2>
+      <p>{description}</p>
       <div className={styles.picker}>
         <div
           className={styles.frame}

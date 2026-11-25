@@ -82,6 +82,39 @@ describe('AI Companion response validation', () => {
   })
 })
 
+describe('AI Companion message channel', () => {
+  const conversation = (channel?: unknown) => ({
+    conversationId: '11111111-1111-4111-8111-111111111111',
+    title: 'Synthetic',
+    context: {
+      sources: { plan: true, diary: false, screening: false, resourceIds: [] },
+      updatedAt: '2026-09-20T08:00:00Z',
+    },
+    messages: [
+      {
+        messageId: '22222222-2222-4222-8222-222222222222',
+        role: 'USER',
+        content: 'Synthetic',
+        createdAt: '2026-09-20T08:00:00Z',
+        contextKinds: [],
+        suggestion: null,
+        ...(channel === undefined ? {} : { channel }),
+      },
+    ],
+    createdAt: '2026-09-20T08:00:00Z',
+    updatedAt: '2026-09-20T08:00:00Z',
+    expiresAt: '2026-12-19T08:00:00Z',
+  })
+
+  it('keeps the optional VOICE channel and rejects other values', () => {
+    expect(parseConversation(conversation())).not.toBeNull()
+    expect(parseConversation(conversation('VOICE'))?.messages[0]?.channel).toBe(
+      'VOICE',
+    )
+    expect(parseConversation(conversation('TEXT'))).toBeNull()
+  })
+})
+
 describe('AI Companion suggestion and quota v2', () => {
   const send = {
     conversationId: '11111111-1111-4111-8111-111111111111',

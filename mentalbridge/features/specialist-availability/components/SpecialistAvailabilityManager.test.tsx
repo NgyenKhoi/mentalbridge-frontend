@@ -141,6 +141,62 @@ describe('SpecialistAvailabilityManager', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('shows a friendly time zone, never the raw IANA name', async () => {
+    const tokyo = {
+      ...activeSlot,
+      id: '2c12df8c-bdd7-4a14-9cd1-e9ce9d35d7f8',
+      timezone: 'Asia/Tokyo',
+      startAt: '2099-01-03T02:00:00.000Z',
+      endAt: '2099-01-03T03:00:00.000Z',
+    }
+    api.list.mockResolvedValue({
+      data: {
+        items: [activeSlot, tokyo],
+        count: 2,
+        generatedAt: '2026-09-17T01:00:00Z',
+        videoPublishingEnabled: false,
+      },
+    })
+    render(<SpecialistAvailabilityManager />)
+
+    expect(await screen.findByText('Giờ Việt Nam (GMT+7)')).toBeInTheDocument()
+    expect(screen.getByText('GMT+9')).toBeInTheDocument()
+    expect(screen.queryByText('Asia/Ho_Chi_Minh')).not.toBeInTheDocument()
+    expect(screen.queryByText('Asia/Tokyo')).not.toBeInTheDocument()
+  })
+
+  it('moves slots that already started into a collapsed "Đã qua" group', async () => {
+    const started = {
+      ...activeSlot,
+      id: '3c12df8c-bdd7-4a14-9cd1-e9ce9d35d7f8',
+      startAt: '2020-01-02T02:00:00.000Z',
+      endAt: '2020-01-02T03:00:00.000Z',
+      readiness: 'STARTED' as const,
+    }
+    api.list.mockResolvedValue({
+      data: {
+        items: [started, activeSlot],
+        count: 2,
+        generatedAt: '2026-09-17T01:00:00Z',
+        videoPublishingEnabled: false,
+      },
+    })
+    render(<SpecialistAvailabilityManager />)
+
+    const summary = await screen.findByText('Đã qua (1)')
+    const group = summary.closest('details')!
+    expect(group).not.toHaveAttribute('open')
+    expect(
+      group.querySelector(`#availability-slot-${started.id}`),
+    ).not.toBeNull()
+    expect(screen.queryByText('Đã bắt đầu')).not.toBeInTheDocument()
+    expect(
+      document
+        .querySelector(`#availability-slot-${activeSlot.id}`)
+        ?.closest('details'),
+    ).toBeNull()
+  })
+
   it('publishes an exact 60-minute UTC slot using a stable idempotency key', async () => {
     const user = userEvent.setup()
     render(<SpecialistAvailabilityManager />)

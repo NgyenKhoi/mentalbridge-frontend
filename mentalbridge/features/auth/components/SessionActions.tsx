@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 
 import { terminateSession, type LogoutMode } from '../api/browser-auth'
 import styles from './SessionActions.module.css'
@@ -37,7 +37,7 @@ export default function SessionActions({
 }: {
   compact?: boolean
   displayName?: string
-  avatar?: string
+  avatar?: ReactNode
   accountKind?: 'personal' | 'specialist'
   accountLabel?: string
   description?: string

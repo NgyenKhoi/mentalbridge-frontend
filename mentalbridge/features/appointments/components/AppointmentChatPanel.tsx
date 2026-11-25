@@ -595,7 +595,7 @@ export default function AppointmentChatPanel({
       : eligibility.userAccountId
     : null
   const counterpartLabel =
-    viewerRole === 'SPECIALIST' ? 'Người dùng' : 'Chuyên gia'
+    viewerRole === 'SPECIALIST' ? 'Khách hàng' : 'Chuyên gia'
   const quickReplies =
     viewerRole === 'SPECIALIST'
       ? [
@@ -674,7 +674,7 @@ export default function AppointmentChatPanel({
               {isSpecialist
                 ? creditText[eligibility.creditState].replaceAll(
                     'Credit',
-                    'Lượt tư vấn',
+                    'Buổi tư vấn',
                   )
                 : creditText[eligibility.creditState]}
             </p>
@@ -811,7 +811,7 @@ export default function AppointmentChatPanel({
               <p>
                 {phaseText[eligibility.phase].replaceAll(
                   'credit',
-                  'lượt tư vấn',
+                  'buổi tư vấn',
                 )}
               </p>
             </div>

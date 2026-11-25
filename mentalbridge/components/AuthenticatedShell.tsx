@@ -7,6 +7,8 @@ import { usePathname } from 'next/navigation'
 import { getCareProfile } from '@/features/assessment/api/browser-care'
 import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
 import SessionActions from '@/features/auth/components/SessionActions'
+import AccountAvatar from '@/features/community/components/AccountAvatar'
+import { useOwnCommunityAvatar } from '@/features/community/components/useOwnCommunityAvatar'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
 import { ApiError } from '@/lib/api/api-error'
@@ -362,6 +364,7 @@ export default function AuthenticatedShell({
   const isProgressiveRelaxation =
     pathname === '/resources/00000000-0000-4000-8000-000000000215' ||
     pathname === '/resources/00000000-0000-4000-8000-000000000216'
+  const ownAvatar = useOwnCommunityAvatar()
   const initials = useMemo(
     () =>
       (
@@ -438,7 +441,7 @@ export default function AuthenticatedShell({
           <SessionActions
             compact={collapsed && !mobile}
             displayName={displayName}
-            avatar={initials}
+            avatar={<AccountAvatar avatar={ownAvatar} fallback={initials} />}
             accountLabel={accountLabel}
             profileLabel={
               profileStatus === 'missing' ? 'Hoàn thiện hồ sơ' : 'Hồ sơ cá nhân'
@@ -596,7 +599,7 @@ export default function AuthenticatedShell({
                   <path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" />
                 </Svg>
               ) : (
-                initials
+                <AccountAvatar avatar={ownAvatar} fallback={initials} />
               )}
             </Link>
           </div>

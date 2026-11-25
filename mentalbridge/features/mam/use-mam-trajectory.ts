@@ -11,6 +11,7 @@ import {
   mamEventName,
   mamEventReaction,
   parseMamEvent,
+  type MamEmotion,
   type MamEventDetail,
 } from './mam-events'
 import {
@@ -31,6 +32,7 @@ import {
   MAM_CELEBRATORY_STATES,
   MAM_EMOTION_LEVEL,
   MAM_STATE_REACTION,
+  MAM_WINDOW_DAYS,
   daysBetween,
   mamTrajectory,
   type MamTrajectoryState,
@@ -42,6 +44,14 @@ import { mamCheerable, type MamTrajectoryView } from './mam-trajectory-source'
 const PENDING_MS = 10 * 60_000
 // Margin after a computed deadline, so the retry lands on the open side of it.
 const RETRY_MARGIN_MS = 50
+
+/**
+ * Where Mầm may speak. She answers what the user just did on any route she is shown on (FULL or QUIET):
+ * comfort, listening and encouragement play where it happened. Only a celebration needs a FULL route.
+ */
+export function mamSpeaks(mode: MamRouteMode, intent: MamIntent) {
+  return mode === 'full' || (mode === 'quiet' && intent !== 'CELEBRATE')
+}
 
 export type MamReaction = Readonly<{
   /** Unique per reaction: the host plays the animation once per key. */
@@ -114,8 +124,13 @@ export function useMamTrajectory({
   // Read on every render, so a tab that stays on FULL routes across midnight asks again for the new day.
   const today = localDateInTimeZone(new Date(), browserTimezone())
 
-  // Another account, a hide zone or a route that is not FULL ends what is on screen.
-  if (shown && (shown.accountId !== accountId || hard || mode !== 'full'))
+  // Another account, a hide zone or a route Mầm may not speak on ends what is on screen.
+  if (
+    shown &&
+    (shown.accountId !== accountId ||
+      hard ||
+      !mamSpeaks(mode, shown.reaction.intent))
+  )
     setShown(null)
 
   useEffect(
@@ -151,7 +166,7 @@ export function useMamTrajectory({
       pending.current = null
       return
     }
-    if (mode !== 'full' || !ready) return
+    if (!mamSpeaks(mode, next.reaction.intent) || !ready) return
     const countKey = mamDailyKey('bubbles', accountId, today)
     if (mamBubbleCapped(readMamCount(countKey))) {
       pending.current = null
@@ -193,16 +208,30 @@ export function useMamTrajectory({
         return
       }
       let daysSinceJournal: number | null = null
+      let previousJournalMood: MamEmotion | null = null
       if (event.type === 'journal-saved') {
         const key = mamDailyKey('journal', event.accountId)
         const last = readMamDaily(key)
         daysSinceJournal = last ? daysBetween(last, event.localDate) : null
         writeMamDaily(key, event.localDate)
+        // Stored as `date|MOOD`: only the picked level, never the entry text.
+        const moodKey = mamDailyKey('journal-mood', event.accountId)
+        const [moodDate, mood] = (readMamDaily(moodKey) ?? '').split('|')
+        if (
+          moodDate &&
+          mood &&
+          mood in MAM_EMOTION_LEVEL &&
+          daysBetween(moodDate, event.localDate) < MAM_WINDOW_DAYS
+        )
+          previousJournalMood = mood as MamEmotion
+        if (event.mood)
+          writeMamDaily(moodKey, `${event.localDate}|${event.mood}`)
       }
       const context = {
         calm: cheering.current,
         supportToday,
         daysSinceJournal,
+        previousJournalMood,
       }
       // A celebration needs a known calm. A reassessment always asks again (the band may just have changed);
       // a support step uses what this page load knows, else asks. A failed read is "not calm", never a guess.

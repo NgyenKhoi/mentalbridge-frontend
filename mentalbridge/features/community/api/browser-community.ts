@@ -3,6 +3,7 @@ import { ApiError } from '@/lib/api/api-error'
 import { parseOwnerVersion } from '@/lib/community/community-validation'
 import type {
   CommunityAvatarPreset,
+  CommunityAvatarSummary,
   CommunityFeedPage,
   CommunityProfile,
   CommunityPostDetail,
@@ -30,6 +31,7 @@ import type {
 
 export type {
   CommunityAvatarPreset,
+  CommunityAvatarSummary,
   CommunityFeedPage,
   CommunityProfile,
   CommunityPostDetail,
@@ -147,6 +149,15 @@ export async function getCommunityProfile() {
   const response =
     await browserApiClient.get<CommunityProfile>('/community/profile')
   return { data: response.data, etag: response.headers.etag ?? null }
+}
+
+export async function getCommunityAvatars(accountIds: string[]) {
+  const response = await browserApiClient.get<{
+    items: CommunityAvatarSummary[]
+  }>('/community/avatars', {
+    params: { accountIds: accountIds.join(',') },
+  })
+  return response.data.items
 }
 
 export const COMMUNITY_PROFILE_CHANGED =

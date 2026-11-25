@@ -23,7 +23,10 @@ export async function PUT(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
   let user
   try {
-    user = await authenticatedCommunityUser(request, correlationId)
+    user = await authenticatedCommunityUser(request, correlationId, [
+      'USER',
+      'SPECIALIST',
+    ])
   } catch (error) {
     return communityAuthenticationFailure(error, correlationId)
   }
