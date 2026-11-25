@@ -570,6 +570,10 @@ test.describe('MB-818 Mầm idle life and touch', () => {
     })
     const page = await context.newPage()
     await seedOnboardingSeen(page)
+    // A fresh context skips the fixture that marks the one-time tip as seen.
+    await page.addInitScript(() =>
+      window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true'),
+    )
     await installHomeMocks(page, homeWorld('do-today'))
     await page.goto('/dashboard')
     await ready(page)
