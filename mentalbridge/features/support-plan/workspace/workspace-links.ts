@@ -81,7 +81,7 @@ export function actionDestination(
       }
     }
     case 'REASSESSMENT_SCREENING':
-      return { href: REASSESSMENT_HREF, label: 'Làm bài kiểm tra lại' }
+      return { href: REASSESSMENT_HREF, label: 'Làm bài đánh giá lại' }
     case 'PROFESSIONAL_SUPPORT':
       return {
         href: `/specialists?planActionId=${encodeURIComponent(action.actionId)}`,

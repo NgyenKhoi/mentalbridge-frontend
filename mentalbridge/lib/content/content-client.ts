@@ -50,10 +50,6 @@ import {
   type AchievementPreferenceUpdate,
   type ResourceRewardReadModel,
   type ResourceRewardVisibilityUpdate,
-  parseSafetyDirectoryAdminEntry,
-  parseSafetyDirectoryAdminEntries,
-  type SafetyDirectoryAdminEntry,
-  type SafetyDirectoryEntryWrite,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
@@ -803,73 +799,6 @@ export const contentAdminClient = {
       accessToken,
       correlationId,
       parseSuccess: parseNotificationOperationsSummary,
-    })
-  },
-}
-
-export const contentSafetyDirectoryAdminClient = {
-  list(accessToken: string, correlationId: string) {
-    return contentRequest<SafetyDirectoryAdminEntry[]>({
-      method: 'GET',
-      path: '/api/v1/safety-directory/admin/entries',
-      expectedStatus: 200,
-      accessToken,
-      correlationId,
-      parseSuccess: parseSafetyDirectoryAdminEntries,
-    })
-  },
-  create(
-    accessToken: string,
-    body: SafetyDirectoryEntryWrite,
-    idempotencyKey: string,
-    correlationId: string,
-  ) {
-    return contentRequest<SafetyDirectoryAdminEntry>({
-      method: 'POST',
-      path: '/api/v1/safety-directory/admin/entries',
-      expectedStatus: 201,
-      accessToken,
-      correlationId,
-      idempotencyKey,
-      body,
-      parseSuccess: parseSafetyDirectoryAdminEntry,
-      mutation: true,
-    })
-  },
-  update(
-    accessToken: string,
-    entryId: string,
-    version: number,
-    body: SafetyDirectoryEntryWrite,
-    correlationId: string,
-  ) {
-    return contentRequest<SafetyDirectoryAdminEntry>({
-      method: 'PATCH',
-      path: `/api/v1/safety-directory/admin/entries/${encodeURIComponent(entryId)}?version=${String(version)}`,
-      expectedStatus: 200,
-      accessToken,
-      correlationId,
-      body,
-      parseSuccess: parseSafetyDirectoryAdminEntry,
-      mutation: true,
-    })
-  },
-  transition(
-    accessToken: string,
-    entryId: string,
-    version: number,
-    action: 'review' | 'deactivate',
-    correlationId: string,
-  ) {
-    return contentRequest<SafetyDirectoryAdminEntry>({
-      method: 'POST',
-      path: `/api/v1/safety-directory/admin/entries/${encodeURIComponent(entryId)}/${action}?version=${String(version)}`,
-      expectedStatus: 200,
-      accessToken,
-      correlationId,
-      body: {},
-      parseSuccess: parseSafetyDirectoryAdminEntry,
-      mutation: true,
     })
   },
 }

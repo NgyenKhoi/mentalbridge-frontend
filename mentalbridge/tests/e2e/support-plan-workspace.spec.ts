@@ -994,9 +994,7 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     await page.getByRole('tab', { name: 'Điều chỉnh' }).click()
     await page.getByText('Phương án khác', { exact: true }).click()
     await page.getByRole('button', { name: 'Xem phương án mới' }).click()
-    await page
-      .getByRole('button', { name: 'So sánh với kế hoạch hiện tại' })
-      .click()
+    await page.getByRole('button', { name: 'Kiểm tra phương án này' }).click()
     await expect(
       page.getByRole('complementary', {
         name: 'Bạn đồng hành trong kế hoạch hỗ trợ',

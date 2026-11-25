@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { SupportPlanV3 } from '../api/support-plan-contract'
 import { nativeSupportPlanFixture } from '../testing/native-support-plan-fixture'
@@ -49,14 +49,14 @@ function renderAdjust(planCycle: SupportPlanV3['cycle']) {
 }
 
 describe('AdjustPanel what-matters-now card', () => {
-  it('leads with the review that is due, opened, with one entry', () => {
+  it('leads with the review that is due, shown in the card itself', () => {
     renderAdjust(cycle({ state: 'REVIEW_DUE' }))
     expect(
       screen.getByRole('heading', { name: 'Đã đến lúc xem lại kế hoạch' }),
     ).toBeVisible()
     expect(
-      screen.getAllByRole('button', { name: 'Xem lại kế hoạch' }),
-    ).toHaveLength(1)
+      screen.queryByRole('button', { name: 'Xem lại kế hoạch' }),
+    ).toBeNull()
     expect(screen.getByText('Nội dung xem lại')).toBeVisible()
   })
 
@@ -86,26 +86,47 @@ describe('AdjustPanel what-matters-now card', () => {
     },
   )
 
-  it('keeps the other sections in order, with history renamed', () => {
+  it('groups the settings under two named lists', () => {
     renderAdjust(cycle({}))
-    const names = screen
+    expect(
+      screen.getByRole('heading', { name: 'Tùy chỉnh chu kỳ' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Hỗ trợ và quản lý' }),
+    ).toBeVisible()
+    const titles = screen
       .getAllByRole('button')
-      .map((button) => button.textContent)
+      .map(
+        (button) =>
+          button.querySelector('strong')?.textContent ?? button.textContent,
+      )
       .filter(
         (text) =>
           text &&
-          !/^(Xem phương án mới|Tạm dừng kế hoạch|Kết thúc kế hoạch)$/.test(
+          !/^(Xem lại kế hoạch|Tạm dừng kế hoạch|Kết thúc kế hoạch)$/.test(
             text,
           ),
       )
-    expect(names).toEqual([
-      'Xem lại kế hoạch',
+    expect(titles).toEqual([
       'Lịch và thời lượng',
       'Điều bạn muốn ưu tiên',
       'Phương án khác',
-      'Hỗ trợ từ chuyên gia',
-      'Tạm dừng hoặc kết thúc',
-      'Các kế hoạch trước',
+      'Hỗ trợ từ chuyên giaBạn tự chọn và đặt lịch',
+      'Các kế hoạch trướcCác chu kỳ đã qua',
+      'Tạm dừng hoặc kết thúcKhi cần nghỉ',
     ])
+  })
+
+  it('opens one adjustment as its own screen and returns to its row', () => {
+    renderAdjust(cycle({}))
+    fireEvent.click(screen.getByRole('button', { name: /Lịch và thời lượng/ }))
+    expect(
+      screen.getByRole('heading', { name: 'Lịch và thời lượng' }),
+    ).toHaveFocus()
+    expect(screen.getByText('Lịch')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại Điều chỉnh' }))
+    expect(
+      screen.getByRole('button', { name: /Lịch và thời lượng/ }),
+    ).toHaveFocus()
   })
 })

@@ -86,7 +86,9 @@ import {
   msUntilNextLocalDay,
   occurrenceKey,
   occurrenceWindow,
+  planDisclaimer,
   planTimezone,
+  reassessedForReview,
   selectTodayFocus,
   summarizeProgress,
   type PlannedOccurrence,
@@ -229,7 +231,7 @@ function errorMessage(error: unknown, proposing = false) {
       ].includes(code(error)) ||
         error.status === 404)
     )
-      return 'Hãy làm bài kiểm tra lại trước khi xem phương án mới.'
+      return 'Hãy làm bài đánh giá lại trước khi xem phương án mới.'
     if (error.status === 409)
       return 'Chưa thực hiện được vì kế hoạch đã thay đổi. Hãy tải lại để xem.'
   }
@@ -1510,7 +1512,7 @@ export default function SupportPlanWorkspace({
           <WorkspaceMessage
             title="Bạn chưa có kế hoạch đang dùng"
             primary={{
-              label: 'Làm bài kiểm tra lại',
+              label: 'Làm bài đánh giá lại',
               href: '/initial-check?purpose=reassessment',
             }}
             secondary={
@@ -1554,7 +1556,9 @@ export default function SupportPlanWorkspace({
           </WorkspaceMessage>
         )}
         {planForCopy && (
-          <p className="mbw-disclaimer">{planForCopy.disclaimer}</p>
+          <p className="mbw-disclaimer">
+            {planDisclaimer(planForCopy.disclaimer)}
+          </p>
         )}
       </div>
     )
@@ -1674,6 +1678,11 @@ export default function SupportPlanWorkspace({
                 void skipReason(item, value, reuse)
               }
               onResume={() => void lifecycle(current, 'ACTIVE')}
+              reassessed={reassessedForReview(
+                loaded?.journey?.latestScreening,
+                current.cycle?.reviewDueOn,
+                timezone,
+              )}
               onOpenReview={openReview}
               onOpenPlan={() => void changeTab('plan')}
             />
@@ -1738,7 +1747,7 @@ export default function SupportPlanWorkspace({
           )}
         </section>
       </div>
-      <p className="mbw-disclaimer">{current.disclaimer}</p>
+      <p className="mbw-disclaimer">{planDisclaimer(current.disclaimer)}</p>
     </div>
   )
 }

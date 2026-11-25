@@ -77,6 +77,8 @@ type Props = Readonly<{
   onRate: (item: PlannedOccurrence, value: Helpfulness, reuse: boolean) => void
   onBarrier: (item: PlannedOccurrence, value: Barrier, reuse: boolean) => void
   onResume: () => void
+  /** The current cycle's reassessment is done, so the review is a choice of next rhythm. */
+  reassessed?: boolean
   onOpenReview: () => void
   onOpenPlan: () => void
 }>
@@ -245,6 +247,7 @@ export default function TodayPanel({
   onRate,
   onBarrier,
   onResume,
+  reassessed = false,
   onOpenReview,
   onOpenPlan,
 }: Props) {
@@ -324,7 +327,30 @@ export default function TodayPanel({
         </section>
       )}
 
-      {focus.kind === 'REVIEW_DUE' && (
+      {focus.kind === 'REVIEW_DUE' && reassessed && (
+        <section className="mbw-tile mbw-next" aria-labelledby="mbw-next-title">
+          <h2 id="mbw-next-title">Đến lúc chọn nhịp tiếp theo</h2>
+          <p>
+            Bạn đã làm bài đánh giá lại. Xem kết quả cùng kế hoạch rồi chọn nhịp
+            cho 14 ngày tới.
+          </p>
+          <div className="mbw-actions">
+            <button
+              type="button"
+              className="mbw-primary"
+              onClick={onOpenReview}
+            >
+              Chọn nhịp tiếp theo
+              <ArrowRight size={18} aria-hidden="true" />
+            </button>
+            <Link className="mbw-secondary" href="/nhin-lai">
+              Xem nhìn lại
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {focus.kind === 'REVIEW_DUE' && !reassessed && (
         <section className="mbw-tile mbw-next" aria-labelledby="mbw-next-title">
           <h2 id="mbw-next-title">Đến lúc cùng xem lại kế hoạch</h2>
           <p>

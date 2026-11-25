@@ -544,8 +544,8 @@ test.describe('MB-672 Home next step', () => {
         quick.getByRole('link', { name: /Viết nhật ký/ }),
       ).toHaveAttribute('href', /journal/)
       await expect(
-        quick.getByRole('link', { name: /Kiểm tra ban đầu/ }),
-      ).toHaveAttribute('href', '/initial-check')
+        quick.getByRole('link', { name: /Bài sàng lọc/ }),
+      ).toHaveAttribute('href', plan ? '/assessments' : '/initial-check')
       await expect(
         quick.getByRole('link', { name: /Tìm chuyên gia/ }),
       ).toHaveAttribute('href', '/specialists')

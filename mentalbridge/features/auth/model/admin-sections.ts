@@ -16,9 +16,6 @@ export const ADMIN_SECTIONS = {
   content: {
     label: 'Tài nguyên tự chăm sóc',
   },
-  'safety-directory': {
-    label: 'Thư mục hỗ trợ an toàn',
-  },
   benchmarks: {
     label: 'Benchmark AI',
     description:

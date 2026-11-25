@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type {
   ActionOccurrence,
@@ -13,6 +13,7 @@ import { adaptiveReviewFixture } from '../testing/adaptive-review-fixture'
 import TodayPanel, { acceptedJournalHref, statusLine } from './TodayPanel'
 import {
   planActions,
+  reassessedForReview,
   selectTodayFocus,
   type PlannedOccurrence,
 } from './workspace-model'
@@ -114,6 +115,81 @@ describe('review due', () => {
       screen.getByRole('link', { name: 'Làm bài đánh giá lại để tiếp tục' }),
     ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
     expect(screen.queryByText('Hoạt động hôm nay')).toBeNull()
+  })
+
+  it('turns the primary step into the rhythm choice once the reassessment is done', () => {
+    const plan = {
+      ...nativeSupportPlanFixture(),
+      cycle: adaptiveReviewFixture().cycle,
+    }
+    const onOpenReview = vi.fn()
+    render(
+      <TodayPanel
+        plan={plan}
+        focus={selectTodayFocus(plan, [], '2026-10-13')}
+        occurrences={[]}
+        today="2026-10-13"
+        timezone="Asia/Ho_Chi_Minh"
+        ready
+        loadError={false}
+        rows={{ busy: {}, messages: {} }}
+        busy={false}
+        engageable={new Set()}
+        companion={{ request: vi.fn() } as never}
+        onRetry={vi.fn()}
+        onSkip={vi.fn()}
+        onReopen={vi.fn()}
+        onAcknowledge={vi.fn()}
+        onRate={vi.fn()}
+        onBarrier={vi.fn()}
+        onResume={vi.fn()}
+        reassessed
+        onOpenReview={onOpenReview}
+        onOpenPlan={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByRole('link', { name: 'Làm bài đánh giá lại để tiếp tục' }),
+    ).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Chọn nhịp tiếp theo' }))
+    expect(onOpenReview).toHaveBeenCalledOnce()
+    expect(screen.getByRole('link', { name: 'Xem nhìn lại' })).toHaveAttribute(
+      'href',
+      '/nhin-lai',
+    )
+  })
+})
+
+describe('reassessedForReview', () => {
+  const latest = (completedAt: string) => ({
+    purpose: 'REASSESSMENT' as const,
+    completedAt,
+  })
+  it('counts a reassessment from the review date in the plan timezone', () => {
+    expect(
+      reassessedForReview(
+        latest('2026-11-03T17:30:00Z'),
+        '2026-11-04',
+        'Asia/Ho_Chi_Minh',
+      ),
+    ).toBe(true)
+    expect(
+      reassessedForReview(
+        latest('2026-11-03T16:30:00Z'),
+        '2026-11-04',
+        'Asia/Ho_Chi_Minh',
+      ),
+    ).toBe(false)
+    expect(
+      reassessedForReview(
+        { purpose: 'INITIAL_CHECK', completedAt: '2026-11-05T00:00:00Z' },
+        '2026-11-04',
+        'Asia/Ho_Chi_Minh',
+      ),
+    ).toBe(false)
+    expect(reassessedForReview(null, '2026-11-04', 'Asia/Ho_Chi_Minh')).toBe(
+      false,
+    )
   })
 })
 
@@ -279,7 +355,7 @@ describe('TodayPanel rows and day footer', () => {
       screen.getByRole('link', { name: 'Ghi nhận cảm xúc' }),
     ).toHaveAttribute('href', '/dashboard')
     expect(
-      screen.getByRole('link', { name: 'Trò chuyện cùng AI Companion' }),
+      screen.getByRole('link', { name: 'Trò chuyện cùng Mầm' }),
     ).toHaveAttribute('href', '/ai-companion')
   })
 

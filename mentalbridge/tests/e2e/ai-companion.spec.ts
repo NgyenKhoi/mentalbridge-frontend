@@ -163,7 +163,7 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
   await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
   await page
     .getByRole('navigation', { name: 'Điều hướng chính' })
-    .getByRole('link', { name: 'AI Companion' })
+    .getByRole('link', { name: 'Trò chuyện với Mầm' })
     .click()
   await expect(page).toHaveURL(/\/ai-companion$/)
   await expect(page.getByRole('heading', { name: 'Hội thoại' })).toBeVisible()
@@ -174,7 +174,9 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
     page.getByRole('link', { name: 'Cần trợ giúp ngay' }),
   ).toBeVisible()
 
-  await page.getByRole('button', { name: /Mở nguồn ngữ cảnh/ }).click()
+  await page
+    .getByRole('button', { name: /Mầm đang dùng|Chọn điều Mầm được biết/ })
+    .click()
   const contextDialog = page.getByRole('dialog', {
     name: 'Nguồn thông tin cho cuộc trò chuyện này',
   })
@@ -187,7 +189,7 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
 
   await expect(
     page
-      .getByRole('region', { name: 'AI Companion' })
+      .getByRole('region', { name: 'Trò chuyện với Mầm' })
       .getByText('Hãy chọn một bước nhỏ và vừa sức.'),
   ).toBeVisible()
   await expect(page.getByText(/Còn 4 lượt/)).toBeVisible()
@@ -197,7 +199,7 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
   await page.getByText('Đã dùng 2 nguồn').click()
   await expect(
     page
-      .getByRole('region', { name: 'AI Companion' })
+      .getByRole('region', { name: 'Trò chuyện với Mầm' })
       .getByText('Mình nên bắt đầu từ đâu?', { exact: true }),
   ).toHaveCSS('color', 'rgb(255, 255, 255)')
   expect(idempotencyKey.length).toBeGreaterThanOrEqual(16)
@@ -214,7 +216,7 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
   for (const width of [1440, 1280, 768, 375]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(
-      page.getByRole('region', { name: 'AI Companion' }),
+      page.getByRole('region', { name: 'Trò chuyện với Mầm' }),
     ).toBeVisible()
     await expect
       .poll(() =>
@@ -347,8 +349,8 @@ test('MB-512 retries an unchanged draft with a fresh key after provider failure'
   await composer.fill('Xin giữ lại nội dung này')
   await page.getByRole('button', { name: 'Gửi' }).click()
   await expect(
-    page.getByRole('region', { name: 'AI Companion' }).getByRole('alert'),
-  ).toContainText('AI Companion đang gián đoạn')
+    page.getByRole('region', { name: 'Trò chuyện với Mầm' }).getByRole('alert'),
+  ).toContainText('Mầm đang gián đoạn')
   await expect(composer).toHaveValue('Xin giữ lại nội dung này')
   await expect(
     page.getByRole('link', { name: 'Cần trợ giúp ngay' }),
@@ -356,7 +358,7 @@ test('MB-512 retries an unchanged draft with a fresh key after provider failure'
   await page.getByRole('button', { name: 'Gửi', exact: true }).click()
   await expect(
     page
-      .getByRole('region', { name: 'AI Companion' })
+      .getByRole('region', { name: 'Trò chuyện với Mầm' })
       .getByText('Mình đang lắng nghe.'),
   ).toBeVisible()
   await expect(composer).toHaveValue('')
@@ -456,7 +458,7 @@ test('MB-791 shows a server-resolved suggestion after the reply and keeps it on 
     .getByRole('textbox', { name: 'Tin nhắn' })
     .fill('Ừ, thử bài thở đó coi')
   await page.getByRole('button', { name: 'Gửi' }).click()
-  const chat = page.getByRole('region', { name: 'AI Companion' })
+  const chat = page.getByRole('region', { name: 'Trò chuyện với Mầm' })
   const link = chat.getByRole('link', { name: 'Mở bài: Thở 4-7-8' })
   await expect(link).toBeVisible()
   await expect(chat.getByText('Thở chậm thôi.', { exact: false })).toBeVisible()
@@ -476,7 +478,7 @@ test('MB-791 shows a server-resolved suggestion after the reply and keeps it on 
     .click()
   await expect(
     page
-      .getByRole('region', { name: 'AI Companion' })
+      .getByRole('region', { name: 'Trò chuyện với Mầm' })
       .getByRole('link', { name: 'Mở bài: Thở 4-7-8' }),
   ).toBeVisible()
 })
@@ -648,7 +650,7 @@ test('MB-829 resends after an unknown outcome and stores one reply', async ({
     .click()
   await page.getByRole('textbox', { name: 'Tin nhắn' }).fill('Gửi một lần thôi')
   await page.getByRole('button', { name: 'Gửi', exact: true }).click()
-  const chat = page.getByRole('region', { name: 'AI Companion' })
+  const chat = page.getByRole('region', { name: 'Trò chuyện với Mầm' })
   await expect(chat.getByRole('alert')).toContainText('Chưa thể xác nhận')
   await chat.getByRole('button', { name: 'Gửi lại' }).click()
   await expect(chat.getByText('Mình đang lắng nghe.')).toHaveCount(1)
@@ -759,7 +761,7 @@ test('MB-829 resends with the same key after an unknown outcome and a reload', a
     .click()
   await page.getByRole('textbox', { name: 'Tin nhắn' }).fill('Gửi qua tải lại')
   await page.getByRole('button', { name: 'Gửi', exact: true }).click()
-  const chat = page.getByRole('region', { name: 'AI Companion' })
+  const chat = page.getByRole('region', { name: 'Trò chuyện với Mầm' })
   await expect(chat.getByRole('alert')).toContainText('Chưa thể xác nhận')
 
   await page.reload()

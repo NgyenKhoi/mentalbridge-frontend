@@ -49,7 +49,7 @@ test.describe('admin account state journey', () => {
     await expect(
       page.getByRole('button', { name: 'Tạm ngưng tài khoản' }),
     ).toBeVisible()
-    await expect(page.getByText('Đã xác minh')).toBeVisible()
+    await expect(page.getByRole('img', { name: 'Đã xác minh' })).toBeVisible()
   })
 
   test('keeps the dedicated admin protected on a mobile viewport', async ({
