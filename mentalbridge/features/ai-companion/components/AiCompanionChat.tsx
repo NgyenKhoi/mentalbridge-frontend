@@ -31,6 +31,8 @@ import CompanionContextDialog from './CompanionContextDialog'
 import StreamingText from './StreamingText'
 import { suggestionLink } from './suggestion-link'
 import VoiceEntry from '../voice/VoiceEntry'
+import { dispatchMamGuide } from '@/features/mam/mam-guide'
+import AiConsentCard from './AiConsentCard'
 import {
   clearCompanionDraft,
   clearCompanionPending,
@@ -173,7 +175,15 @@ export default function AiCompanionChat({
   const [error, setError] = useState<{
     message: string
     retry: 'load' | 'send'
+    /** The send stopped for missing AI consent: the chat offers the consent in place. */
+    consent?: boolean
   } | null>(null)
+  // `?opening=` and `?call=1` come from the Mầm guide; read once, then dropped from the address.
+  const guideRequest = useRef<{
+    opening?: 'FROM_JOURNAL' | 'FROM_RESULT'
+    call: boolean
+  } | null>(null)
+  const [callRequested, setCallRequested] = useState(false)
   const [search, setSearch] = useState('')
   const [contextOpen, setContextOpen] = useState(false)
   const [contextSaving, setContextSaving] = useState(false)
@@ -189,6 +199,8 @@ export default function AiCompanionChat({
   const nearBottomRef = useRef(true)
   const streamTextRef = useRef('')
   const requestControllerRef = useRef<AbortController | null>(null)
+  // Takes the in-flight message back out of the thread (see `send`).
+  const dropOutgoingRef = useRef<(() => void) | null>(null)
 
   const activeId = active?.conversationId ?? ''
   useEffect(() => {
@@ -254,6 +266,20 @@ export default function AiCompanionChat({
   }, [accountId])
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const opening = params.get('opening')
+    if (!params.has('opening') && !params.has('call')) return
+    guideRequest.current = {
+      opening:
+        opening === 'FROM_JOURNAL' || opening === 'FROM_RESULT'
+          ? opening
+          : undefined,
+      call: params.get('call') === '1',
+    }
+    window.history.replaceState(null, '', window.location.pathname)
+  }, [])
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       void load()
     }, 0)
@@ -272,11 +298,13 @@ export default function AiCompanionChat({
     })
   }
 
-  const createConversation = async () => {
+  const createConversation = async (
+    opening?: 'FROM_JOURNAL' | 'FROM_RESULT',
+  ) => {
     if (!(await allowConversationChange())) return
     setError(null)
     try {
-      const created = await companionBrowserClient.create()
+      const created = await companionBrowserClient.create({ opening })
       setConversations((current) => [
         created,
         ...current.filter(
@@ -291,6 +319,17 @@ export default function AiCompanionChat({
       setError({ message: friendlyError(cause), retry: 'load' })
     }
   }
+
+  // The guide's request runs once the history has loaded, so the new conversation lands on top.
+  useEffect(() => {
+    const request = guideRequest.current
+    if (loading || !request) return
+    guideRequest.current = null
+    if (request.opening) void createConversation(request.opening)
+    if (request.call) setCallRequested(true)
+    // `createConversation` is recreated every render; the request is taken exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
 
   const selectConversation = async (id: string) => {
     if (id === activeId) {
@@ -324,6 +363,50 @@ export default function AiCompanionChat({
       delete pendingRef.current[originId]
       clearCompanionPending(accountId, originId)
     }
+    // The user's message shows at once and the composer empties; the server's copy replaces it on success,
+    // and a failure or a stop takes it back out and returns the text to the composer.
+    const outgoingId = `outgoing:${pending.key}`
+    // Once only: a stop takes it back at once, and the stopped request settling later must not refill the composer.
+    let dropped = false
+    const dropOutgoing = () => {
+      if (dropped) return
+      dropped = true
+      if (dropOutgoingRef.current === dropOutgoing)
+        dropOutgoingRef.current = null
+      setActive((current) =>
+        current?.conversationId === originId
+          ? {
+              ...current,
+              messages: current.messages.filter(
+                (item) => item.messageId !== outgoingId,
+              ),
+            }
+          : current,
+      )
+      setDrafts((current) => ({
+        ...current,
+        [originId]: current[originId] || text,
+      }))
+    }
+    setActive((current) =>
+      current?.conversationId === originId
+        ? {
+            ...current,
+            messages: [
+              ...current.messages,
+              {
+                messageId: outgoingId,
+                role: 'USER',
+                content: text,
+                createdAt: new Date().toISOString(),
+                contextKinds: [],
+              },
+            ],
+          }
+        : current,
+    )
+    setDrafts((current) => ({ ...current, [originId]: '' }))
+    dropOutgoingRef.current = dropOutgoing
     const controller = new AbortController()
     requestControllerRef.current = controller
     let animating = false
@@ -334,7 +417,14 @@ export default function AiCompanionChat({
         pending.key,
         controller.signal,
       )
-      if (controller.signal.aborted) return
+      if (controller.signal.aborted) {
+        dropOutgoing()
+        return
+      }
+      // Answered: the server's copy replaces the outgoing message below, so nothing is left to take back.
+      dropped = true
+      if (dropOutgoingRef.current === dropOutgoing)
+        dropOutgoingRef.current = null
       // The user may have switched away; then the answer is on the server, not in view.
       animating = activeIdRef.current === originId
       setQuota(result.quota)
@@ -347,7 +437,9 @@ export default function AiCompanionChat({
           ? {
               ...current,
               messages: [
-                ...current.messages,
+                ...current.messages.filter(
+                  (item) => item.messageId !== outgoingId,
+                ),
                 {
                   messageId: result.userMessageId,
                   role: 'USER',
@@ -377,7 +469,14 @@ export default function AiCompanionChat({
       setDrafts((current) => ({ ...current, [active.conversationId]: '' }))
       clearCompanionDraft(accountId, originId)
       settle()
+      dispatchMamGuide({
+        type: 'chat-replied',
+        userTurns:
+          active.messages.filter((item) => item.role === 'USER').length + 1,
+        plan: result.quota.plan,
+      })
     } catch (cause) {
+      dropOutgoing()
       if (controller.signal.aborted) return
       if (
         cause instanceof CompanionBrowserError &&
@@ -386,7 +485,13 @@ export default function AiCompanionChat({
       )
         settle()
       if (activeIdRef.current === originId)
-        setError({ message: friendlyError(cause), retry: 'send' })
+        setError({
+          message: friendlyError(cause),
+          retry: 'send',
+          consent:
+            cause instanceof CompanionBrowserError &&
+            cause.code === 'AI_CONSENT_REQUIRED',
+        })
     } finally {
       // A stopped request may settle after its replacement started: only the current one may release.
       if (requestControllerRef.current === controller) {
@@ -399,6 +504,7 @@ export default function AiCompanionChat({
   const stopResponse = () => {
     requestControllerRef.current?.abort()
     requestControllerRef.current = null
+    dropOutgoingRef.current?.()
     if (streamingId) {
       const partial = streamTextRef.current
       setActive((current) =>
@@ -550,6 +656,7 @@ export default function AiCompanionChat({
               ? { conversationId: active.conversationId, title: active.title }
               : undefined
           }
+          autoOpen={callRequested}
         />
         {conversations.length > 4 ? (
           <label className={styles.search}>
@@ -661,6 +768,7 @@ export default function AiCompanionChat({
                     }
                   : undefined
               }
+              autoOpen={callRequested}
             />
             {active ? (
               <button
@@ -704,7 +812,14 @@ export default function AiCompanionChat({
           </div>
         </header>
 
-        {error ? (
+        {error?.consent ? (
+          <AiConsentCard
+            onGranted={() => {
+              setError(null)
+              void send()
+            }}
+          />
+        ) : error ? (
           <div className={styles.error} role="alert">
             <p>{error.message}</p>
             {error.retry === 'load' || (active && message.trim()) ? (

@@ -1166,6 +1166,62 @@ describe('MamDock', () => {
       vi.useRealTimers()
     })
 
+    describe('the first-run guide', () => {
+      const GUIDE_ACCOUNT = '11111111-1111-4111-8111-111111111111'
+      afterEach(() => {
+        window.localStorage.clear()
+        window.sessionStorage.clear()
+      })
+
+      it('owns Mầm while it waits: no tip over it, stray keys keep it, she acts each line', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+        window.localStorage.setItem(
+          `mb:mam-guide:v1:${GUIDE_ACCOUNT}`,
+          JSON.stringify({
+            version: 1,
+            startedAt: '2026-11-26T00:00:00.000Z',
+            done: {},
+            declined: {},
+            pending: { after: 'result', next: 'journal' },
+            unwindKind: null,
+            plan: null,
+            graduatedAt: null,
+          }),
+        )
+        render(
+          <>
+            <Cards />
+            <MamDockSlot accountId={GUIDE_ACCOUNT} />
+            <MamDock />
+          </>,
+        )
+        act(() => vi.advanceTimersByTime(10))
+        const guide = () => document.querySelector('[data-mam-bubble="guide"]')
+        expect(guide()).toHaveTextContent('Mầm đọc kết quả của bạn rồi nè.')
+        expect(behavior()).toBe('curious')
+        expect(
+          screen.getByTestId('mam-character').getAttribute('data-one-shot'),
+        ).toBe('nod')
+        fireEvent.keyDown(document, { key: 'Escape' })
+        fireEvent.keyDown(document, { key: 'a' })
+        // Past the tip's 1.4 s: the tip never opens while the guide waits.
+        act(() => vi.advanceTimersByTime(2000))
+        expect(guide()).toHaveTextContent('Mầm đọc kết quả của bạn rồi nè.')
+        expect(window.localStorage.getItem('mentalbridge_mam_tip_seen')).toBe(
+          null,
+        )
+        vi.useRealTimers()
+        fireEvent.click(screen.getByRole('button', { name: /^Tiếp/ }))
+        // The line swaps in place once the old one has faded out.
+        await waitFor(() =>
+          expect(guide()).toHaveTextContent(
+            'Bạn không cần hiểu hết web này đâu.',
+          ),
+        )
+        expect(behavior()).toBe('gentle')
+      })
+    })
+
     describe('the one-time tip', () => {
       const realSetTimeout = globalThis.setTimeout
       const realWait = (ms: number) =>

@@ -30,6 +30,7 @@ import {
 } from '@/features/assessment/api/browser-care'
 import { ReassessmentReview } from '@/features/assessment/components/ReassessmentReview'
 import { getHomeNextStep } from '@/features/home/browser-home-next-step'
+import { dispatchMamGuide } from '@/features/mam/mam-guide'
 import {
   ensureCurrentSupportGuide,
   getGuidedJourney,
@@ -147,9 +148,12 @@ export const GAD7_OPTIONS = [
 ]
 
 export default function OnboardingAssessmentJourney({
+  accountId,
   purpose = 'INITIAL_CHECK',
   planReview = false,
 }: {
+  /** Lets the first result start the Mầm guide while Mầm's layout is not mounted. */
+  accountId?: string
   purpose?: 'INITIAL_CHECK' | 'REASSESSMENT'
   planReview?: boolean
 }) {
@@ -440,7 +444,15 @@ export default function OnboardingAssessmentJourney({
       ).catch(() => undefined)
 
       // Ensure evaluation baseline
-      await createInitialCheckEvaluation(purpose).catch(() => undefined)
+      const evaluation = await createInitialCheckEvaluation(purpose).catch(
+        () => undefined,
+      )
+      // A first screening starts the Mầm guide (mam-guide design §5); it plays on the next Mầm page.
+      if (purpose === 'INITIAL_CHECK' && evaluation)
+        dispatchMamGuide(
+          { type: 'result', tier: evaluation.supportTier },
+          accountId,
+        )
 
       showActionToast({
         title: 'Đã hoàn thành hai bài sàng lọc PHQ-9 & GAD-7',

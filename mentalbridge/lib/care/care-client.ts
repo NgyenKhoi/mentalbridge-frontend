@@ -14,6 +14,7 @@ import type {
   ConsentDecision,
   ConsentDecisionRequest,
   AiProcessingDisclosure,
+  AiContextProcessingDisclosure,
   PrivacyDisclosure,
   AssessmentHistoryPage,
   AssessmentProgress,
@@ -84,6 +85,7 @@ import {
   parseProfile,
   parsePrivacyDisclosure,
   parseAiProcessingDisclosure,
+  parseAiContextProcessingDisclosure,
   parseConsentCollection,
   parseAssessmentHistory,
   parseAssessmentProgress,
@@ -448,6 +450,17 @@ export const careClient = {
       path: '/api/v1/ai-processing-disclosures/current?locale=vi-VN',
       correlationId,
       parseSuccess: parseAiProcessingDisclosure,
+    })
+  },
+
+  currentAiContextProcessingDisclosure(
+    correlationId: string,
+  ): Promise<AiContextProcessingDisclosure> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/ai-context-processing-disclosures/current?locale=vi-VN',
+      correlationId,
+      parseSuccess: parseAiContextProcessingDisclosure,
     })
   },
 

@@ -67,12 +67,14 @@ export const companionBrowserClient = {
       parseConversationList,
     )
   },
-  async create(): Promise<CompanionConversation> {
+  async create(
+    input: { opening?: 'FROM_JOURNAL' | 'FROM_RESULT' } = {},
+  ): Promise<CompanionConversation> {
     return parsed(
       await fetch('/api/ai-companion/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: '{}',
+        body: JSON.stringify(input.opening ? { opening: input.opening } : {}),
       }),
       parseConversation,
     )

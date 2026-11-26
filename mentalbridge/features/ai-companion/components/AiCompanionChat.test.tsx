@@ -230,19 +230,53 @@ describe('AiCompanionChat', () => {
     expect(screen.getByText('Kế hoạch hỗ trợ hiện tại')).toBeVisible()
   })
 
-  it('shows consent withdrawal separately and retains the draft for retry', async () => {
-    vi.mocked(companionBrowserClient.send).mockRejectedValue(
-      new CompanionBrowserError('denied', 'AI_CONSENT_REQUIRED', 403),
+  it('offers AI consent in place, keeps the draft and sends it once consent is saved', async () => {
+    vi.mocked(companionBrowserClient.send)
+      .mockRejectedValueOnce(
+        new CompanionBrowserError('denied', 'AI_CONSENT_REQUIRED', 403),
+      )
+      .mockRejectedValueOnce(
+        new CompanionBrowserError('busy', 'COMPANION_UNAVAILABLE', 503),
+      )
+    const posted: unknown[] = []
+    const realFetch = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        if (String(url) === '/api/care/consent-decisions') {
+          posted.push(JSON.parse(String(init?.body)))
+          return new Response('{}', { status: 201 })
+        }
+        if (String(url) === '/api/care/ai-processing-disclosure')
+          return new Response('{"content":"Thông tin xử lý AI."}')
+        return realFetch(url, init)
+      }),
     )
     const user = userEvent.setup()
     render(<AiCompanionChat accountId={accountId} />)
     const composer = await screen.findByRole('textbox', { name: 'Tin nhắn' })
     await user.type(composer, 'Nội dung cần giữ lại')
     await user.click(screen.getByRole('button', { name: 'Gửi' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /tắt hoặc chưa cấp đồng ý xử lý AI/,
-    )
+    const agree = await screen.findByRole('button', { name: 'Đồng ý và gửi' })
+    expect(agree).toBeDisabled()
     expect(composer).toHaveValue('Nội dung cần giữ lại')
+    await user.click(
+      screen.getByLabelText(
+        'Tôi đã đọc và đồng ý cho AI xử lý nội dung trò chuyện.',
+      ),
+    )
+    await user.click(agree)
+    await waitFor(() =>
+      expect(companionBrowserClient.send).toHaveBeenCalledTimes(2),
+    )
+    expect(posted).toEqual([
+      {
+        consentType: 'AI_PROCESSING',
+        policyVersion: 'ai-processing-capstone-v2',
+        granted: true,
+      },
+    ])
+    vi.unstubAllGlobals()
   })
 
   it('explains Premium limits truthfully and permanently deletes on confirmation', async () => {
@@ -480,6 +514,35 @@ describe('AiCompanionChat', () => {
     expect(
       within(chat).getAllByText('Mình đã nhận được tin nhắn.'),
     ).toHaveLength(1)
+  })
+
+  it('shows the sent message and empties the composer while Mầm thinks, and takes it back on failure', async () => {
+    let fail: (cause: unknown) => void = () => undefined
+    vi.mocked(companionBrowserClient.send).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          fail = reject
+        }),
+    )
+    const user = userEvent.setup()
+    render(<AiCompanionChat accountId={accountId} />)
+    const composer = await screen.findByRole('textbox', { name: 'Tin nhắn' })
+    await user.type(composer, 'Nay tui chán quá à')
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+
+    const chat = screen.getByRole('region', { name: 'Trò chuyện với Mầm' })
+    expect(
+      within(chat).getByText('Nay tui chán quá à', { selector: 'p' }),
+    ).toBeVisible()
+    expect(within(chat).getByText('Mầm đang suy nghĩ')).toBeVisible()
+    expect(composer).toHaveValue('')
+
+    fail(new CompanionBrowserError('quota', 'CHAT_TOKEN_BUDGET_EXHAUSTED', 429))
+    await screen.findByRole('alert')
+    expect(
+      within(chat).queryByText('Nay tui chán quá à', { selector: 'p' }),
+    ).toBeNull()
+    expect(composer).toHaveValue('Nay tui chán quá à')
   })
 
   it('shows one suggestion link after the reply finishes and keeps it after reload', async () => {
@@ -887,7 +950,7 @@ describe('AiCompanionChat', () => {
         await user.type(await composer(), 'Tin của A')
         await user.click(screen.getByRole('button', { name: 'Gửi' }))
         await screen.findByRole('button', { name: 'Dừng phản hồi' })
-        await switchTo(user, toB)
+        await switchTo(user, toB, false)
 
         await act(async () => resolveSend(sent))
         expect(await screen.findByRole('button', { name: 'Gửi' })).toBeVisible()
@@ -915,7 +978,7 @@ describe('AiCompanionChat', () => {
         await user.type(await composer(), 'Tin của A')
         await user.click(screen.getByRole('button', { name: 'Gửi' }))
         await screen.findByRole('button', { name: 'Dừng phản hồi' })
-        await switchTo(user, toB)
+        await switchTo(user, toB, false)
 
         await act(async () => rejectSend(unknown()))
         expect(await screen.findByRole('button', { name: 'Gửi' })).toBeVisible()

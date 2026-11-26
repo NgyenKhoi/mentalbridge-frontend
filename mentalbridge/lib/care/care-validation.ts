@@ -13,6 +13,7 @@ import type {
   ConsentCollection,
   ConsentDecisionRequest,
   AiProcessingDisclosure,
+  AiContextProcessingDisclosure,
   PrivacyDisclosure,
   AssessmentHistoryPage,
   AssessmentProgress,
@@ -426,6 +427,26 @@ export function parseAiProcessingDisclosure(
   )
     return null
   return value as AiProcessingDisclosure
+}
+
+export function parseAiContextProcessingDisclosure(
+  value: unknown,
+): AiContextProcessingDisclosure | null {
+  if (
+    !isRecord(value) ||
+    value.consentType !== 'AI_CONTEXT_PROCESSING' ||
+    value.version !== 'ai-context-processing-capstone-v1' ||
+    value.locale !== 'vi-VN' ||
+    typeof value.title !== 'string' ||
+    value.title.length < 1 ||
+    value.title.length > 160 ||
+    typeof value.content !== 'string' ||
+    value.content.length < 1 ||
+    value.content.length > 4000 ||
+    value.capstoneOnly !== true
+  )
+    return null
+  return value as AiContextProcessingDisclosure
 }
 
 function parseConsentDecision(value: unknown) {
