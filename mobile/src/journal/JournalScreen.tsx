@@ -72,6 +72,7 @@ function JournalContent({
 }>) {
   const [selected, setSelected] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [saveNotice, setSaveNotice] = useState('')
   const [navigationState, setNavigationState] =
     useState<JournalNavigationState>({
       dirty: false,
@@ -330,6 +331,10 @@ function JournalContent({
         {...(currentEntry ? { initialEntry: currentEntry } : {})}
         {...(previous ? { previousEntry: previous } : {})}
         onClose={closeEditor}
+        onSaved={() => {
+          setSaveNotice('Đã lưu nhật ký.')
+          closeEditor()
+        }}
         onDirtyChange={setDirty}
         {...(selected === 'new' ? { onCreated: created } : {})}
         onNavigationStateChange={editorNavigation}
@@ -357,6 +362,7 @@ function JournalContent({
         </>
       )}
       {planContext}
+      {saveNotice && !selected ? <Notice>{saveNotice}</Notice> : null}
       {selected ? (
         detail.isPending ? (
           <ActivityIndicator accessibilityLabel="Đang mở nhật ký" />
@@ -385,6 +391,7 @@ function JournalContent({
             onMore={() => void list.fetchNextPage()}
             onReflection={() => setComparison((value) => !value)}
             onNew={() => {
+              setSaveNotice('')
               setOpenedOrigin(true)
               setWritingOrigin(
                 originContext.data?.canWrite ? originContext.data.origin : null,

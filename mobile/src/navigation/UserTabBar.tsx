@@ -2,30 +2,34 @@ import { router } from 'expo-router'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { colors, radii, spacing } from '@/theme/tokens'
+import { colors, radii } from '@/theme/tokens'
+import { TourTarget } from '@/onboarding/tour-target'
+import { AppIcon } from '@/components/AppIcon'
 
 const tabs = [
-  { path: '/user', href: '/(user)/user', label: 'Trang chủ', icon: '⌂' },
+  { path: '/user', href: '/(user)/user', label: 'Trang chủ', icon: 'home' },
   {
     path: '/support-plan',
     href: '/(user)/support-plan',
     label: 'Kế hoạch',
-    icon: '▣',
+    icon: 'clipboard',
   },
-  { path: '/journal', href: '/(user)/journal', label: 'Nhật ký', icon: '✎' },
+  { path: '/journal', href: '/(user)/journal', label: 'Nhật ký', icon: 'book' },
   {
     path: '/specialists',
     href: '/(user)/specialists',
     label: 'Chuyên gia',
-    icon: '✚',
+    icon: 'plus',
   },
-  { path: '/profile', href: '/(user)/profile', label: 'Cá nhân', icon: '◎' },
+  { path: '/profile', href: '/(user)/profile', label: 'Cá nhân', icon: 'user' },
 ] as const
 
-export const USER_TAB_BAR_HEIGHT = 58
+export const USER_TAB_BAR_HEIGHT = 72
 
 export function isUserTabPath(pathname: string) {
-  return tabs.some(({ path }) => path === pathname)
+  return (
+    pathname === '/appointments' || tabs.some(({ path }) => path === pathname)
+  )
 }
 
 export function UserTabBar({ pathname }: Readonly<{ pathname: string }>) {
@@ -33,32 +37,55 @@ export function UserTabBar({ pathname }: Readonly<{ pathname: string }>) {
     <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.bar}>
       <View accessibilityRole="tablist" style={styles.tabs}>
         {tabs.map(({ path, href, label, icon }) => {
-          const selected = path === pathname
+          const selected =
+            path === pathname ||
+            (path === '/specialists' && pathname === '/appointments')
+          const featured = icon === 'plus'
           return (
-            <Pressable
+            <TourTarget
               key={path}
-              accessibilityRole="tab"
-              accessibilityLabel={label}
-              accessibilityState={{ selected }}
-              onPress={() => {
-                if (!selected) router.replace(href)
-              }}
-              style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
+              id={`user-tab-${path.slice(1)}`}
+              route={pathname}
+              style={{ flex: 1 }}
             >
-              <Text
-                accessible={false}
-                style={[styles.icon, selected && styles.selectedIcon]}
+              <Pressable
+                key={path}
+                accessibilityRole="tab"
+                accessibilityLabel={label}
+                accessibilityState={{ selected }}
+                onPress={() => {
+                  if (pathname !== path) router.replace(href)
+                }}
+                style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
               >
-                {icon}
-              </Text>
-              <Text
-                numberOfLines={1}
-                maxFontSizeMultiplier={1.2}
-                style={[styles.label, selected && styles.selectedLabel]}
-              >
-                {label}
-              </Text>
-            </Pressable>
+                <View
+                  style={[
+                    styles.icon,
+                    featured && styles.featuredIcon,
+                    featured && selected && styles.featuredSelected,
+                  ]}
+                >
+                  <AppIcon
+                    name={icon}
+                    size={featured ? 23 : 24}
+                    color={
+                      featured && selected
+                        ? colors.white
+                        : selected
+                          ? colors.tealDeep
+                          : colors.inkSoft
+                    }
+                  />
+                </View>
+                <Text
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={1.2}
+                  style={[styles.label, selected && styles.selectedLabel]}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            </TourTarget>
           )
         })}
       </View>
@@ -83,20 +110,18 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
+    gap: 3,
     paddingHorizontal: 2,
   },
   icon: {
-    width: 30,
-    lineHeight: 28,
-    borderRadius: radii.pill,
-    overflow: 'hidden',
-    textAlign: 'center',
-    color: colors.inkSoft,
-    fontSize: 20,
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  selectedIcon: { color: colors.tealDeep, backgroundColor: colors.tealPale },
-  label: { color: colors.inkSoft, fontSize: 11, textAlign: 'center' },
+  featuredIcon: { borderRadius: radii.pill, backgroundColor: '#ECF3EE' },
+  featuredSelected: { backgroundColor: colors.tealDeep },
+  label: { color: colors.inkSoft, fontSize: 12, textAlign: 'center' },
   selectedLabel: { color: colors.tealDeep, fontWeight: '700' },
   pressed: { opacity: 0.7 },
 })

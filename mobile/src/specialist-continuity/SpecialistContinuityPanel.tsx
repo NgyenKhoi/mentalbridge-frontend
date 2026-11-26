@@ -27,6 +27,16 @@ function accessMessage(state: string | undefined) {
 }
 
 function continuityError(error: unknown) {
+  if (
+    error instanceof ApiError &&
+    error.code === 'CONSULTATION_BRIEF_APPOINTMENT_NOT_ACTIVE'
+  )
+    return 'Lịch hẹn đã kết thúc hoặc không còn ở trạng thái cho phép đọc bản chuẩn bị. Hãy xem phần Tổng kết phiên của lịch hẹn này.'
+  if (
+    error instanceof ApiError &&
+    error.code === 'CONSULTATION_BRIEF_ACCESS_DENIED'
+  )
+    return 'Người dùng chưa phê duyệt hoặc đã thu hồi quyền xem bản chuẩn bị cho lịch hẹn này.'
   if (error instanceof ApiError && error.status === 401) {
     return 'Phiên đăng nhập đã hết hạn.'
   }
@@ -43,10 +53,14 @@ export function SpecialistContinuityPanel({
   api,
   appointmentId,
   appointmentVersion,
+  compact = false,
+  onRefreshAccess,
 }: Readonly<{
   api: SpecialistContinuityApi
   appointmentId: string
   appointmentVersion: number
+  compact?: boolean
+  onRefreshAccess?: () => void
 }>) {
   const queryClient = useQueryClient()
   const [briefRequested, setBriefRequested] = useState(false)
@@ -95,14 +109,16 @@ export function SpecialistContinuityPanel({
     briefQuery.data.appointmentId === appointmentId
 
   return (
-    <View style={styles.panel}>
-      <View style={styles.heading}>
-        <Text style={styles.title}>Thông tin chuẩn bị được chia sẻ</Text>
-        <Text style={styles.copy}>
-          Chỉ hiển thị bản người dùng đã duyệt cho đúng lịch hẹn và trong thời
-          gian được phép.
-        </Text>
-      </View>
+    <View style={compact ? styles.compactPanel : styles.panel}>
+      {compact ? null : (
+        <View style={styles.heading}>
+          <Text style={styles.title}>Thông tin chuẩn bị được chia sẻ</Text>
+          <Text style={styles.copy}>
+            Chỉ hiển thị bản người dùng đã duyệt cho đúng lịch hẹn và trong thời
+            gian được phép.
+          </Text>
+        </View>
+      )}
 
       {continuityQuery.isFetching ? (
         <Text accessibilityLiveRegion="polite" style={styles.state}>
@@ -127,14 +143,15 @@ export function SpecialistContinuityPanel({
 
       {continuityQuery.isSuccess && !continuityQuery.isFetching ? (
         <>
-          {relationship ? (
+          {relationship && !compact ? (
             <Text style={styles.clientName}>
               {relationship.userDisplayName}
             </Text>
           ) : null}
           {!accessConfirmed ? (
-            <Text style={styles.state}>
-              {relationship?.appointmentVersion !== appointmentVersion
+            <Text style={[styles.state, compact && styles.compactState]}>
+              {relationship &&
+              relationship.appointmentVersion !== appointmentVersion
                 ? accessMessage('STALE')
                 : accessMessage(relationship?.briefAccessState)}
             </Text>
@@ -166,16 +183,37 @@ export function SpecialistContinuityPanel({
         </Text>
       ) : null}
 
+      {compact &&
+      continuityQuery.isSuccess &&
+      !continuityQuery.isFetching &&
+      !accessConfirmed ? (
+        <Pressable
+          accessibilityRole="button"
+          style={styles.linkButton}
+          onPress={() => {
+            onRefreshAccess?.()
+            void continuityQuery.refetch({ cancelRefetch: false })
+          }}
+        >
+          <Text style={styles.linkLabel}>Kiểm tra lại quyền xem</Text>
+        </Pressable>
+      ) : null}
+
       {briefVisible ? (
         <View style={styles.snapshot}>
+          {compact ? (
+            <Text style={styles.label}>
+              Bản chụp v{briefQuery.data.snapshotVersion}
+            </Text>
+          ) : null}
           <View style={styles.section}>
             <Text style={styles.label}>Điều người dùng muốn bạn biết</Text>
             <Text style={styles.copy}>{briefQuery.data.currentSituation}</Text>
           </View>
           <View style={styles.section}>
             <Text style={styles.label}>Mục tiêu trao đổi</Text>
-            {briefQuery.data.userGoals.map((goal) => (
-              <Text key={goal} style={styles.copy}>
+            {briefQuery.data.userGoals.map((goal, index) => (
+              <Text key={index} style={styles.copy}>
                 • {goal}
               </Text>
             ))}
@@ -207,6 +245,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     padding: spacing.xl,
   },
+  compactPanel: { gap: spacing.md },
   heading: { gap: spacing.sm },
   title: { color: colors.ink, fontSize: 20, fontWeight: '700' },
   copy: {
@@ -218,6 +257,11 @@ const styles = StyleSheet.create({
     color: colors.inkSoft,
     fontSize: typography.body,
     lineHeight: typography.bodyLineHeight,
+  },
+  compactState: {
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radii.control,
+    padding: spacing.md,
   },
   notice: { gap: spacing.sm },
   clientName: { color: colors.ink, fontSize: 18, fontWeight: '700' },

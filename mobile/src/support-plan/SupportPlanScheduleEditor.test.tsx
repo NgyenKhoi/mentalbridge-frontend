@@ -77,6 +77,10 @@ describe('mobile SupportPlan schedule editor', () => {
       />,
     )
 
+    expect(screen.queryByLabelText('Giờ địa phương')).toBeNull()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chỉnh hoạt động: Đi bộ nhẹ' }),
+    )
     fireEvent.changeText(screen.getByLabelText('Giờ địa phương'), '09:30')
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
     await act(async () => {
@@ -97,6 +101,13 @@ describe('mobile SupportPlan schedule editor', () => {
       },
       expect.any(String),
     )
+    await waitFor(() =>
+      expect(screen.queryByLabelText('Giờ địa phương')).toBeNull(),
+    )
+    expect(
+      screen.getByRole('button', { name: 'Chỉnh hoạt động: Đi bộ nhẹ' }).props
+        .accessibilityState.expanded,
+    ).toBe(false)
   })
 
   it('keeps the form after a stale response and supports an explicit reload', async () => {
@@ -117,6 +128,9 @@ describe('mobile SupportPlan schedule editor', () => {
       />,
     )
 
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chỉnh hoạt động: Đi bộ nhẹ' }),
+    )
     fireEvent.changeText(
       screen.getByLabelText('Thời lượng dự kiến (phút)'),
       '25',
@@ -156,6 +170,9 @@ describe('mobile SupportPlan schedule editor', () => {
       />,
     )
 
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chỉnh hoạt động: Đi bộ nhẹ' }),
+    )
     fireEvent.press(screen.getByRole('radio', { name: '✓ Đang lên lịch' }))
     await screen.findByRole('radio', { name: 'Không lên lịch' })
     await act(async () => {

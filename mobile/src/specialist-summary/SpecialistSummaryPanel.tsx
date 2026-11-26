@@ -7,16 +7,21 @@ import { ApiError } from '@/api/api-error'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type { SpecialistSummaryApi } from './specialist-summary-api'
+import { PublishedSessionSummary } from './PublishedSessionSummary'
 import type {
   AgreedNextStepType,
   PublishSessionSummaryRequest,
   SessionSummaryList,
+  SessionSummary,
 } from './specialist-summary-contract'
 
 type DraftStep = Readonly<{
-  type: Exclude<AgreedNextStepType, 'PLATFORM_RESOURCE'>
+  type: AgreedNextStepType
   title: string
   details: string
+  resourceId?: string | null
+  resourceVersion?: string | null
+  resourceProposalReasonCode?: SessionSummary['agreedNextSteps'][number]['resourceProposalReasonCode']
 }>
 
 const STEP_TYPES: readonly {
@@ -77,9 +82,16 @@ export function normalizeSummaryDraft(input: {
       type: step.type,
       title: step.title.trim(),
       details: step.details.trim() || null,
-      resourceId: null,
-      resourceVersion: null,
-      resourceProposalReasonCode: null,
+      resourceId:
+        step.type === 'PLATFORM_RESOURCE' ? (step.resourceId ?? null) : null,
+      resourceVersion:
+        step.type === 'PLATFORM_RESOURCE'
+          ? (step.resourceVersion ?? null)
+          : null,
+      resourceProposalReasonCode:
+        step.type === 'PLATFORM_RESOURCE'
+          ? (step.resourceProposalReasonCode ?? null)
+          : null,
     })),
   }
 }
@@ -108,11 +120,13 @@ export function SpecialistSummaryPanel({
   appointmentId,
   appointmentAuthorityConfirmed,
   refreshAppointmentAuthority,
+  timezone = 'Asia/Ho_Chi_Minh',
 }: Readonly<{
   api: SpecialistSummaryApi
   appointmentId: string
   appointmentAuthorityConfirmed: boolean
   refreshAppointmentAuthority: () => Promise<boolean>
+  timezone?: string
 }>) {
   const queryClient = useQueryClient()
   const queryKey = ['specialist-session-summaries', appointmentId] as const
@@ -122,6 +136,7 @@ export function SpecialistSummaryPanel({
   const [followUpSuggested, setFollowUpSuggested] = useState(false)
   const [steps, setSteps] = useState<DraftStep[]>([])
   const [editing, setEditing] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [notice, setNotice] = useState('')
   const [authorityRecovery, setAuthorityRecovery] = useState<
     'idle' | 'refreshing' | 'blocked'
@@ -136,7 +151,10 @@ export function SpecialistSummaryPanel({
     refetchOnMount: 'always',
     retry: false,
   })
-  const latest = summariesQuery.data?.items[0]
+  const versions = [...(summariesQuery.data?.items ?? [])].sort(
+    (left, right) => right.version - left.version,
+  )
+  const latest = versions[0]
 
   const publishMutation = useMutation({
     mutationFn: (input: {
@@ -281,31 +299,34 @@ export function SpecialistSummaryPanel({
 
       {latest ? (
         <View style={styles.published}>
-          <Text style={styles.version}>
-            Bản đã xuất bản · phiên bản {latest.version}
-          </Text>
-          <Text style={styles.label}>Chủ đề đã trao đổi</Text>
-          {latest.topicsDiscussed.map((topic) => (
-            <Text key={topic} style={styles.copy}>
-              • {topic}
-            </Text>
-          ))}
-          {latest.progressSummary ? (
-            <Text style={styles.copy}>{latest.progressSummary}</Text>
-          ) : null}
-          {latest.specialistNoteForUser ? (
-            <Text style={styles.copy}>{latest.specialistNoteForUser}</Text>
-          ) : null}
-          {latest.agreedNextSteps.length > 0 ? (
-            <View style={styles.steps}>
-              <Text style={styles.label}>Các bước đã thống nhất</Text>
-              {latest.agreedNextSteps.map((step) => (
-                <Text key={step.id} style={styles.copy}>
-                  • {step.title}
+          <Text style={styles.version}>Bản tổng hợp đã xuất bản</Text>
+          <PublishedSessionSummary summary={latest} timezone={timezone} />
+          {versions.length > 1 && (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: historyOpen }}
+                onPress={() => setHistoryOpen((value) => !value)}
+                style={styles.linkButton}
+              >
+                <Text style={styles.linkLabel}>
+                  {historyOpen
+                    ? 'Thu gọn phiên bản trước'
+                    : `Xem ${versions.length - 1} phiên bản trước`}
                 </Text>
-              ))}
-            </View>
-          ) : null}
+              </Pressable>
+              {historyOpen &&
+                versions
+                  .slice(1)
+                  .map((summary) => (
+                    <PublishedSessionSummary
+                      key={summary.id}
+                      summary={summary}
+                      timezone={timezone}
+                    />
+                  ))}
+            </>
+          )}
         </View>
       ) : summariesQuery.isSuccess && !summariesQuery.isFetching ? (
         <Text style={styles.state}>Chưa có bản tóm tắt được xuất bản.</Text>
@@ -316,11 +337,27 @@ export function SpecialistSummaryPanel({
           accessibilityRole="button"
           accessibilityState={{ disabled: governedBusy }}
           disabled={governedBusy}
-          onPress={() => setEditing(true)}
+          onPress={() => {
+            setTopics(latest?.topicsDiscussed.join('\n') ?? '')
+            setProgressSummary(latest?.progressSummary ?? '')
+            setSpecialistNoteForUser(latest?.specialistNoteForUser ?? '')
+            setFollowUpSuggested(latest?.followUpSuggested ?? false)
+            setSteps(
+              latest?.agreedNextSteps.map((step) => ({
+                type: step.type,
+                title: step.title,
+                details: step.details ?? '',
+                resourceId: step.resourceId,
+                resourceVersion: step.resourceVersion,
+                resourceProposalReasonCode: step.resourceProposalReasonCode,
+              })) ?? [],
+            )
+            setEditing(true)
+          }}
           style={[styles.primaryButton, governedBusy && styles.disabled]}
         >
           <Text style={styles.primaryLabel}>
-            {latest ? 'Tạo bản đính chính' : 'Tạo tóm tắt sau phiên'}
+            {latest ? 'Đính chính bản tóm tắt' : 'Tạo tóm tắt sau phiên'}
           </Text>
         </Pressable>
       ) : null}

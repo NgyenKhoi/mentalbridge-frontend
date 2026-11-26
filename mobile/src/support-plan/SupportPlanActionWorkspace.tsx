@@ -184,6 +184,7 @@ type Props = Readonly<{
   homeOrigin?: HomePlanOriginInput
   journalOrigin?: JournalOriginInput
   proposalId?: string
+  openReview?: boolean
   now?: () => Date
 }>
 
@@ -196,6 +197,7 @@ export function SupportPlanActionWorkspace({
   homeOrigin = noHomePlanOrigin,
   journalOrigin = noJournalOrigin,
   proposalId,
+  openReview = false,
   now = () => new Date(),
 }: Props) {
   const { session, signOut } = useSession()
@@ -291,6 +293,7 @@ export function SupportPlanActionWorkspace({
       draft={draft.data ?? null}
       onChanged={refresh}
       requireHistory={needsHistory}
+      openReview={openReview}
       origin={origin}
       homeOrigin={homeOrigin}
       journalOrigin={journalOrigin}
@@ -315,12 +318,15 @@ export function NativeProposalEntry({
   const [busy, setBusy] = useState(false),
     [notice, setNotice] = useState('')
   const key = useRef<{ evaluation: string; key: string } | null>(null)
+  const [screeningRequired, setScreeningRequired] = useState(false)
   const running = useRef(false)
   const propose = async () => {
     if (running.current || draft || disabled) return
     running.current = true
     setBusy(true)
     setNotice('')
+    setScreeningRequired(false)
+    let phase = 'screening'
     try {
       const evaluation = await api.getProposalEvaluationId(
         current ? 'REASSESSMENT' : 'INITIAL_CHECK',
@@ -330,11 +336,49 @@ export function NativeProposalEntry({
           evaluation,
           key: randomUUID(),
         }
+      phase = 'proposal'
       await api.propose(evaluation, key.current.key)
+      phase = 'refresh'
       await onChanged()
       key.current = null
     } catch (error) {
-      setNotice(message(error))
+      if (__DEV__)
+        console.warn('[SupportPlan proposal]', {
+          phase,
+          code: error instanceof ApiError ? error.code : 'INVALID_RESPONSE',
+          status: error instanceof ApiError ? error.status : undefined,
+        })
+      if (
+        error instanceof ApiError &&
+        ['INITIAL_CHECK_INCOMPLETE', 'REASSESSMENT_INCOMPLETE'].includes(
+          error.code,
+        )
+      ) {
+        setScreeningRequired(true)
+        setNotice(
+          current
+            ? 'Bạn cần hoàn thành lượt đánh giá lại PHQ-9 và GAD-7 trước khi tạo phương án mới. Kế hoạch hiện tại và lựa chọn đã lưu vẫn được giữ nguyên.'
+            : 'Bạn cần hoàn thành lượt sàng lọc PHQ-9 và GAD-7 trước khi tạo phương án. Các lựa chọn đã lưu vẫn được giữ nguyên.',
+        )
+      } else if (
+        phase === 'proposal' &&
+        error instanceof ApiError &&
+        error.code === 'RESOURCE_VERSION_STALE'
+      ) {
+        setNotice(
+          'Danh sách tài nguyên cần cập nhật trước khi tạo phương án. Kết quả sàng lọc của bạn đã hoàn tất và vẫn được lưu; hãy thử lại sau.',
+        )
+      } else if (
+        phase === 'proposal' &&
+        error instanceof ApiError &&
+        (error.status ?? 0) >= 500
+      ) {
+        setNotice(
+          'Chưa thể tạo phương án lúc này. Kết quả sàng lọc và lựa chọn của bạn vẫn được lưu; hãy thử lại.',
+        )
+      } else {
+        setNotice(message(error))
+      }
     } finally {
       running.current = false
       setBusy(false)
@@ -367,6 +411,14 @@ export function NativeProposalEntry({
           {notice}
         </Text>
       ) : null}
+      {screeningRequired && (
+        <Secondary
+          label={current ? 'Tiếp tục đánh giá lại' : 'Tiếp tục bài sàng lọc'}
+          onPress={() =>
+            router.push(current ? '/(user)/reassessment' : '/(user)/assessment')
+          }
+        />
+      )}
     </View>
   )
 }
@@ -378,6 +430,7 @@ type NativeProps = Readonly<{
   current: CanonicalSupportPlan | null
   draft: CanonicalSupportPlan | null
   requireHistory?: boolean
+  openReview?: boolean
   onChanged: () => Promise<void>
   origin: OriginInput
   homeOrigin?: HomePlanOriginInput
@@ -393,6 +446,7 @@ export function NativeSupportPlanScreen({
   draft,
   onChanged,
   requireHistory = false,
+  openReview = false,
   origin,
   homeOrigin = noHomePlanOrigin,
   journalOrigin = noJournalOrigin,
@@ -419,7 +473,12 @@ export function NativeSupportPlanScreen({
   )
   const [selectedTab, setSelectedTab] = useState<PlanTab>()
   const tab =
-    selectedTab ?? (current || hasOrigin || requireHistory ? 'today' : 'adjust')
+    selectedTab ??
+    (openReview
+      ? 'adjust'
+      : current || hasOrigin || requireHistory
+        ? 'today'
+        : 'adjust')
   const [showAllEarlier, setShowAllEarlier] = useState(false)
   const selectTab = (next: PlanTab) => {
     setSelectedTab(next)
@@ -427,8 +486,11 @@ export function NativeSupportPlanScreen({
   }
   useFocusEffect(
     useCallback(() => {
-      if (hasOrigin) setSelectedTab('today')
-    }, [hasOrigin]),
+      if (openReview) {
+        setSelectedTab('adjust')
+        reviewTrigger.current?.()
+      } else if (hasOrigin) setSelectedTab('today')
+    }, [hasOrigin, openReview]),
   )
   const focusReturnedActivity = useCallback((target: View, heading: Text) => {
     if (!contentRef.current) return
@@ -893,7 +955,7 @@ export function NativeSupportPlanScreen({
               accessibilityLabel="Xem lại kế hoạch"
               tone="darkPill"
               onPress={() => {
-                selectTab('progress')
+                selectTab('adjust')
                 reviewTrigger.current?.()
               }}
             />
@@ -1051,23 +1113,6 @@ export function NativeSupportPlanScreen({
               onPress={() => void occurrences.refetch()}
             />
           ))}
-        {current?.representationMode === 'NATIVE_V3' &&
-        (current.status === 'ACTIVE' || current.status === 'PAUSED') ? (
-          <AdaptiveReviewPanel
-            key={`${current.supportPlanId}:${current.version}`}
-            api={api}
-            current={current}
-            draft={draft}
-            disabled={busy || dirty || confirmation !== null}
-            onChanged={async () => {
-              await onChanged()
-              await Promise.all([occurrences.refetch(), history.refetch()])
-            }}
-            reviewTrigger={reviewTrigger}
-            onReassessment={() => router.push('/(user)/reassessment')}
-            onProfessionalSupport={() => router.push('/(user)/specialists')}
-          />
-        ) : null}
         <View style={styles.panel}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>
             Nhịp ghi nhận cảm xúc
@@ -1163,6 +1208,23 @@ export function NativeSupportPlanScreen({
         ) : null}
       </View>
       <View style={tab !== 'adjust' && styles.hidden}>
+        {current?.representationMode === 'NATIVE_V3' &&
+        (current.status === 'ACTIVE' || current.status === 'PAUSED') ? (
+          <AdaptiveReviewPanel
+            key={`${current.supportPlanId}:${current.version}`}
+            api={api}
+            current={current}
+            draft={draft}
+            disabled={busy || dirty || confirmation !== null}
+            onChanged={async () => {
+              await onChanged()
+              await Promise.all([occurrences.refetch(), history.refetch()])
+            }}
+            reviewTrigger={reviewTrigger}
+            onReassessment={() => router.push('/(user)/reassessment')}
+            onProfessionalSupport={() => router.push('/(user)/specialists')}
+          />
+        ) : null}
         {historyReady ? (
           <SupportPlanPersonalizationCard
             api={legacyApi}
@@ -1176,48 +1238,10 @@ export function NativeSupportPlanScreen({
           />
         ) : null}
         {draft?.representationMode === 'NATIVE_V3' ? (
-          <View style={styles.panel}>
+          <View style={[styles.panel, styles.draftPanel]}>
             <Text accessibilityRole="header" style={styles.sectionTitle}>
               Phương án để bạn xem lại
             </Text>
-            {draft.focuses.map((focus) => (
-              <View key={focus.focusId} style={styles.section}>
-                <Text style={styles.itemTitle}>{focus.title}</Text>
-                {focus.actions.map((action) => (
-                  <View key={action.actionId} style={styles.section}>
-                    <Text style={styles.itemTitle}>
-                      {action.presentation.title}
-                    </Text>
-                    {action.presentation.summary ? (
-                      <Text style={styles.body}>
-                        {action.presentation.summary}
-                      </Text>
-                    ) : null}
-                    {action.actionType === 'EMOTION_CHECK_IN' ? (
-                      <Text style={styles.body}>
-                        • Nhận biết điều bạn đang cảm nhận.{'\n'}• Ghi nhận theo
-                        nhịp bạn đã chọn; việc lưu cảm xúc không tự thay đổi kế
-                        hoạch.
-                      </Text>
-                    ) : null}
-                    {action.schedules
-                      .filter((x) => x.status === 'DRAFT')
-                      .map((schedule) => (
-                        <Text key={schedule.scheduleId} style={styles.body}>
-                          {schedule.recurrenceType === 'DAILY'
-                            ? 'Mỗi ngày'
-                            : schedule.recurrenceType === 'WEEKLY'
-                              ? 'Theo tuần'
-                              : 'Một lần'}{' '}
-                          ·{schedule.localTime.slice(0, 5)} ·
-                          {schedule.estimatedDurationMinutes} phút ·
-                          {schedule.timezone}
-                        </Text>
-                      ))}
-                  </View>
-                ))}
-              </View>
-            ))}
             <SupportPlanScheduleEditor
               plan={draft}
               disabled={busy}
@@ -1246,6 +1270,7 @@ export function NativeSupportPlanScreen({
             {!current ? (
               <PrimaryButton
                 label={busy ? 'Đang bắt đầu…' : 'Bắt đầu kế hoạch'}
+                tone="dashboard"
                 testID="native-plan-activate"
                 disabled={busy || dirty}
                 onPress={() =>
@@ -1838,6 +1863,7 @@ function NativeActivity({
 }
 
 const styles = StyleSheet.create({
+  draftPanel: { padding: spacing.lg, gap: spacing.md },
   title: {
     color: colors.ink,
     fontSize: typography.heading,

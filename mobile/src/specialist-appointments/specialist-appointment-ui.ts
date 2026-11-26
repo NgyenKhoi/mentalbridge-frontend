@@ -16,6 +16,16 @@ export const APPOINTMENT_STATUS_LABELS: Record<
   CANCELLED: 'Đã hủy',
 }
 
+export const APPOINTMENT_CREDIT_LABELS: Record<
+  SpecialistAppointment['creditState'],
+  string
+> = {
+  AVAILABLE: 'Lượt tư vấn đã được hoàn lại',
+  HELD: 'Lượt tư vấn vẫn được giữ cho lịch hẹn',
+  CONSUMED: 'Lượt tư vấn đã được sử dụng',
+  FORFEITED: 'Lượt tư vấn không còn hiệu lực',
+}
+
 export function formatAppointmentRange(appointment: SpecialistAppointment) {
   const start = new Intl.DateTimeFormat('vi-VN', {
     timeZone: appointment.timezone,

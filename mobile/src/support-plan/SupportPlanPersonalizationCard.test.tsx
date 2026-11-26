@@ -66,9 +66,14 @@ describe('mobile SupportPlan personalization', () => {
       />,
     )
 
-    expect(
-      await screen.findByText('Điều gì giúp kế hoạch dễ thực hiện hơn?'),
-    ).toBeTruthy()
+    expect(await screen.findByText('Tùy chọn của bạn')).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: 'Ngủ và nghỉ ngơi' })).toBeNull()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chỉnh tùy chọn của bạn' }),
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chỉnh điều bạn ưu tiên' }),
+    )
     expect(
       screen.getByRole('radio', { name: 'Ngủ và nghỉ ngơi' }).props
         .accessibilityState,
@@ -102,7 +107,16 @@ describe('mobile SupportPlan personalization', () => {
     )
 
     await fireEvent.press(
-      await screen.findByRole('radio', { name: 'Tìm lại động lực' }),
+      await screen.findByRole('button', { name: 'Chỉnh tùy chọn của bạn' }),
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chỉnh điều bạn ưu tiên' }),
+    )
+    await fireEvent.press(
+      screen.getByRole('radio', { name: 'Tìm lại động lực' }),
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chỉnh cách thực hành' }),
     )
     await fireEvent.press(
       screen.getByRole('checkbox', { name: 'Thói quen nhỏ' }),
@@ -188,7 +202,13 @@ describe('mobile SupportPlan personalization', () => {
     )
 
     await fireEvent.press(
-      await screen.findByRole('checkbox', { name: 'Ít năng lượng' }),
+      await screen.findByRole('button', { name: 'Chỉnh tùy chọn của bạn' }),
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chỉnh điều cần hỗ trợ thêm' }),
+    )
+    await fireEvent.press(
+      screen.getByRole('checkbox', { name: 'Ít năng lượng' }),
     )
     await waitFor(() =>
       expect(

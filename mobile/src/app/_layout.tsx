@@ -12,6 +12,7 @@ import { isUserTabPath, USER_TAB_BAR_HEIGHT } from '@/navigation/UserTabBar'
 import { getRouteGuards } from '@/navigation/route-policy'
 import { AppProviders } from '@/providers/AppProviders'
 import { SessionStatusScreen } from '@/screens/SessionStatusScreen'
+import { OnboardingGuideProvider } from '@/onboarding/OnboardingGuide'
 
 const runtimeConfig = readRuntimeConfig()
 
@@ -57,25 +58,36 @@ export function RootNavigator() {
       {session?.role === 'USER' && (
         <CommunityInboxBanner subject={session.subject} />
       )}
-      {(pathname !== '/community' || status !== 'authenticated') && (
-        <CrisisSupportWidget
-          bottomOffset={
-            status === 'authenticated' &&
-            session?.role === 'USER' &&
-            isUserTabPath(pathname)
-              ? USER_TAB_BAR_HEIGHT +
-                (pathname === '/journal'
-                  ? Math.max(screenActionHeight, footerLift)
-                  : 0)
-              : pathname === '/community-chat'
-                ? USER_TAB_BAR_HEIGHT
-                : pathname === '/messages' ||
-                    (pathname === '/ai-companion' && session?.role === 'USER')
-                  ? Math.max(screenActionHeight, footerLift)
-                  : footerLift
-          }
-        />
-      )}
+      {!(pathname === '/' && status === 'unauthenticated') &&
+        (pathname !== '/community' || status !== 'authenticated') && (
+          <CrisisSupportWidget
+            bottomOffset={
+              status === 'authenticated' &&
+              session?.role === 'USER' &&
+              isUserTabPath(pathname)
+                ? USER_TAB_BAR_HEIGHT +
+                  (pathname === '/journal'
+                    ? Math.max(screenActionHeight, footerLift)
+                    : 0)
+                : (pathname === '/specialist' ||
+                      pathname === '/operational-analytics' ||
+                      pathname === '/appointments' ||
+                      pathname.startsWith('/appointments/') ||
+                      pathname === '/clients' ||
+                      pathname === '/profile' ||
+                      pathname === '/availability') &&
+                    session?.role === 'SPECIALIST'
+                  ? USER_TAB_BAR_HEIGHT + footerLift
+                  : pathname === '/community-chat'
+                    ? USER_TAB_BAR_HEIGHT
+                    : pathname === '/messages' ||
+                        (pathname === '/ai-companion' &&
+                          session?.role === 'USER')
+                      ? Math.max(screenActionHeight, footerLift)
+                      : footerLift
+            }
+          />
+        )}
     </View>
   )
 }
@@ -83,7 +95,9 @@ export function RootNavigator() {
 export default function RootLayout() {
   return (
     <AppProviders runtimeConfig={runtimeConfig}>
-      <RootNavigator />
+      <OnboardingGuideProvider>
+        <RootNavigator />
+      </OnboardingGuideProvider>
     </AppProviders>
   )
 }

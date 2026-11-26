@@ -642,6 +642,37 @@ it('preserves the resource-plan legacy screen without activation or conversion',
   expect(owner.activate).not.toHaveBeenCalled()
   expect(owner.propose).not.toHaveBeenCalled()
 })
+it('opens adjustment review after reassessment without proposing or applying a plan automatically', async () => {
+  const owner = api()
+  owner.getAdaptiveReview.mockRejectedValue(
+    new ApiError({ code: 'UNAVAILABLE', status: 503, message: 'Unavailable' }),
+  )
+  await mount(
+    <NativeSupportPlanScreen
+      api={owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={nativePlan()}
+      draft={null}
+      origin={{ state: 'none' }}
+      onChanged={jest.fn()}
+      now={now}
+      openReview
+    />,
+  )
+  expect(
+    screen.getByRole('tab', { name: 'Điều chỉnh' }).props.accessibilityState
+      .selected,
+  ).toBe(true)
+  await waitFor(() =>
+    expect(owner.getAdaptiveReview).toHaveBeenCalledWith(nativeIds.plan, 1),
+  )
+  expect(owner.propose).not.toHaveBeenCalled()
+  expect(owner.activate).not.toHaveBeenCalled()
+  expect(owner.replace).not.toHaveBeenCalled()
+  expect(owner.confirmAdaptiveReview).not.toHaveBeenCalled()
+})
+
 it('requires review then explicit native activation, without automatic start on load', async () => {
   const owner = api(),
     changed = jest.fn().mockResolvedValue(undefined)
@@ -658,7 +689,7 @@ it('requires review then explicit native activation, without automatic start on 
     />,
   )
   expect(owner.activate).not.toHaveBeenCalled()
-  expect(screen.getByText('Nhận biết điều bạn đang cảm nhận.')).toBeTruthy()
+  expect(screen.getByText('Phương án để bạn xem lại')).toBeTruthy()
   await fireEvent.press(screen.getByTestId('native-plan-activate'))
   await waitFor(() =>
     expect(owner.activate).toHaveBeenCalledWith(
@@ -690,7 +721,7 @@ it('proposes from owner screening context and reuses retry identity after ambigu
   await fireEvent.press(
     screen.getByRole('button', { name: 'Tạo phương án để xem lại' }),
   )
-  await screen.findByText(/Chưa thể thực hiện thao tác/)
+  await screen.findByText(/Chưa thể tạo phương án lúc này/)
   await fireEvent.press(
     screen.getByRole('button', { name: 'Tạo phương án để xem lại' }),
   )
@@ -698,6 +729,95 @@ it('proposes from owner screening context and reuses retry identity after ambigu
   expect(owner.propose.mock.calls[0]).toEqual(owner.propose.mock.calls[1])
   expect(owner.propose.mock.calls[0]?.[0]).toBe(nativeIds.evaluation)
 })
+it.each([
+  [
+    'HTTP_500',
+    500,
+    'Chưa thể tạo phương án lúc này. Kết quả sàng lọc và lựa chọn của bạn vẫn được lưu; hãy thử lại.',
+  ],
+  [
+    'RESOURCE_VERSION_STALE',
+    409,
+    'Danh sách tài nguyên cần cập nhật trước khi tạo phương án. Kết quả sàng lọc của bạn đã hoàn tất và vẫn được lưu; hãy thử lại sau.',
+  ],
+])(
+  'keeps completed screening available after %s and reuses the proposal key',
+  async (code, status, notice) => {
+    const owner = api()
+    owner.propose.mockRejectedValueOnce(
+      new ApiError({
+        code: String(code),
+        status: Number(status),
+        message: 'Unavailable',
+      }),
+    )
+    const changed = jest.fn().mockResolvedValue(undefined)
+    await mount(
+      <NativeProposalEntry
+        api={owner}
+        current={null}
+        draft={null}
+        onChanged={changed}
+      />,
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tạo phương án để xem lại' }),
+    )
+    expect(await screen.findByText(String(notice))).toBeOnTheScreen()
+    expect(
+      screen.queryByRole('button', { name: 'Tiếp tục bài sàng lọc' }),
+    ).toBeNull()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tạo phương án để xem lại' }),
+    )
+    await waitFor(() => expect(changed).toHaveBeenCalledTimes(1))
+    expect(owner.propose.mock.calls[0]).toEqual(owner.propose.mock.calls[1])
+  },
+)
+
+it.each([
+  [
+    false,
+    'INITIAL_CHECK_INCOMPLETE',
+    'Tiếp tục bài sàng lọc',
+    '/(user)/assessment',
+  ],
+  [
+    true,
+    'REASSESSMENT_INCOMPLETE',
+    'Tiếp tục đánh giá lại',
+    '/(user)/reassessment',
+  ],
+] as const)(
+  'returns to the correct screening before proposing, current=%s',
+  async (hasCurrent, code, label, href) => {
+    const owner = api()
+    owner.getProposalEvaluationId.mockRejectedValueOnce(
+      new ApiError({ code, status: 409, message: 'Incomplete' }),
+    )
+    const changed = jest.fn()
+    await mount(
+      <NativeProposalEntry
+        api={owner}
+        current={hasCurrent ? nativePlan() : null}
+        draft={null}
+        onChanged={changed}
+      />,
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tạo phương án để xem lại' }),
+    )
+    await fireEvent.press(await screen.findByRole('button', { name: label }))
+    expect(mockPush).toHaveBeenCalledWith(href)
+    expect(owner.propose).not.toHaveBeenCalled()
+    expect(changed).not.toHaveBeenCalled()
+    owner.getProposalEvaluationId.mockResolvedValue(nativeIds.evaluation)
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tạo phương án để xem lại' }),
+    )
+    await waitFor(() => expect(owner.propose).toHaveBeenCalledTimes(1))
+  },
+)
 it('only replaces a current v2 plan after authoritative reassessment comparison and explicit choice', async () => {
   const owner = api(),
     current = {
@@ -817,7 +937,7 @@ it('shows a due cycle and only pending earlier work from the owner response', as
     screen.getByRole('button', { name: 'Xem lại kế hoạch' }),
   )
   expect(
-    screen.getByRole('tab', { name: 'Tiến triển', selected: true }),
+    screen.getByRole('tab', { name: 'Điều chỉnh', selected: true }),
   ).toBeTruthy()
   expect(f.owner.getAdaptiveReview).toHaveBeenCalledWith(
     f.plan.supportPlanId,
@@ -827,6 +947,7 @@ it('shows a due cycle and only pending earlier work from the owner response', as
     '2026-09-30',
     '2026-10-20',
   )
+  await fireEvent.press(screen.getByRole('tab', { name: 'Tiến triển' }))
   await fireEvent.press(
     await screen.findByRole('button', { name: planDayLabel('2026-10-12') }),
   )

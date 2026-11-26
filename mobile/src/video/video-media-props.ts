@@ -5,4 +5,6 @@ export type VideoMediaProps = Readonly<{
   previewAllowed: boolean
   onLeave: () => void
   onError: () => void
+  role?: 'USER' | 'SPECIALIST' | undefined
+  startsAt?: string | undefined
 }>

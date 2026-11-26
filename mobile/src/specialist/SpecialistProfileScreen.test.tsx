@@ -17,10 +17,14 @@ import {
 } from './specialist-test-fixtures'
 
 const mockPush = jest.fn()
+const mockDismissTo = jest.fn()
 const mockSignOut = jest.fn()
 
 jest.mock('expo-router', () => ({
-  router: { back: jest.fn(), push: (path: string) => mockPush(path) },
+  router: {
+    dismissTo: (path: string) => mockDismissTo(path),
+    push: (path: string) => mockPush(path),
+  },
 }))
 
 jest.mock('@/auth/session-context', () => ({
@@ -81,6 +85,51 @@ describe('SPECIALIST professional profile screen', () => {
     jest.clearAllMocks()
   })
 
+  it('can sign out from Account even when the professional profile cannot load', async () => {
+    await renderScreen(
+      <SpecialistProfileScreen
+        api={makeApi({
+          getProfile: jest.fn().mockRejectedValue(
+            new ApiError({
+              code: 'CONSULTATION_UNAVAILABLE',
+              message: 'Unavailable',
+              status: 503,
+            }),
+          ),
+        })}
+      />,
+    )
+    await screen.findByRole('button', { name: 'Thử lại' })
+    await fireEvent.press(screen.getByRole('button', { name: 'Đăng xuất' }))
+    expect(mockSignOut).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the specialist tabs accessible with account selected', async () => {
+    await renderScreen(<SpecialistProfileScreen api={makeApi()} />)
+    await screen.findByRole('button', { name: /Về Tổng quan/ })
+
+    const account = screen.getByRole('tab', {
+      name: 'Tài khoản',
+      selected: true,
+    })
+    expect(screen.getAllByRole('tab')).toHaveLength(5)
+    await fireEvent.press(account)
+    expect(mockPush).not.toHaveBeenCalled()
+
+    await fireEvent.press(screen.getByRole('tab', { name: 'Lịch hẹn' }))
+    expect(mockPush).toHaveBeenCalledWith('/(specialist)/appointments')
+  })
+
+  it('returns directly to the specialist overview when opened without navigation history', async () => {
+    await renderScreen(<SpecialistProfileScreen api={makeApi()} />)
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: /Về Tổng quan/ }),
+    )
+
+    expect(mockDismissTo).toHaveBeenCalledWith('/(specialist)/specialist')
+  })
+
   it('creates a draft using only specialist-owned fields', async () => {
     const saved = makeSpecialistProfile()
     const api = makeApi({
@@ -96,6 +145,9 @@ describe('SPECIALIST professional profile screen', () => {
     await renderScreen(<SpecialistProfileScreen api={api} />)
 
     expect(await screen.findByText('Chưa tạo hồ sơ')).toBeOnTheScreen()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chuyên môn & Đánh giá lâm sàng' }),
+    )
     await fireEvent.changeText(
       screen.getByLabelText('Tên hiển thị nghề nghiệp'),
       'Chuyên gia An',

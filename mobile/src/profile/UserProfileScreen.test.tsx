@@ -446,5 +446,7 @@ describe('USER Care profile screen', () => {
       ),
     ).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Thử lại' })).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('button', { name: 'Đăng xuất' }))
+    expect(mockSignOut).toHaveBeenCalledTimes(2)
   })
 })

@@ -429,4 +429,62 @@ describe('ConsultationBrief panels', () => {
 
     expect(await screen.findByText(copy)).toBeInTheDocument()
   })
+  it('blocks preparation after the scheduled start before the user enters a new draft', async () => {
+    render(
+      <FeedbackProvider>
+        <ConsultationBriefEditor
+          appointmentId={appointmentId}
+          scheduledStartAt="2000-01-01T00:00:00Z"
+        />
+      </FeedbackProvider>,
+    )
+    expect(
+      await screen.findByText(/Đã đến giờ hẹn nên không thể lưu/),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Tình hình hiện tại')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Lưu bản nháp' })).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'Phê duyệt chia sẻ' }),
+    ).toBeDisabled()
+    expect(api.save).not.toHaveBeenCalled()
+  })
+  it('keeps typed content and closes preparation when the server reports the appointment started', async () => {
+    api.save.mockRejectedValue(
+      new ApiError({
+        code: 'CONSULTATION_BRIEF_APPOINTMENT_ALREADY_STARTED',
+        message: 'started',
+        status: 409,
+      }),
+    )
+    const user = userEvent.setup()
+    render(
+      <FeedbackProvider>
+        <ConsultationBriefEditor appointmentId={appointmentId} />
+      </FeedbackProvider>,
+    )
+    const field = await screen.findByLabelText('Tình hình hiện tại')
+    await user.clear(field)
+    await user.type(field, 'Nội dung tôi vừa nhập')
+    await user.click(screen.getByRole('button', { name: 'Lưu bản nháp' }))
+    expect(
+      await screen.findByText(/Đã đến giờ hẹn nên không thể lưu/),
+    ).toBeInTheDocument()
+    expect(field).toHaveValue('Nội dung tôi vừa nhập')
+    expect(field).toBeDisabled()
+  })
+  it('explains an ended appointment instead of reporting generic missing permission', async () => {
+    api.specialist.mockRejectedValue(
+      new ApiError({
+        code: 'CONSULTATION_BRIEF_APPOINTMENT_NOT_ACTIVE',
+        message: 'inactive',
+        status: 403,
+      }),
+    )
+    const user = userEvent.setup()
+    render(<SpecialistConsultationBrief appointmentId={appointmentId} />)
+    await user.click(screen.getByRole('button', { name: 'Xem tóm tắt' }))
+    expect(
+      await screen.findByText(/Lịch hẹn đã kết thúc hoặc không còn/),
+    ).toBeInTheDocument()
+  })
 })

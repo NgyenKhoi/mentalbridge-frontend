@@ -71,6 +71,51 @@ describe('SPECIALIST appointment workbench', () => {
     jest.clearAllMocks()
   })
 
+  it('shows recorded status and credit information with chat and video entry points', async () => {
+    const chat = makeAppointment({
+      status: 'CONFIRMED',
+      originatingPlanActionId: null,
+    })
+    const video = makeAppointment({
+      id: '11111111-1111-4111-8111-111111111114',
+      modality: 'IN_APP_VIDEO',
+      status: 'SESSION_ENDED',
+      creditState: 'HELD',
+    })
+    const completed = makeAppointment({
+      id: '11111111-1111-4111-8111-111111111115',
+      status: 'COMPLETED',
+      creditState: 'CONSUMED',
+    })
+    const api = makeApi({
+      listAssigned: jest
+        .fn()
+        .mockResolvedValue(makeAppointmentList([chat, video, completed])),
+    })
+    await renderScreen(<SpecialistAppointmentsScreen api={api} />)
+    expect(await screen.findByText('Đang tổng hợp kết quả')).toBeOnTheScreen()
+    expect(
+      screen.getByTestId('specialist-appointment-actions'),
+    ).toBeOnTheScreen()
+    expect(screen.getByText('Đã hoàn thành')).toBeOnTheScreen()
+    expect(screen.getByText(/Lượt tư vấn đã được sử dụng/)).toBeOnTheScreen()
+    expect(
+      screen.getAllByText(/Lượt tư vấn vẫn được giữ cho lịch hẹn/),
+    ).toHaveLength(2)
+    await fireEvent.press(screen.getByRole('button', { name: 'Mở tin nhắn' }))
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(specialist)/messages',
+      params: { appointmentId: chat.id },
+    })
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Xem phiên tư vấn video' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(specialist)/appointments/[appointmentId]',
+      params: { appointmentId: video.id, view: 'video' },
+    })
+  })
+
   it('loads pending, upcoming and history collections from Consultation state', async () => {
     const api = makeApi({
       listAssigned: jest.fn().mockResolvedValue(

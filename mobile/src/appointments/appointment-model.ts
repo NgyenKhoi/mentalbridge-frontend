@@ -71,7 +71,6 @@ const liveStatuses: readonly Appointment['status'][] = [
   'REQUESTED',
   'CONFIRMED',
   'IN_PROGRESS',
-  'SESSION_ENDED',
 ]
 
 export function orderAppointmentsForDisplay(items: readonly Appointment[]) {
@@ -79,6 +78,18 @@ export function orderAppointmentsForDisplay(items: readonly Appointment[]) {
     const leftActive = liveStatuses.includes(left.status)
     const rightActive = liveStatuses.includes(right.status)
     if (leftActive !== rightActive) return leftActive ? -1 : 1
+    if (
+      !leftActive &&
+      left.status === 'SESSION_ENDED' &&
+      right.status !== 'SESSION_ENDED'
+    )
+      return -1
+    if (
+      !rightActive &&
+      right.status === 'SESSION_ENDED' &&
+      left.status !== 'SESSION_ENDED'
+    )
+      return 1
     const difference =
       Date.parse(left.scheduledStartAt) - Date.parse(right.scheduledStartAt)
     return leftActive ? difference : -difference

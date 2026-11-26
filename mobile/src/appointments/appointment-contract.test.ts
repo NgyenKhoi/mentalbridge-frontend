@@ -34,6 +34,16 @@ describe('MB-630 public appointment/credit contracts', () => {
     expect(matchesFilter(early, 'upcoming', early.scheduledEndAt)).toBe(false)
     expect(matchesFilter(early, 'history', early.scheduledEndAt)).toBe(true)
   })
+  it('keeps an actionable request ahead of an older session awaiting settlement', () => {
+    const awaitingSettlement = {
+      ...appointment,
+      status: 'SESSION_ENDED' as const,
+      scheduledStartAt: '2026-09-01T08:00:00Z',
+    }
+    expect(
+      orderAppointmentsForDisplay([awaitingSettlement, appointment]),
+    ).toEqual([appointment, awaitingSettlement])
+  })
   it('accepts current and historical completed video without substituting pending LiveKit policy', () => {
     const ended = {
       ...appointment,

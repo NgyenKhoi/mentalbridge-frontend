@@ -24,7 +24,7 @@ jest.mock('expo-router', () => {
       Screen: () => null,
     },
   )
-  return { Stack, usePathname: () => '/' }
+  return { Stack, usePathname: () => '/user' }
 })
 
 const mockUseSession = jest.mocked(useSession)

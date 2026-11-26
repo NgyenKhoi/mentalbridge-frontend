@@ -154,10 +154,22 @@ function BriefReview({ brief }: Readonly<{ brief: ConsultationBrief }>) {
 export function ConsultationBriefPanel({
   api,
   appointmentId,
+  scheduledStartAt,
 }: Readonly<{
   api: ConsultationBriefApi
   appointmentId: string
+  scheduledStartAt?: string
 }>) {
+  const [preparationClosed, setPreparationClosed] = useState(() =>
+    scheduledStartAt ? Date.parse(scheduledStartAt) <= Date.now() : false,
+  )
+  useEffect(() => {
+    if (!scheduledStartAt || preparationClosed) return
+    const timer = setInterval(() => {
+      if (Date.now() >= Date.parse(scheduledStartAt)) setPreparationClosed(true)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [scheduledStartAt, preparationClosed])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -298,6 +310,14 @@ export function ConsultationBriefPanel({
       setNotice(successCopy)
     } catch (actionError) {
       if (request !== sequence.current || !mounted.current) return
+      if (
+        actionError instanceof ApiError &&
+        actionError.code === 'CONSULTATION_BRIEF_APPOINTMENT_ALREADY_STARTED'
+      ) {
+        setPreparationClosed(true)
+        setConfirmation(null)
+        return
+      }
       clearSensitiveState()
       setError(errorCopy(actionError))
     } finally {
@@ -306,6 +326,7 @@ export function ConsultationBriefPanel({
   }
 
   function save() {
+    if (preparationClosed) return
     if (!draft) {
       setNotice(
         'Hãy nhập tình hình hiện tại và từ 1 đến 5 mục tiêu, mỗi mục tiêu trên một dòng.',
@@ -320,7 +341,7 @@ export function ConsultationBriefPanel({
 
   function confirm() {
     if (!brief) return
-    if (confirmation === 'approve' && exactSavedDraft)
+    if (confirmation === 'approve' && exactSavedDraft && !preparationClosed)
       void runAction(
         () => api.approve(appointmentId, brief.version),
         'Quyền chia sẻ đã được xác nhận.',
@@ -365,6 +386,13 @@ export function ConsultationBriefPanel({
         )}
       </View>
 
+      {preparationClosed && !active && (
+        <Text accessibilityLiveRegion="polite" style={styles.notice}>
+          Đã đến giờ hẹn nên không thể lưu hoặc phê duyệt bản chuẩn bị nữa. Nội
+          dung đã nhập vẫn được giữ trên màn hình; bạn có thể trao đổi trực tiếp
+          với chuyên gia trong phiên.
+        </Text>
+      )}
       {loading ? (
         <Text accessibilityLiveRegion="polite" style={styles.body}>
           Đang tải bản tóm tắt…
@@ -413,7 +441,7 @@ export function ConsultationBriefPanel({
             <Text style={styles.label}>Tình hình hiện tại</Text>
             <TextInput
               accessibilityLabel="Tình hình hiện tại"
-              editable={!busy}
+              editable={!busy && !preparationClosed}
               maxLength={1000}
               multiline
               onChangeText={(value) => {
@@ -440,8 +468,11 @@ export function ConsultationBriefPanel({
                   key={choice.supportEvaluationId}
                   accessibilityLabel={contextLabel(choice)}
                   accessibilityRole="radio"
-                  accessibilityState={{ disabled: busy, selected }}
-                  disabled={busy}
+                  accessibilityState={{
+                    disabled: busy || preparationClosed,
+                    selected,
+                  }}
+                  disabled={busy || preparationClosed}
                   onPress={() => {
                     setSupportEvaluationId(choice.supportEvaluationId)
                     setNotice('')
@@ -468,7 +499,7 @@ export function ConsultationBriefPanel({
             <Text style={styles.label}>Mục tiêu cho buổi tư vấn</Text>
             <TextInput
               accessibilityLabel="Mục tiêu cho buổi tư vấn"
-              editable={!busy}
+              editable={!busy && !preparationClosed}
               maxLength={1004}
               multiline
               onChangeText={(value) => {
@@ -496,13 +527,13 @@ export function ConsultationBriefPanel({
             </Text>
           ) : null}
           <ActionButton
-            disabled={busy}
+            disabled={busy || preparationClosed}
             label={busy ? 'Đang lưu…' : 'Lưu bản nháp'}
             onPress={save}
             testID="consultation-brief-save"
           />
           <ActionButton
-            disabled={busy || !exactSavedDraft}
+            disabled={busy || preparationClosed || !exactSavedDraft}
             label="Xem lại để chia sẻ"
             onPress={() => setConfirmation('approve')}
             testID="consultation-brief-open-approve"
@@ -566,7 +597,9 @@ export function ConsultationBriefPanel({
             />
             <ActionButton
               danger={confirmation === 'revoke'}
-              disabled={busy}
+              disabled={
+                busy || (confirmation === 'approve' && preparationClosed)
+              }
               label={
                 confirmation === 'approve'
                   ? 'Phê duyệt chia sẻ'

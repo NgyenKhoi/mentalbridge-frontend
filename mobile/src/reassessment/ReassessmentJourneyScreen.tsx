@@ -1,8 +1,7 @@
 import { randomUUID } from 'expo-crypto'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -12,6 +11,7 @@ import {
 
 import { ApiError } from '@/api/api-error'
 import { PrimaryButton } from '@/components/PrimaryButton'
+import { AppIcon } from '@/components/AppIcon'
 import { useDashboardFonts } from '@/theme/useDashboardFonts'
 import { Screen } from '@/components/Screen'
 import type { JournalApi } from '@/journal/journal-api'
@@ -19,6 +19,7 @@ import type { TrendJob } from '@/journal/journal-contract'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type { ReassessmentApi } from './reassessment-api'
+import { ReassessmentSummaryPanel } from './ReassessmentSummaryPanel'
 import type {
   ReassessmentContext,
   ReassessmentExperience,
@@ -36,11 +37,6 @@ const experienceLabel = Object.fromEntries(experiences) as Record<
   ReassessmentExperience,
   string
 >
-const stateLabel = {
-  AVAILABLE: 'Có dữ liệu',
-  INSUFFICIENT_DATA: 'Chưa đủ dữ liệu',
-  UNAVAILABLE: 'Tạm thời không khả dụng',
-} as const
 
 type AuthorityState = 'LOADING' | 'FRESH' | 'STALE' | 'ERROR'
 type JournalGap = Readonly<{ reason: string; retryLabel: string }>
@@ -50,6 +46,7 @@ type Props = Readonly<{
   journalApi: Pick<JournalApi, 'requestTrend' | 'trendJob'>
   onScreening: () => void
   onReturnToPlan: () => void
+  onReviewPlan?: () => void
   embedded?: boolean
   refreshToken?: number
   wait?: (milliseconds: number) => Promise<void>
@@ -94,8 +91,7 @@ function journalGap(error: unknown): JournalGap {
       retryLabel: 'Kiểm tra lại nguồn Nhật ký',
     }
   return {
-    reason:
-      'Dịch vụ Nhật ký chưa trả về mã công việc nguồn. Ứng dụng không tạo mã thay thế hoặc giả dữ liệu.',
+    reason: 'Chưa tải được nguồn nhật ký. Câu trả lời của bạn vẫn được lưu.',
     retryLabel: 'Thử lại nguồn Nhật ký',
   }
 }
@@ -128,71 +124,14 @@ function DimensionCard({
   )
 }
 
-function Summary({ summary }: { summary: ReassessmentSummary }) {
-  const selfReport = summary.selfReportedExperience
-  return (
-    <View accessibilityLabel="Bốn chiều đánh giá lại" style={styles.summary}>
-      <Text accessibilityRole="header" style={styles.sectionTitle}>
-        Bốn góc nhìn riêng biệt
-      </Text>
-      <DimensionCard title="1. Thay đổi sàng lọc">
-        <Text style={styles.state}>{stateLabel[summary.screening.state]}</Text>
-        {summary.screening.trends.map((trend) => (
-          <Text key={trend.instrument} style={styles.body}>
-            {trend.instrument}: {trend.current.totalScore} điểm ·{' '}
-            {trend.direction}
-          </Text>
-        ))}
-      </DimensionCard>
-      <DimensionCard title="2. Bối cảnh nhật ký">
-        <Text style={styles.state}>
-          {stateLabel[summary.journalContext.state]}
-        </Text>
-        {summary.journalContext.changesComparedWithPreviousPeriod.map(
-          (item) => (
-            <Text key={`${item.signal}:${item.direction}`} style={styles.body}>
-              {item.signal}: {item.direction}
-            </Text>
-          ),
-        )}
-        {summary.journalContext.unavailableReason && (
-          <Text style={styles.quiet}>
-            Lý do: {summary.journalContext.unavailableReason}
-          </Text>
-        )}
-      </DimensionCard>
-      <DimensionCard title="3. Mức độ tham gia kế hoạch">
-        <Text style={styles.state}>
-          {stateLabel[summary.supportPlanEngagement.state]}
-        </Text>
-        <Text style={styles.body}>
-          Giai đoạn trước:{' '}
-          {summary.supportPlanEngagement.previousPeriod.completedCount} hoàn
-          thành, {summary.supportPlanEngagement.previousPeriod.skippedCount} bỏ
-          qua.
-        </Text>
-        <Text style={styles.body}>
-          Giai đoạn này:{' '}
-          {summary.supportPlanEngagement.currentPeriod.completedCount} hoàn
-          thành, {summary.supportPlanEngagement.currentPeriod.skippedCount} bỏ
-          qua.
-        </Text>
-      </DimensionCard>
-      <DimensionCard title="4. Trải nghiệm bạn tự báo cáo">
-        <Text style={styles.state}>
-          {selfReport ? stateLabel[selfReport.state] : 'Chưa có dữ liệu'}
-        </Text>
-        {selfReport?.source && (
-          <Text style={styles.body}>
-            {experienceLabel[selfReport.source.currentExperience]}
-          </Text>
-        )}
-      </DimensionCard>
-      <Text style={styles.boundary}>
-        Bốn chiều có thể không khớp nhau và không được gộp thành điểm số, chẩn
-        đoán hay kết luận tổng thể.
-      </Text>
-    </View>
+function JourneyContainer({
+  embedded,
+  children,
+}: Readonly<{ embedded: boolean; children: ReactNode }>) {
+  return embedded ? (
+    <View>{children}</View>
+  ) : (
+    <Screen layout="dashboard">{children}</Screen>
   )
 }
 
@@ -206,9 +145,9 @@ function AvailableSources({
         Các nguồn hiện có
       </Text>
       <DimensionCard title="1. Sàng lọc theo giai đoạn">
-        <Text style={styles.state}>Care đã xác nhận đủ PHQ-9 và GAD-7</Text>
+        <Text style={styles.state}>Đã có đủ PHQ-9 và GAD-7</Text>
         <Text style={styles.quiet}>
-          Điểm và xu hướng chỉ hiển thị sau khi Care tạo được bản tổng hợp.
+          Điểm và thay đổi sẽ hiển thị khi bản tổng hợp sẵn sàng.
         </Text>
       </DimensionCard>
       <DimensionCard title="2. Bối cảnh nhật ký">
@@ -216,7 +155,7 @@ function AvailableSources({
         <Text style={styles.quiet}>{gap.reason}</Text>
       </DimensionCard>
       <DimensionCard title="3. Mức độ tham gia kế hoạch">
-        <Text style={styles.state}>Đang chờ Care tổng hợp</Text>
+        <Text style={styles.state}>Đang chờ tổng hợp</Text>
       </DimensionCard>
       <DimensionCard title="4. Trải nghiệm bạn tự báo cáo">
         <Text style={styles.state}>Đã lưu</Text>
@@ -225,8 +164,8 @@ function AvailableSources({
         </Text>
       </DimensionCard>
       <Text style={styles.boundary}>
-        Đây là trạng thái nguồn, không phải bản tổng hợp bốn chiều. Ứng dụng
-        không tự tạo Journal job hoặc suy đoán dữ liệu còn thiếu.
+        Các nguồn vẫn đang chờ đủ để tạo bản tổng hợp. Bạn có thể thử tải lại
+        nhật ký.
       </Text>
     </View>
   )
@@ -237,17 +176,19 @@ export function ReassessmentJourneyScreen({
   journalApi,
   onScreening,
   onReturnToPlan,
+  onReviewPlan = onReturnToPlan,
   embedded = false,
   refreshToken = 0,
   wait = (milliseconds) =>
     new Promise((resolve) => setTimeout(resolve, milliseconds)),
 }: Props) {
-  const Wrapper = embedded ? View : Screen
   const fonts = useDashboardFonts()
   const serif = fonts ? 'DashboardSerif' : undefined
   const [context, setContext] = useState<ReassessmentContext | null>(null)
   const [report, setReport] = useState<ReassessmentSelfReport | null>(null)
   const [summary, setSummary] = useState<ReassessmentSummary | null>(null)
+  const [editingReport, setEditingReport] = useState(false)
+  const [showContext, setShowContext] = useState(false)
   const [experience, setExperience] = useState<ReassessmentExperience | null>(
     null,
   )
@@ -312,13 +253,18 @@ export function ReassessmentJourneyScreen({
       setExperience(currentReport?.currentExperience ?? null)
       setHelpful(currentReport?.helpfulContext ?? '')
       setDifficult(currentReport?.difficultContext ?? '')
+      setShowContext(
+        Boolean(
+          currentReport?.helpfulContext || currentReport?.difficultContext,
+        ),
+      )
       setSummary(
         loadedSummary &&
           samePeriod(loadedSummary.currentPeriod, loadedContext.currentPeriod)
           ? loadedSummary
           : null,
       )
-      if (periodChanged) setNotice('Đã tải giai đoạn đánh giá mới từ Care.')
+      if (periodChanged) setNotice('Đã tải giai đoạn đánh giá mới.')
       hasAuthority.current = true
       setAuthority('FRESH')
     } catch (error) {
@@ -381,7 +327,7 @@ export function ReassessmentJourneyScreen({
         const gap = journalGap(error)
         setMissingJournal(gap)
         setNotice(
-          'Câu trả lời đã được lưu. Nguồn Nhật ký chưa cấp mã công việc nên Care chưa thể tạo bản tổng hợp; bạn vẫn có thể xem các nguồn hiện có hoặc thử lại.',
+          'Câu trả lời đã lưu. Nhật ký chưa sẵn sàng để tổng hợp; bạn có thể thử lại hoặc tiếp tục xem các nguồn hiện có.',
         )
         return
       }
@@ -407,6 +353,7 @@ export function ReassessmentJourneyScreen({
         compositionKey.current.value,
       )
       setSummary(composed)
+      setEditingReport(false)
       setNotice('Bản tổng hợp bốn góc nhìn đã sẵn sàng để bạn xem lại.')
     } catch (error) {
       setNotice(errorMessage(error))
@@ -420,17 +367,17 @@ export function ReassessmentJourneyScreen({
 
   if (authority === 'LOADING' && !context)
     return (
-      <Wrapper>
+      <JourneyContainer embedded={embedded}>
         <ActivityIndicator
           accessibilityLabel="Đang tải đánh giá lại"
           color={colors.tealDeep}
         />
-      </Wrapper>
+      </JourneyContainer>
     )
 
   if (authority === 'ERROR' && !context)
     return (
-      <Wrapper>
+      <JourneyContainer embedded={embedded}>
         <Text accessibilityRole="header" style={styles.title}>
           Chưa tải được đánh giá lại
         </Text>
@@ -451,57 +398,42 @@ export function ReassessmentJourneyScreen({
         >
           <Text style={styles.backText}>Quay lại Kế hoạch hỗ trợ</Text>
         </Pressable>
-      </Wrapper>
+      </JourneyContainer>
     )
 
   const period = new Intl.DateTimeFormat('vi-VN', {
     timeZone: 'Asia/Ho_Chi_Minh',
   })
   return (
-    <Wrapper>
+    <JourneyContainer embedded={embedded}>
       <View style={styles.flow}>
         <View style={styles.mainCard}>
-          <View style={styles.hero}>
-            <View style={styles.heroCopy}>
-              <Text style={styles.eyebrow}>GÓC NHÌN ĐA CHIỀU</Text>
-              <Text style={[styles.heroTitle, { fontFamily: serif }]}>
-                Khoảng lặng phản tư
-              </Text>
-              <Text style={styles.quiet}>
-                Lắng nghe cảm nhận và ghi nhận những chuyển biến.
-              </Text>
-            </View>
-            <Image
-              source={require('../../assets/resource-covers/resource-mindfulness.webp')}
-              style={styles.heroImage}
-              accessible={false}
-            />
-          </View>
           <Text style={styles.eyebrow}>ĐÁNH GIÁ LẠI</Text>
           <Text
             accessibilityRole="header"
             style={[styles.title, { fontFamily: serif }]}
           >
-            Hiểu những thay đổi của bạn qua bốn góc nhìn
+            Nhìn lại giai đoạn của bạn
           </Text>
           <Text style={styles.description}>
-            So sánh sàng lọc, nhật ký, việc thực hiện kế hoạch và cảm nhận bạn
-            tự chia sẻ. MentalBridge không tự chẩn đoán hoặc tự đổi kế hoạch.
+            Đặt bốn nguồn cạnh nhau để hiểu thay đổi và chọn cách đi tiếp.
           </Text>
 
           {context && (
-            <Text style={styles.period}>
-              ▦ Giai đoạn hiện tại{' '}
-              {period.format(new Date(context.currentPeriod.startAt))} –{' '}
-              {period.format(new Date(context.currentPeriod.endAt))}
-            </Text>
+            <View style={styles.periodRow}>
+              <AppIcon name="calendar" size={16} />
+              <Text style={styles.period}>
+                {period.format(new Date(context.currentPeriod.startAt))} –{' '}
+                {period.format(new Date(context.currentPeriod.endAt))}
+              </Text>
+            </View>
           )}
           {(stale || (loading && context)) && (
             <View style={styles.errorPanel}>
               {loading ? <ActivityIndicator color={colors.tealDeep} /> : null}
               <Text accessibilityLiveRegion="polite" style={styles.body}>
                 {loading
-                  ? 'Đang xác nhận lại giai đoạn và dữ liệu với Care. Tạm khóa thay đổi.'
+                  ? 'Đang xác nhận lại giai đoạn và dữ liệu. Tạm khóa thay đổi.'
                   : `${notice} Dữ liệu đang hiển thị có thể đã cũ; mọi thao tác lưu đang bị khóa.`}
               </Text>
               {!loading && (
@@ -526,62 +458,88 @@ export function ReassessmentJourneyScreen({
                 onPress={onScreening}
               />
             </View>
-          ) : context ? (
+          ) : context && (!summary || editingReport) ? (
             <View style={styles.form}>
               <Text style={styles.sectionTitle}>
                 So với giai đoạn trước, bạn cảm nhận giai đoạn này:
               </Text>
-              {experiences.map(([value, label]) => (
-                <Pressable
-                  accessibilityRole="radio"
-                  accessibilityState={{
-                    checked: experience === value,
-                    disabled: !canWrite,
-                  }}
-                  disabled={!canWrite}
-                  key={value}
-                  onPress={() => setExperience(value)}
-                  style={[
-                    styles.option,
-                    experience === value && styles.optionSelected,
-                  ]}
-                >
-                  <Text style={styles.optionText}>{label}</Text>
-                  <View
+              <View style={styles.options}>
+                {experiences.map(([value, label]) => (
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityState={{
+                      checked: experience === value,
+                      disabled: !canWrite,
+                    }}
+                    disabled={!canWrite}
+                    key={value}
+                    onPress={() => setExperience(value)}
                     style={[
-                      styles.radio,
-                      experience === value && styles.radioSelected,
+                      styles.option,
+                      experience === value && styles.optionSelected,
                     ]}
-                    aria-hidden
+                  >
+                    <Text style={styles.optionText}>{label}</Text>
+                    <View
+                      style={[
+                        styles.radio,
+                        experience === value && styles.radioSelected,
+                      ]}
+                      aria-hidden
+                    />
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Thêm chia sẻ (tùy chọn)"
+                accessibilityState={{ expanded: showContext }}
+                onPress={() => setShowContext(!showContext)}
+                style={styles.editReport}
+              >
+                <Text style={styles.editCopy}>
+                  {helpful || difficult
+                    ? 'Chia sẻ thêm của bạn'
+                    : 'Thêm chia sẻ (tùy chọn)'}
+                </Text>
+                <View
+                  style={{
+                    transform: [{ rotate: showContext ? '-90deg' : '90deg' }],
+                  }}
+                >
+                  <AppIcon name="chevron" size={16} />
+                </View>
+              </Pressable>
+              {showContext && (
+                <View style={styles.contextFields}>
+                  <Text style={styles.label}>
+                    Điều gì đã giúp ích? (không bắt buộc)
+                  </Text>
+                  <TextInput
+                    accessibilityLabel="Điều gì đã giúp ích"
+                    placeholder="Ví dụ: Ngủ đều hơn, tập thở mỗi sáng…"
+                    editable={canWrite}
+                    maxLength={500}
+                    multiline
+                    onChangeText={setHelpful}
+                    style={styles.input}
+                    value={helpful}
                   />
-                </Pressable>
-              ))}
-              <Text style={styles.label}>
-                Điều gì đã giúp ích? (không bắt buộc)
-              </Text>
-              <TextInput
-                accessibilityLabel="Điều gì đã giúp ích"
-                placeholder="Ví dụ: Ngủ đều hơn, tập thở mỗi sáng…"
-                editable={canWrite}
-                maxLength={500}
-                multiline
-                onChangeText={setHelpful}
-                style={styles.input}
-                value={helpful}
-              />
-              <Text style={styles.label}>
-                Điều gì khiến bạn thấy khó khăn? (không bắt buộc)
-              </Text>
-              <TextInput
-                accessibilityLabel="Điều gì khiến bạn thấy khó khăn"
-                placeholder="Ví dụ: Áp lực công việc, hay thức giấc lúc nửa đêm…"
-                editable={canWrite}
-                maxLength={500}
-                multiline
-                onChangeText={setDifficult}
-                style={styles.input}
-                value={difficult}
-              />
+                  <Text style={styles.label}>
+                    Điều gì khiến bạn thấy khó khăn? (không bắt buộc)
+                  </Text>
+                  <TextInput
+                    accessibilityLabel="Điều gì khiến bạn thấy khó khăn"
+                    placeholder="Ví dụ: Áp lực công việc, hay thức giấc lúc nửa đêm…"
+                    editable={canWrite}
+                    maxLength={500}
+                    multiline
+                    onChangeText={setDifficult}
+                    style={styles.input}
+                    value={difficult}
+                  />
+                </View>
+              )}
               <PrimaryButton
                 disabled={!canWrite || !experience}
                 label={
@@ -600,26 +558,43 @@ export function ReassessmentJourneyScreen({
             </View>
           ) : null}
 
-          <Text style={styles.boundary}>
-            Bốn góc nhìn có thể khác nhau. MentalBridge không gộp chúng thành
-            một điểm số hay chẩn đoán.
-          </Text>
-        </View>
-        <View style={styles.hero}>
-          <View style={styles.heroCopy}>
-            <Text style={styles.cardTitle}>Tự trắc ẩn trong từng bước đi</Text>
-            <Text style={styles.quiet}>
-              Bạn có thể dành thời gian để nhìn lại và chia sẻ theo nhịp của
-              mình.
+          {summary && !editingReport && context?.state === 'READY' && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Chỉnh câu trả lời"
+              onPress={() => {
+                setEditingReport(true)
+                setShowContext(Boolean(helpful || difficult))
+              }}
+              style={styles.editReport}
+            >
+              <View style={styles.editCopy}>
+                <Text style={styles.sectionTitle}>Cảm nhận bạn đã chia sẻ</Text>
+                <Text style={styles.quiet}>
+                  {report
+                    ? experienceLabel[report.currentExperience]
+                    : 'Chia sẻ thêm khi bạn sẵn sàng'}
+                </Text>
+              </View>
+              <AppIcon name="chevron" size={18} />
+            </Pressable>
+          )}
+          {!summary && (
+            <Text style={styles.boundary}>
+              Bốn góc nhìn có thể khác nhau. MentalBridge không gộp chúng thành
+              một điểm số hay chẩn đoán.
             </Text>
-          </View>
+          )}
         </View>
-        {notice && !stale && (
-          <Text accessibilityLiveRegion="polite" style={styles.notice}>
-            {notice}
-          </Text>
-        )}
-        {summary && <Summary summary={summary} />}
+        {notice &&
+          !stale &&
+          notice !==
+            'Bản tổng hợp bốn góc nhìn đã sẵn sàng để bạn xem lại.' && (
+            <Text accessibilityLiveRegion="polite" style={styles.notice}>
+              {notice}
+            </Text>
+          )}
+        {summary && <ReassessmentSummaryPanel summary={summary} />}
         {!summary && report && missingJournal && (
           <AvailableSources gap={missingJournal} report={report} />
         )}
@@ -627,10 +602,12 @@ export function ReassessmentJourneyScreen({
           <PrimaryButton
             label={
               summary
-                ? 'Xem lựa chọn giữ hoặc đổi kế hoạch'
+                ? 'Giữ hoặc đổi kế hoạch'
                 : 'Tiếp tục với các nguồn hiện có'
             }
-            onPress={onReturnToPlan}
+            onPress={onReviewPlan}
+            tone="dashboard"
+            disabled={!canWrite}
           />
         )}
         <Pressable
@@ -641,11 +618,22 @@ export function ReassessmentJourneyScreen({
           <Text style={styles.backText}>Quay lại Kế hoạch hỗ trợ</Text>
         </Pressable>
       </View>
-    </Wrapper>
+    </JourneyContainer>
   )
 }
 
 const styles = StyleSheet.create({
+  periodRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  editReport: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 56,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: spacing.md,
+  },
+  editCopy: { flex: 1, gap: spacing.xs },
   flow: { gap: 16 },
   mainCard: {
     backgroundColor: '#fff',
@@ -694,10 +682,12 @@ const styles = StyleSheet.create({
   },
   description: {
     color: colors.inkSoft,
-    fontSize: typography.body,
-    lineHeight: typography.bodyLineHeight,
+    fontSize: 14,
+    lineHeight: 21,
   },
   form: { gap: spacing.md },
+  contextFields: { gap: spacing.sm },
+  options: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: '700' },
   label: {
     color: colors.ink,
@@ -706,6 +696,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   option: {
+    flex: 1,
+    minWidth: 130,
     backgroundColor: '#F0F2ED',
     flexDirection: 'row',
     alignItems: 'center',
@@ -721,7 +713,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.tealPale,
     borderColor: colors.tealDeep,
   },
-  optionText: { flex: 1, color: colors.ink, fontSize: typography.body },
+  optionText: { flex: 1, color: colors.ink, fontSize: 14, lineHeight: 20 },
   input: {
     backgroundColor: '#F0F2ED',
     borderColor: colors.line,

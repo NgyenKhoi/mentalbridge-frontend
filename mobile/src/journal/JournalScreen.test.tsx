@@ -59,6 +59,71 @@ describe('Private mobile Journal CRUD', () => {
     jest.clearAllMocks()
     mockSession = { subject, role: 'USER' }
   })
+  it.each(['create', 'revise'] as const)(
+    'returns to the refreshed journal overview after a confirmed %s',
+    async (mode) => {
+      const saved = {
+        ...entry,
+        content: { ...entry.content, text: 'Bài viết vừa được lưu.' },
+        currentRevision: mode === 'revise' ? 2 : 1,
+      }
+      const api = journalApi({
+        list: jest
+          .fn()
+          .mockResolvedValue(page(mode === 'create' ? [] : [entry])),
+        create: jest.fn().mockImplementation(async () => {
+          jest.mocked(api.list).mockResolvedValue(page([saved]))
+          return saved
+        }),
+        revise: jest.fn().mockImplementation(async () => {
+          jest.mocked(api.list).mockResolvedValue(page([saved]))
+          return saved
+        }),
+      })
+      await mount(<JournalScreen api={api} onBack={jest.fn()} />)
+      if (mode === 'create') {
+        await fireEvent.press(await screen.findByTestId('journal-new'))
+      } else {
+        await fireEvent.press(
+          await screen.findByTestId(`journal-entry-${entry.id}`),
+        )
+      }
+      await fireEvent.changeText(
+        await screen.findByLabelText('Nội dung nhật ký'),
+        saved.content.text,
+      )
+      await fireEvent.press(screen.getByRole('radio', { name: 'Cảm xúc: Tốt' }))
+      await fireEvent.press(screen.getByTestId('journal-save'))
+      expect(
+        await screen.findByTestId(`journal-entry-${saved.id}`),
+      ).toBeOnTheScreen()
+      expect(screen.queryByLabelText('Nội dung nhật ký')).toBeNull()
+      expect(api[mode]).toHaveBeenCalledTimes(1)
+      expect(api.list).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it('keeps the editor and draft open when save is not confirmed', async () => {
+    const api = journalApi({
+      list: jest.fn().mockResolvedValue(page([])),
+      create: jest.fn().mockRejectedValue(new Error('network')),
+    })
+    await mount(<JournalScreen api={api} onBack={jest.fn()} />)
+    await fireEvent.press(await screen.findByTestId('journal-new'))
+    await fireEvent.changeText(
+      screen.getByLabelText('Nội dung nhật ký'),
+      'Bài chưa lưu.',
+    )
+    await fireEvent.press(screen.getByRole('radio', { name: 'Cảm xúc: Tốt' }))
+    await fireEvent.press(screen.getByTestId('journal-save'))
+    expect(
+      await screen.findByText(/Chưa xác nhận được lần lưu vừa rồi/),
+    ).toBeOnTheScreen()
+    expect(screen.getByLabelText('Nội dung nhật ký')).toHaveDisplayValue(
+      'Bài chưa lưu.',
+    )
+    expect(api.list).toHaveBeenCalledTimes(1)
+  })
   it('creates a journal with explicit mood while consent is missing', async () => {
     const props = editorProps()
     await mount(<JournalEditor {...props} />)

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
+import { GuideReplayButton } from '@/onboarding/OnboardingGuide'
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +14,7 @@ import {
 
 import { ApiError } from '@/api/api-error'
 import { useSession } from '@/auth/session-context'
+import { AccountSignOutButton } from '@/components/AccountSignOutButton'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import { ChangePasswordScreen } from '@/password/ChangePasswordScreen'
@@ -246,6 +248,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
   if (!subject) {
     return (
       <Screen>
+        <GuideReplayButton />
         <Text accessibilityRole="header" style={styles.title}>
           Hồ sơ cá nhân
         </Text>
@@ -261,6 +264,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
   if (profileQuery.isPending) {
     return (
       <Screen>
+        <GuideReplayButton />
         <View accessibilityLiveRegion="polite" style={styles.centeredState}>
           <ActivityIndicator
             accessibilityLabel="Đang tải hồ sơ"
@@ -274,6 +278,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
             Thông tin đã lưu của bạn đang được tải.
           </Text>
         </View>
+        <AccountSignOutButton />
       </Screen>
     )
   }
@@ -295,6 +300,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
 
     return (
       <Screen>
+        <GuideReplayButton />
         <Text style={styles.eyebrow}>TÀI KHOẢN CỦA BẠN</Text>
         <Text accessibilityRole="header" style={styles.title}>
           Hồ sơ cá nhân
@@ -313,6 +319,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
             else void profileQuery.refetch()
           }}
         />
+        {!unauthorized && <AccountSignOutButton />}
       </Screen>
     )
   }
@@ -363,6 +370,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
           </Text>
         </Pressable>
       </View>
+      <GuideReplayButton />
       <View style={[styles.card, styles.overview]}>
         <View style={styles.profileHeading}>
           <View style={styles.avatar}>
@@ -676,6 +684,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
       {passwordSheetOwner === subject ? (
         <ChangePasswordScreen onClose={() => setPasswordSheetOwner(null)} />
       ) : null}
+      <AccountSignOutButton />
     </Screen>
   )
 }

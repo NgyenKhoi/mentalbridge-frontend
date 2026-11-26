@@ -30,7 +30,9 @@ import {
 import { SpecialistAppointmentDetailScreen } from './SpecialistAppointmentDetailScreen'
 import type { SpecialistChatHandoff } from './specialist-chat-handoff'
 
-jest.mock('expo-router', () => ({ router: { back: jest.fn() } }))
+jest.mock('expo-router', () => ({
+  router: { back: jest.fn(), dismissTo: jest.fn(), push: jest.fn() },
+}))
 
 jest.mock('@/auth/session-context', () => ({
   useSession: () => ({

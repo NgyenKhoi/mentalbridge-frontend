@@ -1,19 +1,22 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useImperativeHandle,
+  useRef,
   useState,
   type ReactNode,
   type Ref,
 } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-
 import { setSafetyButtonLift } from '@/crisis-support/safety-button-lift'
+import { TourScrollContext } from '@/onboarding/tour-target'
 import { colors, spacing } from '@/theme/tokens'
 
-const SAFETY_BUTTON_CLEARANCE = 96
 export const ScreenBottomInsetContext = createContext(true)
+const SAFETY_BUTTON_CLEARANCE = 96
 
 export function Screen({
   children,
@@ -29,19 +32,41 @@ export function Screen({
   children: ReactNode
   footer?: ReactNode
   bottomActions?: ReactNode
-  // Stays fixed above the scrolling content.
   header?: ReactNode
   backgroundColor?: string
   scrollRef?: Ref<ScrollView>
   contentRef?: Ref<View>
-  // `bleed`: no side padding, for edge-to-edge content that insets its own blocks.
   layout?: 'form' | 'dashboard' | 'bleed'
-  // Reserves bottom space so the floating "Cần hỗ trợ ngay" button never covers the last row (dashboard does this already).
   clearSafetyButton?: boolean
 }>) {
-  // Context insets pad the first frame of a fresh mount; native SafeAreaView reports them a frame or two late.
   const insets = useSafeAreaInsets()
   const includeBottomInset = useContext(ScreenBottomInsetContext)
+  const localScroll = useRef<ScrollView>(null)
+  useImperativeHandle(scrollRef, () => localScroll.current!, [])
+  const scrollOffset = useRef(0)
+  const reveal = useCallback((node: View) => {
+    const scroll = localScroll.current
+    if (!scroll) return
+    node.measureInWindow((_x, y, _width, height) => {
+      scroll
+        .getNativeScrollRef()
+        ?.measureInWindow((_sx, top, _sw, viewportHeight) => {
+          if (viewportHeight <= 0 || height <= 0) return
+          if (y < top + 20 || y + height > top + viewportHeight - 20) {
+            scroll.scrollTo({
+              y: Math.max(
+                0,
+                scrollOffset.current +
+                  y -
+                  top -
+                  Math.max(20, (viewportHeight - height) / 2),
+              ),
+              animated: false,
+            })
+          }
+        })
+    })
+  }, [])
   const hasFooter = Boolean(footer)
   const [liftOwner] = useState(() => ({}))
   useEffect(() => {
@@ -61,27 +86,34 @@ export function Screen({
       ]}
     >
       {header}
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={[
-          styles.content,
-          layout === 'dashboard' && styles.dashboardContent,
-          layout === 'bleed' && styles.bleedContent,
-          clearSafetyButton && styles.clearSafetyButton,
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View
-          ref={contentRef}
-          style={[
-            styles.readingColumn,
-            layout === 'dashboard' && styles.dashboardColumn,
-            layout === 'bleed' && styles.bleedColumn,
+      <TourScrollContext.Provider value={reveal}>
+        <ScrollView
+          ref={localScroll}
+          onScroll={(event) => {
+            scrollOffset.current = event.nativeEvent.contentOffset.y
+          }}
+          scrollEventThrottle={16}
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            layout === 'dashboard' && styles.dashboardContent,
+            layout === 'bleed' && styles.bleedContent,
+            clearSafetyButton && styles.clearSafetyButton,
           ]}
+          keyboardShouldPersistTaps="handled"
         >
-          {children}
-        </View>
-      </ScrollView>
+          <View
+            ref={contentRef}
+            style={[
+              styles.readingColumn,
+              layout === 'dashboard' && styles.dashboardColumn,
+              layout === 'bleed' && styles.bleedColumn,
+            ]}
+          >
+            {children}
+          </View>
+        </ScrollView>
+      </TourScrollContext.Provider>
       {footer ? (
         <View
           onLayout={(event) =>
@@ -97,25 +129,19 @@ export function Screen({
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  safeArea: { flex: 1, backgroundColor: colors.background },
+  scroll: { flex: 1, minHeight: 0 },
   content: {
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.xxxl,
   },
-  readingColumn: {
-    alignSelf: 'center',
-    width: '100%',
-    maxWidth: 560,
-  },
+  readingColumn: { alignSelf: 'center', width: '100%', maxWidth: 560 },
   dashboardContent: {
     justifyContent: 'flex-start',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: SAFETY_BUTTON_CLEARANCE,
   },
   bleedContent: {
@@ -126,7 +152,5 @@ const styles = StyleSheet.create({
   },
   bleedColumn: { maxWidth: 760 },
   clearSafetyButton: { paddingBottom: SAFETY_BUTTON_CLEARANCE },
-  dashboardColumn: {
-    maxWidth: 760,
-  },
+  dashboardColumn: { maxWidth: 560 },
 })

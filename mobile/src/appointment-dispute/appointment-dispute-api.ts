@@ -28,20 +28,21 @@ function mismatch(): never {
   })
 }
 
-function path(appointmentId: string) {
+function path(appointmentId: string, role: 'USER' | 'SPECIALIST') {
   const id = z.uuid().parse(appointmentId)
   return {
     id,
-    value: `/api/v1/appointments/${encodeURIComponent(id)}/dispute`,
+    value: `/api/v1/${role === 'SPECIALIST' ? 'specialist/' : ''}appointments/${encodeURIComponent(id)}/dispute`,
   }
 }
 
 export function createAppointmentDisputeApi(
   client: AxiosInstance,
+  role: 'USER' | 'SPECIALIST' = 'USER',
 ): AppointmentDisputeApi {
   return {
     async get(appointmentId) {
-      const target = path(appointmentId)
+      const target = path(appointmentId, role)
       const value = appointmentDisputeSchema.parse(
         (await client.get(target.value)).data,
       )
@@ -49,7 +50,7 @@ export function createAppointmentDisputeApi(
       return value
     },
     async open(appointmentId, input, key) {
-      const target = path(appointmentId)
+      const target = path(appointmentId, role)
       const body = openAppointmentDisputeSchema.parse(input)
       const value = appointmentDisputeSchema.parse(
         (
