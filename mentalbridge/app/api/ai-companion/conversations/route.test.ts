@@ -85,6 +85,31 @@ describe('AI Companion conversations BFF with MB-810 titles', () => {
     expect(await response.json()).toEqual(detail)
   })
 
+  it('forwards a valid opening and rejects a non-string opening locally', async () => {
+    const received: unknown[] = []
+    mockServer.use(
+      http.post(upstream, async ({ request: upstreamRequest }) => {
+        received.push(await upstreamRequest.json())
+        return HttpResponse.json(detail, { status: 201 })
+      }),
+    )
+    const create = (opening: unknown) =>
+      POST(
+        new NextRequest('http://localhost/api/ai-companion/conversations', {
+          method: 'POST',
+          headers: {
+            cookie: `${ACCESS_COOKIE_NAME}=access-token`,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({ opening }),
+        }),
+      )
+
+    expect((await create('FROM_RESULT')).status).toBe(201)
+    expect((await create(['FROM_RESULT'])).status).toBe(400)
+    expect(received).toEqual([{ opening: 'FROM_RESULT' }])
+  })
+
   it('blocks a malformed titleVersion as an invalid upstream response', async () => {
     mockServer.use(
       http.post(upstream, () =>

@@ -230,19 +230,53 @@ describe('AiCompanionChat', () => {
     expect(screen.getByText('Kế hoạch hỗ trợ hiện tại')).toBeVisible()
   })
 
-  it('shows consent withdrawal separately and retains the draft for retry', async () => {
-    vi.mocked(companionBrowserClient.send).mockRejectedValue(
-      new CompanionBrowserError('denied', 'AI_CONSENT_REQUIRED', 403),
+  it('offers AI consent in place, keeps the draft and sends it once consent is saved', async () => {
+    vi.mocked(companionBrowserClient.send)
+      .mockRejectedValueOnce(
+        new CompanionBrowserError('denied', 'AI_CONSENT_REQUIRED', 403),
+      )
+      .mockRejectedValueOnce(
+        new CompanionBrowserError('busy', 'COMPANION_UNAVAILABLE', 503),
+      )
+    const posted: unknown[] = []
+    const realFetch = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        if (String(url) === '/api/care/consent-decisions') {
+          posted.push(JSON.parse(String(init?.body)))
+          return new Response('{}', { status: 201 })
+        }
+        if (String(url) === '/api/care/ai-processing-disclosure')
+          return new Response('{"content":"Thông tin xử lý AI."}')
+        return realFetch(url, init)
+      }),
     )
     const user = userEvent.setup()
     render(<AiCompanionChat accountId={accountId} />)
     const composer = await screen.findByRole('textbox', { name: 'Tin nhắn' })
     await user.type(composer, 'Nội dung cần giữ lại')
     await user.click(screen.getByRole('button', { name: 'Gửi' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /tắt hoặc chưa cấp đồng ý xử lý AI/,
-    )
+    const agree = await screen.findByRole('button', { name: 'Đồng ý và gửi' })
+    expect(agree).toBeDisabled()
     expect(composer).toHaveValue('Nội dung cần giữ lại')
+    await user.click(
+      screen.getByLabelText(
+        'Tôi đã đọc và đồng ý cho AI xử lý nội dung trò chuyện.',
+      ),
+    )
+    await user.click(agree)
+    await waitFor(() =>
+      expect(companionBrowserClient.send).toHaveBeenCalledTimes(2),
+    )
+    expect(posted).toEqual([
+      {
+        consentType: 'AI_PROCESSING',
+        policyVersion: 'ai-processing-capstone-v2',
+        granted: true,
+      },
+    ])
+    vi.unstubAllGlobals()
   })
 
   it('explains Premium limits truthfully and permanently deletes on confirmation', async () => {

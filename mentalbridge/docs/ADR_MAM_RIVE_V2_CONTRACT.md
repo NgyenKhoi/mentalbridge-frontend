@@ -164,6 +164,11 @@ Gate A is a visual decision, not a test count: it stays open while the art or th
   awards (they wait for a FULL route), no tip hop, no welcome. Summon and drag still work. While a text field, or any
   control in a form, has focus, Mầm stays visible and still: no idle action, no gaze, no sleep, and the character gets
   the static pose (`reducedMotion`). A dirty form (`useMamSuppress`) already did this; the journal list no longer hides, and the journal editor modal is the exception below.
+- **First-run guide (owner, 2026-11-26, mam-guide design):** the guide bubble (`MamGuideBubble`, `features/mam/mam-guide.ts`) is
+  the one bubble allowed on FULL and QUIET routes alike: Mầm leads a new user through the result, the first journal, the
+  first chat and a call or relaxation, then stops. It waits while Mầm is away, hidden, summoned, in her menu or on a
+  HIDDEN route (screening and its result stay Mầm-free; the result sequence plays on the next Mầm page). Stories hold
+  4–5 s and pause on a click elsewhere; asks wait; at most 2 clicks per sequence.
 - **HIDDEN:** `MamDock` renders nothing, so no host and no motion run there.
 - **Welcome (changes the V1-era rule above):** a wait that ends without playing (the 4 s cap, a failed start check or
   the user's first input) is remembered in memory for this page load, so later FULL routes, and a return from a
