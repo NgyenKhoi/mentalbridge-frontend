@@ -25,6 +25,8 @@ export type ConsentDecisionRequest = Schemas['ConsentDecisionRequest']
 export type ConsentCollection = Schemas['ConsentCollection']
 export type PrivacyDisclosure = Schemas['PrivacyDisclosure']
 export type AiProcessingDisclosure = Schemas['AiProcessingDisclosure']
+export type AiContextProcessingDisclosure =
+  Schemas['AiContextProcessingDisclosure']
 export type AssessmentSummary = Schemas['AssessmentSummary']
 export type AssessmentHistoryPage = Schemas['AssessmentHistoryPage']
 export type AssessmentProgress = Schemas['AssessmentProgress']

@@ -9,7 +9,9 @@ export type OnboardingAudience = 'user' | 'specialist'
 export const ONBOARDING_TOURS = {
   user: {
     steps: ONBOARDING_STEPS,
-    autoStartPaths: ['/dashboard'],
+    // The USER tour no longer starts by itself: Mầm guides a new user step by step (mam-guide design §5).
+    // It stays one click away under "Xem lại hướng dẫn".
+    autoStartPaths: [] as string[],
     replayEvent: ONBOARDING_REPLAY_EVENT,
     focusFallbackSelectors: ['.ref-mobile', '[data-onboarding="profile"]'],
     popoverClass: 'mb-onboarding-popover',

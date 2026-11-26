@@ -159,18 +159,28 @@ describe('Mầm welcome airplane', () => {
     expect(shown()).toHaveLength(0)
   })
 
-  it('waits for the first-run tour past the 4 s cap and its clicks, then flies once it ends or is skipped', async () => {
+  it('waits for a running tour past the 4 s cap and its clicks, then flies once it ends or is skipped', async () => {
+    // The USER tour no longer auto-starts (mam-guide design §5); a replayed one still owns the screen.
     window.localStorage.removeItem(onboardingStorageKey('u1'))
+    document.body.classList.add('mb-onboarding-active')
     render(app())
     await ms(TO_FLIGHT + 5000)
     fireEvent.pointerDown(screen.getByText('Hành động trên trang'))
     await ms(TO_FLIGHT)
     expect(mode()).toBe('dock')
     expect(screen.getByTestId('mam-character').dataset.visible).toBe('false')
+    document.body.classList.remove('mb-onboarding-active')
     act(() => settleOnboarding())
     await ms(TO_FLIGHT)
     expect(mode()).toBe('welcome')
     expect(window.sessionStorage.getItem(KEY)).toBe('1')
+  })
+
+  it('flies for a brand-new account without waiting for a tour', async () => {
+    window.localStorage.removeItem(onboardingStorageKey('u1'))
+    render(app())
+    await ms(TO_FLIGHT)
+    expect(mode()).toBe('welcome')
   })
 
   it('does not repeat after a re-render, a navigation or a remount', async () => {

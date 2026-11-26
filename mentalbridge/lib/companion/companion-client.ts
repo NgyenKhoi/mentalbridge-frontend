@@ -121,17 +121,21 @@ async function upstream<T>(options: Options<T>): Promise<T | undefined> {
   }
 }
 
+/** The first message a new conversation may start with (mam-guide design §5.3). */
+export type CompanionOpening = 'FROM_JOURNAL' | 'FROM_RESULT'
+
 export const companionClient = {
   create(
     accessToken: string,
     correlationId: string,
+    opening?: CompanionOpening,
   ): Promise<CompanionConversation> {
     return upstream({
       method: 'POST',
       path: '/api/v1/ai-companion/conversations',
       accessToken,
       correlationId,
-      body: {},
+      body: opening ? { opening } : {},
       parse: parseConversation,
     }) as Promise<CompanionConversation>
   },
