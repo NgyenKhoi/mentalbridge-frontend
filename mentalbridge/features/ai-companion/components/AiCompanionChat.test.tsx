@@ -516,6 +516,35 @@ describe('AiCompanionChat', () => {
     ).toHaveLength(1)
   })
 
+  it('shows the sent message and empties the composer while Mầm thinks, and takes it back on failure', async () => {
+    let fail: (cause: unknown) => void = () => undefined
+    vi.mocked(companionBrowserClient.send).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          fail = reject
+        }),
+    )
+    const user = userEvent.setup()
+    render(<AiCompanionChat accountId={accountId} />)
+    const composer = await screen.findByRole('textbox', { name: 'Tin nhắn' })
+    await user.type(composer, 'Nay tui chán quá à')
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+
+    const chat = screen.getByRole('region', { name: 'Trò chuyện với Mầm' })
+    expect(
+      within(chat).getByText('Nay tui chán quá à', { selector: 'p' }),
+    ).toBeVisible()
+    expect(within(chat).getByText('Mầm đang suy nghĩ')).toBeVisible()
+    expect(composer).toHaveValue('')
+
+    fail(new CompanionBrowserError('quota', 'CHAT_TOKEN_BUDGET_EXHAUSTED', 429))
+    await screen.findByRole('alert')
+    expect(
+      within(chat).queryByText('Nay tui chán quá à', { selector: 'p' }),
+    ).toBeNull()
+    expect(composer).toHaveValue('Nay tui chán quá à')
+  })
+
   it('shows one suggestion link after the reply finishes and keeps it after reload', async () => {
     vi.mocked(companionBrowserClient.get).mockResolvedValueOnce(conversation)
     vi.mocked(companionBrowserClient.send).mockResolvedValue({
@@ -921,7 +950,7 @@ describe('AiCompanionChat', () => {
         await user.type(await composer(), 'Tin của A')
         await user.click(screen.getByRole('button', { name: 'Gửi' }))
         await screen.findByRole('button', { name: 'Dừng phản hồi' })
-        await switchTo(user, toB)
+        await switchTo(user, toB, false)
 
         await act(async () => resolveSend(sent))
         expect(await screen.findByRole('button', { name: 'Gửi' })).toBeVisible()
@@ -949,7 +978,7 @@ describe('AiCompanionChat', () => {
         await user.type(await composer(), 'Tin của A')
         await user.click(screen.getByRole('button', { name: 'Gửi' }))
         await screen.findByRole('button', { name: 'Dừng phản hồi' })
-        await switchTo(user, toB)
+        await switchTo(user, toB, false)
 
         await act(async () => rejectSend(unknown()))
         expect(await screen.findByRole('button', { name: 'Gửi' })).toBeVisible()

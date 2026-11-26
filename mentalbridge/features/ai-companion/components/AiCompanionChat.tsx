@@ -199,6 +199,8 @@ export default function AiCompanionChat({
   const nearBottomRef = useRef(true)
   const streamTextRef = useRef('')
   const requestControllerRef = useRef<AbortController | null>(null)
+  // Takes the in-flight message back out of the thread (see `send`).
+  const dropOutgoingRef = useRef<(() => void) | null>(null)
 
   const activeId = active?.conversationId ?? ''
   useEffect(() => {
@@ -361,6 +363,50 @@ export default function AiCompanionChat({
       delete pendingRef.current[originId]
       clearCompanionPending(accountId, originId)
     }
+    // The user's message shows at once and the composer empties; the server's copy replaces it on success,
+    // and a failure or a stop takes it back out and returns the text to the composer.
+    const outgoingId = `outgoing:${pending.key}`
+    // Once only: a stop takes it back at once, and the stopped request settling later must not refill the composer.
+    let dropped = false
+    const dropOutgoing = () => {
+      if (dropped) return
+      dropped = true
+      if (dropOutgoingRef.current === dropOutgoing)
+        dropOutgoingRef.current = null
+      setActive((current) =>
+        current?.conversationId === originId
+          ? {
+              ...current,
+              messages: current.messages.filter(
+                (item) => item.messageId !== outgoingId,
+              ),
+            }
+          : current,
+      )
+      setDrafts((current) => ({
+        ...current,
+        [originId]: current[originId] || text,
+      }))
+    }
+    setActive((current) =>
+      current?.conversationId === originId
+        ? {
+            ...current,
+            messages: [
+              ...current.messages,
+              {
+                messageId: outgoingId,
+                role: 'USER',
+                content: text,
+                createdAt: new Date().toISOString(),
+                contextKinds: [],
+              },
+            ],
+          }
+        : current,
+    )
+    setDrafts((current) => ({ ...current, [originId]: '' }))
+    dropOutgoingRef.current = dropOutgoing
     const controller = new AbortController()
     requestControllerRef.current = controller
     let animating = false
@@ -371,7 +417,14 @@ export default function AiCompanionChat({
         pending.key,
         controller.signal,
       )
-      if (controller.signal.aborted) return
+      if (controller.signal.aborted) {
+        dropOutgoing()
+        return
+      }
+      // Answered: the server's copy replaces the outgoing message below, so nothing is left to take back.
+      dropped = true
+      if (dropOutgoingRef.current === dropOutgoing)
+        dropOutgoingRef.current = null
       // The user may have switched away; then the answer is on the server, not in view.
       animating = activeIdRef.current === originId
       setQuota(result.quota)
@@ -384,7 +437,9 @@ export default function AiCompanionChat({
           ? {
               ...current,
               messages: [
-                ...current.messages,
+                ...current.messages.filter(
+                  (item) => item.messageId !== outgoingId,
+                ),
                 {
                   messageId: result.userMessageId,
                   role: 'USER',
@@ -421,6 +476,7 @@ export default function AiCompanionChat({
         plan: result.quota.plan,
       })
     } catch (cause) {
+      dropOutgoing()
       if (controller.signal.aborted) return
       if (
         cause instanceof CompanionBrowserError &&
@@ -448,6 +504,7 @@ export default function AiCompanionChat({
   const stopResponse = () => {
     requestControllerRef.current?.abort()
     requestControllerRef.current = null
+    dropOutgoingRef.current?.()
     if (streamingId) {
       const partial = streamTextRef.current
       setActive((current) =>
