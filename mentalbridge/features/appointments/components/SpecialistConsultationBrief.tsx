@@ -21,6 +21,11 @@ import styles from './ConsultationBriefPanel.module.css'
 function denied(error: unknown) {
   if (!(error instanceof ApiError)) return 'Chưa thể tải tóm tắt lúc này.'
   const values: Record<string, string> = {
+    CONSULTATION_BRIEF_APPOINTMENT_NOT_ACTIVE:
+      'Lịch hẹn đã kết thúc hoặc không còn ở trạng thái cho phép đọc bản chuẩn bị. Hãy xem phần Tổng kết phiên của lịch hẹn này.',
+    APPOINTMENT_CONTEXT_UNAVAILABLE:
+      'Chưa thể xác minh lịch hẹn lúc này. Vui lòng tải lại sau.',
+    CONSULTATION_BRIEF_NOT_FOUND: 'Lịch hẹn này chưa có bản chuẩn bị đã lưu.',
     CONSULTATION_BRIEF_ACCESS_TOO_EARLY:
       'Tóm tắt chỉ mở trong 24 giờ trước lịch hẹn.',
     CONSULTATION_BRIEF_ACCESS_EXPIRED:

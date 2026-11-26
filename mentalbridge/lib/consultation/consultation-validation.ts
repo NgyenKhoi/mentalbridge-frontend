@@ -2215,6 +2215,13 @@ export function parseBookableSlotList(value: unknown): BookableSlotList | null {
 }
 
 export function parseAppointment(value: unknown): Appointment | null {
+  return parseAppointmentSnapshot(value, false)
+}
+
+function parseAppointmentSnapshot(
+  value: unknown,
+  creditMayHaveBeenReused: boolean,
+): Appointment | null {
   const item = record(value)
   if (
     !item ||
@@ -2300,7 +2307,7 @@ export function parseAppointment(value: unknown): Appointment | null {
     !item.history.every(validAppointmentHistoryEntry) ||
     !Number.isInteger(item.version) ||
     Number(item.version) < 0 ||
-    !validAppointmentOutcome(item)
+    !validAppointmentOutcome(item, creditMayHaveBeenReused)
   )
     return null
   return {
@@ -2309,7 +2316,10 @@ export function parseAppointment(value: unknown): Appointment | null {
   } as Appointment
 }
 
-function validAppointmentOutcome(item: Record<string, unknown>) {
+function validAppointmentOutcome(
+  item: Record<string, unknown>,
+  creditMayHaveBeenReused: boolean,
+) {
   const sessionPolicyMatches =
     item.sessionPolicyVersion ===
     (item.modality === 'IN_APP_VIDEO'
@@ -2354,7 +2364,8 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
         ? item.creditState === 'HELD' &&
           item.sessionSettledAt === null &&
           item.completionFactId === null
-        : item.creditState !== 'HELD' && item.sessionSettledAt !== null) &&
+        : (creditMayHaveBeenReused || item.creditState !== 'HELD') &&
+          item.sessionSettledAt !== null) &&
       (item.modality !== 'IN_APP_VIDEO' || item.sessionOutcome === null)
     )
   if (item.status === 'COMPLETED') {
@@ -2373,13 +2384,13 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
     return (
       item.decidedAt !== null &&
       item.decisionReason === 'SPECIALIST_REJECTED' &&
-      item.creditState === 'AVAILABLE'
+      (creditMayHaveBeenReused || item.creditState === 'AVAILABLE')
     )
   if (item.status === 'EXPIRED')
     return (
       item.decidedAt !== null &&
       item.decisionReason === 'DECISION_DEADLINE_EXPIRED' &&
-      item.creditState === 'AVAILABLE'
+      (creditMayHaveBeenReused || item.creditState === 'AVAILABLE')
     )
   return true
 }
@@ -2449,7 +2460,9 @@ export function parseAppointmentList(value: unknown): AppointmentList | null {
     !utcInstant(result.generatedAt)
   )
     return null
-  const items = result.items.map(parseAppointment)
+  // The list joins each appointment to the credit's current state. A credit
+  // released by an earlier appointment may already be held for a new one.
+  const items = result.items.map((item) => parseAppointmentSnapshot(item, true))
   if (items.some((item) => item === null)) return null
   return { ...result, items } as AppointmentList
 }

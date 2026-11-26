@@ -557,8 +557,35 @@ test('messages: API phases, acknowledged realtime send, check-in, responsive inb
   }
   await page.goto(`/specialist/messages?appointmentId=${id(11)}`)
   await expect(input).toBeVisible()
-  for (const width of [1280, 768, 375]) {
-    await page.setViewportSize({ width, height: 900 })
+  for (const { width, height } of [
+    { width: 1920, height: 1080 },
+    { width: 1440, height: 640 },
+    { width: 1280, height: 720 },
+    { width: 768, height: 600 },
+    { width: 812, height: 375 },
+    { width: 375, height: 667 },
+  ]) {
+    await page.setViewportSize({ width, height })
+    await expect
+      .poll(() =>
+        root.evaluate((element) => {
+          const bounds = element.getBoundingClientRect()
+          return (
+            bounds.bottom <= innerHeight + 1 &&
+            element.scrollWidth <= element.clientWidth + 1 &&
+            document.documentElement.scrollHeight <= innerHeight + 1
+          )
+        }),
+      )
+      .toBe(true)
+    await expect
+      .poll(async () => {
+        const bounds = await input.boundingBox()
+        return (
+          bounds !== null && bounds.y >= 0 && bounds.y + bounds.height <= height
+        )
+      })
+      .toBe(true)
     await capture(page, info, `messages-04-chat-${width}`, 'messages')
   }
   const infoButton = root.getByRole('button', {

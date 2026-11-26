@@ -305,7 +305,7 @@ export default function RoleWorkspace({
         </div>
       </motion.aside>
       <motion.main
-        className="role-main"
+        className={`role-main${sectionKey === 'messages' ? ' role-main-messages' : ''}`}
         inert={mobileOpen}
         layout={tourActive ? false : 'position'}
         transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}

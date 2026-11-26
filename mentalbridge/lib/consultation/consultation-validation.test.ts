@@ -422,6 +422,50 @@ describe('Consultation contract validation', () => {
       version: 1,
     }
     expect(parseAppointment(appointment)).toEqual(appointment)
+    const reusedCredits = [
+      {
+        ...appointment,
+        status: 'EXPIRED',
+        decisionReason: 'DECISION_DEADLINE_EXPIRED',
+      },
+      {
+        ...appointment,
+        status: 'REJECTED',
+        decisionReason: 'SPECIALIST_REJECTED',
+      },
+      {
+        ...appointment,
+        status: 'SESSION_ENDED',
+        sessionOutcome: 'BOTH_NO_SHOW',
+        sessionPolicyVersion: 'chat-session-completion-v1',
+        sessionEndedAt: '2026-09-25T03:00:00Z',
+        sessionSettledAt: '2026-09-25T03:00:01Z',
+      },
+    ]
+    const assigned = {
+      items: [...reusedCredits, appointment],
+      count: 4,
+      generatedAt: '2026-10-14T03:00:00Z',
+    }
+    expect(parseAppointmentList(assigned)).toEqual(assigned)
+    for (const item of reusedCredits) {
+      expect(parseAppointment(item)).toBeNull()
+    }
+    expect(
+      parseAppointmentList({
+        ...assigned,
+        items: [{ ...reusedCredits[2], sessionSettledAt: null }],
+        count: 1,
+      }),
+    ).toBeNull()
+    expect(
+      parseAppointmentList({
+        ...assigned,
+        items: [{ ...appointment, creditState: 'AVAILABLE' }],
+        count: 1,
+      }),
+    ).toBeNull()
+
     const videoEnded = {
       ...appointment,
       status: 'SESSION_ENDED',
