@@ -96,6 +96,14 @@ export function MamGuideBubble({
       ? spec.text
       : ''
 
+  // A live region announces only text that changes after it is mounted: fill it one tick later, so a
+  // bubble that opens with its line (a one-line moment) is still read out.
+  const [spoken, setSpoken] = useState('')
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSpoken(story ? text : ''), 60)
+    return () => window.clearTimeout(timer)
+  }, [story, text])
+
   // A click elsewhere pauses the story; a click on the bubble resumes it. No key closes the guide: a stray
   // keystroke (Escape included) must not lose the first-run walk (owner 2026-11-26); only the close button does.
   useEffect(() => {
@@ -176,7 +184,7 @@ export function MamGuideBubble({
       </div>
       {/* Stories change by themselves, so they are announced from one region that outlives the step swap. */}
       <div className={styles.live} aria-live="polite">
-        {story ? text : ''}
+        {spoken}
       </div>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
@@ -214,7 +222,7 @@ export function MamGuideBubble({
                     : action.go === 'decline'
                       ? `${styles.act} ${styles.later}`
                       : styles.act
-                const href = guideHref(action.go)
+                const href = action.href ?? guideHref(action.go)
                 return href ? (
                   <Link
                     key={action.label}
@@ -237,17 +245,14 @@ export function MamGuideBubble({
               })}
             </motion.div>
           ) : null}
-          {story ? (
+          {/* A one-line moment has nothing to step to: it holds, then closes on its own (or by the close button). */}
+          {story && progress.total > 1 ? (
             <div className={styles.storyFoot}>
-              {progress.total > 1 ? (
-                <span className={styles.dots} aria-hidden="true">
-                  {Array.from({ length: progress.total }, (_, at) => (
-                    <span key={at} data-on={at <= progress.at || undefined} />
-                  ))}
-                </span>
-              ) : (
-                <span />
-              )}
+              <span className={styles.dots} aria-hidden="true">
+                {Array.from({ length: progress.total }, (_, at) => (
+                  <span key={at} data-on={at <= progress.at || undefined} />
+                ))}
+              </span>
               <button
                 type="button"
                 className={styles.next}

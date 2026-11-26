@@ -86,6 +86,8 @@ export const MAM_LINES = {
     'Trang nhật ký mới đã được lưu. Mừng vì bạn quay lại nè.',
   ],
   SUPPORT_DONE: [
+    // Owner line (2026-11-27).
+    'Bạn làm xong rồi nè. Giỏi lắm, Mầm tự hào về bạn lắm luôn á.',
     'Xong một việc nhỏ rồi nè. Làm được là quý lắm đó.',
     'Bạn vừa xong một bước trong kế hoạch. Tớ ghi nhận nha.',
     'Một bước nhỏ nữa đã xong. Cứ từ từ như vậy nha ✨',

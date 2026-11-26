@@ -470,15 +470,14 @@ export default function VoiceDialog({
               <div>
                 Hôm nay còn
                 <strong>
-                  {eligibility.quota.remainingSessions} phiên ·{' '}
                   {durationLabel(eligibility.quota.remainingSeconds)}
                 </strong>
               </div>
             </div>
             <p className={styles.small}>
-              Trần mỗi phiên của gói:{' '}
-              {durationLabel(eligibility.maxSessionSeconds)}. Thời lượng thực tế
-              được xác nhận khi bắt đầu.
+              Gói của bạn có {durationLabel(eligibility.maxSessionSeconds)} mỗi
+              ngày, gọi mấy lần cũng được. Thời lượng thực tế được xác nhận khi
+              bắt đầu.
             </p>
             {conversation && eligibility.textContextHandoffEnabled ? (
               <label className={styles.checkbox}>
