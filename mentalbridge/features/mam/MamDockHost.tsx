@@ -5,6 +5,7 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -314,7 +315,9 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   // Welcome: waiting (the dock character is held back) until it starts, is skipped or is cancelled.
   // `?mamWelcome=1` replays once per page load.
   const [replayUsed, setReplayUsed] = useState(false)
-  const welcomeAllowed = !hidden && !reduced && !dizzy
+  // A guide sequence waiting for the user owns Mầm's first minutes: no entrance flight over it.
+  const guiding = guide.status === 'pending'
+  const welcomeAllowed = !hidden && !reduced && !dizzy && !guiding
   const [welcome, setWelcome] = useState<'waiting' | 'done'>(() =>
     welcomeAllowed && welcomeDue(pathname, accountId, true)
       ? 'waiting'
@@ -564,7 +567,8 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       yielding === 'none' &&
       celebration.bubbleText === null &&
       celebration.oneShot === null &&
-      saved === null,
+      saved === null &&
+      !guiding,
   })
   const trajectoryText = trajectory.reaction?.text ?? null
   if (trajectoryOpen !== (trajectoryText !== null))
@@ -616,7 +620,8 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     !asleep &&
     !menuOpen &&
     !summon &&
-    !notice
+    !notice &&
+    !guideShown
   // Drowsy and wake belong to the travel controller and run wherever it runs them; an idle
   // action stops with the autonomous gates, a poke only with the touch gates.
   const localKind = local.shot?.kind
@@ -873,7 +878,17 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   }, [staged, lookRunning, travel, orchestrator])
   // What the character is told to play now (also read by the E2E specs): the stage's command (a celebration, a save,
   // an idle action, a variation), held while she sleeps, else the host's own.
-  const playing = (asleep ? null : stage.shot) ?? localShot
+  // The guide's one-shot plays once as its bubble opens, at the dock and only when nothing else is playing.
+  const guideShotKind = guideShown ? guide.motion?.shot : undefined
+  const guideShot = useMemo(
+    () =>
+      guideShotKind ? { kind: guideShotKind, key: `guide:${guide.key}` } : null,
+    [guideShotKind, guide.key],
+  )
+  const playing =
+    (asleep ? null : stage.shot) ??
+    localShot ??
+    (calm && travelMode === 'dock' ? guideShot : null)
   const gaze = useMamGaze(lively && !above, dockRef)
   useMamIdleActions(
     lively,
@@ -936,6 +951,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     !notice &&
     !celebrating &&
     !shot &&
+    !guiding &&
     yielding === 'none'
   useEffect(() => {
     if (!tipDue) return
@@ -1400,6 +1416,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                             : (travelBehavior ??
                               stage.loop ??
                               behavior ??
+                              (guideShown ? guide.motion?.loop : undefined) ??
                               (celebration.bubbleText !== null
                                 ? 'happy'
                                 : menuOpen
@@ -1542,7 +1559,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       </AnimatePresence>
 
       <AnimatePresence>
-        {celebration.bubbleText || trajectoryText ? (
+        {!guideShown && (celebration.bubbleText || trajectoryText) ? (
           <MamCelebrationBubble
             key="celebration"
             text={celebration.bubbleText ?? trajectoryText ?? ''}
@@ -1627,8 +1644,8 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
             reduced={reduced}
             bubbleRef={guideRef}
             dockRef={dockRef}
+            progress={guide.progress}
             onNext={guide.next}
-            onSkip={guide.skip}
             onAct={guide.act}
             onConsented={guide.consented}
             onClose={guide.close}
