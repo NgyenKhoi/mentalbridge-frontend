@@ -59,6 +59,7 @@ import { useOnboardingHold } from '@/features/onboarding/onboarding-hold'
 import { useMamDropRing } from './use-mam-drop-ring'
 import { useMamSummon } from './use-mam-summon'
 import { MamGuideBubble } from './MamGuideBubble'
+import { useMamMoments } from './use-mam-moments'
 import { useMamGuide } from './use-mam-guide'
 import {
   useMamAway,
@@ -112,6 +113,7 @@ const WELCOME_CANCEL_EVENTS = [
   'wheel',
   'touchstart',
 ] as const
+const ONE_LINE = { at: 0, total: 1 } as const
 const welcomeKey = (accountId: string) =>
   `mentalbridge_mam_welcome:${accountId}`
 const isFullRoute = (pathname: string) => mamRouteMode(pathname) === 'full'
@@ -164,6 +166,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const bubbleRef = useRef<HTMLDivElement | null>(null)
   const celebrationRef = useRef<HTMLDivElement | null>(null)
   const noticeRef = useRef<HTMLDivElement | null>(null)
+  const momentRef = useRef<HTMLDivElement | null>(null)
   const focusAfterToggle = useRef(false)
   const { hidden, muted, motionOff, tipSeen } = useMamPreferences()
   const suppressed = useMamSuppressed()
@@ -276,6 +279,14 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   ].filter(Boolean)
   const guide = useMamGuide(accountId, guideHeld.length === 0)
   const guideShown = guide.bubble !== null
+  // KB2, Support Guide and plan moments (owner copy 2026-11-27): after the guide, before celebrations.
+  const moments = useMamMoments(
+    accountId,
+    guideHeld.length === 0 && !guideShown && guide.status !== 'pending',
+  )
+  const momentShown = !guideShown && moments.bubble !== null
+  // Mầm is saying something on purpose (the guide or a moment): it stays readable and clickable.
+  const talkShown = guideShown || momentShown
   if (notice && (summon || menuOpen)) setNotice(null)
   // A renderer failure retires what is open: the menu, the summon and its request.
   if (dizzy && open) setOpen(false)
@@ -621,7 +632,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     !menuOpen &&
     !summon &&
     !notice &&
-    !guideShown
+    !talkShown
   // Drowsy and wake belong to the travel controller and run wherever it runs them; an idle
   // action stops with the autonomous gates, a poke only with the touch gates.
   const localKind = local.shot?.kind
@@ -879,11 +890,17 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   // What the character is told to play now (also read by the E2E specs): the stage's command (a celebration, a save,
   // an idle action, a variation), held while she sleeps, else the host's own.
   // The guide's one-shot plays once as its bubble opens, at the dock and only when nothing else is playing.
-  const guideShotKind = guideShown ? guide.motion?.shot : undefined
+  const guideShotKind = guideShown
+    ? guide.motion?.shot
+    : momentShown
+      ? moments.motion?.shot
+      : undefined
+  const guideShotKey = guideShown
+    ? `guide:${guide.key}`
+    : `moment:${moments.key}`
   const guideShot = useMemo(
-    () =>
-      guideShotKind ? { kind: guideShotKind, key: `guide:${guide.key}` } : null,
-    [guideShotKind, guide.key],
+    () => (guideShotKind ? { kind: guideShotKind, key: guideShotKey } : null),
+    [guideShotKind, guideShotKey],
   )
   const playing =
     (asleep ? null : stage.shot) ??
@@ -975,7 +992,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         menuOpen ||
         dockBubble ||
         // The guide asked something on purpose: like a summon, it stays readable and clickable.
-        guideShown ||
+        talkShown ||
         (travelMode !== 'dock' && travelMode !== 'hop') ||
         (active && root.contains(active))
       ) {
@@ -1089,7 +1106,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     hidden,
     menuOpen,
     dockBubble,
-    guideShown,
+    talkShown,
     celebrating,
     travelMode,
     above,
@@ -1416,7 +1433,13 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                             : (travelBehavior ??
                               stage.loop ??
                               behavior ??
-                              (guideShown ? guide.motion?.loop : undefined) ??
+                              (guideShown
+                                ? guide.motion?.loop
+                                : momentShown
+                                  ? moments.motion?.loop
+                                  : moments.staying
+                                    ? 'sit_hug'
+                                    : undefined) ??
                               (celebration.bubbleText !== null
                                 ? 'happy'
                                 : menuOpen
@@ -1559,7 +1582,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       </AnimatePresence>
 
       <AnimatePresence>
-        {!guideShown && (celebration.bubbleText || trajectoryText) ? (
+        {!talkShown && (celebration.bubbleText || trajectoryText) ? (
           <MamCelebrationBubble
             key="celebration"
             text={celebration.bubbleText ?? trajectoryText ?? ''}
@@ -1649,6 +1672,25 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
             onAct={guide.act}
             onConsented={guide.consented}
             onClose={guide.close}
+          />
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {momentShown && moments.bubble ? (
+          <MamGuideBubble
+            key="moment"
+            spec={moments.bubble}
+            step={moments.step}
+            context={false}
+            reduced={reduced}
+            bubbleRef={momentRef}
+            dockRef={dockRef}
+            progress={ONE_LINE}
+            onNext={moments.close}
+            onAct={moments.act}
+            onConsented={moments.close}
+            onClose={moments.close}
           />
         ) : null}
       </AnimatePresence>

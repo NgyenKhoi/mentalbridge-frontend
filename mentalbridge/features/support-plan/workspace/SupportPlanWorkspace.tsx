@@ -57,6 +57,7 @@ import type {
   UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
 import { dispatchMamEvent, mamBandChange } from '@/features/mam/mam-events'
+import { dispatchMamMoment, missedDayStreak } from '@/features/mam/mam-moments'
 import { dispatchMamSaved } from '@/features/mam/mam-saved'
 import { useMamSuppress } from '@/features/mam/mam-suppression'
 import { useMamPageTarget } from '@/features/mam/use-mam-target'
@@ -272,6 +273,28 @@ const discardFirstDraftCopy = {
   confirmLabel: 'Không dùng',
 } as const
 
+function missedDays(
+  rows: readonly Readonly<{ localDate: string; state: string }>[],
+  today: string,
+) {
+  const days = new Map<
+    string,
+    { localDate: string; planned: number; completed: number }
+  >()
+  for (const row of rows) {
+    if (row.state === 'CANCELLED') continue
+    const day = days.get(row.localDate) ?? {
+      localDate: row.localDate,
+      planned: 0,
+      completed: 0,
+    }
+    day.planned += 1
+    if (row.state === 'COMPLETED') day.completed += 1
+    days.set(row.localDate, day)
+  }
+  return missedDayStreak([...days.values()], today)
+}
+
 export default function SupportPlanWorkspace({
   returnOrigin,
   invalidOrigin = false,
@@ -460,13 +483,20 @@ export default function SupportPlanWorkspace({
         setAdapterEngagement(engagement)
         setOccurrences((previous) => mergeOccurrences(previous, rows))
         setOccurrencesReadyKey(occurrenceKey(current, today))
+        // Two or more days in a row with nothing done: Mầm sits with the user, no blame (owner copy 2026-11-27).
+        if (mamEnabled && missedDays(rows, today) >= 2)
+          dispatchMamMoment({
+            kind: 'plan-missed-days',
+            key: `missed:${today}`,
+            href: '/support-plan',
+          })
       }
     } catch {
       if (requestId === occurrenceRequest.current) setOccurrencesFailed(true)
     } finally {
       if (requestId === occurrenceRequest.current) setOccurrencesLoading(false)
     }
-  }, [current, today])
+  }, [current, today, mamEnabled])
 
   // A save that resolves after midnight or a plan swap must reload the new window, not its own.
   const latestLoad = useRef(loadOccurrences)
@@ -718,6 +748,13 @@ export default function SupportPlanWorkspace({
         dispatchMamSaved()
         dispatchMamEvent({ type: 'support-done' })
       }
+      // A skip gets comfort, never "bạn đã bỏ lỡ": tomorrow 5 minutes is enough.
+      if (mamEnabled && mounted.current && state === 'SKIPPED')
+        dispatchMamMoment({
+          kind: 'plan-skipped',
+          key: `skipped:${item.occurrence.occurrenceId}`,
+          href: '/support-plan',
+        })
       const title = item.action.presentation.title
       return state === 'COMPLETED'
         ? `Đã ghi nhận: ${title}.`

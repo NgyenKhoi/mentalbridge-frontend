@@ -43,11 +43,18 @@ export type MamGuideGo =
   | 'relax'
   | 'decline'
   | 'graduate'
+  // Moments (mam-moments.ts): open the action's href, stay beside the user, remind tomorrow, pick one activity.
+  | 'go'
+  | 'stay'
+  | 'remind'
+  | 'pick'
 
 export type MamGuideAction = Readonly<{
   label: string
   tone: 'primary' | 'secondary'
   go: MamGuideGo
+  /** A moment action that opens a page (go: 'go'). */
+  href?: string
 }>
 
 /** What Mầm does while a bubble is up: a looping look, and a one-shot as it opens. */

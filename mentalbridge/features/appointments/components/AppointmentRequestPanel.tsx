@@ -29,6 +29,10 @@ import {
 import { ConsultationBriefEditor } from './ConsultationBriefEditor'
 import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 import { AppointmentRatingDialog } from './AppointmentRatingDialog'
+import {
+  appointmentMoments,
+  dispatchMamMoment,
+} from '@/features/mam/mam-moments'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
 import styles from './AppointmentRequestPanel.module.css'
 
@@ -302,6 +306,14 @@ function errorMessage(
   return messages[error.code] ?? fallback
 }
 
+const sayAppointmentMoments = (
+  items: readonly Appointment[],
+  withRating = false,
+) =>
+  appointmentMoments(items, Date.now(), { withRating }).forEach(
+    dispatchMamMoment,
+  )
+
 export default function AppointmentRequestPanel({
   focusAppointmentId,
 }: {
@@ -339,6 +351,8 @@ export default function AppointmentRequestPanel({
       const existing = await appointmentBrowserClient.list()
       setAppointments(existing.items)
       setGeneratedAt(existing.generatedAt)
+      // Mầm stays with the user around the booking (KB2): declined, soon, confirmed, done, rating.
+      sayAppointmentMoments(existing.items, true)
       return existing
     } catch (caught) {
       setAppointmentError(
@@ -495,6 +509,10 @@ export default function AppointmentRequestPanel({
         )
       } else {
         setAppointments((items) => [created, ...items])
+        dispatchMamMoment({
+          kind: 'booking-requested',
+          key: `requested:${created.id}`,
+        })
         setSlots((items) => items.filter((item) => item.id !== slot.id))
       }
       showActionToast({

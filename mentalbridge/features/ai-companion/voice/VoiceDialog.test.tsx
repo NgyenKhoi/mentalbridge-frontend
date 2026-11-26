@@ -216,9 +216,7 @@ describe('accessible AI Voice dialog', () => {
       ).toBeVisible()
       expect(
         screen.getByText(
-          new RegExp(
-            `Trần mỗi phiên của gói: ${plan === 'PLUS' ? 5 : 10} phút`,
-          ),
+          new RegExp(`Gói của bạn có ${plan === 'PLUS' ? 10 : 30} phút mỗi`),
         ),
       ).toBeVisible()
       expect(f.api.create).not.toHaveBeenCalled()

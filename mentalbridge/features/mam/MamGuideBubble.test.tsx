@@ -91,6 +91,8 @@ describe('MamGuideBubble', () => {
       withContext: 'Ê, Mầm đọc rồi nè.',
     }
     renderBubble(spec, { context: true })
+    // The visible line, then the live region one tick later (announced after mount).
+    act(() => vi.advanceTimersByTime(60))
     expect(screen.getAllByText('Ê, Mầm đọc rồi nè.')).toHaveLength(2)
   })
 

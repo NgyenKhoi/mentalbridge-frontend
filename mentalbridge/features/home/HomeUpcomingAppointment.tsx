@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useMamTarget } from '@/features/mam/use-mam-target'
+import {
+  appointmentMoments,
+  dispatchMamMoment,
+} from '@/features/mam/mam-moments'
 import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
 import { nextAppointment } from '@/features/appointments/model/appointment-view'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
@@ -45,6 +49,9 @@ export function HomeUpcomingAppointment({
       (list) => {
         if (!active) return
         const readAt = new Date()
+        appointmentMoments(list.items, readAt.getTime()).forEach(
+          dispatchMamMoment,
+        )
         setState({
           status: 'ready',
           appointment:

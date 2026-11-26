@@ -46,7 +46,8 @@ async function seedGuide(
 
 /** Motion frames for the UI gate: 0, 120 and 300 ms after a trigger. */
 async function frames(page: Page, name: string, trigger?: () => Promise<void>) {
-  if (!FRAMES) return
+  // The trigger always runs (it may be the navigation); only the captures need FRAMES.
+  if (!FRAMES) return trigger?.()
   mkdirSync(FRAMES, { recursive: true })
   if (trigger) await trigger()
   for (const ms of [0, 120, 300]) {
@@ -99,8 +100,13 @@ test.describe('Mầm guide', () => {
       await page.setViewportSize({ width, height: 900 })
       if (FRAMES)
         await page.screenshot({ path: join(FRAMES, `result-ask-${width}.png`) })
-      const box = await guide(page).boundingBox()
-      expect(box && box.x >= 0 && box.x + box.width <= width).toBe(true)
+      // The bubble glides to its new anchor after a resize: wait for it to settle inside.
+      await expect
+        .poll(async () => {
+          const box = await guide(page).boundingBox()
+          return Boolean(box && box.x >= 0 && box.x + box.width <= width)
+        })
+        .toBe(true)
     }
     await page.setViewportSize({ width: 1440, height: 900 })
     await primary.click()
