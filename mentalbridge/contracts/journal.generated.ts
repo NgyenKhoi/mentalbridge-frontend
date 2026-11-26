@@ -4,6 +4,111 @@
  */
 
 export interface paths {
+    "/api/v1/admin/ai-benchmarks/datasets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List approved synthetic evaluation dataset versions. */
+        get: operations["listGovernedBenchmarkDatasets"];
+        put?: never;
+        /** Register one immutable synthetic evaluation dataset version. */
+        post: operations["createGovernedBenchmarkDataset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-benchmarks/datasets/{datasetId}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect one synthetic dataset version and its approved cases. */
+        get: operations["inspectGovernedBenchmarkDataset"];
+        put?: never;
+        /** Create a new immutable version from an existing dataset lineage. */
+        post: operations["createGovernedBenchmarkDatasetVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-benchmarks/datasets/{datasetId}/versions/{version}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive a version while retaining it for historical audit. */
+        post: operations["archiveGovernedBenchmarkDatasetVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-benchmarks/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List benchmark runs with pinned provenance and aggregate outcomes. */
+        get: operations["listGovernedBenchmarkRuns"];
+        put?: never;
+        /** Run an approved provider model against one active pinned dataset version. */
+        post: operations["runGovernedBenchmark"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-benchmarks/runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect one benchmark run and its aggregate provenance. */
+        get: operations["inspectGovernedBenchmarkRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-benchmarks/runs/{runId}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export aggregate synthetic benchmark evidence without case text, secrets, or personal data. */
+        get: operations["exportGovernedBenchmarkRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/ai-companion/voice-sessions/{voiceSessionId}/turns": {
         parameters: {
             query?: never;
@@ -35,7 +140,7 @@ export interface paths {
         put?: never;
         /**
          * Prepare an explicitly selected owner Text conversation for Voice.
-         * @description Disabled by default. Requires effective L1 AI_PROCESSING, Voice disclosure v2 and PLUS/PREMIUM. Return a content-free signed ticket expiring in 120 seconds; no admission, provider or microphone. Only the last two complete adjacent pairs with empty contextKinds and at most 1200 UTF-8 bytes are eligible; stop at an ineligible/oversized pair rather than silently cross a private-context gap. START rechecks owner, current authority and exact unexpired snapshot. A ticket is bound once to one session through the admission transaction. Wrong/missing/deleted/expired conversation returns404; no eligible pair returns422. Errors never contain Text, ticket or owner identifiers. No automatic fallback.
+         * @description Disabled by default. Requires effective L1 AI_PROCESSING, Voice disclosure v2 and PLUS/PREMIUM. Return a content-free signed ticket expiring in 120 seconds; no admission, provider or microphone. Only the last two complete adjacent pairs with empty contextKinds and at most 1200 UTF-8 bytes are eligible; stop at an ineligible/oversized pair rather than silently cross a private-context gap. START rechecks owner, current authority and exact unexpired snapshot. A ticket is bound once to one session through the admission transaction. Wrong/missing/deleted/expired conversation returns404; no eligible pair returns422. Errors never contain Text, ticket or owner identifiers. No automatic fallback. When the bound Voice session ends, the pairs spoken in it (not the handed-off pairs) are appended once, in order, to this conversation as messages with channel VOICE, within the 400-message bound.
          */
         post: operations["prepareVoiceContextHandoff"];
         delete?: never;
@@ -793,6 +898,157 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        GovernedBenchmarkCase: {
+            id: string;
+            /** @description Approved synthetic evaluation input; production personal-health content is prohibited. */
+            text: string;
+            acceptableSuggestedActions: ("NONE" | "OFFER_RESOURCE_EXPLANATION" | "GUIDE_APPROVED_ACTIVITY" | "REQUEST_ALLOWED_ALTERNATIVE" | "REQUEST_PLAN_REVIEW" | "OPEN_PROFESSIONAL_SUPPORT" | "OPEN_SAFETY_GUIDANCE")[];
+            requiredSignalTerms: string[];
+            forbiddenClaims: string[];
+        };
+        /** @description Exact approval that must already exist in the server-owned MB-369 curated registry; client self-attestation is rejected. */
+        BenchmarkPrivacyApproval: {
+            /** @constant */
+            registry: "MB369_CURATED_REGISTRY";
+            /** Format: uuid */
+            approvalId: string;
+            approvedBy: string;
+            /** Format: date-time */
+            approvedAt: string;
+            contentSha256: string;
+        };
+        CreateGovernedBenchmarkDataset: {
+            datasetId: string;
+            version: string;
+            /** @constant */
+            workload: "EXACT_REVISION";
+            /** @constant */
+            language: "vi";
+            /** @constant */
+            source: "MENTALBRIDGE_SYNTHETIC_V1";
+            /** @constant */
+            license: "CC0-1.0";
+            description: string;
+            cases: components["schemas"]["GovernedBenchmarkCase"][];
+            privacyApproval: components["schemas"]["BenchmarkPrivacyApproval"];
+        };
+        CreateGovernedBenchmarkDatasetVersion: {
+            version: string;
+            description: string;
+            cases: components["schemas"]["GovernedBenchmarkCase"][];
+            privacyApproval: components["schemas"]["BenchmarkPrivacyApproval"];
+        };
+        GovernedBenchmarkDataset: {
+            datasetId: string;
+            version: string;
+            /** @constant */
+            workload: "EXACT_REVISION";
+            /** @constant */
+            language: "vi";
+            /** @constant */
+            source: "MENTALBRIDGE_SYNTHETIC_V1";
+            /** @constant */
+            license: "CC0-1.0";
+            description: string;
+            sha256: string;
+            caseCount: number;
+            /** Format: date-time */
+            registeredAt: string;
+            /** Format: date-time */
+            archivedAt: string | null;
+            previousVersion: string | null;
+            privacyApproval: components["schemas"]["BenchmarkPrivacyApproval"];
+        };
+        GovernedBenchmarkDatasetDetail: components["schemas"]["GovernedBenchmarkDataset"] & {
+            cases: components["schemas"]["GovernedBenchmarkCase"][];
+        };
+        RunGovernedBenchmark: {
+            datasetId: string;
+            datasetVersion: string;
+            /** @enum {string} */
+            provider: "GEMINI" | "OPENAI" | "BEDROCK";
+            model: string;
+        };
+        GovernedBenchmarkCandidate: {
+            /** @enum {string} */
+            provider: "GEMINI" | "OPENAI" | "BEDROCK";
+            model: string;
+        } & {
+            [key: string]: unknown;
+        };
+        GovernedBenchmarkAggregate: {
+            /** @enum {string} */
+            provider: "GEMINI" | "OPENAI" | "BEDROCK";
+            model: string;
+            caseCount: number;
+            successCount: number;
+            errorCount: number;
+            qualityPassRate: number;
+            safetyPassRate: number;
+            averageQualityScore: number;
+            averageLatencyMs: number | null;
+            totalInputTokens: number;
+            totalOutputTokens: number;
+            totalEstimatedCostMicroUsd: number;
+        };
+        GovernedBenchmarkRun: {
+            /** Format: uuid */
+            runId: string;
+            datasetId: string;
+            datasetVersion: string;
+            datasetSha256: string;
+            promptVersion: string;
+            rubricVersion: string;
+            rubricSha256: string;
+            /** @enum {string} */
+            status: "RUNNING" | "COMPLETED" | "FAILED";
+            /** @enum {string|null} */
+            failureClassification: "ALL_CASES_PROVIDER_FAILED" | "EXECUTION_FAILED" | null;
+            candidates: components["schemas"]["GovernedBenchmarkCandidate"][];
+            aggregates: components["schemas"]["GovernedBenchmarkAggregate"][];
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+        };
+        BenchmarkExecutionReceipt: {
+            /** Format: uuid */
+            runId: string;
+            aggregates: components["schemas"]["GovernedBenchmarkAggregate"][];
+            failures: ({
+                caseId: string;
+                /** @enum {string} */
+                provider: "GEMINI" | "OPENAI" | "BEDROCK";
+                model: string;
+                errorClassification: string;
+            } & {
+                [key: string]: unknown;
+            })[];
+        };
+        GovernedBenchmarkExport: {
+            /** @constant */
+            exportVersion: "benchmark-aggregate-v1";
+            /** Format: uuid */
+            runId: string;
+            dataset: {
+                datasetId: string;
+                version: string;
+                sha256: string;
+            };
+            promptVersion: string;
+            rubricVersion: string;
+            rubricSha256: string;
+            candidates: components["schemas"]["GovernedBenchmarkCandidate"][];
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** @enum {string} */
+            status: "RUNNING" | "COMPLETED" | "FAILED";
+            /** @enum {string|null} */
+            failureClassification: "ALL_CASES_PROVIDER_FAILED" | "EXECUTION_FAILED" | null;
+            aggregates: components["schemas"]["GovernedBenchmarkAggregate"][];
+        };
         VoiceTurn: {
             /** Format: uuid */
             attemptId: string;
@@ -895,6 +1151,8 @@ export interface components {
             attemptId: string;
             /** Format: uuid */
             dispatchId: string;
+            /** @description Optional MB-862 policy binding; required for measurement attempts. Missing/mismatched capability denies before media. */
+            measurementHash?: string;
         };
         VoiceAgentLease: {
             /** Format: uuid */
@@ -909,6 +1167,12 @@ export interface components {
             hardStopAt: string;
             /** @constant */
             policyVersion: "companion-voice-policy-v1";
+            measurement?: {
+                configHash: string;
+                ttsCharacters: number;
+                /** Format: uuid */
+                voiceId: string;
+            };
         };
         VoiceWorkerSignal: {
             /** @constant */
@@ -1283,6 +1547,11 @@ export interface components {
             createdAt: string;
             contextKinds: components["schemas"]["AiContextKind"][];
             suggestion: components["schemas"]["AiCompanionSuggestion"];
+            /**
+             * @description Present only on a message spoken in a Voice call that continued this conversation through a Text handoff and was written back when the call ended. Absent means a Text message.
+             * @enum {string}
+             */
+            channel?: "VOICE";
         };
         AiConversation: {
             /** Format: uuid */
@@ -1330,6 +1599,7 @@ export interface components {
             userMessageId: string;
             /** Format: uuid */
             assistantMessageId: string;
+            /** @description FREE replies stay at most 500 characters; PLUS and PREMIUM Text replies may reach 900 (MB-869). While Mầm TEXT v3 is enabled, every package may reach 1500 (MB-846). */
             assistant: string;
             /** Format: date-time */
             createdAt: string;
@@ -1776,8 +2046,11 @@ export interface components {
             /** @enum {string} */
             provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK";
             model: string;
-            /** @constant */
-            promptVersion: "longitudinal-v1";
+            /**
+             * @description longitudinal-v2 signal labels are short Vietnamese user-facing phrases; stored longitudinal-v1 rows keep their original labels.
+             * @enum {string}
+             */
+            promptVersion: "longitudinal-v1" | "longitudinal-v2";
             /** @constant */
             schemaVersion: 1;
             /** Format: date-time */
@@ -2255,6 +2528,10 @@ export interface components {
         };
     };
     parameters: {
+        BenchmarkDatasetId: string;
+        BenchmarkDatasetVersion: string;
+        /** @description Stable per-admin command key; changed intent returns a conflict. */
+        BenchmarkCommandKey: string;
         /** @description Calendar day computed in the IANA timezone stored at creation. */
         LocalDate: string;
         EmotionLimit: number;
@@ -2289,6 +2566,259 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listGovernedBenchmarkDatasets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded dataset catalogue. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GovernedBenchmarkDataset"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createGovernedBenchmarkDataset: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable per-admin command key; changed intent returns a conflict. */
+                "Idempotency-Key": components["parameters"]["BenchmarkCommandKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGovernedBenchmarkDataset"];
+            };
+        };
+        responses: {
+            /** @description Dataset version registered. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkDataset"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    inspectGovernedBenchmarkDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                datasetId: components["parameters"]["BenchmarkDatasetId"];
+                version: components["parameters"]["BenchmarkDatasetVersion"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dataset version detail. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkDatasetDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createGovernedBenchmarkDatasetVersion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable per-admin command key; changed intent returns a conflict. */
+                "Idempotency-Key": components["parameters"]["BenchmarkCommandKey"];
+            };
+            path: {
+                datasetId: components["parameters"]["BenchmarkDatasetId"];
+                version: components["parameters"]["BenchmarkDatasetVersion"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGovernedBenchmarkDatasetVersion"];
+            };
+        };
+        responses: {
+            /** @description New immutable version registered. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkDataset"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    archiveGovernedBenchmarkDatasetVersion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable per-admin command key; changed intent returns a conflict. */
+                "Idempotency-Key": components["parameters"]["BenchmarkCommandKey"];
+            };
+            path: {
+                datasetId: components["parameters"]["BenchmarkDatasetId"];
+                version: components["parameters"]["BenchmarkDatasetVersion"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived dataset version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkDataset"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listGovernedBenchmarkRuns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded benchmark run history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GovernedBenchmarkRun"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    runGovernedBenchmark: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable per-admin command key; changed intent returns a conflict. */
+                "Idempotency-Key": components["parameters"]["BenchmarkCommandKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunGovernedBenchmark"];
+            };
+        };
+        responses: {
+            /** @description Authoritative asynchronous benchmark job accepted; poll the run resource until terminal. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkRun"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["BadRequest"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    inspectGovernedBenchmarkRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Benchmark run. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkRun"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    exportGovernedBenchmarkRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregate benchmark evidence export. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernedBenchmarkExport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     generateAuthorizedVoiceTurn: {
         parameters: {
             query?: never;

@@ -47,6 +47,7 @@ export function guideReturnHref(
 export function guideContinuation(
   journey: GuidedJourney,
   guide: SupportGuide,
+  planReviewDue = false,
 ): GuideContinuation | null {
   switch (journey.nextAction) {
     case 'REVIEW_SAFETY_SUPPORT':
@@ -58,6 +59,12 @@ export function guideContinuation(
         professional: true,
       }
     case 'OPEN_CURRENT_PLAN':
+      // A plan whose review is due continues into that review, where the new result is read.
+      if (planReviewDue)
+        return {
+          href: '/support-plan?review=open',
+          label: 'Xem lại kế hoạch với kết quả mới',
+        }
       return { href: '/support-plan', label: 'Tiếp tục kế hoạch hiện tại' }
     case 'REVIEW_PLAN_DRAFT':
       return { href: '/support-plan', label: 'Xem lại kế hoạch đang soạn' }

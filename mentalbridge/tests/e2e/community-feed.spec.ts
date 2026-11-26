@@ -273,7 +273,7 @@ test.describe('Community feed journey', () => {
         main!.x + main!.width + 1,
       )
       if (viewport.width > 1100) {
-        expect(topics!.x - (feed!.x + feed!.width)).toBeCloseTo(24, 0)
+        expect(topics!.x - (feed!.x + feed!.width)).toBeCloseTo(20, 0)
         await expect(
           page.getByRole('complementary', {
             name: 'Không gian cộng đồng',
@@ -518,9 +518,7 @@ test.describe('Community feed journey', () => {
     await login(page)
     await page.goto('/community/50000000-0000-4000-8000-000000000002')
 
-    await expect(
-      page.getByRole('heading', { name: 'Bình luận hỗ trợ' }),
-    ).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Bình luận' })).toBeVisible()
     await page
       .getByLabel('Bạn muốn chia sẻ điều gì?')
       .fill('Mình ở đây và đang lắng nghe bạn.')

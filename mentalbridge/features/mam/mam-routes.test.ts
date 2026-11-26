@@ -3,59 +3,83 @@ import { describe, expect, it } from 'vitest'
 import {
   isMamCelebrationRoute,
   isMamDockRoute,
-  isMamStaticDockRoute,
+  mamRouteMode,
 } from './mam-routes'
 
-describe('isMamDockRoute', () => {
+describe('mamRouteMode', () => {
   it.each([
     '/dashboard',
     '/dashboard/',
     '/achievements',
-    '/support-guides',
-    '/support-guides/guide-1',
-    '/journal',
     '/resources',
-    '/resources/resource-1',
+    '/nhin-lai',
+  ])('is FULL on %s', (path) => expect(mamRouteMode(path)).toBe('full'))
+
+  it.each([
+    '/journal',
+    '/journal/',
+    '/ai-companion',
     '/support-plan',
     '/support-plan/',
-  ])('shows the dock on %s', (path) => {
-    expect(isMamDockRoute(path)).toBe(true)
-  })
+    '/support-guides',
+    '/support-guides/guide-1',
+    '/appointments',
+    '/appointments/a-1',
+    '/messages',
+    '/notifications',
+    '/profile',
+    '/specialists',
+    '/resources/resource-1',
+  ])('is QUIET on %s', (path) => expect(mamRouteMode(path)).toBe('quiet'))
+
+  it.each([
+    '/appointments/a-1/chat',
+    '/appointments/a-1/video',
+    '/call/a-1',
+    '/assessments',
+    '/assessments/results/e-1',
+    '/community',
+    '/community/post-1',
+    '/community/reels',
+    '/community/groups/g-1',
+    '/community/members/m-1',
+    '/community/messages',
+    '/community/messages/c-1',
+    '/community/chat/dm/t-1',
+    '/subscription',
+    '/initial-check',
+    '/assessment/phq-9',
+    '/assessment/anonymous',
+    '/safety-directory',
+  ])('is HIDDEN on %s', (path) => expect(mamRouteMode(path)).toBe('hidden'))
 
   it.each([
     null,
     '/',
     '/login',
     '/support-plan/today',
-    '/support-plan/anything',
-    '/assessment/phq-9',
-    '/assessments',
-    '/initial-check',
     '/journal/new',
-    '/ai-companion',
-    '/messages',
-    '/appointments',
-    '/subscription',
-    '/community',
+    '/resources/a/b',
+    '/dashboard-preview',
     '/admin',
     '/specialist/dashboard',
-    '/dashboard-preview',
-    '/resources/a/b',
-  ])('hides the dock on %s', (path) => {
-    expect(isMamDockRoute(path)).toBe(false)
-  })
+    '/something-new',
+  ])('defaults to HIDDEN on %s', (path) =>
+    expect(mamRouteMode(path)).toBe('hidden'),
+  )
+})
 
-  it('keeps the journal list static and the other dock routes animated', () => {
-    expect(isMamStaticDockRoute('/journal')).toBe(true)
-    expect(isMamStaticDockRoute('/journal/')).toBe(true)
-    expect(isMamStaticDockRoute('/dashboard')).toBe(false)
-    expect(isMamStaticDockRoute('/support-plan')).toBe(false)
-    expect(isMamStaticDockRoute('/resources/resource-1')).toBe(false)
+describe('isMamDockRoute', () => {
+  it('shows the dock in FULL and QUIET and not in HIDDEN', () => {
+    expect(isMamDockRoute('/dashboard')).toBe(true)
+    expect(isMamDockRoute('/journal')).toBe(true)
+    expect(isMamDockRoute('/call/a-1')).toBe(false)
+    expect(isMamDockRoute(null)).toBe(false)
   })
 })
 
 describe('isMamCelebrationRoute', () => {
-  it.each(['/dashboard', '/achievements', '/resources', '/resources/r-1'])(
+  it.each(['/dashboard', '/achievements', '/resources', '/nhin-lai'])(
     'plays celebrations on %s',
     (path) => expect(isMamCelebrationRoute(path)).toBe(true),
   )
@@ -63,10 +87,9 @@ describe('isMamCelebrationRoute', () => {
   it.each([
     null,
     '/journal',
-    '/support-guides',
     '/support-guides/g-1',
     '/support-plan',
-    '/resources/a/b',
+    '/resources/r-1',
   ])('keeps celebrations waiting on %s', (path) =>
     expect(isMamCelebrationRoute(path)).toBe(false),
   )

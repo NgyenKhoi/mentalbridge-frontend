@@ -1,40 +1,52 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import Link from 'next/link'
+import { createPortal } from 'react-dom'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   AlertCircle,
   CalendarDays,
   Check,
-  CheckCircle2,
   Clock,
-  Download,
   FileText,
   Lock,
   MessageSquare,
-  Printer,
   RefreshCw,
   Search,
   Send,
-  ShieldCheck,
   X,
 } from 'lucide-react'
 
 import { ApiError } from '@/lib/api/api-error'
-import type { Appointment } from '@/lib/consultation/consultation-validation'
+import type {
+  Appointment,
+  AppointmentChatEligibility,
+} from '@/lib/consultation/consultation-validation'
 import type { SessionSummary } from '@/lib/consultation/session-summary-validation'
-import type { ConsultationBrief } from '../api/consultation-brief-contract'
 import { appointmentBrowserClient } from '../api/browser-client'
 import { sessionSummaryBrowserClient } from '../api/session-summary-browser-client'
-import { consultationBriefBrowserClient } from '../api/consultation-brief-browser-client'
 import {
   chatEligibility,
   chatHistory,
   type ChatMessage,
 } from '../api/chat-browser-client'
+import {
+  appointmentCreditLabel,
+  appointmentModalityLabel,
+  appointmentStatusLabel,
+  canOpenChat,
+} from '../model/appointment-view'
 import AppointmentChatPanel from './AppointmentChatPanel'
 import styles from './SpecialistChatView.module.css'
+import './session-record-print.css'
 
 // ==========================================
 // 1. Data Models & TypeScript Interfaces
@@ -61,11 +73,7 @@ export interface ChatMessageItem {
 export interface SpecialistProfile {
   id: string
   name: string
-  title: string
-  specialty: string
   avatarUrl?: string
-  code: string
-  isOnline: boolean
 }
 
 export interface AppointmentSummary {
@@ -74,7 +82,8 @@ export interface AppointmentSummary {
   date: string
   timeSlot: string
   durationMinutes: number
-  status: 'completed' | 'upcoming' | 'cancelled'
+  status: 'completed' | 'ended' | 'upcoming' | 'cancelled'
+  statusLabel: string
   isActive: boolean
   rawAppointment: Appointment
 }
@@ -85,26 +94,15 @@ export interface EmrSessionData {
     date: string
     timeRange: string
     durationLabel: string
-    isEncrypted: boolean
   }
-  clinicalAssessment: {
-    tool: string | null
-    preScore: number | null
-    postScore: number | null
-    maxScore: number | null
-    summaryText: string | null
-  }
-  treatmentPlan: {
-    week: number
-    tasks: Array<{
-      step: number
-      title: string
-      description?: string
-      isDone?: boolean
-    }>
-  } | null
-  creditsUsed: number
-  invoiceId: string
+  summaryText: string | null
+  nextSteps: Array<{
+    step: number
+    title: string
+    description?: string
+    isDone?: boolean
+  }> | null
+  creditLabel: string
 }
 
 interface SpecialistChatViewProps {
@@ -163,7 +161,7 @@ function formatTimeRange(
     const fmt = new Intl.DateTimeFormat('vi-VN', {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false,
+      hourCycle: 'h23',
       timeZone: timezone,
     })
     return `${fmt.format(s)} – ${fmt.format(e)}`
@@ -182,26 +180,53 @@ function calculateDurationMinutes(startIso: string, endIso: string) {
   }
 }
 
-function getSpecialistSpecialty(name: string) {
-  if (name.includes('Quốc Bảo')) {
-    return 'Khoa Tâm lý Lâm sàng • Giấc ngủ & Burnout'
-  }
-  if (name.includes('Thu Hà')) {
-    return 'Khoa Tâm lý • Mối quan hệ & Cảm xúc'
-  }
-  if (name.includes('Đức Long')) {
-    return 'Khoa Tâm thần • Tâm lý Học đường & Thi cử'
-  }
-  return 'Khoa Sức khỏe Tâm thần • BV ĐHYD TP.HCM'
+// At 768px and below the info drawer covers the chat, so it starts closed there.
+const NARROW_QUERY = '(max-width: 768px)'
+function subscribeNarrow(onChange: () => void) {
+  const query = window.matchMedia?.(NARROW_QUERY)
+  query?.addEventListener('change', onChange)
+  return () => query?.removeEventListener('change', onChange)
+}
+function isNarrowViewport() {
+  return window.matchMedia?.(NARROW_QUERY).matches ?? false
 }
 
-// Helper to construct dynamic clinical consultation dialogue bound to real appointment, brief and session summary data
+const NOT_OPEN_FALLBACK = 'Chưa có nội dung trò chuyện để xem.'
+
+// Calm reason and time for a conversation whose history cannot be opened yet.
+function chatNotOpenNotice(
+  appointment: Appointment,
+  eligibility: AppointmentChatEligibility,
+) {
+  // The waiting room opens 10 minutes before the appointment (see AppointmentChatPanel).
+  const opensAt = Date.parse(eligibility.scheduledStartAt) - 10 * 60_000
+  if (eligibility.phase === 'TOO_EARLY' && Number.isFinite(opensAt)) {
+    const parts = new Intl.DateTimeFormat('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      hourCycle: 'h23',
+      timeZone: appointment.timezone || 'Asia/Ho_Chi_Minh',
+    }).formatToParts(opensAt)
+    const part = (type: string) => parts.find((p) => p.type === type)?.value
+    return `Phòng chat mở lúc ${part('hour')}:${part('minute')}, ${part('day')}/${part('month')}`
+  }
+  return NOT_OPEN_FALLBACK
+}
+
+// Messages workspace bound to real appointment, session summary and chat history data
 export default function SpecialistChatView({
   initialAppointmentId,
   viewerRole = 'USER',
 }: SpecialistChatViewProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const isNarrow = useSyncExternalStore(
+    subscribeNarrow,
+    isNarrowViewport,
+    () => false,
+  )
 
   // State
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -211,31 +236,28 @@ export default function SpecialistChatView({
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'recent' | 'specialist'>('recent')
-  const [selectedDoctorFilter, setSelectedDoctorFilter] =
-    useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
 
-  // EMR Drawer state: default OPEN as specified in Stitch spec
-  const [isEmrDrawerOpen, setIsEmrDrawerOpen] = useState(true)
+  // null = default: closed while the live panel already shows the appointment info, open otherwise.
+  const [emrDrawerOverride, setEmrDrawerOverride] = useState<boolean | null>(
+    null,
+  )
 
   // Real data details for selected session
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(
     null,
   )
-  const [consultationBrief, setConsultationBrief] =
-    useState<ConsultationBrief | null>(null)
-  const [rating, setRating] = useState<number | null>(null)
-  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false)
-  const [ratingInput, setRatingInput] = useState(5)
-  const [savingRating, setSavingRating] = useState(false)
-  const [isEmrModalOpen, setIsEmrModalOpen] = useState(false)
+  // The print record is portalled to <body> after mount so print CSS can hide the whole app shell.
+  const [printHost, setPrintHost] = useState<HTMLElement | null>(null)
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- document exists only after mount
+  useEffect(() => setPrintHost(document.body), [])
 
   // Chat message feed & truthful status
   const [chatMessages, setChatMessages] = useState<ChatMessageItem[]>([])
   const [chatStatus, setChatStatus] = useState<
-    'loading' | 'ready' | 'empty' | 'forbidden' | 'error'
+    'loading' | 'ready' | 'empty' | 'notOpen' | 'error'
   >('loading')
+  const [notOpenNotice, setNotOpenNotice] = useState('')
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   // 1. Load appointment list from backend
@@ -247,18 +269,14 @@ export default function SpecialistChatView({
         viewerRole === 'SPECIALIST'
           ? await appointmentBrowserClient.assigned()
           : await appointmentBrowserClient.list()
-      const items = response.items || []
+      // Only conversations that can be opened are listed.
+      const items = (response.items || []).filter(canOpenChat)
       setAppointments(items)
 
       // Set initial selected appointment if none or if missing
       if (!selectedId && items.length > 0) {
-        // Find first completed or confirmed appointment
         const match =
-          items.find((a) => a.id === initialAppointmentId) ||
-          items.find(
-            (a) => a.status === 'COMPLETED' || a.status === 'SESSION_ENDED',
-          ) ||
-          items[0]
+          items.find((a) => a.id === initialAppointmentId) || items[0]
         if (match) setSelectedId(match.id)
       }
     } catch (err) {
@@ -294,13 +312,13 @@ export default function SpecialistChatView({
   if (detailsAppointmentId !== selectedAppointmentId) {
     setDetailsAppointmentId(selectedAppointmentId)
     setSessionSummary(null)
-    setConsultationBrief(null)
-    setRating(null)
+    setEmrDrawerOverride(null)
     setChatMessages([])
+    setNotOpenNotice('')
     setChatStatus('loading')
   }
 
-  // 2. Load EMR, Brief, Rating & Chat history for selected appointment
+  // 2. Load session summary & chat history for selected appointment
   useEffect(() => {
     if (!selectedAppointment?.id) return
 
@@ -323,25 +341,8 @@ export default function SpecialistChatView({
         if (!cancelled) setSessionSummary(null)
       }
 
-      // 2) Consultation brief & situation
-      try {
-        const brief = await consultationBriefBrowserClient.get(aptId)
-        if (!cancelled) {
-          setConsultationBrief(brief)
-        }
-      } catch {
-        if (!cancelled) setConsultationBrief(null)
-      }
-
-      // 3) Rating
-      try {
-        const ratingData = await appointmentBrowserClient.rating(aptId)
-        if (!cancelled) setRating(ratingData.rating)
-      } catch {
-        if (!cancelled) setRating(null)
-      }
-
-      // 4) Chat history
+      // 2) Chat history
+      setNotOpenNotice('')
       setChatStatus('loading')
       try {
         const eligibility = await chatEligibility(aptId, 'history')
@@ -370,11 +371,12 @@ export default function SpecialistChatView({
                     timestamp: new Intl.DateTimeFormat('vi-VN', {
                       hour: '2-digit',
                       minute: '2-digit',
-                      hour12: false,
+                      hourCycle: 'h23',
                       timeZone:
                         selectedAppointment.timezone || 'Asia/Ho_Chi_Minh',
                     }).format(new Date(m.sentAt)),
-                    content: m.content,
+                    // A deleted message has no content (MB-694).
+                    content: m.content ?? 'Tin nhắn này đã được xóa.',
                   }
                 },
               )
@@ -387,7 +389,15 @@ export default function SpecialistChatView({
           }
         } else if (!cancelled) {
           setChatMessages([])
-          setChatStatus(eligibility?.historyAllowed ? 'empty' : 'forbidden')
+          const notOpen = !eligibility?.historyAllowed
+          if (notOpen) {
+            setNotOpenNotice(
+              eligibility
+                ? chatNotOpenNotice(selectedAppointment, eligibility)
+                : NOT_OPEN_FALLBACK,
+            )
+          }
+          setChatStatus(notOpen ? 'notOpen' : 'empty')
         }
       } catch {
         if (!cancelled) {
@@ -412,52 +422,32 @@ export default function SpecialistChatView({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
-  // Handle save rating
-  const handleSaveRating = async () => {
-    if (!selectedAppointment?.id || savingRating) return
-    setSavingRating(true)
-    try {
-      await appointmentBrowserClient.saveRating(
-        selectedAppointment.id,
-        ratingInput,
-      )
-      setRating(ratingInput)
-      setIsRatingModalOpen(false)
-    } catch {
-      // Keep state on failure
-    } finally {
-      setSavingRating(false)
-    }
-  }
-
-  // Handle PDF Export
-  const handleExportPdf = () => {
-    window.print()
-  }
-
   // Filtered appointment summaries
   const appointmentSummaries: AppointmentSummary[] = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity -- list tone depends on the current time
+    const now = Date.now()
     return appointments.map((apt) => {
-      const isCompleted = ['COMPLETED', 'SESSION_ENDED'].includes(apt.status)
-      const isCancelled = apt.status === 'CANCELLED'
-      const status: 'completed' | 'upcoming' | 'cancelled' = isCompleted
-        ? 'completed'
-        : isCancelled
-          ? 'cancelled'
-          : 'upcoming'
+      // Tone only; the pill text is always appointmentStatusLabel (same as /appointments).
+      const stillAhead =
+        ['REQUESTED', 'CONFIRMED', 'IN_PROGRESS'].includes(apt.status) &&
+        Date.parse(apt.scheduledEndAt) > now
+      const status: AppointmentSummary['status'] =
+        apt.status === 'COMPLETED'
+          ? 'completed'
+          : apt.status === 'CANCELLED'
+            ? 'cancelled'
+            : stillAhead
+              ? 'upcoming'
+              : 'ended'
 
       const isCurrentActive = selectedAppointment?.id === apt.id
-      const specName = apt.specialistDisplayName || 'ThS. BS. Minh Anh'
+      const specName = apt.specialistDisplayName || 'Chuyên gia'
 
       return {
         id: apt.id,
         specialist: {
           id: apt.specialistAccountId,
           name: specName,
-          title: specName,
-          specialty: getSpecialistSpecialty(specName),
-          code: `#MB-${apt.id.slice(-3).toUpperCase()}`,
-          isOnline: true,
         },
         date: formatSessionDate(apt.scheduledStartAt, apt.timezone),
         timeSlot: `${formatTimeRange(apt.scheduledStartAt, apt.scheduledEndAt, apt.timezone)} (${calculateDurationMinutes(apt.scheduledStartAt, apt.scheduledEndAt)} ph)`,
@@ -466,57 +456,43 @@ export default function SpecialistChatView({
           apt.scheduledEndAt,
         ),
         status,
+        statusLabel: appointmentStatusLabel(apt, viewerRole),
         isActive: isCurrentActive,
         rawAppointment: apt,
       }
     })
-  }, [appointments, selectedAppointment])
+  }, [appointments, selectedAppointment, viewerRole])
 
   const filteredAppointments = useMemo(() => {
     return appointmentSummaries.filter((item) => {
-      // Tab filter
-      if (activeTab === 'specialist' && selectedDoctorFilter !== 'ALL') {
-        if (!item.specialist.name.includes(selectedDoctorFilter)) return false
-      }
-
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim()
         const matchName = item.specialist.name.toLowerCase().includes(q)
-        const matchSpec = item.specialist.specialty.toLowerCase().includes(q)
         const matchDate = item.date.includes(q)
-        if (!matchName && !matchSpec && !matchDate) return false
+        if (!matchName && !matchDate) return false
       }
 
       return true
     })
-  }, [appointmentSummaries, activeTab, selectedDoctorFilter, searchQuery])
+  }, [appointmentSummaries, searchQuery])
 
   // Active specialist data
   const currentSpecialist: SpecialistProfile = useMemo(() => {
     if (selectedAppointment) {
-      const name =
-        selectedAppointment.specialistDisplayName || 'ThS. BS. Minh Anh'
+      const name = selectedAppointment.specialistDisplayName || 'Chuyên gia'
       return {
         id: selectedAppointment.specialistAccountId,
         name,
-        title: name,
-        specialty: getSpecialistSpecialty(name),
-        code: `#MB-${selectedAppointment.id.slice(-3).toUpperCase() || '383'}`,
-        isOnline: true,
       }
     }
     return {
       id: 'default',
-      name: 'ThS. BS. Minh Anh',
-      title: 'ThS. BS. Minh Anh',
-      specialty: 'Khoa Sức khỏe Tâm thần • BV ĐHYD TP.HCM',
-      code: '#MB-383',
-      isOnline: true,
+      name: 'Chuyên gia',
     }
   }, [selectedAppointment])
 
-  // EMR session data for current appointment
+  // Session info for the current appointment
   const emrData: EmrSessionData | null = useMemo(() => {
     if (!selectedAppointment) return null
 
@@ -537,11 +513,6 @@ export default function SpecialistChatView({
           }))
         : null
 
-    const assessmentSummary =
-      sessionSummary?.specialistNoteForUser ||
-      sessionSummary?.progressSummary ||
-      null
-
     return {
       appointmentId: apt.id,
       consultationTime: {
@@ -554,27 +525,15 @@ export default function SpecialistChatView({
           startIso && endIso
             ? `${calculateDurationMinutes(startIso, endIso)} phút`
             : '—',
-        isEncrypted: false,
       },
-      clinicalAssessment: {
-        tool: consultationBrief?.screeningContext?.[0]?.instrument
-          ? `Thang đo: ${consultationBrief.screeningContext[0].instrument}`
-          : null,
-        preScore: null,
-        postScore: null,
-        maxScore: null,
-        summaryText: assessmentSummary,
-      },
-      treatmentPlan: rawSteps
-        ? {
-            week: 1,
-            tasks: rawSteps,
-          }
-        : null,
-      creditsUsed: apt.creditState === 'CONSUMED' || apt.heldCreditId ? 1 : 0,
-      invoiceId: `INV-MB-${apt.id.slice(-6).toUpperCase()}`,
+      summaryText:
+        sessionSummary?.specialistNoteForUser ||
+        sessionSummary?.progressSummary ||
+        null,
+      nextSteps: rawSteps,
+      creditLabel: appointmentCreditLabel(apt),
     }
-  }, [selectedAppointment, sessionSummary, consultationBrief])
+  }, [selectedAppointment, sessionSummary])
 
   const isSessionEnded =
     !selectedAppointment ||
@@ -585,8 +544,13 @@ export default function SpecialistChatView({
   const isLiveSession =
     !!selectedAppointment &&
     ['CONFIRMED', 'IN_PROGRESS'].includes(selectedAppointment.status)
+  const isEmrDrawerOpen =
+    emrDrawerOverride ?? (!!selectedAppointment && !isNarrow)
+  const nextSessionHref = selectedAppointment
+    ? `/specialists?specialist=${encodeURIComponent(selectedAppointment.specialistAccountId)}`
+    : '/specialists'
   const composerDisabledReason = isSessionEnded
-    ? 'Phiên tư vấn đã kết thúc • Khung chat chỉ đọc'
+    ? 'Khung chat chỉ đọc'
     : 'Khung chat hiện không khả dụng cho phiên này'
 
   return (
@@ -595,8 +559,96 @@ export default function SpecialistChatView({
       data-messages-workspace="true"
       data-purpose="three-column-workspace"
     >
+      {printHost &&
+        selectedAppointment &&
+        emrData &&
+        createPortal(
+          <section className="mb-print-record" aria-hidden="true">
+            <header>
+              <p>MentalBridge · Biên bản phiên tư vấn</p>
+              <h1>{currentSpecialist.name}</h1>
+              <dl>
+                <div>
+                  <dt>Ngày</dt>
+                  <dd>{emrData.consultationTime.date}</dd>
+                </div>
+                <div>
+                  <dt>Thời gian</dt>
+                  <dd>
+                    {emrData.consultationTime.timeRange} (
+                    {emrData.consultationTime.durationLabel})
+                  </dd>
+                </div>
+                <div>
+                  <dt>Hình thức</dt>
+                  <dd>
+                    {appointmentModalityLabel(selectedAppointment.modality)}
+                  </dd>
+                </div>
+              </dl>
+            </header>
+            <section>
+              <h2>Tổng kết sau phiên</h2>
+              {sessionSummary ? (
+                <>
+                  {(sessionSummary.topicsDiscussed?.length ?? 0) > 0 && (
+                    <p>
+                      <strong>Nội dung đã trao đổi:</strong>{' '}
+                      {sessionSummary.topicsDiscussed.join(', ')}
+                    </p>
+                  )}
+                  {sessionSummary.progressSummary && (
+                    <p>{sessionSummary.progressSummary}</p>
+                  )}
+                  {sessionSummary.specialistNoteForUser && (
+                    <p>
+                      <strong>Lời nhắn từ chuyên gia:</strong>{' '}
+                      {sessionSummary.specialistNoteForUser}
+                    </p>
+                  )}
+                  {(sessionSummary.agreedNextSteps?.length ?? 0) > 0 && (
+                    <>
+                      <h3>Đã thống nhất sau phiên</h3>
+                      <ol>
+                        {sessionSummary.agreedNextSteps?.map((step) => (
+                          <li key={step.id}>
+                            {step.title}
+                            {step.details ? `: ${step.details}` : ''}
+                          </li>
+                        ))}
+                      </ol>
+                    </>
+                  )}
+                </>
+              ) : (
+                <p>Chuyên gia chưa xuất bản bản tổng kết cho phiên này.</p>
+              )}
+            </section>
+            <section>
+              <h2>Nội dung trò chuyện</h2>
+              {chatMessages.length > 0 ? (
+                <ol className="mb-print-transcript">
+                  {chatMessages.map((msg) => (
+                    <li key={msg.id}>
+                      <strong>{msg.senderName}</strong>
+                      <span> · {msg.timestamp}</span>
+                      <p>{msg.content}</p>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p>Phiên này không có tin nhắn được lưu.</p>
+              )}
+            </section>
+            <footer>
+              Tài liệu chứa thông tin sức khỏe riêng tư. Chỉ chia sẻ khi người
+              dùng đồng ý.
+            </footer>
+          </section>,
+          printHost,
+        )}
       {/* ======================================================== */}
-      {/* COLUMN 1: Session Master List (Lịch hẹn chat)            */}
+      {/* COLUMN 1: Session Master List (Cuộc trò chuyện)          */}
       {/* ======================================================== */}
       <section
         className={styles.sessionListColumn}
@@ -606,7 +658,7 @@ export default function SpecialistChatView({
         <div className={styles.sessionHeader}>
           <div className={styles.sessionHeaderTop}>
             <h2 className={styles.sessionHeaderTitle}>
-              Lịch hẹn chat{' '}
+              Cuộc trò chuyện{' '}
               <span className={styles.sessionHeaderCount}>
                 ({filteredAppointments.length})
               </span>
@@ -638,57 +690,10 @@ export default function SpecialistChatView({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo bác sĩ, ngày..."
+              placeholder="Tìm theo tên, ngày..."
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition"
             />
           </div>
-
-          {/* Filter Tabs */}
-          <div className={styles.filterTabs} role="tablist">
-            <button
-              type="button"
-              className={`${styles.filterTabBtn} ${activeTab === 'recent' ? styles.filterTabBtnActive : ''}`}
-              onClick={() => {
-                setActiveTab('recent')
-                setSelectedDoctorFilter('ALL')
-              }}
-            >
-              Gần đây
-            </button>
-            <button
-              type="button"
-              className={`${styles.filterTabBtn} ${activeTab === 'specialist' ? styles.filterTabBtnActive : ''}`}
-              onClick={() => setActiveTab('specialist')}
-            >
-              Bác sĩ
-            </button>
-          </div>
-
-          {/* Sub-filter chips when Bác sĩ tab is active */}
-          {activeTab === 'specialist' && (
-            <div className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-1 scrollbar-none">
-              {[
-                { id: 'ALL', label: 'Tất cả' },
-                { id: 'Minh Anh', label: 'BS. Minh Anh' },
-                { id: 'Quốc Bảo', label: 'TS. Quốc Bảo' },
-                { id: 'Thu Hà', label: 'ThS. Thu Hà' },
-                { id: 'Đức Long', label: 'BS. Đức Long' },
-              ].map((doc) => (
-                <button
-                  key={doc.id}
-                  type="button"
-                  onClick={() => setSelectedDoctorFilter(doc.id)}
-                  className={`px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap transition ${
-                    selectedDoctorFilter === doc.id
-                      ? 'bg-[#174e3e] text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {doc.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {error && (
@@ -740,31 +745,13 @@ export default function SpecialistChatView({
                         >
                           {item.specialist.name}
                         </h3>
-                        {item.status === 'completed' && (
-                          <span
-                            className={`${styles.statusPill} ${styles.statusPillCompleted}`}
-                          >
-                            Đã xong
-                          </span>
-                        )}
-                        {item.status === 'upcoming' && (
-                          <span
-                            className={`${styles.statusPill} ${styles.statusPillUpcoming}`}
-                          >
-                            Sắp tới
-                          </span>
-                        )}
-                        {item.status === 'cancelled' && (
-                          <span
-                            className={`${styles.statusPill} ${styles.statusPillUpcoming}`}
-                          >
-                            Đã hủy
-                          </span>
-                        )}
+                        <span
+                          className={`${styles.statusPill} ${item.status === 'completed' ? styles.statusPillCompleted : styles.statusPillUpcoming}`}
+                          title={item.statusLabel}
+                        >
+                          {item.statusLabel}
+                        </span>
                       </div>
-                      <p className={styles.cardSpecialty}>
-                        {item.specialist.specialty}
-                      </p>
                       <p className={styles.cardTime}>
                         <Clock size={12} className="text-slate-400" />
                         {item.date} • {item.timeSlot}
@@ -776,111 +763,113 @@ export default function SpecialistChatView({
             })
           )}
         </div>
-
-        {/* Security Note Footer */}
-        <div className={styles.securityNote}>
-          <Lock size={14} className="text-brand-600 shrink-0" />
-          <span className="truncate">
-            Lưu trữ an toàn theo tiêu chuẩn lâm sàng
-          </span>
-        </div>
       </section>
 
       {/* ======================================================== */}
       {/* COLUMN 2: Chat Main Area (Khung trò chuyện trung tâm)     */}
       {/* ======================================================== */}
       <main className={styles.chatMainArea} data-purpose="chat-stream-column">
-        {/* Chat Header Bar */}
-        <header className={styles.chatHeader} data-purpose="chat-top-header">
-          <div className={styles.specialistBadge}>
-            <div className={styles.avatarWrapper}>
-              <div className={styles.headerAvatar}>
-                {getInitials(currentSpecialist.name)}
-              </div>
-              <span className={styles.onlineDot} />
-            </div>
-            <div className={styles.headerIdentity}>
-              <div className={styles.headerNameRow}>
-                <h1 className={styles.headerName}>{currentSpecialist.name}</h1>
-                <span
-                  className={`${styles.statusPill} ${styles.statusPillCompleted}`}
-                >
-                  {isSessionEnded ? 'Đã hoàn thành phiên' : 'Đang trực tuyến'}
-                </span>
-              </div>
-              <p className={styles.headerMeta}>
-                {currentSpecialist.specialty} •{' '}
-                <span className="font-mono text-slate-400">
-                  {currentSpecialist.code}
-                </span>
-              </p>
-            </div>
-          </div>
-
-          {/* Action Toolbar */}
-          <div className={styles.headerActions}>
-            <button
-              type="button"
-              className={styles.btnSecondary}
-              onClick={handleExportPdf}
-              title="Xuất tệp PDF cuộc trò chuyện"
-            >
-              <Download size={14} className="text-slate-500" />
-              <span>Xuất PDF</span>
-            </button>
-
-            <Link href="/specialists" className={styles.btnPrimary}>
-              <CalendarDays size={14} />
-              <span>Đặt lịch tái khám</span>
-            </Link>
-
-            {/* Split-Panel Drawer Toggle Button (Theo mẫu Stitch design) */}
-            <button
-              type="button"
-              onClick={() => setIsEmrDrawerOpen((prev) => !prev)}
-              aria-label="Đóng / Mở Ngăn kéo EMR"
-              title="Hồ sơ & EMR"
-              className={styles.drawerToggleBtn}
-            >
-              <svg
-                className="w-4 h-4 text-brand-600"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <rect
-                  x="3"
-                  y="4"
-                  width="18"
-                  height="16"
-                  rx="2"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                />
-                <path d="M15 4.5v15" stroke="currentColor" strokeWidth="1.8" />
-                <path
-                  d="M15 5h5a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-5V5z"
-                  fill="currentColor"
-                  opacity="0.85"
-                />
-              </svg>
-              <span className={styles.toggleDot} />
-            </button>
-          </div>
-        </header>
-
-        {isLiveSession && selectedAppointment ? (
-          <div className={styles.liveChat} data-purpose="live-chat">
-            <AppointmentChatPanel
-              key={selectedAppointment.id}
-              appointmentId={selectedAppointment.id}
-              viewerRole={viewerRole}
-              timezone={selectedAppointment.timezone}
-              embedded
-            />
+        {!selectedAppointment ? (
+          <div className={styles.chatEmpty} role="status">
+            <strong>Chưa có cuộc trò chuyện nào</strong>
+            <p>Cuộc trò chuyện mở khi bạn có lịch hẹn với chuyên gia.</p>
+            {viewerRole !== 'SPECIALIST' && (
+              <Link href="/specialists">Tìm chuyên gia</Link>
+            )}
           </div>
         ) : (
           <>
-            {/* Bento Metric Strip over Conversation */}
+            {/* Chat Header Bar */}
+            <header
+              className={styles.chatHeader}
+              data-purpose="chat-top-header"
+            >
+              <div className={styles.specialistBadge}>
+                <div className={styles.avatarWrapper}>
+                  <div className={styles.headerAvatar}>
+                    {getInitials(currentSpecialist.name)}
+                  </div>
+                </div>
+                <div className={styles.headerIdentity}>
+                  <div className={styles.headerNameRow}>
+                    <h1
+                      className={styles.headerName}
+                      title={currentSpecialist.name}
+                    >
+                      {currentSpecialist.name}
+                    </h1>
+                    {selectedAppointment?.status === 'COMPLETED' && (
+                      <span
+                        className={`${styles.statusPill} ${styles.statusPillCompleted}`}
+                        title={appointmentStatusLabel(
+                          selectedAppointment,
+                          viewerRole,
+                        )}
+                      >
+                        {appointmentStatusLabel(
+                          selectedAppointment,
+                          viewerRole,
+                        )}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Toolbar */}
+              <div className={styles.headerActions}>
+                {viewerRole !== 'SPECIALIST' && (
+                  <Link
+                    href={nextSessionHref}
+                    className={styles.btnPrimary}
+                    aria-label="Đặt buổi tiếp theo"
+                  >
+                    <CalendarDays size={14} />
+                    <span className={styles.btnLabel}>Đặt buổi tiếp theo</span>
+                  </Link>
+                )}
+
+                {/* Split-Panel Drawer Toggle Button (Theo mẫu Stitch design) */}
+                <button
+                  type="button"
+                  onClick={() => setEmrDrawerOverride(!isEmrDrawerOpen)}
+                  aria-label="Thông tin buổi hẹn"
+                  aria-expanded={isEmrDrawerOpen}
+                  aria-controls="appointment-info-drawer"
+                  title="Thông tin buổi hẹn"
+                  className={styles.drawerToggleBtn}
+                >
+                  <svg
+                    className="w-4 h-4 text-brand-600"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <rect
+                      x="3"
+                      y="4"
+                      width="18"
+                      height="16"
+                      rx="2"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    />
+                    <path
+                      d="M15 4.5v15"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    />
+                    <path
+                      d="M15 5h5a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-5V5z"
+                      fill="currentColor"
+                      opacity="0.85"
+                    />
+                  </svg>
+                  <span className={styles.toggleDot} />
+                </button>
+              </div>
+            </header>
+
+            {/* Bento Metric Strip over Conversation: same for live and ended sessions */}
             {emrData && (
               <div
                 className={styles.bentoMetricStrip}
@@ -895,260 +884,285 @@ export default function SpecialistChatView({
                         {emrData.consultationTime.durationLabel}
                       </strong>
                     </span>
-                    <span className="text-slate-300">•</span>
-                    <span>
-                      Báo cáo lâm sàng:{' '}
-                      <strong className="text-emerald-800 font-semibold">
-                        {sessionSummary
-                          ? 'Đã có tóm tắt phiên'
-                          : 'Chưa có tóm tắt'}
-                      </strong>
+                    <span className={`text-slate-300 ${styles.metricSep}`}>
+                      •
                     </span>
-                  </div>
-                  <span className="text-slate-500 text-[11px]">
-                    {emrData.creditsUsed > 0 ? (
+                    {isLiveSession && selectedAppointment ? (
                       <span>
-                        Đã trừ:{' '}
-                        <strong className="text-slate-700 font-semibold">
-                          {emrData.creditsUsed} Credit
+                        Trạng thái:{' '}
+                        <strong className="text-emerald-800 font-semibold">
+                          {appointmentStatusLabel(
+                            selectedAppointment,
+                            viewerRole,
+                          )}
                         </strong>
                       </span>
                     ) : (
-                      <span>Chưa trừ Credit</span>
+                      <span>
+                        Tóm tắt phiên:{' '}
+                        <strong className="text-emerald-800 font-semibold">
+                          {sessionSummary
+                            ? 'Đã có tóm tắt phiên'
+                            : 'Chưa có tóm tắt'}
+                        </strong>
+                      </span>
                     )}
+                  </div>
+                  <span className="text-slate-500 text-[11px]">
+                    <strong className="text-slate-700 font-semibold">
+                      {emrData.creditLabel}
+                    </strong>
                   </span>
                 </div>
               </div>
             )}
 
-            {/* Dialogue Message Stream Area */}
-            <div
-              className={`${styles.messagesContainer} ${styles.customScroll}`}
-              data-purpose="chat-messages-container"
-            >
-              {/* Timeline Date Pill */}
-              {emrData && (
-                <div className={styles.timelinePill}>
-                  <span className={styles.timelineText}>
-                    Phiên tham vấn lúc {emrData.consultationTime.timeRange} •{' '}
-                    {emrData.consultationTime.date}
-                  </span>
-                </div>
-              )}
-
-              {/* Message Stream with Truthful Status Handling */}
-              {chatStatus === 'loading' && (
-                <div
-                  className="py-12 text-center text-sm text-slate-500"
-                  data-testid="chat-loading-state"
-                >
-                  Đang tải lịch sử hội thoại...
-                </div>
-              )}
-
-              {chatStatus === 'forbidden' && (
-                <div
-                  className="py-12 text-center px-4"
-                  data-testid="chat-forbidden-state"
-                >
-                  <div className="inline-flex p-3 rounded-full bg-amber-50 text-amber-700 mb-2">
-                    <Lock size={20} />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-800">
-                    Không có quyền truy cập
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Bạn không có quyền truy cập lịch sử hội thoại của phiên này
-                    (403).
-                  </p>
-                </div>
-              )}
-
-              {chatStatus === 'error' && (
-                <div
-                  className="py-12 text-center px-4"
-                  data-testid="chat-error-state"
-                >
-                  <div className="inline-flex p-3 rounded-full bg-rose-50 text-rose-700 mb-2">
-                    <AlertCircle size={20} />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-800">
-                    Không thể tải lịch sử trò chuyện
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Đã xảy ra lỗi kết nối khi tải lịch sử phiên. Vui lòng thử
-                    lại sau.
-                  </p>
-                </div>
-              )}
-
-              {chatStatus === 'empty' && (
-                <div
-                  className="py-12 text-center px-4"
-                  data-testid="chat-empty-state"
-                >
-                  <div className="inline-flex p-3 rounded-full bg-slate-100 text-slate-500 mb-2">
-                    <MessageSquare size={20} />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-700">
-                    Chưa có tin nhắn trong phiên này
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Phiên tư vấn này chưa có lịch sử tin nhắn nào được lưu trữ.
-                  </p>
-                </div>
-              )}
-
-              {chatStatus === 'ready' &&
-                chatMessages.map((msg) => {
-                  const isDoctor = msg.senderType === 'specialist'
-
-                  if (isDoctor) {
-                    return (
-                      <div key={msg.id} className={styles.messageRowDoctor}>
-                        <div className={styles.msgAvatarDoctor}>
-                          {getInitials(msg.senderName)}
-                        </div>
-                        <div className={styles.msgBodyDoctor}>
-                          <div className={styles.msgHeaderDoctor}>
-                            <span className={styles.msgAuthorDoctor}>
-                              {msg.senderName}
-                            </span>
-                            <span className={styles.msgTime}>
-                              {msg.timestamp}
-                            </span>
-                          </div>
-                          <div className={styles.bubbleDoctor}>
-                            <p className="m-0 leading-relaxed">{msg.content}</p>
-                            {msg.recommendations && (
-                              <div className={styles.recommendationCard}>
-                                <p className={styles.recommendationTitle}>
-                                  {msg.recommendations.title}
-                                </p>
-                                <ul className={styles.recommendationList}>
-                                  {msg.recommendations.items.map(
-                                    (item, idx) => (
-                                      <li key={idx}>{item}</li>
-                                    ),
-                                  )}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
+            {isLiveSession && selectedAppointment ? (
+              <div className={styles.liveChat} data-purpose="live-chat">
+                <AppointmentChatPanel
+                  key={selectedAppointment.id}
+                  appointmentId={selectedAppointment.id}
+                  viewerRole={viewerRole}
+                  timezone={selectedAppointment.timezone}
+                  specialistName={
+                    selectedAppointment.specialistDisplayName ||
+                    'Chuyên gia Tâm lý'
                   }
+                  timelineLabel={
+                    emrData
+                      ? `Phiên tham vấn lúc ${emrData.consultationTime.timeRange} • ${emrData.consultationTime.date}`
+                      : undefined
+                  }
+                  embedded
+                  bare
+                />
+              </div>
+            ) : (
+              <>
+                {/* Dialogue Message Stream Area */}
+                <div
+                  className={`${styles.messagesContainer} ${styles.customScroll}`}
+                  data-purpose="chat-messages-container"
+                >
+                  {/* Timeline Date Pill */}
+                  {emrData && (
+                    <div className={styles.timelinePill}>
+                      <span className={styles.timelineText}>
+                        Phiên tham vấn lúc {emrData.consultationTime.timeRange}{' '}
+                        • {emrData.consultationTime.date}
+                      </span>
+                    </div>
+                  )}
 
-                  // Patient Message
-                  return (
-                    <div key={msg.id} className={styles.messageRowPatient}>
-                      <div className={styles.msgBodyPatient}>
-                        <div className={styles.msgHeaderPatient}>
-                          <span className={styles.msgTime}>
-                            {msg.timestamp}
-                          </span>
-                          <span className={styles.msgAuthorPatient}>
-                            {msg.senderName}
-                          </span>
+                  {/* Message Stream with Truthful Status Handling */}
+                  {chatStatus === 'loading' && (
+                    <div
+                      className={styles.emptyNote}
+                      data-testid="chat-loading-state"
+                      role="status"
+                    >
+                      <p>Đang tải lịch sử hội thoại…</p>
+                    </div>
+                  )}
+
+                  {chatStatus === 'notOpen' && (
+                    <div
+                      className={styles.emptyNote}
+                      data-testid="chat-not-open-state"
+                      role="status"
+                    >
+                      <span className={styles.emptyNoteIcon} aria-hidden="true">
+                        <Clock size={18} />
+                      </span>
+                      <strong>{notOpenNotice}</strong>
+                    </div>
+                  )}
+
+                  {chatStatus === 'error' && (
+                    <div
+                      className={styles.emptyNote}
+                      data-testid="chat-error-state"
+                      role="alert"
+                    >
+                      <span className={styles.emptyNoteIcon} aria-hidden="true">
+                        <AlertCircle size={18} />
+                      </span>
+                      <strong>Chưa tải được lịch sử trò chuyện</strong>
+                      <p>Kiểm tra kết nối rồi mở lại cuộc trò chuyện này.</p>
+                    </div>
+                  )}
+
+                  {chatStatus === 'empty' && (
+                    <div
+                      className={styles.emptyNote}
+                      data-testid="chat-empty-state"
+                      role="status"
+                    >
+                      <span className={styles.emptyNoteIcon} aria-hidden="true">
+                        <MessageSquare size={18} />
+                      </span>
+                      <strong>Buổi này không có tin nhắn nào</strong>
+                    </div>
+                  )}
+
+                  {chatStatus === 'ready' &&
+                    chatMessages.map((msg) => {
+                      const isDoctor = msg.senderType === 'specialist'
+
+                      if (isDoctor) {
+                        return (
+                          <div key={msg.id} className={styles.messageRowDoctor}>
+                            <div className={styles.msgAvatarDoctor}>
+                              {getInitials(msg.senderName)}
+                            </div>
+                            <div className={styles.msgBodyDoctor}>
+                              <div className={styles.msgHeaderDoctor}>
+                                <span className={styles.msgAuthorDoctor}>
+                                  {msg.senderName}
+                                </span>
+                                <span className={styles.msgTime}>
+                                  {msg.timestamp}
+                                </span>
+                              </div>
+                              <div className={styles.bubbleDoctor}>
+                                <p className="m-0 leading-relaxed">
+                                  {msg.content}
+                                </p>
+                                {msg.recommendations && (
+                                  <div className={styles.recommendationCard}>
+                                    <p className={styles.recommendationTitle}>
+                                      {msg.recommendations.title}
+                                    </p>
+                                    <ul className={styles.recommendationList}>
+                                      {msg.recommendations.items.map(
+                                        (item, idx) => (
+                                          <li key={idx}>{item}</li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      // Patient Message
+                      return (
+                        <div key={msg.id} className={styles.messageRowPatient}>
+                          <div className={styles.msgBodyPatient}>
+                            <div className={styles.msgHeaderPatient}>
+                              <span className={styles.msgTime}>
+                                {msg.timestamp}
+                              </span>
+                              <span className={styles.msgAuthorPatient}>
+                                {msg.senderName}
+                              </span>
+                            </div>
+                            <div className={styles.bubblePatient}>
+                              <p className="m-0 leading-relaxed text-white font-medium">
+                                {msg.content}
+                              </p>
+                            </div>
+                          </div>
+                          <div className={styles.msgAvatarPatient}>
+                            {getInitials(msg.senderName)}
+                          </div>
                         </div>
-                        <div className={styles.bubblePatient}>
-                          <p className="m-0 leading-relaxed text-white font-medium">
-                            {msg.content}
-                          </p>
-                        </div>
+                      )
+                    })}
+
+                  {/* Completion Badge */}
+                  {isSessionEnded &&
+                    selectedAppointment?.status !== 'CANCELLED' &&
+                    emrData && (
+                      <div className={styles.completionBadge}>
+                        <p className={styles.completionTitle}>
+                          Phiên kết thúc lúc{' '}
+                          {emrData.consultationTime.timeRange
+                            .split('–')[1]
+                            ?.trim()}
+                        </p>
                       </div>
-                      <div className={styles.msgAvatarPatient}>
-                        {getInitials(msg.senderName)}
+                    )}
+
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Bottom Read-Only Status Banner / Active Input Bar (Zalo / Messenger Style) */}
+                <footer
+                  className={styles.chatFooter}
+                  data-purpose="chat-input-and-status-area"
+                >
+                  {isSessionEnded && (
+                    <div className={styles.readOnlyBanner}>
+                      <div className={styles.bannerText}>
+                        <Lock size={15} className="text-slate-400 shrink-0" />
+                        <span className="truncate">
+                          Phiên đã kết thúc. Khung chat chỉ đọc.
+                        </span>
+                      </div>
+                      <div className={styles.bannerActions}>
+                        <button
+                          type="button"
+                          onClick={() => setEmrDrawerOverride(true)}
+                          className={styles.btnSecondary}
+                          title="Mở thông tin buổi hẹn"
+                        >
+                          <FileText size={14} className="text-brand-600" />
+                          <span>Xem thông tin buổi hẹn</span>
+                        </button>
+                        {viewerRole !== 'SPECIALIST' && (
+                          <Link
+                            href={nextSessionHref}
+                            className={`${styles.btnSecondary} text-brand-700 bg-brand-50 border-brand-200`}
+                          >
+                            <CalendarDays
+                              size={14}
+                              className="text-emerald-600"
+                            />
+                            <span>Đặt buổi tiếp theo</span>
+                          </Link>
+                        )}
                       </div>
                     </div>
-                  )
-                })}
+                  )}
 
-              {/* Completion Badge */}
-              {isSessionEnded && emrData && (
-                <div className={styles.completionBadge}>
-                  <p className={styles.completionTitle}>
-                    Phiên hoàn thành lúc{' '}
-                    {emrData.consultationTime.timeRange.split('–')[1]?.trim() ||
-                      '23:55'}
-                  </p>
-                  <p className={styles.completionSub}>
-                    Hồ sơ phiên đã được lưu trữ an toàn trong hệ thống lâm sàng.
-                  </p>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Bottom Read-Only Status Banner / Active Input Bar (Zalo / Messenger Style) */}
-            <footer
-              className={styles.chatFooter}
-              data-purpose="chat-input-and-status-area"
-            >
-              {isSessionEnded && (
-                <div className={styles.readOnlyBanner}>
-                  <div className={styles.bannerText}>
-                    <Lock size={15} className="text-slate-400 shrink-0" />
-                    <span className="truncate">
-                      Phiên đã kết thúc và được lưu trữ an toàn trong hồ sơ bệnh
-                      án EMR.
-                    </span>
+                  <div className={styles.composerForm}>
+                    <div className={styles.composerInputRow}>
+                      <input
+                        type="text"
+                        disabled
+                        aria-label={composerDisabledReason}
+                        placeholder={composerDisabledReason}
+                        className={styles.composerTextarea}
+                      />
+                      <button
+                        type="button"
+                        disabled
+                        className={styles.sendBtn}
+                        aria-label="Gửi tin nhắn"
+                        title={composerDisabledReason}
+                      >
+                        <Send size={15} />
+                      </button>
+                    </div>
                   </div>
-                  <div className={styles.bannerActions}>
-                    <button
-                      type="button"
-                      onClick={() => setIsEmrDrawerOpen(true)}
-                      className={styles.btnSecondary}
-                      title="Mở ngăn kéo EMR"
-                    >
-                      <FileText size={14} className="text-brand-600" />
-                      <span>Xem EMR</span>
-                    </button>
-                    <Link
-                      href="/specialists"
-                      className={`${styles.btnSecondary} text-brand-700 bg-brand-50 border-brand-200`}
-                    >
-                      <CalendarDays size={14} className="text-emerald-600" />
-                      <span>Tái khám</span>
-                    </Link>
-                  </div>
-                </div>
-              )}
-
-              <div className={styles.composerForm}>
-                <div className={styles.composerInputRow}>
-                  <input
-                    type="text"
-                    disabled
-                    aria-label={composerDisabledReason}
-                    placeholder={composerDisabledReason}
-                    className={styles.composerTextarea}
-                  />
-                  <button
-                    type="button"
-                    disabled
-                    className={styles.sendBtn}
-                    aria-label="Gửi tin nhắn"
-                    title={composerDisabledReason}
-                  >
-                    <Send size={15} />
-                  </button>
-                </div>
-              </div>
-            </footer>
+                </footer>
+              </>
+            )}
           </>
         )}
       </main>
 
       {/* ======================================================== */}
-      {/* COLUMN 3: EmrDrawer (Ngăn kéo Hồ sơ Lâm sàng & EMR)       */}
+      {/* COLUMN 3: Appointment info drawer                        */}
       {/* ======================================================== */}
       <aside
-        id="emr-drawer"
+        id="appointment-info-drawer"
         className={`${styles.emrDrawer} ${isEmrDrawerOpen ? '' : styles.emrDrawerHidden} ${styles.customScroll}`}
-        data-purpose="clinical-emr-bento-panel"
+        data-purpose="appointment-info-panel"
       >
         {/* Drawer Header */}
         <div className={styles.drawerHeader}>
@@ -1157,15 +1171,12 @@ export default function SpecialistChatView({
               <FileText size={16} />
             </div>
             <div>
-              <h2 className={styles.drawerTitle}>Thông tin buổi hẹn & EMR</h2>
-              <span className={styles.drawerCode}>
-                Mã {currentSpecialist.code}
-              </span>
+              <h2 className={styles.drawerTitle}>Thông tin buổi hẹn</h2>
             </div>
           </div>
           <button
             type="button"
-            onClick={() => setIsEmrDrawerOpen(false)}
+            onClick={() => setEmrDrawerOverride(false)}
             className={styles.iconBtn}
             title="Đóng ngăn kéo"
             aria-label="Đóng ngăn kéo"
@@ -1176,7 +1187,7 @@ export default function SpecialistChatView({
 
         {!emrData ? (
           <div className="p-6 text-center text-slate-500 text-xs">
-            Chưa có thông tin hồ sơ cho phiên này.
+            Chưa có thông tin buổi hẹn.
           </div>
         ) : (
           <>
@@ -1186,14 +1197,17 @@ export default function SpecialistChatView({
                 <span className={styles.cardSectionLabel}>
                   Thời gian tư vấn
                 </span>
-                <span
-                  className={`${styles.statusPill} ${styles.statusPillCompleted}`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block mr-1" />
-                  {selectedAppointment?.status === 'COMPLETED'
-                    ? 'Đã hoàn thành'
-                    : selectedAppointment?.status || 'Đang cập nhật'}
-                </span>
+                {selectedAppointment && (
+                  <span
+                    className={`${styles.statusPill} ${selectedAppointment.status === 'COMPLETED' ? styles.statusPillCompleted : styles.statusPillUpcoming}`}
+                    title={appointmentStatusLabel(
+                      selectedAppointment,
+                      viewerRole,
+                    )}
+                  >
+                    {appointmentStatusLabel(selectedAppointment, viewerRole)}
+                  </span>
+                )}
               </div>
               <div>
                 <div className={styles.timeLarge}>
@@ -1208,87 +1222,43 @@ export default function SpecialistChatView({
                 <span>
                   Hình thức:{' '}
                   <strong className="font-semibold text-slate-800">
-                    {selectedAppointment?.modality === 'IN_APP_CHAT'
-                      ? 'Tư vấn qua khung chat'
-                      : selectedAppointment?.modality || 'Tư vấn trực tuyến'}
+                    {appointmentModalityLabel(selectedAppointment?.modality)}
                   </strong>
                 </span>
-                <span className="text-emerald-800 font-semibold flex items-center gap-1">
-                  <Check size={13} className="stroke-[3]" />{' '}
-                  {sessionSummary
-                    ? 'Đã có tóm tắt phiên'
-                    : 'Hồ sơ tư vấn lâm sàng'}
-                </span>
-              </div>
-            </div>
-
-            {/* Card 2: Đánh giá lâm sàng phiên này */}
-            <div className={styles.bentoCard}>
-              <div className={styles.cardTopLabelRow}>
-                <span className={styles.cardSectionLabel}>
-                  Đánh giá lâm sàng phiên này
-                </span>
-                {emrData.clinicalAssessment.tool && (
-                  <span className="text-[10px] text-emerald-800 font-semibold">
-                    {emrData.clinicalAssessment.tool}
+                {sessionSummary && (
+                  <span className="text-emerald-800 font-semibold flex items-center gap-1">
+                    <Check size={13} className="stroke-[3]" /> Đã có tóm tắt
+                    phiên
                   </span>
                 )}
               </div>
-              {emrData.clinicalAssessment.preScore !== null &&
-              emrData.clinicalAssessment.postScore !== null ? (
-                <div className={styles.scoreGrid}>
-                  <div className={styles.scoreBoxBefore}>
-                    <p className={styles.scoreSublabel}>Trước tư vấn</p>
-                    <p className={styles.scoreValue}>
-                      Mức {emrData.clinicalAssessment.preScore} /{' '}
-                      {emrData.clinicalAssessment.maxScore}
-                    </p>
-                  </div>
-                  <div className={styles.scoreBoxAfter}>
-                    <p
-                      className={`${styles.scoreSublabel} ${styles.scoreDescHighlight}`}
-                    >
-                      Sau tư vấn
-                    </p>
-                    <p
-                      className={`${styles.scoreValue} ${styles.scoreValueHighlight}`}
-                    >
-                      Mức {emrData.clinicalAssessment.postScore} /{' '}
-                      {emrData.clinicalAssessment.maxScore}
-                    </p>
-                  </div>
+            </div>
+
+            {/* Card 2: Tóm tắt phiên (only when the specialist published one) */}
+            {emrData.summaryText && (
+              <div className={styles.bentoCard}>
+                <div className={styles.cardTopLabelRow}>
+                  <span className={styles.cardSectionLabel}>Tóm tắt phiên</span>
                 </div>
-              ) : (
                 <div className="py-2.5 px-3 bg-slate-50 rounded-lg text-xs text-slate-600 mb-2">
-                  {emrData.clinicalAssessment.summaryText ||
-                    'Chưa ghi nhận đánh giá định lượng cho phiên này.'}
+                  {emrData.summaryText}
                 </div>
-              )}
-              {emrData.clinicalAssessment.preScore !== null &&
-                emrData.clinicalAssessment.summaryText && (
-                  <p className={styles.clinicalNote}>
-                    <strong className="text-slate-800">Ghi chú:</strong>{' '}
-                    {emrData.clinicalAssessment.summaryText}
-                  </p>
-                )}
-            </div>
+              </div>
+            )}
 
-            {/* Card 3: Toa dặn dò & Lộ trình */}
+            {/* Card 3: Bước tiếp theo */}
             <div className={styles.bentoCard}>
               <div className={styles.cardTopLabelRow}>
-                <span className={styles.cardSectionLabel}>
-                  Toa dặn dò & Lộ trình
-                </span>
-                {emrData.treatmentPlan && (
+                <span className={styles.cardSectionLabel}>Bước tiếp theo</span>
+                {emrData.nextSteps && (
                   <span className="text-[11px] text-emerald-800 font-semibold">
-                    {emrData.treatmentPlan.tasks.length} mục
+                    {emrData.nextSteps.length} mục
                   </span>
                 )}
               </div>
-              {emrData.treatmentPlan &&
-              emrData.treatmentPlan.tasks.length > 0 ? (
+              {emrData.nextSteps && emrData.nextSteps.length > 0 ? (
                 <ul className={styles.protocolList}>
-                  {emrData.treatmentPlan.tasks.map((task) => (
+                  {emrData.nextSteps.map((task) => (
                     <li key={task.step} className={styles.protocolItem}>
                       <span className={styles.protocolNumBadge}>
                         {task.step}
@@ -1303,270 +1273,17 @@ export default function SpecialistChatView({
                   này.
                 </div>
               )}
-              <Link href="/resources" className={styles.readMoreLink}>
-                <span>
-                  📖 Khám phá thêm các bài thực hành sức khỏe tinh thần
-                </span>
-                <span className="text-slate-400">→</span>
-              </Link>
             </div>
 
-            {/* Card 4: Số dư gói & Actions */}
+            {/* Card 4: trạng thái buổi tư vấn */}
             <div className={styles.bentoCard}>
-              <div className={styles.cardTopLabelRow}>
-                <span className="text-xs text-slate-500">
-                  Mã phiên:{' '}
-                  <strong className="text-slate-800">
-                    {emrData.invoiceId}
-                  </strong>
-                </span>
-                <span className="text-xs font-semibold text-emerald-700">
-                  {emrData.creditsUsed > 0 ? 'Đã trừ 1 credit' : 'Miễn phí'}
-                </span>
-              </div>
-              <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
-                <button
-                  type="button"
-                  className={styles.btnRateSession}
-                  onClick={() => {
-                    setRatingInput(rating || 5)
-                    setIsRatingModalOpen(true)
-                  }}
-                >
-                  {rating
-                    ? `Đã đánh giá: ${'★'.repeat(rating)}${'☆'.repeat(5 - rating)} (Chỉnh sửa)`
-                    : `Đánh giá phiên với ${currentSpecialist.name} (★★★★★)`}
-                </button>
-                <button
-                  type="button"
-                  className={styles.btnViewInvoice}
-                  onClick={() => setIsEmrModalOpen(true)}
-                >
-                  Xem biên bản EMR & Hóa đơn
-                </button>
-              </div>
+              <span className="text-xs font-semibold text-emerald-700">
+                {emrData.creditLabel}
+              </span>
             </div>
           </>
         )}
       </aside>
-
-      {/* ======================================================== */}
-      {/* Floating Quick Support Trigger (AI Companion)            */}
-      {/* ======================================================== */}
-      <aside
-        className={styles.floatingTrigger}
-        data-purpose="floating-quick-support"
-      >
-        <Link
-          href="/ai-companion"
-          className={styles.floatingBtn}
-          title="Tâm sự 24/7 với AI"
-        >
-          <div className={styles.pingDotWrapper}>
-            <div className={styles.pingWave} />
-            <div className={styles.pingDot} />
-          </div>
-          <span className={styles.floatingText}>Tâm sự 24/7 với AI</span>
-          <div className={styles.leafIcon}>🌿</div>
-        </Link>
-      </aside>
-
-      {/* ======================================================== */}
-      {/* MODAL 1: Rating Dialog (Đánh giá phiên tư vấn)           */}
-      {/* ======================================================== */}
-      {isRatingModalOpen && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => setIsRatingModalOpen(false)}
-        >
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>Đánh giá phiên tham vấn</h3>
-              <button
-                type="button"
-                className={styles.iconBtn}
-                onClick={() => setIsRatingModalOpen(false)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className={styles.modalBody}>
-              <p className="text-sm text-slate-600 mb-2">
-                Trải nghiệm của bạn cùng{' '}
-                <strong>{currentSpecialist.name}</strong> như thế nào? Đánh giá
-                của bạn giúp duy trì chất lượng chăm sóc lâm sàng chuẩn y khoa.
-              </p>
-              <div className="flex justify-center">
-                <div className={styles.starRow}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      className={`${styles.starBtn} ${star <= ratingInput ? styles.starBtnActive : ''}`}
-                      onClick={() => setRatingInput(star)}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <p className="text-center text-xs font-semibold text-emerald-800">
-                {ratingInput === 5
-                  ? 'Tuyệt vời, bác sĩ thấu cảm và hiệu quả cao'
-                  : ratingInput === 4
-                    ? 'Rất tốt, hài lòng với lộ trình điều hòa'
-                    : ratingInput === 3
-                      ? 'Bình thường, phiên đạt mục tiêu'
-                      : 'Cần cải thiện'}
-              </p>
-            </div>
-            <div className={styles.modalFooter}>
-              <button
-                type="button"
-                className={styles.btnSecondary}
-                onClick={() => setIsRatingModalOpen(false)}
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                className={styles.btnPrimary}
-                onClick={handleSaveRating}
-                disabled={savingRating}
-              >
-                {savingRating ? 'Đang lưu…' : 'Gửi đánh giá'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* MODAL 2: EMR Summary & Invoice Dialog                     */}
-      {/* ======================================================== */}
-      {isEmrModalOpen && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => setIsEmrModalOpen(false)}
-        >
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={20} className="text-emerald-700" />
-                <h3 className={styles.modalTitle}>
-                  Biên bản EMR & Hóa đơn lâm sàng
-                </h3>
-              </div>
-              <button
-                type="button"
-                className={styles.iconBtn}
-                onClick={() => setIsEmrModalOpen(false)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className={styles.modalBody}>
-              {/* EMR Badge Header */}
-              <div className="p-3.5 bg-emerald-50/60 border border-emerald-100 rounded-xl mb-4">
-                <div className="flex justify-between items-center text-xs font-semibold text-emerald-900 mb-1">
-                  <span>HỒ SƠ TƯ VẤN LÂM SÀNG</span>
-                  <span className="font-mono text-[11px] text-emerald-700">
-                    Mã {currentSpecialist.code}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 m-0">
-                  Biên bản ghi nhận kết quả phiên tham vấn chuyên gia trên hệ
-                  thống MentalBridge.
-                </p>
-              </div>
-
-              {/* Consultation Details */}
-              <div className="space-y-3 text-xs text-slate-700">
-                <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500">Khách hàng:</span>
-                  <strong className="text-slate-900">
-                    {viewerRole === 'SPECIALIST'
-                      ? 'Khách hàng tham vấn'
-                      : 'Tài khoản của bạn'}
-                  </strong>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500">Chuyên gia phụ trách:</span>
-                  <strong className="text-slate-900">
-                    {currentSpecialist.name} ({currentSpecialist.specialty})
-                  </strong>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500">Thời gian tham vấn:</span>
-                  <span>
-                    {emrData?.consultationTime.timeRange || 'Chưa xác định'} •{' '}
-                    {emrData?.consultationTime.date || '—'}
-                  </span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500">Đánh giá phiên:</span>
-                  <span className="font-semibold text-slate-700">
-                    {emrData?.clinicalAssessment.summaryText ||
-                      'Đã ghi nhận tóm tắt phiên'}
-                  </span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500">Hóa đơn thanh toán:</span>
-                  <span className="font-semibold text-slate-900">
-                    {emrData?.invoiceId || 'INV-MB'} (
-                    {emrData?.creditsUsed ? '1 Credit' : '0 Credit'})
-                  </span>
-                </div>
-                <div className="flex justify-between py-1.5">
-                  <span className="text-slate-500">Trạng thái phiên:</span>
-                  <span className="font-semibold text-emerald-700 flex items-center gap-1">
-                    <CheckCircle2 size={14} />{' '}
-                    {selectedAppointment?.status === 'COMPLETED'
-                      ? 'Đã hoàn tất phiên'
-                      : selectedAppointment?.status || 'Đang xử lý'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Tasks List */}
-              <div className="mt-4 pt-3 border-t border-slate-200">
-                <h4 className="font-bold text-slate-800 text-xs mb-2">
-                  Toa dặn dò & Kế hoạch tiếp theo:
-                </h4>
-                {emrData?.treatmentPlan &&
-                emrData.treatmentPlan.tasks.length > 0 ? (
-                  <ul className="space-y-1.5 text-xs text-slate-600 pl-4 list-disc">
-                    {emrData.treatmentPlan.tasks.map((task) => (
-                      <li key={task.step}>{task.title}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-slate-500 italic">
-                    Chưa ghi nhận kế hoạch chi tiết.
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className={styles.modalFooter}>
-              <button
-                type="button"
-                className={styles.btnSecondary}
-                onClick={() => window.print()}
-              >
-                <Printer size={14} />
-                <span>In biên bản</span>
-              </button>
-              <button
-                type="button"
-                className={styles.btnPrimary}
-                onClick={() => setIsEmrModalOpen(false)}
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

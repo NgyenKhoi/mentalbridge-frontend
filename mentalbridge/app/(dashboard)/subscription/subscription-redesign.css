@@ -445,10 +445,7 @@
 
 .svc-assurance {
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
-  gap: 28px;
-  align-items: center;
-  min-height: 375px;
+  grid-template-columns: minmax(0, 1fr);
   margin-top: 24px;
   overflow: hidden;
   border: 1px solid #cfe4d7;
@@ -506,143 +503,6 @@
   color: #68746d;
   font-size: 10px;
   line-height: 1.5;
-}
-
-.svc-preview {
-  position: relative;
-  display: grid;
-  height: 315px;
-  grid-template-columns: 64px minmax(0, 1fr);
-  overflow: hidden;
-  border: 1px solid #ebe8e0;
-  border-radius: 19px;
-  background: #fffdf9;
-  box-shadow: 0 16px 32px -24px rgba(28, 55, 41, 0.25);
-  transform: rotate(-2deg);
-}
-
-.svc-preview-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  padding: 30px 12px;
-  background: #e8f0e9;
-}
-
-.svc-preview-sidebar span {
-  height: 8px;
-  border-radius: 99px;
-  background: #cbd8cf;
-}
-
-.svc-preview-sidebar span:nth-child(1),
-.svc-preview-sidebar span:nth-child(4) {
-  background: #276650;
-}
-
-.svc-preview-main {
-  padding: 21px 20px;
-}
-
-.svc-preview-top {
-  display: flex;
-  gap: 7px;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.svc-preview-top span {
-  width: 54%;
-  height: 10px;
-  margin-right: auto;
-  border-radius: 99px;
-  background: #e9f0e8;
-}
-
-.svc-preview-top i {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #d7e6da;
-}
-
-.svc-preview-title {
-  margin: 22px 0 16px;
-  color: #153f31;
-  font-family: var(--font-fraunces), Georgia, serif;
-  font-size: 20px;
-}
-
-.svc-preview-summary {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 7px;
-}
-
-.svc-preview-summary span {
-  height: 39px;
-  border-radius: 7px;
-  background: #e8f4ed;
-}
-
-.svc-preview-summary span:nth-child(2) {
-  background: #f3eee3;
-}
-
-.svc-preview-line {
-  height: 9px;
-  margin: 21px 0 12px;
-  border-radius: 99px;
-  background: #f1ecd5;
-}
-
-.svc-preview-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 7px;
-}
-
-.svc-preview-cards span {
-  height: 74px;
-  border: 1px solid #e6ebe6;
-  border-radius: 7px;
-  background: #fafdfa;
-}
-
-.svc-preview-cards span:nth-child(2) {
-  background: #e7f3e9;
-}
-
-.svc-preview-table {
-  display: grid;
-  gap: 7px;
-  margin-top: 12px;
-}
-
-.svc-preview-table span {
-  height: 5px;
-  border-radius: 99px;
-  background: #edf0ea;
-}
-
-.svc-preview-table span:nth-child(2) {
-  width: 88%;
-}
-
-.svc-preview-table span:nth-child(3) {
-  width: 94%;
-}
-
-.svc-preview-caption {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  padding: 17px 15px 12px;
-  background: linear-gradient(transparent, rgba(24, 43, 32, 0.71));
-  color: #fff;
-  font-size: 10px;
-  text-align: center;
 }
 
 .svc-commitment {
@@ -741,15 +601,6 @@
   .svc-tier-price strong {
     font-size: 28px;
   }
-
-  .svc-assurance {
-    grid-template-columns: 1fr;
-  }
-
-  .svc-preview {
-    width: min(600px, 100%);
-    margin: 0 auto;
-  }
 }
 
 @media (max-width: 760px) {
@@ -795,19 +646,6 @@
 
   .svc-assurance-points {
     grid-template-columns: 1fr;
-  }
-
-  .svc-preview {
-    height: 260px;
-    grid-template-columns: 44px minmax(0, 1fr);
-  }
-
-  .svc-preview-main {
-    padding: 16px 10px;
-  }
-
-  .svc-preview-title {
-    font-size: 15px;
   }
 
   .svc-round-link {

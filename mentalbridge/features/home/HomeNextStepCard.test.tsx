@@ -17,13 +17,13 @@ const firstUse = homeFirstUseFixture()
 
 describe('HomeNextStepCard', () => {
   it.each([
-    [firstUse, 'Bắt đầu kiểm tra ban đầu'],
+    [firstUse, 'Bắt đầu bài sàng lọc'],
     [
       {
         ...firstUse,
         journey: { ...firstUse.journey, assessmentInProgress: true },
       },
-      'Tiếp tục kiểm tra ban đầu',
+      'Tiếp tục bài sàng lọc',
     ],
   ])(
     'opens the initial check for the Care assessment state',
@@ -59,7 +59,7 @@ describe('HomeNextStepCard', () => {
   })
 
   it.each([
-    [firstUse, 'Bắt đầu kiểm tra ban đầu', '/initial-check'],
+    [firstUse, 'Bắt đầu bài sàng lọc', '/initial-check'],
     [
       home({
         journey: journey({ stage: 'GUIDE_REQUIRED', supportGuideId: null }),
@@ -314,8 +314,8 @@ describe('HomeNextStepCard', () => {
     [
       'REVIEW_DUE',
       'Đến lúc nhìn lại 14 ngày qua',
-      'Xem lại kế hoạch',
-      '/support-plan?review=open',
+      'Làm bài đánh giá lại',
+      '/initial-check?purpose=reassessment',
     ],
   ] as const)(
     'renders the selected plan focus %s',
@@ -340,10 +340,50 @@ describe('HomeNextStepCard', () => {
         expect(container.querySelector('.home-symbol svg')).not.toBeNull()
       if (focus === 'REVIEW_DUE') {
         expect(
-          screen.getByRole('link', { name: 'Mở kế hoạch hôm nay' }),
-        ).toHaveAttribute('href', '/support-plan')
+          screen.getByRole('link', { name: 'Xem lại kế hoạch' }),
+        ).toHaveAttribute('href', '/support-plan?review=open')
       } else {
         expect(screen.queryByRole('navigation')).toBeNull()
+      }
+    },
+  )
+
+  it.each([
+    ['on the review date', '2026-11-04T01:00:00Z', true],
+    ['the evening before, in plan time', '2026-11-03T16:30:00Z', false],
+  ])(
+    'leads to the rhythm choice once the cycle reassessment is done (%s)',
+    (_case, completedAt, reassessed) => {
+      render(
+        <HomeNextStepCard
+          home={home({
+            journey: journey({
+              latestScreening: {
+                episodeId: '10000000-0000-4000-8000-000000000673',
+                purpose: 'REASSESSMENT',
+                completedAt,
+                presentationEvaluationId:
+                  '20000000-0000-4000-8000-000000000673',
+                supportEvaluationId: '70000000-0000-4000-8000-000000000673',
+              },
+            }),
+            plan: plan('REVIEW_DUE'),
+          })}
+          onRetry={vi.fn()}
+        />,
+      )
+
+      if (reassessed) {
+        expect(
+          screen.getByRole('link', { name: 'Chọn nhịp tiếp theo' }),
+        ).toHaveAttribute('href', '/support-plan?review=open')
+        expect(
+          screen.getByRole('link', { name: 'Xem nhìn lại' }),
+        ).toHaveAttribute('href', '/nhin-lai')
+      } else {
+        expect(
+          screen.getByRole('link', { name: 'Làm bài đánh giá lại' }),
+        ).toBeVisible()
       }
     },
   )

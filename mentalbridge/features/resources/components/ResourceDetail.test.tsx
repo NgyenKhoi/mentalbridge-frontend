@@ -14,12 +14,20 @@ import ResourceDetail from './ResourceDetail'
 import { ApiError } from '@/lib/api/api-error'
 import { emotionOccurrenceFixture } from '@/features/support-plan/testing/native-support-plan-fixture'
 
+// MB-897: what Mầm is told about a confirmed completion.
+const mam = vi.hoisted(() => ({ dispatch: vi.fn() }))
+vi.mock('@/features/mam/mam-events', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/mam/mam-events')>()),
+  dispatchMamEvent: mam.dispatch,
+}))
+
 const api = vi.hoisted(() => ({
   getResourceDetail: vi.fn(),
   getResourceCatalogue: vi.fn(),
   getResourceProgress: vi.fn(),
   saveResourceProgress: vi.fn(),
   resolveResourcePlanOrigin: vi.fn(),
+  reconcileTodayResourceCompletion: vi.fn(),
   reconcileResourceOccurrence: vi.fn(),
 }))
 
@@ -65,6 +73,7 @@ vi.mock(
       typeof import('@/features/support-plan/resource-plan-origin')
     >()),
     resolveResourcePlanOrigin: api.resolveResourcePlanOrigin,
+    reconcileTodayResourceCompletion: api.reconcileTodayResourceCompletion,
   }),
 )
 
@@ -135,6 +144,7 @@ describe('ResourceDetail', () => {
     })
     api.getResourceProgress.mockResolvedValue([])
     api.resolveResourcePlanOrigin.mockReset()
+    api.reconcileTodayResourceCompletion.mockReset()
     api.reconcileResourceOccurrence.mockReset()
     api.saveResourceProgress.mockImplementation(
       async (_resourceId: string, localDate: string, update: object) => ({
@@ -262,6 +272,41 @@ describe('ResourceDetail', () => {
     expect(await screen.findByText(/một bước nhỏ đã hoàn thành/i)).toBeVisible()
   })
 
+  it('tells Mầm nothing when the progress save fails', async () => {
+    api.saveResourceProgress.mockRejectedValue(new Error('down'))
+    const checklistResource = {
+      ...resource,
+      category: 'JOURNALING' as const,
+      title: 'Viết vài dòng dịu dàng',
+      externalUrl: null,
+      resourceKind: 'REFLECTION' as const,
+      interactionType: 'REFLECTION' as const,
+      repeatability: 'REPEATABLE' as const,
+      completionMode: 'STEPS' as const,
+    }
+    api.getResourceDetail.mockResolvedValue(checklistResource)
+    api.getResourceCatalogue.mockResolvedValue({
+      items: [checklistResource],
+      hasMore: false,
+    })
+    const user = userEvent.setup()
+    render(
+      <ResourceDetail
+        resourceId={checklistResource.id}
+        activityDate="2026-09-29"
+      />,
+    )
+    await user.click(
+      await screen.findByRole('checkbox', {
+        name: /gọi tên cảm xúc hiện tại/i,
+      }),
+    )
+    await waitFor(() =>
+      expect(api.saveResourceProgress).toHaveBeenCalledTimes(1),
+    )
+    expect(mam.dispatch).not.toHaveBeenCalled()
+  })
+
   it('confirms the final checklist step and keeps completion after later edits', async () => {
     const checklistResource = {
       ...resource,
@@ -342,6 +387,9 @@ describe('ResourceDetail', () => {
     expect(
       screen.getByText(/kết quả hoàn thành đã được ghi nhận/i),
     ).toBeVisible()
+    // Mầm heard the move to completed once; the later re-save of a finished resource is not a completion.
+    expect(mam.dispatch).toHaveBeenCalledTimes(1)
+    expect(mam.dispatch).toHaveBeenCalledWith({ type: 'resource-done' })
 
     const firstSession = api.saveResourceProgress.mock.calls[2]?.[2] as {
       practiceSessionId: string
@@ -588,6 +636,35 @@ describe('ResourceDetail', () => {
     await user.click(screen.getByLabelText(/một bước nhỏ, an toàn/i))
     await user.click(screen.getByRole('button', { name: 'Hoàn tất' }))
   }
+
+  it('reconciles Content completion without plan URL parameters', async () => {
+    render(<ResourceDetail resourceId={resource.id} />)
+    await completePlanResource()
+    await waitFor(() =>
+      expect(
+        api.reconcileTodayResourceCompletion,
+      ).toHaveBeenCalledExactlyOnceWith(resource.id, resource.contentVersion),
+    )
+    expect(api.resolveResourcePlanOrigin).not.toHaveBeenCalled()
+  })
+
+  it('keeps a no-origin Content completion and retries Care without saving again', async () => {
+    api.reconcileTodayResourceCompletion
+      .mockResolvedValueOnce('unavailable')
+      .mockResolvedValueOnce('recorded')
+    render(<ResourceDetail resourceId={resource.id} />)
+    await completePlanResource()
+    expect(
+      await screen.findByText(/Kế hoạch sẽ cập nhật khi kết nối lại/),
+    ).toBeInTheDocument()
+    const saves = api.saveResourceProgress.mock.calls.length
+    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(
+      await screen.findByText('Đã ghi nhận vào kế hoạch hôm nay.'),
+    ).toBeInTheDocument()
+    expect(api.reconcileTodayResourceCompletion).toHaveBeenCalledTimes(2)
+    expect(api.saveResourceProgress).toHaveBeenCalledTimes(saves)
+  })
 
   const planOccurrence = {
     ...emotionOccurrenceFixture(),

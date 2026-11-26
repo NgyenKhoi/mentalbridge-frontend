@@ -5,9 +5,17 @@ import { useEffect, useRef, useState } from 'react'
 import { createOnboardingTour } from './tour-runtime'
 import { ONBOARDING_TOURS, type OnboardingAudience } from './tour-definitions'
 import { hasSeenOnboarding, rememberOnboarding } from './tour-storage'
+import { settleOnboarding } from './onboarding-hold'
+import { getGuidedJourney } from '@/features/support-guide/api/browser-support-guide'
 
 import 'driver.js/dist/driver.css'
 import './onboarding-tour.css'
+
+// A failed lookup keeps the first-run tour: showing it twice beats hiding it from a new account.
+const hasScreened = () =>
+  getGuidedJourney()
+    .then((journey) => Boolean(journey?.episodeId))
+    .catch(() => false)
 
 type Props = Readonly<{
   accountId: string
@@ -50,6 +58,11 @@ export default function OnboardingTour({
       loading = true
       setUnavailable(false)
       try {
+        // The seen flag lives in this browser only; an account that already screened is not new on another device.
+        if (automatic && audience === 'user' && (await hasScreened())) {
+          rememberOnboarding(accountId, 'skipped', audience)
+          return
+        }
         const { driver } = await import('driver.js')
         if (
           disposed ||
@@ -62,7 +75,10 @@ export default function OnboardingTour({
           return
         controller = createOnboardingTour(driver, {
           prepareStep,
-          onEnd,
+          onEnd: () => {
+            onEnd()
+            settleOnboarding()
+          },
           steps: definition.steps,
           focusFallbackSelectors: definition.focusFallbackSelectors,
           popoverClass: definition.popoverClass,
@@ -94,7 +110,15 @@ export default function OnboardingTour({
       hasSeenOnboarding(accountId, audience)
     )
       return
-    const timer = window.setTimeout(() => void startRef.current?.(true), 1500)
+    // A tour that decided not to start (a dialog is open, the page changed, it failed to load) releases what waits on it.
+    const timer = window.setTimeout(
+      () =>
+        void startRef.current?.(true).finally(() => {
+          if (!document.body.classList.contains('mb-onboarding-active'))
+            settleOnboarding()
+        }),
+      1500,
+    )
     return () => window.clearTimeout(timer)
   }, [accountId, audience, definition, pathname])
 

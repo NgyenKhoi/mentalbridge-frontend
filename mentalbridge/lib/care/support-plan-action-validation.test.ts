@@ -92,6 +92,16 @@ describe('Canonical native SupportPlan boundaries', () => {
     ])
       expect(parseCanonicalSupportPlan({ ...plan, cycle: wrong })).toBeNull()
   })
+  it('accepts a review-due cancelled occurrence', () => {
+    const due = {
+      ...emotionOccurrenceFixture(),
+      state: 'CANCELLED',
+      displayState: 'CANCELLED',
+      stateReason: 'REVIEW_DUE',
+    }
+    expect(parseActionOccurrence(due)).toEqual(due)
+  })
+
   it('tolerates additive native engagement fields but validates their values', () => {
     const occurrence = emotionOccurrenceFixture()
     const engaged = {
@@ -196,6 +206,33 @@ describe('Canonical native SupportPlan boundaries', () => {
         ...evidence,
         privateNote: 'must not enter Care',
       }),
+    ).toBeNull()
+  })
+
+  it('accepts the owner cycle-review decision as Care evidence only for the review reminder', () => {
+    const evidence = {
+      ...emotionCompletionFixture(),
+      kind: 'OWNER_REVIEW_DECISION',
+      ownerDomain: 'CARE',
+    }
+    const occurrence = {
+      ...emotionOccurrenceFixture(),
+      actionType: 'REASSESSMENT_SCREENING',
+      state: 'COMPLETED',
+      displayState: 'COMPLETED',
+      version: 1,
+      completionEvidence: evidence,
+      outcomeRecordedAt: evidence.verifiedAt,
+    }
+    expect(parseActionOccurrence(occurrence)).toEqual(occurrence)
+    expect(
+      parseActionOccurrence({
+        ...occurrence,
+        completionEvidence: { ...evidence, ownerDomain: 'JOURNAL_AI' },
+      }),
+    ).toBeNull()
+    expect(
+      parseActionOccurrence({ ...occurrence, actionType: 'EMOTION_CHECK_IN' }),
     ).toBeNull()
   })
 

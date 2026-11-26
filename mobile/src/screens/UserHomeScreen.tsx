@@ -1,4 +1,4 @@
-import { useDashboardFonts } from '@/theme/useDashboardFonts'
+import { useDashboardFonts } from '@/theme/dashboard-fonts'
 import { EmotionCheckInScreen } from '@/emotion/EmotionCheckInScreen'
 import type { Emotion } from '@/emotion/emotion-contract'
 import type { EmotionApi } from '@/emotion/emotion-api'
@@ -18,8 +18,13 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { router, useFocusEffect, type Href } from 'expo-router'
-import { useCallback, useRef, useState } from 'react'
+import {
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+  type Href,
+} from 'expo-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
@@ -28,6 +33,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type ScrollView,
   type TextStyle,
   useWindowDimensions,
   View,
@@ -41,6 +47,8 @@ import { loadCareProfile, type CareProfileApi } from '@/profile/profile-api'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
+import { useReducedMotion } from 'react-native-reanimated'
+import { PushInviteCard } from '@/home/PushInviteCard'
 import { HomeShortcuts } from '@/home/HomeShortcuts'
 import { MamHomePet } from '@/mam/MamHomePet'
 import type { HomeApi } from '@/home/home-api'
@@ -173,6 +181,10 @@ export function UserHomeScreen({
   } | null>(null)
   const [showMore, setShowMore] = useState(false)
   const firstFocus = useRef(true)
+  const scrollRef = useRef<ScrollView>(null)
+  const { focus } = useLocalSearchParams<{ focus?: string }>()
+  const reduceMotion = useReducedMotion()
+  const [emotionCardY, setEmotionCardY] = useState<number | null>(null)
   const timeZone = deviceTimeZone()
   const query = useQuery({
     queryKey: ['home-next-step', session?.subject, timeZone],
@@ -181,6 +193,16 @@ export function UserHomeScreen({
     refetchOnMount: 'always',
   })
   const refetchHome = query.refetch
+
+  useEffect(() => {
+    if (focus !== 'emotion' || emotionCardY === null || query.isFetching) return
+    const frame = requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: emotionCardY, animated: !reduceMotion })
+      setInlineSelection({ mood: null })
+      router.setParams({ focus: undefined })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [focus, emotionCardY, query.isFetching, reduceMotion])
 
   const presentation = query.data ? homePresentation(query.data) : null
   const today = new Date()
@@ -448,6 +470,11 @@ export function UserHomeScreen({
               </Pressable>
             </View>
           ) : null}
+          {plan?.cycleDay != null && plan.cycleLengthDays != null && (
+            <Text style={styles.cycle}>
+              Chu kỳ {plan.cycleDay}/{plan.cycleLengthDays} ngày
+            </Text>
+          )}
           <Text
             style={[styles.cardEyebrow, featured && styles.featuredEyebrow]}
           >
@@ -512,7 +539,7 @@ export function UserHomeScreen({
   )
 
   const dashboard = (
-    <Screen layout="dashboard" backgroundColor="#F8FAF8">
+    <Screen layout="dashboard" backgroundColor="#F8FAF8" scrollRef={scrollRef}>
       <View style={styles.masthead}>
         <View style={styles.avatar}>
           <Text accessible={false} style={styles.avatarText}>
@@ -609,7 +636,11 @@ export function UserHomeScreen({
             </Text>
             <Text style={styles.heroNote}>“Một bước nhỏ hôm nay là đủ.”</Text>
           </View>
-          <View style={styles.weekCard}>
+          <View
+            style={styles.weekCard}
+            testID="home-emotion-anchor"
+            onLayout={(event) => setEmotionCardY(event.nativeEvent.layout.y)}
+          >
             <View style={styles.sectionHeader}>
               <Text accessibilityRole="header" style={styles.weekTitle}>
                 ☺ Bạn đang cảm thấy thế nào?
@@ -742,6 +773,7 @@ export function UserHomeScreen({
               </Pressable>
             </View>
           </View>
+          <PushInviteCard />
           <HomeShortcuts
             key={`home-shortcuts-${subject}`}
             subject={subject}

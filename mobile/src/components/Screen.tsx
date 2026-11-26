@@ -2,34 +2,44 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useImperativeHandle,
   useRef,
+  useState,
   type ReactNode,
   type Ref,
 } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-
-import { colors, spacing } from '@/theme/tokens'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { setSafetyButtonLift } from '@/crisis-support/safety-button-lift'
 import { TourScrollContext } from '@/onboarding/tour-target'
+import { colors, spacing } from '@/theme/tokens'
 
 export const ScreenBottomInsetContext = createContext(true)
+const SAFETY_BUTTON_CLEARANCE = 96
 
 export function Screen({
   children,
   scrollRef,
   contentRef,
   layout = 'form',
-  backgroundColor,
+  footer,
   bottomActions,
+  header,
+  backgroundColor,
+  clearSafetyButton,
 }: Readonly<{
   children: ReactNode
-  backgroundColor?: string
+  footer?: ReactNode
   bottomActions?: ReactNode
+  header?: ReactNode
+  backgroundColor?: string
   scrollRef?: Ref<ScrollView>
   contentRef?: Ref<View>
-  layout?: 'form' | 'dashboard'
+  layout?: 'form' | 'dashboard' | 'bleed'
+  clearSafetyButton?: boolean
 }>) {
+  const insets = useSafeAreaInsets()
   const includeBottomInset = useContext(ScreenBottomInsetContext)
   const localScroll = useRef<ScrollView>(null)
   useImperativeHandle(scrollRef, () => localScroll.current!, [])
@@ -57,15 +67,25 @@ export function Screen({
         })
     })
   }, [])
+  const hasFooter = Boolean(footer)
+  const [liftOwner] = useState(() => ({}))
+  useEffect(() => {
+    if (hasFooter) return () => setSafetyButtonLift(liftOwner, null)
+  }, [hasFooter, liftOwner])
   return (
-    <SafeAreaView
-      style={[styles.safeArea, backgroundColor && { backgroundColor }]}
-      edges={
-        includeBottomInset
-          ? ['top', 'right', 'bottom', 'left']
-          : ['top', 'right', 'left']
-      }
+    <View
+      style={[
+        styles.safeArea,
+        {
+          paddingTop: insets.top,
+          paddingRight: insets.right,
+          paddingBottom: includeBottomInset ? insets.bottom : 0,
+          paddingLeft: insets.left,
+        },
+        backgroundColor && { backgroundColor },
+      ]}
     >
+      {header}
       <TourScrollContext.Provider value={reveal}>
         <ScrollView
           ref={localScroll}
@@ -77,6 +97,8 @@ export function Screen({
           contentContainerStyle={[
             styles.content,
             layout === 'dashboard' && styles.dashboardContent,
+            layout === 'bleed' && styles.bleedContent,
+            clearSafetyButton && styles.clearSafetyButton,
           ]}
           keyboardShouldPersistTaps="handled"
         >
@@ -85,22 +107,29 @@ export function Screen({
             style={[
               styles.readingColumn,
               layout === 'dashboard' && styles.dashboardColumn,
+              layout === 'bleed' && styles.bleedColumn,
             ]}
           >
             {children}
           </View>
         </ScrollView>
       </TourScrollContext.Provider>
+      {footer ? (
+        <View
+          onLayout={(event) =>
+            setSafetyButtonLift(liftOwner, event.nativeEvent.layout.height)
+          }
+        >
+          {footer}
+        </View>
+      ) : null}
       {bottomActions}
-    </SafeAreaView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  safeArea: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1, minHeight: 0 },
   content: {
     flexGrow: 1,
@@ -108,18 +137,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.xxxl,
   },
-  readingColumn: {
-    alignSelf: 'center',
-    width: '100%',
-    maxWidth: 560,
-  },
+  readingColumn: { alignSelf: 'center', width: '100%', maxWidth: 560 },
   dashboardContent: {
     justifyContent: 'flex-start',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: 96,
+    paddingBottom: SAFETY_BUTTON_CLEARANCE,
   },
-  dashboardColumn: {
-    maxWidth: 560,
+  bleedContent: {
+    justifyContent: 'flex-start',
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: SAFETY_BUTTON_CLEARANCE,
   },
+  bleedColumn: { maxWidth: 760 },
+  clearSafetyButton: { paddingBottom: SAFETY_BUTTON_CLEARANCE },
+  dashboardColumn: { maxWidth: 560 },
 })

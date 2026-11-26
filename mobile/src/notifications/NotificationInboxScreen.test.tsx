@@ -64,17 +64,15 @@ const press = (label: string) =>
 it('filters the inbox to appointment updates and keeps access to the full inbox', async () => {
   await mount(
     fixtureApi({
-      list: jest
-        .fn()
-        .mockResolvedValue(
-          page([
-            notification({
-              kind: 'APPOINTMENT',
-              title: 'Lịch hẹn đã xác nhận',
-            }),
-            notification({ id: targetId, title: 'Nhắc viết nhật ký' }),
-          ]),
-        ),
+      list: jest.fn().mockResolvedValue(
+        page([
+          notification({
+            kind: 'APPOINTMENT',
+            title: 'Lịch hẹn đã xác nhận',
+          }),
+          notification({ id: targetId, title: 'Nhắc viết nhật ký' }),
+        ]),
+      ),
     }),
   )
   await screen.findByText('Lịch hẹn đã xác nhận')

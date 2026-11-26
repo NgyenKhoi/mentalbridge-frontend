@@ -17,6 +17,8 @@ import {
   parseCommunityCommentPage,
   parseCreateCommentRequest,
   parseUpdateCommentRequest,
+  parsePutReactionRequest,
+  parseCommunityPostReactionList,
 } from './community-validation'
 
 const post = {
@@ -562,5 +564,55 @@ describe('Community response validation', () => {
       parseUpdateCommentRequest({ content: 'Đã chỉnh sửa.' }),
     ).not.toBeNull()
     expect(parseUpdateCommentRequest({ content: ' '.repeat(3) })).toBeNull()
+  })
+})
+
+describe('parsePutReactionRequest', () => {
+  it('accepts the seven supportive reactions and nothing else', () => {
+    for (const reaction of [
+      'SUPPORT',
+      'RELATE',
+      'THANK_YOU',
+      'LIKE',
+      'EMPATHY',
+      'CHEER',
+      'GROWTH',
+    ])
+      expect(parsePutReactionRequest({ reaction })).toEqual({ reaction })
+    expect(parsePutReactionRequest({ reaction: 'ANGRY' })).toBeNull()
+  })
+})
+
+describe('parseCommunityPostReactionList', () => {
+  const reactor = {
+    communityProfileId: '10000000-0000-4000-8000-000000000002',
+    displayName: 'Minh An',
+    avatarPreset: null,
+    reaction: 'EMPATHY',
+    reactedAt: '2026-09-29T05:00:00Z',
+    self: false,
+  }
+
+  it('accepts a bounded reactor list and rejects malformed shapes', () => {
+    const list = { items: [reactor], count: 1 }
+    expect(parseCommunityPostReactionList(list)).toEqual(list)
+    expect(
+      parseCommunityPostReactionList({ items: [], count: 0 }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityPostReactionList({
+        items: [{ ...reactor, reaction: 'ANGRY' }],
+        count: 1,
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityPostReactionList({
+        items: [{ ...reactor, extra: true }],
+        count: 1,
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityPostReactionList({ items: [reactor], count: -1 }),
+    ).toBeNull()
   })
 })

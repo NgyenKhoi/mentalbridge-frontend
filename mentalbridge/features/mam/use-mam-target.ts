@@ -24,7 +24,7 @@ export type MamResolver = (
 ) => Promise<MamAnswer | null>
 
 // Elements and the page target register here from props. The dock host reads
-// them; with the flag off nothing listens, so registering costs nothing.
+// them; with no dock slot nothing listens, so registering costs nothing.
 const elements = new Map<Element, MamTarget>()
 const resolvers = new WeakMap<MamTarget, MamResolver>()
 let pageTarget: MamTarget | null = null

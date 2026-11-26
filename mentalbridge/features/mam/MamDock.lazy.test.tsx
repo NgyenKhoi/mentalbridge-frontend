@@ -50,7 +50,7 @@ describe('MamDock lazy host', () => {
     document.body.innerHTML = ''
   })
 
-  it('never loads the host without a USER layout slot (flag off)', async () => {
+  it('never loads the host without a USER layout slot (no dock slot)', async () => {
     await renderGate(false)
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(host.loads).toBe(0)

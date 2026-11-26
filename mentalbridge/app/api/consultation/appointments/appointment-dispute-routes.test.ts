@@ -5,8 +5,6 @@ import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
 const consultationMocks = vi.hoisted(() => ({
   participantAppointmentDispute: vi.fn(),
   openAppointmentDispute: vi.fn(),
-  appointmentDisputes: vi.fn(),
-  resolveAppointmentDispute: vi.fn(),
 }))
 const sessionMocks = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -23,8 +21,6 @@ vi.mock('@/lib/auth/session-service', () => ({
 }))
 
 import { POST as openUser } from './[appointmentId]/dispute/route'
-import { GET as listAdmin } from '../admin/appointment-disputes/route'
-import { POST as resolveAdmin } from '../admin/appointment-disputes/[disputeId]/resolve/route'
 
 const appointmentId = '10a7e5d8-7960-42fb-9706-e642f849b78f'
 const disputeId = '40a7e5d8-7960-42fb-9706-e642f849b78f'
@@ -84,14 +80,6 @@ describe('appointment dispute BFF routes', () => {
       data: dispute,
       etag: null,
     })
-    consultationMocks.appointmentDisputes.mockResolvedValue({
-      data: { items: [dispute], count: 1, generatedAt: '2099-09-27T04:10:00Z' },
-      etag: null,
-    })
-    consultationMocks.resolveAppointmentDispute.mockResolvedValue({
-      data: { ...dispute, status: 'RESOLVED', version: 1 },
-      etag: null,
-    })
   })
 
   it('forwards one exact metadata-only USER command and stable key', async () => {
@@ -131,41 +119,5 @@ describe('appointment dispute BFF routes', () => {
     )
     expect(response.status).toBe(400)
     expect(consultationMocks.openAppointmentDispute).not.toHaveBeenCalled()
-  })
-
-  it('keeps ADMIN listing and resolution on ADMIN-only handlers', async () => {
-    const listResponse = await listAdmin(
-      request(
-        '/api/consultation/admin/appointment-disputes?status=OPEN',
-        'GET',
-      ),
-    )
-    expect(listResponse.status).toBe(200)
-    expect(sessionMocks.ensureRole).toHaveBeenCalledWith(expect.anything(), [
-      'ADMIN',
-    ])
-
-    const resolution = {
-      outcome: 'RELEASE_USER_CREDIT',
-      reasonCode: 'TECHNICAL_FAILURE_CONFIRMED',
-    }
-    const response = await resolveAdmin(
-      request(
-        `/api/consultation/admin/appointment-disputes/${disputeId}/resolve`,
-        'POST',
-        resolution,
-        { 'Idempotency-Key': 'resolve-browser-key-001', 'If-Match': '"0"' },
-      ),
-      { params: Promise.resolve({ disputeId }) },
-    )
-    expect(response.status).toBe(200)
-    expect(consultationMocks.resolveAppointmentDispute).toHaveBeenCalledWith(
-      'access-token',
-      expect.any(String),
-      disputeId,
-      resolution,
-      '"0"',
-      'resolve-browser-key-001',
-    )
   })
 })

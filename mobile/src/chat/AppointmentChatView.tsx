@@ -23,6 +23,7 @@ import type { Appointment } from '@/appointments/appointment-contract'
 import { CrisisSupportOffsetContext } from '@/crisis-support/crisis-support-offset'
 import { useResourceFonts } from '@/resources/useResourceFonts'
 import { colors, radii, spacing } from '@/theme/tokens'
+import type { ChatMessage } from './chat-contract'
 import type { ChatState, PendingMessage } from './chat-session'
 import {
   chatCreditLabels,
@@ -54,6 +55,8 @@ export type AppointmentChatViewProps = Readonly<{
   onRetryConnection: () => void
   onLoadOlder: () => void
   onRetryMessage: (item: PendingMessage) => void
+  onDeleteMessage: (item: ChatMessage) => void
+  onReportMessage: (item: ChatMessage) => void
   onViewAppointment?: () => void
   onViewSummary?: () => void
   onBook?: () => void
@@ -320,16 +323,40 @@ export function AppointmentChatView({
                     ) : null}
                     <View style={[styles.bubble, own && styles.ownBubble]}>
                       <Text
-                        selectable
+                        selectable={item.state === 'VISIBLE'}
                         style={[styles.body, font, own && styles.white]}
                       >
-                        {item.content}
+                        {item.state === 'DELETED'
+                          ? 'Tin nhắn này đã được xóa.'
+                          : item.content}
                       </Text>
                     </View>
                     <Text style={[styles.time, font, own && styles.ownTime]}>
                       {chatTime(item.sentAt, timeZone)}
                       {own ? ' · Đã lưu' : ''}
                     </Text>
+                    {item.state === 'VISIBLE' ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          own ? 'Xóa tin nhắn của bạn' : 'Báo cáo tin nhắn'
+                        }
+                        onPress={() =>
+                          own
+                            ? props.onDeleteMessage(item)
+                            : props.onReportMessage(item)
+                        }
+                        style={{
+                          minHeight: 44,
+                          justifyContent: 'center',
+                          alignSelf: own ? 'flex-end' : 'flex-start',
+                        }}
+                      >
+                        <Text style={[styles.time, font]}>
+                          {own ? 'Xóa tin nhắn' : 'Báo cáo'}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 </View>
               </Fragment>

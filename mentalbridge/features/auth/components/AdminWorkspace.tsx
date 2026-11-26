@@ -9,18 +9,14 @@ import {
   Users,
   UserCheck,
   BookOpen,
+  BrainCircuit,
   ShieldCheck,
   Calendar,
-  Scale,
   FileText,
   BarChart3,
   CreditCard,
   Coins,
   ArrowLeftRight,
-  MessageSquareQuote,
-  Search,
-  Bell,
-  HelpCircle,
   User,
 } from 'lucide-react'
 
@@ -33,13 +29,12 @@ import AdminCommunityModerationSection from '@/features/community/components/Adm
 import AdminAuditLog from '@/features/audit/components/AdminAuditLog'
 import AdminOperationsDashboard from '@/features/dashboard/components/AdminOperationsDashboard'
 import AdminAppointmentMonitor from '@/features/appointments/components/AdminAppointmentMonitor'
-import AdminAppointmentDisputes from '@/features/appointments/components/AdminAppointmentDisputes'
 import AdminReportsSection from '@/features/reports/components/AdminReportsSection'
 import AdminPaymentsManager from '@/components/AdminPaymentsManager'
 import AdminPayoutsManager from '@/components/AdminPayoutsManager'
 import AdminCommercialReconciliationManager from '@/features/reconciliation/components/AdminCommercialReconciliationManager'
-import AdminFeedbackManager from '@/features/feedback/components/AdminFeedbackManager'
 import AdminRetentionGovernance from '@/features/retention/components/AdminRetentionGovernance'
+import AdminBenchmarkGovernance from '@/features/benchmarks/AdminBenchmarkGovernance'
 import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
 import type { Workspace } from '../model/workspace'
 
@@ -70,6 +65,11 @@ export const SECTIONS = {
     label: 'Tài nguyên tự chăm sóc',
     icon: BookOpen,
   },
+  benchmarks: {
+    label: 'Benchmark AI',
+    description: 'Quản trị bộ dữ liệu tổng hợp và báo cáo đánh giá AI.',
+    icon: BrainCircuit,
+  },
   moderation: {
     label: 'Kiểm duyệt Community',
     icon: ShieldCheck,
@@ -77,10 +77,6 @@ export const SECTIONS = {
   appointments: {
     label: 'Lịch hẹn',
     icon: Calendar,
-  },
-  disputes: {
-    label: 'Xem xét phiên tư vấn',
-    icon: Scale,
   },
   audit: {
     label: 'Nhật ký kiểm toán',
@@ -99,12 +95,6 @@ export const SECTIONS = {
   payouts: {
     label: 'Chi trả chuyên gia',
     icon: Coins,
-  },
-  feedback: {
-    label: 'Ý kiến & Phản hồi',
-    description:
-      'Thu thập, phân tích chỉ số hài lòng (CSAT/NPS) và điều phối xử lý ý kiến đóng góp từ Khách hàng và Chuyên gia y tế.',
-    icon: MessageSquareQuote,
   },
   reconciliation: {
     label: 'Đối soát thương mại',
@@ -139,12 +129,12 @@ function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
       return <AdminSpecialistReviewSection />
     case 'content':
       return <AdminContentSection />
+    case 'benchmarks':
+      return <AdminBenchmarkGovernance />
     case 'moderation':
       return <AdminCommunityModerationSection />
     case 'appointments':
       return <AdminAppointmentMonitor />
-    case 'disputes':
-      return <AdminAppointmentDisputes />
     case 'audit':
       return <AdminAuditLog />
     case 'reports':
@@ -153,8 +143,6 @@ function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
       return <AdminPaymentsManager />
     case 'payouts':
       return <AdminPayoutsManager />
-    case 'feedback':
-      return <AdminFeedbackManager />
     case 'reconciliation':
       return <AdminCommercialReconciliationManager />
   }
@@ -172,7 +160,6 @@ export default function AdminWorkspace({
   const sidebarRef = useRef<HTMLElement>(null)
   const wasMobileOpen = useRef(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -193,17 +180,6 @@ export default function AdminWorkspace({
       return nextValue
     })
   }
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        searchInputRef.current?.focus()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
 
   useEffect(() => {
     const handleResize = () => {
@@ -352,56 +328,13 @@ export default function AdminWorkspace({
                       : currentSectionLabel}
               </span>
             </div>
-            <div className="clinical-topbar-status-pill">
-              <span className="clinical-topbar-status-dot" aria-hidden="true" />
-              <span>Hệ thống ổn định • live 102.52s</span>
-            </div>
           </div>
 
           <div className="clinical-topbar-right">
-            <div className="clinical-search-wrapper">
-              <Search
-                size={15}
-                strokeWidth={1.75}
-                className="clinical-search-icon"
-              />
-              <input
-                ref={searchInputRef}
-                type="text"
-                className="clinical-search-input"
-                placeholder={
-                  section === 'accounts'
-                    ? 'Tìm kiếm tài khoản, email…'
-                    : section === 'specialists'
-                      ? 'Tìm kiếm chuyên gia, hồ sơ…'
-                      : 'Tìm kiếm hồ sơ, bệnh án…'
-                }
-                aria-label="Tìm kiếm trong hệ thống quản trị"
-              />
-              <kbd className="clinical-search-kbd">⌘K</kbd>
-            </div>
-
-            <Link
-              href="/admin/feedback"
-              className="clinical-topbar-btn"
-              aria-label="Ý kiến & Phản hồi"
-              title="Ý kiến & Phản hồi"
-            >
-              <Bell size={17} strokeWidth={1.75} />
-            </Link>
             <Link
               href="/admin/dashboard"
-              className="clinical-topbar-btn"
-              aria-label="Trợ giúp & hướng dẫn"
-              title="Trợ giúp & hướng dẫn"
-            >
-              <HelpCircle size={17} strokeWidth={1.75} />
-            </Link>
-            <Link
-              href="/admin/accounts"
               className="clinical-topbar-profile-badge"
-              aria-label="Hồ sơ quản trị"
-              title="Tài khoản quản trị"
+              title="Về Tổng quan"
             >
               <div className="clinical-profile-avatar">AD</div>
               <div className="clinical-profile-info">

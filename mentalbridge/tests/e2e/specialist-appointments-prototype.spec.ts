@@ -352,6 +352,8 @@ test('messages: API phases, acknowledged realtime send, check-in, responsive inb
               type: 'TEXT',
               content: `Tin nhắn thử nghiệm cho phiên ${index + 1} có tiếng Việt rõ ràng.`,
               sentAt: generatedAt,
+              state: 'VISIBLE',
+              deletedAt: null,
               schemaVersion: 1,
             },
           ],
@@ -478,6 +480,8 @@ test('messages: API phases, acknowledged realtime send, check-in, responsive inb
             type: 'TEXT',
             content: command.payload.content,
             sentAt: generatedAt,
+            state: 'VISIBLE',
+            deletedAt: null,
             schemaVersion: 1,
           }
           histories.get(message.conversationId)?.push(message)
@@ -764,12 +768,12 @@ test('clients: selected session, keyboard tabs, search recovery, revoked permiss
   await shot('clients-01-desktop')
   await root.getByRole('tab', { name: 'Chuẩn bị phiên' }).focus()
   await page.keyboard.press('End')
-  await expect(
-    root.getByRole('tab', { name: 'Phạm vi truy cập' }),
-  ).toBeFocused()
-  await expect(root.getByRole('tabpanel')).toContainText('Thời gian được xem:')
+  await expect(root.getByRole('tab', { name: 'Tổng kết phiên' })).toBeFocused()
+  await expect(root.getByRole('tab', { name: 'Phạm vi truy cập' })).toHaveCount(
+    0,
+  )
   await expect(root.getByRole('tabpanel')).not.toContainText(id(1))
-  await shot('clients-02-access-scope')
+  await shot('clients-02-summary-tab')
   await root
     .getByRole('textbox', { name: 'Tìm khách hàng' })
     .fill('không có tên này')
@@ -797,7 +801,6 @@ test('clients: selected session, keyboard tabs, search recovery, revoked permiss
   await expect(
     root.getByRole('tab', { name: 'Tổng kết phiên' }),
   ).toHaveAttribute('aria-selected', 'true')
-  await root.getByText('Tóm tắt sau phiên', { exact: true }).click()
   await expect(
     root.getByRole('button', { name: 'Tạo bản tóm tắt', exact: true }),
   ).toBeVisible()

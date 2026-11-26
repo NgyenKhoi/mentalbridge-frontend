@@ -18,6 +18,7 @@ const runtime = vi.hoisted(() => {
       values: Record<string, VmValue>
       fired: string[]
       complete: () => void
+      resize: ReturnType<typeof vi.fn>
     }>,
   }
 
@@ -49,6 +50,8 @@ const runtime = vi.hoisted(() => {
     'look_around',
     'scratch',
     'point',
+    'hop_down',
+    'wave',
   ]
 
   class Rive {
@@ -93,6 +96,7 @@ const runtime = vi.hoisted(() => {
         values: this.values,
         fired: this.fired,
         complete: () => this.assetWritesIdle(),
+        resize: this.resizeDrawingSurfaceToCanvas,
         load: () =>
           state.loadError
             ? (options.onLoadError as () => void)()
@@ -462,7 +466,7 @@ describe('MamCharacter', () => {
     const [first, second] = runtime.state.instances
     expect(first!.options.buffer).not.toBe(second!.options.buffer)
     expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch).toHaveBeenCalledWith('/mam/mam-v06.riv')
+    expect(fetch).toHaveBeenCalledWith('/mam/mam-v08.riv')
   })
 
   it('keeps the static pose when the asset download fails, and retries later', async () => {
@@ -573,6 +577,69 @@ describe('MamCharacter fallback reason', () => {
     render(<MamCharacter size={164} behavior="speaking" />)
     const instance = await loaded()
     expect(instance.values.behaviorState!.value).toBe('speaking')
+  })
+
+  it.each(['pilot', 'pilot_wave'] as const)(
+    'sets the host-set %s loop on the asset and restores it after a one-shot',
+    async (behavior) => {
+      render(<MamCharacter size={96} behavior={behavior} />)
+      const instance = await loaded()
+      expect(instance.values.behaviorState!.value).toBe(behavior)
+      act(() => instance.complete())
+      expect(instance.values.behaviorState!.value).toBe(behavior)
+    },
+  )
+
+  it.each(['hop_down', 'wave'] as const)(
+    'plays the %s one-shot once, then the asset returns to the host state',
+    async (kind) => {
+      const { rerender } = render(
+        <MamCharacter size={96} oneShot={{ kind, key: 1 }} />,
+      )
+      const instance = await loaded()
+      await waitFor(() => expect(instance.fired).toEqual(['playOnce']))
+      expect(instance.values.behaviorState!.value).toBe(kind)
+      rerender(
+        <MamCharacter size={96} oneShot={{ kind, key: 1 }} attention={0.2} />,
+      )
+      expect(instance.fired).toEqual(['playOnce'])
+      act(() => instance.complete())
+      expect(instance.values.behaviorState!.value).toBe('idle')
+    },
+  )
+
+  it('keeps every V1 one-shot working beside the v0.7 ids', async () => {
+    render(<MamCharacter size={96} oneShot={{ kind: 'point', key: 1 }} />)
+    const instance = await loaded()
+    await waitFor(() => expect(instance.fired).toEqual(['playOnce']))
+    expect(instance.values.behaviorState!.value).toBe('point')
+  })
+
+  it('cuts a pilot flight for reduced motion and refuses the hop', async () => {
+    reducedMotion.value = true
+    render(
+      <MamCharacter
+        size={96}
+        behavior="pilot"
+        oneShot={{ kind: 'hop_down', key: 1 }}
+      />,
+    )
+    const instance = await loaded()
+    expect(instance.fired).toEqual([])
+    expect(instance.values.reducedMotion!.value).toBe(true)
+  })
+
+  it('sizes the drawing buffer for the 1.7x flight only while oversampling', async () => {
+    const { rerender } = render(<MamCharacter size={96} />)
+    const instance = await loaded()
+    const resize = instance.resize
+    expect(resize).toHaveBeenLastCalledWith(window.devicePixelRatio || 1)
+    rerender(<MamCharacter size={96} oversample />)
+    expect(resize).toHaveBeenLastCalledWith(
+      (window.devicePixelRatio || 1) * 1.7,
+    )
+    rerender(<MamCharacter size={96} />)
+    expect(resize).toHaveBeenLastCalledWith(window.devicePixelRatio || 1)
   })
 
   it('reports nothing while the character renders', async () => {

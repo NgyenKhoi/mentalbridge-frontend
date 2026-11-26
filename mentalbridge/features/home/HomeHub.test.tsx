@@ -20,6 +20,23 @@ vi.mock('next/navigation', () => ({
 vi.mock('./browser-home-next-step', () => ({ getHomeNextStep: vi.fn() }))
 vi.mock('./home-destination', () => ({ homeDestination: vi.fn() }))
 vi.mock('./HomeScreeningNotice', () => ({ HomeScreeningNotice: () => null }))
+const review = vi.hoisted(() => ({ exists: true }))
+vi.mock('./HomeReviewEntry', async () => {
+  const { useEffect } = await import('react')
+  return {
+    HomeReviewEntry: ({
+      onResolved,
+    }: {
+      onResolved?: (exists: boolean) => void
+    }) => {
+      useEffect(() => onResolved?.(review.exists), [onResolved])
+      return review.exists ? <div>review-entry</div> : null
+    },
+  }
+})
+vi.mock('./HomeLookBackEntry', () => ({
+  HomeLookBackEntry: () => <div>look-back-entry</div>,
+}))
 vi.mock('./HomeGreeting', () => ({
   HomeGreeting: () => (
     <header data-testid="home-greeting">Chào buổi sáng</header>
@@ -84,6 +101,7 @@ vi.mock('@/features/emotion-check-in/PlanEmotionCheckIn', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks()
+  review.exists = true
   location.query = ''
   vi.mocked(homeDestination).mockResolvedValue({})
   vi.mocked(getHomeNextStep).mockResolvedValue(homeFirstUseFixture())
@@ -123,7 +141,7 @@ describe('HomeHub', () => {
 
   it('keeps the full emotion card and saved acknowledgement mounted while re-reading the next step', async () => {
     render(<HomeHub />)
-    await screen.findByRole('link', { name: 'Bắt đầu kiểm tra ban đầu' })
+    await screen.findByRole('link', { name: 'Bắt đầu bài sàng lọc' })
     const card = screen.getByRole('region', { name: 'Cảm xúc' })
     let finish!: (value: HomeNextStep) => void
     vi.mocked(getHomeNextStep).mockReturnValueOnce(
@@ -192,7 +210,7 @@ describe('HomeHub', () => {
       screen.getByRole('region', { name: 'Buổi hẹn sắp tới' }),
     ).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
-    await screen.findByRole('link', { name: 'Bắt đầu kiểm tra ban đầu' })
+    await screen.findByRole('link', { name: 'Bắt đầu bài sàng lọc' })
     expect(getHomeNextStep).toHaveBeenCalledTimes(2)
   })
 
@@ -239,9 +257,35 @@ describe('HomeHub', () => {
     },
   )
 
+  it('shows the review entry on the ordinary Home and hides it on the safety Home', async () => {
+    const ordinary = render(<HomeHub />)
+    await screen.findByRole('link', { name: 'Bắt đầu bài sàng lọc' })
+    expect(screen.getByText('review-entry')).toBeInTheDocument()
+    // The reassessment review wins; the journey entry never shows beside it.
+    expect(screen.queryByText('look-back-entry')).not.toBeInTheDocument()
+    ordinary.unmount()
+
+    vi.mocked(getHomeNextStep).mockResolvedValue(
+      homeNextStepFixture({
+        journey: homeJourneyFixture({ nextAction: 'REVIEW_SAFETY_SUPPORT' }),
+      }),
+    )
+    render(<HomeHub />)
+    await screen.findByRole('link', { name: 'Xem nơi hỗ trợ' })
+    expect(screen.queryByText('review-entry')).not.toBeInTheDocument()
+    expect(screen.queryByText('look-back-entry')).not.toBeInTheDocument()
+  })
+
+  it('shows the journey entry when there is no saved review', async () => {
+    review.exists = false
+    render(<HomeHub />)
+    expect(await screen.findByText('look-back-entry')).toBeInTheDocument()
+    expect(screen.queryByText('review-entry')).not.toBeInTheDocument()
+  })
+
   it('reads fresh owner state after leaving and returning Home', async () => {
     const view = render(<HomeHub />)
-    await screen.findByRole('link', { name: 'Bắt đầu kiểm tra ban đầu' })
+    await screen.findByRole('link', { name: 'Bắt đầu bài sàng lọc' })
     view.unmount()
     vi.mocked(getHomeNextStep).mockResolvedValue(
       homeNextStepFixture({ plan: homePlanFixture('TODAY_DONE') }),

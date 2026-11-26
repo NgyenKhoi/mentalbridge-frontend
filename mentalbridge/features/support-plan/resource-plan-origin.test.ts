@@ -1,17 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@/lib/api/api-error'
 import {
   emotionOccurrenceFixture,
   nativeSupportPlanFixture,
 } from './testing/native-support-plan-fixture'
 
-const api = vi.hoisted(() => ({ current: vi.fn(), occurrences: vi.fn() }))
+const api = vi.hoisted(() => ({
+  current: vi.fn(),
+  occurrences: vi.fn(),
+  reconcile: vi.fn(),
+}))
 vi.mock('./api/browser-support-plan-actions', () => ({
   getCurrentSupportPlanActions: api.current,
   getSupportPlanActionOccurrences: api.occurrences,
+  reconcileResourceOccurrence: api.reconcile,
 }))
 import {
   hasContentCompletion,
+  reconcileTodayResourceCompletion,
   resolveResourcePlanOrigin,
+  resolveTodayResourceOccurrence,
 } from './resource-plan-origin'
 
 const resourceId = '70000000-0000-4000-8000-000000000670'
@@ -47,9 +55,115 @@ describe('Resource plan completion context', () => {
     api.current.mockResolvedValue(plan)
     api.occurrences.mockResolvedValue({
       supportPlanId: plan.supportPlanId,
+      supportPlanStatus: 'ACTIVE',
       representationMode: 'NATIVE_V3',
       occurrences: [occurrence],
     })
+  })
+
+  it('reconciles one scheduled exact-version resource without a plan origin', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+    try {
+      const recorded = {
+        ...occurrence,
+        state: 'COMPLETED' as const,
+        completionEvidence: {
+          kind: 'RESOURCE_COMPLETION' as const,
+          ownerDomain: 'CONTENT' as const,
+          factId: `${resourceId}:${origin.localDate}`,
+          factRevision: '4',
+          occurredAt: now.toISOString(),
+          verifiedAt: now.toISOString(),
+        },
+      }
+      api.reconcile.mockResolvedValue(recorded)
+      await expect(
+        reconcileTodayResourceCompletion(resourceId, '4'),
+      ).resolves.toBe('recorded')
+      expect(api.reconcile).toHaveBeenCalledExactlyOnceWith(
+        occurrence.occurrenceId,
+        occurrence.version,
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not reconcile when the resource, version or state does not match', async () => {
+    await expect(
+      resolveTodayResourceOccurrence(resourceId, '5', now),
+    ).resolves.toBeNull()
+    await expect(
+      resolveTodayResourceOccurrence('another-resource', '4', now),
+    ).resolves.toBeNull()
+    api.occurrences.mockResolvedValueOnce({
+      supportPlanId: planFixture().supportPlanId,
+      supportPlanStatus: 'ACTIVE',
+      representationMode: 'NATIVE_V3',
+      occurrences: [{ ...occurrence, state: 'COMPLETED' }],
+    })
+    await expect(
+      resolveTodayResourceOccurrence(resourceId, '4', now),
+    ).resolves.toBeNull()
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+    try {
+      await expect(
+        reconcileTodayResourceCompletion('another-resource', '4'),
+      ).resolves.toBe('not-applicable')
+      expect(api.reconcile).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([
+    [409, 'not-recorded'],
+    [412, 'stale'],
+    [503, 'unavailable'],
+  ])('keeps the Content save separate from Care %i', async (status, result) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+    try {
+      api.reconcile.mockRejectedValue(
+        new ApiError({
+          message: 'Care did not reconcile',
+          code: 'CARE_ERROR',
+          status,
+        }),
+      )
+      await expect(
+        reconcileTodayResourceCompletion(resourceId, '4'),
+      ).resolves.toBe(result)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('uses the pinned schedule date when it differs from the plan cycle date', async () => {
+    const plan = planFixture()
+    plan.cycle = {
+      policyVersion: 'support-plan-cycle-v1',
+      lengthDays: 14,
+      timezone: 'Asia/Ho_Chi_Minh',
+      cycleNumber: 1,
+      startedOn: '2026-10-13',
+      reviewDueOn: '2026-10-26',
+      currentDay: 1,
+      pausedDays: 0,
+      state: 'IN_PROGRESS',
+    }
+    plan.focuses[0].actions[0].schedules[0].timezone = 'America/Los_Angeles'
+    api.current.mockResolvedValue(plan)
+    await expect(
+      resolveTodayResourceOccurrence(
+        resourceId,
+        '4',
+        new Date('2026-10-14T02:00:00Z'),
+      ),
+    ).resolves.toEqual(occurrence)
+    expect(api.occurrences).toHaveBeenCalledWith('2026-10-13', '2026-10-13')
   })
 
   it('resolves only the owned matching RESOURCE, pinned version and occurrence', async () => {

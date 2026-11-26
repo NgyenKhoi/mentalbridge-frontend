@@ -5,6 +5,7 @@ import {
   isCommunityEtag,
   parseCommunityFeedPage,
   parseCommunityProfile,
+  parseCommunityAvatars,
   parseCommunityPostDetail,
   parseCommunityProblem,
   parseOwnerVersion,
@@ -17,6 +18,7 @@ import {
   parseModerationCases,
   parseCommunityOperationsSummary,
   parseCommunityReaction,
+  parseCommunityPostReactionList,
   type CommunityFeedPage,
   type CommunityProfile,
   type CommunityPostDetail,
@@ -38,6 +40,7 @@ import {
   type CreateModerationActionRequest,
   type CommunityOperationsSummary,
   type CommunityReaction,
+  type CommunityPostReactionList,
   type PutReactionRequest,
 } from './community-validation'
 
@@ -288,6 +291,20 @@ export const communityClient = {
       )
     }
     return { post: response.data, version }
+  },
+  async avatars(
+    accessToken: string,
+    accountIds: string,
+    correlationId: string,
+  ) {
+    return (
+      await request(
+        `/api/v1/community/avatars?accountIds=${encodeURIComponent(accountIds)}`,
+        accessToken,
+        correlationId,
+        parseCommunityAvatars,
+      )
+    ).data
   },
   async topics(accessToken: string, correlationId: string) {
     return (
@@ -545,6 +562,16 @@ export const communityClient = {
         correlationId,
         parseCommunityReaction,
         { method: 'PUT', body: input },
+      )
+    ).data
+  },
+  async reactions(accessToken: string, postId: string, correlationId: string) {
+    return (
+      await request<CommunityPostReactionList>(
+        `/api/v1/community/posts/${encodeURIComponent(postId)}/reactions`,
+        accessToken,
+        correlationId,
+        parseCommunityPostReactionList,
       )
     ).data
   },

@@ -1,0 +1,57 @@
+/*
+ * The welcome plane and its cloud trail (MB-894). All of it sits inside the dock's flight space,
+ * above the page, and never takes a pointer or focus: the click that skips the scene still reaches
+ * what is under the plane. Only transform and opacity animate.
+ */
+.plane,
+.groundBlob,
+.trail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.trail {
+  width: 0;
+  height: 0;
+}
+
+.groundBlob {
+  border-radius: 50%;
+  background: #2f5a53; /* Mầm's ink in the rig */
+}
+
+.puff {
+  position: absolute;
+  border-radius: 50%;
+  /* A soft green-cream with a clear edge: pure white vanishes on the white cards. */
+  background: #e7efe1;
+  border: 1.5px solid rgba(62, 107, 100, 0.3);
+  pointer-events: none;
+}
+
+/* Two blades half a turn apart: a 120 ms scaleY flicker reads as a spinning propeller. */
+.blade {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mam-prop 120ms linear infinite;
+}
+
+.bladeLate {
+  animation-delay: -60ms;
+}
+
+@keyframes mam-prop {
+  50% {
+    transform: scaleY(0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The scene never starts under reduced motion; this keeps a stray render still. */
+  .blade {
+    animation: none;
+  }
+}

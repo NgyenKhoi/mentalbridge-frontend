@@ -130,7 +130,7 @@ describe('AppointmentDisputePanel', () => {
       />,
     )
     expect(
-      await screen.findByText('Đã trả lại lượt tư vấn'),
+      await screen.findByText('Đã trả lại buổi tư vấn'),
     ).toBeInTheDocument()
     await waitFor(() => expect(client.openDispute).not.toHaveBeenCalled())
     expect(

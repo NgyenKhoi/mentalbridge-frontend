@@ -1,5 +1,5 @@
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import type { ComponentProps } from 'react'
 import type SupportPlanWorkspace from '@/features/support-plan/workspace/SupportPlanWorkspace'
 vi.mock('@/features/support-plan/workspace/SupportPlanWorkspace', () => ({
@@ -22,13 +22,12 @@ async function rawPropsFor(query: Record<string, string | string[]>) {
   )
   return JSON.parse(screen.getByTestId('workspace').textContent ?? '{}')
 }
-// The flag parity has its own test below; the route cases look at the rest.
+// Every path hands Mầm on; the route cases below look at the rest.
 async function propsFor(query: Record<string, string | string[]>) {
   const { mamEnabled, ...rest } = await rawPropsFor(query)
-  expect(mamEnabled).toBe(false)
+  expect(mamEnabled).toBe(true)
   return rest
 }
-afterEach(() => vi.unstubAllEnvs())
 describe('SupportPlan return route discrimination', () => {
   it('passes Journal origin separately and never as an Emotion origin', async () => {
     expect(
@@ -102,14 +101,7 @@ describe('SupportPlan return route discrimination', () => {
     { source: 'resource', ...fields },
     { source: 'journal', ...fields },
     { source: 'unknown', ...fields },
-  ])('hands the server flag to every workspace path %j', async (query) => {
-    vi.stubEnv('MAM_WEB_ENABLED', 'true')
+  ])('turns Mầm on for every workspace path %j', async (query) => {
     expect((await rawPropsFor(query)).mamEnabled).toBe(true)
-    cleanup()
-    vi.stubEnv('MAM_WEB_ENABLED', 'false')
-    expect((await rawPropsFor(query)).mamEnabled).toBe(false)
-    cleanup()
-    vi.stubEnv('MAM_WEB_ENABLED', undefined)
-    expect((await rawPropsFor(query)).mamEnabled).toBe(false)
   })
 })

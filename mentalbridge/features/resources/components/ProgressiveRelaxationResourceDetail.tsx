@@ -346,10 +346,6 @@ export function ProgressiveRelaxationResourceDetail({
               onClick={togglePlay}
             >
               <source
-                src="/videos/thu-gian-co-tien-trien-pmr.mp4"
-                type="video/mp4"
-              />
-              <source
                 src="/videos/thu-gian-co-tien-trien-pmr-720p.mp4"
                 type="video/mp4"
               />

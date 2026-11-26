@@ -70,7 +70,7 @@ type FormState = Readonly<{
 type Filter = 'ALL' | 'AVAILABLE' | 'WITHDRAWN'
 const READINESS_LABELS = {
   AVAILABLE: 'Có thể đặt',
-  STARTED: 'Đã bắt đầu',
+  STARTED: 'Đã qua',
   WITHDRAWN: 'Đã rút',
   VIDEO_DISABLED: 'Video đang tắt',
 } as const
@@ -116,6 +116,12 @@ function friendlyError(error: unknown, reloaded = false) {
     }
   }
   return 'Chưa thể kết nối để hoàn tất yêu cầu. Dữ liệu bạn nhập vẫn được giữ lại. Hãy thử lại.'
+}
+
+// Vietnamese label from the UTC offset; never show the raw IANA name.
+function timezoneLabel(timezone: string, instant: string) {
+  const offset = timezoneOffset(timezone, Date.parse(instant)) ?? 'GMT'
+  return offset === 'GMT+7' ? 'Giờ Việt Nam (GMT+7)' : offset
 }
 
 function slotDate(slot: AvailabilitySlot) {
@@ -273,6 +279,13 @@ export default function SpecialistAvailabilityManager() {
         .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt)),
     [slots, filter],
   )
+  // Slots that already started sit after the upcoming ones, newest first.
+  const upcomingSlots = visibleSlots.filter(
+    (slot) => slot.readiness !== 'STARTED',
+  )
+  const pastSlots = visibleSlots
+    .filter((slot) => slot.readiness === 'STARTED')
+    .reverse()
 
   const selection = useMemo(() => {
     if (!form.date || !form.startTime)
@@ -490,6 +503,78 @@ export default function SpecialistAvailabilityManager() {
       return 'Giờ không tồn tại trong múi giờ này'
     }
   }
+
+  const renderSlot = (slot: AvailabilitySlot) => (
+    <li
+      key={slot.id}
+      id={`availability-slot-${slot.id}`}
+      tabIndex={-1}
+      className={styles.slot}
+      data-withdrawn={slot.status === 'WITHDRAWN'}
+      data-highlighted={slot.id === highlighted}
+    >
+      <div className={styles.dateTile}>
+        <small>THÁNG {slotDate(slot).slice(5, 7)}</small>
+        <strong>{slotDate(slot).slice(-2)}</strong>
+        <span>{formatDate(slotDate(slot), { weekday: 'short' })}</span>
+      </div>
+      <div className={styles.slotDetails}>
+        <div className={styles.slotTitle}>
+          <h3>{slotRange(slot)}</h3>
+          <span className={styles.readiness} data-readiness={slot.readiness}>
+            {slot.readiness === 'AVAILABLE' ? (
+              <span className={styles.statusDot} />
+            ) : slot.readiness === 'WITHDRAWN' ? (
+              <CalendarX2 size={12} />
+            ) : (
+              <Clock3 size={12} />
+            )}
+            {READINESS_LABELS[slot.readiness]}
+          </span>
+        </div>
+        <p>
+          {formatDate(slotDate(slot), {
+            weekday: 'long',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          })}
+        </p>
+        <div className={styles.slotMeta}>
+          <span>
+            {slot.modality === 'IN_APP_CHAT' ? (
+              <MessageSquare size={13} />
+            ) : (
+              <Video size={13} />
+            )}
+            {slot.modality === 'IN_APP_CHAT'
+              ? 'Chat trong ứng dụng'
+              : 'Video trong ứng dụng'}
+          </span>
+          <span>
+            <Clock3 size={13} />
+            60 phút
+          </span>
+        </div>
+        <small>{timezoneLabel(slot.timezone, slot.startAt)}</small>
+      </div>
+      {slot.status === 'ACTIVE' && slot.readiness !== 'STARTED' && (
+        <button
+          type="button"
+          className={styles.withdrawButton}
+          disabled={!!pending || !loaded}
+          onClick={() => {
+            setWithdrawTarget(slot)
+            setWithdrawOpen(true)
+            setWithdrawError('')
+          }}
+        >
+          <Trash2 size={15} />
+          Rút khung giờ
+        </button>
+      )}
+    </li>
+  )
 
   return (
     <section
@@ -1048,85 +1133,19 @@ export default function SpecialistAvailabilityManager() {
                 </button>
               </div>
             ) : (
-              <ul className={styles.slots}>
-                {visibleSlots.map((slot) => (
-                  <li
-                    key={slot.id}
-                    id={`availability-slot-${slot.id}`}
-                    tabIndex={-1}
-                    className={styles.slot}
-                    data-withdrawn={slot.status === 'WITHDRAWN'}
-                    data-highlighted={slot.id === highlighted}
-                  >
-                    <div className={styles.dateTile}>
-                      <small>THÁNG {slotDate(slot).slice(5, 7)}</small>
-                      <strong>{slotDate(slot).slice(-2)}</strong>
-                      <span>
-                        {formatDate(slotDate(slot), { weekday: 'short' })}
-                      </span>
-                    </div>
-                    <div className={styles.slotDetails}>
-                      <div className={styles.slotTitle}>
-                        <h3>{slotRange(slot)}</h3>
-                        <span
-                          className={styles.readiness}
-                          data-readiness={slot.readiness}
-                        >
-                          {slot.readiness === 'AVAILABLE' ? (
-                            <span className={styles.statusDot} />
-                          ) : slot.readiness === 'WITHDRAWN' ? (
-                            <CalendarX2 size={12} />
-                          ) : (
-                            <Clock3 size={12} />
-                          )}
-                          {READINESS_LABELS[slot.readiness]}
-                        </span>
-                      </div>
-                      <p>
-                        {formatDate(slotDate(slot), {
-                          weekday: 'long',
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                        })}
-                      </p>
-                      <div className={styles.slotMeta}>
-                        <span>
-                          {slot.modality === 'IN_APP_CHAT' ? (
-                            <MessageSquare size={13} />
-                          ) : (
-                            <Video size={13} />
-                          )}
-                          {slot.modality === 'IN_APP_CHAT'
-                            ? 'Chat trong ứng dụng'
-                            : 'Video trong ứng dụng'}
-                        </span>
-                        <span>
-                          <Clock3 size={13} />
-                          60 phút
-                        </span>
-                      </div>
-                      <small>{slot.timezone}</small>
-                    </div>
-                    {slot.status === 'ACTIVE' &&
-                      slot.readiness !== 'STARTED' && (
-                        <button
-                          type="button"
-                          className={styles.withdrawButton}
-                          disabled={!!pending || !loaded}
-                          onClick={() => {
-                            setWithdrawTarget(slot)
-                            setWithdrawOpen(true)
-                            setWithdrawError('')
-                          }}
-                        >
-                          <Trash2 size={15} />
-                          Rút khung giờ
-                        </button>
-                      )}
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className={styles.slots}>
+                  {upcomingSlots.map(renderSlot)}
+                </ul>
+                {pastSlots.length > 0 && (
+                  <details className={styles.pastSlots}>
+                    <summary>Đã qua ({pastSlots.length})</summary>
+                    <ul className={styles.slots}>
+                      {pastSlots.map(renderSlot)}
+                    </ul>
+                  </details>
+                )}
+              </>
             )}
             <footer className={styles.listFooter}>
               <span>
@@ -1204,7 +1223,11 @@ export default function SpecialistAvailabilityManager() {
                   })}
                 </span>
                 <small>
-                  {withdrawTarget.timezone} ·{' '}
+                  {timezoneLabel(
+                    withdrawTarget.timezone,
+                    withdrawTarget.startAt,
+                  )}{' '}
+                  ·{' '}
                   {withdrawTarget.modality === 'IN_APP_CHAT' ? 'Chat' : 'Video'}
                 </small>
               </div>

@@ -1,10 +1,21 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
 import userEvent from '@testing-library/user-event'
-import { ApiError } from '@/lib/api/api-error'
+import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
 const profileApi = vi.hoisted(() => ({ getCareProfile: vi.fn() }))
+vi.mock('@/features/notifications/api/browser-notifications', () => ({
+  getNotifications: vi.fn().mockResolvedValue({
+    items: [],
+    nextCursor: null,
+    hasMore: false,
+    unreadCount: 0,
+  }),
+  markAllNotificationsRead: vi.fn(),
+  markNotificationRead: vi.fn(),
+}))
 vi.mock('next/navigation', () => ({ usePathname: () => navigation.pathname }))
 vi.mock('@/features/assessment/api/browser-care', () => ({
   getCareProfile: profileApi.getCareProfile,
@@ -17,7 +28,7 @@ vi.mock('@/features/auth/components/SessionActions', () => ({
   }: {
     displayName: string
     accountLabel: string
-    avatar: string
+    avatar: ReactNode
   }) => (
     <div data-testid="sidebar-account">
       Phiên người dùng <span>{displayName}</span> <span>{accountLabel}</span>{' '}
@@ -33,12 +44,39 @@ vi.mock('@/features/resources/components/ResourceNavBadge', () => ({
   default: () => null,
 }))
 
+import { mockServer } from '@/tests/mocks/server'
 import AuthenticatedShell from './AuthenticatedShell'
 
 describe('AuthenticatedShell', () => {
   beforeEach(() => {
     navigation.pathname = '/dashboard'
     profileApi.getCareProfile.mockReset().mockReturnValue(new Promise(() => {}))
+  })
+
+  it('offers the 14-day look-back in the sidebar', () => {
+    navigation.pathname = '/nhin-lai'
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    const link = screen.getByRole('link', { name: 'Nhìn lại' })
+    expect(link).toHaveAttribute('href', '/nhin-lai')
+    expect(link).toHaveClass('active')
+  })
+
+  it('shows the specialist search only on the specialist directory', () => {
+    navigation.pathname = '/dashboard'
+    const { rerender } = render(
+      <AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>,
+    )
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    expect(screen.queryByText('Không gian cá nhân')).not.toBeInTheDocument()
+    expect(screen.queryByText('⌘K')).not.toBeInTheDocument()
+
+    navigation.pathname = '/specialists'
+    rerender(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    expect(
+      screen.getByRole('searchbox', {
+        name: 'Tìm chuyên gia theo tên hoặc chuyên môn',
+      }),
+    ).toBeVisible()
   })
 
   it('shows the real profile name and initials in the sidebar and header', async () => {
@@ -55,14 +93,48 @@ describe('AuthenticatedShell', () => {
     ).toHaveTextContent('MA')
   })
 
-  it('invites an account without a profile to add their own name', async () => {
-    profileApi.getCareProfile.mockRejectedValue(
-      new ApiError({
-        message: 'Missing profile',
-        code: 'PROFILE_NOT_FOUND',
-        status: 404,
-      }),
+  it('shows the community photo in the header and sidebar when there is one, initials otherwise', async () => {
+    profileApi.getCareProfile.mockResolvedValue({
+      displayName: 'Nguyễn Minh An',
+    })
+    mockServer.use(
+      http.get('/api/community/profile', () =>
+        HttpResponse.json({
+          communityProfileId: '11111111-1111-4111-8111-111111111111',
+          displayName: 'Minh An',
+          avatarPreset: null,
+          avatarImage: {
+            mediaId: '22222222-2222-4222-8222-222222222222',
+            url: 'https://cdn.example.test/avatar.webp',
+            width: 96,
+            height: 96,
+          },
+          status: 'ACTIVE',
+          version: 1,
+          createdAt: '2026-09-20T08:00:00Z',
+          updatedAt: '2026-09-20T08:00:00Z',
+        }),
+      ),
     )
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+
+    const link = await screen.findByRole('link', {
+      name: 'Hồ sơ Nguyễn Minh An',
+    })
+    await waitFor(() =>
+      expect(link.querySelector('img')).toHaveAttribute(
+        'src',
+        'https://cdn.example.test/avatar.webp',
+      ),
+    )
+    expect(link).not.toHaveTextContent('MA')
+    expect(
+      screen.getByTestId('sidebar-account').querySelector('img'),
+    ).toBeInTheDocument()
+  })
+
+  it('invites an account without a profile to add their own name', async () => {
+    profileApi.getCareProfile.mockResolvedValue(null)
     render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
     const account = within(screen.getByTestId('sidebar-account'))
     expect(await account.findByText('Hoàn thiện hồ sơ')).toBeVisible()
@@ -121,13 +193,13 @@ describe('AuthenticatedShell', () => {
       screen.getByRole('navigation', { name: 'Điều hướng chính' }),
     )
     expect(
-      navigationMenu.getByRole('link', { name: 'AI Companion' }),
+      navigationMenu.getByRole('link', { name: 'Trò chuyện với Mầm' }),
     ).toHaveAttribute('href', '/ai-companion')
     expect(
       navigationMenu.getByRole('link', { name: 'Tin nhắn' }),
     ).toHaveAttribute('href', '/messages')
     expect(
-      within(screen.getByRole('banner')).getByText('AI Companion'),
+      within(screen.getByRole('banner')).getByText('Trò chuyện với Mầm'),
     ).toBeVisible()
   })
 
@@ -140,8 +212,8 @@ describe('AuthenticatedShell', () => {
 
     const topbar = screen.getByRole('banner')
     expect(
-      within(topbar).getByRole('link', { name: 'Thông báo' }),
-    ).toHaveAttribute('href', '/notifications')
+      within(topbar).getByRole('button', { name: 'Thông báo' }),
+    ).toBeInTheDocument()
     expect(within(topbar).getByRole('link', { name: /Hồ sơ/ })).toHaveAttribute(
       'href',
       '/profile',

@@ -77,6 +77,8 @@ type Props = Readonly<{
   onRate: (item: PlannedOccurrence, value: Helpfulness, reuse: boolean) => void
   onBarrier: (item: PlannedOccurrence, value: Barrier, reuse: boolean) => void
   onResume: () => void
+  /** The current cycle's reassessment is done, so the review is a choice of next rhythm. */
+  reassessed?: boolean
   onOpenReview: () => void
   onOpenPlan: () => void
 }>
@@ -199,6 +201,9 @@ export function statusLine(item: TodayRow, timezone: string) {
         .filter(Boolean)
         .join(' · ')
     case 'cancelled':
+      // Review-due gap rows are paused, never cancelled or missed, in the user's eyes.
+      if (occurrence.stateReason === 'REVIEW_DUE')
+        return stateReasonLine('REVIEW_DUE')
       return ['Đã hủy', stateReasonLine(occurrence.stateReason)]
         .filter(Boolean)
         .join(' · ')
@@ -242,6 +247,7 @@ export default function TodayPanel({
   onRate,
   onBarrier,
   onResume,
+  reassessed = false,
   onOpenReview,
   onOpenPlan,
 }: Props) {
@@ -321,12 +327,12 @@ export default function TodayPanel({
         </section>
       )}
 
-      {focus.kind === 'REVIEW_DUE' && (
+      {focus.kind === 'REVIEW_DUE' && reassessed && (
         <section className="mbw-tile mbw-next" aria-labelledby="mbw-next-title">
-          <h2 id="mbw-next-title">Đến lúc cùng xem lại kế hoạch</h2>
+          <h2 id="mbw-next-title">Đến lúc chọn nhịp tiếp theo</h2>
           <p>
-            Bạn đã đi qua 14 ngày. Cùng nhìn lại những gì đã ghi nhận rồi chọn
-            cách đi tiếp. Kế hoạch không đổi cho đến khi bạn chọn.
+            Bạn đã làm bài đánh giá lại. Xem kết quả cùng kế hoạch rồi chọn nhịp
+            cho 14 ngày tới.
           </p>
           <div className="mbw-actions">
             <button
@@ -334,12 +340,35 @@ export default function TodayPanel({
               className="mbw-primary"
               onClick={onOpenReview}
             >
-              Xem lại kế hoạch
+              Chọn nhịp tiếp theo
               <ArrowRight size={18} aria-hidden="true" />
             </button>
-            <Link className="mbw-secondary" href={REASSESSMENT_HREF}>
-              Làm bài kiểm tra lại
+            <Link className="mbw-secondary" href="/nhin-lai">
+              Xem nhìn lại
             </Link>
+          </div>
+        </section>
+      )}
+
+      {focus.kind === 'REVIEW_DUE' && !reassessed && (
+        <section className="mbw-tile mbw-next" aria-labelledby="mbw-next-title">
+          <h2 id="mbw-next-title">Đến lúc cùng xem lại kế hoạch</h2>
+          <p>
+            Bạn đã đi qua 14 ngày nên các hoạt động đang tạm dừng chờ đánh giá
+            lại. Kế hoạch không đổi cho đến khi bạn chọn.
+          </p>
+          <div className="mbw-actions">
+            <Link className="mbw-primary" href={REASSESSMENT_HREF}>
+              Làm bài đánh giá lại để tiếp tục
+              <ArrowRight size={18} aria-hidden="true" />
+            </Link>
+            <button
+              type="button"
+              className="mbw-secondary"
+              onClick={onOpenReview}
+            >
+              Xem lại kế hoạch
+            </button>
           </div>
         </section>
       )}

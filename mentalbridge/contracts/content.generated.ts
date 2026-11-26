@@ -512,6 +512,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/resources/current-versions:resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve current Content-owned resource versions for Care in one bounded batch
+         * @description Care forwards the authenticated USER bearer credential and correlation ID before its exact-version eligibility check. Results preserve request order. A version is metadata only and never implies eligibility; DRAFT and ARCHIVED rows still return their current version so the exact resolver decides publication status. contentVersion is null only for an ID with no resource row. Dependency uncertainty is HTTP 503 with no partial result.
+         */
+        post: operations["resolveResourceCurrentVersions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/safety-directory/admin/entries": {
         parameters: {
             query?: never;
@@ -640,6 +660,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/notifications/{notificationId}/live-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Revalidate one currently eligible specialist inbox notification
+         * @description Realtime forwards the socket's existing Identity bearer. Only exact SPECIALIST role is admitted; the owner comes exclusively from verified sub, never from recipient input. The row must be owned by that SPECIALIST, APPOINTMENT kind, CONSULTATION_APPOINTMENT_V1 source, DELIVERED, undeleted and unexpired, with current master, in-app and appointment-group preferences enabled. Absent, foreign or suppressed rows uniformly return 404 NOTIFICATION_NOT_FOUND. Eligibility is authoritative at the owner query; subsequent concurrent changes are reconciled through REST. This read supplies no socket receipt or replay.
+         */
+        get: operations["getNotificationLiveEligibility"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -746,12 +786,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        NotificationLiveEligibility: {
+            /** Format: uuid */
+            notificationId: string;
+        };
         /** @enum {string} */
-        NotificationKind: "REMINDER" | "MESSAGE" | "APPOINTMENT" | "SYSTEM_RESOURCE" | "ASSESSMENT_REASSESSMENT" | "STREAK_MILESTONE" | "JOURNAL_REMINDER" | "EMOTION_CHECKIN_REMINDER" | "JOURNAL_STREAK_MILESTONE" | "EMOTION_STREAK_MILESTONE" | "COMMUNITY_COMMENT" | "COMMUNITY_REPLY" | "COMMUNITY_REACTION" | "COMMUNITY_MESSAGE" | "COMMUNITY_REQUEST" | "COMMUNITY_INVITATION" | "ASSESSMENT_RESULT_AVAILABLE" | "SUPPORT_GUIDE_AVAILABLE" | "ACCOUNT_STATUS";
+        NotificationKind: "REMINDER" | "MESSAGE" | "APPOINTMENT" | "SYSTEM_RESOURCE" | "ASSESSMENT_REASSESSMENT" | "STREAK_MILESTONE" | "JOURNAL_REMINDER" | "EMOTION_CHECKIN_REMINDER" | "JOURNAL_STREAK_MILESTONE" | "EMOTION_STREAK_MILESTONE" | "COMMUNITY_COMMENT" | "COMMUNITY_REPLY" | "COMMUNITY_REACTION" | "COMMUNITY_MESSAGE" | "COMMUNITY_REQUEST" | "COMMUNITY_INVITATION" | "ASSESSMENT_RESULT_AVAILABLE" | "SUPPORT_GUIDE_AVAILABLE" | "ACCOUNT_STATUS" | "SUPPORT_PLAN_DAILY_REMINDER";
         /** @enum {string} */
         NotificationPriority: "LOW" | "NORMAL" | "HIGH";
         /** @enum {string} */
-        NotificationActionType: "OPEN_JOURNAL" | "OPEN_MESSAGES" | "OPEN_APPOINTMENTS" | "OPEN_APPOINTMENT" | "OPEN_SPECIALIST_APPOINTMENTS" | "OPEN_RESOURCES" | "OPEN_ASSESSMENTS" | "OPEN_RESOURCE" | "OPEN_COMMUNITY_POST" | "OPEN_COMMUNITY_CONVERSATION" | "OPEN_COMMUNITY_REQUEST" | "OPEN_COMMUNITY_INVITATION" | "OPEN_SUPPORT_GUIDE";
+        NotificationActionType: "OPEN_JOURNAL" | "OPEN_MESSAGES" | "OPEN_APPOINTMENTS" | "OPEN_APPOINTMENT" | "OPEN_SPECIALIST_APPOINTMENTS" | "OPEN_RESOURCES" | "OPEN_ASSESSMENTS" | "OPEN_RESOURCE" | "OPEN_COMMUNITY_POST" | "OPEN_COMMUNITY_CONVERSATION" | "OPEN_COMMUNITY_REQUEST" | "OPEN_COMMUNITY_INVITATION" | "OPEN_SUPPORT_GUIDE" | "OPEN_SUPPORT_PLAN";
         NotificationAction: {
             type: components["schemas"]["NotificationActionType"];
             /** Format: uuid */
@@ -807,6 +851,8 @@ export interface components {
             appointmentMessage: boolean;
             resourceSystem: boolean;
             communityInteraction: boolean;
+            /** @description USER opt-out for the generic daily SupportPlan reminder; always false for SPECIALIST owners. */
+            supportPlanReminder: boolean;
         };
         NotificationContentGroupsPatch: {
             journalReminder?: boolean;
@@ -816,6 +862,8 @@ export interface components {
             appointmentMessage?: boolean;
             resourceSystem?: boolean;
             communityInteraction?: boolean;
+            /** @description USER only; a SPECIALIST patch containing it is rejected with 422. */
+            supportPlanReminder?: boolean;
         };
         QuietHours: {
             enabled: boolean;
@@ -870,6 +918,8 @@ export interface components {
             contentGroups: components["schemas"]["NotificationContentGroups"];
             quietHours: components["schemas"]["QuietHours"];
             email: components["schemas"]["EmailPreferences"];
+            /** @description Local HH:mm in quietHours.timeZone from which daily journal, emotion and SupportPlan reminders are delivered; defaults to 20:00. */
+            dailyReminderTime: string;
             /** Format: int64 */
             version: number;
             /** Format: date-time */
@@ -908,6 +958,8 @@ export interface components {
             contentGroups?: components["schemas"]["NotificationContentGroupsPatch"];
             quietHours?: components["schemas"]["QuietHoursPatch"];
             email?: components["schemas"]["EmailPreferencesPatch"];
+            /** @description USER only; a SPECIALIST patch containing it is rejected with 422. */
+            dailyReminderTime?: string;
         };
         /** @enum {string} */
         SafetyDirectoryEntryType: "FACILITY" | "HOTLINE";
@@ -1607,6 +1659,22 @@ export interface components {
             /** Format: date-time */
             resolvedAt: string;
             results: components["schemas"]["ResourceEligibilityResult"][];
+        } & {
+            [key: string]: unknown;
+        };
+        ResourceCurrentVersionBatchRequest: {
+            resourceIds: string[];
+        };
+        ResourceCurrentVersion: {
+            /** Format: uuid */
+            resourceId: string;
+            /** @description Current resource row version; null only when no resource row exists. */
+            contentVersion: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        ResourceCurrentVersionBatchResponse: {
+            results: components["schemas"]["ResourceCurrentVersion"][];
         } & {
             [key: string]: unknown;
         };
@@ -2980,6 +3048,35 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    resolveResourceCurrentVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceCurrentVersionBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Current version per requested resource, in request order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceCurrentVersionBatchResponse"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     listSafetyDirectoryEntriesForAdmin: {
         parameters: {
             query?: never;
@@ -3275,6 +3372,72 @@ export interface operations {
             422: components["responses"]["ValidationError"];
             429: components["responses"]["PushDeviceRateLimited"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getNotificationLiveEligibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notificationId: components["parameters"]["NotificationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact currently eligible notification pointer */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "notificationId": "44444444-4444-4444-8444-444444444444"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["NotificationLiveEligibility"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Authenticated actor does not have exact SPECIALIST role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Absent, foreign or currently suppressed notification; NOTIFICATION_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/NOTIFICATION_NOT_FOUND",
+                     *       "title": "Notification not found",
+                     *       "status": 404,
+                     *       "code": "NOTIFICATION_NOT_FOUND",
+                     *       "correlationId": "22222222-2222-4222-8222-222222222222"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            /** @description Current notification eligibility storage is unavailable or uncertain */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listNotifications: {

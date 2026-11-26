@@ -11,6 +11,7 @@ import {
   type KeyboardEvent,
 } from 'react'
 
+import { useAccountLabels } from '@/features/auth/api/use-account-labels'
 import { adminPayoutsBrowserClient } from '@/features/specialist-earnings/api/browser-client'
 import {
   adminFailureLines,
@@ -103,7 +104,7 @@ function useFetch<T>(fetcher: () => Promise<T>) {
 const fetchLedger = () => adminPayoutsBrowserClient.get()
 const fetchQueue = () => adminPayoutsBrowserClient.pendingDestinations()
 
-function exportPayouts(items: Item[]) {
+function exportPayouts(items: Item[], names: Record<string, string>) {
   const rows = [
     [
       'Mã chi trả',
@@ -117,7 +118,10 @@ function exportPayouts(items: Item[]) {
     ],
     ...items.map((item) => [
       item.payoutId,
-      resolveSpecialistName(item.specialistAccountId),
+      resolveSpecialistName(
+        item.specialistAccountId,
+        names[item.specialistAccountId],
+      ),
       payoutProviderName[item.provider],
       maskedHint(item.destinationHint),
       String(item.amountVnd),
@@ -163,7 +167,6 @@ export default function AdminPayoutsManager({
   const queue = useFetch<AdminPayoutDestinationList>(fetchQueue)
   const [chosenTab, setChosenTab] = useState<Tab | null>(null)
   const [filter, setFilter] = useState<StatusFilter>('ALL')
-  const [provider, setProvider] = useState<Item['provider'] | 'ALL'>('ALL')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detailRefresh, setDetailRefresh] = useState(0)
@@ -204,16 +207,14 @@ export default function AdminPayoutsManager({
 
   const items = useMemo(
     () =>
-      ledger.data?.items.filter(
-        (item) =>
-          (provider === 'ALL' || item.provider === provider) &&
-          (filter === 'ALL'
-            ? true
-            : filter === 'NEEDS_REVIEW'
-              ? item.reconciliationStatus === 'NEEDS_REVIEW'
-              : item.status === filter),
+      ledger.data?.items.filter((item) =>
+        filter === 'ALL'
+          ? true
+          : filter === 'NEEDS_REVIEW'
+            ? item.reconciliationStatus === 'NEEDS_REVIEW'
+            : item.status === filter,
       ) ?? [],
-    [ledger.data, filter, provider],
+    [ledger.data, filter],
   )
 
   const total =
@@ -235,6 +236,14 @@ export default function AdminPayoutsManager({
   const pageStart = (currentPage - 1) * PAGE_SIZE
   const pageItems = items.slice(pageStart, pageStart + PAGE_SIZE)
   const selectedPayout = pageItems.find((item) => item.payoutId === selectedId)
+  const names = useAccountLabels(
+    [
+      ...pageItems.map((item) => item.specialistAccountId),
+      ...(queue.data?.items ?? []).map((item) => item.specialistAccountId),
+      ...(detail ? [detail.specialistAccountId] : []),
+    ],
+    'SPECIALIST',
+  )
 
   const reviewCount = allItems.filter(
     (item) => item.reconciliationStatus === 'NEEDS_REVIEW' && !item.closedAt,
@@ -242,13 +251,6 @@ export default function AdminPayoutsManager({
   const paidCount = allItems.filter(
     (item) => item.status === 'SUCCEEDED',
   ).length
-
-  // MoMo & PayOS specific metric breakdowns
-  const momoItems = allItems.filter((item) => item.provider === 'MOMO')
-  const momoPaid = momoItems.filter((item) => item.status === 'SUCCEEDED')
-  const momoAmount = momoPaid.reduce((sum, item) => sum + item.amountVnd, 0)
-  const momoCount = momoPaid.length
-  const momoShare = paid > 0 ? ((momoAmount / paid) * 100).toFixed(2) : '0'
 
   const payosItems = allItems.filter((item) => item.provider === 'PAYOS')
   const payosPaid = payosItems.filter((item) => item.status === 'SUCCEEDED')
@@ -517,7 +519,7 @@ export default function AdminPayoutsManager({
             type="button"
             className="apo-primary"
             disabled={!items.length || ledger.loading || ledger.failed}
-            onClick={() => exportPayouts(items)}
+            onClick={() => exportPayouts(items, names)}
           >
             <Download size={15} aria-hidden="true" />
             Xuất bảng kê Payout
@@ -619,8 +621,11 @@ export default function AdminPayoutsManager({
                         <strong>{destination.bankName ?? 'Ngân hàng'}</strong>
                         <small>{maskedHint(destination.displayHint)}</small>
                       </div>
-                      <span title={specialistAccountId}>
-                        {resolveSpecialistName(specialistAccountId)}
+                      <span>
+                        {resolveSpecialistName(
+                          specialistAccountId,
+                          names[specialistAccountId],
+                        )}
                       </span>
                       {destination.updatedAt && (
                         <time dateTime={destination.updatedAt}>
@@ -675,37 +680,9 @@ export default function AdminPayoutsManager({
                   </p>
                 )}
 
-                {/* 4 KPI Metrics Cards */}
+                {/* 3 KPI Metrics Cards */}
                 <section className="apo-metrics" aria-label="Tổng quan chi trả">
-                  {/* Card 1: Ví MoMo Enterprise */}
-                  <article
-                    className="apo-gateway-card apo-card-momo"
-                    data-provider="MOMO"
-                  >
-                    <header>
-                      <div className="apo-card-brand">
-                        <span className="apo-momo-tag">MoMo</span>
-                        <div>
-                          <h2>MoMo</h2>
-                          <p>Chi trả chuyên gia</p>
-                        </div>
-                      </div>
-                      <span className="apo-pill-status apo-pill-ready">
-                        {momoItems.length} yêu cầu
-                      </span>
-                    </header>
-                    <div className="apo-card-amount">
-                      <strong>{money(momoAmount)}</strong>
-                    </div>
-                    <footer>
-                      <span>{momoCount} giao dịch thành công</span>
-                      <span className="apo-stat-share">
-                        {momoShare}% tổng đợt
-                      </span>
-                    </footer>
-                  </article>
-
-                  {/* Card 2: PayOS Napas247 */}
+                  {/* Card 1: PayOS Napas247 */}
                   <article
                     className="apo-gateway-card apo-card-payos"
                     data-provider="PAYOS"
@@ -731,7 +708,7 @@ export default function AdminPayoutsManager({
                     </footer>
                   </article>
 
-                  {/* Card 3: TỔNG GIÁ TRỊ ĐỐI SOÁT */}
+                  {/* Card 2: TỔNG GIÁ TRỊ ĐỐI SOÁT */}
                   <article className="apo-total-card">
                     <header>
                       <small>TỔNG GIÁ TRỊ ĐỐI SOÁT</small>
@@ -750,7 +727,7 @@ export default function AdminPayoutsManager({
                     </footer>
                   </article>
 
-                  {/* Card 4: TỰ ĐỘNG HÓA ĐỐI SOÁT */}
+                  {/* Card 3: THEO DÕI ĐỐI SOÁT */}
                   <article className="apo-reconciliation-card">
                     <header>
                       <small>THEO DÕI ĐỐI SOÁT</small>
@@ -808,22 +785,6 @@ export default function AdminPayoutsManager({
                             <option value="UNKNOWN">Cần đối soát</option>
                           </select>
                         </label>
-                        <label>
-                          <span className="apo-sr-only">Lọc cổng chi trả</span>
-                          <select
-                            value={provider}
-                            onChange={(event) => {
-                              setProvider(
-                                event.target.value as Item['provider'] | 'ALL',
-                              )
-                              setPage(1)
-                            }}
-                          >
-                            <option value="ALL">Cả MoMo &amp; PayOS</option>
-                            <option value="MOMO">Chỉ MoMo</option>
-                            <option value="PAYOS">Chỉ PayOS</option>
-                          </select>
-                        </label>
                       </div>
                     </header>
 
@@ -863,25 +824,22 @@ export default function AdminPayoutsManager({
                                   aria-hidden="true"
                                 >
                                   {getSpecialistInitials(
-                                    item.specialistAccountId,
+                                    names[item.specialistAccountId],
                                   )}
                                 </span>
                                 <span className="apo-row-identity">
                                   <span className="apo-row-title">
-                                    <strong title={item.specialistAccountId}>
+                                    <strong>
                                       {resolveSpecialistName(
                                         item.specialistAccountId,
+                                        names[item.specialistAccountId],
                                       )}
                                     </strong>
                                     <span
                                       className="apo-provider-badge"
                                       data-provider={item.provider}
                                     >
-                                      {item.provider === 'PAYOS'
-                                        ? 'PayOS'
-                                        : item.provider === 'MOMO'
-                                          ? 'MoMo'
-                                          : 'Fake'}
+                                      {payoutProviderName[item.provider]}
                                     </span>
                                     <small>
                                       {maskedHint(item.destinationHint)}
@@ -1037,6 +995,10 @@ export default function AdminPayoutsManager({
                     payout={selectedPayout}
                     history={tab === 'history'}
                     refresh={detailRefresh}
+                    specialistName={resolveSpecialistName(
+                      selectedPayout?.specialistAccountId ?? '',
+                      names[selectedPayout?.specialistAccountId ?? ''],
+                    )}
                   />
                 </div>
               </>
@@ -1121,7 +1083,10 @@ export default function AdminPayoutsManager({
                 </div>
                 <div>
                   <dt>Chuyên gia</dt>
-                  <dd className="apo-id">{detail.specialistAccountId}</dd>
+                  <dd>
+                    {names[detail.specialistAccountId] ??
+                      detail.specialistAccountId}
+                  </dd>
                 </div>
                 {detail.destination.updatedAt && (
                   <div>

@@ -3,9 +3,11 @@ import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { useSession } from '@/auth/session-context'
+import { CommunityInboxBanner } from '@/community-chat/CommunityInboxBanner'
 import { readRuntimeConfig } from '@/config/runtime-config'
 import { CrisisSupportOffsetContext } from '@/crisis-support/crisis-support-offset'
 import { CrisisSupportWidget } from '@/crisis-support/CrisisSupportWidget'
+import { useSafetyButtonLift } from '@/crisis-support/safety-button-lift'
 import { isUserTabPath, USER_TAB_BAR_HEIGHT } from '@/navigation/UserTabBar'
 import { getRouteGuards } from '@/navigation/route-policy'
 import { AppProviders } from '@/providers/AppProviders'
@@ -18,6 +20,7 @@ export function RootNavigator() {
   const { retryRestore, session, status } = useSession()
 
   const pathname = usePathname()
+  const footerLift = useSafetyButtonLift()
   const [screenActionHeight, setScreenActionHeight] = useState(0)
 
   let content
@@ -52,6 +55,9 @@ export function RootNavigator() {
       <CrisisSupportOffsetContext.Provider value={setScreenActionHeight}>
         {content}
       </CrisisSupportOffsetContext.Provider>
+      {session?.role === 'USER' && (
+        <CommunityInboxBanner subject={session.subject} />
+      )}
       {!(pathname === '/' && status === 'unauthenticated') &&
         (pathname !== '/community' || status !== 'authenticated') && (
           <CrisisSupportWidget
@@ -60,7 +66,9 @@ export function RootNavigator() {
               session?.role === 'USER' &&
               isUserTabPath(pathname)
                 ? USER_TAB_BAR_HEIGHT +
-                  (pathname === '/journal' ? screenActionHeight : 0)
+                  (pathname === '/journal'
+                    ? Math.max(screenActionHeight, footerLift)
+                    : 0)
                 : (pathname === '/specialist' ||
                       pathname === '/operational-analytics' ||
                       pathname === '/appointments' ||
@@ -69,14 +77,14 @@ export function RootNavigator() {
                       pathname === '/profile' ||
                       pathname === '/availability') &&
                     session?.role === 'SPECIALIST'
-                  ? USER_TAB_BAR_HEIGHT
+                  ? USER_TAB_BAR_HEIGHT + footerLift
                   : pathname === '/community-chat'
                     ? USER_TAB_BAR_HEIGHT
                     : pathname === '/messages' ||
                         (pathname === '/ai-companion' &&
                           session?.role === 'USER')
-                      ? screenActionHeight
-                      : 0
+                      ? Math.max(screenActionHeight, footerLift)
+                      : footerLift
             }
           />
         )}

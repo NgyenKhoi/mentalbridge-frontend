@@ -1,18 +1,21 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { Send, Sprout } from 'lucide-react'
+import { ArrowUp, Sprout } from 'lucide-react'
 import { createCommunityComment } from '../api/browser-community'
 import styles from './CommunityDiscovery.module.css'
 
 export default function CommunityInlineReply({
   postId,
   authorName,
+  avatar,
   onCreated,
 }: {
   postId: string
   authorName: string
+  /** The viewer's own avatar; a sprout mark when they have none. */
+  avatar?: ReactNode
   onCreated: () => void
 }) {
   const [content, setContent] = useState('')
@@ -60,31 +63,35 @@ export default function CommunityInlineReply({
         void submit()
       }}
     >
-      <Sprout size={18} aria-hidden="true" />
+      <span className={styles.quickReplyAvatar} aria-hidden="true">
+        {avatar ?? <Sprout size={16} />}
+      </span>
       <label className={styles.srOnly} htmlFor={`reply-${postId}`}>
         Gửi lời nhắn cho bài viết của {authorName}
       </label>
-      <input
-        id={`reply-${postId}`}
-        value={content}
-        onChange={(event) => {
-          setContent(event.target.value)
-          setSent(false)
-          setError('')
-        }}
-        placeholder="Để lại một lời nhắn tử tế…"
-        maxLength={4000}
-        disabled={busy}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? `reply-error-${postId}` : undefined}
-      />
-      <button
-        type="submit"
-        disabled={busy || !content.trim()}
-        aria-label={`Gửi bình luận cho ${authorName}`}
-      >
-        <Send size={17} />
-      </button>
+      <span className={styles.quickReplyField}>
+        <input
+          id={`reply-${postId}`}
+          value={content}
+          onChange={(event) => {
+            setContent(event.target.value)
+            setSent(false)
+            setError('')
+          }}
+          placeholder="Viết một bình luận tử tế…"
+          maxLength={4000}
+          disabled={busy}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `reply-error-${postId}` : undefined}
+        />
+        <button
+          type="submit"
+          disabled={busy || !content.trim()}
+          aria-label={`Gửi bình luận cho ${authorName}`}
+        >
+          <ArrowUp size={16} aria-hidden="true" />
+        </button>
+      </span>
       {error && (
         <p id={`reply-error-${postId}`} role="alert">
           {error}

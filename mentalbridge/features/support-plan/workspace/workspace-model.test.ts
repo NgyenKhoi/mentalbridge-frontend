@@ -527,6 +527,23 @@ describe('workspace model', () => {
         Date.parse(now),
       )
 
+    it('shows a review-due gap row as paused copy, never missed', () => {
+      const [due] = todayRows(
+        planValue,
+        [
+          at('09:00', {
+            state: 'CANCELLED',
+            displayState: 'CANCELLED',
+            stateReason: 'REVIEW_DUE',
+          }),
+        ],
+        '2026-10-13',
+        Date.parse('2026-10-13T10:00:00Z'),
+      )
+      expect(due.status).toBe('cancelled')
+      expect(stateReasonLine('REVIEW_DUE')).toBe('Tạm dừng chờ đánh giá lại')
+    })
+
     it('orders today by time, marks missed versus upcoming, and ignores other days', () => {
       expect(
         rows('2026-10-13T10:00:00Z').map((item) => [

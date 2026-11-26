@@ -156,8 +156,8 @@ test.describe('MB-672 Home next step', () => {
   }
 
   const cases: Array<[HomeAcceptanceState, string, string]> = [
-    ['first-use', 'Bắt đầu kiểm tra ban đầu', '/initial-check'],
-    ['assessment-in-progress', 'Tiếp tục kiểm tra ban đầu', '/initial-check'],
+    ['first-use', 'Bắt đầu bài sàng lọc', '/initial-check'],
+    ['assessment-in-progress', 'Tiếp tục bài sàng lọc', '/initial-check'],
     ['guide-required', 'Xem kết quả và hướng dẫn của bạn', '/support-guides'],
     ['free-resources', 'Mở tài nguyên được gợi ý', '/support-guides/'],
     ['plus-proposal', 'Xem đề xuất kế hoạch 14 ngày', '/support-plan'],
@@ -303,7 +303,7 @@ test.describe('MB-672 Home next step', () => {
           next.getByRole('link', {
             name:
               stage === 'ASSESSMENT_REQUIRED'
-                ? 'Bắt đầu kiểm tra ban đầu'
+                ? 'Bắt đầu bài sàng lọc'
                 : 'Xem kết quả và hướng dẫn của bạn',
             exact: true,
           }),
@@ -343,7 +343,7 @@ test.describe('MB-672 Home next step', () => {
         .getByRole('button', { name: 'Thử lại', exact: true }),
     )
     await expect(
-      page.getByRole('link', { name: 'Bắt đầu kiểm tra ban đầu', exact: true }),
+      page.getByRole('link', { name: 'Bắt đầu bài sàng lọc', exact: true }),
     ).toBeVisible()
     expect(world.homeReads).toBe(2)
   })
@@ -544,8 +544,8 @@ test.describe('MB-672 Home next step', () => {
         quick.getByRole('link', { name: /Viết nhật ký/ }),
       ).toHaveAttribute('href', /journal/)
       await expect(
-        quick.getByRole('link', { name: /Kiểm tra ban đầu/ }),
-      ).toHaveAttribute('href', '/initial-check')
+        quick.getByRole('link', { name: /Bài sàng lọc/ }),
+      ).toHaveAttribute('href', plan ? '/assessments' : '/initial-check')
       await expect(
         quick.getByRole('link', { name: /Tìm chuyên gia/ }),
       ).toHaveAttribute('href', '/specialists')
@@ -573,7 +573,7 @@ test.describe('MB-672 Home next step', () => {
       ).toHaveCount(7)
       await expect(
         page.getByRole('link', { name: /Xem tiến độ/ }),
-      ).toHaveAttribute('href', '/analytics')
+      ).toHaveAttribute('href', '/nhin-lai')
       await expect(page.getByText(/chuỗi|streak|điểm thưởng/i)).toHaveCount(0)
     })
   }

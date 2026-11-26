@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
+import { CheckCheck } from 'lucide-react'
 
 import { ApiError } from '@/lib/api/api-error'
 import {
@@ -70,6 +72,11 @@ const typeMeta: Readonly<
     tone: 'sage',
   },
   ACCOUNT_STATUS: { label: 'Hệ thống', icon: '✓', tone: 'teal' },
+  SUPPORT_PLAN_DAILY_REMINDER: {
+    label: 'Kế hoạch hỗ trợ',
+    icon: '✓',
+    tone: 'sage',
+  },
 }
 
 function notificationTime(value: string) {
@@ -135,7 +142,20 @@ const groups = [
     'Tương tác cộng đồng',
     'Phản hồi và sự đồng cảm mới dành cho chia sẻ của bạn.',
   ],
+  [
+    'supportPlanReminder',
+    '✓',
+    'Kế hoạch hỗ trợ hôm nay',
+    'Một lời nhắc khi kế hoạch có hoạt động trong ngày.',
+  ],
 ] as const
+
+const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/
+const reminderMotion = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0 },
+}
 
 const timeZones = [
   'Asia/Ho_Chi_Minh',
@@ -150,11 +170,13 @@ function Toggle({
   onChange,
   label,
   disabled = false,
+  describedBy,
 }: {
   checked: boolean
   onChange: () => void
   label: string
   disabled?: boolean
+  describedBy?: string
 }) {
   return (
     <button
@@ -163,6 +185,7 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      aria-describedby={describedBy}
       disabled={disabled}
       onClick={onChange}
     >
@@ -189,6 +212,7 @@ function patchOf(value: NotificationPreferences): NotificationPreferencePatch {
     channels: value.channels,
     contentGroups: value.contentGroups,
     quietHours: value.quietHours,
+    dailyReminderTime: value.dailyReminderTime,
     email: emailPatch,
   }
 }
@@ -209,6 +233,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [timeNote, setTimeNote] = useState('')
   const [toast, setToast] = useState('')
   const [digestPreview, setDigestPreview] = useState<WellbeingDigestPreview>()
   const [digestPreviewError, setDigestPreviewError] = useState('')
@@ -323,6 +348,7 @@ export default function NotificationsPage() {
   function change(next: NotificationPreferences) {
     setPreferences(next)
     setError('')
+    setTimeNote('')
   }
 
   async function openNotification(item: Notification) {
@@ -398,6 +424,7 @@ export default function NotificationsPage() {
 
   async function savePreferences() {
     if (!preferences || !etag) return
+    if (!CLOCK_TIME.test(preferences.dailyReminderTime)) return
     if (
       preferences.quietHours.enabled &&
       preferences.quietHours.start === preferences.quietHours.end
@@ -415,6 +442,8 @@ export default function NotificationsPage() {
       setPreferences(result.preferences)
       setSaved(result.preferences)
       setEtag(result.etag)
+      if (result.preferences.dailyReminderTime !== saved?.dailyReminderTime)
+        setTimeNote(`Đã lưu giờ nhắc ${result.preferences.dailyReminderTime}.`)
       setToast('Đã lưu cài đặt thông báo.')
       void loadDigestPreview()
       window.setTimeout(() => setToast(''), 2600)
@@ -452,6 +481,7 @@ export default function NotificationsPage() {
       )
 
     const disabled = !preferences.notificationsEnabled
+    const timeInvalid = !CLOCK_TIME.test(preferences.dailyReminderTime)
     return (
       <div className="notification-settings-layout">
         <main
@@ -576,10 +606,52 @@ export default function NotificationsPage() {
             <header>
               <div>
                 <span>03</span>
-                <h2>Giờ yên tĩnh và múi giờ</h2>
+                <h2>Giờ nhắc, giờ yên tĩnh và múi giờ</h2>
               </div>
               <p>Khoảng giờ có thể đi qua nửa đêm.</p>
             </header>
+            <div className="notification-time-grid notification-reminder-time">
+              <label>
+                <span>Giờ nhắc</span>
+                <input
+                  aria-label="Giờ nhắc mỗi ngày"
+                  aria-invalid={timeInvalid}
+                  aria-describedby={`notification-reminder-help${timeInvalid ? ' notification-reminder-error' : ''}`}
+                  type="time"
+                  value={preferences.dailyReminderTime}
+                  onChange={(event) =>
+                    change({
+                      ...preferences,
+                      dailyReminderTime: event.target.value,
+                    })
+                  }
+                  disabled={disabled}
+                  readOnly={saving}
+                />
+              </label>
+            </div>
+            <small
+              id="notification-reminder-help"
+              className="notification-reminder-help"
+            >
+              {`Nhắc viết nhật ký, ghi cảm xúc và kế hoạch hỗ trợ vào giờ này, theo múi giờ ${preferences.quietHours.timeZone}.`}
+            </small>
+            <div className="notification-reminder-feedback">
+              <AnimatePresence initial={false}>
+                {timeInvalid ? (
+                  <motion.div
+                    key="invalid"
+                    id="notification-reminder-error"
+                    role="alert"
+                    className="notification-reminder-error"
+                    {...reminderMotion}
+                    transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    Nhập giờ dạng HH:mm, ví dụ 20:00.
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
             <div className="notification-quiet-row">
               <div>
                 <strong>Bật giờ yên tĩnh</strong>
@@ -748,6 +820,11 @@ export default function NotificationsPage() {
                       không được gửi. Đổi hoặc hủy lịch sẽ hủy nhắc lịch cũ.
                       Không gộp vào bản tổng hợp hằng ngày.
                     </small>
+                    {!preferences.channels.email && (
+                      <small id="appointment-reminder-email-hint">
+                        Bật kênh Email ở trên để nhận nhắc lịch qua email.
+                      </small>
+                    )}
                   </div>
                   <Toggle
                     checked={preferences.email.appointmentRemindersEnabled}
@@ -763,6 +840,11 @@ export default function NotificationsPage() {
                     }
                     label="Nhắc lịch hẹn qua email"
                     disabled={disabled || !preferences.channels.email}
+                    describedBy={
+                      preferences.channels.email
+                        ? undefined
+                        : 'appointment-reminder-email-hint'
+                    }
                   />
                 </article>
               )}
@@ -872,7 +954,9 @@ export default function NotificationsPage() {
           <dl>
             <div>
               <dt>Nhóm nội dung</dt>
-              <dd>{summary.groups}/6</dd>
+              <dd>
+                {summary.groups}/{groups.length}
+              </dd>
             </div>
             <div>
               <dt>Giờ yên tĩnh</dt>
@@ -904,7 +988,26 @@ export default function NotificationsPage() {
             <strong>
               {dirty ? '● Có thay đổi chưa lưu' : '✓ Cài đặt đã được lưu'}
             </strong>
-            <small>Áp dụng cho tài khoản trên mọi thiết bị đã đăng nhập.</small>
+            <AnimatePresence initial={false} mode="wait">
+              {timeNote ? (
+                <motion.small
+                  key="saved-time"
+                  role="status"
+                  {...reminderMotion}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  {timeNote}
+                </motion.small>
+              ) : (
+                <motion.small
+                  key="scope"
+                  {...reminderMotion}
+                  transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  Áp dụng cho tài khoản trên mọi thiết bị đã đăng nhập.
+                </motion.small>
+              )}
+            </AnimatePresence>
             {error && <small role="alert">{error}</small>}
           </div>
           <div>
@@ -925,7 +1028,7 @@ export default function NotificationsPage() {
             </button>
             <button
               type="button"
-              disabled={!dirty || saving}
+              disabled={!dirty || saving || timeInvalid}
               onClick={() => void savePreferences()}
             >
               {saving ? 'Đang lưu…' : 'Lưu cài đặt'}
@@ -991,8 +1094,10 @@ export default function NotificationsPage() {
                 type="button"
                 disabled={inboxActionId !== ''}
                 onClick={() => void markAllRead()}
+                title="Đánh dấu tất cả thông báo là đã đọc"
               >
-                ✓ Đánh dấu đã đọc tất cả
+                <CheckCheck size={18} aria-hidden="true" />
+                Đọc tất cả
               </button>
             )}
           </div>

@@ -232,21 +232,23 @@ test('admin reviews profile updates separately and refuses stale approval', asyn
   await page.getByRole('button', { name: 'Đăng nhập' }).click()
   await expect(page).toHaveURL(/\/admin\/dashboard$/)
   await page.goto('/admin/specialists')
-  await page
-    .getByRole('button', { name: 'Cập nhật hồ sơ', exact: true })
-    .click()
+  await page.getByRole('button', { name: /Có bản sửa đổi/ }).click()
   await page.getByRole('button', { name: /Chuyên gia Bình/ }).click()
-  await expect(page.getByText('Đang công khai', { exact: true })).toHaveCount(6)
-  await page.getByRole('button', { name: 'Phê duyệt và công khai' }).click()
+  await expect(
+    page.getByText('Đề xuất cập nhật mới', { exact: true }).first(),
+  ).toBeVisible()
+  await page
+    .getByRole('button', { name: 'Phê duyệt & Công khai bản mới' })
+    .click()
   await page
     .getByRole('dialog')
-    .getByRole('button', { name: 'Phê duyệt và công khai' })
+    .getByRole('button', { name: 'Phê duyệt & Công khai' })
     .click()
   await expect(
     page.getByRole('alert').filter({ hasText: 'Bản chỉnh sửa vừa thay đổi' }),
   ).toBeVisible()
   await expect(
-    page.getByRole('button', { name: 'Phê duyệt và công khai' }),
+    page.getByRole('button', { name: 'Phê duyệt & Công khai bản mới' }),
   ).toBeDisabled()
   await expect(
     page.getByRole('button', { name: 'Tải lại danh sách' }),

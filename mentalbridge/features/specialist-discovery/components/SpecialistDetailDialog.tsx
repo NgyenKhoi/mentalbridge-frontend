@@ -2,7 +2,16 @@
 
 import Link from 'next/link'
 import { useId, useMemo, useState } from 'react'
-import { BadgeCheck, Check, Clock3, LockKeyhole, Star, X } from 'lucide-react'
+import {
+  BadgeCheck,
+  Check,
+  Clock3,
+  LockKeyhole,
+  MessageCircle,
+  Star,
+  Video,
+  X,
+} from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
@@ -10,9 +19,13 @@ import { ApiError } from '@/lib/api/api-error'
 import type {
   DiscoveryExplanation,
   DiscoverySlot,
+  ServiceCreditAccount,
   SpecialistDiscoveryItem,
   SpecialistDiscoveryPage,
 } from '@/lib/consultation/consultation-validation'
+import AccountAvatar, {
+  type AccountAvatarSource,
+} from '@/features/community/components/AccountAvatar'
 import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
 import type { VerifiedCredentialBadge } from '@/features/specialist-profile/api/credential-validation'
 import styles from './SpecialistDetailDialog.module.css'
@@ -103,7 +116,7 @@ function bookingError(error: unknown) {
     return 'Không thể gửi yêu cầu đặt lịch. Vui lòng thử lại.'
   const messages: Record<string, string> = {
     PAID_PLAN_REQUIRED: 'Bạn cần gói Plus hoặc Premium để đặt lịch.',
-    APPOINTMENT_CREDIT_UNAVAILABLE: 'Bạn hiện không còn lượt tư vấn phù hợp.',
+    APPOINTMENT_CREDIT_UNAVAILABLE: 'Bạn hiện không còn buổi tư vấn phù hợp.',
     APPOINTMENT_RESERVATION_LIMIT_REACHED:
       'Bạn đã đạt giới hạn lịch đang hoạt động của gói.',
     APPOINTMENT_SLOT_UNAVAILABLE:
@@ -116,8 +129,46 @@ function bookingError(error: unknown) {
   return messages[error.code] ?? 'Không thể gửi yêu cầu đặt lịch lúc này.'
 }
 
+type Block = Readonly<{ text: string; href: string; label: string }>
+
+// Why booking is closed, from the service-credit account the user already has.
+// FREE has no block here: its footer already carries the upgrade wording.
+function bookingBlock(
+  packageCode: SpecialistDiscoveryPage['packageCode'] | null,
+  availableCredits: number | null,
+  capacity: ServiceCreditAccount['reservationCapacity'] | null,
+  limitHit: boolean,
+): Block | null {
+  if (packageCode === 'FREE') return null
+  const keep = { href: '/appointments', label: 'Xem lịch hẹn' }
+  if (capacity?.maximum === 0)
+    return {
+      text: 'Gói hiện tại chưa đặt được lịch tư vấn. Hãy nâng cấp lên Plus hoặc Premium để đặt lịch.',
+      href: '/subscription',
+      label: 'Xem gói dịch vụ',
+    }
+  if (capacity?.remaining === 0)
+    return {
+      ...keep,
+      text: `Bạn đang giữ ${capacity.active}/${capacity.maximum} lịch hẹn của gói. Hãy hủy một lịch đang chờ hoặc chờ phiên diễn ra để đặt thêm.`,
+    }
+  if (limitHit)
+    return {
+      ...keep,
+      text: 'Bạn đã đạt giới hạn lịch hẹn đang giữ của gói. Hãy hủy một lịch đang chờ hoặc chờ phiên diễn ra để đặt thêm.',
+    }
+  if (availableCredits === 0)
+    return {
+      text: 'Bạn đã dùng hết buổi tư vấn.',
+      href: '/subscription',
+      label: 'Xem gói dịch vụ',
+    }
+  return null
+}
+
 type Props = Readonly<{
   item: SpecialistDiscoveryItem | null
+  avatar?: AccountAvatarSource | null
   badges: VerifiedCredentialBadge[]
   loading: boolean
   error: string
@@ -125,6 +176,7 @@ type Props = Readonly<{
   initialTab: 'profile' | 'slots'
   packageCode: SpecialistDiscoveryPage['packageCode'] | null
   availableCredits: number | null
+  reservationCapacity?: ServiceCreditAccount['reservationCapacity'] | null
   onClose: () => void
   onRetry: () => void
   onBooked: (slot: DiscoverySlot, name: string) => void
@@ -132,6 +184,7 @@ type Props = Readonly<{
 }>
 
 export default function SpecialistDetailDialog({
+  avatar = null,
   item,
   badges,
   loading,
@@ -140,6 +193,7 @@ export default function SpecialistDetailDialog({
   initialTab,
   packageCode,
   availableCredits,
+  reservationCapacity = null,
   onClose,
   onRetry,
   onBooked,
@@ -151,8 +205,21 @@ export default function SpecialistDetailDialog({
   const [step, setStep] = useState<'browse' | 'confirm' | 'success'>('browse')
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [modalityFilter, setModalityFilter] = useState<
+    'ALL' | 'IN_APP_CHAT' | 'IN_APP_VIDEO'
+  >('ALL')
   const [submitting, setSubmitting] = useState(false)
   const [bookingMessage, setBookingMessage] = useState('')
+  // A 409 only holds for the balance it was seen with; a refetch (new account
+  // objects) clears it so the card never outlives the data it describes.
+  const [limitSeen, setLimitSeen] = useState<{
+    capacity: unknown
+    credits: number | null
+  } | null>(null)
+  const limitHit =
+    limitSeen !== null &&
+    limitSeen.capacity === reservationCapacity &&
+    limitSeen.credits === availableCredits
   const [todayIso] = useState(() => new Date().toISOString())
 
   const slots = useMemo(
@@ -162,9 +229,20 @@ export default function SpecialistDetailDialog({
       ),
     [item],
   )
+  const offersVideo = slots.some((slot) => slot.modality === 'IN_APP_VIDEO')
+  const offersChat = slots.some((slot) => slot.modality !== 'IN_APP_VIDEO')
+  const visibleSlots = useMemo(
+    () =>
+      modalityFilter === 'ALL'
+        ? slots
+        : slots.filter(
+            (slot) => (slot.modality ?? 'IN_APP_CHAT') === modalityFilter,
+          ),
+    [slots, modalityFilter],
+  )
   const days = useMemo(() => {
     const groups = new Map<string, DiscoverySlot[]>()
-    for (const slot of slots) {
+    for (const slot of visibleSlots) {
       const key = dateKey(slot.startAt)
       groups.set(key, [...(groups.get(key) ?? []), slot])
     }
@@ -184,12 +262,26 @@ export default function SpecialistDetailDialog({
             : dateLabel(entries[0].startAt),
       slots: entries,
     }))
-  }, [slots, todayIso])
+  }, [visibleSlots, todayIso])
   const activeDay =
     selectedDay && days.some((day) => day.key === selectedDay)
       ? selectedDay
       : days[0]?.key
   const selectedSlot = slots.find((slot) => slot.id === selectedSlotId)
+  const block = bookingBlock(
+    packageCode,
+    availableCredits,
+    reservationCapacity,
+    limitHit,
+  )
+  const blockNotice = block && (
+    <div className={styles.blocked} role="status">
+      <p>{block.text}</p>
+      <Link className={styles.secondary} href={block.href}>
+        {block.label}
+      </Link>
+    </div>
+  )
 
   function beginConfirmation(slot: DiscoverySlot) {
     setSelectedSlotId(slot.id)
@@ -198,7 +290,7 @@ export default function SpecialistDetailDialog({
   }
 
   async function submitBooking() {
-    if (!item || !selectedSlot || submitting || availableCredits === 0) return
+    if (!item || !selectedSlot || submitting || block) return
     setSubmitting(true)
     setBookingMessage('')
     try {
@@ -230,7 +322,15 @@ export default function SpecialistDetailDialog({
       onBooked(selectedSlot, item.displayName)
       setStep('success')
     } catch (caught) {
-      setBookingMessage(bookingError(caught))
+      if (
+        caught instanceof ApiError &&
+        caught.code === 'APPOINTMENT_RESERVATION_LIMIT_REACHED'
+      )
+        setLimitSeen({
+          capacity: reservationCapacity,
+          credits: availableCredits,
+        })
+      else setBookingMessage(bookingError(caught))
     } finally {
       setSubmitting(false)
     }
@@ -246,7 +346,10 @@ export default function SpecialistDetailDialog({
       <div className={styles.shell}>
         <header className={styles.header}>
           <div className={styles.avatar} aria-hidden="true">
-            {item ? initials(item.displayName) : 'MB'}
+            <AccountAvatar
+              avatar={avatar}
+              fallback={item ? initials(item.displayName) : 'MB'}
+            />
           </div>
           <div className={styles.heading}>
             <h2 id="specialist-detail-title">
@@ -337,22 +440,22 @@ export default function SpecialistDetailDialog({
                 </div>
                 <div>
                   <dt>Chi phí</dt>
-                  <dd>1 lượt tư vấn theo gói hiện tại</dd>
+                  <dd>1 buổi tư vấn theo gói hiện tại</dd>
                 </div>
                 <div>
                   <dt>Quyền lợi</dt>
                   <dd>
                     {availableCredits === null
-                      ? 'Kiểm tra lượt theo gói khi gửi yêu cầu'
-                      : `${availableCredits} lượt tư vấn khả dụng theo gói`}
+                      ? 'Kiểm tra số buổi theo gói khi gửi yêu cầu'
+                      : `${availableCredits} buổi tư vấn khả dụng theo gói`}
                   </dd>
                 </div>
               </dl>
-              <p className={styles.note}>
-                {availableCredits === 0
-                  ? 'Bạn đã hết lượt tư vấn khả dụng theo gói.'
-                  : 'Lịch chỉ được xác nhận sau khi chuyên gia chấp thuận.'}
-              </p>
+              {blockNotice ?? (
+                <p className={styles.note}>
+                  Lịch chỉ được xác nhận sau khi chuyên gia chấp thuận.
+                </p>
+              )}
               {bookingMessage && (
                 <p className={styles.error} role="alert">
                   {bookingMessage}
@@ -370,7 +473,7 @@ export default function SpecialistDetailDialog({
               <button
                 type="button"
                 className={styles.primary}
-                disabled={!selectedSlot || submitting || availableCredits === 0}
+                disabled={!selectedSlot || submitting || block !== null}
                 onClick={() => void submitBooking()}
               >
                 {submitting ? 'Đang gửi…' : 'Xác nhận đặt lịch'}
@@ -424,6 +527,7 @@ export default function SpecialistDetailDialog({
             </div>
             {tab === 'profile' ? (
               <div className={styles.body} role="tabpanel">
+                {blockNotice}
                 <p className={styles.bio}>{item.bio}</p>
                 <section className={styles.why} aria-labelledby={whyTitleId}>
                   <h3 id={whyTitleId}>Vì sao hồ sơ này xuất hiện?</h3>
@@ -439,10 +543,6 @@ export default function SpecialistDetailDialog({
                     <dd>{item.yearsOfExperience} năm</dd>
                   </div>
                   <div>
-                    <dt>Phương pháp</dt>
-                    <dd>Chưa được cung cấp riêng</dd>
-                  </div>
-                  <div>
                     <dt>Ngôn ngữ trao đổi</dt>
                     <dd>
                       {item.languages
@@ -453,9 +553,13 @@ export default function SpecialistDetailDialog({
                   <div>
                     <dt>Hình thức</dt>
                     <dd>
-                      {slots.some((slot) => slot.modality === 'IN_APP_CHAT')
-                        ? 'Chat trong ứng dụng · 60 phút'
-                        : 'Xem lịch trống'}
+                      {offersChat && offersVideo
+                        ? 'Chat hoặc video trong ứng dụng · 60 phút'
+                        : offersVideo
+                          ? 'Video trong ứng dụng · 60 phút'
+                          : offersChat
+                            ? 'Chat trong ứng dụng · 60 phút'
+                            : 'Xem lịch trống'}
                     </dd>
                   </div>
                 </dl>
@@ -482,6 +586,7 @@ export default function SpecialistDetailDialog({
               </div>
             ) : (
               <div className={styles.body} role="tabpanel">
+                {blockNotice}
                 {days.length === 0 ? (
                   <div className={styles.empty}>
                     <Clock3 aria-hidden="true" />
@@ -490,6 +595,42 @@ export default function SpecialistDetailDialog({
                   </div>
                 ) : (
                   <>
+                    {offersChat && offersVideo && (
+                      <div
+                        className={styles.modalities}
+                        role="radiogroup"
+                        aria-label="Hình thức tư vấn"
+                      >
+                        {(
+                          [
+                            ['ALL', 'Tất cả'],
+                            ['IN_APP_CHAT', 'Chat'],
+                            ['IN_APP_VIDEO', 'Video'],
+                          ] as const
+                        ).map(([value, label]) => (
+                          <label key={value}>
+                            <input
+                              type="radio"
+                              name="specialist-modality"
+                              checked={modalityFilter === value}
+                              onChange={() => {
+                                setModalityFilter(value)
+                                setSelectedSlotId(null)
+                              }}
+                            />
+                            <span>
+                              {value === 'IN_APP_CHAT' && (
+                                <MessageCircle size={15} aria-hidden="true" />
+                              )}
+                              {value === 'IN_APP_VIDEO' && (
+                                <Video size={15} aria-hidden="true" />
+                              )}
+                              {label}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                     <div className={styles.days}>
                       {days.map((day) => (
                         <button
@@ -519,8 +660,20 @@ export default function SpecialistDetailDialog({
                               onChange={() => setSelectedSlotId(slot.id)}
                             />
                             <span>
-                              {timeLabel(slot.startAt)} –{' '}
-                              {timeLabel(slot.endAt)}
+                              <strong>
+                                {timeLabel(slot.startAt)} –{' '}
+                                {timeLabel(slot.endAt)}
+                              </strong>
+                              <small>
+                                {slot.modality === 'IN_APP_VIDEO' ? (
+                                  <Video size={13} aria-hidden="true" />
+                                ) : (
+                                  <MessageCircle size={13} aria-hidden="true" />
+                                )}
+                                {slot.modality === 'IN_APP_VIDEO'
+                                  ? 'Video'
+                                  : 'Chat'}
+                              </small>
                             </span>
                           </label>
                         ))}
@@ -543,7 +696,7 @@ export default function SpecialistDetailDialog({
                     <button
                       type="button"
                       className={styles.primary}
-                      disabled={slots.length === 0 || availableCredits === 0}
+                      disabled={slots.length === 0 || block !== null}
                       onClick={() => slots[0] && beginConfirmation(slots[0])}
                     >
                       Đặt lịch gần nhất
@@ -562,9 +715,8 @@ export default function SpecialistDetailDialog({
                       : 'Chưa có lịch trống'}{' '}
                     ·{' '}
                     {availableCredits === null
-                      ? 'Kiểm tra lượt theo gói khi đặt'
-                      : `${availableCredits} lượt khả dụng`}
-                    {availableCredits === 0 ? ' · Hết lượt tư vấn' : ''}
+                      ? 'Kiểm tra số buổi theo gói khi đặt'
+                      : `${availableCredits} buổi khả dụng`}
                   </p>
                 </>
               ) : (
@@ -578,7 +730,7 @@ export default function SpecialistDetailDialog({
                   <button
                     type="button"
                     className={styles.primary}
-                    disabled={!selectedSlot || availableCredits === 0}
+                    disabled={!selectedSlot || block !== null}
                     onClick={() =>
                       selectedSlot && beginConfirmation(selectedSlot)
                     }

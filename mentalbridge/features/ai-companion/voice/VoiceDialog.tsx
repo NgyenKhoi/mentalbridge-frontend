@@ -19,6 +19,7 @@ import {
   parseConsentCollection,
 } from '@/lib/care/care-validation'
 import type { AiProcessingDisclosure } from '@/features/assessment/api/care-contract'
+import { SERVICE_PACKAGE_LABELS } from '@/lib/consultation/consultation-validation'
 import { VoiceController } from './controller'
 import { voiceClient } from './client'
 import { VoiceError, type Disclosure } from './contract'
@@ -55,7 +56,7 @@ export default function VoiceDialog({
   const [saving, setSaving] = useState(false)
   const [includeTextContext, setIncludeTextContext] = useState(false)
   const [now, setNow] = useState(Date.now)
-  // The flag is read where the dock slot mounts, so a slotted page means MAM_WEB_ENABLED is on.
+  // Only pages under a dock slot (USER layouts) show the dock.
   const slotted = useMamDockSlotted()
   const { hidden } = useMamPreferences()
   const mam = slotted && !hidden
@@ -438,7 +439,7 @@ export default function VoiceDialog({
         ) : eligibility?.eligible && view.phase !== 'error' ? (
           <>
             <span className={styles.eyebrow}>
-              {eligibility.packageCode} · Giọng nói
+              {SERVICE_PACKAGE_LABELS[eligibility.packageCode]} · Giọng nói
             </span>
             <h3>
               Chia sẻ bằng giọng nói,

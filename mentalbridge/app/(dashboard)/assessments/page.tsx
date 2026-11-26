@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowRight, RotateCcw } from 'lucide-react'
-import { useSearchParams } from 'next/navigation'
+import { redirect, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 
 import { CrisisSupportModal } from '@/components/crisis-support/CrisisSupportWidget'
@@ -12,12 +12,11 @@ import { getAssessmentHistory } from '@/features/assessment/api/browser-care'
 import { IndividualAssessmentHistory } from '@/features/assessment/components/IndividualAssessmentHistory'
 import { ScreeningEpisodeHistory } from '@/features/assessment/components/ScreeningEpisodeHistory'
 import { SupportEvaluationHistory } from '@/features/assessment/components/SupportEvaluationHistory'
-import { ReassessmentJourney } from '@/features/assessment/components/ReassessmentJourney'
 
 import './assessments.css'
 
-type AssessmentTab = 'history' | 'support' | 'reassessment'
-const assessmentTabs: AssessmentTab[] = ['history', 'support', 'reassessment']
+type AssessmentTab = 'history' | 'support'
+const assessmentTabs: AssessmentTab[] = ['history', 'support']
 
 export default function AssessmentsPage() {
   // useSearchParams needs a Suspense boundary for prerendering.
@@ -30,17 +29,16 @@ export default function AssessmentsPage() {
 
 function AssessmentsContent() {
   const searchParams = useSearchParams()
-  // MB-645: a plan review sends the user here to finish the reassessment and come back.
-  const planReview = searchParams?.get('returnTo') === 'plan-review'
+  // The reassessment look-back lives on /nhin-lai now; old links still land there.
+  if (['reassessment', 'review'].includes(searchParams?.get('tab') ?? ''))
+    redirect('/nhin-lai')
   const [items, setItems] = useState<AssessmentSummary[]>([])
   const [cursor, setCursor] = useState<string>()
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [isCrisisOpen, setIsCrisisOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<AssessmentTab>(() =>
-    searchParams?.get('tab') === 'reassessment' ? 'reassessment' : 'history',
-  )
+  const [activeTab, setActiveTab] = useState<AssessmentTab>('history')
   const tabListRef = useRef<HTMLDivElement | null>(null)
 
   const load = useCallback(async (next?: string) => {
@@ -162,19 +160,6 @@ function AssessmentsContent() {
             <span className="assessment-desktop-label">Gợi ý sau sàng lọc</span>
             <span className="assessment-mobile-label">Gợi ý sau bài</span>
           </button>
-          <button
-            type="button"
-            id="tab-reassessment"
-            role="tab"
-            aria-selected={activeTab === 'reassessment'}
-            aria-controls="panel-reassessment"
-            tabIndex={activeTab === 'reassessment' ? 0 : -1}
-            className="assessment-tab-btn"
-            onClick={() => setActiveTab('reassessment')}
-            onKeyDown={(event) => handleTabKeyDown(event, 'reassessment')}
-          >
-            Đánh giá lại
-          </button>
         </div>
 
         <section
@@ -227,17 +212,6 @@ function AssessmentsContent() {
           className="assessment-tabpanel"
         >
           <SupportEvaluationHistory active={activeTab === 'support'} />
-        </section>
-
-        <section
-          role="tabpanel"
-          id="panel-reassessment"
-          aria-labelledby="tab-reassessment"
-          tabIndex={0}
-          hidden={activeTab !== 'reassessment'}
-          className="assessment-tabpanel"
-        >
-          <ReassessmentJourney planReview={planReview} />
         </section>
       </div>
 

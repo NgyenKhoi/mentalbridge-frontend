@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import {
   ArrowRight,
   ChevronLeft,
@@ -19,7 +19,10 @@ import type {
 } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
 import {
+  appointmentModalityLabel,
+  appointmentStatusLabel,
   appointmentTimingCopy,
+  canOpenChat,
   nextAppointment,
   orderAppointmentsForDisplay,
 } from '../model/appointment-view'
@@ -85,6 +88,26 @@ function isLateConfirmed(appointment: Appointment, generatedAt: string) {
   )
 }
 
+/** Up to three ended sessions before `current`, newest first: their summaries feed the next prep. */
+function earlierSessions(
+  appointments: readonly Appointment[],
+  current: Appointment,
+) {
+  const start = Date.parse(current.scheduledStartAt)
+  return appointments
+    .filter(
+      (item) =>
+        item.id !== current.id &&
+        (item.status === 'COMPLETED' || item.status === 'SESSION_ENDED') &&
+        Date.parse(item.scheduledEndAt) <= start,
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(right.scheduledStartAt) - Date.parse(left.scheduledStartAt),
+    )
+    .slice(0, 3)
+}
+
 function isChangeable(appointment: Appointment | undefined) {
   return (
     appointment?.status === 'REQUESTED' || appointment?.status === 'CONFIRMED'
@@ -95,35 +118,24 @@ function cancellationOutcomeMessage(
   outcome: Appointment['cancellationCreditOutcome'],
 ) {
   if (outcome === 'FORFEITED') {
-    return 'Lượt tư vấn không được hoàn lại theo mốc 24 giờ.'
+    return 'Buổi tư vấn không được hoàn lại theo mốc 24 giờ.'
   }
   if (outcome === 'RELEASED') {
-    return 'Khung giờ và lượt tư vấn đã được hoàn lại.'
+    return 'Khung giờ và buổi tư vấn đã được hoàn lại.'
   }
-  return 'Lịch hẹn và lượt tư vấn đã được cập nhật.'
+  return 'Lịch hẹn và buổi tư vấn đã được cập nhật.'
 }
 
 function rescheduleOutcomeMessage(
   outcome: Appointment['cancellationCreditOutcome'],
 ) {
   if (outcome === 'FORFEITED') {
-    return 'Lượt tư vấn cũ không được hoàn lại theo mốc 24 giờ; lịch mới đã dùng một lượt tư vấn đủ điều kiện khác.'
+    return 'Buổi tư vấn cũ không được hoàn lại theo mốc 24 giờ; lịch mới đã dùng một buổi tư vấn đủ điều kiện khác.'
   }
   if (outcome === 'TRANSFERRED_TO_REPLACEMENT') {
-    return 'Lượt tư vấn đã được chuyển sang lịch mới. Lịch cũ vẫn được lưu trong lịch sử.'
+    return 'Buổi tư vấn đã được chuyển sang lịch mới. Lịch cũ vẫn được lưu trong lịch sử.'
   }
   return 'Lịch cũ được lưu trong lịch sử. Yêu cầu mới đang chờ xác nhận.'
-}
-
-const appointmentStatus: Record<Appointment['status'], string> = {
-  REQUESTED: 'Chờ xác nhận',
-  CONFIRMED: 'Đã xác nhận',
-  IN_PROGRESS: 'Đang diễn ra',
-  SESSION_ENDED: 'Đang tổng hợp kết quả',
-  COMPLETED: 'Đã hoàn thành',
-  REJECTED: 'Chuyên gia chưa thể nhận lịch',
-  EXPIRED: 'Hết thời gian xác nhận',
-  CANCELLED: 'Đã hủy',
 }
 
 type DisplayAppointment = Pick<
@@ -135,7 +147,26 @@ type DisplayAppointment = Pick<
   | 'scheduledStartAt'
   | 'scheduledEndAt'
   | 'timezone'
+  | 'sessionOutcome'
 > & { guidance: string; appointment?: Appointment }
+
+// Result of a session that ended without a summary; USER_NO_SHOW forfeits the buổi, the others refund it.
+function sessionEndedGuidance(outcome: Appointment['sessionOutcome']) {
+  switch (outcome) {
+    case 'USER_NO_SHOW':
+      return 'Phiên đã kết thúc vì bạn vắng mặt. Buổi tư vấn này không được hoàn lại.'
+    case 'SPECIALIST_NO_SHOW':
+      return 'Chuyên gia vắng mặt trong phiên này. Buổi tư vấn đã được hoàn lại cho bạn.'
+    case 'BOTH_NO_SHOW':
+      return 'Cả hai bên đều vắng mặt. Buổi tư vấn đã được hoàn lại cho bạn.'
+    case 'INSUFFICIENT_EVIDENCE':
+      return 'Chưa đủ dữ liệu để xác nhận phiên này đã diễn ra. Buổi tư vấn đã được hoàn lại cho bạn.'
+    case 'EVIDENCE_REVIEW':
+      return 'Phiên này đang được xem xét thêm. Buổi tư vấn đã được hoàn lại cho bạn.'
+    default:
+      return 'Phiên đã kết thúc. Nội dung tóm tắt sẽ hiển thị khi có sẵn.'
+  }
+}
 
 function appointmentGuidance(appointment: Appointment) {
   switch (appointment.status) {
@@ -153,7 +184,7 @@ function appointmentGuidance(appointment: Appointment) {
         ? 'Phiên tư vấn đang diễn ra. Mở Tin nhắn để tiếp tục cuộc trò chuyện.'
         : 'Phiên tư vấn đang diễn ra.'
     case 'SESSION_ENDED':
-      return 'Phiên đã kết thúc. Nội dung tóm tắt sẽ hiển thị khi có sẵn.'
+      return sessionEndedGuidance(appointment.sessionOutcome)
     case 'COMPLETED':
       return appointment.modality === 'IN_APP_CHAT'
         ? 'Phiên đã hoàn tất. Bạn có thể xem lại cuộc trò chuyện theo quyền truy cập hiện tại.'
@@ -167,16 +198,6 @@ function appointmentGuidance(appointment: Appointment) {
         ? 'Lịch này đã được thay bằng một lịch mới.'
         : 'Lịch này đã hủy và được lưu trong lịch sử của bạn.'
   }
-}
-
-function canOpenChat(appointment: Appointment) {
-  return (
-    appointment.modality === 'IN_APP_CHAT' &&
-    (appointment.status === 'CONFIRMED' ||
-      appointment.status === 'IN_PROGRESS' ||
-      appointment.status === 'COMPLETED' ||
-      appointment.history.some((event) => event.toStatus === 'CONFIRMED'))
-  )
 }
 
 // Saved old/new link of a reschedule (consultation-specialist-policy-v2 §221–234).
@@ -215,12 +236,12 @@ function AppointmentCancellationInfo({
 
   const creditLabel =
     appointment.cancellationCreditOutcome === 'TRANSFERRED_TO_REPLACEMENT'
-      ? 'Lượt tư vấn đã chuyển sang lịch mới'
+      ? 'Buổi tư vấn đã chuyển sang lịch mới'
       : appointment.cancellationCreditOutcome === 'RELEASED'
         ? 'Đã được hoàn lại'
         : appointment.cancellationCreditOutcome === 'FORFEITED'
           ? 'Không được hoàn lại'
-          : 'Lượt tư vấn đã được cập nhật'
+          : 'Buổi tư vấn đã được cập nhật'
   const reasonLabel =
     appointment.cancellationReason === 'USER_CANCELLED'
       ? 'Lý do: bạn yêu cầu hủy'
@@ -242,7 +263,9 @@ function AppointmentCancellationInfo({
           <summary>Lịch sử thay đổi</summary>
           <ol>
             {appointment.history.map((event) => (
-              <li key={event.eventId}>{appointmentStatus[event.toStatus]}</li>
+              <li key={event.eventId}>
+                {appointmentStatusLabel({ status: event.toStatus })}
+              </li>
             ))}
           </ol>
         </details>
@@ -259,7 +282,7 @@ function errorMessage(
   const messages: Record<string, string> = {
     PAID_PLAN_REQUIRED: 'Bạn cần gói Plus hoặc Premium để đặt lịch.',
     APPOINTMENT_CREDIT_UNAVAILABLE:
-      'Không còn lượt tư vấn phù hợp cho khung giờ này.',
+      'Không còn buổi tư vấn phù hợp cho khung giờ này.',
     APPOINTMENT_RESERVATION_LIMIT_REACHED:
       'Bạn đã đạt giới hạn lịch đang chờ, đã xác nhận hoặc đang diễn ra. Hãy hoàn tất, hủy hoặc đổi một lịch hiện có trước khi đặt thêm.',
     APPOINTMENT_SLOT_UNAVAILABLE:
@@ -291,6 +314,8 @@ export default function AppointmentRequestPanel({
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed'>('all')
   const [monthOffset, setMonthOffset] = useState(0)
   const [selectedDayKey, setSelectedDayKey] = useState('')
+  // Day whose full slot list is open; a different active day shows the short list again.
+  const [expandedDayKey, setExpandedDayKey] = useState('')
   const [appointmentLoading, setAppointmentLoading] = useState(true)
   const [slotLoading, setSlotLoading] = useState(true)
   const [submitting, setSubmitting] = useState<string | null>(null)
@@ -409,7 +434,7 @@ export default function AppointmentRequestPanel({
           const accepted = await confirm({
             title: 'Đổi lịch trong vòng 24 giờ?',
             description:
-              'Lịch đã được xác nhận và còn dưới 24 giờ. Lượt tư vấn cũ sẽ không được hoàn lại, và lịch mới cần một lượt tư vấn đủ điều kiện khác.',
+              'Lịch đã được xác nhận và còn dưới 24 giờ. Buổi tư vấn cũ sẽ không được hoàn lại, và lịch mới cần một buổi tư vấn đủ điều kiện khác.',
             confirmLabel: 'Tiếp tục đổi lịch',
             cancelLabel: 'Giữ lịch cũ',
             tone: 'warning',
@@ -435,7 +460,7 @@ export default function AppointmentRequestPanel({
           const accepted = await confirm({
             title: 'Đổi lịch trong vòng 24 giờ?',
             description:
-              'Lịch vừa đi vào mốc dưới 24 giờ. Lượt tư vấn cũ sẽ không được hoàn lại, và lịch mới cần một lượt tư vấn đủ điều kiện khác.',
+              'Lịch vừa đi vào mốc dưới 24 giờ. Buổi tư vấn cũ sẽ không được hoàn lại, và lịch mới cần một buổi tư vấn đủ điều kiện khác.',
             confirmLabel: 'Tiếp tục đổi lịch',
             cancelLabel: 'Giữ lịch cũ',
             tone: 'warning',
@@ -510,7 +535,7 @@ export default function AppointmentRequestPanel({
           authoritativeAppointment,
           reconciled.generatedAt,
         )
-          ? 'Lịch đã được xác nhận và còn dưới 24 giờ. Lượt tư vấn sẽ không được hoàn lại.'
+          ? 'Lịch đã được xác nhận và còn dưới 24 giờ. Buổi tư vấn sẽ không được hoàn lại.'
           : 'Lịch sẽ được hủy và lịch sử thay đổi vẫn được lưu lại.',
         confirmLabel: 'Hủy lịch hẹn',
         cancelLabel: 'Giữ lịch hẹn',
@@ -534,7 +559,7 @@ export default function AppointmentRequestPanel({
       ) {
         const acceptedLateWarning = await confirm({
           title: 'Lịch vừa đi vào mốc dưới 24 giờ',
-          description: 'Nếu tiếp tục hủy, lượt tư vấn sẽ không được hoàn lại.',
+          description: 'Nếu tiếp tục hủy, buổi tư vấn sẽ không được hoàn lại.',
           confirmLabel: 'Vẫn hủy lịch',
           cancelLabel: 'Giữ lịch hẹn',
           tone: 'danger',
@@ -619,17 +644,22 @@ export default function AppointmentRequestPanel({
       })),
     [appointments],
   )
-  const filteredItems = useMemo(
-    () =>
-      displayItems.filter((item) =>
-        filter === 'all'
-          ? true
-          : filter === 'upcoming'
-            ? ['REQUESTED', 'CONFIRMED', 'IN_PROGRESS'].includes(item.status)
-            : ['SESSION_ENDED', 'COMPLETED'].includes(item.status),
-      ),
-    [displayItems, filter],
-  )
+  const filteredItems = useMemo(() => {
+    const items = displayItems.filter((item) =>
+      filter === 'all'
+        ? true
+        : filter === 'upcoming'
+          ? ['REQUESTED', 'CONFIRMED', 'IN_PROGRESS'].includes(item.status)
+          : ['SESSION_ENDED', 'COMPLETED'].includes(item.status),
+    )
+    return filter === 'completed'
+      ? [...items].sort(
+          (left, right) =>
+            Date.parse(right.scheduledStartAt) -
+            Date.parse(left.scheduledStartAt),
+        )
+      : items
+  }, [displayItems, filter])
   const detailAppointment = detailAppointmentId
     ? appointments.find((item) => item.id === detailAppointmentId)
     : undefined
@@ -664,6 +694,12 @@ export default function AppointmentRequestPanel({
     slotsByDay.keys().next().value ||
     dayKey(calendarAnchor.getDate())
   const daySlots = slotsByDay.get(activeDayKey) ?? []
+  const slotsExpanded = expandedDayKey === activeDayKey
+  // Collapsed: first 5, plus the chosen slot when it sits further down.
+  const visibleSlots = slotsExpanded
+    ? daySlots
+    : daySlots.filter((slot, index) => index < 5 || slot.id === selectedSlotId)
+  const slotListId = useId()
 
   function openDetail(
     appointmentId: string,
@@ -735,8 +771,8 @@ export default function AppointmentRequestPanel({
         )}
         {rescheduling && isLateConfirmed(rescheduling, generatedAt) && (
           <p className={styles.bookingWarning}>
-            Lịch đã xác nhận còn dưới 24 giờ. Lượt tư vấn cũ sẽ không được hoàn
-            lại và lịch mới cần một lượt tư vấn đủ điều kiện khác.
+            Lịch đã xác nhận còn dưới 24 giờ. Buổi tư vấn cũ sẽ không được hoàn
+            lại và lịch mới cần một buổi tư vấn đủ điều kiện khác.
           </p>
         )}
         {slotLoading && <p role="status">Đang tải khung giờ…</p>}
@@ -863,7 +899,7 @@ export default function AppointmentRequestPanel({
                         : styles.badgeAmber
                     }
                   >
-                    {appointmentStatus[focusedAppointment.status]}
+                    {appointmentStatusLabel(focusedAppointment)}
                   </span>
                   <p
                     style={{
@@ -897,7 +933,7 @@ export default function AppointmentRequestPanel({
                 </div>
                 <div>
                   <dt>Trạng thái</dt>
-                  <dd>{appointmentStatus[focusedAppointment.status]}</dd>
+                  <dd>{appointmentStatusLabel(focusedAppointment)}</dd>
                 </div>
               </dl>
 
@@ -979,6 +1015,10 @@ export default function AppointmentRequestPanel({
                     key={focusedAppointment.id}
                     appointmentId={focusedAppointment.id}
                     scheduledStartAt={focusedAppointment.scheduledStartAt}
+                    earlierAppointments={earlierSessions(
+                      appointments,
+                      focusedAppointment,
+                    )}
                   />
                 </div>
               )}
@@ -1044,10 +1084,7 @@ export default function AppointmentRequestPanel({
           TƯ VẤN SỨC KHỎE TÂM LÝ
         </span>
         <h1 className={styles.title}>Lịch hẹn của bạn</h1>
-        <p className={styles.subtitle}>
-          Quản lý hành trình chăm sóc bản thân. Mọi thông tin trao đổi giữa bạn
-          và chuyên gia đều được mã hóa bảo mật tuyệt đối.
-        </p>
+        <p className={styles.subtitle}>Quản lý hành trình chăm sóc bản thân.</p>
       </header>
 
       {actionError && (
@@ -1205,7 +1242,7 @@ export default function AppointmentRequestPanel({
                   className={`${styles.filterTab} ${filter === 'completed' ? styles.filterTabActive : ''}`}
                   onClick={() => setFilter('completed')}
                 >
-                  Đã hoàn tất (
+                  Đã kết thúc (
                   {
                     displayItems.filter((item) =>
                       ['SESSION_ENDED', 'COMPLETED'].includes(item.status),
@@ -1227,6 +1264,10 @@ export default function AppointmentRequestPanel({
                   item.status === 'SESSION_ENDED' ||
                   item.status === 'IN_PROGRESS'
                 const isCompleted = item.status === 'COMPLETED'
+                const hasNoSummaryOutcome =
+                  item.status === 'SESSION_ENDED' &&
+                  !!item.sessionOutcome &&
+                  item.sessionOutcome !== 'COMPLETED'
 
                 const dateBlockClass = isConfirmed
                   ? styles.dateBlockGreen
@@ -1258,14 +1299,7 @@ export default function AppointmentRequestPanel({
                     ? styles.badgeAmber
                     : styles.badgeGray
 
-                const badgeLabel =
-                  item.status === 'CONFIRMED'
-                    ? 'Đã xác nhận'
-                    : item.status === 'SESSION_ENDED'
-                      ? 'Đang tổng hợp kết quả'
-                      : item.status === 'COMPLETED'
-                        ? 'Đã hoàn thành'
-                        : appointmentStatus[item.status]
+                const badgeLabel = appointmentStatusLabel(item)
 
                 const timeLabel = formatTimeRange(
                   item.scheduledStartAt,
@@ -1297,11 +1331,7 @@ export default function AppointmentRequestPanel({
                         ) : (
                           <MessageSquare size={14} aria-hidden="true" />
                         )}
-                        <span>
-                          {item.modality === 'IN_APP_CHAT'
-                            ? 'Chat trực tuyến'
-                            : 'Video Call'}
-                        </span>
+                        <span>{appointmentModalityLabel(item.modality)}</span>
                       </p>
 
                       <p className={styles.rowNote}>{item.guidance}</p>
@@ -1332,7 +1362,18 @@ export default function AppointmentRequestPanel({
                         </button>
                       )}
 
-                      {isEnding && (
+                      {(item.status === 'EXPIRED' ||
+                        item.status === 'REJECTED') &&
+                        item.appointment && (
+                          <Link
+                            href={`/specialists?specialist=${encodeURIComponent(item.appointment.specialistAccountId)}`}
+                            className={styles.mintBtn}
+                          >
+                            Chọn giờ khác
+                          </Link>
+                        )}
+
+                      {isEnding && !hasNoSummaryOutcome && (
                         <button
                           type="button"
                           className={styles.outlineBtn}
@@ -1389,9 +1430,17 @@ export default function AppointmentRequestPanel({
                 !appointmentError &&
                 filteredItems.length === 0 && (
                   <p className={styles.emptyState}>
-                    {appointments.length === 0
-                      ? 'Bạn chưa có lịch hẹn nào. Chọn một khung giờ trống để bắt đầu.'
-                      : 'Không có lịch hẹn trong nhóm này.'}
+                    {appointments.length === 0 ? (
+                      <>
+                        Bạn chưa có lịch hẹn nào.{' '}
+                        <Link href="/specialists">
+                          Chọn chuyên gia và khung giờ để bắt đầu
+                        </Link>
+                        .
+                      </>
+                    ) : (
+                      'Không có lịch hẹn trong nhóm này.'
+                    )}
                   </p>
                 )}
               {appointmentError && (
@@ -1532,40 +1581,69 @@ export default function AppointmentRequestPanel({
               ) : daySlots.length === 0 ? (
                 <p>Ngày này chưa có khung giờ trống.</p>
               ) : (
-                daySlots.map((slot) => {
-                  const selected = selectedSlotId === slot.id
-                  return (
-                    <button
-                      key={slot.id}
-                      type="button"
-                      className={`${styles.slotOption} ${selected ? styles.slotOptionSelected : ''}`}
-                      onClick={() => setSelectedSlotId(slot.id)}
-                      aria-pressed={selected}
-                    >
-                      <span
-                        className={`${styles.radioCircle} ${selected ? styles.radioCircleSelected : ''}`}
-                        aria-hidden="true"
+                <div id={slotListId} className={styles.slotList}>
+                  {visibleSlots.map((slot) => {
+                    const selected = selectedSlotId === slot.id
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        className={`${styles.slotOption} ${selected ? styles.slotOptionSelected : ''}`}
+                        onClick={() => setSelectedSlotId(slot.id)}
+                        aria-pressed={selected}
                       >
-                        {selected && <span className={styles.radioDot} />}
-                      </span>
-                      <span className={styles.slotOptionInfo}>
-                        <strong className={styles.slotOptionTime}>
-                          {formatTimeRange(
-                            slot.startAt,
-                            slot.endAt,
-                            slot.timezone,
-                          )}
-                        </strong>
-                        <span className={styles.slotOptionDoctor}>
-                          {slot.specialistDisplayName}
+                        <span
+                          className={`${styles.radioCircle} ${selected ? styles.radioCircleSelected : ''}`}
+                          aria-hidden="true"
+                        >
+                          {selected && <span className={styles.radioDot} />}
                         </span>
-                      </span>
-                      <span className={styles.slotBadgeMorning}>
-                        {slot.modality === 'IN_APP_CHAT' ? 'Chat' : 'Video'}
-                      </span>
-                    </button>
-                  )
-                })
+                        <span className={styles.slotOptionInfo}>
+                          <strong className={styles.slotOptionTime}>
+                            {formatTimeRange(
+                              slot.startAt,
+                              slot.endAt,
+                              slot.timezone,
+                            )}
+                          </strong>
+                          <span className={styles.slotOptionDoctor}>
+                            {slot.specialistDisplayName}
+                          </span>
+                        </span>
+                        <span className={styles.slotBadgeMorning}>
+                          {slot.modality === 'IN_APP_CHAT' ? 'Chat' : 'Video'}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {!slotLoading && !slotError && daySlots.length > 5 && (
+                <button
+                  type="button"
+                  className={styles.slotMoreBtn}
+                  aria-expanded={slotsExpanded}
+                  aria-controls={slotListId}
+                  aria-label={
+                    slotsExpanded
+                      ? 'Thu gọn danh sách khung giờ'
+                      : `Xem thêm ${daySlots.length - visibleSlots.length} khung giờ`
+                  }
+                  onClick={(event) => {
+                    const button = event.currentTarget
+                    setExpandedDayKey(slotsExpanded ? '' : activeDayKey)
+                    // Keep the button in view after the list shrinks.
+                    if (slotsExpanded) {
+                      requestAnimationFrame(() =>
+                        button.scrollIntoView?.({ block: 'nearest' }),
+                      )
+                    }
+                  }}
+                >
+                  {slotsExpanded
+                    ? 'Thu gọn'
+                    : `Xem thêm (${daySlots.length - visibleSlots.length})`}
+                </button>
               )}
             </div>
             <button
@@ -1604,7 +1682,7 @@ export default function AppointmentRequestPanel({
                 </h2>
                 <p>
                   {detailItem.specialistDisplayName} ·{' '}
-                  {appointmentStatus[detailItem.status]}
+                  {appointmentStatusLabel(detailItem)}
                 </p>
               </div>
               <button
@@ -1637,7 +1715,7 @@ export default function AppointmentRequestPanel({
               </div>
               <div>
                 <dt>Trạng thái</dt>
-                <dd>{appointmentStatus[detailItem.status]}</dd>
+                <dd>{appointmentStatusLabel(detailItem)}</dd>
               </div>
             </dl>
             {detailAppointment && (
@@ -1654,6 +1732,10 @@ export default function AppointmentRequestPanel({
                     key={detailAppointment.id}
                     appointmentId={detailAppointment.id}
                     scheduledStartAt={detailAppointment.scheduledStartAt}
+                    earlierAppointments={earlierSessions(
+                      appointments,
+                      detailAppointment,
+                    )}
                   />
                 ) : (
                   <SessionSummaryPanel
@@ -1749,14 +1831,6 @@ export default function AppointmentRequestPanel({
       </Dialog>
 
       {bookingDialog}
-
-      <Link
-        href="/messages"
-        className={styles.floatingChatBtn}
-        aria-label="Mở tin nhắn trực tuyến"
-      >
-        <MessageSquare size={22} aria-hidden="true" />
-      </Link>
     </main>
   )
 }

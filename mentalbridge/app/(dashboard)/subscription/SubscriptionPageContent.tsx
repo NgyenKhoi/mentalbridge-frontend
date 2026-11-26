@@ -1,3 +1,5 @@
+'use client'
+
 import {
   ArrowUpRight,
   CalendarDays,
@@ -5,16 +7,20 @@ import {
   Leaf,
   ShieldCheck,
 } from 'lucide-react'
+import { useState } from 'react'
 
 import ServiceCreditsPanel from '@/features/service-credits/components/ServiceCreditsPanel'
 import PlanCheckoutPanel from '@/features/subscription/components/PlanCheckoutPanel'
+import SubscriptionCancellationPanel from '@/features/subscription/components/SubscriptionCancellationPanel'
 
 import './subscription-redesign.css'
 
 export default function SubscriptionPageContent() {
+  const [ownerStateRevision, setOwnerStateRevision] = useState(0)
+
   return (
     <div className="subscription-page svc-page">
-      <ServiceCreditsPanel />
+      <ServiceCreditsPanel key={`credits-${ownerStateRevision}`} />
 
       <header
         className="svc-intro"
@@ -26,12 +32,18 @@ export default function SubscriptionPageContent() {
         </span>
         <h1>Gói dịch vụ &amp; quyền lợi tư vấn</h1>
         <p>
-          Theo dõi lượt tư vấn hiện có, so sánh quyền lợi từ catalogue chính
-          thức và thanh toán an toàn khi bạn muốn đồng hành sâu hơn.
+          Xem số buổi tư vấn còn lại, so sánh quyền lợi các gói và thanh toán an
+          toàn khi bạn muốn được đồng hành sâu hơn.
         </p>
       </header>
 
-      <PlanCheckoutPanel />
+      <SubscriptionCancellationPanel
+        onConfirmedCancellation={() =>
+          setOwnerStateRevision((revision) => revision + 1)
+        }
+      />
+
+      <PlanCheckoutPanel key={`checkout-${ownerStateRevision}`} />
 
       <section className="svc-assurance" aria-labelledby="svc-assurance-title">
         <div className="svc-assurance-copy">
@@ -39,68 +51,28 @@ export default function SubscriptionPageContent() {
             <ShieldCheck size={14} aria-hidden="true" /> QUYỀN LỢI RÕ RÀNG
           </span>
           <h2 id="svc-assurance-title">
-            Mỗi giao dịch gắn với đúng một phiên bản gói
+            Quyền lợi bạn thấy là quyền lợi bạn nhận
           </h2>
           <p>
-            Giá, số lượt tư vấn, giới hạn lịch và thời gian hiệu lực được chốt
-            khi bạn tạo giao dịch. Hệ thống chỉ kích hoạt gói sau khi nhận xác
-            nhận thanh toán hợp lệ.
+            Giá, số buổi tư vấn và thời gian sử dụng được chốt khi bạn tạo giao
+            dịch. Gói chỉ được kích hoạt sau khi thanh toán thành công.
           </p>
           <div className="svc-assurance-points">
             <div>
               <CalendarDays size={18} aria-hidden="true" />
-              <strong>Kỳ dịch vụ rõ ràng</strong>
+              <strong>Thời gian sử dụng rõ ràng</strong>
               <span>
-                Ngày bắt đầu, kết thúc và số lượt còn lại luôn hiển thị trong
-                tài khoản.
+                Ngày bắt đầu, ngày kết thúc và số buổi còn lại luôn hiển thị
+                trong tài khoản.
               </span>
             </div>
             <div>
               <ShieldCheck size={18} aria-hidden="true" />
-              <strong>Xác nhận từ máy chủ</strong>
+              <strong>Giá rõ ràng trước khi trả</strong>
               <span>
-                Trình duyệt không tự tính giá, quyền lợi hay số lượt tư vấn.
+                Bạn luôn thấy đúng số tiền cần trả trước khi xác nhận.
               </span>
             </div>
-          </div>
-        </div>
-        <div className="svc-preview" aria-hidden="true">
-          <div className="svc-preview-sidebar">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="svc-preview-main">
-            <div className="svc-preview-top">
-              <span />
-              <i />
-              <i />
-            </div>
-            <div className="svc-preview-title">Quyền lợi tư vấn minh bạch</div>
-            <div className="svc-preview-summary">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className="svc-preview-line" />
-            <div className="svc-preview-cards">
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className="svc-preview-table">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-          </div>
-          <div className="svc-preview-caption">
-            Thông tin quyền lợi của bạn luôn rõ ràng
           </div>
         </div>
       </section>
@@ -133,8 +105,8 @@ export default function SubscriptionPageContent() {
       <details id="subscription-policy" className="svc-policy">
         <summary>Chính sách hiện tại</summary>
         <p>
-          Lượt tư vấn không cộng dồn sang kỳ tiếp theo. Plus có thể nâng lên
-          Premium trong kỳ; hệ thống giữ phần giá trị đủ điều kiện và hiển thị
+          Buổi chưa dùng không cộng dồn sang tháng sau. Plus có thể nâng lên
+          Premium giữa tháng; hệ thống giữ phần giá trị còn lại và hiển thị
           chính xác số tiền cần thanh toán trước khi bạn trả tiền.
         </p>
       </details>

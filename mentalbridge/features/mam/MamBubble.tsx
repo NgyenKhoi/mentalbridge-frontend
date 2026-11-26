@@ -266,6 +266,21 @@ export function MamBubble({
 
 const CELEBRATION_MS = 8000
 
+// An emoji is kept to look at but is not read out ("sparkles"): it goes into an aria-hidden span.
+const EMOJI = /(\p{Extended_Pictographic}️?)/u
+
+function SpokenText({ text }: Readonly<{ text: string }>) {
+  return text.split(EMOJI).map((part, index) =>
+    index % 2 === 1 ? (
+      <span key={index} aria-hidden="true">
+        {part}
+      </span>
+    ) : (
+      part
+    ),
+  )
+}
+
 /**
  * The `happy` bubble of an award celebration. It is automatic, so it is not a
  * dialog and never takes focus. Esc, an outside press or the close button end
@@ -277,10 +292,13 @@ export function MamCelebrationBubble({
   reduced,
   bubbleRef,
   returnFocusRef,
+  holdMs = CELEBRATION_MS,
   onClose,
 }: Readonly<{
   text: string
   showLink: boolean
+  /** How long it stays without hover or focus; an award's 8 s unless the caller shortens it. */
+  holdMs?: number
   reduced: boolean
   bubbleRef: RefObject<HTMLDivElement | null>
   returnFocusRef: RefObject<HTMLButtonElement | null>
@@ -300,9 +318,9 @@ export function MamCelebrationBubble({
 
   useEffect(() => {
     if (paused) return
-    const timer = setTimeout(onClose, CELEBRATION_MS)
+    const timer = setTimeout(onClose, holdMs)
     return () => clearTimeout(timer)
-  }, [paused, onClose])
+  }, [paused, onClose, holdMs])
 
   // Closing from inside the bubble hands focus back to the dock, as the menu does.
   const close = useCallback(() => {
@@ -371,7 +389,11 @@ export function MamCelebrationBubble({
         role="status"
         aria-live="polite"
       >
-        {spoken ? <div className={styles.answer}>{spoken}</div> : null}
+        {spoken ? (
+          <div className={styles.answer}>
+            <SpokenText text={spoken} />
+          </div>
+        ) : null}
       </div>
       {showLink ? (
         <Link href="/achievements" className={styles.done}>

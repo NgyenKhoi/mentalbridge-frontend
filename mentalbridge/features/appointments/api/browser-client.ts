@@ -5,10 +5,8 @@ import type {
   AppointmentModality,
   AppointmentRating,
   AppointmentDispute,
-  AppointmentDisputeList,
   BookableSlotList,
   OpenAppointmentDisputeInput,
-  ResolveAppointmentDisputeInput,
 } from '@/lib/consultation/consultation-validation'
 
 export const appointmentBrowserClient = {
@@ -32,32 +30,6 @@ export const appointmentBrowserClient = {
         `/consultation${prefix}/appointments/${encodeURIComponent(appointmentId)}/dispute`,
         body,
         { headers: { 'Idempotency-Key': idempotencyKey } },
-      )
-    ).data
-  },
-  async disputes(status: 'OPEN' | 'RESOLVED') {
-    return (
-      await browserApiClient.get<AppointmentDisputeList>(
-        `/consultation/admin/appointment-disputes?status=${status}`,
-      )
-    ).data
-  },
-  async resolveDispute(
-    disputeId: string,
-    body: ResolveAppointmentDisputeInput,
-    version: number,
-    idempotencyKey: string,
-  ) {
-    return (
-      await browserApiClient.post<AppointmentDispute>(
-        `/consultation/admin/appointment-disputes/${encodeURIComponent(disputeId)}/resolve`,
-        body,
-        {
-          headers: {
-            'If-Match': `"${version}"`,
-            'Idempotency-Key': idempotencyKey,
-          },
-        },
       )
     ).data
   },

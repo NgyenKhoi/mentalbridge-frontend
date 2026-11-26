@@ -136,7 +136,7 @@ test.describe('AC1: Cross-user authorization boundaries', () => {
     await page.goto('/ai-companion')
     await expect(page).toHaveURL(/\/specialist\/dashboard/)
     await expect(
-      page.getByRole('region', { name: 'AI Companion' }),
+      page.getByRole('region', { name: 'Trò chuyện với Mầm' }),
     ).toHaveCount(0)
   })
 
@@ -515,7 +515,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.goto('/dashboard')
 
     await expect(
-      page.getByRole('link', { name: 'Bắt đầu kiểm tra ban đầu', exact: true }),
+      page.getByRole('link', { name: 'Bắt đầu bài sàng lọc', exact: true }),
     ).toBeVisible({ timeout: 10_000 })
 
     const html = await page.evaluate(() => document.body.innerHTML)
@@ -541,7 +541,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.goto('/dashboard')
 
     await expect(
-      page.getByRole('link', { name: 'Bắt đầu kiểm tra ban đầu', exact: true }),
+      page.getByRole('link', { name: 'Bắt đầu bài sàng lọc', exact: true }),
     ).toBeVisible({ timeout: 10_000 })
 
     // Entitlements are enforced by the backend when booking; the dashboard must
@@ -574,6 +574,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
         appointmentMessage: true,
         resourceSystem: true,
         communityInteraction: true,
+        supportPlanReminder: true,
       },
       quietHours: {
         enabled: true,
@@ -589,6 +590,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
         dailyDigestTime: '19:00',
         resourceReminderTime: '18:30',
       },
+      dailyReminderTime: '20:00',
       version,
       updatedAt: '2026-09-26T00:00:00.000Z',
     }
@@ -670,7 +672,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     ).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText(inboxItem.title)).toBeVisible()
     await expect(page.getByLabel('Chưa đọc')).toBeVisible()
-    await page.getByRole('button', { name: /Đánh dấu đã đọc tất cả/i }).click()
+    await page.getByRole('button', { name: /Đọc tất cả/i }).click()
     await expect(page.getByText('Bạn đã xem tất cả thông báo.')).toBeVisible()
     await page.reload()
     await expect(page.getByText(inboxItem.title)).toBeVisible()
@@ -783,7 +785,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     ).toBeVisible({ timeout: 10_000 })
 
     await expect(page.getByText('Chuyên gia An')).toBeVisible()
-    await expect(page.getByText(/Bạn đang dùng gói Free/)).toBeVisible()
+    await expect(page.getByText(/Bạn đang dùng gói Miễn phí/)).toBeVisible()
     await page.getByRole('button', { name: 'Hồ sơ', exact: true }).click()
     const detail = page.getByRole('dialog')
     await expect(detail.getByText(item.bio)).toBeVisible()

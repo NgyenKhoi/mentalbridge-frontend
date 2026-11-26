@@ -992,6 +992,34 @@
   flex-shrink: 0;
 }
 
+.slotList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Two classes beat the shell's `.ref-shell button` font rules without !important. */
+.slotSelectSection .slotMoreBtn {
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--teal-deep);
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.slotSelectSection .slotMoreBtn:hover {
+  background: var(--surface-soft);
+}
+
+.slotSelectSection .slotMoreBtn:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 2px;
+}
+
 .confirmSlotBtn {
   width: 100%;
   border: none;
@@ -1170,37 +1198,6 @@
   color: #b91c1c !important;
 }
 
-/* Floating Chat Bubble */
-.floatingChatBtn {
-  position: fixed;
-  /* Stack above the global crisis-support button (bottom-right, 24px) so it never covers it. */
-  bottom: calc(96px + env(safe-area-inset-bottom));
-  right: calc(26px + env(safe-area-inset-right));
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: #12382c !important;
-  color: #ffffff !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 16px rgba(18, 56, 44, 0.3);
-  z-index: 50;
-  transition:
-    transform 0.15s ease,
-    background-color 0.15s ease;
-}
-
-.floatingChatBtn:focus-visible {
-  outline: 3px solid #165b44;
-  outline-offset: 3px;
-}
-
-.floatingChatBtn:hover {
-  transform: scale(1.05);
-  background: #0d2a21 !important;
-}
-
 /* Detail view styles for focusAppointmentId subpage */
 .detailPanel {
   background: #ffffff !important;
@@ -1284,10 +1281,42 @@
   border: 1px solid #d1d5db;
 }
 
+/* Same shape as the neighbouring secondary/outline button; only the tone says "danger". */
 .dangerAction {
-  background: #fef2f2;
-  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: #ffffff;
+  color: #b91c1c;
   border: 1px solid #fecaca;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.dialogActions .dangerAction {
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.dangerAction:hover:not(:disabled):not([aria-disabled='true']) {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.dangerAction:focus-visible {
+  outline: 2px solid #b91c1c;
+  outline-offset: 2px;
+}
+
+.dangerAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .pageError {
@@ -1439,11 +1468,6 @@
 }
 
 @media (max-width: 640px) {
-  .floatingChatBtn {
-    right: calc(18px + env(safe-area-inset-right));
-    bottom: calc(84px + env(safe-area-inset-bottom));
-  }
-
   .appointmentRow {
     flex-wrap: wrap;
   }

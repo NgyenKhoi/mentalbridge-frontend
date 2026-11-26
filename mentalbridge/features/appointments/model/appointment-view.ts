@@ -45,25 +45,36 @@ export function nextAppointment(
     )[0]
 }
 
-const ACTIVE_STATUSES: readonly Appointment['status'][] = [
-  'REQUESTED',
-  'CONFIRMED',
-  'IN_PROGRESS',
-  'SESSION_ENDED',
-]
+// An ended session stays active only while its outcome is still unknown.
+function isActiveForDisplay(appointment: Appointment) {
+  return appointment.status === 'SESSION_ENDED'
+    ? !appointment.sessionOutcome
+    : ['REQUESTED', 'CONFIRMED', 'IN_PROGRESS'].includes(appointment.status)
+}
 
 export function orderAppointmentsForDisplay(
   appointments: readonly Appointment[],
 ) {
   return [...appointments].sort((left, right) => {
-    const leftActive = ACTIVE_STATUSES.includes(left.status)
-    const rightActive = ACTIVE_STATUSES.includes(right.status)
+    const leftActive = isActiveForDisplay(left)
+    const rightActive = isActiveForDisplay(right)
     if (leftActive !== rightActive) return leftActive ? -1 : 1
 
     const difference =
       Date.parse(left.scheduledStartAt) - Date.parse(right.scheduledStartAt)
     return leftActive ? difference : -difference
   })
+}
+
+/** True once the chat history of this appointment can be opened. */
+export function canOpenChat(appointment: Appointment) {
+  return (
+    appointment.modality === 'IN_APP_CHAT' &&
+    (appointment.status === 'CONFIRMED' ||
+      appointment.status === 'IN_PROGRESS' ||
+      appointment.status === 'COMPLETED' ||
+      appointment.history.some((event) => event.toStatus === 'CONFIRMED'))
+  )
 }
 
 export function appointmentTimingCopy(appointment: Appointment) {
@@ -76,19 +87,112 @@ export function appointmentTimingCopy(appointment: Appointment) {
   return 'Mở tin nhắn để xem trạng thái phiên'
 }
 
-/** Decision deadlines first; no client-side inference of decision eligibility. */
+const SPECIALIST_RANK: Partial<Record<Appointment['status'], number>> = {
+  IN_PROGRESS: 0,
+  CONFIRMED: 1,
+  REQUESTED: 2,
+  SESSION_ENDED: 3,
+}
+
+/**
+ * Specialist "Tất cả" order (owner, MB-891): in progress, upcoming confirmed
+ * (nearest first), requests by decision deadline, ended sessions awaiting a
+ * result, then history (newest first). No client-side decision eligibility.
+ */
 export function orderSpecialistAppointments(
   appointments: readonly Appointment[],
 ) {
-  return orderAppointmentsForDisplay(appointments).sort((left, right) => {
-    if (left.status === 'REQUESTED' && right.status === 'REQUESTED') {
-      return (
-        Date.parse(left.decisionDeadlineAt) -
-        Date.parse(right.decisionDeadlineAt)
-      )
-    }
-    if (left.status === 'REQUESTED') return -1
-    if (right.status === 'REQUESTED') return 1
-    return 0
-  })
+  const rank = (item: Appointment) => SPECIALIST_RANK[item.status] ?? 4
+  const time = (item: Appointment) =>
+    Date.parse(
+      item.status === 'REQUESTED'
+        ? item.decisionDeadlineAt
+        : item.scheduledStartAt,
+    )
+  return [...appointments].sort(
+    (left, right) =>
+      rank(left) - rank(right) ||
+      (rank(left) < 3 ? time(left) - time(right) : time(right) - time(left)),
+  )
+}
+
+type Viewer = 'USER' | 'SPECIALIST'
+
+const STATUS_LABELS: Record<
+  Viewer,
+  Record<Exclude<Appointment['status'], 'SESSION_ENDED'>, string>
+> = {
+  USER: {
+    REQUESTED: 'Chờ xác nhận',
+    CONFIRMED: 'Đã xác nhận',
+    IN_PROGRESS: 'Đang diễn ra',
+    COMPLETED: 'Đã hoàn thành',
+    REJECTED: 'Chuyên gia chưa thể nhận lịch',
+    EXPIRED: 'Hết thời gian xác nhận',
+    CANCELLED: 'Đã hủy',
+  },
+  SPECIALIST: {
+    REQUESTED: 'Chờ phản hồi',
+    CONFIRMED: 'Đã xác nhận',
+    IN_PROGRESS: 'Đang diễn ra',
+    COMPLETED: 'Đã hoàn thành',
+    REJECTED: 'Đã từ chối',
+    EXPIRED: 'Đã hết hạn',
+    CANCELLED: 'Đã hủy',
+  },
+}
+
+/** Label of a session that ended but is not COMPLETED yet; the outcome says why. */
+function sessionEndedLabel(
+  outcome: Appointment['sessionOutcome'],
+  viewer: Viewer,
+) {
+  const mine = viewer === 'USER'
+  switch (outcome) {
+    case 'USER_NO_SHOW':
+      return mine ? 'Bạn vắng mặt' : 'Khách hàng vắng mặt'
+    case 'SPECIALIST_NO_SHOW':
+      return mine ? 'Chuyên gia vắng mặt' : 'Bạn vắng mặt'
+    case 'BOTH_NO_SHOW':
+      return 'Cả hai vắng mặt'
+    case 'INSUFFICIENT_EVIDENCE':
+      return 'Chưa đủ dữ liệu xác nhận'
+    case 'EVIDENCE_REVIEW':
+      return 'Đang xem xét'
+    default:
+      return 'Đang xác nhận kết quả'
+  }
+}
+
+/** The single status wording for lists, badges and pills (SESSION_ENDED is never "done"). */
+export function appointmentStatusLabel(
+  appointment: Pick<Appointment, 'status'> &
+    Partial<Pick<Appointment, 'sessionOutcome'>>,
+  viewer: Viewer = 'USER',
+) {
+  return appointment.status === 'SESSION_ENDED'
+    ? sessionEndedLabel(appointment.sessionOutcome ?? null, viewer)
+    : STATUS_LABELS[viewer][appointment.status]
+}
+
+/** Vietnamese wording of a consultation channel; never print the raw enum. */
+export function appointmentModalityLabel(
+  modality: Appointment['modality'] | string | null | undefined,
+) {
+  return modality === 'IN_APP_VIDEO' ? 'Gọi video' : 'Chat trực tuyến'
+}
+
+/** The single credit wording for both sides of an appointment. */
+const CREDIT_LABELS: Record<Appointment['creditState'], string> = {
+  AVAILABLE: 'Buổi tư vấn đã được hoàn lại',
+  HELD: 'Buổi tư vấn đang được giữ cho lịch hẹn',
+  CONSUMED: 'Đã dùng 1 buổi tư vấn',
+  FORFEITED: 'Buổi tư vấn không còn hiệu lực',
+  REVOKED: 'Buổi tư vấn đã bị thu hồi khi chủ gói hủy đăng ký',
+}
+
+export function appointmentCreditLabel(
+  appointment: Pick<Appointment, 'creditState'>,
+) {
+  return CREDIT_LABELS[appointment.creditState]
 }

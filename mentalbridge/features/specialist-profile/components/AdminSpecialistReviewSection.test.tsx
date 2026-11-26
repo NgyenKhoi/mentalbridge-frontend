@@ -31,6 +31,9 @@ const api = vi.hoisted(() => ({
   adminSpecialistCredentialDocuments: vi.fn(),
   adminCredentialFile: vi.fn(),
   reviewCredential: vi.fn(),
+  profileAmendments: vi.fn(),
+  amendmentDetail: vi.fn(),
+  decideAmendment: vi.fn(),
 }))
 vi.mock('../api/browser-client', () => ({ browserConsultation: api }))
 
@@ -186,7 +189,7 @@ describe('AdminSpecialistReviewSection', () => {
       ),
     )
     expect(
-      await screen.findByText(/rút 2 lịch, hủy 1 cuộc hẹn và hoàn 1 lượt/),
+      await screen.findByText(/rút 2 lịch, hủy 1 cuộc hẹn và hoàn 1 buổi/),
     ).toBeInTheDocument()
   })
 
@@ -205,5 +208,97 @@ describe('AdminSpecialistReviewSection', () => {
     await waitFor(() =>
       expect(api.profiles).toHaveBeenLastCalledWith('SUSPENDED'),
     )
+  })
+
+  it('shows only the real profile with its own documents inside the detail', async () => {
+    render(<AdminSpecialistReviewSection />)
+
+    const detail = (
+      await screen.findByRole('heading', { name: profile.displayName })
+    ).closest('article') as HTMLElement
+    expect(
+      await within(detail).findByRole('region', {
+        name: /Giấy tờ của chuyên gia/,
+      }),
+    ).toBeInTheDocument()
+    expect(api.adminSpecialistCredentialDocuments).toHaveBeenCalledWith(
+      profile.accountId,
+    )
+    expect(api.pendingCredentialDocuments).not.toHaveBeenCalled()
+    expect(
+      screen.queryByText(/SLA còn|PADDLEOCR|CSDL Quốc gia|#MB-/),
+    ).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: /Tải tệp thật|Yêu cầu bổ sung/ }),
+    ).toBeNull()
+  })
+
+  it('reviews a real amendment against the published profile and decides through the consultation API', async () => {
+    const amendment = {
+      id: '0b7c2f43-6a1e-4f7e-9d43-2a6f1d1f8c11',
+      specialistAccountId: profile.accountId,
+      basePublishedVersion: 1,
+      status: 'PENDING_REVIEW' as const,
+      proposedProfile: {
+        displayName: profile.displayName,
+        bio: 'Giới thiệu mới',
+        supportAreas: ['DEPRESSIVE_SYMPTOMS' as const],
+        languages: ['vi'],
+        yearsOfExperience: 4,
+        timezone: 'Asia/Ho_Chi_Minh',
+      },
+      submittedAt: '2026-11-20T03:00:00Z',
+      reviewedAt: null,
+      reviewedBy: null,
+      reasonCode: null,
+      createdAt: '2026-11-20T02:00:00Z',
+      updatedAt: '2026-11-20T03:00:00Z',
+      version: 5,
+    }
+    api.profileAmendments.mockResolvedValue({
+      data: { items: [amendment], count: 1, hasMore: false },
+      etag: null,
+    })
+    api.amendmentDetail.mockResolvedValue({
+      data: {
+        approvedProfile: { ...profile, approvalStatus: 'APPROVED' },
+        amendment,
+      },
+      etag: '"5"',
+    })
+    api.decideAmendment.mockResolvedValue({
+      data: { ...amendment, status: 'APPROVED' },
+      etag: '"6"',
+    })
+    const user = userEvent.setup()
+    render(<AdminSpecialistReviewSection />)
+    await screen.findByRole('heading', { name: profile.displayName })
+
+    await user.click(screen.getByRole('button', { name: /Có bản sửa đổi/ }))
+    await user.click(
+      await screen.findByRole('button', {
+        name: new RegExp(profile.displayName),
+      }),
+    )
+    expect(await screen.findByText('Giới thiệu mới')).toBeInTheDocument()
+    expect(screen.getByText(profile.bio)).toBeInTheDocument()
+    expect(api.adminSpecialistCredentialDocuments).toHaveBeenLastCalledWith(
+      profile.accountId,
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: 'Phê duyệt & Công khai bản mới' }),
+    )
+    await waitFor(() =>
+      expect(api.decideAmendment).toHaveBeenCalledWith(
+        amendment.id,
+        'approve',
+        '"5"',
+        undefined,
+      ),
+    )
+    expect(
+      await screen.findByText('Không có bản chỉnh sửa nào chờ duyệt.'),
+    ).toBeInTheDocument()
   })
 })

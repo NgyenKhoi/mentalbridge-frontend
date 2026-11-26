@@ -4,11 +4,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ResourcesExperience from './ResourcesExperience'
 
+// MB-897: what Mầm is told about a confirmed completion.
+const mam = vi.hoisted(() => ({ dispatch: vi.fn() }))
+vi.mock('@/features/mam/mam-events', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/mam/mam-events')>()),
+  dispatchMamEvent: mam.dispatch,
+}))
+
 const api = vi.hoisted(() => ({
   getResourceCatalogue: vi.fn(),
   getResourceProgress: vi.fn(),
   saveResourceProgress: vi.fn(),
   getResourceJourney: vi.fn(),
+  reconcileTodayResourceCompletion: vi.fn(),
+}))
+
+vi.mock('@/features/support-plan/resource-plan-origin', () => ({
+  reconcileTodayResourceCompletion: api.reconcileTodayResourceCompletion,
 }))
 
 vi.mock('../api/browser-resources', () => ({
@@ -68,6 +80,7 @@ const resources = [
 
 describe('ResourcesExperience', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date('2026-09-29T09:00:00+07:00'))
     sessionStorage.clear()
@@ -77,6 +90,7 @@ describe('ResourcesExperience', () => {
       hasMore: false,
     })
     api.getResourceProgress.mockResolvedValue([])
+    api.reconcileTodayResourceCompletion.mockResolvedValue('not-applicable')
     api.getResourceJourney.mockImplementation(async (date: string) => ({
       assignmentId: '00000000-0000-4000-8000-000000000301',
       localDate: date,
@@ -162,7 +176,61 @@ describe('ResourcesExperience', () => {
         completedActionIds: ['overview-complete'],
       },
     )
+    expect(
+      api.reconcileTodayResourceCompletion,
+    ).toHaveBeenCalledExactlyOnceWith(resources[0].id, '1')
     expect(await screen.findByText(/một bước nhỏ đã hoàn thành/i)).toBeVisible()
+    expect(mam.dispatch).toHaveBeenCalledExactlyOnceWith({
+      type: 'resource-done',
+    })
+  })
+
+  it('tells Mầm nothing when the save fails, or when the server does not answer completed', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const original = api.saveResourceProgress.getMockImplementation()
+    api.saveResourceProgress.mockRejectedValueOnce(new Error('down'))
+    render(<ResourcesExperience />)
+    const challenge = await screen.findByRole('heading', {
+      name: /một chút bình yên/i,
+    })
+    const section = challenge.closest('section') as HTMLElement
+    await user.click(within(section).getAllByRole('checkbox')[0])
+    expect(await screen.findByText(/Chưa thể lưu tiến độ/)).toBeVisible()
+    expect(mam.dispatch).not.toHaveBeenCalled()
+
+    // The click asked for completed but the server kept it in progress: not a completion.
+    api.saveResourceProgress.mockImplementationOnce(
+      async (resourceId: string, localDate: string, update: object) => ({
+        ...(await original?.(resourceId, localDate, update)),
+        status: 'IN_PROGRESS',
+      }),
+    )
+    await user.click(within(section).getAllByRole('checkbox')[0])
+    await vi.waitFor(() =>
+      expect(api.saveResourceProgress).toHaveBeenCalledTimes(2),
+    )
+    expect(mam.dispatch).not.toHaveBeenCalled()
+  })
+
+  it('offers a Care retry after saving daily progress without saving it twice', async () => {
+    api.reconcileTodayResourceCompletion
+      .mockResolvedValueOnce('unavailable')
+      .mockResolvedValueOnce('recorded')
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(<ResourcesExperience />)
+    const challenge = await screen.findByRole('heading', {
+      name: /một chút bình yên/i,
+    })
+    const section = challenge.closest('section')
+    expect(section).not.toBeNull()
+    await user.click(within(section as HTMLElement).getAllByRole('checkbox')[0])
+    expect(
+      await screen.findByText(/Mục kế hoạch chưa cập nhật. Hãy thử lại/),
+    ).toBeVisible()
+    const saves = api.saveResourceProgress.mock.calls.length
+    await user.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(api.reconcileTodayResourceCompletion).toHaveBeenCalledTimes(2)
+    expect(api.saveResourceProgress).toHaveBeenCalledTimes(saves)
   })
 
   it('explains active filters and offers a direct way back to all activities', async () => {

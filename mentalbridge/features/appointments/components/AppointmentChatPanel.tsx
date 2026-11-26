@@ -4,8 +4,17 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/api/api-error'
 import { Dialog } from '@/components/ui/Dialog'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { ArrowLeft, CalendarDays, LockKeyhole, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  CalendarDays,
+  Clock,
+  LockKeyhole,
+  MessageSquare,
+  Send,
+  X,
+} from 'lucide-react'
 import type { AppointmentChatEligibility } from '@/lib/consultation/consultation-validation'
 import {
   createCheckInCommand,
@@ -20,10 +29,14 @@ import {
 import {
   chatEligibility,
   chatHistory,
+  removeChatMessage,
+  reportChatMessage,
   socketCredential,
+  type ChatReportReason,
   type ChatMessage,
 } from '../api/chat-browser-client'
 import styles from './AppointmentChatPanel.module.css'
+import thread from './SpecialistChatView.module.css'
 
 const phaseText: Record<AppointmentChatEligibility['phase'], string> = {
   NOT_AVAILABLE: 'Lịch hẹn này chưa đủ điều kiện mở chat.',
@@ -50,6 +63,7 @@ const creditText: Record<AppointmentChatEligibility['creditState'], string> = {
   CONSUMED: 'Credit đã được sử dụng cho buổi tư vấn hoàn thành.',
   FORFEITED: 'Credit đã bị trừ theo kết quả người dùng không tham gia.',
   AVAILABLE: 'Credit đã được hoàn lại để bạn có thể đặt lịch khác.',
+  REVOKED: 'Credit đã bị thu hồi khi chủ gói hủy đăng ký.',
 }
 
 const phaseLabel: Record<AppointmentChatEligibility['phase'], string> = {
@@ -66,6 +80,21 @@ const phaseLabel: Record<AppointmentChatEligibility['phase'], string> = {
   EVIDENCE_REVIEW: 'Cần đối soát',
   CANCELLED: 'Đã hủy',
   RESCHEDULED: 'Đã đổi lịch',
+}
+
+export function mergeAppointmentChatMessages(
+  current: readonly ChatMessage[],
+  incoming: readonly ChatMessage[],
+): ChatMessage[] {
+  const byId = new Map(current.map((message) => [message.messageId, message]))
+  for (const message of incoming) {
+    const previous = byId.get(message.messageId)
+    if (previous?.state === 'DELETED' && message.state !== 'DELETED') continue
+    byId.set(message.messageId, message)
+  }
+  return [...byId.values()].sort(
+    (left, right) => Date.parse(left.sentAt) - Date.parse(right.sentAt),
+  )
 }
 
 function sessionPresentation(
@@ -104,19 +133,36 @@ function sessionPresentation(
     remainingMinutes,
     progress: Math.round((elapsedMinutes / totalMinutes) * 100),
     endTime: time(end),
+    startTime: time(start),
+    // The waiting room opens 10 minutes before the start.
+    openTime: time(new Date(start.getTime() - 10 * 60_000)),
   }
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'BS'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[parts.length - 2][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 export default function AppointmentChatPanel({
   appointmentId,
   viewerRole = 'USER',
   embedded = false,
+  bare = false,
+  timelineLabel,
+  specialistName = 'Chuyên gia',
   timezone = 'Asia/Ho_Chi_Minh',
   onBackToInbox,
 }: {
   appointmentId: string
   viewerRole?: 'USER' | 'SPECIALIST'
   embedded?: boolean
+  /** Inside the messages page: the page owns the header and the info drawer, so only the thread renders, in the same look as an ended session. */
+  bare?: boolean
+  timelineLabel?: string
+  specialistName?: string
   timezone?: string
   onBackToInbox?: () => void
 }) {
@@ -134,12 +180,18 @@ export default function AppointmentChatPanel({
   const [sending, setSending] = useState(false)
   const [checkingIn, setCheckingIn] = useState(false)
   const [followingLive, setFollowingLive] = useState(true)
+  const [messageToDelete, setMessageToDelete] = useState<ChatMessage | null>(
+    null,
+  )
+  const [moderatingMessageId, setModeratingMessageId] = useState<string>()
+  const [moderationNotice, setModerationNotice] = useState('')
   const transportRef = useRef<RealtimeTransport | undefined>(undefined)
   const messagesRef = useRef<HTMLElement | null>(null)
   const detailsButtonRef = useRef<HTMLButtonElement>(null)
   const refreshSequence = useRef(0)
   const decisionRef = useRef<AppointmentChatEligibility | undefined>(undefined)
   const commandBusy = useRef({ send: false, checkIn: false })
+  const moderationKeys = useRef(new Map<string, string>())
   const followMessages = useRef(true)
   const composingRef = useRef(false)
   const checkInCommandId = useRef<string | undefined>(undefined)
@@ -207,15 +259,7 @@ export default function AppointmentChatPanel({
   }, [])
 
   const mergeMessages = useCallback((incoming: readonly ChatMessage[]) => {
-    setMessages((current) => {
-      const byId = new Map(
-        current.map((message) => [message.messageId, message]),
-      )
-      for (const message of incoming) byId.set(message.messageId, message)
-      return [...byId.values()].sort(
-        (left, right) => Date.parse(left.sentAt) - Date.parse(right.sentAt),
-      )
-    })
+    setMessages((current) => mergeAppointmentChatMessages(current, incoming))
   }, [])
 
   const refresh = useCallback(async () => {
@@ -470,6 +514,68 @@ export default function AppointmentChatPanel({
     }
   }
 
+  async function deleteMessage(message: ChatMessage) {
+    if (!eligibility || moderatingMessageId) return
+    setModeratingMessageId(message.messageId)
+    setModerationNotice('')
+    const fingerprint = `DELETE_MESSAGE:${message.messageId}`
+    const idempotencyKey =
+      moderationKeys.current.get(fingerprint) ?? crypto.randomUUID()
+    moderationKeys.current.set(fingerprint, idempotencyKey)
+    try {
+      const result = await removeChatMessage(
+        eligibility.conversationId,
+        message.messageId,
+        idempotencyKey,
+      )
+      if (result.messageId !== message.messageId)
+        throw new Error('Delete receipt identity mismatch')
+      setMessages((current) =>
+        current.map((item) =>
+          item.messageId === result.messageId
+            ? {
+                ...item,
+                content: null,
+                state: 'DELETED',
+                deletedAt: result.deletedAt,
+              }
+            : item,
+        ),
+      )
+      moderationKeys.current.delete(fingerprint)
+      setModerationNotice('Tin nhắn của bạn đã được xóa.')
+    } catch {
+      setError('Chưa thể xóa tin nhắn. Nội dung hiện tại vẫn được giữ nguyên.')
+    } finally {
+      setModeratingMessageId(undefined)
+      setMessageToDelete(null)
+    }
+  }
+
+  async function reportMessage(message: ChatMessage, reason: ChatReportReason) {
+    if (!eligibility || moderatingMessageId) return
+    setModeratingMessageId(message.messageId)
+    setModerationNotice('')
+    const fingerprint = `REPORT_MESSAGE:${message.messageId}:${reason}`
+    const idempotencyKey =
+      moderationKeys.current.get(fingerprint) ?? crypto.randomUUID()
+    moderationKeys.current.set(fingerprint, idempotencyKey)
+    try {
+      await reportChatMessage(
+        eligibility.conversationId,
+        message.messageId,
+        idempotencyKey,
+        reason,
+      )
+      moderationKeys.current.delete(fingerprint)
+      setModerationNotice('Báo cáo đã được gửi để xem xét.')
+    } catch {
+      setError('Chưa thể gửi báo cáo. Tin nhắn chưa bị thay đổi.')
+    } finally {
+      setModeratingMessageId(undefined)
+    }
+  }
+
   useEffect(() => {
     if (
       !eligibility?.subscribeAllowed ||
@@ -515,7 +621,7 @@ export default function AppointmentChatPanel({
       : eligibility.userAccountId
     : null
   const counterpartLabel =
-    viewerRole === 'SPECIALIST' ? 'Người dùng' : 'Chuyên gia'
+    viewerRole === 'SPECIALIST' ? 'Khách hàng' : 'Chuyên gia'
   const quickReplies =
     viewerRole === 'SPECIALIST'
       ? [
@@ -594,30 +700,443 @@ export default function AppointmentChatPanel({
               {isSpecialist
                 ? creditText[eligibility.creditState].replaceAll(
                     'Credit',
-                    'Lượt tư vấn',
+                    'Buổi tư vấn',
                   )
                 : creditText[eligibility.creditState]}
             </p>
           </div>
         </div>
-        {isSpecialist && (
+        {isSpecialist && eligibility.phase !== 'COMPLETED' && (
           <div className={styles.detailsLinks}>
             <Link
               href={`/specialist/clients?appointmentId=${encodeURIComponent(appointmentId)}`}
             >
               Xem chuẩn bị khách hàng
             </Link>
-            {eligibility.phase === 'COMPLETED' && (
-              <Link
-                href={`/specialist/follow-up?appointmentId=${encodeURIComponent(appointmentId)}`}
-              >
-                Mở Sau tư vấn
-              </Link>
-            )}
           </div>
         )}
       </>
     ) : null
+
+  const notices = (
+    <>
+      {reconnecting && (
+        <div className={styles.notice}>
+          Đang kết nối lại và đồng bộ tin nhắn…
+        </div>
+      )}
+      {displayedError && (
+        <div className={styles.error} role="alert">
+          <span>{displayedError}</span>
+          <div>
+            <button type="button" onClick={() => void refresh()}>
+              Thử lại
+            </button>
+            <button
+              type="button"
+              onClick={() => setErrorDismissed(true)}
+              aria-label="Đóng thông báo lỗi"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+      {moderationNotice && (
+        <div className={styles.notice} role="status">
+          {moderationNotice}
+        </div>
+      )}
+    </>
+  )
+
+  const attendance = eligibility?.checkInAllowed ? (
+    <section
+      className={`${styles.attendance} ${bare ? styles.attendanceInline : ''}`}
+      aria-label="Điểm danh buổi tư vấn"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        {eligibility.participantCheckedIn ? (
+          <path d="M5 12.5l4.5 4.5L19 7.5" />
+        ) : (
+          <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3zM9 12l2 2 4-4" />
+        )}
+      </svg>
+      <div>
+        <strong>
+          {eligibility.participantCheckedIn
+            ? 'Đã ghi nhận điểm danh'
+            : 'Xác nhận bạn đã tham gia'}
+        </strong>
+        <p>
+          Hệ thống chỉ ghi nhận thông tin tham gia, không dùng nội dung chat để
+          đánh giá mức tham gia.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => void checkIn()}
+        disabled={eligibility.participantCheckedIn || checkingIn}
+      >
+        {eligibility.participantCheckedIn
+          ? 'Đã điểm danh'
+          : checkingIn
+            ? 'Đang ghi nhận…'
+            : 'Xác nhận tham gia'}
+      </button>
+    </section>
+  ) : null
+
+  function messageActions(message: ChatMessage, own: boolean) {
+    if (message.state !== 'VISIBLE') return null
+    return (
+      <div className={styles.messageActions}>
+        {own ? (
+          <button
+            type="button"
+            disabled={moderatingMessageId === message.messageId}
+            onClick={() => setMessageToDelete(message)}
+          >
+            Xóa tin nhắn
+          </button>
+        ) : (
+          <label>
+            <span className="sr-only">Báo cáo tin nhắn</span>
+            <select
+              aria-label="Lý do báo cáo tin nhắn"
+              defaultValue=""
+              disabled={moderatingMessageId === message.messageId}
+              onChange={(event) => {
+                const reason = event.target.value as ChatReportReason
+                if (reason) void reportMessage(message, reason)
+                event.currentTarget.value = ''
+              }}
+            >
+              <option value="" disabled>
+                Báo cáo…
+              </option>
+              <option value="HARASSMENT">Quấy rối</option>
+              <option value="PRIVACY_CONCERN">Lo ngại quyền riêng tư</option>
+              <option value="SELF_HARM_OR_CRISIS_CONCERN">
+                Lo ngại an toàn
+              </option>
+              <option value="SPAM">Tin rác</option>
+              <option value="SEXUAL_OR_VIOLENT_CONTENT">
+                Nội dung bạo lực hoặc tình dục
+              </option>
+              <option value="OTHER">Lý do khác</option>
+            </select>
+          </label>
+        )}
+      </div>
+    )
+  }
+
+  const appendReply = (reply: string) =>
+    setContent((current) =>
+      (current.trim() ? `${current.trimEnd()} ${reply}` : reply).slice(0, 4000),
+    )
+
+  const deleteConfirm = (
+    <ConfirmDialog
+      request={
+        messageToDelete
+          ? {
+              title: 'Xóa tin nhắn này?',
+              description:
+                'Nội dung sẽ được thay bằng thông báo đã xóa và không thể khôi phục trong cuộc trò chuyện.',
+              confirmLabel: 'Xóa tin nhắn',
+              cancelLabel: 'Giữ lại',
+              tone: 'danger',
+            }
+          : null
+      }
+      onResolve={(confirmed) => {
+        const target = messageToDelete
+        if (confirmed && target) void deleteMessage(target)
+        else setMessageToDelete(null)
+      }}
+    />
+  )
+
+  if (bare) {
+    const phase = eligibility?.phase
+    const userLabel = viewerRole === 'SPECIALIST' ? 'Khách hàng' : 'Bạn'
+    const emptyNote = !eligibility
+      ? {
+          title: refreshing ? 'Đang mở phòng chat…' : 'Chưa mở được phòng chat',
+          text: refreshing ? '' : 'Thử lại sau ít phút.',
+        }
+      : eligibility.sendAllowed
+        ? {
+            title: 'Chưa có tin nhắn',
+            text: 'Gửi lời chào để bắt đầu buổi tư vấn.',
+          }
+        : phase === 'TOO_EARLY' && session
+          ? {
+              title: 'Phòng chat chưa mở',
+              text: `Phòng chờ mở lúc ${session.openTime}, 10 phút trước buổi hẹn.`,
+            }
+          : phase === 'WAITING' && session
+            ? {
+                title: 'Bạn đang ở phòng chờ',
+                text: `Có thể gửi tin nhắn từ ${session.startTime}.`,
+              }
+            : {
+                title: 'Chưa có tin nhắn',
+                text: phase
+                  ? phaseText[phase].replaceAll('credit', 'buổi tư vấn')
+                  : '',
+              }
+
+    return (
+      <div className={thread.bareThread} data-purpose="live-chat-thread">
+        {notices}
+        <section
+          ref={messagesRef}
+          className={`${thread.messagesContainer} ${thread.customScroll}`}
+          aria-live="polite"
+          aria-label="Tin nhắn tư vấn"
+          role="log"
+          aria-busy={refreshing}
+          onScroll={(event) => {
+            const node = event.currentTarget
+            const following =
+              node.scrollHeight - node.scrollTop - node.clientHeight < 80
+            followMessages.current = following
+            setFollowingLive(following)
+          }}
+        >
+          {timelineLabel && (
+            <div className={thread.timelinePill}>
+              <span className={thread.timelineText}>
+                {timelineLabel}
+                {phase === 'ACTIVE' && session
+                  ? ` • còn ${session.remainingMinutes} phút`
+                  : ''}
+              </span>
+            </div>
+          )}
+          {attendance}
+          {messages.length === 0 ? (
+            <div
+              className={thread.emptyNote}
+              data-testid="chat-empty-state"
+              role="status"
+            >
+              <span className={thread.emptyNoteIcon} aria-hidden="true">
+                {eligibility?.sendAllowed || !eligibility ? (
+                  <MessageSquare size={18} />
+                ) : (
+                  <Clock size={18} />
+                )}
+              </span>
+              <strong>{emptyNote.title}</strong>
+              {emptyNote.text && <p>{emptyNote.text}</p>}
+              {eligibility?.sendAllowed && !isSpecialist && (
+                <div className={thread.emptyNoteActions}>
+                  {quickReplies.map((reply, index) => (
+                    <button
+                      key={reply}
+                      type="button"
+                      onClick={() => appendReply(reply)}
+                    >
+                      {index === 0 ? 'Gửi lời chào' : 'Xác nhận sẵn sàng'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            messages.map((message) => {
+              const own = message.senderId === viewerAccountId
+              const fromSpecialist =
+                message.senderId === eligibility?.specialistAccountId
+              const name = fromSpecialist ? specialistName : userLabel
+              const time = new Intl.DateTimeFormat('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+                timeZone: timezone,
+              }).format(new Date(message.sentAt))
+              const text =
+                message.state === 'DELETED'
+                  ? 'Tin nhắn này đã được xóa.'
+                  : message.content
+              return fromSpecialist ? (
+                <article
+                  key={message.messageId}
+                  className={thread.messageRowDoctor}
+                  aria-label={own ? 'Tin nhắn của bạn' : `Tin nhắn từ ${name}`}
+                >
+                  <div className={thread.msgAvatarDoctor} aria-hidden="true">
+                    {initials(name)}
+                  </div>
+                  <div className={thread.msgBodyDoctor}>
+                    <div className={thread.msgHeaderDoctor}>
+                      <span className={thread.msgAuthorDoctor}>{name}</span>
+                      <time
+                        className={thread.msgTime}
+                        dateTime={message.sentAt}
+                      >
+                        {time}
+                      </time>
+                    </div>
+                    <div className={thread.bubbleDoctor}>
+                      <p className={thread.bubbleText}>{text}</p>
+                    </div>
+                    {messageActions(message, own)}
+                  </div>
+                </article>
+              ) : (
+                <article
+                  key={message.messageId}
+                  className={thread.messageRowPatient}
+                  aria-label={own ? 'Tin nhắn của bạn' : `Tin nhắn từ ${name}`}
+                >
+                  <div className={thread.msgBodyPatient}>
+                    <div className={thread.msgHeaderPatient}>
+                      <time
+                        className={thread.msgTime}
+                        dateTime={message.sentAt}
+                      >
+                        {time}
+                      </time>
+                      <span className={thread.msgAuthorPatient}>{name}</span>
+                    </div>
+                    <div className={thread.bubblePatient}>
+                      <p className={thread.bubbleText}>{text}</p>
+                    </div>
+                    {messageActions(message, own)}
+                  </div>
+                  <div className={thread.msgAvatarPatient} aria-hidden="true">
+                    {initials(name)}
+                  </div>
+                </article>
+              )
+            })
+          )}
+        </section>
+        {!followingLive && messages.length > 0 && (
+          <button
+            className={styles.jumpToLatest}
+            type="button"
+            onClick={() => {
+              followMessages.current = true
+              setFollowingLive(true)
+              if (messagesRef.current)
+                messagesRef.current.scrollTop = messagesRef.current.scrollHeight
+            }}
+          >
+            Xuống tin nhắn mới nhất
+          </button>
+        )}
+        <footer className={thread.chatFooter}>
+          {isSpecialist && !eligibility?.sendAllowed ? (
+            <div className={thread.readOnlyBanner}>
+              <div className={thread.bannerText}>
+                <LockKeyhole size={15} aria-hidden="true" />
+                <span>
+                  {refreshing && !eligibility
+                    ? 'Đang kiểm tra quyền gửi tin…'
+                    : eligibility
+                      ? 'Cuộc trò chuyện hiện ở chế độ chỉ đọc.'
+                      : 'Chưa xác định được quyền gửi tin. Hãy thử lại sau.'}
+                </span>
+              </div>
+              {eligibility?.phase === 'COMPLETED' && (
+                <Link
+                  className={thread.btnSecondary}
+                  href={`/specialist/clients?appointmentId=${encodeURIComponent(appointmentId)}`}
+                >
+                  Tạo bản tóm tắt
+                </Link>
+              )}
+            </div>
+          ) : (
+            <form
+              className={thread.composerForm}
+              onSubmit={(event) => {
+                event.preventDefault()
+                void send()
+              }}
+            >
+              <label htmlFor="appointment-chat-message" className="sr-only">
+                Tin nhắn
+              </label>
+              {isSpecialist && eligibility?.sendAllowed && (
+                <div className={styles.composerSuggestions}>
+                  <span>Mẫu nhanh:</span>
+                  {quickReplies.map((reply, index) => (
+                    <button
+                      type="button"
+                      key={reply}
+                      title={reply}
+                      onClick={() => appendReply(reply)}
+                    >
+                      {index === 0 ? 'Chào đón ấm áp' : 'Xác nhận sẵn sàng'}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className={thread.composerInputRow}>
+                <textarea
+                  id="appointment-chat-message"
+                  className={thread.composerTextarea}
+                  value={content}
+                  rows={1}
+                  maxLength={4000}
+                  onChange={(event) => setContent(event.target.value)}
+                  onCompositionStart={() => {
+                    composingRef.current = true
+                  }}
+                  onCompositionEnd={() => {
+                    composingRef.current = false
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === 'Enter' &&
+                      !event.shiftKey &&
+                      !event.nativeEvent.isComposing &&
+                      !composingRef.current &&
+                      event.keyCode !== 229
+                    ) {
+                      event.preventDefault()
+                      void send()
+                    }
+                  }}
+                  disabled={!eligibility?.sendAllowed || sending}
+                  placeholder={
+                    eligibility?.sendAllowed
+                      ? 'Nhập tin nhắn… (Enter để gửi)'
+                      : phase === 'TOO_EARLY' || phase === 'WAITING'
+                        ? 'Có thể gửi tin khi buổi tư vấn bắt đầu'
+                        : 'Khung chat hiện ở chế độ chỉ đọc'
+                  }
+                />
+                <button
+                  type="submit"
+                  className={thread.sendBtn}
+                  disabled={
+                    !eligibility?.sendAllowed || !content.trim() || sending
+                  }
+                  aria-label="Gửi tin nhắn"
+                >
+                  <Send size={15} aria-hidden="true" />
+                </button>
+              </div>
+              {sending && (
+                <p className="sr-only" role="status">
+                  Đang gửi tin nhắn…
+                </p>
+              )}
+            </form>
+          )}
+        </footer>
+        {deleteConfirm}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -738,71 +1257,14 @@ export default function AppointmentChatPanel({
               <p>
                 {phaseText[eligibility.phase].replaceAll(
                   'credit',
-                  'lượt tư vấn',
+                  'buổi tư vấn',
                 )}
               </p>
             </div>
           )}
 
-          {reconnecting && (
-            <div className={styles.notice}>
-              Đang kết nối lại và đồng bộ tin nhắn…
-            </div>
-          )}
-          {displayedError && (
-            <div className={styles.error} role="alert">
-              <span>{displayedError}</span>
-              <div>
-                <button type="button" onClick={() => void refresh()}>
-                  Thử lại
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setErrorDismissed(true)}
-                  aria-label="Đóng thông báo lỗi"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
-
-          {eligibility?.checkInAllowed && (
-            <section
-              className={styles.attendance}
-              aria-label="Điểm danh buổi tư vấn"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                {eligibility.participantCheckedIn ? (
-                  <path d="M5 12.5l4.5 4.5L19 7.5" />
-                ) : (
-                  <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3zM9 12l2 2 4-4" />
-                )}
-              </svg>
-              <div>
-                <strong>
-                  {eligibility.participantCheckedIn
-                    ? 'Đã ghi nhận điểm danh'
-                    : 'Xác nhận bạn đã tham gia'}
-                </strong>
-                <p>
-                  Hệ thống chỉ ghi nhận thông tin tham gia, không dùng nội dung
-                  chat để đánh giá mức tham gia.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void checkIn()}
-                disabled={eligibility.participantCheckedIn || checkingIn}
-              >
-                {eligibility.participantCheckedIn
-                  ? 'Đã điểm danh'
-                  : checkingIn
-                    ? 'Đang ghi nhận…'
-                    : 'Xác nhận tham gia'}
-              </button>
-            </section>
-          )}
+          {notices}
+          {attendance}
 
           <section
             ref={messagesRef}
@@ -876,7 +1338,11 @@ export default function AppointmentChatPanel({
                         : `Tin nhắn từ ${counterpartLabel}`
                     }
                   >
-                    <p>{message.content}</p>
+                    <p>
+                      {message.state === 'DELETED'
+                        ? 'Tin nhắn này đã được xóa.'
+                        : message.content}
+                    </p>
                     <time dateTime={message.sentAt}>
                       {new Intl.DateTimeFormat('vi-VN', {
                         hour: '2-digit',
@@ -885,6 +1351,7 @@ export default function AppointmentChatPanel({
                         timeZone: timezone,
                       }).format(new Date(message.sentAt))}
                     </time>
+                    {messageActions(message, own)}
                   </article>
                 )
               })
@@ -918,9 +1385,9 @@ export default function AppointmentChatPanel({
               </p>
               {eligibility?.phase === 'COMPLETED' && (
                 <Link
-                  href={`/specialist/follow-up?appointmentId=${encodeURIComponent(appointmentId)}`}
+                  href={`/specialist/clients?appointmentId=${encodeURIComponent(appointmentId)}`}
                 >
-                  Mở Sau tư vấn
+                  Tạo bản tóm tắt
                 </Link>
               )}
             </footer>
@@ -1040,6 +1507,7 @@ export default function AppointmentChatPanel({
           </section>
         </Dialog>
       )}
+      {deleteConfirm}
     </div>
   )
 }

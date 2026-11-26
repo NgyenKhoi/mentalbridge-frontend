@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { NOTIFICATIONS_UPDATED_EVENT } from '@/components/NotificationBell'
 import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import SpecialistAppointmentDecisionPanel from './SpecialistAppointmentDecisionPanel'
@@ -11,8 +12,14 @@ const api = vi.hoisted(() => ({
   decide: vi.fn(),
 }))
 
+const continuity = vi.hoisted(() => ({ specialistContinuity: vi.fn() }))
+
 vi.mock('../api/browser-client', () => ({
   appointmentBrowserClient: api,
+}))
+
+vi.mock('../api/consultation-brief-browser-client', () => ({
+  consultationBriefBrowserClient: continuity,
 }))
 
 vi.mock('./SpecialistConsultationBrief', () => ({
@@ -87,6 +94,7 @@ describe('SpecialistAppointmentDecisionPanel', () => {
   )
   beforeEach(() => {
     vi.clearAllMocks()
+    continuity.specialistContinuity.mockResolvedValue({ items: [] })
     api.assigned.mockResolvedValue({
       items: [requested],
       count: 1,
@@ -94,13 +102,34 @@ describe('SpecialistAppointmentDecisionPanel', () => {
     })
   })
 
+  it.each([
+    [null, 'Đang xác nhận kết quả'],
+    ['USER_NO_SHOW', 'Khách hàng vắng mặt'],
+    ['SPECIALIST_NO_SHOW', 'Bạn vắng mặt'],
+  ] as const)(
+    'labels an ended session with outcome %s as "%s"',
+    async (sessionOutcome, label) => {
+      api.assigned.mockResolvedValueOnce({
+        items: [{ ...requested, status: 'SESSION_ENDED', sessionOutcome }],
+        count: 1,
+        generatedAt: '2099-09-25T03:00:01Z',
+      })
+      render(<SpecialistAppointmentDecisionPanel />)
+
+      expect((await screen.findAllByText(label)).length).toBeGreaterThan(0)
+      expect(
+        screen.queryByText('Đang tổng hợp kết quả'),
+      ).not.toBeInTheDocument()
+    },
+  )
+
   it('shows the real pending request and its decision deadline', async () => {
     render(<SpecialistAppointmentDecisionPanel />)
 
     expect(await screen.findByText('Chờ phản hồi')).toBeInTheDocument()
     expect(screen.getByText(/Phản hồi trước/)).toBeInTheDocument()
     expect(
-      screen.getByText('Lượt tư vấn vẫn được giữ cho lịch hẹn'),
+      screen.getByText('Buổi tư vấn đang được giữ cho lịch hẹn'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Từ chối' })).toBeEnabled()
@@ -187,7 +216,7 @@ describe('SpecialistAppointmentDecisionPanel', () => {
       expect.stringMatching(/^[0-9a-f-]{36}$/),
     )
     expect(await screen.findByText('Đã từ chối')).toBeInTheDocument()
-    expect(screen.getByText('Lượt tư vấn đã được hoàn lại')).toBeInTheDocument()
+    expect(screen.getByText('Buổi tư vấn đã được hoàn lại')).toBeInTheDocument()
   })
 
   it('reloads a stale request before explaining that it changed', async () => {
@@ -263,5 +292,226 @@ describe('SpecialistAppointmentDecisionPanel', () => {
       screen.queryByText('Chưa có yêu cầu lịch hẹn'),
     ).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Thử lại' })).toBeEnabled()
+  })
+  it('reloads the list quietly when a new notification arrives', async () => {
+    api.assigned
+      .mockResolvedValueOnce({
+        items: [],
+        count: 0,
+        generatedAt: '2099-09-25T02:00:00Z',
+      })
+      .mockResolvedValueOnce({
+        items: [requested],
+        count: 1,
+        generatedAt: '2099-09-25T02:00:30Z',
+      })
+    render(<SpecialistAppointmentDecisionPanel />)
+    await screen.findByText('Chưa có yêu cầu lịch hẹn')
+    act(() => {
+      window.dispatchEvent(new CustomEvent(NOTIFICATIONS_UPDATED_EVENT))
+    })
+    expect(
+      await screen.findByRole('button', { name: 'Xác nhận' }),
+    ).toBeEnabled()
+    expect(api.assigned).toHaveBeenCalledTimes(2)
+  })
+
+  describe('client name and session details', () => {
+    const confirmed = {
+      ...requested,
+      id: '20a7e5d8-7960-42fb-9706-e642f849b78f',
+      status: 'CONFIRMED' as const,
+      decidedAt: '2099-09-25T03:00:00Z',
+      decisionReason: 'SPECIALIST_ACCEPTED' as const,
+      scheduledStartAt: '2099-09-26T02:00:00Z',
+      scheduledEndAt: '2099-09-26T03:00:00Z',
+      version: 1,
+    }
+
+    it('shows the real client name from continuity and falls back to a generic label', async () => {
+      continuity.specialistContinuity.mockResolvedValue({
+        items: [{ appointmentId: confirmed.id, userDisplayName: 'Lan Anh' }],
+      })
+      api.assigned.mockResolvedValue({
+        items: [requested, confirmed],
+        count: 2,
+        generatedAt: '2099-09-25T02:00:01Z',
+      })
+      render(<SpecialistAppointmentDecisionPanel />)
+
+      expect((await screen.findAllByText(/Lan Anh/)).length).toBeGreaterThan(0)
+      expect(screen.queryByText(/Người đặt lịch/)).not.toBeInTheDocument()
+      const waiting = (await screen.findAllByText('Khách hàng'))[0]
+      expect(waiting).toBeInTheDocument()
+    })
+
+    it('opens a details drawer with name, time, status, decision and links', async () => {
+      continuity.specialistContinuity.mockResolvedValue({
+        items: [{ appointmentId: confirmed.id, userDisplayName: 'Lan Anh' }],
+      })
+      api.assigned.mockResolvedValue({
+        items: [confirmed],
+        count: 1,
+        generatedAt: '2099-09-25T02:00:01Z',
+      })
+      const user = userEvent.setup()
+      render(<SpecialistAppointmentDecisionPanel />)
+      await screen.findAllByText(/Lan Anh/)
+
+      await user.click(
+        screen.getByRole('button', { name: /Xem chi tiết phiên/ }),
+      )
+      const drawer = await screen.findByRole('dialog', {
+        name: 'Chi tiết phiên',
+      })
+      expect(drawer).toHaveTextContent('Lan Anh')
+      expect(drawer).toHaveTextContent('Chat trong ứng dụng')
+      expect(drawer).toHaveTextContent('Đã xác nhận')
+      expect(drawer).toHaveTextContent('Bạn đã xác nhận lịch hẹn')
+      expect(
+        within(drawer).getByRole('link', { name: 'Mở hồ sơ chuẩn bị phiên' }),
+      ).toHaveAttribute(
+        'href',
+        `/specialist/clients?appointmentId=${confirmed.id}`,
+      )
+      expect(
+        within(drawer).getByRole('link', { name: 'Mở cuộc trò chuyện' }),
+      ).toHaveAttribute(
+        'href',
+        `/specialist/messages?appointmentId=${confirmed.id}`,
+      )
+      expect(
+        within(drawer).queryByRole('link', { name: 'Xem tổng kết phiên' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('keeps the open drawer filled when a refresh drops its appointment', async () => {
+      continuity.specialistContinuity.mockResolvedValue({
+        items: [{ appointmentId: confirmed.id, userDisplayName: 'Lan Anh' }],
+      })
+      api.assigned
+        .mockResolvedValueOnce({
+          items: [confirmed],
+          count: 1,
+          generatedAt: '2099-09-25T02:00:01Z',
+        })
+        .mockResolvedValue({
+          items: [],
+          count: 0,
+          generatedAt: '2099-09-25T02:00:31Z',
+        })
+      const user = userEvent.setup()
+      render(<SpecialistAppointmentDecisionPanel />)
+      await user.click(
+        await screen.findByRole('button', {
+          name: /Xem chi tiết phiên, Lan Anh/,
+        }),
+      )
+      const drawer = await screen.findByRole('dialog', {
+        name: 'Chi tiết phiên',
+      })
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent(NOTIFICATIONS_UPDATED_EVENT))
+      })
+      await screen.findByText('Chưa có yêu cầu lịch hẹn')
+      expect(drawer).toHaveTextContent('Lan Anh')
+      expect(drawer).toHaveTextContent('Bạn đã xác nhận lịch hẹn')
+    })
+
+    it('hides the drawer link list when the session has nowhere to go', async () => {
+      api.assigned.mockResolvedValue({
+        items: [{ ...requested, status: 'REJECTED' as const }],
+        count: 1,
+        generatedAt: '2099-09-25T02:00:01Z',
+      })
+      const user = userEvent.setup()
+      render(<SpecialistAppointmentDecisionPanel />)
+      await user.click(
+        await screen.findByRole('button', { name: /Xem chi tiết phiên/ }),
+      )
+      const drawer = await screen.findByRole('dialog', {
+        name: 'Chi tiết phiên',
+      })
+      expect(
+        within(drawer).queryByRole('navigation', { name: 'Đi tới' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('offers the summary link for a completed video session and shows who cancelled', async () => {
+      api.assigned.mockResolvedValue({
+        items: [
+          {
+            ...confirmed,
+            status: 'COMPLETED' as const,
+            modality: 'IN_APP_VIDEO' as const,
+          },
+          {
+            ...requested,
+            id: '30a7e5d8-7960-42fb-9706-e642f849b78f',
+            status: 'CANCELLED' as const,
+            cancelledAt: '2099-09-25T03:00:00Z',
+            cancellationReason: 'USER_CANCELLED' as const,
+            cancellationActor: 'USER' as const,
+          },
+        ],
+        count: 2,
+        generatedAt: '2099-09-25T02:00:01Z',
+      })
+      const user = userEvent.setup()
+      render(<SpecialistAppointmentDecisionPanel />)
+      const buttons = await screen.findAllByRole('button', {
+        name: /Xem chi tiết phiên/,
+      })
+
+      await user.click(buttons[1])
+      let drawer = await screen.findByRole('dialog', { name: 'Chi tiết phiên' })
+      expect(
+        within(drawer).getByRole('link', { name: 'Xem tổng kết phiên' }),
+      ).toBeInTheDocument()
+      expect(
+        within(drawer).getByRole('link', { name: 'Xem phiên tư vấn video' }),
+      ).toHaveAttribute(
+        'href',
+        `/specialist/appointments/${confirmed.id}/video`,
+      )
+      await user.click(
+        within(drawer).getByRole('button', { name: 'Đóng chi tiết phiên' }),
+      )
+
+      await user.click(buttons[0])
+      drawer = await screen.findByRole('dialog', { name: 'Chi tiết phiên' })
+      expect(drawer).toHaveTextContent('Khách hàng đã hủy lịch hẹn')
+    })
+  })
+
+  it('lists groups in specialist order: in progress, upcoming, requests, ended, history', async () => {
+    const base = { ...requested, decidedAt: '2099-09-25T03:00:00Z' }
+    api.assigned.mockResolvedValue({
+      items: [
+        { ...base, id: 'h', status: 'COMPLETED' },
+        requested,
+        { ...base, id: 'c', status: 'CONFIRMED' },
+        { ...base, id: 'e', status: 'SESSION_ENDED' },
+        { ...base, id: 'p', status: 'IN_PROGRESS' },
+      ],
+      count: 5,
+      generatedAt: '2099-09-25T02:00:01Z',
+    })
+    render(<SpecialistAppointmentDecisionPanel />)
+    await screen.findByText('CHỜ BẠN PHẢN HỒI')
+
+    expect(
+      screen
+        .getAllByRole('heading', { level: 3 })
+        .filter((heading) => heading.id.startsWith('group-'))
+        .map((heading) => heading.textContent),
+    ).toEqual([
+      'ĐANG DIỄN RA',
+      'ĐÃ XÁC NHẬN, SẮP TỚI',
+      'CHỜ BẠN PHẢN HỒI',
+      'ĐÃ KẾT THÚC, CHỜ KẾT QUẢ',
+      'LỊCH SỬ & ĐÃ HỦY',
+    ])
   })
 })

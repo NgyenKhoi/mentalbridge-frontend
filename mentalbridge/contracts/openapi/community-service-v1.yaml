@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MentalBridge Community API
-  version: 1.17.0
+  version: 1.18.0
   description: Privacy-isolated peer-support Community Contract v1.11. Feed and saved-post ordering never use Care, Journal, emotion, SupportPlan, inferred severity, or AI data. Optional owner-selected uploaded avatars use verified Community media only and never expose anonymous/deleted identity. MB-616 adds an owner-private newest-saved query over the bookmark facts delivered by MB-579; inaccessible posts fail closed and bookmark state never becomes a recommendation profile. MB-745 adds sender-only message retraction with content-free tombstones at the original message identity and position. MB-746 adds an idempotent per-user conversation cutoff that never deletes another participant's history.
 servers:
   - url: http://localhost:8084
@@ -408,6 +408,23 @@ paths:
         "401": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+  /api/v1/community/posts/{postId}/reactions:
+    parameters:
+      - $ref: "#/components/parameters/PostId"
+    get:
+      x-mentalbridge-status: implemented
+      operationId: listCommunityPostReactions
+      description: Community display identities that reacted to a post the caller can see, newest first, at most 100. Profiles either side has blocked are omitted; account subjects are never exposed.
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: Reactors of the post.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommunityPostReactionList" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
   /api/v1/community/posts/{postId}/bookmark:
     parameters:
       - $ref: "#/components/parameters/PostId"
@@ -526,6 +543,36 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
         "412": { $ref: "#/components/responses/Problem" }
+  /api/v1/community/avatars:
+    get:
+      x-mentalbridge-status: implemented
+      operationId: lookupCommunityAvatars
+      security: [{ BearerAuth: [] }]
+      description: Batch avatar lookup by Identity account ID for any authenticated account (for example specialist cards and the viewer's own shell avatar). Returns only ACTIVE, unrestricted Community profiles that have not blocked or been blocked by the viewer; unknown, inactive, restricted and blocked accounts are omitted rather than reported. Never creates a profile and never returns display names or profile IDs.
+      parameters:
+        - name: accountIds
+          in: query
+          required: true
+          description: Comma-separated canonical UUIDs, 1 to 50 distinct values.
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 50
+            items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Avatars for the requested accounts that have a visible Community profile, in no particular order.
+          headers:
+            Cache-Control:
+              schema: { type: string, enum: [no-store] }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommunityAvatarPage" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
   /api/v1/community/profile:
     get:
       x-mentalbridge-status: implemented
@@ -1055,7 +1102,7 @@ components:
         content: { type: string, minLength: 1, maxLength: 2000 }
     SupportiveReaction:
       type: string
-      enum: [SUPPORT, RELATE, THANK_YOU]
+      enum: [SUPPORT, RELATE, THANK_YOU, LIKE, EMPATHY, CHEER, GROWTH]
     CommunityViewerState:
       type: object
       additionalProperties: false
@@ -1081,6 +1128,30 @@ components:
       properties:
         postId: { type: string, format: uuid }
         reaction: { $ref: "#/components/schemas/SupportiveReaction" }
+    CommunityPostReactor:
+      type: object
+      additionalProperties: false
+      required: [communityProfileId, displayName, avatarPreset, reaction, reactedAt, self]
+      properties:
+        communityProfileId: { type: string, format: uuid }
+        displayName: { type: string, minLength: 1, maxLength: 80 }
+        avatarPreset:
+          anyOf:
+            - $ref: "#/components/schemas/CommunityAvatarPreset"
+            - type: "null"
+        reaction: { $ref: "#/components/schemas/SupportiveReaction" }
+        reactedAt: { type: string, format: date-time }
+        self: { type: boolean }
+    CommunityPostReactionList:
+      type: object
+      additionalProperties: false
+      required: [items, count]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items: { $ref: "#/components/schemas/CommunityPostReactor" }
+        count: { type: integer, minimum: 0, maximum: 100 }
     ReportReason:
       type: string
       enum: [HARASSMENT, PRIVACY_OR_DOXXING, MEDICAL_MISINFORMATION, SELF_HARM_OR_CRISIS_CONCERN, SPAM, SEXUAL_OR_VIOLENT_CONTENT, OTHER]
@@ -1125,6 +1196,29 @@ components:
         url: { type: string, format: uri, maxLength: 2048 }
         width: { type: integer, minimum: 1 }
         height: { type: integer, minimum: 1 }
+    CommunityAccountAvatar:
+      type: object
+      additionalProperties: false
+      required: [accountId, avatarPreset, avatarImage]
+      properties:
+        accountId: { type: string, format: uuid }
+        avatarPreset:
+          anyOf:
+            - $ref: "#/components/schemas/CommunityAvatarPreset"
+            - type: "null"
+        avatarImage:
+          anyOf:
+            - $ref: "#/components/schemas/CommunityAvatarImage"
+            - type: "null"
+    CommunityAvatarPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/CommunityAccountAvatar" }
     CommunityAvatarPreset:
       type: string
       description: Closed, Community-owned visual preset. Arbitrary image URLs and account-profile avatars are never accepted.

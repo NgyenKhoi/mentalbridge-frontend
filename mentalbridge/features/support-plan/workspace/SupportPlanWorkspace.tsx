@@ -56,6 +56,7 @@ import type {
   SupportPlanV3,
   UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
+import { dispatchMamEvent, mamBandChange } from '@/features/mam/mam-events'
 import { dispatchMamSaved } from '@/features/mam/mam-saved'
 import { useMamSuppress } from '@/features/mam/mam-suppression'
 import { useMamPageTarget } from '@/features/mam/use-mam-target'
@@ -85,7 +86,9 @@ import {
   msUntilNextLocalDay,
   occurrenceKey,
   occurrenceWindow,
+  planDisclaimer,
   planTimezone,
+  reassessedForReview,
   selectTodayFocus,
   summarizeProgress,
   type PlannedOccurrence,
@@ -228,7 +231,7 @@ function errorMessage(error: unknown, proposing = false) {
       ].includes(code(error)) ||
         error.status === 404)
     )
-      return 'Hãy làm bài kiểm tra lại trước khi xem phương án mới.'
+      return 'Hãy làm bài đánh giá lại trước khi xem phương án mới.'
     if (error.status === 409)
       return 'Chưa thực hiện được vì kế hoạch đã thay đổi. Hãy tải lại để xem.'
   }
@@ -279,7 +282,7 @@ export default function SupportPlanWorkspace({
   invalidOrigin?: boolean
   /** Returning from a reassessment the plan review asked for. */
   openReview?: boolean
-  /** Server-resolved MAM_WEB_ENABLED: the global Mầm owns the explanations. */
+  /** The global Mầm owns the explanations; the page always passes it (tests default to false). */
   mamEnabled?: boolean
 }>) {
   const { confirm } = useFeedback()
@@ -711,8 +714,10 @@ export default function SupportPlanWorkspace({
         await latestLoad.current()
       }
       // Care has confirmed the change; a failed or pending save never gets here.
-      if (mamEnabled && mounted.current && state === 'COMPLETED')
+      if (mamEnabled && mounted.current && state === 'COMPLETED') {
         dispatchMamSaved()
+        dispatchMamEvent({ type: 'support-done' })
+      }
       const title = item.action.presentation.title
       return state === 'COMPLETED'
         ? `Đã ghi nhận: ${title}.`
@@ -1070,6 +1075,14 @@ export default function SupportPlanWorkspace({
           },
         ),
       )
+      // Care's reassessment is in hand: Mầm answers its band change (one it could not read stays silent).
+      const change = mamEnabled ? mamBandChange(summary) : null
+      if (change && mounted.current)
+        dispatchMamEvent({
+          type: 'reassessment-done',
+          ...change,
+          id: summary.summaryId,
+        })
     }, true)
   }
 
@@ -1360,7 +1373,7 @@ export default function SupportPlanWorkspace({
     const freeNext = guideId
       ? { label: 'Xem lại gợi ý hỗ trợ', href: `/support-guides/${guideId}` }
       : loaded.journey?.stage === 'ASSESSMENT_REQUIRED'
-        ? { label: 'Làm bài kiểm tra ngắn', href: '/initial-check' }
+        ? { label: 'Làm bài sàng lọc', href: '/initial-check' }
         : { label: 'Xem gợi ý hỗ trợ', href: '/support-guides' }
     return (
       <div className="mbw-page" data-page-motion="off">
@@ -1463,11 +1476,11 @@ export default function SupportPlanWorkspace({
         ) : proposal === 'no-screening' ||
           loaded.journey?.stage === 'ASSESSMENT_REQUIRED' ? (
           <WorkspaceMessage
-            title="Bắt đầu bằng một bài kiểm tra ngắn"
-            primary={{ label: 'Làm bài kiểm tra', href: '/initial-check' }}
+            title="Bắt đầu bằng một bài sàng lọc"
+            primary={{ label: 'Làm bài sàng lọc', href: '/initial-check' }}
           >
             <p>
-              Kế hoạch được soạn từ kết quả của bạn, nên cần bài kiểm tra trước.
+              Kế hoạch được soạn từ kết quả của bạn, nên cần bài sàng lọc trước.
             </p>
           </WorkspaceMessage>
         ) : proposal === 'failed' ? (
@@ -1499,7 +1512,7 @@ export default function SupportPlanWorkspace({
           <WorkspaceMessage
             title="Bạn chưa có kế hoạch đang dùng"
             primary={{
-              label: 'Làm bài kiểm tra lại',
+              label: 'Làm bài đánh giá lại',
               href: '/initial-check?purpose=reassessment',
             }}
             secondary={
@@ -1543,7 +1556,9 @@ export default function SupportPlanWorkspace({
           </WorkspaceMessage>
         )}
         {planForCopy && (
-          <p className="mbw-disclaimer">{planForCopy.disclaimer}</p>
+          <p className="mbw-disclaimer">
+            {planDisclaimer(planForCopy.disclaimer)}
+          </p>
         )}
       </div>
     )
@@ -1663,6 +1678,11 @@ export default function SupportPlanWorkspace({
                 void skipReason(item, value, reuse)
               }
               onResume={() => void lifecycle(current, 'ACTIVE')}
+              reassessed={reassessedForReview(
+                loaded?.journey?.latestScreening,
+                current.cycle?.reviewDueOn,
+                timezone,
+              )}
               onOpenReview={openReview}
               onOpenPlan={() => void changeTab('plan')}
             />
@@ -1727,7 +1747,7 @@ export default function SupportPlanWorkspace({
           )}
         </section>
       </div>
-      <p className="mbw-disclaimer">{current.disclaimer}</p>
+      <p className="mbw-disclaimer">{planDisclaimer(current.disclaimer)}</p>
     </div>
   )
 }

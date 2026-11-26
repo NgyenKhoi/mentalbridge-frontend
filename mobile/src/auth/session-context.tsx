@@ -42,16 +42,38 @@ type SessionContextValue = Readonly<{
 
 const SessionContext = createContext<SessionContextValue | null>(null)
 const REFRESH_EARLY_MS = 60_000
+const BEFORE_SIGN_OUT_TIMEOUT_MS = 3_000
+
+// Best effort and bounded: a slow or failing hook never blocks sign-out.
+async function runBeforeSignOut(hook: (() => Promise<void>) | undefined) {
+  if (!hook) return
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      Promise.resolve()
+        .then(hook)
+        .catch(() => undefined),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, BEFORE_SIGN_OUT_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 const REFRESH_RETRY_MS = 15_000
 
 export function SessionProvider({
   children,
   service,
   initialSession,
+  beforeSignOut,
 }: Readonly<{
   children: ReactNode
   service: SessionService
   initialSession?: AppSession | null
+  // Runs while the access token is still valid, e.g. to revoke this phone's push device.
+  beforeSignOut?: () => Promise<void>
 }>) {
   const queryClient = useQueryClient()
   const [session, setSession] = useState<AppSession | null>(
@@ -197,6 +219,7 @@ export function SessionProvider({
       },
       async signOut() {
         const version = ++operationVersion.current
+        await runBeforeSignOut(beforeSignOut)
         try {
           await service.logout()
           setNotice(null)
@@ -228,6 +251,7 @@ export function SessionProvider({
     [
       applyAuthenticated,
       applyUnauthenticated,
+      beforeSignOut,
       notice,
       retryRestore,
       service,

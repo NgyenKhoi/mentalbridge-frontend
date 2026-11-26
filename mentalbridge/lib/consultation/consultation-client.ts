@@ -34,7 +34,6 @@ import {
   parseAppointmentRating,
   parseAppointmentList,
   parseAppointmentDispute,
-  parseAppointmentDisputeList,
   parseAppointmentChatEligibility,
   parseBookableSlotList,
   parsePendingProfiles,
@@ -84,9 +83,7 @@ import {
   type AppointmentRating,
   type AppointmentList,
   type AppointmentDispute,
-  type AppointmentDisputeList,
   type OpenAppointmentDisputeInput,
-  type ResolveAppointmentDisputeInput,
   type AppointmentChatEligibility,
   type AppointmentRequestInput,
   type BookableSlotList,
@@ -97,6 +94,8 @@ import {
 import {
   parseSessionSummary,
   parseSessionSummaryList,
+  parseReusableSessionSummaryList,
+  type ReusableSessionSummaryList,
   type PublishSessionSummaryInput,
   type SessionSummary,
   type SessionSummaryList,
@@ -108,8 +107,12 @@ import {
   parseServicePlanCatalogue,
   parseAdminPaymentList,
   parsePlanPaymentHistory,
+  parseOwnSubscription,
+  parseSubscriptionCancellation,
   type PlanPayment,
   type ServicePlanCatalogue,
+  type OwnSubscription,
+  type SubscriptionCancellation,
 } from './billing-validation'
 
 const MAX_RESPONSE_BYTES = 128 * 1024
@@ -545,38 +548,6 @@ export const consultationClient = {
       parse: parseAppointmentDispute,
     })
   },
-  appointmentDisputes(
-    token: string,
-    correlationId: string,
-    status: 'OPEN' | 'RESOLVED',
-  ) {
-    return request<AppointmentDisputeList>({
-      method: 'GET',
-      path: `/api/v1/admin/appointment-disputes?status=${status}`,
-      token,
-      correlationId,
-      parse: parseAppointmentDisputeList,
-    })
-  },
-  resolveAppointmentDispute(
-    token: string,
-    correlationId: string,
-    disputeId: string,
-    body: ResolveAppointmentDisputeInput,
-    etag: string,
-    idempotencyKey: string,
-  ) {
-    return request<AppointmentDispute>({
-      method: 'POST',
-      path: `/api/v1/admin/appointment-disputes/${encodeURIComponent(disputeId)}/resolve`,
-      token,
-      correlationId,
-      body,
-      ifMatch: etag,
-      idempotencyKey,
-      parse: parseAppointmentDispute,
-    })
-  },
   specialistEarnings(token: string, correlationId: string) {
     return request<SpecialistEarnings>({
       method: 'GET',
@@ -854,6 +825,19 @@ export const consultationClient = {
       parse: parseSessionSummaryList,
     })
   },
+  specialistReusableSessionSummaries(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+  ) {
+    return request<ReusableSessionSummaryList>({
+      method: 'GET',
+      path: `/api/v1/specialist/appointments/${encodeURIComponent(appointmentId)}/reusable-session-summaries`,
+      token,
+      correlationId,
+      parse: parseReusableSessionSummaryList,
+    })
+  },
   publishSessionSummary(
     token: string,
     correlationId: string,
@@ -1063,6 +1047,30 @@ export const consultationClient = {
       body: { planVersionId },
       idempotencyKey,
       parse: parsePlanPayment,
+    })
+  },
+  ownSubscription(token: string, correlationId: string) {
+    return request<OwnSubscription>({
+      method: 'GET',
+      path: '/api/v1/subscriptions/current',
+      token,
+      correlationId,
+      parse: parseOwnSubscription,
+    })
+  },
+  cancelSubscription(
+    token: string,
+    correlationId: string,
+    subscriptionId: string,
+    idempotencyKey: string,
+  ) {
+    return request<SubscriptionCancellation>({
+      method: 'POST',
+      path: `/api/v1/subscriptions/${encodeURIComponent(subscriptionId)}/cancellation`,
+      token,
+      correlationId,
+      idempotencyKey,
+      parse: parseSubscriptionCancellation,
     })
   },
   own(token: string, correlationId: string) {

@@ -64,6 +64,43 @@ describe('/api/care/support-guides', () => {
     )
   })
 
+  it('ensures the Guide for the latest completed screening of either purpose', async () => {
+    const latestEpisodeId = '10000000-0000-4000-8000-000000000669'
+    careMocks.currentGuidedJourney.mockResolvedValue({
+      stage: 'GUIDE_REQUIRED',
+      episodeId,
+      latestScreening: { episodeId: latestEpisodeId, purpose: 'REASSESSMENT' },
+    })
+    careMocks.ensureScreeningEpisodeSupportGuide.mockResolvedValue({
+      supportGuideId: 'guide',
+    })
+
+    expect((await POST(request('POST'))).status).toBe(200)
+    expect(careMocks.ensureScreeningEpisodeSupportGuide).toHaveBeenCalledWith(
+      'identity-access-secret',
+      latestEpisodeId,
+      expect.any(String),
+    )
+  })
+
+  it('falls back to the initial-check episode when Care sends no latest screening', async () => {
+    careMocks.currentGuidedJourney.mockResolvedValue({
+      stage: 'GUIDE_REQUIRED',
+      episodeId,
+      latestScreening: null,
+    })
+    careMocks.ensureScreeningEpisodeSupportGuide.mockResolvedValue({
+      supportGuideId: 'guide',
+    })
+
+    expect((await POST(request('POST'))).status).toBe(200)
+    expect(careMocks.ensureScreeningEpisodeSupportGuide).toHaveBeenCalledWith(
+      'identity-access-secret',
+      episodeId,
+      expect.any(String),
+    )
+  })
+
   it('fails closed when Care has no completed initial check', async () => {
     careMocks.currentGuidedJourney.mockResolvedValue({
       stage: 'ASSESSMENT_REQUIRED',

@@ -1,16 +1,27 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import {
+  ensureCurrentSupportGuide,
+  getGuidedJourney,
+} from '@/features/support-guide/api/browser-support-guide'
+import {
+  activateSupportPlan,
+  proposeSupportPlanDraft,
+} from '@/features/support-plan/api/browser-support-plan'
+import { getHomeNextStep } from '@/features/home/browser-home-next-step'
+import { saveCareProfile } from '@/features/assessment/api/browser-care'
 import OnboardingAssessmentJourney, {
   PHQ9_QUESTIONS,
   GAD7_QUESTIONS,
 } from './OnboardingAssessmentJourney'
 
 const mockPush = vi.fn()
+const mockReplace = vi.fn()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
-    replace: vi.fn(),
+    replace: mockReplace,
   }),
 }))
 
@@ -56,6 +67,19 @@ vi.mock('@/features/assessment/api/browser-care', () => ({
   getInitialCheckState: vi.fn().mockResolvedValue({ phase: 'PHQ9' }),
 }))
 
+vi.mock('@/features/assessment/components/ReassessmentReview', () => ({
+  ReassessmentReview: ({ footer }: { footer?: React.ReactNode }) => (
+    <div>
+      Chặng vừa khép lại
+      {footer}
+    </div>
+  ),
+}))
+
+vi.mock('@/features/home/browser-home-next-step', () => ({
+  getHomeNextStep: vi.fn().mockResolvedValue({ plan: null }),
+}))
+
 vi.mock('@/features/support-plan/api/browser-support-plan', () => ({
   proposeSupportPlanDraft: vi.fn().mockResolvedValue({
     supportPlanId: 'plan-123',
@@ -65,10 +89,45 @@ vi.mock('@/features/support-plan/api/browser-support-plan', () => ({
   getCurrentSupportPlanDraft: vi.fn().mockResolvedValue(null),
 }))
 
+vi.mock('@/features/support-guide/api/browser-support-guide', () => ({
+  ensureCurrentSupportGuide: vi
+    .fn()
+    .mockResolvedValue({ supportGuideId: 'guide-123' }),
+  getGuidedJourney: vi
+    .fn()
+    .mockResolvedValue({ episodeId: null, assessmentInProgress: false }),
+}))
+
 describe('OnboardingAssessmentJourney', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.scrollTo = vi.fn()
+  })
+
+  it('turns a retake after a completed initial check into a reassessment', async () => {
+    vi.mocked(getGuidedJourney).mockResolvedValueOnce({
+      episodeId: 'episode-1',
+      assessmentInProgress: false,
+    } as never)
+    render(<OnboardingAssessmentJourney />)
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith(
+        '/initial-check?purpose=reassessment',
+      ),
+    )
+    expect(screen.queryByLabelText(/Tên gọi thân mật/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps an unfinished initial check on its own journey', async () => {
+    vi.mocked(getGuidedJourney).mockResolvedValueOnce({
+      episodeId: 'episode-1',
+      assessmentInProgress: true,
+    } as never)
+    render(<OnboardingAssessmentJourney />)
+    expect(
+      await screen.findByLabelText(/Tên gọi thân mật/i),
+    ).toBeInTheDocument()
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 
   it('renders Step 1 (Hoàn thiện hồ sơ) with profile inputs and priority goals', async () => {
@@ -81,7 +140,10 @@ describe('OnboardingAssessmentJourney', () => {
     ).toBeInTheDocument()
     expect(screen.getByLabelText(/Tên gọi thân mật/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Năm sinh/i)).toBeInTheDocument()
-    expect(screen.getByText('Cải thiện giấc ngủ')).toBeInTheDocument()
+    expect(screen.queryByText('Cải thiện giấc ngủ')).not.toBeInTheDocument()
+    expect(
+      screen.queryByLabelText(/Môi trường làm việc/i),
+    ).not.toBeInTheDocument()
     expect(
       screen.getByText(/Lưu thông tin & Bắt đầu bài sàng lọc đầu tiên/i),
     ).toBeInTheDocument()
@@ -105,6 +167,23 @@ describe('OnboardingAssessmentJourney', () => {
       await screen.findByText('PHQ-9 — Sàng lọc triệu chứng'),
     ).toBeInTheDocument()
     expect(screen.getByText(/Câu 1 \/ 9/i)).toBeInTheDocument()
+  })
+
+  it('stays on the profile step with an error when saving the profile fails', async () => {
+    vi.mocked(saveCareProfile).mockRejectedValueOnce(new Error('down'))
+    render(<OnboardingAssessmentJourney />)
+
+    fireEvent.click(
+      await screen.findByText(/Lưu thông tin & Bắt đầu bài sàng lọc đầu tiên/i),
+    )
+
+    await waitFor(() =>
+      expect(mockShowActionToast).toHaveBeenCalledWith(
+        expect.objectContaining({ tone: 'error' }),
+      ),
+    )
+    expect(screen.queryByText('PHQ-9 — Sàng lọc triệu chứng')).toBeNull()
+    expect(screen.getByLabelText(/Tên gọi thân mật/i)).toBeInTheDocument()
   })
 
   it('allows answering PHQ-9 (9 questions) and transitioning smoothly to GAD-7 (7 questions)', async () => {
@@ -190,17 +269,28 @@ describe('OnboardingAssessmentJourney', () => {
       screen.getByText(/Chuẩn thang đo quốc tế GAD-7/i),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('Ý nghĩa lâm sàng (Clinical Meaning)'),
+      screen.getByText('Ý nghĩa kết quả', { selector: 'span' }),
     ).toBeInTheDocument()
     expect(
       screen.getByText('Cơ chế giao cảm cảnh giác cao'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa ngay/i),
+      screen.getByRole('button', { name: 'Xem gợi ý hỗ trợ' }),
     ).toBeInTheDocument()
+    expect(screen.getByText(/gợi ý hỗ trợ sẽ chỉ ra/)).toBeInTheDocument()
+    expect(screen.queryByText(/lộ trình 14 ngày/)).not.toBeInTheDocument()
+    // The resource cards and the link that scrolled to them are gone.
+    expect(
+      screen.queryByText(/Tài nguyên gợi ý tức thì/),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/tài nguyên hỗ trợ gợi ý/),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/Kỹ thuật thở cơ hoành/)).not.toBeInTheDocument()
+    expect(screen.getByText('4. Gợi ý hỗ trợ')).toBeInTheDocument()
   })
 
-  it('advances from Step 3 to Step 4 and navigates to Dashboard', async () => {
+  it('opens the Support Guide from Step 3 without touching the plan', async () => {
     render(<OnboardingAssessmentJourney />)
 
     // Complete Step 1
@@ -233,25 +323,201 @@ describe('OnboardingAssessmentJourney', () => {
       }
     }
 
-    // In Step 3: click "Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa ngay →"
-    const createPlanBtn = await screen.findByText(
-      /Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa ngay/i,
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Xem gợi ý hỗ trợ' }),
     )
-    fireEvent.click(createPlanBtn)
 
-    // Should reach Step 4
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/support-guides/guide-123'),
+    )
+    expect(ensureCurrentSupportGuide).toHaveBeenCalledTimes(1)
+    expect(proposeSupportPlanDraft).not.toHaveBeenCalled()
+    expect(activateSupportPlan).not.toHaveBeenCalled()
+    expect(screen.queryByText(/đã được kích hoạt/)).not.toBeInTheDocument()
+  })
+
+  async function reachStep3(purpose?: 'REASSESSMENT', planReview = false) {
+    render(
+      <OnboardingAssessmentJourney purpose={purpose} planReview={planReview} />,
+    )
+    if (purpose !== 'REASSESSMENT') {
+      fireEvent.click(
+        await screen.findByText(
+          /Lưu thông tin & Bắt đầu bài sàng lọc đầu tiên/i,
+        ),
+      )
+    }
+    await screen.findByText('PHQ-9 — Sàng lọc triệu chứng')
+    for (let i = 0; i < 9; i++) {
+      fireEvent.click(screen.getByText('Vài ngày'))
+      fireEvent.click(
+        screen.getByText(
+          i < 8 ? 'Câu tiếp theo →' : 'Lưu PHQ-9 và tiếp tục sang GAD-7 →',
+        ),
+      )
+    }
+    await screen.findByText('GAD-7 — Sàng lọc triệu chứng lo âu')
+    for (let j = 0; j < 7; j++) {
+      fireEvent.click(screen.getByText('Vài ngày'))
+      fireEvent.click(
+        screen.getByText(
+          j < 6
+            ? 'Câu tiếp theo →'
+            : 'Nộp bài & Xem phân tích ý nghĩa kết quả →',
+        ),
+      )
+    }
+    await screen.findByText(/Chuẩn thang đo quốc tế PHQ-9/i)
+  }
+
+  it('REASSESSMENT never proposes or activates a plan and ends with the review', async () => {
+    await reachStep3('REASSESSMENT')
     expect(
-      await screen.findByText(
-        'Kế hoạch hỗ trợ của bạn đã được kích hoạt thành công!',
-      ),
-    ).toBeInTheDocument()
+      screen.queryByRole('button', { name: 'Xem gợi ý hỗ trợ' }),
+    ).not.toBeInTheDocument()
+    expect(ensureCurrentSupportGuide).not.toHaveBeenCalled()
     expect(
-      screen.getByText('Bắt đầu khám phá không gian của bạn →'),
+      screen.getByText(/Kế hoạch của bạn chưa thay đổi/),
     ).toBeInTheDocument()
 
-    // Click finish to dashboard
-    const finishBtn = screen.getByText('Bắt đầu khám phá không gian của bạn →')
-    fireEvent.click(finishBtn)
-    expect(mockPush).toHaveBeenCalledWith('/dashboard')
+    fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
+
+    expect(await screen.findByText('Chặng vừa khép lại')).toBeInTheDocument()
+    expect(screen.getByText('4. Nhìn lại')).toBeInTheDocument()
+    expect(screen.queryByText(/bài sàng lọc đầu tiên/i)).not.toBeInTheDocument()
+    expect(proposeSupportPlanDraft).not.toHaveBeenCalled()
+    expect(activateSupportPlan).not.toHaveBeenCalled()
+    // No plan in use: the next step goes to the overview.
+    expect(
+      await screen.findByRole('link', { name: 'Về trang tổng quan →' }),
+    ).toHaveAttribute('href', '/dashboard')
+  })
+
+  it('still reaches the review when preparing the reassessment Guide fails', async () => {
+    vi.mocked(ensureCurrentSupportGuide).mockRejectedValueOnce(
+      new Error('down'),
+    )
+    await reachStep3('REASSESSMENT')
+
+    fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
+
+    expect(await screen.findByText('Chặng vừa khép lại')).toBeInTheDocument()
+    expect(ensureCurrentSupportGuide).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('reaches the review after 6 s even when the reassessment Guide never settles', async () => {
+    vi.mocked(ensureCurrentSupportGuide).mockReturnValueOnce(
+      new Promise(() => {}) as never,
+    )
+    await reachStep3('REASSESSMENT')
+    const realSetTimeout = window.setTimeout.bind(window)
+    const waits: unknown[] = []
+    vi.spyOn(window, 'setTimeout').mockImplementation(((
+      fn: () => void,
+      ms?: number,
+    ) => {
+      waits.push(ms)
+      return ms === 6000 ? (fn(), 0) : realSetTimeout(fn, ms)
+    }) as never)
+
+    fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
+
+    expect(await screen.findByText('Chặng vừa khép lại')).toBeInTheDocument()
+    expect(waits).toContain(6000)
+    vi.mocked(window.setTimeout).mockRestore()
+  })
+
+  it('holds the step-4 action until Care says whether a plan is in use', async () => {
+    let resolve!: (value: never) => void
+    vi.mocked(getHomeNextStep).mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done as (value: never) => void
+      }),
+    )
+    await reachStep3('REASSESSMENT')
+    fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
+
+    const held = await screen.findByRole('button', {
+      name: 'Đang kiểm tra kế hoạch…',
+    })
+    expect(held).toBeDisabled()
+    // No wrong destination can be followed while the state is unknown.
+    expect(
+      screen.queryByRole('link', {
+        name: /Về trang tổng quan|Xem lại kế hoạch/,
+      }),
+    ).toBeNull()
+
+    resolve({ plan: { supportPlanId: 'plan-1' } } as never)
+    expect(
+      await screen.findByRole('link', { name: 'Xem lại kế hoạch →' }),
+    ).toHaveAttribute('href', '/support-plan?review=open')
+  })
+
+  it('keeps the step-4 action held with a retry when the plan state cannot be read', async () => {
+    vi.mocked(getHomeNextStep).mockRejectedValueOnce(new Error('down'))
+    await reachStep3('REASSESSMENT')
+    fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Chưa kiểm tra được kế hoạch của bạn.',
+    )
+    expect(
+      screen.queryByRole('link', {
+        name: /Về trang tổng quan|Xem lại kế hoạch/,
+      }),
+    ).toBeNull()
+    vi.mocked(getHomeNextStep).mockResolvedValueOnce({
+      plan: { supportPlanId: 'plan-1' },
+    } as never)
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(
+      await screen.findByRole('link', { name: 'Xem lại kế hoạch →' }),
+    ).toHaveAttribute('href', '/support-plan?review=open')
+  })
+
+  it('returnTo=plan-review goes straight to the plan review without asking Care', async () => {
+    vi.mocked(getHomeNextStep).mockClear()
+    await reachStep3('REASSESSMENT', true)
+    fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
+    expect(
+      await screen.findByRole('link', { name: 'Xem lại kế hoạch →' }),
+    ).toHaveAttribute('href', '/support-plan?review=open')
+    expect(getHomeNextStep).not.toHaveBeenCalled()
+  })
+
+  it('REASSESSMENT links to the plan review when the user has a plan in use', async () => {
+    vi.mocked(getHomeNextStep).mockResolvedValueOnce({
+      plan: { supportPlanId: 'plan-1' },
+    } as never)
+    await reachStep3('REASSESSMENT')
+    fireEvent.click(screen.getByText('Xem nhìn lại 14 ngày →'))
+    expect(
+      await screen.findByRole('link', { name: 'Xem lại kế hoạch →' }),
+    ).toHaveAttribute('href', '/support-plan?review=open')
+  })
+
+  it('INITIAL_CHECK shows a plan-free error when the guide cannot be opened, then retries', async () => {
+    vi.mocked(ensureCurrentSupportGuide).mockRejectedValueOnce(
+      new Error('guide down'),
+    )
+    await reachStep3()
+    fireEvent.click(screen.getByRole('button', { name: 'Xem gợi ý hỗ trợ' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Chưa mở được gợi ý hỗ trợ. Kết quả sàng lọc của bạn vẫn được lưu. Bạn hãy thử lại.',
+    )
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/kế hoạch/)
+    expect(mockPush).not.toHaveBeenCalled()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Thử lại xem gợi ý hỗ trợ' }),
+    )
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/support-guides/guide-123'),
+    )
+    expect(ensureCurrentSupportGuide).toHaveBeenCalledTimes(2)
+    expect(proposeSupportPlanDraft).not.toHaveBeenCalled()
   })
 })

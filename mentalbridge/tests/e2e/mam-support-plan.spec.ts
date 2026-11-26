@@ -11,10 +11,9 @@ import {
 } from './mam-dock-helpers'
 import { installSupportPlanMocks } from './support-plan-mam-mocks'
 
-// MB-772: the SupportPlan route with the global Mầm (MAM_WEB_ENABLED=true, the
-// E2E default). One dock, no legacy aside, the card's own button asks Care once,
-// the dock starters answer from reviewed copy, and the original CTA stays.
-// The legacy Companion with the flag off is covered by the MB-650..653 specs.
+// MB-772: the SupportPlan route with the global Mầm. One dock, no legacy aside,
+// the card's own button asks Care once, the dock starters answer from reviewed
+// copy, and the original CTA stays.
 
 const bubble = (page: Page) => page.getByRole('dialog', { name: 'Mầm' })
 const cardButton = (page: Page) =>
@@ -36,9 +35,8 @@ const cta = (page: Page) =>
 test.describe('MB-772 SupportPlan with the global Mầm', () => {
   test.use({ timezoneId: 'Asia/Ho_Chi_Minh' })
   test.skip(
-    process.env.E2E_RUNTIME === 'live-cross-stack' ||
-      process.env.MAM_WEB_ENABLED === 'false',
-    'Uses browser-owned fixtures and needs MAM_WEB_ENABLED=true.',
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'Uses browser-owned fixtures.',
   )
 
   test('shows one dock and no legacy companion, and asks Care nothing on entry', async ({

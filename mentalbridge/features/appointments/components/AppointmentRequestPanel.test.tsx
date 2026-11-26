@@ -168,10 +168,10 @@ describe('AppointmentRequestPanel', () => {
     render(<AppointmentRequestPanel />)
 
     expect(
-      await screen.findByText(
-        'Bạn chưa có lịch hẹn nào. Chọn một khung giờ trống để bắt đầu.',
-      ),
-    ).toBeInTheDocument()
+      await screen.findByRole('link', {
+        name: 'Chọn chuyên gia và khung giờ để bắt đầu',
+      }),
+    ).toHaveAttribute('href', '/specialists')
     expect(
       screen.queryByRole('region', { name: 'Cuộc hẹn kế tiếp' }),
     ).not.toBeInTheDocument()
@@ -236,6 +236,138 @@ describe('AppointmentRequestPanel', () => {
     ).toHaveTextContent(formatSlotTimeInSnapshotTimezone(slotStart, slotEnd))
   })
 
+  it('shows five free slots first and expands or collapses the rest of the day', async () => {
+    const slots = Array.from({ length: 7 }, (_, index) => ({
+      ...slot,
+      id: `123e4567-e89b-42d3-a456-42661417410${index}`,
+      startAt: `2099-01-02T0${index + 1}:00:00Z`,
+      endAt: `2099-01-02T0${index + 2}:00:00Z`,
+    }))
+    appointmentClient.slots.mockResolvedValue({
+      items: slots,
+      count: 7,
+      generatedAt: '2099-01-01T00:00:00Z',
+      videoEnabled: false,
+    })
+    appointmentClient.list.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2099-01-01T00:00:00Z',
+    })
+    const user = userEvent.setup()
+    render(<AppointmentRequestPanel />)
+
+    const region = await screen.findByRole('region', { name: 'Đặt hẹn nhanh' })
+    const options = () =>
+      within(region).getAllByRole('button', { name: /Slot specialist/ })
+    await waitFor(() => expect(options()).toHaveLength(5))
+
+    await user.click(
+      within(region).getByRole('button', { name: 'Xem thêm 2 khung giờ' }),
+    )
+    expect(options()).toHaveLength(7)
+
+    // A chosen slot beyond the first five stays visible once collapsed.
+    await user.click(options()[6])
+    const collapse = within(region).getByRole('button', {
+      name: 'Thu gọn danh sách khung giờ',
+    })
+    expect(collapse).toHaveAttribute('aria-expanded', 'true')
+    await user.click(collapse)
+    expect(options()).toHaveLength(6)
+    expect(options()[5]).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('labels an ended session by its outcome instead of "being summarised"', async () => {
+    appointmentClient.slots.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2099-01-01T00:00:00Z',
+      videoEnabled: false,
+    })
+    appointmentClient.list.mockResolvedValue({
+      items: [
+        {
+          ...appointment,
+          status: 'SESSION_ENDED',
+          sessionOutcome: 'USER_NO_SHOW',
+        },
+      ],
+      count: 1,
+      generatedAt: '2099-01-01T00:00:00Z',
+    })
+    render(<AppointmentRequestPanel />)
+
+    expect((await screen.findAllByText('Bạn vắng mặt')).length).toBeGreaterThan(
+      0,
+    )
+    expect(screen.queryByText('Đang tổng hợp kết quả')).not.toBeInTheDocument()
+  })
+
+  it('explains what happened to the buổi after a no-show and hides the preliminary notes', async () => {
+    appointmentClient.slots.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2099-01-01T00:00:00Z',
+      videoEnabled: false,
+    })
+    appointmentClient.list.mockResolvedValue({
+      items: [
+        {
+          ...appointment,
+          status: 'SESSION_ENDED',
+          sessionOutcome: 'USER_NO_SHOW',
+        },
+        {
+          ...appointment,
+          id: '723e4567-e89b-42d3-a456-426614174003',
+          specialistDisplayName: 'Specialist absent',
+          status: 'SESSION_ENDED',
+          sessionOutcome: 'SPECIALIST_NO_SHOW',
+        },
+      ],
+      count: 2,
+      generatedAt: '2099-01-01T00:00:00Z',
+    })
+    render(<AppointmentRequestPanel />)
+
+    expect(
+      await screen.findByText(/Buổi tư vấn này không được hoàn lại/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Buổi tư vấn đã được hoàn lại cho bạn/),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Xem ghi chú sơ bộ' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/Nội dung tóm tắt/)).not.toBeInTheDocument()
+  })
+
+  it.each(['EXPIRED', 'REJECTED'] as const)(
+    'offers another time with the same specialist after a %s request',
+    async (status) => {
+      appointmentClient.slots.mockResolvedValue({
+        items: [],
+        count: 0,
+        generatedAt: '2099-01-01T00:00:00Z',
+        videoEnabled: false,
+      })
+      appointmentClient.list.mockResolvedValue({
+        items: [{ ...appointment, status }],
+        count: 1,
+        generatedAt: '2099-01-01T00:00:00Z',
+      })
+      render(<AppointmentRequestPanel />)
+
+      expect(
+        await screen.findByRole('link', { name: 'Chọn giờ khác' }),
+      ).toHaveAttribute(
+        'href',
+        `/specialists?specialist=${appointment.specialistAccountId}`,
+      )
+    },
+  )
+
   it('filters the appointment list without hiding the next appointment context', async () => {
     const historicalAppointment = {
       ...appointment,
@@ -261,7 +393,7 @@ describe('AppointmentRequestPanel', () => {
     render(<AppointmentRequestPanel />)
 
     const historyFilter = await screen.findByRole('tab', {
-      name: /Đã hoàn tất/,
+      name: /Đã kết thúc/,
     })
     await user.click(historyFilter)
 
@@ -639,7 +771,7 @@ describe('AppointmentRequestPanel', () => {
       name: 'Thông tin hủy lịch',
     })
     expect(
-      within(info).getByText('Lượt tư vấn đã chuyển sang lịch mới'),
+      within(info).getByText('Buổi tư vấn đã chuyển sang lịch mới'),
     ).toBeInTheDocument()
     expect(
       within(info).getByText(
@@ -648,7 +780,7 @@ describe('AppointmentRequestPanel', () => {
     ).toBeInTheDocument()
     expect(within(info).getByText('Lý do: bạn đã đổi lịch')).toBeInTheDocument()
     expect(
-      screen.queryByText('Lượt tư vấn đã được cập nhật'),
+      screen.queryByText('Buổi tư vấn đã được cập nhật'),
     ).not.toBeInTheDocument()
   })
 
@@ -759,7 +891,7 @@ describe('AppointmentRequestPanel', () => {
     await user.click(await screen.findByRole('button', { name: 'Đổi lịch' }))
 
     expect(
-      screen.getByText(/lượt tư vấn cũ sẽ không được hoàn lại/i),
+      screen.getByText(/buổi tư vấn cũ sẽ không được hoàn lại/i),
     ).toBeInTheDocument()
   })
 
@@ -826,7 +958,7 @@ describe('AppointmentRequestPanel', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Đổi lịch' }))
     expect(
-      screen.queryByText(/lượt tư vấn cũ sẽ không được hoàn lại/),
+      screen.queryByText(/buổi tư vấn cũ sẽ không được hoàn lại/),
     ).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Slot specialist/ }))
@@ -836,7 +968,7 @@ describe('AppointmentRequestPanel', () => {
 
     expect(
       await screen.findByText(
-        /Lượt tư vấn cũ sẽ không được hoàn lại, và lịch mới cần một lượt tư vấn đủ điều kiện khác/,
+        /Buổi tư vấn cũ sẽ không được hoàn lại, và lịch mới cần một buổi tư vấn đủ điều kiện khác/,
       ),
     ).toBeInTheDocument()
     expect(appointmentClient.request).not.toHaveBeenCalled()
@@ -854,7 +986,7 @@ describe('AppointmentRequestPanel', () => {
     )
     expect(
       await screen.findByText(
-        'Lượt tư vấn cũ không được hoàn lại theo mốc 24 giờ; lịch mới đã dùng một lượt tư vấn đủ điều kiện khác.',
+        'Buổi tư vấn cũ không được hoàn lại theo mốc 24 giờ; lịch mới đã dùng một buổi tư vấn đủ điều kiện khác.',
       ),
     ).toBeInTheDocument()
   })

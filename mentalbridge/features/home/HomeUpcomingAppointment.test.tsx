@@ -53,6 +53,21 @@ describe('HomeUpcomingAppointment', () => {
     expect(screen.queryByText(/LĨNH VỰC|Tâm lý lâm sàng/)).toBeNull()
   })
 
+  it('shows a pending request when nothing is confirmed yet', async () => {
+    const pending = homeAppointmentFixture({
+      id: 'requested',
+      status: 'REQUESTED',
+    })
+    vi.mocked(appointmentBrowserClient.list).mockResolvedValue({
+      items: [pending],
+      count: 1,
+      generatedAt: '2026-10-22T12:00:00Z',
+    })
+    render(<HomeUpcomingAppointment />)
+    await screen.findByText(pending.specialistDisplayName)
+    expect(screen.getByText(/Chờ chuyên gia xác nhận/)).toBeVisible()
+  })
+
   it('offers specialist discovery when no appointment is upcoming', async () => {
     render(<HomeUpcomingAppointment />)
     const message = await screen.findByText('Chưa có buổi hẹn nào sắp tới.')

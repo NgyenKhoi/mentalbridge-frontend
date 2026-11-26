@@ -68,6 +68,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/support-plan-reminder-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check whether the owner gets today's generic SupportPlan reminder
+         * @description MB-855 Content-to-Care service read; user JWTs never authorize it. eligible is true only when the owner's current plan is ACTIVE (PAUSED or none is false) and has a SCHEDULED occurrence whose localDate equals asOf's local date in that occurrence's own timezone, whose schedule is ACTIVE with reminderEnabled, and whose native action (v3) is ACTIVE; v2 resource plans and v3 native plans both count. It reuses the Today read, so it may idempotently generate occurrences, and never changes occurrence state. No plan, action, count or clinical detail is returned. Every refusal for a missing, wrong or disabled credential is 401 with no body.
+         */
+        post: operations["checkSupportPlanReminderEligibility"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/product-journey-metrics": {
         parameters: {
             query?: never;
@@ -438,14 +458,19 @@ export interface paths {
          * Resume the owner's current initial-check journey and its next authorized action
          * @description Read-only, owner-scoped pointer derived from persisted Care facts: the latest
          *     COMPLETED INITIAL_CHECK screening episode with its exact PHQ-9/GAD-7 pair, the
-         *     persisted Support Guide for that episode's exact SupportEvaluation, and the
-         *     current ACTIVE/PAUSED or DRAFT SupportPlan. It never pairs independently newest
+         *     persisted Support Guide for the latestScreening episode's exact SupportEvaluation,
+         *     and the current ACTIVE/PAUSED or DRAFT SupportPlan. It never pairs independently newest
          *     assessments, creates a Guide or plan, or reads historical episodes.
          *     nextAction is Care's ordered decision for the step after the Guide: positive
          *     PHQ-9 item-9 safety evidence first, then a stored professional-support pathway,
          *     then an existing current plan or draft, then PLUS/PREMIUM plan proposal while the
          *     episode evaluation is still current-policy compatible, otherwise the Guide's
-         *     reviewed resources. Entitlement is checked only when needed; when it
+         *     reviewed resources. latestScreening is the newest COMPLETED screening episode of
+         *     either purpose (INITIAL_CHECK or REASSESSMENT, by completedAt then episodeId);
+         *     nextAction, stage and supportGuideId follow that episode's SupportEvaluation,
+         *     while episodeId, episodeCompletedAt and presentationEvaluationId keep the
+         *     initial-check meaning. Open episodes never become latestScreening.
+         *     Entitlement is checked only when needed; when it
          *     cannot be verified the response fails closed to the always-available resource step
          *     with entitlementStatus UNAVAILABLE. A missing published support policy is not
          *     hidden: it returns 503 SUPPORT_POLICY_UNAVAILABLE so clients offer retry. Responses carry Cache-Control no-store and no
@@ -679,6 +704,14 @@ export interface paths {
          *     dimension while the local dimensions remain available. Sparse local or
          *     journal evidence is INSUFFICIENT_DATA. Dimensions are never collapsed into
          *     a global improvement, recovery, or wellness score.
+         *     A request without journalJobId or journalAnalysisId is accepted only while
+         *     Care's own effective L2 AI_CONTEXT_PROCESSING consent is missing: Care then
+         *     persists a v2 snapshot whose journal dimension is UNAVAILABLE with
+         *     CONSENT_REVOKED (latest L2 decision withdrawn) or CONSENT_REQUIRED (no
+         *     current effective L2, including missing L1). With effective L2 the same
+         *     request returns 400 INVALID_JOURNAL_EVIDENCE_REFERENCE. Sending both
+         *     references is always 400. Idempotent replay is checked before consent, so an
+         *     identical retry returns the original snapshot.
          */
         post: operations["composeOwnReassessmentSummary"];
         delete?: never;
@@ -1547,7 +1580,8 @@ export interface paths {
         /**
          * Explicitly keep a review-due proposal plan for another 14-day cycle
          * @description Owner-only command for an ACTIVE support-plan-proposal-v1 plan whose
-         *     cycle is REVIEW_DUE. Requires the strong plan If-Match and a durable
+         *     cycle is REVIEW_DUE and a reassessment episode completed on or after
+         *     this cycle's review date. Requires the strong plan If-Match and a durable
          *     Idempotency-Key. Starts cycleNumber + 1 on today's local date in the
          *     cycle timezone, resets pausedDays and schedules a new one-time
          *     reassessment occurrence on day 14. Preserves prior occurrence history,
@@ -2171,6 +2205,21 @@ export interface components {
             consentVersion: "ai-voice-processing-capstone-v1" | "ai-voice-processing-capstone-v2";
             granted: boolean;
         };
+        SupportPlanReminderEligibilityQuery: {
+            /**
+             * Format: uuid
+             * @description Trusted owner asserted by Content
+             */
+            ownerAccountId: string;
+            /**
+             * Format: date-time
+             * @description Instant whose local date in each occurrence timezone is "today"
+             */
+            asOf: string;
+        };
+        SupportPlanReminderEligibility: {
+            eligible: boolean;
+        };
         VoiceOwnerCheck: {
             /** Format: uuid */
             ownerId: string;
@@ -2384,6 +2433,7 @@ export interface components {
             previousPeriod: components["schemas"]["ReassessmentPeriod"];
             currentPeriod: components["schemas"]["ReassessmentPeriod"];
         };
+        /** @description At most one Journal evidence reference. Omitting both is valid only while effective L2 AI_CONTEXT_PROCESSING consent is missing (journal dimension UNAVAILABLE, CONSENT_REQUIRED or CONSENT_REVOKED); otherwise 400 INVALID_JOURNAL_EVIDENCE_REFERENCE. */
         ReassessmentSummaryCreateRequest: {
             /** Format: uuid */
             phq9AssessmentId: string;
@@ -2391,7 +2441,7 @@ export interface components {
             gad7AssessmentId: string;
             /**
              * Format: uuid
-             * @description Deprecated MB-386 v1 compatibility input. Exactly one Journal evidence reference is required.
+             * @description Deprecated MB-386 v1 compatibility input. Never combined with journalJobId.
              */
             journalAnalysisId?: string;
             /**
@@ -2406,7 +2456,7 @@ export interface components {
              * @description Optional explicit owner self-report for the exact current period. Omission produces INSUFFICIENT_DATA and is never inferred from other evidence.
              */
             selfReportId?: string;
-        } & (unknown | unknown);
+        };
         /**
          * @description Non-diagnostic comparison of how the current period has felt to the user.
          * @enum {string}
@@ -2554,7 +2604,7 @@ export interface components {
         };
         ReassessmentJournalProvenance: {
             /** @enum {string} */
-            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI";
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK";
             model: string;
             promptVersion: string;
             schemaVersion: number;
@@ -2567,7 +2617,7 @@ export interface components {
             unavailableReason: "SOURCE_NOT_FOUND" | "CONSENT_REQUIRED" | "CONSENT_REVOKED" | "CONSENT_UNAVAILABLE" | "ENTITLEMENT_UNAVAILABLE" | "ENTITLEMENT_CHANGED" | "AUTHORIZATION_CONTEXT_LOST" | "SOURCE_REVISION_CHANGED" | "SOURCE_DELETED" | "PROVIDER_TIMEOUT" | "PROVIDER_UNAVAILABLE" | "INVALID_PROVIDER_RESULT" | "INTERNAL_ERROR" | "DEPENDENCY_UNAVAILABLE" | "INVALID_PROJECTION" | null;
             /**
              * Format: uuid
-             * @description Present for canonical v2 snapshots, including failed jobs.
+             * @description Present for canonical v2 snapshots, including failed jobs; absent when the snapshot was composed without a journal reference because L2 consent was missing.
              */
             jobId?: string | null;
             /**
@@ -2966,7 +3016,7 @@ export interface components {
             /** @constant */
             journeyPolicyVersion: "mb-guided-journey-v1";
             /**
-             * @description ASSESSMENT_REQUIRED has no completed initial check; GUIDE_REQUIRED has a completed episode whose Guide is not yet persisted; GUIDE_READY has the persisted Guide.
+             * @description ASSESSMENT_REQUIRED has no completed initial check; GUIDE_REQUIRED means the latestScreening episode's Guide is not yet persisted; GUIDE_READY has that persisted Guide.
              * @enum {string}
              */
             stage: "ASSESSMENT_REQUIRED" | "GUIDE_REQUIRED" | "GUIDE_READY";
@@ -2980,7 +3030,7 @@ export interface components {
             presentationEvaluationId: string | null;
             /** Format: uuid */
             supportGuideId: string | null;
-            /** @description Null only for ASSESSMENT_REQUIRED. */
+            /** @description Decided from the latestScreening episode's SupportEvaluation. With ASSESSMENT_REQUIRED it is REVIEW_SAFETY_SUPPORT when the latest completed reassessment is safety-positive, otherwise null. */
             nextAction: ("REVIEW_SAFETY_SUPPORT" | "FIND_SPECIALIST" | "OPEN_CURRENT_PLAN" | "REVIEW_PLAN_DRAFT" | "START_PLAN_PROPOSAL" | "EXPLORE_GUIDE_RESOURCES") | null;
             /**
              * Format: uuid
@@ -2989,6 +3039,19 @@ export interface components {
             currentSupportPlanId: string | null;
             /** @enum {string} */
             entitlementStatus: "NOT_REQUIRED" | "VERIFIED" | "UNAVAILABLE";
+            /** @description Newest COMPLETED screening episode of either purpose; null when none is completed. Initial check and reassessment remain separate journeys (ADR 0023). */
+            latestScreening: components["schemas"]["GuidedJourneyLatestScreening"] | null;
+        };
+        GuidedJourneyLatestScreening: {
+            /** Format: uuid */
+            episodeId: string;
+            purpose: components["schemas"]["ScreeningEpisodePurpose"];
+            /** Format: date-time */
+            completedAt: string;
+            /** Format: uuid */
+            presentationEvaluationId: string;
+            /** Format: uuid */
+            supportEvaluationId: string;
         };
         HomeNextStep: {
             /** @constant */
@@ -3708,8 +3771,10 @@ export interface components {
          *     date, in the cycle timezone; an ongoing pause uses today's local date
          *     as the exclusive end. These days do not advance the cycle. A pause
          *     beginning on or after the review date does not move it or add paused days.
-         *     reviewDueOn is startedOn + 13 days + pausedDays. REVIEW_DUE changes no
-         *     lifecycle state and remains until an explicit owner keep/change command.
+         *     reviewDueOn is startedOn + 13 days + pausedDays. REVIEW_DUE pauses
+         *     ordinary activity occurrences and reminders but keeps the plan ACTIVE.
+         *     It remains until a current-cycle reassessment is completed and the user
+         *     explicitly chooses the next rhythm; it never changes lifecycle state.
          *     NOT_STARTED is a DRAFT; CLOSED is COMPLETED, SUPERSEDED or DISCARDED.
          */
         SupportPlanCycle: {
@@ -4076,7 +4141,10 @@ export interface components {
             timeZone?: string;
             /** @description Screening domains of the plan template families, in family order. Content uses them to pick daily resources. Omitted when the plan has no template family; consumers then cannot build a daily journey. */
             targetDomains?: ("DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS")[];
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Start of the current plan period. For support-plan-cycle-v1 plans this is the start of the current cycle's first local day (activation or explicit continuation); otherwise the activation instant. Content counts journey days 1-14 from it.
+             */
             activatedAt?: string;
             /** Format: date */
             localDate: string;
@@ -4203,7 +4271,7 @@ export interface components {
             /** @enum {string} */
             displayState: "SCHEDULED" | "OVERDUE" | "COMPLETED" | "SKIPPED" | "CANCELLED";
             /** @enum {string|null} */
-            stateReason: "PLAN_PAUSED" | "PLAN_COMPLETED" | "PLAN_REPLACED" | "ACTION_ENDED" | "SCHEDULE_CHANGED" | null;
+            stateReason: "PLAN_PAUSED" | "PLAN_COMPLETED" | "PLAN_REPLACED" | "ACTION_ENDED" | "SCHEDULE_CHANGED" | "REVIEW_DUE" | null;
             /** @description Null unless completion is backed by a bounded Care or owner-domain fact. */
             completionEvidence: components["schemas"]["CompletionEvidence"] | null;
             /** Format: date-time */
@@ -4793,7 +4861,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The plan has no proposal cycle, is not ACTIVE and REVIEW_DUE, or reuses a key differently (SUPPORT_PLAN_MODEL_VERSION_UNSUPPORTED, SUPPORT_PLAN_CYCLE_NOT_REVIEW_DUE, or IDEMPOTENCY_KEY_REUSED); no cycle was started */
+        /** @description The plan has no proposal cycle, is not ACTIVE and REVIEW_DUE, lacks a completed current-cycle reassessment, or reuses a key differently (SUPPORT_PLAN_MODEL_VERSION_UNSUPPORTED, SUPPORT_PLAN_CYCLE_NOT_REVIEW_DUE, SUPPORT_PLAN_REASSESSMENT_REQUIRED, or IDEMPOTENCY_KEY_REUSED); no cycle was started */
         SupportPlanCycleConflictProblem: {
             headers: {
                 [name: string]: unknown;
@@ -5073,6 +5141,40 @@ export interface operations {
             403: components["responses"]["VoiceProblem403"];
             422: components["responses"]["VoiceProblem422"];
             503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    checkSupportPlanReminderEligibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportPlanReminderEligibilityQuery"];
+            };
+        };
+        responses: {
+            /** @description Current reminder eligibility only */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanReminderEligibility"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            /** @description Missing, wrong or disabled service credential; empty body */
+            401: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     getCareProductJourneyMetrics: {

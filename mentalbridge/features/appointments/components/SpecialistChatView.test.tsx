@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Appointment } from '@/lib/consultation/consultation-validation'
@@ -13,8 +19,6 @@ const navigation = vi.hoisted(() => ({
 const appointmentApi = vi.hoisted(() => ({
   list: vi.fn(),
   assigned: vi.fn(),
-  rating: vi.fn(),
-  saveRating: vi.fn(),
 }))
 
 const sessionSummaryApi = vi.hoisted(() => ({
@@ -95,7 +99,18 @@ const testAppointment: Appointment = {
   sessionSettledAt: '2026-10-01T17:00:00Z',
   completionFactId: 'fact-1',
   creditState: 'CONSUMED',
-  history: [],
+  history: [
+    {
+      eventId: 'event-confirmed',
+      fromStatus: 'REQUESTED',
+      toStatus: 'CONFIRMED',
+      actorType: 'SPECIALIST',
+      actorId: null,
+      reason: 'SPECIALIST_ACCEPTED',
+      creditOutcome: null,
+      occurredAt: '2026-09-30T12:00:00Z',
+    },
+  ],
   version: 2,
 }
 
@@ -107,13 +122,6 @@ describe('SpecialistChatView', () => {
       items: [testAppointment],
       count: 1,
       generatedAt: '2026-10-01T17:00:00Z',
-    })
-    appointmentApi.rating.mockResolvedValue({
-      score: 5,
-      specialistAccountId: 'fff240fb-44b2-4d95-aa23-31ef3b903e5c',
-      ratedAt: '2026-10-01T17:30:00Z',
-      canRate: true,
-      reason: null,
     })
     sessionSummaryApi.list.mockResolvedValue({
       items: [
@@ -128,6 +136,7 @@ describe('SpecialistChatView', () => {
           createdAt: '2026-10-01T17:00:00Z',
           updatedAt: '2026-10-01T17:00:00Z',
           publishedToUserAt: '2026-10-01T17:00:00Z',
+          specialistNoteForUser: 'Duy trì bài tập thở mỗi tối',
           agreedNextSteps: [
             {
               stepId: 'step-1',
@@ -178,32 +187,47 @@ describe('SpecialistChatView', () => {
 
     // Col 1: Appointments List
     expect(
-      await screen.findByRole('heading', { name: /Lịch hẹn chat/i }),
+      await screen.findByRole('heading', { name: /Cuộc trò chuyện/i }),
     ).toBeVisible()
-    expect(await screen.findByText('Đã xong')).toBeVisible()
+    expect(await screen.findAllByText('Đã hoàn thành')).not.toHaveLength(0)
+    expect(screen.queryByText('Đã xong')).not.toBeInTheDocument()
     expect(
       screen.getAllByText('ThS. BS. Minh Anh').length,
     ).toBeGreaterThanOrEqual(1)
 
-    // Col 2: Chat Main Area
-    expect(await screen.findByText('Đã hoàn thành')).toBeVisible()
+    // Col 2: Chat Main Area (no fake presence, no mock specialist tabs)
+    expect(screen.queryByText('Đang trực tuyến')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Bác sĩ' })).toBeNull()
     expect(
-      screen.getAllByText(/Khoa Sức khỏe Tâm thần/i).length,
-    ).toBeGreaterThanOrEqual(1)
+      screen.getByRole('heading', { level: 1, name: 'ThS. BS. Minh Anh' }),
+    ).toBeVisible()
+    // No invented affiliation or specialty line.
+    expect(screen.queryByText(/Khoa |BV ĐHYD/)).not.toBeInTheDocument()
     expect(screen.getByText(/Thời lượng:/i)).toBeVisible()
     expect(
-      screen.getByText(
-        /Phiên đã kết thúc và được lưu trữ an toàn trong hồ sơ bệnh án EMR/i,
-      ),
+      screen.getByText('Phiên đã kết thúc. Khung chat chỉ đọc.'),
     ).toBeVisible()
 
-    // Col 3: EMR Drawer is initially open
-    expect(screen.getByText('Thông tin buổi hẹn & EMR')).toBeVisible()
-    expect(screen.getByText('Đánh giá lâm sàng phiên này')).toBeVisible()
-    expect(screen.getByText('Toa dặn dò & Lộ trình')).toBeVisible()
+    // Col 3: the appointment info drawer is initially open
+    expect(screen.getByText('Thông tin buổi hẹn')).toBeVisible()
+    await waitFor(() =>
+      expect(
+        within(document.getElementById('appointment-info-drawer')!).getByText(
+          'Chat trực tuyến',
+        ),
+      ).toBeVisible(),
+    )
+    // The summary loads after the appointment: wait for it instead of racing it.
+    expect(
+      await within(
+        document.getElementById('appointment-info-drawer')!,
+      ).findByText('Duy trì bài tập thở mỗi tối'),
+    ).toBeVisible()
+    expect(screen.getByText('Bước tiếp theo')).toBeVisible()
+    expect(screen.getAllByText('Đã dùng 1 buổi tư vấn')[0]).toBeVisible()
   })
 
-  it('allows toggling the EMR drawer open and closed', async () => {
+  it('shows no EMR, clinical, invoice, PDF or AI-pill content', async () => {
     render(
       <SpecialistChatView
         initialAppointmentId={testAppointment.id}
@@ -211,57 +235,191 @@ describe('SpecialistChatView', () => {
       />,
     )
 
-    expect(await screen.findByText('Thông tin buổi hẹn & EMR')).toBeVisible()
-    const drawer = document.getElementById('emr-drawer')
-    expect(drawer?.className).not.toContain('emrDrawerHidden')
+    expect(
+      (await screen.findAllByText('Đã dùng 1 buổi tư vấn'))[0],
+    ).toBeVisible()
+    const text = document.body.textContent ?? ''
+    for (const banned of [
+      /EMR/,
+      /lâm sàng/i,
+      /bệnh án/i,
+      /INV-MB/,
+      /#MB-/,
+      /Credit/,
+      /Xuất PDF/,
+      /Hóa đơn/i,
+      /Tâm sự 24\/7/,
+    ]) {
+      expect(text).not.toMatch(banned)
+    }
+    expect(screen.queryByRole('link', { name: /Tâm sự/ })).toBeNull()
+  })
+
+  it('never prints a raw modality enum', async () => {
+    appointmentApi.list.mockResolvedValue({
+      items: [testAppointment],
+      count: 1,
+      generatedAt: '2026-10-01T17:00:00Z',
+    })
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    expect(
+      await within(
+        document.getElementById('appointment-info-drawer')!,
+      ).findByText('Chat trực tuyến'),
+    ).toBeVisible()
+    expect(document.body.textContent).not.toMatch(/IN_APP_/)
+  })
+
+  it.each([
+    ['CONFIRMED', 'Đã xác nhận'],
+    ['CANCELLED', 'Đã hủy'],
+  ] as const)(
+    'labels a %s booking whose end time has passed like /appointments, never "Sắp tới"',
+    async (status, label) => {
+      appointmentApi.list.mockResolvedValue({
+        items: [
+          {
+            ...testAppointment,
+            status,
+            scheduledStartAt: '2020-01-01T08:00:00Z',
+            scheduledEndAt: '2020-01-01T09:00:00Z',
+          },
+        ],
+        count: 1,
+        generatedAt: '2026-10-01T17:00:00Z',
+      })
+      render(
+        <SpecialistChatView
+          initialAppointmentId={testAppointment.id}
+          viewerRole="USER"
+        />,
+      )
+
+      expect((await screen.findAllByText(label)).length).toBeGreaterThanOrEqual(
+        1,
+      )
+      expect(screen.queryByText('Sắp tới')).not.toBeInTheDocument()
+    },
+  )
+
+  it('lists only conversations that can open and selects the first one', async () => {
+    const requested: Appointment = {
+      ...testAppointment,
+      id: '60b3dce0-1d5d-44a2-81dd-b8e0dd9fb379',
+      specialistDisplayName: 'ThS. Đang chờ',
+      status: 'REQUESTED',
+      history: [],
+    }
+    const video: Appointment = {
+      ...testAppointment,
+      id: '70b3dce0-1d5d-44a2-81dd-b8e0dd9fb380',
+      specialistDisplayName: 'ThS. Gọi video',
+      modality: 'IN_APP_VIDEO',
+    }
+    appointmentApi.list.mockResolvedValue({
+      items: [requested, video, testAppointment],
+      count: 3,
+      generatedAt: '2026-10-01T17:00:00Z',
+    })
+    render(<SpecialistChatView viewerRole="USER" />)
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'ThS. BS. Minh Anh',
+      }),
+    ).toBeVisible()
+    expect(screen.queryByText('ThS. Đang chờ')).not.toBeInTheDocument()
+    expect(screen.queryByText('ThS. Gọi video')).not.toBeInTheDocument()
+  })
+
+  it('offers the next session with the same specialist', async () => {
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    const links = await screen.findAllByRole('link', {
+      name: /Đặt buổi tiếp theo/,
+    })
+    for (const link of links) {
+      expect(link).toHaveAttribute(
+        'href',
+        `/specialists?specialist=${testAppointment.specialistAccountId}`,
+      )
+    }
+    expect(screen.queryByText(/tái khám/i)).not.toBeInTheDocument()
+  })
+
+  it('allows toggling the info drawer open and closed', async () => {
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+
+    expect(await screen.findByText('Thông tin buổi hẹn')).toBeVisible()
+    const drawer = document.getElementById('appointment-info-drawer')
+    // Ended session: the drawer opens once the appointment has loaded.
+    await waitFor(() =>
+      expect(drawer?.className).not.toContain('emrDrawerHidden'),
+    )
 
     // Click close button in drawer header
     const closeBtn = screen.getByRole('button', { name: 'Đóng ngăn kéo' })
     fireEvent.click(closeBtn)
 
-    // EMR drawer should have hidden class
+    // Info drawer should have hidden class
     expect(drawer?.className).toContain('emrDrawerHidden')
 
     // Click split button in chat header to reopen
     const openBtn = screen.getByRole('button', {
-      name: 'Đóng / Mở Ngăn kéo EMR',
+      name: 'Thông tin buổi hẹn',
     })
     fireEvent.click(openBtn)
 
-    // EMR drawer is reopened
+    // Info drawer is reopened
     expect(drawer?.className).not.toContain('emrDrawerHidden')
   })
 
-  it('opens the full EMR modal when clicking Xem biên bản EMR & Hóa đơn', async () => {
-    render(
-      <SpecialistChatView
-        initialAppointmentId={testAppointment.id}
-        viewerRole="USER"
-      />,
-    )
+  it('keeps the info drawer closed by default on a narrow screen', async () => {
+    const original = window.matchMedia
+    window.matchMedia = vi.fn((query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia
+    try {
+      render(
+        <SpecialistChatView
+          initialAppointmentId={testAppointment.id}
+          viewerRole="USER"
+        />,
+      )
 
-    expect(await screen.findByText('Xem biên bản EMR & Hóa đơn')).toBeVisible()
-    const invoiceBtn = screen.getByText('Xem biên bản EMR & Hóa đơn')
-    fireEvent.click(invoiceBtn)
-
-    // Full modal should open
-    expect(
-      await screen.findByText('Biên bản EMR & Hóa đơn lâm sàng'),
-    ).toBeVisible()
-    expect(screen.getByText(/HỒ SƠ TƯ VẤN LÂM SÀNG/i)).toBeVisible()
-
-    // Close modal via footer button "Đóng"
-    const closeBtn = screen.getByRole('button', { name: /^Đóng$/i })
-    fireEvent.click(closeBtn)
-
-    await waitFor(() => {
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'ThS. BS. Minh Anh',
+      })
       expect(
-        screen.queryByText('Biên bản EMR & Hóa đơn lâm sàng'),
-      ).not.toBeInTheDocument()
-    })
+        document.getElementById('appointment-info-drawer')?.className,
+      ).toContain('emrDrawerHidden')
+    } finally {
+      window.matchMedia = original
+    }
   })
 
-  it('opens and submits rating modal', async () => {
+  it('does not offer rating inside the messages drawer', async () => {
     render(
       <SpecialistChatView
         initialAppointmentId={testAppointment.id}
@@ -269,21 +427,11 @@ describe('SpecialistChatView', () => {
       />,
     )
 
-    const rateBtn = await screen.findByRole('button', {
-      name: /Đã đánh giá|Đánh giá phiên/i,
-    })
-    expect(rateBtn).toBeVisible()
-    fireEvent.click(rateBtn)
-
-    // Rating dialog is visible
-    expect(await screen.findByText('Đánh giá phiên tham vấn')).toBeVisible()
-    const submitBtn = screen.getByRole('button', { name: /Gửi đánh giá/i })
-    fireEvent.click(submitBtn)
-
-    expect(appointmentApi.saveRating).toHaveBeenCalledWith(
-      testAppointment.id,
-      5,
-    )
+    expect(
+      (await screen.findAllByText('Đã dùng 1 buổi tư vấn'))[0],
+    ).toBeVisible()
+    expect(screen.queryByText(/Đánh giá phiên/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Gửi đánh giá/)).not.toBeInTheDocument()
   })
 
   it('renders truthful empty state when chat history has no messages', async () => {
@@ -297,28 +445,106 @@ describe('SpecialistChatView', () => {
     )
 
     expect(
-      await screen.findByText('Chưa có tin nhắn trong phiên này'),
+      await screen.findByText('Buổi này không có tin nhắn nào'),
     ).toBeVisible()
   })
 
-  it('renders forbidden state when chat history is not allowed (403)', async () => {
+  it('shows when the room opens before the window and a neutral line otherwise', async () => {
+    appointmentApi.list.mockResolvedValue({
+      items: [{ ...testAppointment, status: 'CANCELLED' }],
+      count: 1,
+      generatedAt: '2026-10-01T10:00:00Z',
+    })
     chatApi.chatEligibility.mockResolvedValueOnce({
       historyAllowed: false,
       sendAllowed: false,
-      reason: 'FORBIDDEN',
+      phase: 'TOO_EARLY',
+      scheduledStartAt: testAppointment.scheduledStartAt,
     })
 
-    render(
+    const { unmount } = render(
       <SpecialistChatView
         initialAppointmentId={testAppointment.id}
         viewerRole="USER"
       />,
     )
 
-    expect(await screen.findByText('Không có quyền truy cập')).toBeVisible()
+    // Room opens 10 minutes before 22:55 (Asia/Ho_Chi_Minh).
     expect(
-      screen.getByText(/Bạn không có quyền truy cập lịch sử hội thoại/i),
+      await screen.findByText('Phòng chat mở lúc 22:45, 01/10'),
     ).toBeVisible()
+    unmount()
+
+    chatApi.chatEligibility.mockResolvedValueOnce({
+      historyAllowed: false,
+      sendAllowed: false,
+      phase: 'NOT_AVAILABLE',
+    })
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="USER"
+      />,
+    )
+    expect(
+      await screen.findByText('Chưa có nội dung trò chuyện để xem.'),
+    ).toBeVisible()
+  })
+
+  it.each([
+    [null, 'Đang xác nhận kết quả'],
+    ['USER_NO_SHOW', 'Bạn vắng mặt'],
+    ['SPECIALIST_NO_SHOW', 'Chuyên gia vắng mặt'],
+    ['BOTH_NO_SHOW', 'Cả hai vắng mặt'],
+    ['INSUFFICIENT_EVIDENCE', 'Chưa đủ dữ liệu xác nhận'],
+    ['EVIDENCE_REVIEW', 'Đang xem xét'],
+  ] as const)(
+    'labels an ended session by outcome %s, never as done',
+    async (sessionOutcome, label) => {
+      appointmentApi.list.mockResolvedValue({
+        items: [
+          { ...testAppointment, status: 'SESSION_ENDED', sessionOutcome },
+        ],
+        count: 1,
+        generatedAt: '2026-10-01T17:00:00Z',
+      })
+
+      render(
+        <SpecialistChatView
+          initialAppointmentId={testAppointment.id}
+          viewerRole="USER"
+        />,
+      )
+
+      expect((await screen.findAllByText(label)).length).toBeGreaterThanOrEqual(
+        1,
+      )
+      expect(screen.queryByText('Đã xong')).not.toBeInTheDocument()
+      expect(screen.queryByText('Đã hoàn thành')).not.toBeInTheDocument()
+    },
+  )
+
+  it('shows the specialist wording of a no-show', async () => {
+    appointmentApi.assigned.mockResolvedValue({
+      items: [
+        {
+          ...testAppointment,
+          status: 'SESSION_ENDED',
+          sessionOutcome: 'USER_NO_SHOW',
+        },
+      ],
+      count: 1,
+      generatedAt: '2026-10-01T17:00:00Z',
+    })
+
+    render(
+      <SpecialistChatView
+        initialAppointmentId={testAppointment.id}
+        viewerRole="SPECIALIST"
+      />,
+    )
+
+    expect((await screen.findAllByText('Khách hàng vắng mặt')).length).toBe(2)
   })
 
   it('renders error state when chat history request fails', async () => {
@@ -334,7 +560,7 @@ describe('SpecialistChatView', () => {
     )
 
     expect(
-      await screen.findByText('Không thể tải lịch sử trò chuyện'),
+      await screen.findByText('Chưa tải được lịch sử trò chuyện'),
     ).toBeVisible()
   })
 
@@ -346,11 +572,9 @@ describe('SpecialistChatView', () => {
       />,
     )
 
-    await screen.findByText('ThS. BS. Minh Anh')
+    await screen.findByRole('heading', { level: 1, name: 'ThS. BS. Minh Anh' })
 
-    const input = screen.getByPlaceholderText(
-      'Phiên tư vấn đã kết thúc • Khung chat chỉ đọc',
-    )
+    const input = screen.getByPlaceholderText('Khung chat chỉ đọc')
     expect(input).toBeDisabled()
 
     const sendBtn = screen.getByRole('button', { name: 'Gửi tin nhắn' })
@@ -398,6 +622,10 @@ describe('SpecialistChatView', () => {
     expect(
       screen.queryByRole('button', { name: 'Gửi tin nhắn' }),
     ).not.toBeInTheDocument()
+    // The live thread has no info card of its own: the drawer opens as for an ended session.
+    expect(
+      document.getElementById('appointment-info-drawer')?.className,
+    ).not.toContain('emrDrawerHidden')
   })
 
   it('never shows the previous appointment summary under a newly selected appointment', async () => {

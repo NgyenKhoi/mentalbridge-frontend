@@ -21,6 +21,7 @@ const firstUseHome = {
     nextAction: null,
     currentSupportPlanId: null,
     entitlementStatus: 'NOT_REQUIRED',
+    latestScreening: null,
   },
   plan: null,
   lastCompletedPlan: null,

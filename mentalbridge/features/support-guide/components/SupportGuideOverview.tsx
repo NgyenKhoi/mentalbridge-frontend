@@ -22,6 +22,7 @@ import SupportGuideCard, {
   type SupportGuideScorePair,
 } from './SupportGuideCard'
 import { guideContinuation, isCurrentJourneyGuide } from './guided-continuation'
+import { useCurrentPlanReviewDue } from './useCurrentPlanReviewDue'
 import { loadGuideMeaning, loadGuideScores } from './load-guide-scores'
 import styles from './support-guide-overview.module.css'
 import './support-guide.css'
@@ -59,6 +60,7 @@ export default function SupportGuideOverview() {
   const [loading, setLoading] = useState(true)
   const [preparing, setPreparing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const planReviewDue = useCurrentPlanReviewDue(journey)
 
   // A retry keeps the error panel mounted so its busy state and focus survive.
   const load = useCallback(async (retry = false) => {
@@ -222,7 +224,7 @@ export default function SupportGuideOverview() {
                 meaning={meaning}
                 continuation={
                   isCurrent && journey
-                    ? guideContinuation(journey, guide)
+                    ? guideContinuation(journey, guide, planReviewDue)
                     : undefined
                 }
               />
@@ -255,13 +257,13 @@ export default function SupportGuideOverview() {
               <section className={styles.empty}>
                 <h1>Với kết quả của mình, bạn nên làm gì tiếp theo?</h1>
                 <p>
-                  Hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu, gợi
-                  ý hỗ trợ sẽ xuất hiện ngay sau phần kết quả.
+                  Hoàn tất PHQ-9 và GAD-7 trong cùng lượt sàng lọc, gợi ý hỗ trợ
+                  sẽ xuất hiện ngay sau phần kết quả.
                 </p>
                 <Link href="/initial-check">
                   {journey?.assessmentInProgress
-                    ? 'Tiếp tục kiểm tra ban đầu'
-                    : 'Bắt đầu kiểm tra ban đầu'}
+                    ? 'Tiếp tục bài sàng lọc'
+                    : 'Bắt đầu bài sàng lọc'}
                 </Link>
               </section>
             )

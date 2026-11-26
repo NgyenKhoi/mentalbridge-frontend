@@ -227,7 +227,7 @@ export type AppointmentChatEligibility = Readonly<{
   checkInAllowed: boolean
   participantCheckedIn: boolean
   sessionOutcome: ChatSessionOutcome | null
-  creditState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
+  creditState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED' | 'REVOKED'
   scheduledStartAt: string
   scheduledEndAt: string
   serverTime: string
@@ -274,7 +274,7 @@ export function parseAppointmentChatEligibility(
       'EVIDENCE_REVIEW',
       null,
     ].includes(candidate.sessionOutcome as ChatSessionOutcome | null) ||
-    !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
+    !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED', 'REVOKED'].includes(
       String(candidate.creditState),
     ) ||
     !utcInstant(candidate.scheduledStartAt) ||
@@ -304,7 +304,7 @@ const APPOINTMENT_STATUSES: AppointmentStatus[] = [
   'CANCELLED',
 ]
 export type AppointmentCancellationCreditOutcome =
-  'RELEASED' | 'FORFEITED' | 'TRANSFERRED_TO_REPLACEMENT'
+  'RELEASED' | 'FORFEITED' | 'TRANSFERRED_TO_REPLACEMENT' | 'REVOKED'
 export type ChatSessionOutcome =
   | 'COMPLETED'
   | 'USER_NO_SHOW'
@@ -322,6 +322,7 @@ export type AppointmentHistoryEntry = Readonly<{
     | 'APPOINTMENT_REQUESTED'
     | 'USER_CANCELLED'
     | 'USER_RESCHEDULED'
+    | 'OWNER_SUBSCRIPTION_CANCELLED'
     | 'SPECIALIST_ACCEPTED'
     | 'SPECIALIST_REJECTED'
     | 'DECISION_DEADLINE_EXPIRED'
@@ -412,7 +413,11 @@ export type Appointment = Readonly<{
     | null
   cancelledAt: string | null
   cancellationReason:
-    'USER_CANCELLED' | 'USER_RESCHEDULED' | 'SPECIALIST_SUSPENDED' | null
+    | 'USER_CANCELLED'
+    | 'USER_RESCHEDULED'
+    | 'OWNER_SUBSCRIPTION_CANCELLED'
+    | 'SPECIALIST_SUSPENDED'
+    | null
   cancellationActor: 'USER' | 'ADMIN' | null
   cancellationCreditOutcome: AppointmentCancellationCreditOutcome | null
   sessionOutcome: ChatSessionOutcome | null
@@ -421,7 +426,7 @@ export type Appointment = Readonly<{
   sessionEndedAt: string | null
   sessionSettledAt: string | null
   completionFactId: string | null
-  creditState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
+  creditState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED' | 'REVOKED'
   history: AppointmentHistoryEntry[]
   version: number
 }>
@@ -452,7 +457,7 @@ export type AdminAppointmentItem = Readonly<{
   sessionSettledAt: string | null
   sessionOutcome: ChatSessionOutcome | null
   sessionOutcomeReasonCode: string | null
-  settlementState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
+  settlementState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED' | 'REVOKED'
   updatedAt: string
   version: number
 }>
@@ -469,6 +474,11 @@ export type AdminAppointmentPage = Readonly<{
 }>
 
 export type ServicePackage = 'FREE' | 'PLUS' | 'PREMIUM'
+export const SERVICE_PACKAGE_LABELS: Record<ServicePackage, string> = {
+  FREE: 'Miễn phí',
+  PLUS: 'Plus',
+  PREMIUM: 'Premium',
+}
 export type CreditSource = 'DEFAULT_FREE' | 'DEMO' | 'PAID'
 export type ConsultationCreditPolicyVersion =
   'consultation-credit-v1' | 'consultation-credit-v2'
@@ -479,6 +489,7 @@ export type CreditEventType =
   | 'RELEASED'
   | 'FORFEITED'
   | 'ADJUSTED_RELEASED'
+  | 'REVOKED'
 
 export type ServiceCreditAccount = Readonly<{
   accountId: string
@@ -2140,6 +2151,7 @@ export function parseServiceCreditAccount(
         'RELEASED',
         'FORFEITED',
         'ADJUSTED_RELEASED',
+        'REVOKED',
       ].includes(String(event.eventType)) ||
       !['DEMO', 'PAID'].includes(String(event.source)) ||
       !['PLUS', 'PREMIUM'].includes(String(event.packageCode)) ||
@@ -2269,15 +2281,20 @@ function parseAppointmentSnapshot(
     ![
       'USER_CANCELLED',
       'USER_RESCHEDULED',
+      'OWNER_SUBSCRIPTION_CANCELLED',
       'SPECIALIST_SUSPENDED',
       null,
     ].includes(item.cancellationReason as string | null) ||
     !['USER', 'ADMIN', null].includes(
       item.cancellationActor as string | null,
     ) ||
-    !['RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT', null].includes(
-      item.cancellationCreditOutcome as string | null,
-    ) ||
+    ![
+      'RELEASED',
+      'FORFEITED',
+      'TRANSFERRED_TO_REPLACEMENT',
+      'REVOKED',
+      null,
+    ].includes(item.cancellationCreditOutcome as string | null) ||
     ![
       'COMPLETED',
       'USER_NO_SHOW',
@@ -2299,7 +2316,7 @@ function parseAppointmentSnapshot(
     !(item.sessionEndedAt === null || utcInstant(item.sessionEndedAt)) ||
     !(item.sessionSettledAt === null || utcInstant(item.sessionSettledAt)) ||
     !(item.completionFactId === null || uuid(item.completionFactId)) ||
-    !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
+    !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED', 'REVOKED'].includes(
       String(item.creditState),
     ) ||
     !Array.isArray(item.history) ||
@@ -2429,6 +2446,7 @@ function validAppointmentHistoryEntry(value: unknown) {
       'APPOINTMENT_REQUESTED',
       'USER_CANCELLED',
       'USER_RESCHEDULED',
+      'OWNER_SUBSCRIPTION_CANCELLED',
       'SPECIALIST_ACCEPTED',
       'SPECIALIST_REJECTED',
       'DECISION_DEADLINE_EXPIRED',
@@ -2439,9 +2457,13 @@ function validAppointmentHistoryEntry(value: unknown) {
       'SPECIALIST_VIDEO_END_CONFIRMED',
       'VIDEO_MANUAL_REVIEW_REQUIRED',
     ].includes(String(item.reason)) ||
-    !['RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT', null].includes(
-      item.creditOutcome as string | null,
-    ) ||
+    ![
+      'RELEASED',
+      'FORFEITED',
+      'TRANSFERRED_TO_REPLACEMENT',
+      'REVOKED',
+      null,
+    ].includes(item.creditOutcome as string | null) ||
     !utcInstant(item.occurredAt)
   )
     return false
@@ -2561,7 +2583,7 @@ export function parseAdminAppointmentPage(
         'EVIDENCE_REVIEW',
       ].includes(item.sessionOutcome as never) ||
       !nullableCode(item.sessionOutcomeReasonCode) ||
-      !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
+      !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED', 'REVOKED'].includes(
         String(item.settlementState),
       ) ||
       !utcInstant(item.updatedAt) ||

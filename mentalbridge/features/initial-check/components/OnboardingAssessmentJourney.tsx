@@ -7,22 +7,15 @@ import {
   Shield,
   User,
   Calendar,
-  Briefcase,
-  Lock,
   ArrowRight,
   LifeBuoy,
-  Check,
   Moon,
   Zap,
-  Smile,
-  Users,
   Heart,
-  Compass,
   FileText,
   RotateCcw,
   Sparkles,
   X,
-  CheckCircle2,
 } from 'lucide-react'
 
 import { useFeedback } from '@/components/ui/FeedbackProvider'
@@ -35,10 +28,12 @@ import {
   submitInitialCheckAssessment,
   createInitialCheckEvaluation,
 } from '@/features/assessment/api/browser-care'
+import { ReassessmentReview } from '@/features/assessment/components/ReassessmentReview'
+import { getHomeNextStep } from '@/features/home/browser-home-next-step'
 import {
-  proposeSupportPlanDraft,
-  activateSupportPlan,
-} from '@/features/support-plan/api/browser-support-plan'
+  ensureCurrentSupportGuide,
+  getGuidedJourney,
+} from '@/features/support-guide/api/browser-support-guide'
 
 import './onboarding-assessment.css'
 
@@ -151,45 +146,6 @@ export const GAD7_OPTIONS = [
   { value: 3, label: 'Gần như hàng ngày' },
 ]
 
-const PRIORITY_GOALS = [
-  {
-    id: 'sleep',
-    title: 'Cải thiện giấc ngủ',
-    desc: 'Khó ngủ, thức giấc giữa đêm, ác mộng',
-    Icon: Moon,
-  },
-  {
-    id: 'work_stress',
-    title: 'Giảm căng thẳng công việc',
-    desc: 'Kiệt sức, quá tải deadline, mất động lực',
-    Icon: Zap,
-  },
-  {
-    id: 'emotion',
-    title: 'Cân bằng cảm xúc',
-    desc: 'Dễ cáu gắt, lo âu mơ hồ, tụt năng lượng',
-    Icon: Smile,
-  },
-  {
-    id: 'relationships',
-    title: 'Hàn gắn mối quan hệ',
-    desc: 'Xung đột hôn nhân, rạn nứt, cô lập xã hội',
-    Icon: Users,
-  },
-  {
-    id: 'trauma',
-    title: 'Phục hồi sau biến cố',
-    desc: 'Mất mát người thân, chia tay, sang chấn',
-    Icon: Heart,
-  },
-  {
-    id: 'self_understanding',
-    title: 'Hiểu sâu nội tâm',
-    desc: 'Định hướng giá trị bản thân và tương lai',
-    Icon: Compass,
-  },
-]
-
 export default function OnboardingAssessmentJourney({
   purpose = 'INITIAL_CHECK',
   planReview = false,
@@ -200,10 +156,20 @@ export default function OnboardingAssessmentJourney({
   const router = useRouter()
   const { showActionToast } = useFeedback()
 
-  // Steps: 1 (Hồ sơ) -> 2 (Sàng lọc PHQ-9 & GAD-7) -> 3 (Ý nghĩa kết quả) -> 4 (Kế hoạch hỗ trợ)
-  const [currentStep, setCurrentStep] = useState<OnboardingStep>(1)
+  // Steps: 1 (Hồ sơ) -> 2 (Sàng lọc PHQ-9 & GAD-7) -> 3 (Ý nghĩa kết quả) -> 4 (Gợi ý hỗ trợ)
+  const [currentStep, setCurrentStep] = useState<OnboardingStep>(
+    purpose === 'REASSESSMENT' ? 2 : 1,
+  )
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const isReassessment = purpose === 'REASSESSMENT'
+  const [guideFailed, setGuideFailed] = useState(false)
+  // Step 4 of a reassessment: the primary action waits until Care says whether a plan is in use.
+  const [hasPlan, setHasPlan] = useState(false)
+  const [planState, setPlanState] = useState<'loading' | 'known' | 'failed'>(
+    'loading',
+  )
+  const [planAttempt, setPlanAttempt] = useState(0)
   const [profileVersion, setProfileVersion] = useState<number | undefined>(
     undefined,
   )
@@ -211,12 +177,7 @@ export default function OnboardingAssessmentJourney({
   // Step 1: Profile form state
   const [displayName, setDisplayName] = useState('')
   const [birthYear, setBirthYear] = useState('')
-  const [gender, setGender] = useState<'FEMALE' | 'MALE' | 'OTHER'>('FEMALE')
-  const [workEnvironment, setWorkEnvironment] = useState('office')
-  const [selectedGoals, setSelectedGoals] = useState<string[]>([
-    'sleep',
-    'emotion',
-  ])
+  const [gender, setGender] = useState<'FEMALE' | 'MALE' | 'OTHER' | ''>('')
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({})
 
   // Step 2: Assessment state
@@ -233,21 +194,30 @@ export default function OnboardingAssessmentJourney({
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [reviewTab, setReviewTab] = useState<'PHQ9' | 'GAD7'>('PHQ9')
   const [showSafetyModal, setShowSafetyModal] = useState(false)
-  const [activeArticleModal, setActiveArticleModal] = useState<
-    'breathing' | 'overthinking' | null
-  >(null)
 
   // Load profile & initial check status
   useEffect(() => {
     let active = true
+    let redirecting = false
     async function init() {
       try {
-        const [profileRes, disclosureRes] = await Promise.allSettled([
-          getCareProfile(),
-          getPrivacyDisclosure(),
-        ])
+        const [profileRes, disclosureRes, journeyRes] =
+          await Promise.allSettled([
+            getCareProfile(),
+            getPrivacyDisclosure(),
+            isReassessment ? Promise.resolve(null) : getGuidedJourney(),
+          ])
 
         if (!active) return
+
+        // A retake after a completed initial check is a reassessment, so it closes the chặng and feeds plan review.
+        const journey =
+          journeyRes.status === 'fulfilled' ? journeyRes.value : null
+        if (journey?.episodeId && !journey.assessmentInProgress) {
+          redirecting = true
+          router.replace('/initial-check?purpose=reassessment')
+          return
+        }
 
         if (profileRes.status === 'fulfilled' && profileRes.value) {
           const p = profileRes.value
@@ -274,31 +244,15 @@ export default function OnboardingAssessmentJourney({
       } catch {
         // Fallback to defaults
       } finally {
-        if (active) setLoading(false)
+        if (active && !redirecting) setLoading(false)
       }
     }
     init()
     return () => {
       active = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per mount; purpose comes from the URL
   }, [])
-
-  // Goal selection handler (max 3)
-  const toggleGoal = (id: string) => {
-    setSelectedGoals((prev) => {
-      if (prev.includes(id)) {
-        return prev.filter((g) => g !== id)
-      }
-      if (prev.length >= 3) {
-        showActionToast({
-          title: 'Bạn chỉ có thể chọn tối đa 3 mục tiêu ưu tiên',
-          tone: 'warning',
-        })
-        return prev
-      }
-      return [...prev, id]
-    })
-  }
 
   // Handle Step 1 Save
   const handleSaveProfile = async (e?: React.FormEvent) => {
@@ -316,9 +270,6 @@ export default function OnboardingAssessmentJourney({
       yearNum > currentYear - 13
     ) {
       errors.birthYear = 'Năm sinh không hợp lệ (từ 1920 đến hiện tại).'
-    }
-    if (selectedGoals.length === 0) {
-      errors.goals = 'Vui lòng chọn ít nhất 1 mục tiêu đồng hành.'
     }
 
     if (Object.keys(errors).length > 0) {
@@ -338,7 +289,7 @@ export default function OnboardingAssessmentJourney({
         {
           displayName: displayName.trim(),
           dateOfBirth: formattedDob,
-          gender,
+          gender: gender || null,
         },
         profileVersion,
       )
@@ -356,11 +307,10 @@ export default function OnboardingAssessmentJourney({
       setQuestionIndex(0)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch {
-      // Advance to step 2 anyway if network or mock
-      setCurrentStep(2)
-      setAssessmentPhase('PHQ9')
-      setQuestionIndex(0)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      showActionToast({
+        title: 'Chưa lưu được hồ sơ. Hãy thử lại.',
+        tone: 'error',
+      })
     } finally {
       setSubmitting(false)
     }
@@ -617,39 +567,52 @@ export default function OnboardingAssessmentJourney({
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Handle Step 4 Support Plan Generation
-  const handleGenerateSupportPlan = async () => {
-    setSubmitting(true)
-    try {
-      const draft = await proposeSupportPlanDraft(
-        crypto.randomUUID(),
-        purpose,
-      ).catch(() => null)
-      if (draft && draft.supportPlanId) {
-        await activateSupportPlan(
-          draft.supportPlanId,
-          draft.version,
-          crypto.randomUUID(),
-        ).catch(() => undefined)
+  // INITIAL_CHECK opens the Support Guide of the finished screening episode (the create call is
+  // idempotent per episode). A reassessment also prepares its Guide (the Guide follows the latest
+  // screening) and waits for it, but at most 6 s so the move to the review step never hangs; it
+  // never touches the plan: the user reviews the last 14 days and decides about the plan afterwards.
+  const handleContinue = async () => {
+    if (isReassessment) {
+      setSubmitting(true)
+      try {
+        await Promise.race([
+          ensureCurrentSupportGuide(),
+          new Promise((resolve) => window.setTimeout(resolve, 6000)),
+        ])
+      } catch {
+        // The review does not need the Guide; History retries it for the latest screening.
+      } finally {
+        setSubmitting(false)
       }
       setCurrentStep(4)
       window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    setGuideFailed(false)
+    setSubmitting(true)
+    try {
+      const guide = await ensureCurrentSupportGuide()
+      router.push(`/support-guides/${encodeURIComponent(guide.supportGuideId)}`)
     } catch {
-      setCurrentStep(4)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    } finally {
+      setGuideFailed(true)
       setSubmitting(false)
     }
   }
 
-  // Finish journey & enter dashboard
-  const handleFinishToDashboard = () => {
-    showActionToast({
-      title: 'Chào mừng bạn đến với Không gian quản trị MentalBridge!',
-      tone: 'success',
-    })
-    router.push('/dashboard')
-  }
+  useEffect(() => {
+    if (currentStep !== 4 || !isReassessment || planReview) return
+    let active = true
+    getHomeNextStep()
+      .then((home) => {
+        if (!active) return
+        setHasPlan(home.plan != null)
+        setPlanState('known')
+      })
+      .catch(() => active && setPlanState('failed'))
+    return () => {
+      active = false
+    }
+  }, [currentStep, isReassessment, planReview, planAttempt])
 
   const userInitial = displayName.trim()
     ? displayName.trim().charAt(0).toUpperCase()
@@ -669,7 +632,6 @@ export default function OnboardingAssessmentJourney({
         >
           <div style={{ textAlign: 'center' }}>
             <span
-              className="care-loader"
               aria-hidden="true"
               style={{
                 display: 'inline-block',
@@ -689,7 +651,7 @@ export default function OnboardingAssessmentJourney({
                 fontFamily: 'var(--font-fraunces-variable), serif',
               }}
             >
-              Đang chuẩn bị không gian an yên cho bạn…
+              Đang tải bài sàng lọc…
             </h2>
           </div>
         </main>
@@ -776,7 +738,7 @@ export default function OnboardingAssessmentJourney({
           </div>
           <span className="oj-step-dot">•</span>
           <div className={`oj-step-item ${currentStep === 4 ? 'active' : ''}`}>
-            <span>4. Kế hoạch hỗ trợ</span>
+            <span>{isReassessment ? '4. Nhìn lại' : '4. Gợi ý hỗ trợ'}</span>
           </div>
         </nav>
 
@@ -809,9 +771,7 @@ export default function OnboardingAssessmentJourney({
             <div className="oj-top-indicator">
               <span className="oj-badge-dot">• GIAI ĐOẠN NHẬP MÔN AN TOÀN</span>
               <div className="oj-step-info-right">
-                <span className="oj-step-counter">
-                  Bước 1/4: Khởi tạo định danh &amp; nhu cầu lâm sàng
-                </span>
+                <span className="oj-step-counter">Bước 1/4: Hồ sơ của bạn</span>
                 <div className="oj-progress-pill">
                   <div className="oj-progress-fill" style={{ width: '25%' }} />
                 </div>
@@ -820,24 +780,13 @@ export default function OnboardingAssessmentJourney({
             </div>
 
             <div className="oj-card">
-              <div className="oj-card-header">
-                <div className="oj-card-badge">
-                  <Shield size={14} />
-                  <span>Bảo Mật Y Tế Tuyệt Đối</span>
-                </div>
-                <div className="oj-card-lock-badge">
-                  <Lock size={16} />
-                </div>
-              </div>
-
               <h1 className="oj-card-title">
                 Chào mừng bạn đến với MentalBridge. Hãy hoàn thiện hồ sơ của
                 bạn.
               </h1>
               <p className="oj-card-subtitle">
-                Thông tin giúp bác sĩ và hệ thống thấu hiểu bạn tốt hơn, bảo mật
-                100% theo tiêu chuẩn y tế số HIPAA. Chúng tôi tôn trọng danh
-                tính và bảo vệ sự an tâm của bạn từ bước chạm đầu tiên.
+                Ba thông tin này cũng nằm ở trang Hồ sơ, bạn sửa được bất cứ lúc
+                nào.
               </p>
 
               <form onSubmit={handleSaveProfile} noValidate>
@@ -869,8 +818,7 @@ export default function OnboardingAssessmentJourney({
                       </span>
                     ) : (
                       <span className="oj-field-hint">
-                        Bạn có thể dùng biệt danh nếu muốn ẩn danh hoàn toàn với
-                        tư vấn viên.
+                        Bạn có thể dùng biệt danh.
                       </span>
                     )}
                   </div>
@@ -893,14 +841,9 @@ export default function OnboardingAssessmentJourney({
                         required
                       />
                     </div>
-                    {profileErrors.birthYear ? (
+                    {profileErrors.birthYear && (
                       <span className="oj-error-text">
                         {profileErrors.birthYear}
-                      </span>
-                    ) : (
-                      <span className="oj-field-hint">
-                        Hỗ trợ thuật toán điều chỉnh thang đo tâm lý phù hợp
-                        sinh lý lứa tuổi.
                       </span>
                     )}
                   </div>
@@ -908,9 +851,7 @@ export default function OnboardingAssessmentJourney({
 
                 <div className="oj-grid-2">
                   <div className="oj-field">
-                    <label className="oj-label">
-                      Giới tính sinh học &amp; bản dạng giới *
-                    </label>
+                    <label className="oj-label">Giới tính</label>
                     <div className="oj-gender-group">
                       <button
                         type="button"
@@ -935,82 +876,6 @@ export default function OnboardingAssessmentJourney({
                       </button>
                     </div>
                   </div>
-
-                  <div className="oj-field">
-                    <label htmlFor="oj-work-select" className="oj-label">
-                      Môi trường làm việc / Học tập chính
-                    </label>
-                    <div className="oj-input-wrapper">
-                      <Briefcase className="oj-input-icon" />
-                      <select
-                        id="oj-work-select"
-                        className="oj-select"
-                        value={workEnvironment}
-                        onChange={(e) => setWorkEnvironment(e.target.value)}
-                      >
-                        <option value="office">
-                          Văn phòng / Công sở doanh nghiệp
-                        </option>
-                        <option value="remote">
-                          Làm việc từ xa / Tự do (Freelance)
-                        </option>
-                        <option value="student">
-                          Học sinh / Sinh viên đại học
-                        </option>
-                        <option value="healthcare">
-                          Y tế / Giáo dục / Dịch vụ
-                        </option>
-                        <option value="other">Môi trường khác</option>
-                      </select>
-                    </div>
-                    <span className="oj-field-hint">
-                      Giúp phân loại tác nhân gây stress (áp lực deadline, thi
-                      cử...).
-                    </span>
-                  </div>
-                </div>
-
-                {/* Goals */}
-                <div className="oj-section-title" style={{ marginTop: 12 }}>
-                  <span>🎯 Mục tiêu đồng hành ưu tiên (Chọn 1–3 mục)</span>
-                  <span className="oj-section-subtle">
-                    Được sửa bất cứ lúc nào
-                  </span>
-                </div>
-                {profileErrors.goals && (
-                  <p
-                    className="oj-error-text"
-                    style={{ marginBottom: 12, marginTop: -6 }}
-                  >
-                    {profileErrors.goals}
-                  </p>
-                )}
-
-                <div className="oj-goals-grid">
-                  {PRIORITY_GOALS.map((goal) => {
-                    const isSelected = selectedGoals.includes(goal.id)
-                    const GoalIcon = goal.Icon
-                    return (
-                      <button
-                        type="button"
-                        key={goal.id}
-                        className={`oj-goal-card ${isSelected ? 'active' : ''}`}
-                        onClick={() => toggleGoal(goal.id)}
-                      >
-                        <div className="oj-goal-head">
-                          <GoalIcon className="oj-goal-icon" />
-                          <span>{goal.title}</span>
-                          {isSelected && (
-                            <CheckCircle2
-                              size={16}
-                              style={{ marginLeft: 'auto', color: '#1e5646' }}
-                            />
-                          )}
-                        </div>
-                        <div className="oj-goal-desc">{goal.desc}</div>
-                      </button>
-                    )
-                  })}
                 </div>
 
                 {/* Safety / Callout Banner */}
@@ -1019,24 +884,16 @@ export default function OnboardingAssessmentJourney({
                     <Shield size={20} />
                   </div>
                   <div className="oj-callout-content">
-                    <div className="oj-callout-title">
-                      Thông điệp tiến trình sàng lọc
-                    </div>
+                    <div className="oj-callout-title">Bước tiếp theo</div>
                     <div className="oj-callout-text">
-                      Sau khi hoàn tất, bạn sẽ bắt đầu bài sàng lọc chuyên sâu
-                      đầu tiên (PHQ-9 &amp; GAD-7) để đánh giá chính xác tình
-                      trạng sức khỏe tinh thần hiện tại (không cần viết nhật ký
-                      hay chọn cảm xúc ở bước này).
+                      Sau khi lưu, bạn làm bài sàng lọc đầu tiên gồm PHQ-9 (9
+                      câu) và GAD-7 (7 câu).
                     </div>
                   </div>
                 </div>
 
                 {/* Bottom Action Bar */}
                 <div className="oj-card-bottom">
-                  <div className="oj-sync-note">
-                    <Lock size={14} />
-                    <span>Dữ liệu lưu tạm an toàn • Tự động đồng bộ hóa</span>
-                  </div>
                   <button
                     type="submit"
                     className="oj-btn-primary"
@@ -1415,7 +1272,7 @@ export default function OnboardingAssessmentJourney({
 
             {/* Clinical Meaning Section */}
             <div className="oj-section-title" style={{ marginTop: 12 }}>
-              <span>Ý nghĩa lâm sàng (Clinical Meaning)</span>
+              <span>Ý nghĩa kết quả</span>
             </div>
 
             <div className="oj-clinical-grid">
@@ -1483,81 +1340,37 @@ export default function OnboardingAssessmentJourney({
                 <RotateCcw size={16} />
                 <span>Làm lại bài sàng lọc</span>
               </button>
-
-              <span className="oj-resources-hint">
-                Khám phá 2 tài nguyên hỗ trợ gợi ý bên dưới ↓
-              </span>
             </div>
 
-            {/* Suggested Resources Section */}
-            <div className="oj-resources-section">
-              <div className="oj-section-title">
-                <span>Tài nguyên gợi ý tức thì cho trạng thái hiện tại</span>
-              </div>
-
-              <div className="oj-resources-grid">
-                <div
-                  className="oj-resource-card"
-                  onClick={() => setActiveArticleModal('breathing')}
-                >
-                  <div className="oj-resource-badge">Bài tập điều hòa</div>
-                  <h4 className="oj-resource-title">
-                    Kỹ thuật thở cơ hoành 4-7-8 điều hòa nhịp tim
-                  </h4>
-                  <p className="oj-resource-desc">
-                    Phương pháp làm dịu nhanh chóng hệ thần kinh giao cảm, hạ
-                    nhịp tim và thư giãn các nhóm cơ sau 3 phút.
-                  </p>
-                  <div className="oj-resource-footer">
-                    <span>5 phút • Tự thực hành</span>
-                    <span className="oj-resource-link">
-                      Đọc hướng dẫn <ArrowRight size={14} />
-                    </span>
-                  </div>
-                </div>
-
-                <div
-                  className="oj-resource-card"
-                  onClick={() => setActiveArticleModal('overthinking')}
-                >
-                  <div className="oj-resource-badge">Liệu pháp CBT</div>
-                  <h4 className="oj-resource-title">
-                    Giải mã &ldquo;Bẫy suy nghĩ quá độ&rdquo; (Overthinking
-                    Cycle)
-                  </h4>
-                  <p className="oj-resource-desc">
-                    Nhận diện các luồng suy nghĩ thảm họa hóa và thực hành 3 câu
-                    hỏi phản biện để đưa tâm trí về hiện tại.
-                  </p>
-                  <div className="oj-resource-footer">
-                    <span>8 phút • Nhận thức hành vi</span>
-                    <span className="oj-resource-link">
-                      Đọc hướng dẫn <ArrowRight size={14} />
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* CTA to Step 4 */}
+            {/* CTA to Step 4 (reassessment) or the Support Guide (initial check) */}
             <div className="oj-cta-center-box">
               <button
                 type="button"
                 className="oj-btn-primary oj-btn-large"
                 disabled={submitting}
-                onClick={handleGenerateSupportPlan}
+                onClick={handleContinue}
               >
                 <Sparkles size={18} />
                 <span>
-                  {submitting
-                    ? 'Đang cá nhân hóa kế hoạch hỗ trợ…'
-                    : 'Tạo gợi ý kế hoạch hỗ trợ cá nhân hóa ngay →'}
+                  {isReassessment
+                    ? 'Xem nhìn lại 14 ngày →'
+                    : submitting
+                      ? 'Đang mở gợi ý hỗ trợ…'
+                      : guideFailed
+                        ? 'Thử lại xem gợi ý hỗ trợ'
+                        : 'Xem gợi ý hỗ trợ'}
                 </span>
               </button>
+              {guideFailed && (
+                <div className="oj-plan-error" role="alert">
+                  Chưa mở được gợi ý hỗ trợ. Kết quả sàng lọc của bạn vẫn được
+                  lưu. Bạn hãy thử lại.
+                </div>
+              )}
               <span className="oj-cta-note">
-                Dựa trên kết quả PHQ-9 ({phq9Score}đ) và GAD-7 ({gad7Score}đ),
-                hệ thống sẽ thiết lập lộ trình 14 ngày phù hợp với nhịp sống của
-                bạn.
+                {isReassessment
+                  ? 'Kết quả này sẽ được đặt cạnh những gì bạn đã chia sẻ trong 14 ngày qua. Kế hoạch của bạn chưa thay đổi.'
+                  : `Dựa trên kết quả PHQ-9 (${phq9Score}đ) và GAD-7 (${gad7Score}đ), gợi ý hỗ trợ sẽ chỉ ra những bước tiếp theo phù hợp với bạn.`}
               </span>
             </div>
           </div>
@@ -1566,119 +1379,68 @@ export default function OnboardingAssessmentJourney({
         {/* ================================================================= */}
         {/* STEP 4: KẾ HOẠCH HỖ TRỢ VÀ HOÀN TẤT VỀ DASHBOARD                   */}
         {/* ================================================================= */}
-        {currentStep === 4 && (
+        {currentStep === 4 && isReassessment && (
           <div className="oj-container-narrow">
             <div className="oj-top-indicator">
-              <span className="oj-badge-dot">• HOÀN THÀNH TIẾN TRÌNH</span>
+              <span className="oj-step-counter">
+                Bước 4/4: Nhìn lại chặng vừa qua
+              </span>
               <div className="oj-step-info-right">
-                <span className="oj-step-counter">
-                  Bước 4/4: Kế hoạch hỗ trợ 14 ngày của bạn đã sẵn sàng
-                </span>
                 <div className="oj-progress-pill">
                   <div className="oj-progress-fill" style={{ width: '100%' }} />
                 </div>
                 <span className="oj-percent-text">100%</span>
               </div>
             </div>
-
-            <div className="oj-card oj-success-card">
-              <div className="oj-success-icon-wrap">
-                <CheckCircle2 size={48} className="oj-success-icon" />
-              </div>
-
-              <h1 className="oj-card-title" style={{ textAlign: 'center' }}>
-                Kế hoạch hỗ trợ của bạn đã được kích hoạt thành công!
-              </h1>
-              <p className="oj-card-subtitle" style={{ textAlign: 'center' }}>
-                Cảm ơn bạn đã hoàn thành bài sàng lọc đầu tiên. Toàn bộ thông
-                tin và kết quả đã được tổng hợp để tạo lộ trình đồng hành nhẹ
-                nhàng, không tạo áp lực.
-              </p>
-
-              <div className="oj-plan-features-list">
-                <div className="oj-plan-feat-item">
-                  <div className="oj-plan-feat-icon">
-                    <Calendar size={18} />
-                  </div>
-                  <div>
-                    <strong>Nhịp sinh hoạt 14 ngày linh hoạt:</strong> Các bài
-                    tập nhỏ 5–10 phút mỗi ngày, tùy chọn tham gia theo năng
-                    lượng của bạn.
-                  </div>
-                </div>
-
-                <div className="oj-plan-feat-item">
-                  <div className="oj-plan-feat-icon">
-                    <Shield size={18} />
-                  </div>
-                  <div>
-                    <strong>Quyền riêng tư tuyệt đối:</strong> Kết quả sàng lọc
-                    PHQ-9 &amp; GAD-7 được mã hóa và chỉ dùng để cá nhân hóa
-                    trải nghiệm của chính bạn.
-                  </div>
-                </div>
-
-                <div className="oj-plan-feat-item">
-                  <div className="oj-plan-feat-icon">
-                    <Smile size={18} />
-                  </div>
-                  <div>
-                    <strong>Theo dõi tiến triển không phán xét:</strong> Bạn có
-                    thể làm lại sàng lọc bất cứ khi nào cảm thấy cần điều chỉnh.
-                  </div>
-                </div>
-              </div>
-
-              <div
-                className="oj-card-bottom"
-                style={{
-                  justifyContent: 'center',
-                  flexDirection: 'column',
-                  gap: 12,
-                }}
-              >
-                <button
-                  type="button"
-                  className="oj-btn-primary oj-btn-large"
-                  onClick={handleFinishToDashboard}
-                >
-                  <span>Bắt đầu khám phá không gian của bạn →</span>
-                </button>
-                {planReview && (
+            <ReassessmentReview
+              planReview={planReview}
+              footer={
+                planReview || planState === 'known' ? (
                   <Link
-                    href="/assessments?tab=reassessment&returnTo=plan-review"
-                    className="oj-text-action-btn"
+                    href={
+                      hasPlan || planReview
+                        ? '/support-plan?review=open'
+                        : '/dashboard'
+                    }
+                    className="oj-btn-primary oj-btn-large oj-review-next"
                   >
-                    Quay lại xem lại kế hoạch
+                    {hasPlan || planReview
+                      ? 'Xem lại kế hoạch →'
+                      : 'Về trang tổng quan →'}
                   </Link>
-                )}
-              </div>
-            </div>
+                ) : planState === 'failed' ? (
+                  <div className="oj-plan-error" role="alert">
+                    Chưa kiểm tra được kế hoạch của bạn.{' '}
+                    <button
+                      type="button"
+                      className="oj-text-action-btn"
+                      onClick={() => {
+                        setPlanState('loading')
+                        setPlanAttempt((value) => value + 1)
+                      }}
+                    >
+                      Thử lại
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    aria-busy="true"
+                    className="oj-btn-primary oj-btn-large oj-review-next"
+                  >
+                    Đang kiểm tra kế hoạch…
+                  </button>
+                )
+              }
+            />
           </div>
         )}
       </main>
 
       {/* Footer */}
       <footer className="oj-footer">
-        <div className="oj-badges-row">
-          <div className="oj-badge-item">
-            <Shield size={15} />
-            <span>Chuẩn Y Tế Kỹ Thuật Số HIPAA Compliant</span>
-          </div>
-          <div className="oj-badge-item">
-            <Lock size={15} />
-            <span>Mã Hóa 256-bit AES Toàn Trình</span>
-          </div>
-          <div className="oj-badge-item">
-            <Check size={15} />
-            <span>Không Chia Sẻ Cho Bên Thứ Ba</span>
-          </div>
-        </div>
-
         <div className="oj-footer-links-row">
-          <span>
-            Bảo mật thông tin y khoa chuẩn HIPAA &amp; mã hóa đầu cuối
-          </span>
           <Link href="/privacy">Chính sách quyền riêng tư</Link>
           <button type="button" onClick={() => router.push('/dashboard')}>
             Thoát an toàn
@@ -1872,110 +1634,6 @@ export default function OnboardingAssessmentJourney({
                 onClick={() => setShowReviewModal(false)}
               >
                 Đóng xem lại
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================= */}
-      {/* MODAL: Đọc ngắn tài nguyên                               */}
-      {/* ========================================================= */}
-      {activeArticleModal && (
-        <div
-          className="oj-modal-overlay"
-          onClick={() => setActiveArticleModal(null)}
-        >
-          <div className="oj-modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="oj-modal-head">
-              <h3 className="oj-modal-title">
-                {activeArticleModal === 'breathing'
-                  ? 'Kỹ thuật thở cơ hoành 4-7-8 điều hòa nhịp tim'
-                  : "Giải mã 'Bẫy suy nghĩ quá độ' (Overthinking Cycle)"}
-              </h3>
-              <button
-                type="button"
-                className="oj-modal-close"
-                onClick={() => setActiveArticleModal(null)}
-                aria-label="Đóng"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="oj-modal-body">
-              {activeArticleModal === 'breathing' ? (
-                <>
-                  <p>
-                    <strong>Tác giả:</strong> Bs. Lê Minh Khang • Y học hành vi
-                  </p>
-                  <p>
-                    Kỹ thuật thở 4-7-8 được phát triển dựa trên phương pháp
-                    Pranayama cổ xưa, giúp điều hòa hệ thống thần kinh tự chủ
-                    thông qua việc kéo dài pha thở ra.
-                  </p>
-                  <h4>Các bước thực hành chuẩn:</h4>
-                  <ol>
-                    <li>
-                      <strong>Hít vào bằng mũi trong 4 giây:</strong> Giữ lồng
-                      ngực tĩnh lặng, đẩy bụng phình ra để không khí tràn vào
-                      đáy phổi.
-                    </li>
-                    <li>
-                      <strong>Giữ hơi thở trong 7 giây:</strong> Giữ oxy thẩm
-                      thấu vào mạch máu và ổn định nhịp tim.
-                    </li>
-                    <li>
-                      <strong>Thở ra chậm rãi bằng miệng trong 8 giây:</strong>{' '}
-                      Tạo âm thanh &ldquo;phù&rdquo; nhẹ, kích hoạt nhánh dây
-                      thần kinh phế vị (Vagus nerve).
-                    </li>
-                    <li>
-                      Lặp lại chu kỳ 4 lần mỗi khi cảm thấy căng thẳng hoặc
-                      trước khi ngủ.
-                    </li>
-                  </ol>
-                </>
-              ) : (
-                <>
-                  <p>
-                    <strong>Tác giả:</strong> ThS. Tâm lý Đỗ Hoàng Yến
-                  </p>
-                  <p>
-                    Bẫy suy nghĩ quá độ (Overthinking) xảy ra khi vùng hạch hạnh
-                    nhân (Amygdala) gửi tín hiệu báo động giả, khiến não bộ liên
-                    tục đặt ra các câu hỏi &ldquo;Nếu như... thì sao?&rdquo;.
-                  </p>
-                  <h4>Kỹ thuật ngắt mạch suy nghĩ cấp thời:</h4>
-                  <ul>
-                    <li>
-                      <strong>
-                        Kỹ thuật đặt tên cảm xúc (Name it to tame it):
-                      </strong>{' '}
-                      Khi một cơn lo lắng ập đến, hãy gọi tên nó thầm trong đầu:
-                      &ldquo;Đây chỉ là sự lo âu về tương lai, không phải sự
-                      thật hiện tại.&rdquo;
-                    </li>
-                    <li>
-                      <strong>Quy tắc 5-4-3-2-1 định vị giác quan:</strong> Nhìn
-                      5 vật xung quanh, chạm 4 bề mặt, lắng nghe 3 âm thanh,
-                      ngửi 2 mùi hương và cảm nhận 1 vị trên đầu lưỡi.
-                    </li>
-                    <li>
-                      <strong>Khoanh vùng lo âu:</strong> Dành đúng 10 phút vào
-                      buổi chiều để viết ra các mối lo, sau đó gấp sổ lại và trở
-                      về với hiện tại.
-                    </li>
-                  </ul>
-                </>
-              )}
-            </div>
-            <div className="oj-modal-foot">
-              <button
-                type="button"
-                className="oj-btn-primary"
-                onClick={() => setActiveArticleModal(null)}
-              >
-                Đã hiểu &amp; Đóng
               </button>
             </div>
           </div>

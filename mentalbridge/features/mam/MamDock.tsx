@@ -9,7 +9,7 @@ import styles from './MamDockSpace.module.css'
 import { isMamDockRoute } from './mam-routes'
 
 // MB-781: the host, its character and reward watcher load only where Mầm shows,
-// so flag-off and undocked pages never request them. A host that fails to load
+// so undocked pages never request them. A host that fails to load
 // leaves the page as it is: no dock, no error screen, no retry.
 const MamDockHost = lazy<ComponentType<{ pathname: string }>>(() =>
   import('./MamDockHost')

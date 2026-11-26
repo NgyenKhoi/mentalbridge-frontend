@@ -255,6 +255,28 @@
   opacity: 0.48;
   cursor: not-allowed;
 }
+.blocked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  border: 1px solid var(--amber, #e1a651);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--color-amber-soft, #fef3c7);
+  animation: mb-data-enter var(--motion-medium, 300ms)
+    var(--ease-standard, ease) backwards;
+}
+.blocked p {
+  flex: 1 1 240px;
+  margin: 0;
+  color: var(--amber-deep, #8a5a1f);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.blocked a {
+  flex: none;
+}
 .days {
   display: flex;
   gap: 8px;
@@ -290,6 +312,7 @@
   gap: 9px;
 }
 .time {
+  position: relative;
   cursor: pointer;
 }
 .time input {
@@ -298,12 +321,85 @@
 }
 .time span {
   display: grid;
-  min-height: 43px;
-  place-items: center;
+  min-height: 52px;
+  place-content: center;
+  justify-items: center;
+  gap: 2px;
+  transition:
+    border-color var(--motion-fast, 160ms) var(--ease-standard, ease),
+    background-color var(--motion-fast, 160ms) var(--ease-standard, ease),
+    transform var(--motion-instant, 120ms) var(--ease-standard, ease);
   border: 1px solid #d9e5dc;
   border-radius: 10px;
   color: #214432;
   font-size: 0.83rem;
+}
+.time:hover span {
+  border-color: #9cc4ad;
+}
+.time:active span {
+  transform: scale(0.98);
+}
+.time small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #607366;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+.modalities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.modalities label {
+  position: relative;
+  cursor: pointer;
+}
+.modalities input {
+  position: absolute;
+  opacity: 0;
+}
+.modalities span {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d9e5dc;
+  border-radius: 999px;
+  padding: 0 14px;
+  background: #fff;
+  color: #214432;
+  font-size: 0.83rem;
+  font-weight: 650;
+  transition:
+    border-color var(--motion-fast, 160ms) var(--ease-standard, ease),
+    background-color var(--motion-fast, 160ms) var(--ease-standard, ease);
+}
+.modalities label:hover span {
+  border-color: #9cc4ad;
+}
+.modalities input:checked + span {
+  border-color: #123b2b;
+  background: #e9f5ee;
+}
+.modalities input:focus-visible + span {
+  outline: 3px solid #76b894;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .blocked {
+    animation: none;
+  }
+  .time span,
+  .modalities span {
+    transition: none;
+  }
+  .time:active span {
+    transform: none;
+  }
 }
 .time input:checked + span {
   border-color: #123b2b;

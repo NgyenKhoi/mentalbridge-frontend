@@ -26,12 +26,14 @@ export async function POST(request: NextRequest) {
       user.accessToken,
       correlationId,
     )
-    if (!journey.episodeId) {
+    // The Guide follows the newest completed screening of either purpose.
+    const episodeId = journey.latestScreening?.episodeId ?? journey.episodeId
+    if (!episodeId) {
       return carryCareSession(
         localProblem(
           409,
           'INITIAL_CHECK_INCOMPLETE',
-          'Cần hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu trước khi tạo gợi ý hỗ trợ.',
+          'Cần hoàn tất PHQ-9 và GAD-7 trong cùng lượt sàng lọc trước khi tạo gợi ý hỗ trợ.',
           correlationId,
         ),
         user,
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
     const guide = await careClient.ensureScreeningEpisodeSupportGuide(
       user.accessToken,
-      journey.episodeId,
+      episodeId,
       correlationId,
     )
     return carryCareSession(careSuccessResponse(guide, correlationId), user)

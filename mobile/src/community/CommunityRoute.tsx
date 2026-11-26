@@ -1,10 +1,8 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { Text } from 'react-native'
 import { z } from 'zod'
 
 import { Screen } from '@/components/Screen'
-import { PrimaryButton } from '@/components/PrimaryButton'
 
 import { createApiClient } from '@/api/api-client'
 import { createAssessmentApi } from '@/assessment/assessment-api'
@@ -15,22 +13,32 @@ import { createResourceApi } from '@/resources/resource-api'
 import { resourceDetailHref } from '@/resources/resource-route'
 import { localDateInTimeZone } from '@/resources/resource-model'
 import { secureCredentialStore } from '@/security/credential-store'
+import { DashboardFontProvider } from '@/theme/dashboard-fonts'
+
+import { openMemberPage } from '@/community-social/community-social-nav'
 
 import { createCommunityApi } from './community-api'
-import { createCircleApi } from './community-circle-api'
+import { communityColors } from './community-theme'
 import { communityMediaTransport } from './community-media'
+import { CommunityNavContext, type CommunityNav } from './community-nav'
 import { CommunityScreen } from './CommunityScreen'
-import type { CommunitySection } from './CommunitySpace'
+import { StateCard } from './community-ui'
+
+const communityNav: CommunityNav = {
+  openFriends: () => router.push('/(user)/community-friends'),
+  openGroups: () => router.push('/(user)/community-groups'),
+  openMember: openMemberPage,
+}
+
+// Tab switches from the chat inbox arrive as a `panel` param.
+const panelSchema = z.enum(['feed', 'moments', 'me', 'composer'])
+type Panel = z.infer<typeof panelSchema>
 
 function AccountCommunityRoute({
   config,
   postId,
-  section,
-}: Readonly<{
-  config: RuntimeConfig
-  postId?: string
-  section: CommunitySection
-}>) {
+  panel,
+}: Readonly<{ config: RuntimeConfig; postId?: string; panel?: Panel }>) {
   const [binding] = useState(() => {
     const client = createApiClient({
       config,
@@ -39,7 +47,6 @@ function AccountCommunityRoute({
     return {
       client,
       api: createCommunityApi(client),
-      circles: createCircleApi(client),
       resources: createResourceApi(client),
       safety: createAssessmentApi(client),
     }
@@ -58,58 +65,64 @@ function AccountCommunityRoute({
   return (
     <>
       <Stack.Screen options={{ gestureEnabled: false }} />
-      <CommunityScreen
-        {...binding}
-        {...(postId ? { initialPostId: postId } : {})}
-        media={communityMediaTransport}
-        initialSection={section}
-        onBack={() => router.replace('/(user)/user')}
-        onChat={() => router.push('/(user)/community-chat')}
-        onPeerChat={(peerId) => {
-          if (z.uuid().safeParse(peerId).success)
-            router.push({
-              pathname: '/(user)/community-chat',
-              params: { peerId },
-            })
-        }}
-        onResource={(resourceId) =>
-          router.push(
-            resourceDetailHref(
-              resourceId,
-              localDateInTimeZone(
-                new Date(),
-                Intl.DateTimeFormat().resolvedOptions().timeZone,
+      <CommunityNavContext.Provider value={communityNav}>
+        <CommunityScreen
+          {...binding}
+          {...(postId ? { initialPostId: postId } : {})}
+          {...(panel ? { initialPanel: panel } : {})}
+          media={communityMediaTransport}
+          onBack={() => router.back()}
+          onChat={() => router.replace('/(user)/community-chat')}
+          onPeerChat={(peerId) => {
+            if (z.uuid().safeParse(peerId).success)
+              router.push({
+                pathname: '/(user)/community-chat',
+                params: { peerId },
+              })
+          }}
+          onResource={(resourceId) =>
+            router.push(
+              resourceDetailHref(
+                resourceId,
+                localDateInTimeZone(
+                  new Date(),
+                  Intl.DateTimeFormat().resolvedOptions().timeZone,
+                ),
+                'ALL',
               ),
-              'ALL',
-            ),
-          )
-        }
-      />
+            )
+          }
+        />
+      </CommunityNavContext.Provider>
     </>
   )
 }
 export function CommunityRoute() {
   const config = useRuntimeConfig()
   const { session } = useSession()
-  const params = useLocalSearchParams<{ postId?: string; section?: string }>()
-  const section =
-    z.enum(['feed', 'reels', 'groups', 'profile']).safeParse(params.section)
-      .data ?? 'feed'
+  const params = useLocalSearchParams<{ postId?: string; panel?: string }>()
+  const panel = panelSchema.safeParse(params.panel)
   const postId =
     params.postId === undefined ? null : z.uuid().safeParse(params.postId)
-  if (postId && !postId.success)
-    return (
-      <Screen>
-        <Text>Liên kết bài chia sẻ không hợp lệ.</Text>
-        <PrimaryButton label="Quay lại" onPress={() => router.back()} />
-      </Screen>
-    )
   return (
-    <AccountCommunityRoute
-      key={`${session?.subject ?? ''}:${postId?.success ? postId.data : 'feed'}:${section}`}
-      config={config}
-      section={section}
-      {...(postId?.success ? { postId: postId.data } : {})}
-    />
+    <DashboardFontProvider>
+      {postId && !postId.success ? (
+        <Screen backgroundColor={communityColors.background}>
+          <StateCard
+            icon="link-variant-off"
+            title="Liên kết bài chia sẻ không hợp lệ."
+            actionLabel="Quay lại"
+            onAction={() => router.back()}
+          />
+        </Screen>
+      ) : (
+        <AccountCommunityRoute
+          key={`${session?.subject ?? ''}:${postId?.success ? postId.data : panel.success ? panel.data : 'feed'}`}
+          config={config}
+          {...(postId?.success ? { postId: postId.data } : {})}
+          {...(panel.success ? { panel: panel.data } : {})}
+        />
+      )}
+    </DashboardFontProvider>
   )
 }

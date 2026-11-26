@@ -31,6 +31,8 @@ export type CommunityProfile = components['schemas']['CommunityProfile']
 export type CommunityAvatarPreset =
   components['schemas']['CommunityAvatarPreset']
 export type CommunityAvatarImage = components['schemas']['CommunityAvatarImage']
+export type CommunityAvatarSummary =
+  components['schemas']['CommunityAccountAvatar']
 export type PutCommunityAvatarRequest =
   components['schemas']['PutCommunityAvatarRequest']
 export type PutCommunityProfileRequest =
@@ -48,6 +50,9 @@ export type UpdateCommentRequest = components['schemas']['UpdateCommentRequest']
 export type SupportiveReaction = components['schemas']['SupportiveReaction']
 export type PutReactionRequest = components['schemas']['PutReactionRequest']
 export type CommunityReaction = components['schemas']['CommunityReaction']
+export type CommunityPostReactor = components['schemas']['CommunityPostReactor']
+export type CommunityPostReactionList =
+  components['schemas']['CommunityPostReactionList']
 export type ReportTargetType = components['schemas']['ReportTargetType']
 export type ReportReason = components['schemas']['ReportReason']
 export type CreateReportRequest = components['schemas']['CreateReportRequest']
@@ -108,6 +113,10 @@ const SUPPORTIVE_REACTIONS = new Set<SupportiveReaction>([
   'SUPPORT',
   'RELATE',
   'THANK_YOU',
+  'LIKE',
+  'EMPATHY',
+  'CHEER',
+  'GROWTH',
 ])
 const REPORT_TARGET_TYPES = new Set(['POST', 'COMMENT'])
 const REPORT_REASONS = new Set([
@@ -396,6 +405,42 @@ export function parseCommunityProfile(value: unknown): CommunityProfile | null {
     return null
   }
   return profile as CommunityProfile
+}
+
+export function parseCommunityAvatars(
+  value: unknown,
+): { items: CommunityAvatarSummary[] } | null {
+  const page = record(value)
+  if (!page || !exactKeys(page, ['items']) || !Array.isArray(page.items))
+    return null
+  if (page.items.length > 50) return null
+  const items: CommunityAvatarSummary[] = []
+  for (const entry of page.items) {
+    const item = record(entry)
+    if (
+      !item ||
+      !exactKeys(item, [
+        'accountId',
+        'avatarPreset',
+        ...(Object.hasOwn(item, 'avatarImage') ? ['avatarImage'] : []),
+      ]) ||
+      typeof item.accountId !== 'string' ||
+      !UUID.test(item.accountId) ||
+      !avatarPreset(item.avatarPreset)
+    )
+      return null
+    const avatarImage =
+      item.avatarImage == null
+        ? null
+        : parseCommunityAvatarImage(item.avatarImage)
+    if (item.avatarImage != null && !avatarImage) return null
+    items.push({
+      accountId: item.accountId,
+      avatarPreset: item.avatarPreset,
+      avatarImage,
+    })
+  }
+  return { items }
 }
 
 export function parseCommunityProfileInput(
@@ -701,6 +746,46 @@ export function parseCommunityReaction(
     return null
   }
   return reaction as CommunityReaction
+}
+
+export function parseCommunityPostReactionList(
+  value: unknown,
+): CommunityPostReactionList | null {
+  const list = record(value)
+  if (
+    !list ||
+    !exactKeys(list, ['items', 'count']) ||
+    !Array.isArray(list.items) ||
+    list.items.length > 100 ||
+    !Number.isSafeInteger(list.count) ||
+    Number(list.count) < 0 ||
+    Number(list.count) > 100
+  ) {
+    return null
+  }
+  const valid = list.items.every((entry) => {
+    const item = record(entry)
+    return (
+      item !== null &&
+      exactKeys(item, [
+        'communityProfileId',
+        'displayName',
+        'avatarPreset',
+        'reaction',
+        'reactedAt',
+        'self',
+      ]) &&
+      typeof item.communityProfileId === 'string' &&
+      UUID.test(item.communityProfileId) &&
+      text(item.displayName, 1, 80) &&
+      avatarPreset(item.avatarPreset) &&
+      typeof item.reaction === 'string' &&
+      SUPPORTIVE_REACTIONS.has(item.reaction as SupportiveReaction) &&
+      dateTime(item.reactedAt) &&
+      typeof item.self === 'boolean'
+    )
+  })
+  return valid ? (list as CommunityPostReactionList) : null
 }
 
 export function parseCreateMediaUploadIntent(

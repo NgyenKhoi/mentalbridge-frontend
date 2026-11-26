@@ -153,6 +153,27 @@ it('rejects a target identity on targetless SPECIALIST actions', () => {
     }),
   ).toBeNull()
 })
+it('maps OPEN_APPOINTMENT only for the exact published appointment path', () => {
+  const type = 'OPEN_APPOINTMENT' as const
+  const href = `/appointments/${targetId}`
+  expect(userDestination({ type, href, targetId })).toEqual({
+    pathname: '/(user)/appointments',
+    params: { appointmentId: targetId },
+  })
+  for (const invalid of [
+    { type, href: '/appointments', targetId },
+    { type, href, targetId: null },
+    { type, href: `${href}?x=1`, targetId },
+    { type, href: '/appointments/bad', targetId: 'bad' },
+  ])
+    expect(userDestination(invalid)).toBeNull()
+  expect(specialistDestination({ type, href, targetId })).toBeNull()
+  const appointment = notification({
+    kind: 'APPOINTMENT',
+    action: { type, href, targetId },
+  })
+  expect(notificationSchema.safeParse(appointment).success).toBe(true)
+})
 it.each([
   ['OPEN_JOURNAL', '/journal', '/(user)/journal'],
   ['OPEN_MESSAGES', '/messages', '/(user)/messages'],
@@ -213,3 +234,18 @@ it.each([
 )
 it('does not invent a destination for a null action', () =>
   expect(userDestination(null)).toBeNull())
+it('maps OPEN_SUPPORT_PLAN only for the exact targetless /support-plan path, USER only', () => {
+  const type = 'OPEN_SUPPORT_PLAN' as const
+  const action = { type, href: '/support-plan', targetId: null }
+  expect(userDestination(action)).toEqual({ pathname: '/(user)/support-plan' })
+  for (const invalid of [
+    { type, href: '/support-plan', targetId },
+    { type, href: '/support-plan/x', targetId: null },
+    { type, href: '/support-plan?x=1', targetId: null },
+    { type, href: '/support-guide', targetId: null },
+  ])
+    expect(userDestination(invalid)).toBeNull()
+  expect(specialistDestination(action)).toBeNull()
+  const reminder = notification({ kind: 'SUPPORT_PLAN_DAILY_REMINDER', action })
+  expect(notificationSchema.safeParse(reminder).success).toBe(true)
+})

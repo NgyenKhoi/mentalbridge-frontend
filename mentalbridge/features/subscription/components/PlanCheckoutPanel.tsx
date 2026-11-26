@@ -1,10 +1,13 @@
 'use client'
 
 import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { browserServiceCredits } from '@/features/service-credits/api/browser-client'
 import PlanUpgradeContinue from '@/features/support-plan-access/PlanUpgradeContinue'
-import type { ServiceCreditAccount } from '@/lib/consultation/consultation-validation'
+import {
+  SERVICE_PACKAGE_LABELS,
+  type ServiceCreditAccount,
+} from '@/lib/consultation/consultation-validation'
 import type {
   PaymentProvider,
   PlanCode,
@@ -20,23 +23,51 @@ import PayosPaymentPanel from './PayosPaymentPanel'
 
 const PLAN_COPY: Record<
   PlanCode,
-  Readonly<{ eyebrow: string; description: string }>
+  Readonly<{
+    eyebrow: string
+    description: (plan: ServicePlanVersion) => string
+  }>
 > = {
   FREE: {
     eyebrow: 'CƠ BẢN',
-    description:
-      'Duy trì các công cụ tự chăm sóc thiết yếu và 5 phản hồi AI được gửi thành công mỗi ngày.',
+    description: () => 'Các công cụ tự chăm sóc để bạn hiểu mình hơn mỗi ngày.',
   },
   PLUS: {
     eyebrow: 'ĐỒNG HÀNH',
-    description:
-      'Thêm kế hoạch hỗ trợ cá nhân và 4 lượt tư vấn trong mỗi kỳ dịch vụ.',
+    description: (plan) =>
+      `Có kế hoạch hỗ trợ 14 ngày và ${plan.consultationCredits} buổi tư vấn với chuyên gia mỗi tháng.`,
   },
   PREMIUM: {
     eyebrow: 'TOÀN DIỆN',
-    description:
-      'Mở rộng hỗ trợ chuyên sâu với 10 lượt tư vấn và đề xuất nâng cao trong mỗi kỳ.',
+    description: (plan) =>
+      `Dành cho bạn cần chuyên gia đồng hành sát hơn: ${plan.consultationCredits} buổi tư vấn mỗi tháng.`,
   },
+}
+
+const FREE_PERKS = [
+  'Bài sàng lọc và gợi ý hỗ trợ',
+  'Nhật ký và check-in cảm xúc',
+  'Trò chuyện với Mầm mỗi ngày',
+]
+
+// Zero-valued API limits are omitted; a plan with nothing left shows the free perks.
+function planPerks(plan: ServicePlanVersion): ReactNode[] {
+  const perks: ReactNode[] = []
+  if (plan.consultationCredits > 0)
+    perks.push(
+      <>
+        <strong>{plan.consultationCredits} buổi tư vấn</strong> mỗi tháng
+      </>,
+    )
+  if (plan.maxActiveReservations > 0)
+    perks.push(
+      <>
+        Đặt trước tối đa <strong>{plan.maxActiveReservations} buổi</strong> cùng
+        lúc
+      </>,
+    )
+  if (plan.supportPlanEnabled) perks.push('Kế hoạch hỗ trợ cá nhân')
+  return perks.length > 0 ? perks : FREE_PERKS
 }
 
 function formatVnd(value: number) {
@@ -119,10 +150,16 @@ function actionFor(
   return {
     label:
       current === 'PLUS'
-        ? `Nâng cấp lên ${plan.displayName}`
-        : `Chọn ${plan.displayName}`,
+        ? `Nâng cấp lên ${SERVICE_PACKAGE_LABELS[plan.planCode]}`
+        : `Chọn ${SERVICE_PACKAGE_LABELS[plan.planCode]}`,
     available: true,
   }
+}
+
+// A FAILED payment is announced only when this visit saw it in progress; an old failure present on load stays silent.
+function track(seen: Set<string>, payment: PlanPayment | null) {
+  if (payment && payment.status !== 'FAILED') seen.add(payment.paymentId)
+  return payment
 }
 
 export default function PlanCheckoutPanel() {
@@ -132,6 +169,7 @@ export default function PlanCheckoutPanel() {
   const [submitting, setSubmitting] = useState<PlanCode | null>(null)
   const [error, setError] = useState('')
   const [payment, setPayment] = useState<PlanPayment | null>(null)
+  const [seenPayments] = useState(() => new Set<string>())
   const [payOpen, setPayOpen] = useState(false)
   const [payFocus, setPayFocus] = useState(false)
   const checkoutIntent = useRef<{ planVersionId: string; key: string } | null>(
@@ -145,7 +183,7 @@ export default function PlanCheckoutPanel() {
       const result = await fetchSubscriptionData()
       setCatalogue(result.catalogue)
       setAccount(result.account)
-      setPayment(result.payment)
+      setPayment(track(seenPayments, result.payment))
       setPayOpen(payableInApp(result.payment))
       setPayFocus(false)
     } catch (caught) {
@@ -153,7 +191,7 @@ export default function PlanCheckoutPanel() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [seenPayments])
 
   useEffect(() => {
     let active = true
@@ -162,7 +200,7 @@ export default function PlanCheckoutPanel() {
         if (!active) return
         setCatalogue(result.catalogue)
         setAccount(result.account)
-        setPayment(result.payment)
+        setPayment(track(seenPayments, result.payment))
         setPayOpen(payableInApp(result.payment))
       })
       .catch((caught) => {
@@ -174,7 +212,7 @@ export default function PlanCheckoutPanel() {
     return () => {
       active = false
     }
-  }, [])
+  }, [seenPayments])
 
   async function checkout(plan: ServicePlanVersion) {
     setSubmitting(plan.planCode)
@@ -192,7 +230,7 @@ export default function PlanCheckoutPanel() {
         plan.planVersionId,
         intent.key,
       )
-      setPayment(payment)
+      setPayment(track(seenPayments, payment))
       checkoutIntent.current = null
       setPayOpen(payableInApp(payment))
       setPayFocus(true)
@@ -217,7 +255,7 @@ export default function PlanCheckoutPanel() {
           ? await browserSubscription.payment(payment.paymentId)
           : payment
       // A FAILED re-read is not shown: the fresh checkout below replaces it without flashing a failure.
-      if (latest.status !== 'FAILED') setPayment(latest)
+      if (latest.status !== 'FAILED') setPayment(track(seenPayments, latest))
       if (latest.status === 'PENDING') {
         setError('Mã cũ đang được đóng. Vui lòng thử lại sau ít giây.')
         setSubmitting(null)
@@ -269,70 +307,58 @@ export default function PlanCheckoutPanel() {
     >
       <div className="svc-section-heading">
         <span className="svc-kicker">
-          <ShieldCheck size={14} aria-hidden="true" /> GIÁ VÀ QUYỀN LỢI TỪ HỆ
-          THỐNG
+          <ShieldCheck size={14} aria-hidden="true" /> CÁC GÓI DỊCH VỤ
         </span>
         <h2 id="subscription-plans-title">Chọn mức đồng hành phù hợp</h2>
-        <p>
-          Mỗi gói có giá VND, số lượt tư vấn và giới hạn lịch đang giữ riêng.{' '}
-          {PROVIDER_LINE[catalogue.paymentProvider]}
-        </p>
+        <p>{PROVIDER_LINE[catalogue.paymentProvider]}</p>
       </div>
 
-      {catalogue.plans.some(
-        (plan) => plan.pricingPolicyVersion === 'sandbox-full-price-v1',
-      ) && (
-        <p className="svc-price-note svc-checkout-feedback">
-          Gói thử nghiệm: giá và lượt tư vấn chỉ dùng để kiểm tra luồng dịch vụ.
-          Nâng Plus lên Premium thu đủ giá Premium, không khấu trừ giá trị lượt
-          còn lại. Lượt chưa dùng của Plus được thay thế sau khi xác nhận thành
-          công; lịch đã giữ không thay đổi.
-        </p>
-      )}
-
-      {payment && !payOpen && (
-        <div className="svc-price-note svc-checkout-feedback">
-          <p role="status">
-            {payment.status === 'SUCCEEDED'
-              ? 'Giao dịch đã được xác nhận thành công.'
-              : payment.status === 'FAILED'
-                ? 'Giao dịch chưa thành công. Quyền lợi không được kích hoạt từ giao dịch này.'
-                : payment.status === 'CHARGEBACK'
-                  ? 'Giao dịch cần được đối soát lại.'
-                  : payableInApp(payment)
-                    ? 'Bạn có một thanh toán đang chờ.'
-                    : 'Giao dịch đang chờ xác nhận. Chưa kích hoạt quyền lợi mới.'}
-          </p>
-          {payableInApp(payment) ? (
-            <button
-              type="button"
-              onClick={() => {
-                setPayFocus(true)
-                setPayOpen(true)
-              }}
-            >
-              Tiếp tục thanh toán
-            </button>
-          ) : (
-            payment.status === 'PENDING' && (
-              <>
-                <button
-                  type="button"
-                  disabled={loading || submitting !== null}
-                  onClick={() => void load()}
-                >
-                  Kiểm tra trạng thái
-                </button>
-                {payment.checkoutUrl && (
-                  <a href={payment.checkoutUrl} rel="noopener noreferrer">
-                    Mở trang thanh toán của {PROVIDER_NAME[payment.provider]}
-                  </a>
-                )}
-              </>
-            )
-          )}
-        </div>
-      )}
+      {payment &&
+        !payOpen &&
+        (payment.status !== 'FAILED' ||
+          seenPayments.has(payment.paymentId)) && (
+          <div className="svc-price-note svc-checkout-feedback">
+            <p role="status">
+              {payment.status === 'SUCCEEDED'
+                ? 'Giao dịch đã được xác nhận thành công.'
+                : payment.status === 'FAILED'
+                  ? 'Giao dịch chưa thành công. Quyền lợi không được kích hoạt từ giao dịch này.'
+                  : payment.status === 'CHARGEBACK'
+                    ? 'Giao dịch cần được đối soát lại.'
+                    : payableInApp(payment)
+                      ? 'Bạn có một thanh toán đang chờ.'
+                      : 'Giao dịch đang chờ xác nhận. Chưa kích hoạt quyền lợi mới.'}
+            </p>
+            {payableInApp(payment) ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPayFocus(true)
+                  setPayOpen(true)
+                }}
+              >
+                Tiếp tục thanh toán
+              </button>
+            ) : (
+              payment.status === 'PENDING' && (
+                <>
+                  <button
+                    type="button"
+                    disabled={loading || submitting !== null}
+                    onClick={() => void load()}
+                  >
+                    Kiểm tra trạng thái
+                  </button>
+                  {payment.checkoutUrl && (
+                    <a href={payment.checkoutUrl} rel="noopener noreferrer">
+                      Mở trang thanh toán của {PROVIDER_NAME[payment.provider]}
+                    </a>
+                  )}
+                </>
+              )
+            )}
+          </div>
+        )}
 
       <PlanUpgradeContinue account={account} />
 
@@ -346,16 +372,12 @@ export default function PlanCheckoutPanel() {
         <PayosPaymentPanel
           key={payment.paymentId}
           payment={payment}
-          planName={
-            catalogue.plans.find(
-              (item) => item.planVersionId === payment.planVersionId,
-            )?.displayName ?? payment.planCode
-          }
+          planName={SERVICE_PACKAGE_LABELS[payment.planCode]}
           busy={submitting !== null}
           focusOnOpen={payFocus}
           onPayment={(next) => {
             setError('')
-            setPayment(next)
+            setPayment(track(seenPayments, next))
           }}
           onBack={() => setPayOpen(false)}
           onRenew={() => void renew()}
@@ -382,40 +404,24 @@ export default function PlanCheckoutPanel() {
                   )}
                   <div className="svc-tier-top">
                     <span>{PLAN_COPY[plan.planCode].eyebrow}</span>
-                    <small>{plan.consultationCredits} lượt / kỳ</small>
                   </div>
-                  <h3>{plan.displayName}</h3>
-                  <p>{PLAN_COPY[plan.planCode].description}</p>
+                  <h3>{SERVICE_PACKAGE_LABELS[plan.planCode]}</h3>
+                  <p>{PLAN_COPY[plan.planCode].description(plan)}</p>
                   <div className="svc-tier-price">
-                    <strong>{formatVnd(plan.priceVnd)}</strong>
-                    <span>
-                      / {plan.planCode === 'FREE' ? 'không thời hạn' : 'tháng'}
-                    </span>
+                    <strong>
+                      {plan.priceVnd === 0
+                        ? 'Miễn phí'
+                        : formatVnd(plan.priceVnd)}
+                    </strong>
+                    {plan.priceVnd > 0 && <span>/ tháng</span>}
                   </div>
                   <ul className="svc-tier-facts">
-                    <li>
-                      <CheckCircle2 size={17} aria-hidden="true" />{' '}
-                      <span>
-                        <strong>{plan.consultationCredits} lượt tư vấn</strong>{' '}
-                        trong mỗi kỳ, không cộng dồn
-                      </span>
-                    </li>
-                    <li>
-                      <CheckCircle2 size={17} aria-hidden="true" />{' '}
-                      <span>
-                        Giữ tối đa{' '}
-                        <strong>{plan.maxActiveReservations} lịch</strong> cùng
-                        lúc
-                      </span>
-                    </li>
-                    <li>
-                      <CheckCircle2 size={17} aria-hidden="true" />{' '}
-                      <span>
-                        {plan.supportPlanEnabled
-                          ? 'Có kế hoạch hỗ trợ cá nhân'
-                          : 'Công cụ tự chăm sóc cơ bản'}
-                      </span>
-                    </li>
+                    {planPerks(plan).map((perk, index) => (
+                      <li key={index}>
+                        <CheckCircle2 size={17} aria-hidden="true" />{' '}
+                        <span>{perk}</span>
+                      </li>
+                    ))}
                   </ul>
                   <button
                     type="button"
@@ -438,8 +444,7 @@ export default function PlanCheckoutPanel() {
           </div>
 
           <p className="svc-price-note">
-            Giá và quyền lợi do máy chủ xác nhận theo đúng phiên bản gói; lượt
-            tư vấn hết hạn cùng kỳ và không chuyển sang kỳ sau.
+            Buổi chưa dùng không cộng dồn sang tháng sau.
           </p>
         </>
       )}

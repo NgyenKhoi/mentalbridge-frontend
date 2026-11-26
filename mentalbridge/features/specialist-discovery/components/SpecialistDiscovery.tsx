@@ -15,11 +15,18 @@ import {
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
-import type {
-  DiscoverySlot,
-  SpecialistDiscoveryItem,
-  SpecialistDiscoveryPage,
+import {
+  SERVICE_PACKAGE_LABELS,
+  type DiscoverySlot,
+  type ServiceCreditAccount,
+  type SpecialistDiscoveryItem,
+  type SpecialistDiscoveryPage,
 } from '@/lib/consultation/consultation-validation'
+import AccountAvatar from '@/features/community/components/AccountAvatar'
+import {
+  getCommunityAvatars,
+  type CommunityAvatarSummary,
+} from '@/features/community/api/browser-community'
 import { browserServiceCredits } from '@/features/service-credits/api/browser-client'
 import type { VerifiedCredentialBadge } from '@/features/specialist-profile/api/credential-validation'
 import {
@@ -33,6 +40,12 @@ import cardStyles from './SpecialistCards.module.css'
 const supportAreaLabels: Record<string, string> = {
   DEPRESSIVE_SYMPTOMS: 'Khí sắc và trầm buồn',
   ANXIETY_SYMPTOMS: 'Lo âu',
+}
+const LANGUAGE_LABELS: Record<string, string> = {
+  vi: 'Tiếng Việt',
+  en: 'English',
+  zh: '中文',
+  fr: 'Français',
 }
 const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
@@ -124,7 +137,12 @@ function discoveryError(error: unknown) {
 
 export default function SpecialistDiscovery({
   returnSupportGuideId,
-}: Readonly<{ returnSupportGuideId?: string }> = {}) {
+  openSpecialistId,
+}: Readonly<{
+  returnSupportGuideId?: string
+  /** Opens this specialist's slots on arrival (rebook links). */
+  openSpecialistId?: string
+}> = {}) {
   const [originatingPlanActionId, setOriginatingPlanActionId] = useState<
     string | null
   >(null)
@@ -159,6 +177,9 @@ export default function SpecialistDiscovery({
   const timezone = VIETNAM_TIME_ZONE
   const [page, setPage] = useState<SpecialistDiscoveryPage | null>(null)
   const [items, setItems] = useState<SpecialistDiscoveryItem[]>([])
+  const [avatars, setAvatars] = useState<
+    Record<string, CommunityAvatarSummary>
+  >({})
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
@@ -170,11 +191,15 @@ export default function SpecialistDiscovery({
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
   const [initialTab, setInitialTab] = useState<'profile' | 'slots'>('profile')
+  const pendingDeepLink = useRef(openSpecialistId)
   // Default keeps the server's specialist-discovery-v2 order; rating and years
   // of experience are not user-facing rank keys under the consultation policy.
   const [sortBy, setSortBy] = useState<'recommended' | 'nearest'>('recommended')
   const [searchQuery, setSearchQuery] = useState('')
   const [availableCredits, setAvailableCredits] = useState<number | null>(null)
+  const [reservationCapacity, setReservationCapacity] = useState<
+    ServiceCreditAccount['reservationCapacity'] | null
+  >(null)
   const [bookedSlot, setBookedSlot] = useState<{
     slot: DiscoverySlot
     name: string
@@ -188,10 +213,11 @@ export default function SpecialistDiscovery({
     const request = ++creditRequest.current
     void browserServiceCredits
       .get()
-      .then((account) => account.balance.available)
       .catch(() => null)
-      .then((available) => {
-        if (request === creditRequest.current) setAvailableCredits(available)
+      .then((account) => {
+        if (request !== creditRequest.current) return
+        setAvailableCredits(account?.balance.available ?? null)
+        setReservationCapacity(account?.reservationCapacity ?? null)
       })
   }, [])
 
@@ -228,6 +254,18 @@ export default function SpecialistDiscovery({
         setItems((current) =>
           cursor ? [...current, ...result.items] : result.items,
         )
+        // One lookup per result page; photos are optional, so any failure keeps initials.
+        if (result.items.length > 0)
+          getCommunityAvatars(
+            result.items.map((entry) => entry.specialistAccountId).slice(0, 50),
+          )
+            .then((rows) =>
+              setAvatars((current) => ({
+                ...current,
+                ...Object.fromEntries(rows.map((row) => [row.accountId, row])),
+              })),
+            )
+            .catch(() => undefined)
       } catch (caught) {
         setError(discoveryError(caught))
         if (!cursor) {
@@ -285,6 +323,18 @@ export default function SpecialistDiscovery({
     [language, modality, timezone],
   )
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const id = pendingDeepLink.current
+      pendingDeepLink.current = undefined
+      if (!id) return
+      setInitialTab('slots')
+      setDetailId(id)
+      void loadDetail(id)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [loadDetail])
+
   function openDetail(id: string, tab: 'profile' | 'slots') {
     setInitialTab(tab)
     setDetailId(id)
@@ -295,6 +345,17 @@ export default function SpecialistDiscovery({
   async function booked() {
     await load()
     refreshCredits()
+  }
+
+  const avatarOf = (entry: SpecialistDiscoveryItem) => {
+    const row = avatars[entry.specialistAccountId]
+    return row
+      ? {
+          displayName: entry.displayName,
+          avatarPreset: row.avatarPreset,
+          avatarImage: row.avatarImage,
+        }
+      : null
   }
 
   const visibleItems = useMemo(() => {
@@ -319,6 +380,13 @@ export default function SpecialistDiscovery({
       ),
     )
   }, [items, searchQuery, sortBy])
+
+  const activeFilters = [
+    ...(supportArea ? [supportAreaLabels[supportArea] ?? supportArea] : []),
+    ...(language ? [`ưu tiên ${LANGUAGE_LABELS[language] ?? language}`] : []),
+    ...(modality ? [modality === 'IN_APP_VIDEO' ? 'Video' : 'Chat'] : []),
+    ...(searchQuery.trim() ? [`từ khóa "${searchQuery.trim()}"`] : []),
+  ]
 
   function resetFilters() {
     setSelectedTopicId('all')
@@ -414,13 +482,7 @@ export default function SpecialistDiscovery({
                 <div className={styles.statDarkTitle}>
                   <strong>
                     {page
-                      ? `Gói ${
-                          page.packageCode === 'FREE'
-                            ? 'Free'
-                            : page.packageCode === 'PREMIUM'
-                              ? 'Premium'
-                              : 'Plus'
-                        } của bạn`
+                      ? `Gói ${SERVICE_PACKAGE_LABELS[page.packageCode]} của bạn`
                       : 'Gói của bạn'}
                   </strong>
                   <span className={styles.onlineDot} />
@@ -429,8 +491,8 @@ export default function SpecialistDiscovery({
                   {page?.packageCode === 'FREE'
                     ? 'Xem hồ sơ; đặt lịch cần gói Plus hoặc Premium'
                     : availableCredits !== null
-                      ? `Còn ${availableCredits} lượt tư vấn theo gói`
-                      : 'Lượt tư vấn được kiểm tra khi đặt lịch'}
+                      ? `Còn ${availableCredits} buổi tư vấn theo gói`
+                      : 'Buổi tư vấn được kiểm tra khi đặt lịch'}
                 </span>
               </div>
             </div>
@@ -469,7 +531,7 @@ export default function SpecialistDiscovery({
         <div className={styles.filterRow2}>
           <div className={styles.filterRow2Left}>
             <label className={styles.langLabel}>
-              <span>Ngôn ngữ:</span>
+              <span>Ưu tiên ngôn ngữ:</span>
               <select
                 value={language}
                 disabled={loading}
@@ -550,15 +612,15 @@ export default function SpecialistDiscovery({
             <div className={styles.benefitLeft}>
               {page.packageCode === 'FREE' ? (
                 <span>
-                  <strong>Bạn đang dùng gói Free.</strong> Bạn có thể xem hồ sơ
-                  và khung giờ; đặt lịch cần gói Plus hoặc Premium.
+                  <strong>Bạn đang dùng gói Miễn phí.</strong> Bạn có thể xem hồ
+                  sơ và khung giờ; đặt lịch cần gói Plus hoặc Premium.
                 </span>
               ) : (
                 <span>
                   <strong>
-                    Gói {page.packageCode === 'PLUS' ? 'Plus' : 'Premium'}.
+                    Gói {SERVICE_PACKAGE_LABELS[page.packageCode]}.
                   </strong>{' '}
-                  Khi gửi yêu cầu, quyền lợi và lượt tư vấn sẽ được kiểm tra
+                  Khi gửi yêu cầu, quyền lợi và buổi tư vấn sẽ được kiểm tra
                   lại.
                 </span>
               )}
@@ -638,10 +700,16 @@ export default function SpecialistDiscovery({
       ) : !error && visibleItems.length === 0 ? (
         <section className={styles.state}>
           <h2>Chưa có chuyên gia phù hợp</h2>
-          <p>Hãy đổi bộ lọc hoặc quay lại sau khi có hồ sơ được phê duyệt.</p>
-          <button type="button" onClick={resetFilters}>
-            Xóa bộ lọc
-          </button>
+          <p>
+            {activeFilters.length > 0
+              ? `Chưa có chuyên gia khớp với ${activeFilters.join(', ')}. Hãy bỏ bớt bộ lọc để xem thêm.`
+              : 'Hiện chưa có chuyên gia nào để hiển thị. Bạn hãy quay lại sau nhé.'}
+          </p>
+          {activeFilters.length > 0 && (
+            <button type="button" onClick={resetFilters}>
+              Xóa bộ lọc
+            </button>
+          )}
         </section>
       ) : (
         /* Specialists 4-Card Grid */
@@ -661,7 +729,10 @@ export default function SpecialistDiscovery({
                   )}
                   aria-hidden="true"
                 >
-                  {initials(item.displayName)}
+                  <AccountAvatar
+                    avatar={avatarOf(item)}
+                    fallback={initials(item.displayName)}
+                  />
                 </div>
 
                 <h2>{item.displayName}</h2>
@@ -809,6 +880,7 @@ export default function SpecialistDiscovery({
 
       <SpecialistDetailDialog
         key={detailId ?? 'closed'}
+        avatar={detail ? avatarOf(detail) : null}
         open={detailId !== null}
         item={detail}
         badges={detailBadges}
@@ -817,6 +889,7 @@ export default function SpecialistDiscovery({
         packageCode={page?.packageCode ?? null}
         initialTab={initialTab}
         availableCredits={availableCredits}
+        reservationCapacity={reservationCapacity}
         onClose={() => {
           setDetailId(null)
           setDetail(null)

@@ -34,6 +34,10 @@ vi.mock('./AdminContentSection', () => ({
   default: () => <section aria-label="content-authority" />,
 }))
 
+vi.mock('@/features/benchmarks/AdminBenchmarkGovernance', () => ({
+  default: () => <section aria-label="benchmarks-authority" />,
+}))
+
 vi.mock(
   '@/features/community/components/AdminCommunityModerationSection',
   () => ({
@@ -43,10 +47,6 @@ vi.mock(
 
 vi.mock('@/features/appointments/components/AdminAppointmentMonitor', () => ({
   default: () => <section aria-label="appointments-authority" />,
-}))
-
-vi.mock('@/features/appointments/components/AdminAppointmentDisputes', () => ({
-  default: () => <section aria-label="disputes-authority" />,
 }))
 
 vi.mock('@/features/audit/components/AdminAuditLog', () => ({
@@ -93,7 +93,7 @@ describe('AdminWorkspace', () => {
       name: 'Điều hướng quản trị',
     })
 
-    expect(within(navigation).getAllByRole('link')).toHaveLength(10)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(9)
     expect(
       within(navigation)
         .getAllByRole('link')
@@ -103,12 +103,11 @@ describe('AdminWorkspace', () => {
       '/admin/accounts',
       '/admin/specialists',
       '/admin/content',
+      '/admin/benchmarks',
       '/admin/moderation',
       '/admin/appointments',
-      '/admin/disputes',
       '/admin/payments',
       '/admin/payouts',
-      '/admin/feedback',
     ])
     expect(container).not.toHaveTextContent('@example.com')
     expect(container).not.toHaveTextContent('Nguyễn Minh Anh')
@@ -132,11 +131,8 @@ describe('AdminWorkspace', () => {
       within(navigation).getByRole('link', { name: 'Chi trả chuyên gia' }),
     ).toHaveAttribute('href', '/admin/payouts')
     expect(
-      within(navigation).getByRole('link', { name: 'Ý kiến & Phản hồi' }),
-    ).toHaveAttribute('href', '/admin/feedback')
-    expect(
-      within(navigation).queryByRole('link', { name: /assessment|AI/i }),
-    ).not.toBeInTheDocument()
+      within(navigation).getByRole('link', { name: 'Benchmark AI' }),
+    ).toHaveAttribute('href', '/admin/benchmarks')
   })
 
   it('combines the authoritative operations and journey projections on the dashboard', () => {
@@ -155,9 +151,9 @@ describe('AdminWorkspace', () => {
     ['retention', 'retention-authority'],
     ['specialists', 'specialists-authority'],
     ['content', 'content-authority'],
+    ['benchmarks', 'benchmarks-authority'],
     ['moderation', 'moderation-authority'],
     ['appointments', 'appointments-authority'],
-    ['disputes', 'disputes-authority'],
     ['audit', 'audit-authority'],
     ['reports', 'reports-authority'],
     ['payments', 'payments-authority'],
@@ -175,13 +171,15 @@ describe('AdminWorkspace', () => {
   it('renders administrator profile badge in topbar with proper admin identity without clinical doctor prefix', () => {
     renderSection('dashboard')
 
-    const profileBadge = screen.getByRole('link', { name: /hồ sơ quản trị/i })
-    expect(profileBadge).toBeInTheDocument()
+    const profileBadge = screen.getByRole('link', { name: /quản trị viên/i })
+    expect(profileBadge).toHaveAttribute('href', '/admin/dashboard')
     expect(within(profileBadge).getByText('AD')).toBeInTheDocument()
     expect(within(profileBadge).getByText('Quản trị viên')).toBeInTheDocument()
     expect(
       within(profileBadge).getByText(/admin \/ quyền tối cao/i),
     ).toBeInTheDocument()
     expect(screen.queryByText(/BS\. Hoàng Khang/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Hệ thống ổn định/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 })

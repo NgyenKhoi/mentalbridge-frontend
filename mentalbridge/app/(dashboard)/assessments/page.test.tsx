@@ -40,6 +40,9 @@ describe('Assessment history page', () => {
       http.get('http://localhost/api/care/screening-episodes/history', () =>
         HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
       ),
+      http.get('http://localhost/api/care/reassessment-summaries/list', () =>
+        HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
+      ),
       http.get('http://localhost/api/care/reassessment-self-reports', () =>
         HttpResponse.json(
           { code: 'REASSESSMENT_SELF_REPORT_NOT_FOUND' },
@@ -146,27 +149,14 @@ describe('Assessment history page', () => {
     const historyTab = screen.getByRole('tab', { name: 'Lịch sử sàng lọc' })
     historyTab.focus()
     await userEvent.keyboard('{End}')
-    expect(screen.getByRole('tab', { name: 'Đánh giá lại' })).toHaveFocus()
-    expect(screen.getByRole('tab', { name: 'Đánh giá lại' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    )
-    expect(
-      screen.getByRole('heading', {
-        name: 'Hiểu những thay đổi của bạn qua bốn góc nhìn',
-      }),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('link', { name: 'Bắt đầu lượt đánh giá lại' }),
-    ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
+    const supportTab = screen.getByRole('tab', { name: 'Gợi ý sau sàng lọc' })
+    expect(supportTab).toHaveFocus()
+    expect(supportTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'panel-support')
     await userEvent.keyboard('{Home}')
     expect(historyTab).toHaveFocus()
     expect(historyTab).toHaveAttribute('aria-selected', 'true')
-    await userEvent.keyboard('{ArrowRight}')
-    expect(
-      screen.getByRole('tab', { name: 'Gợi ý sau sàng lọc' }),
-    ).toHaveFocus()
-    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'panel-support')
+    expect(screen.queryByRole('tab', { name: 'Nhìn lại' })).toBeNull()
   })
 
   it('does not misreport a history failure as no previous assessment', async () => {
@@ -186,6 +176,9 @@ describe('Assessment history page', () => {
         HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
       ),
       http.get('http://localhost/api/care/support-evaluations/history', () =>
+        HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
+      ),
+      http.get('http://localhost/api/care/reassessment-summaries/list', () =>
         HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
       ),
       http.get('http://localhost/api/care/reassessment-self-reports', () =>

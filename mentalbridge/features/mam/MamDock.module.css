@@ -15,6 +15,35 @@
     opacity var(--motion-fast) var(--ease-standard);
 }
 
+/*
+ * MB-895: beside the journal editor (a modal) she is a popover, drawn in the top layer above its
+ * backdrop, in the gap left of its panel (the host sets `left`). The popover defaults would centre
+ * and frame her, so they are undone; the dialog keeps every click. A short fade, no movement.
+ */
+.root[data-mam-above='true'] {
+  top: auto;
+  right: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+  pointer-events: none;
+  animation: mam-above-in 160ms var(--ease-standard) both;
+}
+
+@keyframes mam-above-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-mam-above='true'] {
+    animation: none;
+  }
+}
+
 /* Page actions remain visible and receive clicks through the dock. */
 .root[data-yield='true'] {
   opacity: 0.35;
@@ -297,6 +326,17 @@
   }
 }
 
+/*
+ * The card Mầm is carried over: "drop here" (MB-819). The host sets the marker only on the
+ * registered card under the pointer while dragging. A dashed outline (no alpha, 3 px) in the
+ * brand teal, never moves layout and adds no animation, so it
+ * cannot replay the card's own entrance. 3 px + 1 px offset stays inside a 4 px page gutter.
+ */
+:global([data-mam-drop]) {
+  outline: 3px dashed var(--teal);
+  outline-offset: 1px;
+}
+
 /* MB-773: the hero's short rise and settle (ADR "Visual and layout rules"). */
 .flight {
   line-height: 0;
@@ -305,6 +345,18 @@
 
 .flight[data-flight='true'] {
   animation: mam-hero-rise 1400ms var(--ease-standard);
+}
+
+/* MB-896: an expressive look grows her from her feet: in over 180 ms, back over 220 ms. Never under reduced motion. */
+.flight {
+  transform-origin: 50% 100%; /* her feet: the grown box is anchored on the dock line */
+  transition: transform 220ms var(--ease-standard);
+}
+
+.root[data-mam-emphasis='true'] .flight {
+  transform: scale(var(--mam-emphasis, 1.25));
+  transition-duration: 180ms;
+  transition-timing-function: var(--ease-emphasis);
 }
 
 @keyframes mam-hero-rise {
@@ -325,6 +377,12 @@
 @media (prefers-reduced-motion: reduce) {
   .flight[data-flight='true'] {
     animation: none;
+  }
+
+  .flight,
+  .root[data-mam-emphasis='true'] .flight {
+    transform: none;
+    transition: none;
   }
 }
 
@@ -436,6 +494,14 @@
 
 .root[data-front='true'] .dock {
   cursor: grabbing;
+}
+
+/* The welcome flight and the MB-896 scenes are not a grab: the plane and the parachute never take a pointer. */
+.root[data-mam-travel='welcome'] .dock,
+.root[data-mam-travel='scene'] .dock {
+  cursor: default;
+  /* Everything she draws in the dock is click-through: a click under her reaches the page. */
+  pointer-events: none;
 }
 
 /* A no-interrupt zone freezes the host-owned loops; the sleep pose itself stays. */

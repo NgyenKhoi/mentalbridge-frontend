@@ -1,23 +1,22 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   BackHandler,
   KeyboardAvoidingView,
-  Modal,
   Platform,
-  Pressable,
-  ScrollView,
   StyleSheet,
-  Text,
+  Switch,
   TextInput,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ApiError } from '@/api/api-error'
-import { PrimaryButton } from '@/components/PrimaryButton'
+import { PressableScale } from '@/components/PressableScale'
+import { Screen } from '@/components/Screen'
 import type { ResourceApi } from '@/resources/resource-api'
-import { colors, radii, spacing } from '@/theme/tokens'
+import { Txt } from '@/theme/dashboard'
+import { radii, spacing } from '@/theme/tokens'
+import { communityColors } from './community-theme'
 
 import type { CommunityApi } from './community-api'
 import {
@@ -26,20 +25,94 @@ import {
   type VersionedPost,
 } from './community-contract'
 import type { CommunityMediaTransport } from './community-media'
-import { CommunityMediaEditor } from './CommunityMedia'
+import { AttachRow, CommunityMediaEditor } from './CommunityMedia'
 import {
+  Avatar,
+  Chip,
+  ChoiceRow,
   CommunityButton,
+  CommunityHeader,
+  CommunityIcon,
   CommunityMessage,
   communityMessage,
+  communityStyles as styles,
+  communityText,
+  Reveal,
+  SelectOverlay,
+  SkeletonBlock,
+  SkeletonGroup,
   useCommandKey,
   useCommunityAction,
+  useIsOnline,
+  type AvatarAuthor,
 } from './community-ui'
+
+const MAX_CONTENT = 5000
+const anonymousAuthor: AvatarAuthor = {
+  displayName: '',
+  avatarPreset: null,
+  state: 'ANONYMOUS',
+}
+const count = (value: number) =>
+  String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+
+function IdentityChoice({
+  label,
+  selected,
+  disabled,
+  onPress,
+  children,
+}: Readonly<{
+  label: string
+  selected: boolean
+  disabled: boolean
+  onPress: () => void
+  children: ReactNode
+}>) {
+  return (
+    <PressableScale
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: selected, disabled }}
+      disabled={disabled}
+      scaleTo={0.98}
+      onPress={onPress}
+      style={[local.identity, disabled && styles.disabled]}
+    >
+      <SelectOverlay selected={selected} style={local.identityOn} />
+      {children}
+      <Txt
+        numberOfLines={1}
+        style={[
+          communityText.body,
+          local.identityLabel,
+          selected && local.strong,
+        ]}
+      >
+        {label}
+      </Txt>
+      <CommunityIcon
+        name={selected ? 'radiobox-marked' : 'radiobox-blank'}
+        color={selected ? communityColors.primaryDeep : communityColors.inkSoft}
+      />
+    </PressableScale>
+  )
+}
+
+function SectionTitle({ children }: Readonly<{ children: string }>) {
+  return (
+    <Txt accessibilityRole="header" style={local.title}>
+      {children}
+    </Txt>
+  )
+}
 
 export function CommunityComposer({
   api,
   resources,
   subject,
   initial,
+  author,
   transport,
   onCancel,
   onSaved,
@@ -50,6 +123,7 @@ export function CommunityComposer({
   resources: ResourceApi
   subject: string
   initial: VersionedPost | null
+  author?: AvatarAuthor | undefined
   transport: CommunityMediaTransport
   onCancel: () => void
   onSaved: (value: VersionedPost) => void | Promise<void>
@@ -76,7 +150,6 @@ export function CommunityComposer({
     initial?.post.resourceAttachment?.resourceId ?? null,
   )
   const [showResources, setShowResources] = useState(false)
-  const [showOptions, setShowOptions] = useState(false)
   const [mediaIds, setMediaIds] = useState(
     initial?.post.media.map((media) => media.mediaId) ?? [],
   )
@@ -86,15 +159,10 @@ export function CommunityComposer({
   const [stale, setStale] = useState(false)
   const action = useCommunityAction()
   const commandKey = useCommandKey()
+  const online = useIsOnline()
   const topicQuery = useQuery({
     queryKey: ['community', subject, 'topics'],
     queryFn: () => api.topics(),
-  })
-  const profile = useQuery({
-    queryKey: ['community', subject, 'profile'],
-    queryFn: () => api.profile(),
-    retry: false,
-    refetchOnMount: 'always',
   })
   const resourceQuery = useInfiniteQuery({
     queryKey: ['community-resource-options', subject],
@@ -108,26 +176,17 @@ export function CommunityComposer({
       }),
     getNextPageParam: (page) => page.nextCursor,
   })
-  const requestCancel = useCallback(() => {
-    if (action.busy) return
-    if (
-      !content.trim() &&
-      !topics.length &&
-      !mediaIds.length &&
-      !resourceId &&
-      !initial
-    )
-      onCancel()
-    else setConfirmCancel(true)
-  }, [
-    action.busy,
-    content,
-    topics.length,
-    mediaIds.length,
-    resourceId,
-    initial,
-    onCancel,
-  ])
+  // An untouched new post has nothing to lose, so it closes without the confirm step.
+  const untouched =
+    !initial &&
+    !content.trim() &&
+    !topics.length &&
+    !mediaIds.length &&
+    !resourceId
+  const requestCancel = useCallback(
+    () => (untouched ? onCancel() : setConfirmCancel(true)),
+    [untouched, onCancel],
+  )
   useEffect(() => {
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
@@ -174,577 +233,394 @@ export function CommunityComposer({
         throw error
       }
     })
-  const saveLabel = action.busy
-    ? 'Đang gửi…'
-    : unconfirmed
-      ? 'Thử lại cùng yêu cầu'
-      : initial
-        ? 'Lưu thay đổi'
-        : 'Đăng bài viết'
-  const cannotSave =
-    !valid ||
-    mediaBusy ||
-    action.busy ||
-    stale ||
-    (initial !== null && initial.etag === null)
-
-  return (
-    <Modal
-      transparent
-      visible
-      animationType="slide"
-      statusBarTranslucent
-      onRequestClose={requestCancel}
+  const why = !online
+    ? 'Bạn đang ngoại tuyến. Hãy kết nối mạng để đăng chia sẻ.'
+    : action.busy || unconfirmed || stale
+      ? null
+      : body.content === ''
+        ? 'Viết nội dung bạn muốn chia sẻ.'
+        : topics.length === 0
+          ? 'Chọn ít nhất một chủ đề cho bài viết.'
+          : mediaBusy
+            ? 'Hãy chờ tệp tải lên xong trước khi đăng bài.'
+            : null
+  const footer = (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={local.footer}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={s.modal}
-      >
-        <Pressable
-          accessible={false}
-          style={StyleSheet.absoluteFill}
-          onPress={requestCancel}
+      {confirmCancel ? (
+        <Reveal style={local.confirm}>
+          <Txt style={communityText.body}>
+            Bỏ bản nháp trong bộ nhớ? Tệp chưa đăng không trở thành nội dung
+            công khai và được máy chủ xử lý theo thời hạn lưu giữ.
+          </Txt>
+          {unconfirmed && (
+            <CommunityMessage>
+              Yêu cầu trước chưa được xác nhận. Tải lại cộng đồng để kiểm tra
+              trước khi tạo một bài khác.
+            </CommunityMessage>
+          )}
+          <CommunityButton
+            variant="primary"
+            label="Tiếp tục chỉnh sửa"
+            onPress={() => setConfirmCancel(false)}
+          />
+          <CommunityButton
+            variant="danger"
+            label="Bỏ bản nháp"
+            onPress={onCancel}
+          />
+        </Reveal>
+      ) : (
+        <>
+          {action.error && <CommunityMessage>{action.error}</CommunityMessage>}
+          {unconfirmed && (
+            <CommunityMessage>
+              Giữ nguyên bản nháp để thử lại cùng yêu cầu. Bạn chưa có xác nhận
+              bài đã được lưu.
+            </CommunityMessage>
+          )}
+          {stale && (
+            <CommunityMessage>
+              Quay lại và tải bản mới. Không tự ghi đè thay đổi trên máy chủ.
+            </CommunityMessage>
+          )}
+          {why && <Txt style={communityText.meta}>{why}</Txt>}
+          <CommunityButton
+            large
+            variant="primary"
+            testID="community-post-save"
+            label={
+              action.busy
+                ? 'Đang gửi…'
+                : unconfirmed
+                  ? 'Thử lại cùng yêu cầu'
+                  : initial
+                    ? 'Lưu thay đổi'
+                    : 'Đăng chia sẻ'
+            }
+            disabled={
+              !valid ||
+              !online ||
+              mediaBusy ||
+              action.busy ||
+              stale ||
+              (initial !== null && initial.etag === null)
+            }
+            onPress={() => void save()}
+          />
+        </>
+      )}
+    </KeyboardAvoidingView>
+  )
+  return (
+    <Screen
+      layout="dashboard"
+      backgroundColor={communityColors.background}
+      header={
+        <CommunityHeader
+          padded
+          title={initial ? 'Sửa chia sẻ' : 'Viết chia sẻ'}
+          backLabel="Quay lại cộng đồng"
+          onBack={() => {
+            if (!action.busy) requestCancel()
+          }}
         />
-        <SafeAreaView
-          edges={['bottom']}
-          style={s.sheet}
-          accessibilityViewIsModal
-        >
-          <View aria-hidden style={s.handle} />
-          <View style={s.header}>
-            <View style={s.headerIcon}>
-              <Text aria-hidden style={s.green}>
-                ✧
-              </Text>
-            </View>
-            <View style={s.flex}>
-              <Text accessibilityRole="header" style={s.title}>
-                {initial ? 'Sửa bài viết sẻ chia' : 'Tạo bài viết sẻ chia'}
-              </Text>
-              <Text style={s.subtitle}>Không gian an toàn &amp; sẻ chia</Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Quay lại cộng đồng"
-              disabled={action.busy}
-              onPress={requestCancel}
-              style={s.close}
+      }
+      footer={footer}
+    >
+      <View style={local.stack}>
+        <Reveal step={0} style={local.section}>
+          <SectionTitle>Hiển thị tác giả</SectionTitle>
+          <View accessibilityRole="radiogroup" style={local.choices}>
+            <IdentityChoice
+              label={author?.displayName || 'Tên cộng đồng'}
+              selected={mode === 'PROFILE'}
+              disabled={disabled}
+              onPress={() => setMode('PROFILE')}
             >
-              <Text aria-hidden style={s.closeText}>
-                ×
-              </Text>
-            </Pressable>
+              <Avatar author={author} size={32} />
+            </IdentityChoice>
+            <IdentityChoice
+              label="Ẩn danh"
+              selected={mode === 'ANONYMOUS'}
+              disabled={disabled}
+              onPress={() => setMode('ANONYMOUS')}
+            >
+              <Avatar author={anonymousAuthor} size={32} />
+            </IdentityChoice>
           </View>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={s.content}
-          >
-            <View style={s.identityBox}>
-              <Text style={s.eyebrow}>♧ DANH TÍNH XUẤT HIỆN</Text>
-              <View style={s.identityRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Ẩn danh"
-                  accessibilityState={{
-                    selected: mode === 'ANONYMOUS',
-                    disabled,
-                  }}
-                  disabled={disabled}
-                  onPress={() => setMode('ANONYMOUS')}
-                  style={[
-                    s.identity,
-                    mode === 'ANONYMOUS' && s.selectedIdentity,
-                  ]}
-                >
-                  <View style={s.identityIcon}>
-                    <Text aria-hidden>♧</Text>
-                  </View>
-                  <View style={s.flex}>
-                    <Text style={s.identityTitle}>Ẩn danh an toàn</Text>
-                    <Text style={s.small}>Bảo vệ danh tính</Text>
-                  </View>
-                  <Text aria-hidden style={s.green}>
-                    {mode === 'ANONYMOUS' ? '●' : '○'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Tên cộng đồng"
-                  accessibilityState={{
-                    selected: mode === 'PROFILE',
-                    disabled,
-                  }}
-                  disabled={disabled}
-                  onPress={() => setMode('PROFILE')}
-                  style={[s.identity, mode === 'PROFILE' && s.selectedIdentity]}
-                >
-                  <View style={s.identityIcon}>
-                    <Text style={s.small}>Tôi</Text>
-                  </View>
-                  <View style={s.flex}>
-                    <Text style={s.identityTitle}>
-                      {profile.isSuccess && profile.data
-                        ? profile.data.profile.displayName
-                        : 'Tên cộng đồng'}
-                    </Text>
-                    <Text style={s.small}>Công khai hồ sơ</Text>
-                  </View>
-                  <Text aria-hidden style={s.green}>
-                    {mode === 'PROFILE' ? '●' : '○'}
-                  </Text>
-                </Pressable>
-              </View>
-              {profile.isError && mode === 'PROFILE' && (
-                <CommunityButton
-                  label="Tải lại danh tính cộng đồng"
-                  onPress={() => void profile.refetch()}
-                />
-              )}
-            </View>
-            <View style={s.section}>
-              <View style={s.row}>
-                <Text accessibilityRole="header" style={[s.eyebrow, s.flex]}>
-                  CHỦ ĐỀ &amp; CẢM XÚC
-                </Text>
-                <Text style={s.small}>Chọn 1–3 chủ đề</Text>
-              </View>
-              {topicQuery.isPending && (
-                <CommunityMessage>Đang tải chủ đề…</CommunityMessage>
-              )}
-              {topicQuery.isError && (
-                <CommunityButton
-                  label="Tải lại chủ đề"
-                  onPress={() => void topicQuery.refetch()}
-                />
-              )}
-              {topicQuery.isSuccess && !topicQuery.data.length && (
-                <CommunityMessage>
-                  Chưa có chủ đề đang mở để đăng bài.
-                </CommunityMessage>
-              )}
-              <View style={s.topics}>
-                {topicQuery.data?.map((topic) => (
-                  <Pressable
-                    key={topic.code}
-                    accessibilityRole="button"
-                    accessibilityLabel={topic.label}
-                    accessibilityState={{
-                      selected: topics.includes(topic.code),
-                      disabled:
-                        disabled ||
-                        (!topics.includes(topic.code) && topics.length >= 3),
-                    }}
-                    disabled={
-                      disabled ||
-                      (!topics.includes(topic.code) && topics.length >= 3)
-                    }
-                    onPress={() =>
-                      setTopics((selected) =>
-                        selected.includes(topic.code)
-                          ? selected.filter((code) => code !== topic.code)
-                          : [...selected, topic.code],
-                      )
-                    }
-                    style={[
-                      s.topic,
-                      topics.includes(topic.code) && s.selectedTopic,
-                    ]}
-                  >
-                    <Text style={s.topicText}># {topic.label}</Text>
-                  </Pressable>
+          <Txt style={communityText.meta}>
+            {mode === 'ANONYMOUS'
+              ? 'Ẩn danh không hiện liên kết hồ sơ trên bài viết. Bình luận của bạn vẫn hiển thị tên cộng đồng; không tự tiết lộ danh tính trong nội dung.'
+              : 'Bài viết hiển thị tên và hình đại diện cộng đồng của bạn.'}
+          </Txt>
+        </Reveal>
+        <Reveal step={1} style={local.field}>
+          <TextInput
+            accessibilityLabel="Nội dung chia sẻ"
+            testID="community-post-content"
+            multiline
+            maxLength={MAX_CONTENT}
+            placeholder="Viết trải nghiệm, suy nghĩ hoặc một bước tiến nhỏ…"
+            placeholderTextColor={communityColors.inkSoft}
+            style={local.input}
+            editable={!disabled}
+            value={content}
+            onChangeText={setContent}
+          />
+          <Txt style={[communityText.meta, local.counter]}>
+            {count(content.length)} / {count(MAX_CONTENT)}
+          </Txt>
+        </Reveal>
+        <Reveal step={2} style={local.section}>
+          <SectionTitle>Chọn 1–3 chủ đề</SectionTitle>
+          <Txt style={communityText.meta}>
+            Giúp người đọc tìm thấy câu chuyện của bạn
+          </Txt>
+          {topicQuery.isPending && (
+            <SkeletonGroup label="Đang tải chủ đề…">
+              <View style={styles.row}>
+                {[96, 120, 84, 108].map((width) => (
+                  <SkeletonBlock
+                    key={width}
+                    width={width}
+                    height={36}
+                    radius={radii.pill}
+                  />
                 ))}
               </View>
-            </View>
-            <View style={s.writingBox}>
-              <TextInput
-                accessibilityLabel="Nội dung chia sẻ"
-                testID="community-post-content"
-                multiline
-                maxLength={5000}
-                style={s.input}
-                placeholder="Hãy viết ra để nhẹ lòng hơn… Không gian này luôn lắng nghe và không phán xét bạn."
-                placeholderTextColor={colors.inkFaint}
-                editable={!disabled}
-                value={content}
-                onChangeText={setContent}
+            </SkeletonGroup>
+          )}
+          {topicQuery.isError && (
+            <>
+              <CommunityMessage>
+                {communityMessage(topicQuery.error)}
+              </CommunityMessage>
+              <CommunityButton
+                label="Tải lại chủ đề"
+                onPress={() => void topicQuery.refetch()}
               />
-              <View style={s.writingFooter}>
-                <Text style={s.smallGreen}>♥ Nơi bạn tự do là chính mình</Text>
-                <Text style={s.small}>{[...content].length}/5.000</Text>
-              </View>
-            </View>
-            <View style={s.attachments}>
-              <Text accessibilityRole="header" style={s.eyebrow}>
-                ĐÍNH KÈM THÊM
-              </Text>
-              <CommunityMediaEditor
-                api={api}
-                transport={transport}
-                initialMedia={initial?.post.media ?? []}
-                disabled={disabled}
-                onChange={mediaChange}
-                compact
+            </>
+          )}
+          {topicQuery.isSuccess && topicQuery.data.length === 0 && (
+            <Txt style={communityText.body}>
+              Chủ đề đang được cập nhật. Bạn có thể quay lại đăng bài sau.
+            </Txt>
+          )}
+          <View style={styles.row}>
+            {topicQuery.data?.map((topic) => (
+              <Chip
+                key={topic.code}
+                label={topic.label}
+                selected={topics.includes(topic.code)}
+                disabled={
+                  disabled ||
+                  (!topics.includes(topic.code) && topics.length >= 3)
+                }
+                onPress={() =>
+                  setTopics((selected) =>
+                    selected.includes(topic.code)
+                      ? selected.filter((code) => code !== topic.code)
+                      : [...selected, topic.code],
+                  )
+                }
               />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Tùy chọn bài viết"
-                accessibilityState={{ expanded: showOptions }}
-                onPress={() => setShowOptions((value) => !value)}
-                style={s.optionToggle}
-              >
-                <Text style={s.optionText}>
-                  Liên kết tài nguyên &amp; cảnh báo nội dung
-                </Text>
-                <Text aria-hidden style={s.green}>
-                  {showOptions ? '⌃' : '⌄'}
-                </Text>
-              </Pressable>
-              {resourceId && !showOptions && (
-                <Text style={s.smallGreen}>Đã kèm liên kết tài nguyên</Text>
-              )}
-              {showOptions && (
-                <View style={s.section}>
-                  <CommunityButton
-                    label="Cảnh báo nội dung nhạy cảm"
-                    selected={warning}
-                    disabled={disabled}
-                    onPress={() => setWarning((value) => !value)}
-                  />
-                  <Text style={s.small}>
-                    Ẩn danh không hiện liên kết hồ sơ trên bài viết. Bình luận
-                    vẫn hiển thị tên cộng đồng.
-                  </Text>
-                  {resourceId && (
-                    <CommunityButton
-                      label="Gỡ liên kết tài nguyên"
-                      disabled={disabled}
-                      onPress={() => setResourceId(null)}
-                    />
-                  )}
-                  <CommunityButton
-                    label={
-                      showResources
-                        ? 'Đóng danh sách tài nguyên'
-                        : 'Chọn tài nguyên đã rà soát'
-                    }
-                    disabled={disabled}
-                    onPress={() => setShowResources((value) => !value)}
-                  />
-                  {showResources && (
-                    <View style={s.section}>
-                      {resourceQuery.isPending && (
+            ))}
+          </View>
+        </Reveal>
+        <Reveal step={3} style={local.stack}>
+          <View style={local.section}>
+            <CommunityMediaEditor
+              api={api}
+              transport={transport}
+              initialMedia={initial?.post.media ?? []}
+              disabled={disabled}
+              onChange={mediaChange}
+            />
+            {/* Same rule as the moments strip: a video without a sensitive warning. */}
+            {!warning && (
+              <Txt style={communityText.meta}>
+                Bài có video sẽ xuất hiện trong Khoảnh khắc.
+              </Txt>
+            )}
+          </View>
+          <View style={local.section}>
+            <SectionTitle>Tài nguyên tham khảo (không bắt buộc)</SectionTitle>
+            {resourceId && (
+              <>
+                <Txt style={communityText.body}>
+                  Đã chọn một liên kết tài nguyên; nội dung sẽ mở ở Góc tài
+                  nguyên.
+                </Txt>
+                <CommunityButton
+                  variant="quiet"
+                  label="Gỡ liên kết tài nguyên"
+                  disabled={disabled}
+                  onPress={() => setResourceId(null)}
+                />
+              </>
+            )}
+            <AttachRow
+              icon="link-variant"
+              label={
+                showResources
+                  ? 'Đóng danh sách tài nguyên'
+                  : 'Chọn tài nguyên đã rà soát'
+              }
+              disabled={disabled}
+              onPress={() => setShowResources((value) => !value)}
+            />
+            {showResources && (
+              <View style={local.list}>
+                {resourceQuery.isPending && (
+                  <SkeletonGroup label="Đang tải tài nguyên…">
+                    <SkeletonBlock height={20} />
+                    <SkeletonBlock width="70%" height={20} />
+                  </SkeletonGroup>
+                )}
+                {resourceQuery.isError && (
+                  <CommunityMessage>
+                    {communityMessage(resourceQuery.error)}
+                  </CommunityMessage>
+                )}
+                {!resourceQuery.isError &&
+                  resourceQuery.data?.pages.map((page, index) => (
+                    <View key={index}>
+                      {page.fallback === 'unavailable' ? (
                         <CommunityMessage>
-                          Đang tải tài nguyên…
+                          Danh sách tài nguyên chưa sẵn sàng. Bạn vẫn có thể
+                          đăng chia sẻ không kèm liên kết.
                         </CommunityMessage>
-                      )}
-                      {resourceQuery.isError && (
-                        <CommunityMessage>
-                          {communityMessage(resourceQuery.error)}
-                        </CommunityMessage>
-                      )}
-                      {!resourceQuery.isError &&
-                        resourceQuery.data?.pages.map((page, index) => (
-                          <View key={index} style={s.section}>
-                            {page.fallback === 'unavailable' ? (
-                              <CommunityMessage>
-                                Danh sách tài nguyên chưa sẵn sàng. Bạn vẫn có
-                                thể đăng chia sẻ không kèm liên kết.
-                              </CommunityMessage>
-                            ) : (
-                              page.data.map((resource) => (
-                                <CommunityButton
-                                  key={resource.id}
-                                  label={resource.title}
-                                  disabled={disabled}
-                                  selected={resourceId === resource.id}
-                                  onPress={() => {
-                                    setResourceId(resource.id)
-                                    setShowResources(false)
-                                  }}
-                                />
-                              ))
-                            )}
-                          </View>
-                        ))}
-                      {resourceQuery.hasNextPage && (
-                        <CommunityButton
-                          label="Tải thêm tài nguyên"
-                          disabled={resourceQuery.isFetchingNextPage}
-                          onPress={() => void resourceQuery.fetchNextPage()}
-                        />
+                      ) : (
+                        page.data.map((resource) => (
+                          <ChoiceRow
+                            key={resource.id}
+                            label={resource.title}
+                            disabled={disabled}
+                            selected={resourceId === resource.id}
+                            onPress={() => {
+                              setResourceId(resource.id)
+                              setShowResources(false)
+                            }}
+                          />
+                        ))
                       )}
                     </View>
-                  )}
-                </View>
-              )}
-            </View>
-            <View style={s.culture}>
-              <Text aria-hidden style={s.green}>
-                ♧
-              </Text>
-              <Text style={s.cultureText}>
-                <Text style={s.bold}>Văn hóa MentalBridge: </Text>Tôn trọng,
-                lắng nghe và không phán xét bất kỳ ai.
-              </Text>
-            </View>
-            {action.error && (
-              <CommunityMessage>{action.error}</CommunityMessage>
+                  ))}
+                {resourceQuery.hasNextPage && (
+                  <CommunityButton
+                    variant="quiet"
+                    label="Tải thêm tài nguyên"
+                    disabled={resourceQuery.isFetchingNextPage}
+                    onPress={() => void resourceQuery.fetchNextPage()}
+                  />
+                )}
+              </View>
             )}
-            {unconfirmed && (
-              <CommunityMessage>
-                Giữ nguyên bản nháp để thử lại cùng yêu cầu. Bạn chưa có xác
-                nhận bài đã được lưu.
-              </CommunityMessage>
-            )}
-            {stale && (
-              <CommunityMessage>
-                Quay lại và tải bản mới. Không tự ghi đè thay đổi trên máy chủ.
-              </CommunityMessage>
-            )}
-          </ScrollView>
-          {confirmCancel && (
-            <View style={s.cancelConfirmation} accessibilityLiveRegion="polite">
-              <Text style={s.identityTitle}>Bạn muốn bỏ bản nháp này?</Text>
-              <Text style={s.small}>Nội dung đang viết sẽ được đóng.</Text>
-              {unconfirmed && (
-                <CommunityMessage>
-                  Yêu cầu trước chưa được xác nhận. Tải lại cộng đồng để kiểm
-                  tra trước khi tạo một bài khác.
-                </CommunityMessage>
-              )}
-              <CommunityButton
-                label="Tiếp tục chỉnh sửa"
-                onPress={() => setConfirmCancel(false)}
-              />
-              <CommunityButton label="Bỏ bản nháp" onPress={onCancel} />
-            </View>
-          )}
-          <View style={s.footer}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Hủy bài viết"
-              disabled={action.busy}
-              onPress={requestCancel}
-              style={s.cancelButton}
-            >
-              <Text style={s.optionText}>Hủy</Text>
-            </Pressable>
-            <View style={s.saveButton}>
-              <PrimaryButton
-                testID="community-post-save"
-                label={saveLabel}
-                accessibilityLabel={
-                  !initial && !action.busy && !unconfirmed
-                    ? 'Đăng chia sẻ'
-                    : saveLabel
-                }
-                leadingIcon="➤"
-                tone="dashboard"
-                disabled={cannotSave}
-                onPress={() => void save()}
-              />
-            </View>
           </View>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
+        </Reveal>
+        <Reveal step={4} style={local.section}>
+          <PressableScale
+            accessibilityRole="switch"
+            accessibilityLabel="Cảnh báo nội dung nhạy cảm"
+            accessibilityState={{ checked: warning, disabled }}
+            disabled={disabled}
+            scaleTo={0.98}
+            onPress={() => setWarning((value) => !value)}
+            style={[local.switchRow, disabled && styles.disabled]}
+          >
+            <CommunityIcon name="shield-alert-outline" />
+            <Txt style={[communityText.body, local.identityLabel]}>
+              Cảnh báo nội dung nhạy cảm
+            </Txt>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              pointerEvents="none"
+            >
+              <Switch
+                accessible={false}
+                disabled={disabled}
+                value={warning}
+                trackColor={{
+                  false: communityColors.inkSoft,
+                  true: communityColors.primaryDeep,
+                }}
+                thumbColor={communityColors.white}
+              />
+            </View>
+          </PressableScale>
+          {warning && (
+            <Txt style={communityText.meta}>
+              Người đọc cần chọn xem trước khi nội dung được mở.
+            </Txt>
+          )}
+        </Reveal>
+      </View>
+    </Screen>
   )
 }
 
-const s = StyleSheet.create({
-  modal: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(12, 28, 23, 0.45)',
-  },
-  sheet: {
-    maxHeight: '94%',
-    width: '100%',
-    maxWidth: 560,
-    alignSelf: 'center',
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    overflow: 'hidden',
-  },
-  handle: {
-    width: 38,
-    height: 4,
-    backgroundColor: '#D8DBD7',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginVertical: 10,
-  },
-  header: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.line,
-  },
-  headerIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#EFF5F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flex: { flex: 1, minWidth: 0 },
-  title: { color: colors.ink, fontSize: 16, fontWeight: '800' },
-  subtitle: { color: colors.tealDeep, fontSize: 11, marginTop: 2 },
-  close: {
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeText: {
-    width: 30,
-    lineHeight: 30,
-    textAlign: 'center',
-    borderRadius: 15,
-    backgroundColor: '#F2F4F1',
-    color: colors.inkSoft,
-    fontSize: 24,
-    overflow: 'hidden',
-  },
-  content: { padding: spacing.lg, gap: spacing.lg },
-  identityBox: {
-    padding: spacing.sm,
-    gap: spacing.sm,
-    borderRadius: radii.panel,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: '#F8FAF8',
-  },
-  identityRow: { flexDirection: 'row', gap: spacing.sm },
+const local = StyleSheet.create({
+  choices: { gap: spacing.sm },
   identity: {
-    flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    minHeight: 68,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
+    backgroundColor: communityColors.soft,
     borderRadius: radii.control,
-    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: 56,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  selectedIdentity: { borderColor: '#43836C', backgroundColor: '#F2FAF5' },
-  identityTitle: { color: colors.ink, fontSize: 12, fontWeight: '700' },
-  identityIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#E9F0EA',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  green: { color: colors.tealDeep, fontSize: 18 },
-  small: { color: colors.inkSoft, fontSize: 10, lineHeight: 15 },
-  smallGreen: { color: colors.tealDeep, fontSize: 10, lineHeight: 16 },
-  eyebrow: {
-    color: colors.inkSoft,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  section: { gap: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  topics: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  topic: {
-    minHeight: 36,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
+  identityOn: {
+    backgroundColor: communityColors.mint,
+    borderColor: communityColors.primaryDeep,
+    borderRadius: radii.control,
     borderWidth: 1,
-    borderColor: colors.line,
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
   },
-  selectedTopic: { borderColor: '#B8DACE', backgroundColor: '#EAF5EF' },
-  topicText: { color: colors.ink, fontSize: 11 },
-  writingBox: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radii.panel,
-    backgroundColor: '#FAFBF9',
-  },
-  input: {
-    minHeight: 142,
-    padding: spacing.md,
-    color: colors.ink,
-    fontSize: 14,
+  identityLabel: { flex: 1 },
+  strong: { fontWeight: '600' },
+  stack: { gap: spacing.xl },
+  section: { gap: spacing.md },
+  title: {
+    color: communityColors.ink,
+    fontSize: 15,
+    fontWeight: '700',
     lineHeight: 22,
+  },
+  field: { gap: spacing.xs },
+  input: {
+    backgroundColor: communityColors.soft,
+    borderRadius: 14,
+    color: communityColors.ink,
+    fontSize: 16,
+    lineHeight: 24,
+    minHeight: 140,
+    padding: spacing.lg,
     textAlignVertical: 'top',
   },
-  writingFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
-  attachments: {
-    gap: spacing.sm,
-    borderRadius: radii.panel,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.md,
-  },
-  optionToggle: {
-    flexDirection: 'row',
+  counter: { textAlign: 'right' },
+  list: { gap: spacing.sm },
+  switchRow: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    minHeight: 44,
-  },
-  optionText: {
-    color: colors.tealDeep,
-    fontSize: 12,
-    fontWeight: '600',
-    flexShrink: 1,
-  },
-  culture: {
+    backgroundColor: communityColors.soft,
+    borderRadius: 14,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderRadius: radii.control,
-    backgroundColor: '#F2F8F4',
-    padding: spacing.md,
-  },
-  cultureText: {
-    color: colors.tealDeep,
-    fontSize: 11,
-    lineHeight: 18,
-    flex: 1,
-  },
-  bold: { fontWeight: '700' },
-  cancelConfirmation: {
-    gap: spacing.sm,
-    borderRadius: radii.panel,
-    backgroundColor: '#FFF3E9',
-    padding: spacing.md,
+    gap: spacing.md,
+    minHeight: 52,
+    paddingHorizontal: spacing.lg,
   },
   footer: {
+    backgroundColor: communityColors.background,
+    borderTopColor: communityColors.line,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.line,
-    flexDirection: 'row',
     gap: spacing.sm,
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
-  cancelButton: {
-    flex: 1,
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButton: { flex: 2 },
+  confirm: { gap: spacing.sm },
 })

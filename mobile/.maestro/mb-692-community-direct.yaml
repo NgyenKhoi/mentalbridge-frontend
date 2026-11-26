@@ -3,8 +3,8 @@ name: MB-692 approval direct unread and privacy source
 ---
 - runFlow: mb-692-sign-in.yaml
 - tapOn: 'Mở cộng đồng'
-- tapOn: 'Trò chuyện cộng đồng'
-- assertVisible: 'Trò chuyện cộng đồng'
+- tapOn: 'Tin nhắn'
+- assertVisible: 'Cuộc trò chuyện mới'
 - openLink: 'mentalbridge:///community-chat?requestId=${MAESTRO_MB_COMMUNITY_REQUEST_ID}'
 - assertVisible: 'Chấp nhận trò chuyện'
 - assertNotVisible:
@@ -31,7 +31,7 @@ name: MB-692 approval direct unread and privacy source
       text: 'Đánh dấu phần đã xem là đã đọc'
     direction: UP
 - tapOn: 'Đánh dấu phần đã xem là đã đọc'
-- assertVisible: '0 tin chưa đọc'
+- assertNotVisible: 'Đánh dấu phần đã xem là đã đọc'
 - scrollUntilVisible:
     element:
       text: 'Về hộp trò chuyện'

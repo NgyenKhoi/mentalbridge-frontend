@@ -1,0 +1,100 @@
+/* Print-only session record for "Xuất PDF" on /messages: hides the app shell and prints the record alone. */
+.mb-print-record {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 16mm 14mm;
+  }
+
+  body > *:not(.mb-print-record) {
+    display: none !important;
+  }
+
+  .mb-print-record,
+  .mb-print-record * {
+    color: #1b2b27 !important;
+  }
+
+  .mb-print-record {
+    display: block;
+    background: #fff;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+
+  .mb-print-record header {
+    border-bottom: 2px solid #1f5a4d;
+    padding-bottom: 10pt;
+  }
+
+  .mb-print-record header > p {
+    margin: 0;
+    font-size: 9pt;
+    letter-spacing: 0.02em;
+  }
+
+  .mb-print-record h1 {
+    margin: 4pt 0 8pt;
+    font-size: 18pt;
+  }
+
+  .mb-print-record dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4pt 16pt;
+    margin: 0;
+  }
+
+  .mb-print-record dt {
+    font-size: 9pt;
+  }
+
+  .mb-print-record dd {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  .mb-print-record section {
+    margin-top: 14pt;
+  }
+
+  .mb-print-record h2 {
+    margin: 0 0 6pt;
+    font-size: 13pt;
+  }
+
+  .mb-print-record h3 {
+    margin: 10pt 0 4pt;
+    font-size: 11pt;
+  }
+
+  .mb-print-record p {
+    margin: 0 0 6pt;
+    white-space: pre-wrap;
+  }
+
+  .mb-print-transcript {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .mb-print-transcript li {
+    break-inside: avoid;
+    border-top: 1px solid #d9e3df;
+    padding: 6pt 0;
+  }
+
+  .mb-print-transcript p {
+    margin: 2pt 0 0;
+  }
+
+  .mb-print-record footer {
+    margin-top: 18pt;
+    border-top: 1px solid #d9e3df;
+    padding-top: 6pt;
+    font-size: 9pt;
+  }
+}

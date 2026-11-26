@@ -5,6 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { JournalMood } from '@/lib/journal/journal-contract'
 import JournalPage from './page'
 
+// MB-897: what Mầm is told about a confirmed save.
+const mam = vi.hoisted(() => ({ dispatch: vi.fn() }))
+vi.mock('@/features/mam/mam-events', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/mam/mam-events')>()),
+  dispatchMamEvent: mam.dispatch,
+}))
+
 const journalId = '40000000-0000-4000-8000-000000000001'
 const clientEntryId = '50000000-0000-4000-8000-000000000001'
 const commandKey = '60000000-0000-4000-8000-000000000001'
@@ -61,6 +68,7 @@ function json(value: unknown, status = 200) {
 
 describe('Journal page', () => {
   beforeEach(() => {
+    mam.dispatch.mockClear()
     vi.spyOn(crypto, 'randomUUID')
       .mockReturnValueOnce(clientEntryId)
       .mockReturnValue(commandKey)
@@ -145,7 +153,15 @@ describe('Journal page', () => {
     )
     expect(modal.getByLabelText('Nội dung')).toHaveValue('bản nháp an toàn')
     expect(modal.getByRole('radio', { name: 'Tốt' })).toBeChecked()
+    // The failed attempt told Mầm nothing; the confirmed one tells it once, with the picked mood and no text.
+    expect(mam.dispatch).not.toHaveBeenCalled()
     await user.click(modal.getByRole('button', { name: 'Lưu nhật ký' }))
+    await waitFor(() =>
+      expect(mam.dispatch).toHaveBeenCalledExactlyOnceWith({
+        type: 'journal-saved',
+        mood: 'GOOD',
+      }),
+    )
 
     const mutationCalls = fetchMock.mock.calls.filter(
       ([url, options]) => url === '/api/journals' && options?.method === 'POST',

@@ -755,8 +755,8 @@
         "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
         "scenario": "renders server prices and names no provider but the configured one",
         "assertions": [
-          "screen.getByText('4 lượt tư vấn')",
-          "screen.getByText('2 lịch')"
+          "screen.getByText('4 buổi tư vấn')",
+          "screen.getByText('2 buổi')"
         ]
       },
       "mobile": {
@@ -877,7 +877,7 @@
         "state": "CODE_READY",
         "source": "mentalbridge/features/service-credits/components/ServiceCreditsPanel.test.tsx",
         "scenario": "shows the provider balance and labels demo provenance truthfully",
-        "assertions": ["name: 'Lịch sử lượt tư vấn'", "name: '2/2 lịch'"]
+        "assertions": ["name: 'Lịch sử buổi tư vấn'", "name: '2/2 lịch'"]
       },
       "mobile": {
         "state": "NONE",
@@ -1605,11 +1605,11 @@
       },
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/assessment/components/ReassessmentJourney.test.tsx",
-        "scenario": "uses Care periods and a Journal job to render four separate dimensions",
+        "source": "mentalbridge/features/assessment/components/ReassessmentReview.test.tsx",
+        "scenario": "says a reassessment is needed when the context is incomplete",
         "assertions": [
-          "name: 'Bắt đầu đánh giá lại'",
-          "api.createReassessmentSelfReport).toHaveBeenCalledWith"
+          "name: 'Làm bài đánh giá lại'",
+          "'/initial-check?purpose=reassessment&returnTo=plan-review'"
         ]
       }
     },
@@ -1618,11 +1618,11 @@
       "sourceTitle": "View Progress Comparison",
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/assessment/components/ReassessmentJourney.test.tsx",
-        "scenario": "uses Care periods and a Journal job to render four separate dimensions",
+        "source": "mentalbridge/features/assessment/components/ReassessmentReview.test.tsx",
+        "scenario": "shows a skeleton first then every section for a sufficient and consented review",
         "assertions": [
-          "screen.findByText('1. Thay đổi sàng lọc')",
-          "screen.getByText('4. Trải nghiệm tự báo cáo')"
+          "const metrics = screen.getByText('Bài nhật ký').closest('dl')!",
+          "expect(metrics).toHaveTextContent('14 ngày trước đó: 4')"
         ]
       },
       "mobile": {
@@ -1753,11 +1753,11 @@
       },
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/assessment/components/ReassessmentJourney.test.tsx",
-        "scenario": "uses Care periods and a Journal job to render four separate dimensions",
+        "source": "mentalbridge/features/assessment/components/ReassessmentReview.test.tsx",
+        "scenario": "shows a skeleton first then every section for a sufficient and consented review",
         "assertions": [
-          "screen.findByText('1. Thay đổi sàng lọc')",
-          "rawDelta: -2"
+          "screen.getByText('Xem điểm chi tiết').closest('details')!",
+          "expect(details).toHaveTextContent('Trầm cảm (PHQ-9): 14 → 8 điểm')"
         ]
       }
     },

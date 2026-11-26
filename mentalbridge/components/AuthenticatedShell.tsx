@@ -7,10 +7,13 @@ import { usePathname } from 'next/navigation'
 import { getCareProfile } from '@/features/assessment/api/browser-care'
 import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
 import SessionActions from '@/features/auth/components/SessionActions'
+import AccountAvatar from '@/features/community/components/AccountAvatar'
+import { useOwnCommunityAvatar } from '@/features/community/components/useOwnCommunityAvatar'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
 import { ApiError } from '@/lib/api/api-error'
 import OnboardingTour from '@/features/onboarding/OnboardingTour'
+import NotificationBell from '@/components/NotificationBell'
 import {
   ONBOARDING_NAV_TARGETS,
   requestOnboardingReplay,
@@ -40,21 +43,14 @@ const CommunityIcon = () => (
 
 const groups = [
   {
-    title: 'Tổng quan',
+    // Ordered as the journey runs: screen, guide, plan, look back.
+    title: 'Hành trình của bạn',
     items: [
       [
         '/dashboard',
         'Tổng quan',
         <Svg key="h">
           <path d="M4 11 12 4l8 7M6 9.5V20h12V9.5" />
-        </Svg>,
-      ],
-      [
-        '/journal',
-        'Nhật ký',
-        <Svg key="j">
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
         </Svg>,
       ],
       [
@@ -84,10 +80,48 @@ const groups = [
           <path d="m9 16 2 2 4-4" />
         </Svg>,
       ],
+      [
+        '/nhin-lai',
+        'Nhìn lại',
+        <Svg key="look-back">
+          <path d="M3 17c3-1 4-8 8-8s5 6 10-3" />
+          <circle cx="3" cy="17" r="1" />
+          <circle cx="11" cy="9" r="1" />
+          <circle cx="21" cy="6" r="1" />
+        </Svg>,
+      ],
     ],
   },
   {
-    title: 'Chăm sóc',
+    title: 'Mỗi ngày',
+    items: [
+      [
+        '/journal',
+        'Nhật ký',
+        <Svg key="j">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+        </Svg>,
+      ],
+      [
+        '/ai-companion',
+        'Trò chuyện với Mầm',
+        <Svg key="ai">
+          <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
+        </Svg>,
+      ],
+      [
+        '/resources',
+        'Tài nguyên',
+        <Svg key="r">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 8v4l3 2" />
+        </Svg>,
+      ],
+    ],
+  },
+  {
+    title: 'Khi cần thêm hỗ trợ',
     items: [
       [
         '/specialists',
@@ -112,39 +146,17 @@ const groups = [
           <path d="M4 5h16v11H8l-4 4V5Z" />
         </Svg>,
       ],
-      [
-        '/ai-companion',
-        'AI Companion',
-        <Svg key="ai">
-          <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
-        </Svg>,
-      ],
     ],
   },
   {
-    title: 'Thông tin',
+    title: 'Tài khoản',
     items: [
-      [
-        '/resources',
-        'Tài nguyên',
-        <Svg key="r">
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="M12 8v4l3 2" />
-        </Svg>,
-      ],
       [
         '/achievements',
         'Thành tựu',
         <Svg key="achievement">
           <path d="M12 3c1.2 3.2 3.4 5.2 6.5 6.2-3.1 1-5.3 3-6.5 6.2-1.2-3.2-3.4-5.2-6.5-6.2C8.6 8.2 10.8 6.2 12 3Z" />
           <path d="M6 15c.6 1.7 1.7 2.8 3.4 3.4C7.7 19 6.6 20.1 6 21.8c-.6-1.7-1.7-2.8-3.4-3.4C4.3 17.8 5.4 16.7 6 15Z" />
-        </Svg>,
-      ],
-      [
-        '/analytics',
-        'Phân tích',
-        <Svg key="n">
-          <path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />
         </Svg>,
       ],
       [
@@ -173,13 +185,13 @@ const labels: Record<string, string> = {
   '/support-guides': 'Gợi ý hỗ trợ',
   '/safety-directory': 'Hỗ trợ an toàn theo khu vực',
   '/support-plan': 'Kế hoạch hỗ trợ',
+  '/nhin-lai': 'Nhìn lại',
   '/specialists': 'Chuyên gia tư vấn',
   '/appointments': 'Lịch hẹn',
   '/messages': 'Tin nhắn',
-  '/ai-companion': 'AI Companion',
+  '/ai-companion': 'Trò chuyện với Mầm',
   '/resources': 'Tài nguyên',
   '/achievements': 'Bộ sưu tập hành trình',
-  '/analytics': 'Phân tích',
   '/subscription': 'Gói dịch vụ',
   '/notifications': 'Thông báo',
   '/profile': 'Hồ sơ và quyền riêng tư',
@@ -238,7 +250,6 @@ export default function AuthenticatedShell({
     'loading' | 'ready' | 'missing' | 'error'
   >('loading')
   const [specialistSearch, setSpecialistSearch] = useState('')
-  const [generalSearch, setGeneralSearch] = useState('')
   const [appointmentCount, setAppointmentCount] = useState<number | null>(null)
   // MB-744: the page entrance (globals.css) plays only while a route is fresh,
   // so dialogs, async rows and re-renders later never replay it.
@@ -353,6 +364,7 @@ export default function AuthenticatedShell({
   const isProgressiveRelaxation =
     pathname === '/resources/00000000-0000-4000-8000-000000000215' ||
     pathname === '/resources/00000000-0000-4000-8000-000000000216'
+  const ownAvatar = useOwnCommunityAvatar()
   const initials = useMemo(
     () =>
       (
@@ -429,7 +441,7 @@ export default function AuthenticatedShell({
           <SessionActions
             compact={collapsed && !mobile}
             displayName={displayName}
-            avatar={initials}
+            avatar={<AccountAvatar avatar={ownAvatar} fallback={initials} />}
             accountLabel={accountLabel}
             profileLabel={
               profileStatus === 'missing' ? 'Hoàn thiện hồ sơ' : 'Hồ sơ cá nhân'
@@ -505,57 +517,29 @@ export default function AuthenticatedShell({
                 </span>
               </nav>
             )}
-            {!isProgressiveRelaxation && (
-              <span className="ref-workspace-label">
-                <i aria-hidden="true" />
-                Không gian cá nhân
-              </span>
-            )}
           </div>
-          <label>
-            <Svg>
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3" />
-            </Svg>
-            <input
-              key={
-                pathname === '/specialists'
-                  ? 'specialist-search'
-                  : 'general-search'
-              }
-              type="search"
-              aria-label={
-                pathname === '/specialists'
-                  ? 'Tìm chuyên gia theo tên hoặc chuyên môn'
-                  : 'Tìm kiếm'
-              }
-              value={
-                pathname === '/specialists' ? specialistSearch : generalSearch
-              }
-              onChange={(event) => {
-                if (pathname === '/specialists') {
+          {pathname === '/specialists' && (
+            <label>
+              <Svg>
+                <circle cx="11" cy="11" r="7" />
+                <path d="m21 21-4.3-4.3" />
+              </Svg>
+              <input
+                type="search"
+                aria-label="Tìm chuyên gia theo tên hoặc chuyên môn"
+                value={specialistSearch}
+                onChange={(event) => {
                   setSpecialistSearch(event.target.value)
                   window.dispatchEvent(
                     new CustomEvent('mentalbridge:specialist-search', {
                       detail: event.target.value,
                     }),
                   )
-                } else {
-                  setGeneralSearch(event.target.value)
-                }
-              }}
-              placeholder={
-                pathname === '/specialists'
-                  ? 'Tìm theo chuyên môn, tên bác sĩ...'
-                  : pathname === '/appointments'
-                    ? 'Tìm chuyên gia, nhật ký phiên...'
-                    : isProgressiveRelaxation
-                      ? 'Tìm kiếm chuyên gia, bài tập, nhật ký...'
-                      : 'Tìm kiếm chuyên gia, nhật ký...'
-              }
-            />
-            <kbd>⌘K</kbd>
-          </label>
+                }}
+                placeholder="Tìm theo chuyên môn, tên bác sĩ..."
+              />
+            </label>
+          )}
           <div className="ref-top-actions">
             {pathname === '/appointments' && (
               <button
@@ -593,10 +577,9 @@ export default function AuthenticatedShell({
                 </Svg>
               </Link>
             )}
-            <Link
-              href="/notifications"
+            <NotificationBell
+              viewAllHref="/notifications"
               className="ref-notify"
-              aria-label="Thông báo"
             >
               <Svg>
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -604,7 +587,7 @@ export default function AuthenticatedShell({
               {isProgressiveRelaxation && (
                 <span className="pmr-notify-dot" aria-hidden="true" />
               )}
-            </Link>
+            </NotificationBell>
             <Link
               href="/profile"
               className="ref-avatar"
@@ -616,7 +599,7 @@ export default function AuthenticatedShell({
                   <path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" />
                 </Svg>
               ) : (
-                initials
+                <AccountAvatar avatar={ownAvatar} fallback={initials} />
               )}
             </Link>
           </div>

@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import type { SpecialistClientContinuityItem } from '@/features/appointments/api/consultation-brief-contract'
 import { consultationBriefBrowserClient } from '@/features/appointments/api/consultation-brief-browser-client'
 import { SessionSummaryPanel } from '@/features/appointments/components/SessionSummaryPanel'
+import { PriorSessionSummaries } from '@/features/appointments/components/PriorSessionSummaries'
 import { SpecialistConsultationBrief } from '@/features/appointments/components/SpecialistConsultationBrief'
 import { ApiError } from '@/lib/api/api-error'
 import styles from './SpecialistClientsManager.module.css'
@@ -32,7 +33,6 @@ const VN_ZONE = 'Asia/Ho_Chi_Minh'
 const TABS = [
   ['prepare', 'Chuẩn bị phiên'],
   ['summary', 'Tổng kết phiên'],
-  ['history', 'Phạm vi truy cập'],
 ] as const
 
 function initials(name: string) {
@@ -141,7 +141,7 @@ export default function SpecialistClientsManager({
     initialAppointmentId ?? '',
   )
   const [query, setQuery] = useState('')
-  const [tab, setTab] = useState<'prepare' | 'summary' | 'history'>('prepare')
+  const [tab, setTab] = useState<'prepare' | 'summary'>('prepare')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [loaded, setLoaded] = useState(false)
@@ -561,6 +561,7 @@ export default function SpecialistClientsManager({
                       <SpecialistConsultationBrief
                         key={selectedAppointment.appointmentId}
                         appointmentId={selectedAppointment.appointmentId}
+                        inline
                       />
                     ) : (
                       <div className={styles.detailState}>
@@ -582,6 +583,13 @@ export default function SpecialistClientsManager({
                         </button>
                       </div>
                     )}
+                    {(selectedAppointment.status === 'CONFIRMED' ||
+                      selectedAppointment.status === 'IN_PROGRESS') && (
+                      <PriorSessionSummaries
+                        key={`prior-${selectedAppointment.appointmentId}`}
+                        appointmentId={selectedAppointment.appointmentId}
+                      />
+                    )}
                   </>
                 )}
 
@@ -591,6 +599,7 @@ export default function SpecialistClientsManager({
                       key={selectedAppointment.appointmentId}
                       appointmentId={selectedAppointment.appointmentId}
                       viewer="SPECIALIST"
+                      defaultOpen
                     />
                   ) : (
                     <div className={styles.detailState}>
@@ -601,29 +610,6 @@ export default function SpecialistClientsManager({
                       </p>
                     </div>
                   ))}
-
-                {tab === 'history' && (
-                  <section className={styles.summarySection}>
-                    <h3>Nguồn và thời hạn của quyền xem</h3>
-                    <p>
-                      Nội dung được chia sẻ riêng cho lịch hẹn{' '}
-                      {formatAppointment(selectedAppointment).date},{' '}
-                      {formatAppointment(selectedAppointment).time}.
-                    </p>
-                    <p>
-                      {selectedAppointment.briefAccessStartAt &&
-                      selectedAppointment.briefAccessEndAt
-                        ? `Thời gian được xem: ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: VN_ZONE }).format(new Date(selectedAppointment.briefAccessStartAt))} – ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: VN_ZONE }).format(new Date(selectedAppointment.briefAccessEndAt))} (${VN_ZONE}).`
-                        : 'Người dùng chưa chia sẻ bản chuẩn bị cho lịch hẹn này.'}
-                    </p>
-                    <p>
-                      Chỉ bản tóm tắt được người dùng phê duyệt cho lịch hẹn này
-                      được chia sẻ. Nhật ký gốc, câu trả lời sàng lọc, kế hoạch
-                      hỗ trợ đầy đủ và ghi chú của chuyên gia khác không được
-                      chia sẻ tại đây.
-                    </p>
-                  </section>
-                )}
               </div>
             </section>
           )}

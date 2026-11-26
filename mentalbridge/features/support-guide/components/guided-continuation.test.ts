@@ -21,6 +21,7 @@ function journey(
     nextAction,
     currentSupportPlanId: null,
     entitlementStatus: 'NOT_REQUIRED',
+    latestScreening: null,
   }
 }
 
@@ -42,6 +43,21 @@ describe('guideContinuation', () => {
     ['START_PLAN_PROPOSAL', '/support-plan'],
   ] as const)('navigates %s to its owner route', (action, href) => {
     expect(guideContinuation(journey(action), guide(1))?.href).toBe(href)
+  })
+
+  it('sends a current plan whose review is due into that review', () => {
+    expect(
+      guideContinuation(journey('OPEN_CURRENT_PLAN'), guide(1), true),
+    ).toEqual({
+      href: '/support-plan?review=open',
+      label: 'Xem lại kế hoạch với kết quả mới',
+    })
+    expect(
+      guideContinuation(journey('OPEN_CURRENT_PLAN'), guide(1), false)?.href,
+    ).toBe('/support-plan')
+    expect(
+      guideContinuation(journey('REVIEW_PLAN_DRAFT'), guide(1), true)?.href,
+    ).toBe('/support-plan')
   })
 
   it('leaves safety support as the only primary step', () => {

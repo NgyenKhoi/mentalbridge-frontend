@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { reconcileTodayResourceCompletion } from '@/features/support-plan/resource-plan-origin'
 
 import {
   getResourceProgress,
@@ -28,6 +29,7 @@ import {
   type ResourceDifficulty,
   type ResourceFormat,
 } from '../model/resource-experience'
+import { dispatchMamEvent } from '@/features/mam/mam-events'
 import { AnimatedResourceSticker } from './AnimatedResourceSticker'
 import { ResourcePreview } from './ResourcePreview'
 
@@ -106,6 +108,12 @@ export default function ResourcesExperience() {
   >('loading')
   const [pendingId, setPendingId] = useState('')
   const [message, setMessage] = useState('')
+  const [planReconcile, setPlanReconcile] = useState<{
+    resourceId: string
+    contentVersion: string
+    selectedDate: string
+    state: 'pending' | 'missing' | 'stale' | 'unavailable'
+  } | null>(null)
   const [reward, setReward] = useState<Reward>(null)
   const heroVideoRef = useRef<HTMLVideoElement>(null)
 
@@ -257,6 +265,26 @@ export default function ResourcesExperience() {
     }
   }
 
+  async function reconcileSavedResource(
+    resourceId: string,
+    contentVersion: string,
+    viewDate: string,
+  ) {
+    const context = { resourceId, contentVersion, selectedDate: viewDate }
+    setPlanReconcile({ ...context, state: 'pending' })
+    const result = await reconcileTodayResourceCompletion(
+      resourceId,
+      contentVersion,
+    )
+    setPlanReconcile(
+      result === 'not-recorded'
+        ? { ...context, state: 'missing' }
+        : result === 'stale' || result === 'unavailable'
+          ? { ...context, state: result }
+          : null,
+    )
+  }
+
   async function toggleDaily(
     resource: PublicResourceSummary,
     completed: boolean,
@@ -269,6 +297,12 @@ export default function ResourcesExperience() {
         status: completed ? 'COMPLETED' : 'IN_PROGRESS',
         completedActionIds: completed ? ['overview-complete'] : [],
       })
+      if (completed && saved.status === 'COMPLETED')
+        await reconcileSavedResource(
+          resource.id,
+          saved.contentVersion,
+          selectedDate,
+        )
       const next = [
         ...progress.filter(
           (entry) =>
@@ -290,6 +324,9 @@ export default function ResourcesExperience() {
       }))
       window.dispatchEvent(new CustomEvent('mb:resource-progress-updated'))
       if (completed) {
+        // The server's answer, not the click, decides that it is done; unchecking and re-saving never gets here.
+        if (saved.status === 'COMPLETED')
+          dispatchMamEvent({ type: 'resource-done' })
         const completedCount = selected.filter(
           (candidate) =>
             progressFor(next, candidate.id, selectedDate)?.status ===
@@ -581,6 +618,34 @@ export default function ResourcesExperience() {
                     <p className="resource-inline-error" role="alert">
                       {message}
                     </p>
+                  )}
+                  {planReconcile?.selectedDate === selectedDate && (
+                    <div className="resource-inline-error" role="status">
+                      <p>
+                        Tiến độ tài nguyên đã lưu.{' '}
+                        {planReconcile.state === 'pending'
+                          ? 'Đang cập nhật kế hoạch hỗ trợ…'
+                          : planReconcile.state === 'missing'
+                            ? 'Mục kế hoạch chưa được ghi nhận. Bạn có thể xác nhận trong kế hoạch.'
+                            : 'Mục kế hoạch chưa cập nhật. Hãy thử lại.'}
+                      </p>
+                      {planReconcile.state === 'missing' ? (
+                        <Link href="/support-plan">Xem kế hoạch hỗ trợ</Link>
+                      ) : planReconcile.state !== 'pending' ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void reconcileSavedResource(
+                              planReconcile.resourceId,
+                              planReconcile.contentVersion,
+                              planReconcile.selectedDate,
+                            )
+                          }
+                        >
+                          Thử lại
+                        </button>
+                      ) : null}
+                    </div>
                   )}
                   {progressState === 'ready' && nextResource ? (
                     <Link

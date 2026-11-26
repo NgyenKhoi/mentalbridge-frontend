@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   IDLE_ACTION_MAX_MS,
   IDLE_ACTION_MIN_MS,
-  IDLE_ACTIONS,
   useMamIdleActions,
 } from './use-mam-idle-actions'
 
@@ -22,7 +21,6 @@ describe('useMamIdleActions', () => {
     expect(play).not.toHaveBeenCalled()
     act(() => void vi.advanceTimersByTime(1))
     expect(play).toHaveBeenCalledTimes(1)
-    expect(IDLE_ACTIONS).toContain(play.mock.calls[0]![0])
 
     const late = vi.fn()
     renderHook(() => useMamIdleActions(true, late, () => 0.999))
@@ -32,12 +30,20 @@ describe('useMamIdleActions', () => {
     expect(late).toHaveBeenCalledTimes(1)
   })
 
-  it('never plays the same action twice in a row', () => {
+  it('slow (QUIET) waits twice as long: 50 s to 90 s', () => {
     const play = vi.fn()
-    renderHook(() => useMamIdleActions(true, play, () => 0))
-    act(() => void vi.advanceTimersByTime(IDLE_ACTION_MIN_MS * 2 + 100))
-    expect(play.mock.calls.length).toBeGreaterThanOrEqual(2)
-    expect(play.mock.calls[0]![0]).not.toBe(play.mock.calls[1]![0])
+    renderHook(() => useMamIdleActions(true, play, () => 0, true))
+    act(() => void vi.advanceTimersByTime(IDLE_ACTION_MIN_MS * 2 - 1))
+    expect(play).not.toHaveBeenCalled()
+    act(() => void vi.advanceTimersByTime(1))
+    expect(play).toHaveBeenCalledTimes(1)
+
+    const late = vi.fn()
+    renderHook(() => useMamIdleActions(true, late, () => 0.999, true))
+    act(() => void vi.advanceTimersByTime(IDLE_ACTION_MAX_MS * 2 - 200))
+    expect(late).not.toHaveBeenCalled()
+    act(() => void vi.advanceTimersByTime(200))
+    expect(late).toHaveBeenCalledTimes(1)
   })
 
   it('plays at most 2 per rolling minute and skips the rest, never queueing them', () => {

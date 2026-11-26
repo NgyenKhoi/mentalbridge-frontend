@@ -10,18 +10,16 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import type { ServiceCreditAccount } from '@/lib/consultation/consultation-validation'
+import {
+  SERVICE_PACKAGE_LABELS,
+  type ServiceCreditAccount,
+} from '@/lib/consultation/consultation-validation'
 import {
   browserServiceCredits,
   ServiceCreditsBrowserError,
 } from '../api/browser-client'
 import styles from './ServiceCreditsPanel.module.css'
 
-const PACKAGE_LABELS = {
-  FREE: 'Miễn phí',
-  PLUS: 'Plus',
-  PREMIUM: 'Premium',
-} as const
 const EVENT_LABELS = {
   PROVISIONED: 'Đã cấp',
   HELD: 'Đã dành cho lịch hẹn',
@@ -29,6 +27,7 @@ const EVENT_LABELS = {
   RELEASED: 'Đã hoàn lại',
   FORFEITED: 'Đã hết hiệu lực',
   ADJUSTED_RELEASED: 'Đã trả lại sau xem xét',
+  REVOKED: 'Đã thu hồi khi hủy gói',
 } as const
 
 function formatInstant(value: string | null) {
@@ -43,17 +42,17 @@ function formatInstant(value: string | null) {
 function friendlyError(error: unknown) {
   if (error instanceof ServiceCreditsBrowserError) {
     if (error.code === 'SUBSCRIPTION_DOWNGRADE_NOT_SUPPORTED')
-      return 'Không thể hạ gói trong kỳ hiện tại. Số lượt tư vấn hiện có không bị thay đổi.'
+      return 'Không thể hạ gói trong tháng hiện tại. Số buổi tư vấn hiện có không bị thay đổi.'
     if (error.code === 'UNAUTHENTICATED')
       return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
     if (
       error.code === 'CONSULTATION_UNAVAILABLE' ||
       error.code === 'CONSULTATION_TIMEOUT'
     )
-      return 'Chưa thể tải lượt tư vấn lúc này. Số lượt hiện có không bị thay đổi; vui lòng thử lại.'
+      return 'Chưa thể tải buổi tư vấn lúc này. Số buổi hiện có không bị thay đổi; vui lòng thử lại.'
     return error.message
   }
-  return 'Không thể tải số lượt tư vấn. Vui lòng thử lại.'
+  return 'Không thể tải số buổi tư vấn. Vui lòng thử lại.'
 }
 
 export default function ServiceCreditsPanel() {
@@ -88,7 +87,7 @@ export default function ServiceCreditsPanel() {
         className={`${styles.panel} ${styles.feedback}`}
         aria-busy="true"
       >
-        <p>Đang tải lượt tư vấn…</p>
+        <p>Đang tải buổi tư vấn…</p>
       </section>
     )
   if (error)
@@ -131,13 +130,13 @@ export default function ServiceCreditsPanel() {
           <p>
             Bạn đang sử dụng{' '}
             <strong id="credit-title">
-              Gói {PACKAGE_LABELS[account.packageCode]}
+              Gói {SERVICE_PACKAGE_LABELS[account.packageCode]}
               {demo ? ' dùng thử' : ''}
             </strong>
             .{' '}
-            {account.reservationCapacity.active === 0
-              ? 'Hiện tại chưa có lịch hẹn tư vấn nào đang chờ.'
-              : `Bạn đang giữ ${account.reservationCapacity.active} lịch hẹn tư vấn.`}
+            {account.balance.held > 0
+              ? `Bạn đang giữ ${account.balance.held} buổi cho lịch hẹn.`
+              : 'Hiện tại chưa có lịch hẹn tư vấn nào đang chờ.'}
           </p>
         </div>
         <div className={styles.actions}>
@@ -147,7 +146,7 @@ export default function ServiceCreditsPanel() {
             aria-expanded={showDetails}
             aria-controls="service-credit-details"
           >
-            <History size={16} aria-hidden="true" /> Lịch sử lượt tư vấn
+            <History size={16} aria-hidden="true" /> Lịch sử buổi tư vấn
           </button>
           <button type="button" onClick={() => void load()}>
             <RotateCw size={16} aria-hidden="true" /> Tải lại
@@ -155,7 +154,7 @@ export default function ServiceCreditsPanel() {
         </div>
       </header>
 
-      <div className={styles.balance} aria-label="Số lượt tư vấn">
+      <div className={styles.balance} aria-label="Số buổi tư vấn">
         {balance.map(({ label, value, Icon }) => (
           <div key={label} className={styles.metric}>
             <span>{label}</span>
@@ -187,18 +186,18 @@ export default function ServiceCreditsPanel() {
             {account.reservationCapacity.maximum === 0
               ? 'Gói hiện tại chưa thể giữ lịch tư vấn.'
               : account.reservationCapacity.remaining === 0
-                ? 'Bạn đã đạt giới hạn lịch đang chờ, đã xác nhận hoặc đang diễn ra. Lượt tư vấn còn lại không làm tăng giới hạn này.'
-                : `Bạn có thể giữ thêm ${account.reservationCapacity.remaining} lịch. Đây là giới hạn riêng, không phải số lượt tư vấn còn lại.`}
+                ? 'Bạn đã đạt giới hạn lịch đang chờ, đã xác nhận hoặc đang diễn ra. Buổi tư vấn còn lại không làm tăng giới hạn này.'
+                : `Bạn có thể giữ thêm ${account.reservationCapacity.remaining} lịch. Đây là giới hạn riêng, không phải số buổi tư vấn còn lại.`}
           </p>
         </section>
 
         <dl className={styles.period}>
           <div>
-            <dt>Bắt đầu kỳ</dt>
+            <dt>Ngày bắt đầu</dt>
             <dd>{formatInstant(account.periodStart)}</dd>
           </div>
           <div>
-            <dt>Kết thúc kỳ</dt>
+            <dt>Ngày kết thúc</dt>
             <dd>{formatInstant(account.periodEnd)}</dd>
           </div>
           <div>
@@ -219,7 +218,7 @@ export default function ServiceCreditsPanel() {
           {account.packageCode === 'PLUS' && (
             <p>
               Có thể nâng cấp lên Premium; hệ thống chỉ cấp thêm phần chênh lệch
-              của kỳ hiện tại.
+              của tháng hiện tại.
             </p>
           )}
           {account.packageCode === 'PREMIUM' && (
@@ -231,9 +230,9 @@ export default function ServiceCreditsPanel() {
         </div>
 
         <div className={styles.history}>
-          <h2>Lịch sử lượt tư vấn</h2>
+          <h2>Lịch sử buổi tư vấn</h2>
           {account.history.length === 0 ? (
-            <p>Chưa có thay đổi nào về lượt tư vấn.</p>
+            <p>Chưa có thay đổi nào về buổi tư vấn.</p>
           ) : (
             <ul>
               {account.history.map((event) => (

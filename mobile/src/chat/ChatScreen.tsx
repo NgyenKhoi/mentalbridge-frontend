@@ -6,10 +6,20 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { useFocusEffect } from 'expo-router'
-import { AppState, AccessibilityInfo, Keyboard, type Text } from 'react-native'
+import {
+  AppState,
+  AccessibilityInfo,
+  Alert,
+  Keyboard,
+  type Text,
+} from 'react-native'
 import type { Appointment } from '@/appointments/appointment-contract'
 import type { ChatSession } from './chat-session'
-import type { Eligibility } from './chat-contract'
+import type {
+  ChatMessage,
+  ChatReportReason,
+  Eligibility,
+} from './chat-contract'
 import {
   AppointmentChatView,
   type AppointmentChatViewProps,
@@ -103,6 +113,38 @@ export function ChatScreen({
       setBusy(false)
     }
   }
+  function confirmDelete(message: ChatMessage) {
+    Alert.alert(
+      'Xóa tin nhắn này?',
+      'Nội dung sẽ được thay bằng thông báo đã xóa và không thể khôi phục trong cuộc trò chuyện.',
+      [
+        { text: 'Giữ lại', style: 'cancel' },
+        {
+          text: 'Xóa tin nhắn',
+          style: 'destructive',
+          onPress: () => void session.remove(message.messageId),
+        },
+      ],
+    )
+  }
+  function chooseReportReason(message: ChatMessage) {
+    const report = (reason: ChatReportReason) =>
+      void session.report(message.messageId, reason)
+    Alert.alert('Báo cáo tin nhắn', 'Chọn lý do phù hợp nhất.', [
+      { text: 'Quấy rối', onPress: () => report('HARASSMENT') },
+      {
+        text: 'Lo ngại quyền riêng tư',
+        onPress: () => report('PRIVACY_CONCERN'),
+      },
+      {
+        text: 'Lo ngại an toàn',
+        onPress: () => report('SELF_HARM_OR_CRISIS_CONCERN'),
+      },
+      { text: 'Tin rác', onPress: () => report('SPAM') },
+      { text: 'Lý do khác', onPress: () => report('OTHER') },
+      { text: 'Hủy', style: 'cancel' },
+    ])
+  }
   const headline = state.eligibility
     ? phaseCopy(state.eligibility.phase)
     : state.phase === 'reconnecting'
@@ -128,6 +170,8 @@ export function ChatScreen({
       statusRef={statusRef}
       onBack={onBack}
       {...(state.issue ? { issueMessage: issueCopy(state.issue) } : {})}
+      onDeleteMessage={confirmDelete}
+      onReportMessage={chooseReportReason}
       onDraftChange={setDraft}
       onSend={() => void send()}
       onComposerFocus={() => {

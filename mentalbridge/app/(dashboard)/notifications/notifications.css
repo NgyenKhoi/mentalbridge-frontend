@@ -132,6 +132,15 @@
   gap: 20px;
   margin: 26px 0 15px;
 }
+.notifications-list-head > div {
+  min-width: 0;
+}
+@media (max-width: 470px) {
+  .notifications-list-head {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
 .notifications-list-head h2 {
   font-size: 25px;
 }
@@ -140,11 +149,25 @@
   font-size: 12px;
 }
 .notifications-list-head button {
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(61, 122, 110, 0.3);
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--surface-soft);
   color: var(--teal-deep);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: 15px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition: background-color 160ms ease;
+}
+.notifications-list-head button:hover:not(:disabled) {
+  background: var(--teal-pale);
+}
+.notifications-list-head button:disabled {
+  opacity: 0.6;
 }
 .notifications-list {
   overflow: hidden;
@@ -395,6 +418,7 @@
 }
 .notification-settings-section h2 {
   font-size: 21px;
+  text-wrap: balance;
 }
 .notification-settings-section > header > p {
   max-width: 280px;
@@ -492,6 +516,10 @@
   color: var(--ink-faint);
   font-size: 9.5px;
 }
+.notification-category-list small + small {
+  margin-top: 4px;
+  font-size: 11px;
+}
 .notification-switch {
   position: relative;
   flex: none;
@@ -580,6 +608,28 @@
 .notification-time-grid select:disabled {
   opacity: 0.48;
   cursor: not-allowed;
+}
+.notification-reminder-time {
+  grid-template-columns: minmax(0, 220px);
+}
+.notification-reminder-help {
+  display: block;
+  margin-top: 8px;
+}
+.notification-reminder-feedback {
+  min-height: 22px;
+  margin: 6px 0 14px;
+}
+.notification-reminder-error {
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 650;
+}
+.notification-reminder-time input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+.notification-reminder-time input {
+  transition: border-color 120ms var(--ease-standard);
 }
 .notification-timezone {
   margin-top: 9px;
@@ -856,6 +906,10 @@
     align-items: flex-start;
     flex-direction: column;
   }
+  /* The shell gives the heading flex: 1 1 400px, which becomes a tall gap in a column. */
+  .ref-shell .notifications-hero > [data-user-page-heading] {
+    flex: 0 0 auto;
+  }
   .notifications-hero-mark {
     display: none;
   }
@@ -1018,9 +1072,6 @@
 }
 .notifications-list-head p {
   color: var(--notification-muted) !important;
-  font-size: 14px !important;
-}
-.notifications-list-head button {
   font-size: 14px !important;
 }
 .notification-item-copy > span b,

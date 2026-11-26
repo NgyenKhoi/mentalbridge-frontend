@@ -632,6 +632,8 @@ export function parseCompletionEvidence(
     APPOINTMENT_FULFILMENT: 'CONSULTATION',
     ASSESSMENT_HISTORY: 'CARE',
     SELF_REPORT_REVIEW: 'CARE',
+    // Care completes the cycle-review reminder with the owner's keep/replace decision (care-service changelog 035).
+    OWNER_REVIEW_DECISION: 'CARE',
     RESOURCE_PRACTICE_SESSION: 'CONTENT',
     RESOURCE_COMPLETION: 'CONTENT',
   }
@@ -691,6 +693,7 @@ export function parseActionOccurrence(value: unknown): ActionOccurrence | null {
         'PLAN_REPLACED',
         'ACTION_ENDED',
         'SCHEDULE_CHANGED',
+        'REVIEW_DUE',
       ].includes(String(value.stateReason))
     )
   )
@@ -722,6 +725,8 @@ export function parseActionOccurrence(value: unknown): ActionOccurrence | null {
   }
   return evidence &&
     (evidence.kind === kinds[String(value.actionType)] ||
+      (value.actionType === 'REASSESSMENT_SCREENING' &&
+        (evidence.kind as string) === 'OWNER_REVIEW_DECISION') ||
       (value.actionType === 'RESOURCE' &&
         evidence.ownerDomain === 'CONTENT' &&
         ['RESOURCE_PRACTICE_SESSION', 'RESOURCE_COMPLETION'].includes(

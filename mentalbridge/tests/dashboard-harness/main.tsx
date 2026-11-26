@@ -165,7 +165,7 @@ function DashboardPreview() {
           >
             <div className={emotionStyles.heading}>
               <h2 id="preview-week-heading">Tuần này của bạn</h2>
-              <a href="/analytics">Xem tiến độ →</a>
+              <a href="/nhin-lai">Xem tiến độ →</a>
             </div>
             <ol
               className={emotionStyles.days}

@@ -624,10 +624,18 @@
   align-content: start;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-5);
-  background: var(--surface);
+  /* A tone step below the review card, so the four sources read as one set. */
+  background: var(--surface-soft);
   border-radius: var(--radius-control);
   font-size: 16px;
   line-height: 1.55;
+}
+
+.mbw-evidence-value {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
 }
 
 .mbw-evidence-item h3 {
@@ -668,11 +676,17 @@
 
 .mbw-options {
   display: grid;
+  /* Side-by-side choice cards where they fit; one column on phones. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: var(--space-3);
   min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+.mbw-options .mbw-option {
+  background: var(--surface-soft);
 }
 
 .mbw-options legend {
@@ -1719,6 +1733,179 @@
 
 .mbw-quiet-list > details:first-child {
   border-top: 0;
+}
+
+.mbw-nowcard {
+  gap: var(--space-5);
+}
+
+/* Settings live in two named groups under the review, not one long list. */
+.mbw-adjust-groups {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .mbw-adjust-groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.mbw-adjust-group {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mbw-adjust-group h3 {
+  padding: 0 var(--space-1);
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mbw-row-list {
+  display: grid;
+  padding: 0 var(--space-5);
+  background: var(--surface);
+  border-radius: var(--radius-panel);
+}
+
+.mbw-row-list > * + * {
+  border-top: 1px solid var(--line); /* taste-skill-ignore: separator between the rows of one settings list */
+}
+
+.mbw-row-list > details {
+  padding: var(--space-2) 0;
+}
+
+/* Phones: the row title keeps the width; the short note beside it is dropped. */
+@media (max-width: 479px) {
+  .mbw-row-list > details > summary > span:nth-of-type(2) {
+    display: none;
+  }
+}
+
+.mbw-adjust-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--space-3) 0;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mbw-adjust-row > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mbw-adjust-row strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mbw-adjust-row small {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.mbw-adjust-row svg {
+  flex: none;
+  color: var(--teal-deep);
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+@media (hover: hover) {
+  .mbw-adjust-row:hover svg {
+    transform: translateX(3px);
+  }
+}
+
+.mbw-adjust-row:focus-visible,
+.mbw-back:focus-visible,
+.mbw-detail-head h2:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 3px;
+  border-radius: var(--radius-control);
+}
+
+/* One adjustment opened as its own screen, with a way back. */
+.mbw-adjust-detail {
+  animation: mbw-arrive var(--motion-medium) var(--ease-standard) both;
+}
+
+.mbw-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-self: start;
+  min-height: 44px;
+  color: var(--teal-deep);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mbw-detail-head {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 68ch;
+}
+
+.mbw-detail-head h2 {
+  font-size: clamp(22px, 2.6vw, 28px);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.mbw-detail-head p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.mbw-activity-rows {
+  display: grid;
+}
+
+.mbw-activity-rows li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  font-size: 16px;
+}
+
+.mbw-activity-rows li + li {
+  border-top: 1px solid var(--line); /* taste-skill-ignore: separator between the activities of one list */
+}
+
+.mbw-activity-rows small {
+  flex: none;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.mbw-detail-actions {
+  justify-content: flex-end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mbw-adjust-detail {
+    animation: mbw-fade var(--motion-fast) linear both;
+  }
+
+  .mbw-adjust-row svg {
+    transition: none;
+  }
 }
 
 @media (max-width: 639px) {

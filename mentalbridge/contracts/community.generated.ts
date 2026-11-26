@@ -745,6 +745,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/community/posts/{postId}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: components["parameters"]["PostId"];
+            };
+            cookie?: never;
+        };
+        /** @description Community display identities that reacted to a post the caller can see, newest first, at most 100. Profiles either side has blocked are omitted; account subjects are never exposed. */
+        get: operations["listCommunityPostReactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/community/posts/{postId}/bookmark": {
         parameters: {
             query?: never;
@@ -826,6 +845,23 @@ export interface paths {
         get?: never;
         /** @description Explicitly select a READY IMAGE uploaded by this profile, or remove the current photo with null. Post-attached, foreign, expired, deleted and unverified media are rejected. This never reads or copies Identity/Care avatars. Unchanged retries return the current profile even with the preceding ETag; a different selection requires the current ETag. Removed images re-enter the existing unattached-media retention policy. */
         put: operations["replaceCommunityAvatar"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/avatars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Batch avatar lookup by Identity account ID for any authenticated account (for example specialist cards and the viewer's own shell avatar). Returns only ACTIVE, unrestricted Community profiles that have not blocked or been blocked by the viewer; unknown, inactive, restricted and blocked accounts are omitted rather than reported. Never creates a profile and never returns display names or profile IDs. */
+        get: operations["lookupCommunityAvatars"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1391,7 +1427,7 @@ export interface components {
             content: string;
         };
         /** @enum {string} */
-        SupportiveReaction: "SUPPORT" | "RELATE" | "THANK_YOU";
+        SupportiveReaction: "SUPPORT" | "RELATE" | "THANK_YOU" | "LIKE" | "EMPATHY" | "CHEER" | "GROWTH";
         CommunityViewerState: {
             reaction: components["schemas"]["SupportiveReaction"] | null;
             /** @description True only when the authenticated owner bookmarked this post; another viewer's bookmark state is never exposed. */
@@ -1404,6 +1440,20 @@ export interface components {
             /** Format: uuid */
             postId: string;
             reaction: components["schemas"]["SupportiveReaction"];
+        };
+        CommunityPostReactor: {
+            /** Format: uuid */
+            communityProfileId: string;
+            displayName: string;
+            avatarPreset: components["schemas"]["CommunityAvatarPreset"] | null;
+            reaction: components["schemas"]["SupportiveReaction"];
+            /** Format: date-time */
+            reactedAt: string;
+            self: boolean;
+        };
+        CommunityPostReactionList: {
+            items: components["schemas"]["CommunityPostReactor"][];
+            count: number;
         };
         /** @enum {string} */
         ReportReason: "HARASSMENT" | "PRIVACY_OR_DOXXING" | "MEDICAL_MISINFORMATION" | "SELF_HARM_OR_CRISIS_CONCERN" | "SPAM" | "SEXUAL_OR_VIOLENT_CONTENT" | "OTHER";
@@ -1435,6 +1485,15 @@ export interface components {
             url: string;
             width: number;
             height: number;
+        };
+        CommunityAccountAvatar: {
+            /** Format: uuid */
+            accountId: string;
+            avatarPreset: components["schemas"]["CommunityAvatarPreset"] | null;
+            avatarImage: components["schemas"]["CommunityAvatarImage"] | null;
+        };
+        CommunityAvatarPage: {
+            items: components["schemas"]["CommunityAccountAvatar"][];
         };
         /**
          * @description Closed, Community-owned visual preset. Arbitrary image URLs and account-profile avatars are never accepted.
@@ -1523,7 +1582,7 @@ export interface components {
             /** Format: uuid */
             commentId: string;
             /** @enum {string|null} */
-            reaction: null | "SUPPORT" | "RELATE" | "THANK_YOU";
+            reaction: null | "SUPPORT" | "RELATE" | "THANK_YOU" | "LIKE" | "EMPATHY" | "CHEER" | "GROWTH";
             reactionCount: number;
         };
         AuthorizationResult: {
@@ -3551,7 +3610,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    reaction: "SUPPORT" | "RELATE" | "THANK_YOU";
+                    reaction: "SUPPORT" | "RELATE" | "THANK_YOU" | "LIKE" | "EMPATHY" | "CHEER" | "GROWTH";
                 };
             };
         };
@@ -4603,6 +4662,31 @@ export interface operations {
             404: components["responses"]["Problem"];
         };
     };
+    listCommunityPostReactions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: components["parameters"]["PostId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reactors of the post. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityPostReactionList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
     putCommunityBookmark: {
         parameters: {
             query?: never;
@@ -4802,6 +4886,33 @@ export interface operations {
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             412: components["responses"]["Problem"];
+        };
+    };
+    lookupCommunityAvatars: {
+        parameters: {
+            query: {
+                /** @description Comma-separated canonical UUIDs, 1 to 50 distinct values. */
+                accountIds: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Avatars for the requested accounts that have a visible Community profile, in no particular order. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityAvatarPage"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
     getOwnCommunityProfile: {

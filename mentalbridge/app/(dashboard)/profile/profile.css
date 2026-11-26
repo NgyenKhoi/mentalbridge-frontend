@@ -60,17 +60,6 @@
   width: 70px;
   height: 70px;
 }
-.settings-avatar-wrap svg {
-  position: absolute;
-  top: -13px;
-  left: -17px;
-  width: 104px;
-  height: 54px;
-  fill: none;
-  stroke: var(--amber);
-  stroke-width: 1.8;
-  opacity: 0.55;
-}
 .settings-avatar {
   position: relative;
   z-index: 1;
@@ -244,6 +233,7 @@
   overflow: visible;
 }
 .settings-accordion-body form,
+.settings-avatar-body,
 .settings-security,
 .settings-consent {
   padding: 3px 24px 23px;
@@ -1160,10 +1150,6 @@
   padding-bottom: 24px;
 }
 
-.settings-avatar-wrap svg {
-  stroke: var(--teal);
-}
-
 .settings-activity .neutral {
   background: var(--surface-soft);
   color: var(--ink-faint);
@@ -1461,4 +1447,7 @@
     justify-self: flex-start !important;
     margin-top: 4px !important;
   }
+}
+.settings-avatar-body {
+  padding-top: 20px;
 }

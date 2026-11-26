@@ -90,46 +90,19 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.15s ease;
+  position: relative;
+}
+/* 44px hit area without changing the 30px look */
+.iconBtn::before,
+.drawerToggleBtn::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
 }
 .iconBtn:hover {
   background: #f8fafc;
   color: #1e293b;
   border-color: #cbd5e1;
-}
-
-.filterTabs {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px;
-  background-color: rgba(241, 245, 249, 0.85);
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #64748b;
-}
-
-.filterTabBtn {
-  flex: 1;
-  padding: 5px 0;
-  text-align: center;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: all 0.15s ease;
-}
-.filterTabBtn:hover {
-  color: #0f172a;
-}
-.filterTabBtnActive {
-  background: #ffffff;
-  color: #174e3e;
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .sessionStream {
@@ -219,6 +192,12 @@
   padding: 2px 7px;
   border-radius: 9999px;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.headerNameRow .statusPill {
+  flex-shrink: 0;
 }
 .statusPillCompleted {
   color: #15803d;
@@ -236,15 +215,6 @@
   border: 1px solid #bae6fd;
 }
 
-.cardSpecialty {
-  font-size: 0.7rem;
-  color: #64748b;
-  margin: 3px 0 0 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .cardTime {
   font-size: 0.7rem;
   color: #94a3b8;
@@ -254,18 +224,37 @@
   gap: 5px;
 }
 
-.securityNote {
-  padding: 12px 14px;
-  border-top: 1px solid #f1f5f3;
-  background-color: #f8faf8;
-  display: flex;
-  align-items: center;
+/* Column 2: Chat Main Area */
+.chatEmpty {
+  margin: auto;
+  max-width: 360px;
+  padding: 24px;
+  display: grid;
   gap: 8px;
-  font-size: 0.7rem;
-  color: #64748b;
+  justify-items: center;
+  text-align: center;
+  color: var(--ink-soft, #52604f);
 }
 
-/* Column 2: Chat Main Area */
+.chatEmpty strong {
+  color: var(--ink, #1b2a22);
+  font-size: 1.05rem;
+}
+
+.chatEmpty p {
+  margin: 0;
+}
+
+.chatEmpty a {
+  margin-top: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--teal-deep, #1e4a43);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .chatMainArea {
   flex: 1 1 0;
   min-width: 0;
@@ -330,17 +319,6 @@
   flex-shrink: 0;
 }
 
-.onlineDot {
-  width: 9px;
-  height: 9px;
-  border-radius: 9999px;
-  background-color: #10b981;
-  border: 2px solid #ffffff;
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-}
-
 .headerIdentity {
   display: flex;
   flex-direction: column;
@@ -356,24 +334,17 @@
   flex-wrap: nowrap;
 }
 
-.headerName {
-  font-size: 0.95rem;
-  font-weight: 700;
+/* The shell sizes every .ref-content h1 as a page title with !important; this is a panel title. */
+.chatHeader .headerNameRow h1.headerName {
+  font-size: 20px !important;
+  font-weight: 600;
   color: #071b15;
   font-family: 'Newsreader', Georgia, serif;
   margin: 0;
   white-space: nowrap;
-  flex-shrink: 0;
-  line-height: 1.25;
-}
-
-.headerMeta {
-  font-size: 0.725rem;
-  color: #64748b;
-  margin: 2px 0 0 0;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
   line-height: 1.25;
 }
 
@@ -843,13 +814,6 @@
   line-height: 1.2;
 }
 
-.drawerCode {
-  font-size: 0.675rem;
-  font-weight: 500;
-  color: #64748b;
-  display: block;
-}
-
 /* Bento Cards in Drawer */
 .bentoCard {
   background: #ffffff;
@@ -900,64 +864,6 @@
   color: #475569;
 }
 
-.scoreGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.scoreBoxBefore {
-  padding: 10px;
-  border-radius: 10px;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  text-align: center;
-}
-
-.scoreBoxAfter {
-  padding: 10px;
-  border-radius: 10px;
-  background-color: rgba(237, 245, 241, 0.6);
-  border: 1px solid #d5e7de;
-  text-align: center;
-}
-
-.scoreSublabel {
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: #64748b;
-  margin: 0;
-}
-
-.scoreValue {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 2px 0;
-}
-.scoreValueHighlight {
-  color: #174e3e;
-}
-
-.scoreDesc {
-  font-size: 0.65rem;
-  color: #94a3b8;
-  margin: 0;
-}
-.scoreDescHighlight {
-  color: #174e3e;
-  font-weight: 500;
-}
-
-.clinicalNote {
-  font-size: 0.725rem;
-  color: #475569;
-  line-height: 1.55;
-  padding-top: 8px;
-  border-top: 1px solid #f1f5f3;
-  margin: 0;
-}
-
 .protocolList {
   display: flex;
   flex-direction: column;
@@ -991,233 +897,6 @@
   margin-top: 1px;
 }
 
-.readMoreLink {
-  padding: 9px 12px;
-  background-color: #f8faf8;
-  border: 1px solid #e1e7e4;
-  border-radius: 10px;
-  font-size: 0.725rem;
-  font-weight: 600;
-  color: #0c2a22;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  text-decoration: none;
-  transition: all 0.15s ease;
-}
-.readMoreLink:hover {
-  background-color: #edf5f1;
-  border-color: #d5e7de;
-}
-
-.btnRateSession {
-  width: 100%;
-  padding: 8px 12px;
-  background-color: #174e3e;
-  color: #ffffff;
-  border: none;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(23, 78, 62, 0.15);
-}
-.btnRateSession:hover {
-  background-color: #123e32;
-}
-
-.btnViewInvoice {
-  width: 100%;
-  padding: 8px 12px;
-  background-color: #f8fafc;
-  color: #334155;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.btnViewInvoice:hover {
-  background-color: #f1f5f9;
-  color: #0f172a;
-}
-
-/* Floating AI Assistant Trigger */
-.floatingTrigger {
-  position: fixed;
-  bottom: 20px;
-  right: 24px;
-  z-index: 40;
-}
-
-.floatingBtn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 15px;
-  background-color: #113b2f;
-  color: #ffffff;
-  border: 1px solid rgba(30, 104, 82, 0.4);
-  border-radius: 9999px;
-  box-shadow: 0 4px 14px rgba(7, 27, 21, 0.25);
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.floatingBtn:hover {
-  background-color: #0c2a22;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(7, 27, 21, 0.35);
-}
-
-.pingDotWrapper {
-  position: relative;
-  width: 10px;
-  height: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pingDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background-color: #34d399;
-}
-
-.pingWave {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border-radius: 9999px;
-  background-color: #34d399;
-  opacity: 0.75;
-  animation: pingAnimation 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-@keyframes pingAnimation {
-  75%,
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
-}
-
-.floatingText {
-  font-family: 'Newsreader', Georgia, serif;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.leafIcon {
-  width: 24px;
-  height: 24px;
-  border-radius: 9999px;
-  background-color: #174e3e;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-}
-
-/* Modal styles */
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-.modalBox {
-  background: #ffffff;
-  border-radius: 20px;
-  border: 1px solid #e2e8e3;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.15);
-  width: 100%;
-  max-width: 580px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: modalEnter 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes modalEnter {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.modalHeader {
-  padding: 18px 22px;
-  border-bottom: 1px solid #e1e7e4;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.modalTitle {
-  font-family: 'Newsreader', Georgia, serif;
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #071b15;
-  margin: 0;
-}
-
-.modalBody {
-  padding: 20px 22px;
-  overflow-y: auto;
-  font-size: 0.825rem;
-  color: #334155;
-  line-height: 1.6;
-}
-
-.modalFooter {
-  padding: 14px 22px;
-  border-top: 1px solid #e1e7e4;
-  background-color: #f8fafc;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-/* Star rating interactive widget */
-.starRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 14px 0;
-}
-
-.starBtn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  font-size: 1.75rem;
-  color: #cbd5e1;
-  transition: all 0.15s ease;
-}
-.starBtn:hover,
-.starBtnActive {
-  color: #f59e0b;
-  transform: scale(1.1);
-}
-
 @media (max-width: 1024px) {
   .sessionListColumn {
     width: 250px;
@@ -1243,5 +922,162 @@
     left: 0;
     bottom: 0;
     z-index: 50;
+  }
+}
+
+/* Live thread (AppointmentChatPanel bare): same frame as the ended session view. */
+.bareThread {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bubbleText {
+  margin: 0;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* One empty/waiting note for every chat state, centred between the session chips. */
+.emptyNote {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 340px;
+  margin: auto;
+  padding: 28px 16px;
+  text-align: center;
+  animation: emptyNoteIn 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.emptyNoteIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 4px;
+  border-radius: 9999px;
+  background: #edf5f1;
+  color: #174e3e;
+}
+
+.emptyNote strong {
+  color: #1e293b;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.emptyNote p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.emptyNoteActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.emptyNoteActions button {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid #cce3d8;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #174e3e;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.emptyNoteActions button:hover {
+  background: #edf5f1;
+}
+
+.emptyNoteActions button:focus-visible {
+  outline: 2px solid #174e3e;
+  outline-offset: 2px;
+}
+
+@keyframes emptyNoteIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .emptyNote {
+    animation: none;
+  }
+}
+
+/* Narrow screens: the strip wraps instead of squeezing each fact into a column. */
+@media (max-width: 640px) {
+  .bentoMetricStrip {
+    padding: 8px 12px 4px;
+  }
+
+  .metricStripContent,
+  .metricLeft {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+
+  .metricStripContent > span {
+    flex-basis: 100%;
+  }
+}
+
+/* Narrow screens: the name keeps its room, the next-session button turns icon-only, the read-only bar stacks. */
+@media (max-width: 640px) {
+  .specialistBadge,
+  .headerIdentity {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .btnLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .metricSep {
+    display: none;
+  }
+
+  .readOnlyBanner {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .bannerText span {
+    white-space: normal;
+  }
+
+  .bannerActions {
+    width: 100%;
+    flex-wrap: wrap;
   }
 }

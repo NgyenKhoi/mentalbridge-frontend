@@ -137,15 +137,23 @@ export default function AdminCredentialReviewSection({
     }
   }
 
+  // Inside a specialist's detail the section sits under the profile heading.
+  const Title = specialistId ? 'h3' : 'h2'
+
   return (
-    <section className={styles.section} aria-labelledby={`${id}-title`}>
+    <section
+      className={`${styles.section} ${specialistId ? styles.embedded : ''}`}
+      aria-labelledby={`${id}-title`}
+    >
       <div className={styles.heading}>
         <div>
-          <span className={styles.overline}>XÁC MINH RIÊNG TƯ</span>
-          <h2 id={`${id}-title`}>
+          {!specialistId && (
+            <span className={styles.overline}>XÁC MINH RIÊNG TƯ</span>
+          )}
+          <Title id={`${id}-title`}>
             {specialistId ? 'Giấy tờ của chuyên gia' : 'Giấy tờ chuyên gia'}{' '}
             <b>{documents.length}</b>
-          </h2>
+          </Title>
           <p>Mở bản gốc để kiểm tra và đối chiếu thủ công với đơn vị cấp.</p>
         </div>
         <button
@@ -190,7 +198,9 @@ export default function AdminCredentialReviewSection({
                 </small>
                 <small>{statusLabels[document.verificationStatus]}</small>
                 <small>
-                  Chuyên gia #{document.specialistAccountId.slice(0, 8)} · Đã
+                  {specialistId
+                    ? 'Đã'
+                    : `Chuyên gia #${document.specialistAccountId.slice(0, 8)} · Đã`}{' '}
                   gửi {new Date(document.createdAt).toLocaleDateString('vi-VN')}
                 </small>
               </div>

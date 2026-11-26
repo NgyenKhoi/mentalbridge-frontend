@@ -13,6 +13,9 @@ import { SessionProvider } from '@/auth/session-context'
 import type { AppSession } from '@/auth/session'
 import { RuntimeConfigProvider } from '@/config/runtime-config-context'
 import type { RuntimeConfig } from '@/config/runtime-config'
+import { PushBridge } from '@/push/PushBridge'
+import { createPushApi } from '@/push/push-api'
+import { disablePush } from '@/push/push-registration'
 import { QueryProvider } from '@/query/QueryProvider'
 import { secureCredentialStore } from '@/security/credential-store'
 
@@ -41,13 +44,27 @@ export function AppProviders({
         createIdempotencyKey: randomUUID,
       }),
   )
+  const [beforeSignOut] = useState(() => {
+    const pushApi = createPushApi(
+      createApiClient({
+        config: runtimeConfig,
+        getBearerToken: () => secureCredentialStore.getAccessToken(),
+      }),
+    )
+    return () => disablePush(pushApi)
+  })
 
   return (
     <RuntimeConfigProvider value={runtimeConfig}>
       <SafeAreaProvider>
         <QueryProvider>
-          <SessionProvider initialSession={initialSession} service={service}>
+          <SessionProvider
+            beforeSignOut={beforeSignOut}
+            initialSession={initialSession}
+            service={service}
+          >
             <StatusBar style="dark" />
+            <PushBridge />
             {children}
           </SessionProvider>
         </QueryProvider>

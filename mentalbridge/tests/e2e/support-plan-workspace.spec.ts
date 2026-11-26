@@ -976,10 +976,6 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
   test('MB-772 explains the adaptive review inline through Mầm without mutating the plan', async ({
     page,
   }) => {
-    test.skip(
-      process.env.MAM_WEB_ENABLED === 'false',
-      'The Mầm inline review renders only with MAM_WEB_ENABLED=true.',
-    )
     test.setTimeout(90_000)
     await authenticate(page)
     const review = nativeSupportPlanReviewFixture()
@@ -998,9 +994,7 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     await page.getByRole('tab', { name: 'Điều chỉnh' }).click()
     await page.getByText('Phương án khác', { exact: true }).click()
     await page.getByRole('button', { name: 'Xem phương án mới' }).click()
-    await page
-      .getByRole('button', { name: 'So sánh với kế hoạch hiện tại' })
-      .click()
+    await page.getByRole('button', { name: 'Kiểm tra phương án này' }).click()
     await expect(
       page.getByRole('complementary', {
         name: 'Bạn đồng hành trong kế hoạch hỗ trợ',

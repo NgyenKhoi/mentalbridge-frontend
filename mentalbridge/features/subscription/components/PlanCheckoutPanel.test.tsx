@@ -179,7 +179,8 @@ describe('PlanCheckoutPanel', () => {
     const assign = vi.fn()
     vi.stubGlobal('location', { ...window.location, assign })
     render(<PlanCheckoutPanel />)
-    expect(await screen.findByText(/Gói thử nghiệm:/)).toBeInTheDocument()
+    await screen.findByRole('button', { name: /Chọn Plus/ })
+    expect(screen.queryByText(/Gói thử nghiệm:/)).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Chọn Plus/ }))
     expect(
       await screen.findByRole('img', { name: /Mã QR chuyển khoản 5\.000đ/ }),
@@ -280,10 +281,13 @@ describe('PlanCheckoutPanel', () => {
     render(<PlanCheckoutPanel />)
     expect(await screen.findByText(/1\.390\.000\s*₫/)).toBeInTheDocument()
     expect(screen.getByText(/3\.490\.000\s*₫/)).toBeInTheDocument()
-    expect(screen.getByText('4 lượt tư vấn')).toBeInTheDocument()
-    expect(screen.getByText('2 lịch')).toBeInTheDocument()
-    expect(screen.getByText('10 lượt tư vấn')).toBeInTheDocument()
-    expect(screen.getByText('4 lịch')).toBeInTheDocument()
+    expect(screen.getByText('4 buổi tư vấn')).toBeInTheDocument()
+    expect(screen.getByText('2 buổi')).toBeInTheDocument()
+    expect(screen.getByText('10 buổi tư vấn')).toBeInTheDocument()
+    expect(screen.getByText('4 buổi')).toBeInTheDocument()
+    expect(screen.getAllByText('Miễn phí').length).toBeGreaterThan(1)
+    expect(screen.getByText('Trò chuyện với Mầm mỗi ngày')).toBeVisible()
+    expect(document.body).not.toHaveTextContent(/0 lượt|0 lịch|không thời hạn/)
     expect(screen.getByRole('button', { name: 'Chọn Plus' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Chọn Premium' })).toBeEnabled()
     expect(screen.getByText(/chuyển khoản ngân hàng \(payOS\)/)).toBeVisible()
@@ -341,6 +345,13 @@ describe('PlanCheckoutPanel', () => {
     expect(
       screen.queryByRole('button', { name: /Nâng cấp lên/ }),
     ).not.toBeInTheDocument()
+  })
+
+  it('stays silent about an old failed payment present on load', async () => {
+    history({ ...pendingPayment, status: 'FAILED' } as never)
+    render(<PlanCheckoutPanel />)
+    await screen.findByRole('button', { name: /Chọn Plus/ })
+    expect(screen.queryByText(/Giao dịch chưa thành công/)).toBeNull()
   })
 
   it('closes an expired code on the server before creating a new one', async () => {

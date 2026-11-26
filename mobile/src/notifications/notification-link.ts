@@ -99,6 +99,10 @@ export function notificationDestination(
       return action.href === '/resources'
         ? { pathname: '/(user)/resources' as const }
         : null
+    case 'OPEN_SUPPORT_PLAN':
+      return action.href === '/support-plan'
+        ? { pathname: '/(user)/support-plan' as const }
+        : null
     case 'OPEN_ASSESSMENTS':
       return action.href === '/assessments'
         ? { pathname: '/(user)/assessment' as const }

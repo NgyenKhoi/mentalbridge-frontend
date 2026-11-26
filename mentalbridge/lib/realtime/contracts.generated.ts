@@ -448,6 +448,8 @@ export const serverEventV1Schema = {
                 'type',
                 'content',
                 'sentAt',
+                'state',
+                'deletedAt',
                 'schemaVersion',
               ],
               properties: {
@@ -471,12 +473,20 @@ export const serverEventV1Schema = {
                   const: 'TEXT',
                 },
                 content: {
-                  type: 'string',
+                  type: ['string', 'null'],
                   minLength: 1,
                   maxLength: 4000,
                 },
                 sentAt: {
                   type: 'string',
+                  format: 'date-time',
+                },
+                state: {
+                  type: 'string',
+                  enum: ['VISIBLE', 'DELETED'],
+                },
+                deletedAt: {
+                  type: ['string', 'null'],
                   format: 'date-time',
                 },
                 schemaVersion: {

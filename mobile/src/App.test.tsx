@@ -16,7 +16,7 @@ jest.mock('expo-router', () => ({
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
-  default: { expoConfig: { hostUri: '192.168.5.104:8089' } },
+  default: { expoConfig: { hostUri: '192.0.2.10:8089' } },
 }))
 
 jest.mock('@expo/dom-webview', () => ({
@@ -41,7 +41,7 @@ describe('mobile startup shell', () => {
     )
 
     const webView = screen.getByTestId('landing-webview')
-    const url = 'http://192.168.5.104:8089/mentalbridge-landing'
+    const url = 'http://192.0.2.10:8089/mentalbridge-landing'
     expect(webView.props.source).toEqual({ uri: url })
     expect(webView.props.useExpoModulesBridge).toBe(false)
 

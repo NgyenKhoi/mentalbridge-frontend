@@ -119,7 +119,7 @@ async function setup(page: Page, value = eligibility(), selectedText = false) {
   if (selectedText)
     await expect(
       page
-        .getByRole('region', { name: 'AI Companion', exact: true })
+        .getByRole('region', { name: 'Trò chuyện với Mầm', exact: true })
         .getByText('Synthetic selected reply.', { exact: true }),
     ).toBeVisible()
   const entry = page.getByRole('button', { name: 'Gọi AI', exact: true })

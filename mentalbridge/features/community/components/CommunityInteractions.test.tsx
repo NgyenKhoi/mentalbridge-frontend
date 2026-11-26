@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -7,6 +14,7 @@ const api = vi.hoisted(() => ({
   deleteReaction: vi.fn(),
   putBookmark: vi.fn(),
   deleteBookmark: vi.fn(),
+  reactions: vi.fn(),
 }))
 
 vi.mock('@/features/community/api/browser-community', () => ({
@@ -14,12 +22,126 @@ vi.mock('@/features/community/api/browser-community', () => ({
   deleteCommunityReaction: api.deleteReaction,
   putCommunityBookmark: api.putBookmark,
   deleteCommunityBookmark: api.deleteBookmark,
+  getCommunityPostReactions: api.reactions,
 }))
+
+import { MotionGlobalConfig } from 'framer-motion'
 
 import CommunityInteractions from './CommunityInteractions'
 
+MotionGlobalConfig.skipAnimations = true
+
+const trayName = 'Chọn cảm xúc'
+
+async function pickFromTray(
+  user: ReturnType<typeof userEvent.setup>,
+  main: string,
+  name: string,
+) {
+  screen.getByRole('button', { name: main }).focus()
+  await user.keyboard('{ArrowUp}')
+  await user.click(
+    within(screen.getByRole('group', { name: trayName })).getByRole('button', {
+      name,
+    }),
+  )
+}
+
 describe('CommunityInteractions', () => {
   beforeEach(() => vi.resetAllMocks())
+
+  it('bar layout puts counts first, then reaction, comment and save as three actions', async () => {
+    const user = userEvent.setup()
+    const onComment = vi.fn()
+    render(
+      <CommunityInteractions
+        postId="post-1"
+        viewerState={{ reaction: null, bookmarked: false }}
+        reactionCount={4}
+        layout="bar"
+        meta={<span>2 bình luận</span>}
+        onComment={onComment}
+      />,
+    )
+
+    const buttons = screen.getAllByRole('button')
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
+      '4 lượt',
+      '🤍Thương',
+      'Bình luận',
+      'Lưu bài',
+    ])
+    expect(screen.getByText('2 bình luận')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Bình luận' }))
+    expect(onComment).toHaveBeenCalledWith(
+      screen.getByRole('button', { name: 'Bình luận' }),
+    )
+  })
+
+  it('opens the seven-emoji tray from the keyboard, Like first, and sends a new kind', async () => {
+    const user = userEvent.setup()
+    api.putReaction.mockResolvedValue({ postId: 'post-1', reaction: 'GROWTH' })
+    render(
+      <CommunityInteractions
+        postId="post-1"
+        viewerState={{ reaction: null, bookmarked: false }}
+        reactionCount={3}
+      />,
+    )
+
+    expect(screen.queryByRole('group', { name: trayName })).toBeNull()
+    screen.getByRole('button', { name: 'Thương' }).focus()
+    await user.keyboard('{ArrowUp}')
+    const tray = screen.getByRole('group', { name: trayName })
+    expect(
+      within(tray)
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label')),
+    ).toEqual([
+      'Thích',
+      'Thương',
+      'Cảm ơn',
+      'Ôm',
+      'Đồng cảm',
+      'Cố lên',
+      'Đang lớn lên',
+    ])
+    expect(within(tray).getByRole('button', { name: 'Thích' })).toHaveFocus()
+    await user.keyboard('{End}')
+    expect(
+      within(tray).getByRole('button', { name: 'Đang lớn lên' }),
+    ).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(api.putReaction).toHaveBeenCalledWith('post-1', 'GROWTH')
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: trayName })).toBeNull(),
+    )
+    const main = screen.getByRole('button', { name: 'Đang lớn lên' })
+    expect(main).toHaveFocus()
+    expect(main).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('4 lượt')).toBeVisible()
+  })
+
+  it('opens on mouse hover and closes with Escape', async () => {
+    const user = userEvent.setup()
+    render(
+      <CommunityInteractions
+        postId="post-1"
+        viewerState={{ reaction: null, bookmarked: false }}
+        reactionCount={3}
+      />,
+    )
+
+    await user.hover(screen.getByRole('button', { name: 'Thương' }))
+    const tray = await screen.findByRole('group', { name: trayName })
+    within(tray).getByRole('button', { name: 'Ôm' }).focus()
+    await user.keyboard('{Escape}')
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: trayName })).toBeNull(),
+    )
+    expect(screen.getByRole('button', { name: 'Thương' })).toHaveFocus()
+    expect(api.putReaction).not.toHaveBeenCalled()
+  })
 
   it('keeps the same logical reaction available after an ambiguous failure retry', async () => {
     const user = userEvent.setup()
@@ -36,7 +158,7 @@ describe('CommunityInteractions', () => {
       />,
     )
 
-    const support = screen.getByRole('button', { name: /Đồng hành/ })
+    const support = screen.getByRole('button', { name: /Thương/ })
     await user.click(support)
     expect(await screen.findByRole('alert')).toHaveTextContent('thử lại')
     expect(support).toHaveAttribute('aria-pressed', 'false')
@@ -69,12 +191,12 @@ describe('CommunityInteractions', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: /Mình cũng vậy/ }))
+    await user.click(screen.getByRole('button', { name: /Ôm/ }))
     expect(api.deleteReaction).toHaveBeenCalledWith('post-1')
     expect(screen.getByText('0 lượt')).toBeVisible()
-    expect(
-      screen.getByRole('button', { name: /Mình cũng vậy/ }),
-    ).not.toHaveAttribute('data-reaction-feedback')
+    const main = screen.getByRole('button', { name: 'Thương' })
+    expect(main).toHaveAttribute('aria-pressed', 'false')
+    expect(main).not.toHaveAttribute('data-reaction-feedback')
 
     await user.click(screen.getByRole('button', { name: 'Lưu bài' }))
     expect(api.putBookmark).toHaveBeenCalledWith('post-1')
@@ -98,18 +220,18 @@ describe('CommunityInteractions', () => {
       />,
     )
 
-    expect(
-      screen.getByRole('button', { name: 'Đồng hành' }),
-    ).not.toHaveAttribute('data-reaction-feedback')
-    const thanks = screen.getByRole('button', { name: 'Cảm ơn bạn' })
-    await user.click(thanks)
+    expect(screen.getByRole('button', { name: 'Thương' })).not.toHaveAttribute(
+      'data-reaction-feedback',
+    )
+    await pickFromTray(user, 'Thương', 'Cảm ơn')
     expect(api.putReaction).toHaveBeenCalledWith('post-1', 'THANK_YOU')
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: trayName })).toBeNull(),
+    )
+    const thanks = screen.getByRole('button', { name: 'Cảm ơn' })
     expect(thanks).toHaveAttribute('aria-pressed', 'true')
     expect(thanks).toHaveAttribute('data-reaction-feedback', 'committed')
-    expect(screen.getByRole('button', { name: 'Đồng hành' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    )
+    expect(screen.queryByRole('button', { name: 'Thương' })).toBeNull()
     expect(screen.getByText('3 lượt')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Đã lưu' })).toHaveAttribute(
       'aria-pressed',
@@ -137,7 +259,7 @@ describe('CommunityInteractions', () => {
       />,
     )
 
-    const support = screen.getByRole('button', { name: 'Đồng hành' })
+    const support = screen.getByRole('button', { name: 'Thương' })
     await user.click(support)
     expect(screen.getByRole('status')).toHaveTextContent(
       'Đang gửi lời đồng hành',
@@ -145,7 +267,11 @@ describe('CommunityInteractions', () => {
     expect(screen.getByText('3 lượt')).toBeVisible()
     expect(support).toHaveAttribute('aria-pressed', 'false')
     expect(support).not.toHaveAttribute('data-reaction-feedback')
-    for (const button of screen.getAllByRole('button')) {
+    // The read-only reactor list stays reachable while a command is pending.
+    const commandButtons = screen
+      .getAllByRole('button')
+      .filter((button) => !button.hasAttribute('aria-haspopup'))
+    for (const button of commandButtons) {
       expect(button).toBeDisabled()
       await user.click(button)
     }
@@ -171,14 +297,16 @@ describe('CommunityInteractions', () => {
       />,
     )
 
-    const thanks = screen.getByRole('button', { name: 'Cảm ơn bạn' })
-    await user.click(thanks)
-    expect(screen.getByRole('alert')).toHaveTextContent('gửi lời đồng hành')
-    expect(screen.getByRole('button', { name: 'Đồng hành' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
+    await pickFromTray(user, 'Thương', 'Cảm ơn')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'gửi lời đồng hành',
     )
-    expect(thanks).not.toHaveAttribute('data-reaction-feedback')
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: trayName })).toBeNull(),
+    )
+    const main = screen.getByRole('button', { name: 'Thương' })
+    expect(main).toHaveAttribute('aria-pressed', 'true')
+    expect(main).not.toHaveAttribute('data-reaction-feedback')
     await user.click(screen.getByRole('button', { name: 'Đã lưu' }))
     expect(screen.getByRole('alert')).toHaveTextContent('cập nhật bài đã lưu')
     expect(screen.getByRole('button', { name: 'Đã lưu' })).toHaveAttribute(
@@ -203,12 +331,13 @@ describe('CommunityInteractions', () => {
         reactionCount={7}
       />,
     )
-    expect(
-      screen.getByRole('button', { name: 'Mình cũng vậy' }),
-    ).toHaveAttribute('aria-pressed', 'true')
-    expect(
-      screen.getByRole('button', { name: 'Mình cũng vậy' }),
-    ).not.toHaveAttribute('data-reaction-feedback')
+    expect(screen.getByRole('button', { name: 'Ôm' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: 'Ôm' })).not.toHaveAttribute(
+      'data-reaction-feedback',
+    )
     expect(screen.getByRole('button', { name: 'Đã lưu' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -226,7 +355,7 @@ describe('CommunityInteractions', () => {
         reactionCount={3}
       />,
     )
-    await user.click(screen.getByRole('button', { name: 'Đồng hành' }))
+    await user.click(screen.getByRole('button', { name: 'Thương' }))
     rerender(
       <CommunityInteractions
         postId="post-1"
@@ -242,7 +371,7 @@ describe('CommunityInteractions', () => {
         reactionCount={4}
       />,
     )
-    expect(screen.getByRole('button', { name: 'Đồng hành' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Thương' })).toHaveAttribute(
       'data-reaction-feedback',
       'committed',
     )
@@ -265,7 +394,7 @@ describe('CommunityInteractions', () => {
         reactionCount={3}
       />,
     )
-    await user.click(screen.getByRole('button', { name: 'Đồng hành' }))
+    await user.click(screen.getByRole('button', { name: 'Thương' }))
     rerender(
       <CommunityInteractions
         postId="post-2"
@@ -277,12 +406,13 @@ describe('CommunityInteractions', () => {
       finishRequest?.({ postId: 'post-1', reaction: 'SUPPORT' }),
     )
     expect(screen.getByText('7 lượt')).toBeVisible()
-    expect(
-      screen.getByRole('button', { name: 'Mình cũng vậy' }),
-    ).toHaveAttribute('aria-pressed', 'true')
-    expect(
-      screen.getByRole('button', { name: 'Đồng hành' }),
-    ).not.toHaveAttribute('data-reaction-feedback')
+    expect(screen.getByRole('button', { name: 'Ôm' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: 'Ôm' })).not.toHaveAttribute(
+      'data-reaction-feedback',
+    )
   })
 
   it('supports keyboard activation with the same committed feedback', async () => {
@@ -296,12 +426,39 @@ describe('CommunityInteractions', () => {
       />,
     )
     await user.tab()
-    expect(screen.getByRole('button', { name: 'Đồng hành' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Thương' })).toHaveFocus()
     await user.keyboard('[Space]')
     expect(screen.getByText('1 lượt')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Đồng hành' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Thương' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
+  })
+
+  it('opens the reactor list from the count only, and Escape returns focus', async () => {
+    const user = userEvent.setup()
+    api.reactions.mockResolvedValue({ items: [], count: 0 })
+    render(
+      <CommunityInteractions
+        postId="post-1"
+        viewerState={{ reaction: null, bookmarked: false }}
+        reactionCount={2}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Thương' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(api.reactions).not.toHaveBeenCalled()
+
+    const count = screen.getByRole('button', {
+      name: /Xem ai đã bày tỏ cảm xúc/,
+    })
+    await user.click(count)
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    expect(count).toHaveAttribute('aria-expanded', 'true')
+    await user.keyboard('{Escape}')
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    expect(count).toHaveFocus()
   })
 })

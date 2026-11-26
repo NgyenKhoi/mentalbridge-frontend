@@ -121,7 +121,7 @@ it('preserves unsent draft across background, recovers accepted history without 
   expect(await screen.findByLabelText('Tin nhắn tư vấn')).toHaveDisplayValue(
     'volatile draft',
   )
-  expect(screen.getAllByText(item.content)).toHaveLength(1)
+  expect(screen.getAllByText(item.content ?? '')).toHaveLength(1)
   await value.view.unmount()
 })
 it.each([
@@ -185,6 +185,8 @@ it('shows actual closed-session history and metadata while keeping send disabled
       />
     </CrisisSupportOffsetContext.Provider>,
   )
+  if (!received.content || !sent.content)
+    throw new Error('Missing test content')
   expect(await screen.findByText(received.content)).toBeOnTheScreen()
   expect(screen.getByText(sent.content)).toBeOnTheScreen()
   expect(screen.getAllByText('ThS. Chuyên gia từ API').length).toBeGreaterThan(

@@ -78,10 +78,13 @@ const pending = {
   manualReviewAt: '2026-10-14T01:01:00Z',
   version: 4,
 }
-function view(role: 'USER' | 'SPECIALIST' = 'USER') {
+function view(
+  role: 'USER' | 'SPECIALIST' = 'USER',
+  props: { callWindow?: boolean; autoJoin?: boolean } = { callWindow: true },
+) {
   return render(
     <FeedbackProvider>
-      <VideoSessionPanel appointmentId={id} role={role} />
+      <VideoSessionPanel appointmentId={id} role={role} {...props} />
     </FeedbackProvider>,
   )
 }
@@ -98,6 +101,20 @@ describe('appointment video authority and intent', () => {
       configurable: true,
       value: 'visible',
     })
+  })
+  it('links a verified specialist session to its client summary', async () => {
+    api.session.mockResolvedValue({
+      ...active,
+      phase: 'COMPLETED',
+      joinAllowed: false,
+      previewAllowed: false,
+      completion: { ...pending, verificationState: 'VERIFIED' },
+      version: 4,
+    })
+    view('SPECIALIST', {})
+    expect(
+      await screen.findByRole('link', { name: 'Tạo bản tóm tắt' }),
+    ).toHaveAttribute('href', `/specialist/clients?appointmentId=${id}`)
   })
   it('keeps authorized joining available when the optional display name cannot load', async () => {
     api.list.mockRejectedValueOnce(new Error('Optional name unavailable'))
@@ -237,7 +254,7 @@ describe('appointment video authority and intent', () => {
     expect(screen.getByText('SDK connected')).toBeInTheDocument()
     mounted.rerender(
       <FeedbackProvider>
-        <VideoSessionPanel appointmentId={id} role="USER" />
+        <VideoSessionPanel appointmentId={id} role="USER" callWindow />
       </FeedbackProvider>,
     )
     act(() => {
@@ -387,5 +404,127 @@ describe('appointment video authority and intent', () => {
     expect(
       screen.queryByText('Buổi tư vấn đã được xác nhận hoàn tất.'),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('separate call window', () => {
+  afterEach(() => vi.restoreAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    api.session.mockResolvedValue(active)
+    api.access.mockResolvedValue(issued)
+    api.list.mockResolvedValue({
+      items: [{ id, specialistDisplayName: 'Chuyên gia An' }],
+    })
+  })
+  const joinButton = () =>
+    screen.findByRole('button', { name: 'Tham gia phiên tư vấn' })
+
+  it.each([
+    ['USER', `/call/${id}?join=1`],
+    ['SPECIALIST', `/specialist/call/${id}?join=1`],
+  ] as const)(
+    'opens the %s call window instead of joining in the shell, and refocuses it',
+    async (role, url) => {
+      const user = userEvent.setup()
+      const opened = { closed: false, focus: vi.fn(), opener: {} }
+      const open = vi
+        .spyOn(window, 'open')
+        .mockReturnValue(opened as unknown as Window)
+      view(role, {})
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: 'Tham gia phiên tư vấn' }),
+        ).toBeEnabled(),
+      )
+      await user.click(await joinButton())
+      expect(open).toHaveBeenCalledWith(url, `mb-call-${id}`)
+      expect(opened.opener).toBeNull()
+      expect(api.access).not.toHaveBeenCalled()
+      expect(screen.queryByText('SDK connected')).not.toBeInTheDocument()
+      expect(
+        screen.getByText(/Cuộc gọi đang mở ở cửa sổ riêng/),
+      ).toBeInTheDocument()
+      await user.click(await joinButton())
+      expect(open).toHaveBeenCalledOnce()
+      expect(opened.focus).toHaveBeenCalledOnce()
+    },
+  )
+  it('offers a link when the browser blocks the new window', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(window, 'open').mockReturnValue(null)
+    view('USER', {})
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Tham gia phiên tư vấn' }),
+      ).toBeEnabled(),
+    )
+    await user.click(await joinButton())
+    const link = await screen.findByRole('link', {
+      name: /Mở cuộc gọi trong thẻ mới/,
+    })
+    expect(link).toHaveAttribute('href', `/call/${id}?join=1`)
+    expect(link).toHaveAttribute('target', '_blank')
+    await user.click(link)
+    expect(screen.queryByRole('link', { name: /Mở cuộc gọi/ })).toBeNull()
+    expect(
+      screen.getByText(/Cuộc gọi đang mở ở cửa sổ riêng/),
+    ).toBeInTheDocument()
+  })
+  it('joins by itself in the call window once the session allows it', async () => {
+    view('USER', { callWindow: true, autoJoin: true })
+    expect(await screen.findByText('SDK connected')).toBeInTheDocument()
+    expect(api.access).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('link', { name: /Trở về lịch hẹn/ })).toBeNull()
+    expect(screen.getByText('MentalBridge')).toBeInTheDocument()
+  })
+  it('does not join by itself without the opener flag', async () => {
+    view('USER', { callWindow: true })
+    await joinButton()
+    await waitFor(() => expect(api.session).toHaveBeenCalled())
+    expect(api.access).not.toHaveBeenCalled()
+  })
+  it('shows a clear end state with a close action after leaving', async () => {
+    const user = userEvent.setup()
+    const close = vi.spyOn(window, 'close').mockImplementation(() => {})
+    view('USER', { callWindow: true, autoJoin: true })
+    await user.click(
+      await screen.findByRole('button', { name: 'Rời cuộc gọi' }),
+    )
+    const heading = screen.getByRole('heading', {
+      name: 'Bạn đã rời cuộc gọi',
+    })
+    expect(heading).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: 'Đóng cửa sổ' }))
+    expect(close).toHaveBeenCalledOnce()
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Trình duyệt không cho tự đóng cửa sổ/),
+      ).toBeInTheDocument(),
+    )
+  })
+  it('keeps the specialist completion flow in the call window', async () => {
+    const user = userEvent.setup()
+    api.complete.mockResolvedValue({
+      ...pending,
+      verificationState: 'VERIFIED',
+    })
+    view('SPECIALIST', { callWindow: true })
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Xác nhận kết thúc buổi tư vấn',
+      }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Kết thúc và gửi xác nhận' }),
+    )
+    await waitFor(() => expect(api.complete).toHaveBeenCalledOnce())
+    expect(
+      await screen.findByText('Buổi tư vấn đã kết thúc'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Tổng kết phiên trong mục Khách hàng/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Đóng cửa sổ' })).toBeVisible()
   })
 })

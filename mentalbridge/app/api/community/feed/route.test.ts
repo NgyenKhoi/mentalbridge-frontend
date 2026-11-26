@@ -23,6 +23,7 @@ const communityMocks = vi.hoisted(() => ({
   updateComment: vi.fn(),
   deleteComment: vi.fn(),
   putReaction: vi.fn(),
+  reactions: vi.fn(),
   deleteReaction: vi.fn(),
   putBookmark: vi.fn(),
   deleteBookmark: vi.fn(),
@@ -68,6 +69,7 @@ import {
   DELETE as deleteReaction,
   PUT as putReaction,
 } from '../posts/[postId]/reaction/route'
+import { GET as getReactions } from '../posts/[postId]/reactions/route'
 import {
   DELETE as deleteBookmark,
   PUT as putBookmark,
@@ -829,12 +831,50 @@ describe('/api/community read BFF', () => {
     expect(unbookmarked.status).toBe(204)
   })
 
+  it('lists post reactors with the viewer token and rejects bad ids', async () => {
+    const list = {
+      items: [
+        {
+          communityProfileId: authorId,
+          displayName: 'Minh An',
+          avatarPreset: 'LEAF',
+          reaction: 'EMPATHY',
+          reactedAt: '2026-09-29T05:00:00Z',
+          self: true,
+        },
+      ],
+      count: 1,
+    }
+    communityMocks.reactions.mockResolvedValue(list)
+
+    const listed = await getReactions(
+      request(`http://localhost/api/community/posts/${postId}/reactions`),
+      { params: Promise.resolve({ postId }) },
+    )
+    expect(listed.status).toBe(200)
+    expect(listed.headers.get('cache-control')).toBe('no-store')
+    expect(await listed.json()).toEqual(list)
+    expect(communityMocks.reactions).toHaveBeenCalledWith(
+      'identity-access-secret',
+      postId,
+      expect.any(String),
+    )
+
+    communityMocks.reactions.mockClear()
+    const invalid = await getReactions(
+      request('http://localhost/api/community/posts/not-a-uuid/reactions'),
+      { params: Promise.resolve({ postId: 'not-a-uuid' }) },
+    )
+    expect(invalid.status).toBe(400)
+    expect(communityMocks.reactions).not.toHaveBeenCalled()
+  })
+
   it('rejects unsupported reactions at the BFF boundary', async () => {
     const response = await putReaction(
       request(`http://localhost/api/community/posts/${postId}/reaction`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ reaction: 'LIKE' }),
+        body: JSON.stringify({ reaction: 'ANGRY' }),
       }),
       { params: Promise.resolve({ postId }) },
     )

@@ -6,6 +6,7 @@ import type { MobileRole } from '@/auth/session'
 import { useSession } from '@/auth/session-context'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
 import type { RuntimeConfig } from '@/config/runtime-config'
+import { createPushApi } from '@/push/push-api'
 import { secureCredentialStore } from '@/security/credential-store'
 import { createNotificationApi } from './notification-api'
 import { NotificationInboxScreen } from './NotificationInboxScreen'
@@ -55,6 +56,7 @@ function AccountNotificationRoute({
       client,
       interceptor,
       api: createNotificationApi(client),
+      pushApi: createPushApi(client),
     }
   })
   useEffect(
@@ -67,6 +69,7 @@ function AccountNotificationRoute({
   return preferences ? (
     <NotificationPreferencesScreen
       api={binding.api}
+      pushApi={binding.pushApi}
       onBack={() => router.back()}
     />
   ) : (

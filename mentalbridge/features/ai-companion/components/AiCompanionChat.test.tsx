@@ -102,6 +102,36 @@ describe('AiCompanionChat', () => {
     )
   })
 
+  it('marks messages spoken in a voice call, and only those', async () => {
+    vi.mocked(companionBrowserClient.get).mockResolvedValue({
+      ...conversation,
+      messages: [
+        {
+          messageId: '44444444-4444-4444-8444-444444444444',
+          role: 'USER',
+          content: 'Mình vừa nói qua điện thoại',
+          createdAt: '2026-09-20T08:01:00Z',
+          contextKinds: [],
+          channel: 'VOICE',
+        },
+        {
+          messageId: '55555555-5555-4555-8555-555555555555',
+          role: 'ASSISTANT',
+          content: 'Mầm nghe rồi nè.',
+          createdAt: '2026-09-20T08:01:00Z',
+          contextKinds: [],
+        },
+      ],
+    })
+    render(<AiCompanionChat accountId={accountId} />)
+
+    const spoken = (
+      await screen.findByText('Mình vừa nói qua điện thoại')
+    ).closest('article')!
+    expect(within(spoken).getByText('Qua giọng nói')).toBeVisible()
+    expect(screen.getAllByText('Qua giọng nói')).toHaveLength(1)
+  })
+
   it('persists context per conversation and sends only the message', async () => {
     const answered: CompanionConversation = {
       ...conversation,
@@ -151,7 +181,9 @@ describe('AiCompanionChat', () => {
     render(<AiCompanionChat accountId={accountId} />)
 
     await user.click(
-      await screen.findByRole('button', { name: /Mở nguồn ngữ cảnh/ }),
+      await screen.findByRole('button', {
+        name: /Mầm đang dùng|Chọn điều Mầm được biết/,
+      }),
     )
     const dialog = screen.getByRole('dialog', {
       name: 'Nguồn thông tin cho cuộc trò chuyện này',
@@ -189,7 +221,7 @@ describe('AiCompanionChat', () => {
     )
     expect(
       await within(
-        screen.getByRole('region', { name: 'AI Companion' }),
+        screen.getByRole('region', { name: 'Trò chuyện với Mầm' }),
       ).findByText('Hãy chọn một bước nhỏ.'),
     ).toBeVisible()
     expect(screen.getByText(/Còn 4 lượt/)).toBeVisible()
@@ -427,16 +459,16 @@ describe('AiCompanionChat', () => {
 
     await waitFor(() => {
       expect(
-        within(screen.getByRole('region', { name: 'AI Companion' })).getByText(
-          'Mình đã nhận được tin nhắn.',
-        ),
+        within(
+          screen.getByRole('region', { name: 'Trò chuyện với Mầm' }),
+        ).getByText('Mình đã nhận được tin nhắn.'),
       ).toBeVisible()
       expect(screen.getByRole('button', { name: 'Gửi' })).toBeVisible()
     })
     expect(composer).toHaveValue('')
     expect(screen.getByText(/Còn 4 lượt/)).toBeVisible()
     expect(companionBrowserClient.send).toHaveBeenCalledTimes(1)
-    const chat = screen.getByRole('region', { name: 'AI Companion' })
+    const chat = screen.getByRole('region', { name: 'Trò chuyện với Mầm' })
     expect(within(chat).getAllByText('Chỉ gửi một lần')).toHaveLength(1)
     expect(
       within(chat).getAllByText('Mình đã nhận được tin nhắn.'),
@@ -560,7 +592,7 @@ describe('AiCompanionChat', () => {
       await screen.findByRole('alert')
       await user.click(screen.getByRole('button', { name: 'Gửi lại' }))
 
-      const chat = screen.getByRole('region', { name: 'AI Companion' })
+      const chat = screen.getByRole('region', { name: 'Trò chuyện với Mầm' })
       expect(
         await within(chat).findByText('Mình đang lắng nghe.'),
       ).toBeVisible()
@@ -941,7 +973,9 @@ describe('AiCompanionChat', () => {
           <AiCompanionChat key={otherAccount} accountId={otherAccount} />,
         )
         expect(screen.queryByDisplayValue('Nháp của tài khoản A')).toBeNull()
-        expect(screen.getByText('Đang tải AI Companion…')).toBeVisible()
+        expect(
+          screen.getByText('Đang tải cuộc trò chuyện với Mầm…'),
+        ).toBeVisible()
         await waitFor(() =>
           expect(companionBrowserClient.list).toHaveBeenCalledTimes(2),
         )

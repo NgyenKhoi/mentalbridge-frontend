@@ -24,14 +24,17 @@ export function HomeQuickActions({
     )
     return () => window.clearTimeout(timer)
   }, [])
-  const completedAt = home?.journey.episodeCompletedAt
+  // A reassessment is the latest screening too; the initial-check date alone goes stale after the first cycle.
+  const completedAt =
+    home?.journey.latestScreening?.completedAt ??
+    home?.journey.episodeCompletedAt
   const tiles = [
     {
-      label: 'Kiểm tra ban đầu',
+      label: 'Bài sàng lọc',
       hint: completedAt
         ? `Lần gần nhất: ${new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'long' }).format(new Date(completedAt))}`
         : 'Hiểu rõ 14 ngày gần đây',
-      href: '/initial-check',
+      href: completedAt ? '/assessments' : '/initial-check',
       Icon: ClipboardCheck,
       tone: 'sage',
     },

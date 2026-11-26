@@ -14,6 +14,8 @@ import type {
   ConsultationBriefScreeningContextChoice,
 } from '../api/consultation-brief-contract'
 import { consultationBriefBrowserClient } from '../api/consultation-brief-browser-client'
+import type { Appointment } from '@/lib/consultation/consultation-validation'
+import { EarlierSessionSummaries } from './EarlierSessionSummaries'
 import styles from './ConsultationBriefPanel.module.css'
 
 const level: Record<string, string> = {
@@ -53,7 +55,12 @@ function message(error: unknown) {
 export function ConsultationBriefEditor({
   appointmentId,
   scheduledStartAt,
-}: Readonly<{ appointmentId: string; scheduledStartAt?: string }>) {
+  earlierAppointments = [],
+}: Readonly<{
+  appointmentId: string
+  scheduledStartAt?: string
+  earlierAppointments?: readonly Appointment[]
+}>) {
   const [preparationClosed, setPreparationClosed] = useState(() =>
     scheduledStartAt ? Date.parse(scheduledStartAt) <= Date.now() : false,
   )
@@ -422,6 +429,22 @@ export function ConsultationBriefEditor({
           với chuyên gia trong phiên.
         </p>
       )}
+      <EarlierSessionSummaries
+        appointments={earlierAppointments}
+        disabled={
+          preparationClosed ||
+          busy ||
+          brief?.sharingStatus === 'ACTIVE' ||
+          (choices.length === 0 && !brief)
+        }
+        onUse={(text) => {
+          const next = (
+            situation.trim() ? `${situation.trimEnd()}\n\n${text}` : text
+          ).slice(0, 1000)
+          visibleDraftRef.current.situation = next
+          setSituation(next)
+        }}
+      />
       {choices.length === 0 && !brief ? (
         <p className={styles.notice}>
           Bạn cần hoàn thành cặp sàng lọc PHQ-9 và GAD-7 trước khi tạo tóm tắt.

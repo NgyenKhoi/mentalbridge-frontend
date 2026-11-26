@@ -199,7 +199,7 @@ jobs:
     name: Staging Android native boot and real-contract journeys
     needs: [promotion-policy, milestone-provenance]
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 90
     environment: staging-mobile-e2e
     defaults:
       run:
@@ -223,6 +223,24 @@ jobs:
       MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD: ${{ secrets.MB_SUPPORT_PLAN_USER_PASSWORD }}
       MAESTRO_MB_SPECIALIST_EMAIL: ${{ secrets.MB_SPECIALIST_EMAIL }}
       MAESTRO_MB_SPECIALIST_PASSWORD: ${{ secrets.MB_SPECIALIST_PASSWORD }}
+      MB666_FIXTURE_CONTROL_URL: ${{ secrets.MB666_FIXTURE_CONTROL_URL }}
+      MB666_FIXTURE_CONTROL_TOKEN: ${{ secrets.MB666_FIXTURE_CONTROL_TOKEN }}
+      MB666_EVIDENCE_MODE: automated-emulator
+      MAESTRO_MB666_PERSONA_A_EMAIL: ${{ secrets.MB666_PERSONA_A_EMAIL }}
+      MAESTRO_MB666_PERSONA_A_PASSWORD: ${{ secrets.MB666_PERSONA_A_PASSWORD }}
+      MAESTRO_MB666_PERSONA_B_EMAIL: ${{ secrets.MB666_PERSONA_B_EMAIL }}
+      MAESTRO_MB666_PERSONA_B_PASSWORD: ${{ secrets.MB666_PERSONA_B_PASSWORD }}
+      MAESTRO_MB_HOME_NEXT_STEP_TITLE: ${{ vars.MB666_HOME_NEXT_STEP_TITLE }}
+      MAESTRO_MB_HOME_AFTER_TITLE: ${{ vars.MB666_HOME_AFTER_TITLE }}
+      MAESTRO_MB664_CHANGE_OPTION: ${{ vars.MB666_CHANGE_OPTION }}
+      MAESTRO_MB664_CHANGE_RESULT: ${{ vars.MB666_CHANGE_RESULT }}
+      MAESTRO_MB_ACHIEVEMENT_TITLE: ${{ vars.MB666_ACHIEVEMENT_TITLE }}
+      MAESTRO_MB_REWARD_POLICY_VERSION: ${{ vars.MB666_REWARD_POLICY_VERSION }}
+      MAESTRO_MB_BINGO_VERIFIED_LABEL: ${{ vars.MB666_BINGO_VERIFIED_LABEL }}
+      MAESTRO_MB_BINGO_SELF_POSITION: ${{ vars.MB666_BINGO_SELF_POSITION }}
+      MAESTRO_MB_DISCOVERY_SPECIALIST_ID: ${{ vars.MB666_DISCOVERY_SPECIALIST_ID }}
+      MAESTRO_MB_DISCOVERY_SLOT_ID: ${{ vars.MB666_DISCOVERY_SLOT_ID }}
+      MB666_ENABLE_OPTIONAL_CHAT: ${{ vars.MB666_ENABLE_OPTIONAL_CHAT }}
       MAESTRO_VERSION: '2.11.0'
       ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
     steps:
@@ -254,8 +272,8 @@ jobs:
 
       - name: Require protected staging inputs
         run: |
-          if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD" || -z "$MAESTRO_MB_SPECIALIST_EMAIL" || -z "$MAESTRO_MB_SPECIALIST_PASSWORD" ]]; then
-            echo "Protected staging edge, USER, SupportPlan, and SPECIALIST fixture secrets are required." >&2
+          if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD" || -z "$MAESTRO_MB_SPECIALIST_EMAIL" || -z "$MAESTRO_MB_SPECIALIST_PASSWORD" || -z "$MB666_FIXTURE_CONTROL_URL" || -z "$MB666_FIXTURE_CONTROL_TOKEN" || -z "$MAESTRO_MB666_PERSONA_A_EMAIL" || -z "$MAESTRO_MB666_PERSONA_A_PASSWORD" || -z "$MAESTRO_MB666_PERSONA_B_EMAIL" || -z "$MAESTRO_MB666_PERSONA_B_PASSWORD" ]]; then
+            echo "Protected staging edge, base fixtures, MB-666 fixture control and Persona A/B credentials are required." >&2
             exit 1
           fi
 
@@ -267,6 +285,8 @@ jobs:
             ['USER', 'MAESTRO_MB_USER'],
             ['SupportPlan USER', 'MAESTRO_MB_SUPPORT_PLAN_USER'],
             ['SPECIALIST', 'MAESTRO_MB_SPECIALIST'],
+            ['MB-666 Persona A', 'MAESTRO_MB666_PERSONA_A'],
+            ['MB-666 Persona B', 'MAESTRO_MB666_PERSONA_B'],
           ]) {
             try {
               const response = await fetch(`${baseUrl}/api/v1/auth/login`, {

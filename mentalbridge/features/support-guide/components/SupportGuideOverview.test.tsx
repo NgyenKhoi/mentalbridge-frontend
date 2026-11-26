@@ -105,6 +105,38 @@ describe('SupportGuideOverview', () => {
     expect(screen.queryByRole('button', { name: /Tạo gợi ý/ })).toBeNull()
   })
 
+  it('continues into the plan review when the current plan review is due', async () => {
+    journeys = [journey({ nextAction: 'OPEN_CURRENT_PLAN' })]
+    mockServer.use(
+      http.get('/api/care/v2/support-plans/current', () =>
+        HttpResponse.json({ cycle: { state: 'REVIEW_DUE' } }),
+      ),
+    )
+
+    render(<SupportGuideOverview />)
+
+    expect(
+      await screen.findByRole('link', {
+        name: /Xem lại kế hoạch với kết quả mới/,
+      }),
+    ).toHaveAttribute('href', '/support-plan?review=open')
+  })
+
+  it('keeps the plain plan link when the plan cycle is not due or unreadable', async () => {
+    journeys = [journey({ nextAction: 'OPEN_CURRENT_PLAN' })]
+    mockServer.use(
+      http.get('/api/care/v2/support-plans/current', () =>
+        HttpResponse.json({ code: 'UNAVAILABLE' }, { status: 503 }),
+      ),
+    )
+
+    render(<SupportGuideOverview />)
+
+    expect(
+      await screen.findByRole('link', { name: /Tiếp tục kế hoạch hiện tại/ }),
+    ).toHaveAttribute('href', '/support-plan')
+  })
+
   it('reopens an existing current Guide without asking Care to prepare it again', async () => {
     render(<SupportGuideOverview />)
 
@@ -167,7 +199,7 @@ describe('SupportGuideOverview', () => {
     render(<SupportGuideOverview />)
 
     expect(
-      await screen.findByRole('link', { name: 'Tiếp tục kiểm tra ban đầu' }),
+      await screen.findByRole('link', { name: 'Tiếp tục bài sàng lọc' }),
     ).toHaveAttribute('href', '/initial-check')
     expect(ensureCalls).toBe(0)
   })
