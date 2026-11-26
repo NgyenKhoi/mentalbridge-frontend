@@ -1016,7 +1016,8 @@
         "source": "mobile/src/specialist/SpecialistAvailabilityScreen.test.tsx",
         "scenario": "renders the exact persisted slot time, modality, timezone and readiness",
         "assertions": [
-          "screen.getByText('Chat trong ứng dụng · Asia/Ho_Chi_Minh')",
+          "screen.getByText('Chat trong ứng dụng · 60 phút')",
+          "screen.getByText('Asia/Ho_Chi_Minh')",
           "screen.getByText('Có thể đặt')"
         ]
       }
