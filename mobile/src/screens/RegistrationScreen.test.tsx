@@ -11,6 +11,7 @@ const mockRegisterUser = jest.fn()
 const mockRequestEmailVerification = jest.fn()
 
 jest.mock('expo-router', () => ({
+  useFocusEffect: jest.fn(),
   router: { back: jest.fn(), replace: jest.fn() },
 }))
 
@@ -31,7 +32,7 @@ describe('USER registration screen', () => {
     await render(<RegistrationScreen />)
 
     await fireEvent.changeText(
-      screen.getByLabelText('Email'),
+      screen.getByLabelText('Địa chỉ email'),
       ' User@Example.com ',
     )
     await fireEvent.changeText(
@@ -43,6 +44,9 @@ describe('USER registration screen', () => {
       'correct-password',
     )
     await fireEvent.press(screen.getByRole('button', { name: 'Tạo tài khoản' }))
+    expect(mockRegisterUser).not.toHaveBeenCalled()
+    await fireEvent.press(screen.getByRole('checkbox'))
+    await fireEvent.press(screen.getByRole('button', { name: 'Tạo tài khoản' }))
 
     await waitFor(() =>
       expect(mockRegisterUser).toHaveBeenCalledWith(
@@ -51,14 +55,17 @@ describe('USER registration screen', () => {
         '11111111-1111-4111-8111-111111111111',
       ),
     )
-    expect(await screen.findByText('Kiểm tra email của bạn')).toBeOnTheScreen()
+    expect(
+      await screen.findByText('Kiểm tra hộp thư của bạn'),
+    ).toBeOnTheScreen()
+    expect(screen.getByText(/us\*\*\*@example\.com/)).toBeOnTheScreen()
   })
 
   it('validates the password before contacting Identity', async () => {
     await render(<RegistrationScreen />)
 
     await fireEvent.changeText(
-      screen.getByLabelText('Email'),
+      screen.getByLabelText('Địa chỉ email'),
       'user@example.com',
     )
     await fireEvent.changeText(screen.getByLabelText('Mật khẩu'), 'short')

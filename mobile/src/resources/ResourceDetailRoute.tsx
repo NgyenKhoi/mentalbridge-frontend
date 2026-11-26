@@ -37,6 +37,7 @@ export function ResourceDetailRoute() {
       {...binding}
       {...(activityDate ? { activityDate } : {})}
       onBack={() => router.back()}
+      onHome={() => router.replace('/(user)/user')}
       resourceId={first(params.resourceId) ?? ''}
     />
   )

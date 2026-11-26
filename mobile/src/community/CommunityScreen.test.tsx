@@ -129,10 +129,32 @@ async function draft() {
 }
 
 describe('mobile Community peer-support journey', () => {
+  it('keeps a typed post in the popup until discarding is explicitly confirmed', async () => {
+    const community = api()
+    await mount(community)
+    await screen.findByText(fixturePost.content)
+    await draft()
+    await screen.findByText(fixtureProfile.profile.displayName)
+    expect(
+      screen.getByRole('header', { name: 'Tạo bài viết sẻ chia' }),
+    ).toBeOnTheScreen()
+    await press('Quay lại cộng đồng')
+    expect(screen.getByText('Bạn muốn bỏ bản nháp này?')).toBeOnTheScreen()
+    await press('Tiếp tục chỉnh sửa')
+    expect(screen.getByLabelText('Nội dung chia sẻ').props.value).toBe(
+      'Một chia sẻ của tôi',
+    )
+    await press('Hủy bài viết')
+    await press('Bỏ bản nháp')
+    expect(screen.queryByLabelText('Nội dung chia sẻ')).toBeNull()
+    expect(community.create).not.toHaveBeenCalled()
+  })
   it('opens Community chat inside the feed without replacing the appointment journey', async () => {
     const value = await mount(api())
     await screen.findByText(fixturePost.content)
-    await press('Trò chuyện cộng đồng')
+    await fireEvent.press(
+      screen.getByRole('tab', { name: 'Trò chuyện cộng đồng' }),
+    )
     expect(value.props.onChat).toHaveBeenCalledTimes(1)
   })
   it.each([
@@ -538,7 +560,9 @@ describe('mobile Community peer-support journey', () => {
       ['community', mockSession?.subject, 'profile'],
       fixtureProfile,
     )
-    await press('Danh tính cộng đồng')
+    await fireEvent.press(
+      screen.getByRole('tab', { name: 'Danh tính cộng đồng' }),
+    )
     await screen.findByText('Đang tải danh tính…')
     expect(
       screen.queryByLabelText('Tên hiển thị cộng đồng'),
@@ -635,7 +659,9 @@ describe('mobile Community peer-support journey', () => {
     const community = api()
     await mount(community)
     await screen.findByText(fixturePost.content)
-    await press('Danh tính cộng đồng')
+    await fireEvent.press(
+      screen.getByRole('tab', { name: 'Danh tính cộng đồng' }),
+    )
     await screen.findByLabelText('Tên hiển thị cộng đồng')
     await fireEvent.changeText(
       screen.getByLabelText('Tên hiển thị cộng đồng'),

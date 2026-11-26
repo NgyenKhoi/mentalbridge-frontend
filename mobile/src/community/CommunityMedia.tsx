@@ -1,6 +1,6 @@
 import { randomUUID } from 'expo-crypto'
 import { useEffect, useRef, useState } from 'react'
-import { Image, Text, View } from 'react-native'
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useVideoPlayer, VideoView } from 'expo-video'
 
 import type { CommunityApi } from './community-api'
@@ -60,12 +60,14 @@ export function CommunityMediaEditor({
   initialMedia,
   disabled,
   onChange,
+  compact = false,
 }: Readonly<{
   api: CommunityApi
   transport: CommunityMediaTransport
   initialMedia: CommunityMedia[]
   disabled: boolean
   onChange: (ids: string[], busy: boolean) => void
+  compact?: boolean
 }>) {
   const [existing, setExisting] = useState(initialMedia)
   const [attachments, setAttachments] = useState<Attachment[]>([])
@@ -199,9 +201,11 @@ export function CommunityMediaEditor({
   }
   return (
     <View style={styles.column}>
-      <Text accessibilityRole="header" style={styles.heading}>
-        Ảnh và video (không bắt buộc)
-      </Text>
+      {!compact && (
+        <Text accessibilityRole="header" style={styles.heading}>
+          Ảnh và video (không bắt buộc)
+        </Text>
+      )}
       <Text style={styles.muted}>
         Chỉ tệp đã được xác nhận mới được đăng. Đừng chia sẻ hình ảnh hay thông
         tin nhận diện của người khác khi chưa có sự đồng ý.
@@ -245,13 +249,50 @@ export function CommunityMediaEditor({
         </View>
       ))}
       {error && <CommunityMessage>{error}</CommunityMessage>}
-      <CommunityButton
-        label={picking ? 'Đang xử lý tệp…' : 'Chọn ảnh hoặc video'}
-        disabled={
-          disabled || picking || existing.length + attachments.length >= 10
-        }
-        onPress={() => void add()}
-      />
+      {compact ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Chọn ảnh hoặc video"
+          accessibilityState={{
+            disabled:
+              disabled || picking || existing.length + attachments.length >= 10,
+          }}
+          disabled={
+            disabled || picking || existing.length + attachments.length >= 10
+          }
+          onPress={() => void add()}
+          style={mediaStyles.picker}
+        >
+          <Text aria-hidden style={mediaStyles.pickerIcon}>
+            ▧
+          </Text>
+          <Text style={mediaStyles.pickerText}>
+            {picking ? 'Đang xử lý tệp…' : 'Hình ảnh & video'}
+          </Text>
+        </Pressable>
+      ) : (
+        <CommunityButton
+          label={picking ? 'Đang xử lý tệp…' : 'Chọn ảnh hoặc video'}
+          disabled={
+            disabled || picking || existing.length + attachments.length >= 10
+          }
+          onPress={() => void add()}
+        />
+      )}
     </View>
   )
 }
+
+const mediaStyles = StyleSheet.create({
+  picker: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    backgroundColor: '#EEF6F0',
+  },
+  pickerIcon: { color: '#236A52', fontSize: 20 },
+  pickerText: { color: '#235343', fontSize: 12, fontWeight: '600' },
+})

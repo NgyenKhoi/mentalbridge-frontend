@@ -6,6 +6,9 @@ import {
   waitFor,
 } from '@testing-library/react-native'
 import { AppState, type AppStateStatus } from 'react-native'
+import type { DependencyList, EffectCallback } from 'react'
+import { appointment } from '@/appointments/appointment-fixtures'
+import { CrisisSupportOffsetContext } from '@/crisis-support/crisis-support-offset'
 import { ChatScreen, phaseCopy } from './ChatScreen'
 import { ChatSession } from './chat-session'
 import {
@@ -17,6 +20,18 @@ import {
   user,
   uuid,
 } from './chat-fixtures'
+
+jest.mock('@/resources/useResourceFonts', () => ({
+  useResourceFonts: () => false,
+}))
+jest.mock('expo-router', () => ({
+  useFocusEffect: (effect: EffectCallback) => {
+    const React = jest.requireActual<{
+      useEffect: (effect: EffectCallback, dependencies: DependencyList) => void
+    }>('react')
+    React.useEffect(effect, [effect])
+  },
+}))
 
 async function mounted() {
   Object.defineProperty(AppState, 'currentState', {
@@ -117,4 +132,77 @@ it.each([
   'ENDED_PROCESSING',
 ] as const)('has distinct safe %s copy', (phase) => {
   expect(phaseCopy(phase)).not.toBe(phaseCopy('ACTIVE'))
+})
+
+it('shows actual closed-session history and metadata while keeping send disabled', async () => {
+  const api = fixtureApi()
+  const received = message()
+  const sent = message({
+    senderId: user,
+    content: 'Nội dung đã lưu của người dùng',
+    sentAt: '2026-10-11T10:03:00Z',
+  })
+  jest.mocked(api.eligibility).mockResolvedValue({
+    ...eligibility,
+    phase: 'COMPLETED',
+    sessionOutcome: 'COMPLETED',
+    subscribeAllowed: false,
+    sendAllowed: false,
+    checkInAllowed: false,
+    creditState: 'CONSUMED',
+  })
+  jest.mocked(api.history).mockResolvedValue({
+    items: [received, sent],
+    nextCursor: null,
+    hasMore: false,
+  })
+  const summary = jest.fn(),
+    book = jest.fn()
+  const offset = jest.fn()
+  const session = new ChatSession({
+    api,
+    subject: user,
+    role: 'USER',
+    appointmentId,
+    uuid,
+    factory: () => new TestSocket(),
+  })
+  const view = await render(
+    <CrisisSupportOffsetContext.Provider value={offset}>
+      <ChatScreen
+        session={session}
+        subject={user}
+        onBack={jest.fn()}
+        appointment={{
+          ...appointment,
+          id: appointmentId,
+          timezone: 'Asia/Ho_Chi_Minh',
+          specialistDisplayName: 'ThS. Chuyên gia từ API',
+        }}
+        specialty="Lo âu"
+        onViewSummary={summary}
+        onBook={book}
+      />
+    </CrisisSupportOffsetContext.Provider>,
+  )
+  expect(await screen.findByText(received.content)).toBeOnTheScreen()
+  expect(screen.getByText(sent.content)).toBeOnTheScreen()
+  expect(screen.getAllByText('ThS. Chuyên gia từ API').length).toBeGreaterThan(
+    0,
+  )
+  expect(screen.getByText('Lo âu')).toBeOnTheScreen()
+  expect(screen.getByText('17:02')).toBeOnTheScreen()
+  expect(screen.queryByLabelText('Tin nhắn tư vấn')).toBeNull()
+  expect(screen.getByTestId('chat-send')).toBeDisabled()
+  expect(screen.queryByText(/Đã đọc|HIPAA|EMR/)).toBeNull()
+  await fireEvent.press(screen.getByRole('button', { name: /Xem tóm tắt/ }))
+  await fireEvent.press(screen.getByRole('button', { name: /Đặt lịch tiếp/ }))
+  expect(summary).toHaveBeenCalledTimes(1)
+  expect(book).toHaveBeenCalledTimes(1)
+  await fireEvent(screen.getByTestId('chat-composer-area'), 'layout', {
+    nativeEvent: { layout: { height: 84, width: 360, x: 0, y: 0 } },
+  })
+  expect(offset).toHaveBeenLastCalledWith(84)
+  await view.unmount()
+  expect(offset).toHaveBeenLastCalledWith(0)
 })

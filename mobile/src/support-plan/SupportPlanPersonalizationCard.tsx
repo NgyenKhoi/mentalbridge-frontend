@@ -3,8 +3,10 @@ import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
+import { AppIcon } from '@/components/AppIcon'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import { PlanPreferenceRow } from './PlanPreferenceRow'
 
 import type { SupportPlanApi } from './support-plan-api'
 import type {
@@ -19,6 +21,13 @@ type ScalarKey =
   | 'dailyTimeBudgetMinutes'
   | 'preferredDaypart'
 type ArrayKey = 'preferredActivityModes' | 'commonBarriers'
+
+function optionLabel<T extends string | number>(
+  options: readonly (readonly [T, string])[],
+  value: T | null,
+) {
+  return options.find(([key]) => key === value)?.[1] ?? 'Chưa chọn'
+}
 
 const emptyForm: FormValue = {
   preferredFocus: null,
@@ -203,6 +212,10 @@ export function SupportPlanPersonalizationCard({
   onReviewPlan: () => void
 }>) {
   const queryClient = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [expanded, setExpanded] = useState<ScalarKey | ArrayKey | null>(null)
+  const toggleSection = (section: ScalarKey | ArrayKey) =>
+    setExpanded((current) => (current === section ? null : section))
   const queryKey = ['support-plan', subject, 'personalization'] as const
   const [formState, setFormState] = useState<{
     etag: string | null
@@ -231,6 +244,8 @@ export function SupportPlanPersonalizationCard({
       api.replacePersonalization(next, query.data!.etag),
     onSuccess: (authority) => {
       queryClient.setQueryData(queryKey, authority)
+      setEditing(false)
+      setExpanded(null)
       setFeedback({
         tone: 'success',
         message:
@@ -306,14 +321,45 @@ export function SupportPlanPersonalizationCard({
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.eyebrow}>TÙY CHỌN CỦA BẠN</Text>
-      <Text accessibilityRole="header" style={styles.sectionTitle}>
-        Điều gì giúp kế hoạch dễ thực hiện hơn?
-      </Text>
-      <Text style={styles.description}>
-        Mọi câu đều không bắt buộc. Đây là sở thích thực tế, không phải chẩn
-        đoán hay đánh giá bạn.
-      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Chỉnh tùy chọn của bạn"
+        accessibilityState={{ expanded: editing }}
+        onPress={() => setEditing(!editing)}
+        style={styles.header}
+      >
+        <View style={styles.headerIcon}>
+          <AppIcon name="clipboard" size={22} />
+        </View>
+        <View style={styles.headerCopy}>
+          <Text style={styles.sectionTitle}>Tùy chọn của bạn</Text>
+          <Text style={styles.description}>
+            {dirty
+              ? 'Có thay đổi chưa lưu'
+              : [
+                  form.desiredPace
+                    ? optionLabel(paceOptions, form.desiredPace)
+                    : null,
+                  form.dailyTimeBudgetMinutes
+                    ? `${form.dailyTimeBudgetMinutes} phút/ngày`
+                    : null,
+                  form.preferredDaypart
+                    ? optionLabel(daypartOptions, form.preferredDaypart)
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || 'Thời gian, nhịp độ và cách thực hành'}
+          </Text>
+        </View>
+        <View style={{ transform: [{ rotate: editing ? '-90deg' : '90deg' }] }}>
+          <AppIcon name="chevron" size={18} />
+        </View>
+      </Pressable>
+      {editing && (
+        <Text style={styles.description}>
+          Chọn nhịp phù hợp với bạn. Mọi mục đều không bắt buộc.
+        </Text>
+      )}
 
       {query.data.value.planReview.required && (
         <View accessibilityLiveRegion="polite" style={styles.reviewNotice}>
@@ -344,45 +390,113 @@ export function SupportPlanPersonalizationCard({
         </View>
       )}
 
-      <ScalarChoices
-        label="Bạn muốn ưu tiên điều gì lúc này?"
-        value={form.preferredFocus}
-        options={focusOptions}
-        onChange={(value) => setScalar('preferredFocus', value)}
-      />
-      <ScalarChoices
-        label="Nhịp độ nào phù hợp với bạn?"
-        value={form.desiredPace}
-        options={paceOptions}
-        onChange={(value) => setScalar('desiredPace', value)}
-      />
-      <ScalarChoices
-        label="Bạn thường có bao nhiêu phút mỗi ngày?"
-        value={form.dailyTimeBudgetMinutes}
-        options={([5, 10, 15, 20, 30] as const).map(
-          (minutes) => [minutes, `${minutes} phút`] as const,
-        )}
-        onChange={(value) => setScalar('dailyTimeBudgetMinutes', value)}
-      />
-      <ScalarChoices
-        label="Thời điểm nào thường thuận tiện?"
-        value={form.preferredDaypart}
-        options={daypartOptions}
-        onChange={(value) => setScalar('preferredDaypart', value)}
-      />
-      <MultiChoices
-        label="Bạn thích cách thực hành nào?"
-        hint="Có thể chọn nhiều lựa chọn."
-        values={form.preferredActivityModes}
-        options={modeOptions}
-        onToggle={(value) => toggleArray('preferredActivityModes', value)}
-      />
-      <MultiChoices
-        label="Điều gì thường khiến bạn khó bắt đầu?"
-        values={form.commonBarriers}
-        options={barrierOptions}
-        onToggle={(value) => toggleArray('commonBarriers', value)}
-      />
+      {editing && (
+        <View>
+          <PlanPreferenceRow
+            title="Điều bạn ưu tiên"
+            icon="headphones"
+            summary={optionLabel(focusOptions, form.preferredFocus)}
+            expanded={expanded === 'preferredFocus'}
+            onPress={() => toggleSection('preferredFocus')}
+          >
+            <ScalarChoices
+              label="Bạn muốn ưu tiên điều gì lúc này?"
+              value={form.preferredFocus}
+              options={focusOptions}
+              onChange={(value) => setScalar('preferredFocus', value)}
+            />
+          </PlanPreferenceRow>
+          <PlanPreferenceRow
+            title="Nhịp độ"
+            icon="swap"
+            summary={optionLabel(paceOptions, form.desiredPace)}
+            expanded={expanded === 'desiredPace'}
+            onPress={() => toggleSection('desiredPace')}
+          >
+            <ScalarChoices
+              label="Nhịp độ nào phù hợp với bạn?"
+              value={form.desiredPace}
+              options={paceOptions}
+              onChange={(value) => setScalar('desiredPace', value)}
+            />
+          </PlanPreferenceRow>
+          <PlanPreferenceRow
+            title="Thời gian mỗi ngày"
+            icon="calendar"
+            summary={
+              form.dailyTimeBudgetMinutes
+                ? `${form.dailyTimeBudgetMinutes} phút`
+                : 'Chưa chọn'
+            }
+            expanded={expanded === 'dailyTimeBudgetMinutes'}
+            onPress={() => toggleSection('dailyTimeBudgetMinutes')}
+          >
+            <ScalarChoices
+              label="Bạn thường có bao nhiêu phút mỗi ngày?"
+              value={form.dailyTimeBudgetMinutes}
+              options={([5, 10, 15, 20, 30] as const).map(
+                (minutes) => [minutes, `${minutes} phút`] as const,
+              )}
+              onChange={(value) => setScalar('dailyTimeBudgetMinutes', value)}
+            />
+          </PlanPreferenceRow>
+          <PlanPreferenceRow
+            title="Thời điểm thuận tiện"
+            icon="calendar"
+            summary={optionLabel(daypartOptions, form.preferredDaypart)}
+            expanded={expanded === 'preferredDaypart'}
+            onPress={() => toggleSection('preferredDaypart')}
+          >
+            <ScalarChoices
+              label="Thời điểm nào thường thuận tiện?"
+              value={form.preferredDaypart}
+              options={daypartOptions}
+              onChange={(value) => setScalar('preferredDaypart', value)}
+            />
+          </PlanPreferenceRow>
+          <PlanPreferenceRow
+            title="Cách thực hành"
+            icon="book"
+            summary={
+              form.preferredActivityModes.length
+                ? form.preferredActivityModes
+                    .map((value) => optionLabel(modeOptions, value))
+                    .join(' · ')
+                : 'Chưa chọn'
+            }
+            expanded={expanded === 'preferredActivityModes'}
+            onPress={() => toggleSection('preferredActivityModes')}
+          >
+            <MultiChoices
+              label="Bạn thích cách thực hành nào?"
+              hint="Có thể chọn nhiều lựa chọn."
+              values={form.preferredActivityModes}
+              options={modeOptions}
+              onToggle={(value) => toggleArray('preferredActivityModes', value)}
+            />
+          </PlanPreferenceRow>
+          <PlanPreferenceRow
+            title="Điều cần hỗ trợ thêm"
+            icon="chat"
+            summary={
+              form.commonBarriers.length
+                ? form.commonBarriers
+                    .map((value) => optionLabel(barrierOptions, value))
+                    .join(' · ')
+                : 'Chưa chọn'
+            }
+            expanded={expanded === 'commonBarriers'}
+            onPress={() => toggleSection('commonBarriers')}
+          >
+            <MultiChoices
+              label="Điều gì thường khiến bạn khó bắt đầu?"
+              values={form.commonBarriers}
+              options={barrierOptions}
+              onToggle={(value) => toggleArray('commonBarriers', value)}
+            />
+          </PlanPreferenceRow>
+        </View>
+      )}
 
       {feedback && (
         <View accessibilityLiveRegion="polite" style={styles.feedback}>
@@ -408,44 +522,61 @@ export function SupportPlanPersonalizationCard({
         </View>
       )}
 
-      <View style={styles.actions}>
-        <PrimaryButton
-          disabled={!dirty || mutation.isPending}
-          label={mutation.isPending ? 'Đang lưu…' : 'Lưu lựa chọn'}
-          onPress={() => mutation.mutate(form)}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: mutation.isPending }}
-          disabled={mutation.isPending}
-          onPress={() => {
-            setFormState({
-              etag: query.data?.etag ?? null,
-              value: emptyForm,
-            })
-            mutation.mutate(emptyForm)
-          }}
-          style={({ pressed }) => [
-            styles.skipButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={styles.skipButtonText}>Bỏ qua tất cả</Text>
-        </Pressable>
-      </View>
+      {(editing || dirty) && (
+        <View style={styles.actions}>
+          <PrimaryButton
+            disabled={!dirty || mutation.isPending}
+            label={mutation.isPending ? 'Đang lưu…' : 'Lưu lựa chọn'}
+            onPress={() => mutation.mutate(form)}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: mutation.isPending }}
+            disabled={mutation.isPending}
+            onPress={() => {
+              setFormState({
+                etag: query.data?.etag ?? null,
+                value: emptyForm,
+              })
+              mutation.mutate(emptyForm)
+            }}
+            style={({ pressed }) => [
+              styles.skipButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.skipButtonText}>Bỏ qua tất cả</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 52,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.control,
+    backgroundColor: colors.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
   panel: {
     backgroundColor: colors.surface,
     borderColor: colors.line,
     borderRadius: radii.shell,
     borderWidth: 1,
-    gap: spacing.lg,
-    marginBottom: spacing.xl,
-    padding: spacing.xl,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
   },
   eyebrow: {
     color: colors.tealDeep,
@@ -455,20 +586,17 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: colors.ink,
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
-    lineHeight: 29,
+    lineHeight: 25,
   },
   description: {
     color: colors.inkSoft,
-    fontSize: typography.body,
-    lineHeight: typography.bodyLineHeight,
+    fontSize: 13,
+    lineHeight: 20,
   },
   fieldGroup: {
-    borderTopColor: colors.line,
-    borderTopWidth: 1,
     gap: spacing.sm,
-    paddingTop: spacing.lg,
   },
   label: { color: colors.ink, fontSize: 15, fontWeight: '700' },
   hint: { color: colors.inkSoft, fontSize: 14, lineHeight: 20 },
@@ -479,7 +607,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
     minHeight: 44,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   choiceSelected: {
@@ -508,7 +636,15 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     lineHeight: typography.bodyLineHeight,
   },
-  actions: { alignItems: 'flex-start', gap: spacing.sm },
+  actions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: spacing.md,
+  },
   secondaryButton: {
     alignSelf: 'flex-start',
     borderColor: colors.tealDeep,

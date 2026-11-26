@@ -1,6 +1,7 @@
 import type { AxiosInstance } from 'axios'
 
 import { ApiError } from '@/api/api-error'
+import { planChangeRequestSchema } from '@/support-plan/support-plan-contract'
 
 import {
   publishSessionSummaryRequestSchema,
@@ -74,4 +75,14 @@ export function createSpecialistSummaryApi(
       )
     },
   }
+}
+
+export async function getSpecialistSummaryPlanChange(
+  client: AxiosInstance,
+  proposalId: string,
+) {
+  const response = await client.get(
+    `/api/v1/specialist/plan-change-requests/by-proposal/${encodeURIComponent(proposalId)}`,
+  )
+  return planChangeRequestSchema.parse(response.data)
 }

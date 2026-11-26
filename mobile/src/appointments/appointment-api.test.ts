@@ -10,6 +10,30 @@ import {
 } from './appointment-fixtures'
 
 describe('MB-630 owner-scoped API boundary', () => {
+  it('preserves current entitlement and adjusted release entries from the owner API', async () => {
+    const data = {
+      ...credits,
+      entitlementState: 'ACTIVE',
+      supportPlanEnabled: true,
+      history: [
+        {
+          eventId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          creditId: appointment.heldCreditId,
+          appointmentId: appointment.id,
+          eventType: 'ADJUSTED_RELEASED',
+          source: credits.source,
+          packageCode: credits.packageCode,
+          policyVersion: credits.policyVersion,
+          occurredAt: credits.generatedAt,
+        },
+      ],
+    }
+    const client = create()
+    jest.spyOn(client, 'get').mockResolvedValue({ data })
+    await expect(
+      createAppointmentApi(client, subject).credits(),
+    ).resolves.toEqual(data)
+  })
   it('reads only public owner endpoints and rejects a different credit owner', async () => {
     const client = create()
     const get = jest.spyOn(client, 'get').mockResolvedValue({ data: credits })

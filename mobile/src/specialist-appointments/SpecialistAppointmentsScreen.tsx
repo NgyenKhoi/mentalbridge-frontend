@@ -2,11 +2,20 @@ import { randomUUID } from 'expo-crypto'
 import { router } from 'expo-router'
 import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
 
 import { ApiError } from '@/api/api-error'
 import { useSession } from '@/auth/session-context'
 import { Screen } from '@/components/Screen'
+import { SpecialistOverviewTabBar } from '@/navigation/SpecialistOverviewTabBar'
+import { TourTarget } from '@/onboarding/tour-target'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type {
@@ -23,17 +32,28 @@ import {
   type AppointmentCollection,
 } from './specialist-appointment-model'
 import {
+  APPOINTMENT_CREDIT_LABELS,
   APPOINTMENT_STATUS_LABELS,
   appointmentErrorMessage,
   formatAppointmentRange,
 } from './specialist-appointment-ui'
+import {
+  SpecialistAppointmentContent,
+  type SpecialistAppointmentContentApis,
+} from './SpecialistAppointmentContent'
+
+import {
+  SpecialistAgendaFooter,
+  SpecialistAgendaHeader,
+} from './SpecialistAgendaOverview'
 
 type AuthorityRecovery = 'idle' | 'refreshing' | 'blocked'
 
 const FILTERS: readonly {
-  key: AppointmentCollection
+  key: AppointmentCollection | 'all'
   label: string
 }[] = [
+  { key: 'all', label: 'Tất cả' },
   { key: 'pending', label: 'Chờ xác nhận' },
   { key: 'upcoming', label: 'Sắp tới' },
   { key: 'history', label: 'Lịch sử' },
@@ -49,12 +69,19 @@ const AUTHORITY_ERROR_CODES = new Set([
 
 export function SpecialistAppointmentsScreen({
   api,
-}: Readonly<{ api: SpecialistAppointmentApi }>) {
+  continuityApi,
+  summaryApi,
+  disputeApi,
+}: Readonly<
+  { api: SpecialistAppointmentApi } & SpecialistAppointmentContentApis
+>) {
   const { session } = useSession()
   const queryClient = useQueryClient()
   const subject = session?.subject ?? 'anonymous'
   const queryKey = ['specialist-appointments', subject] as const
-  const [filter, setFilter] = useState<AppointmentCollection>('pending')
+  const [filter, setFilter] = useState<AppointmentCollection | 'all'>('all')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [search, setSearch] = useState('')
   const [notice, setNotice] = useState('')
   const [authorityRecovery, setAuthorityRecovery] =
     useState<AuthorityRecovery>('idle')
@@ -105,6 +132,23 @@ export function SpecialistAppointmentsScreen({
         : { pending: [], upcoming: [], history: [] },
     [assignmentMismatch, data],
   )
+  const all = [...groups.pending, ...groups.upcoming, ...groups.history]
+  const collection = filter === 'all' ? all : groups[filter]
+  const term = search.trim().toLocaleLowerCase('vi-VN')
+  const visible = term
+    ? collection.filter((item) =>
+        [
+          formatAppointmentRange(item),
+          APPOINTMENT_STATUS_LABELS[item.status],
+          item.id,
+        ].some((field) => field.toLocaleLowerCase('vi-VN').includes(term)),
+      )
+    : collection
+  const loadFailed =
+    appointmentsQuery.isError ||
+    authorityRecovery === 'blocked' ||
+    assignmentMismatch
+  const agenda = !loadFailed ? data : undefined
   const authorityConfirmed =
     appointmentsQuery.isSuccess &&
     !appointmentsQuery.isFetching &&
@@ -173,24 +217,38 @@ export function SpecialistAppointmentsScreen({
   }
 
   return (
-    <Screen>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.back()}
-        style={styles.back}
+    <Screen
+      layout="dashboard"
+      backgroundColor="#F8F8F2"
+      bottomActions={<SpecialistOverviewTabBar onAppointments />}
+    >
+      <SpecialistAgendaHeader
+        data={agenda}
+        next={agenda ? groups.upcoming[0] : undefined}
+        refreshing={appointmentsQuery.isFetching}
+        onRefresh={() => void reconcileAuthority()}
+        onSearch={() => {
+          if (searchOpen) setSearch('')
+          setSearchOpen(!searchOpen)
+        }}
+      />
+      {searchOpen && (
+        <TextInput
+          accessibilityLabel="Tìm theo ngày giờ, trạng thái hoặc mã lịch"
+          placeholder="Tìm theo ngày, trạng thái hoặc mã lịch…"
+          value={search}
+          onChangeText={setSearch}
+          autoFocus
+          style={styles.search}
+        />
+      )}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        accessibilityRole="tablist"
+        contentContainerStyle={styles.filters}
       >
-        <Text style={styles.backLabel}>← Không gian chuyên gia</Text>
-      </Pressable>
-      <Text style={styles.eyebrow}>LỊCH TƯ VẤN</Text>
-      <Text accessibilityRole="header" style={styles.title}>
-        Lịch hẹn được giao cho bạn
-      </Text>
-      <Text style={styles.description}>
-        Phản hồi yêu cầu đang chờ, chuẩn bị cho phiên sắp tới và xem lại lịch sử
-        theo trạng thái từ MentalBridge.
-      </Text>
-
-      <View accessibilityRole="tablist" style={styles.filters}>
         {FILTERS.map((item) => (
           <Pressable
             accessibilityRole="tab"
@@ -208,11 +266,31 @@ export function SpecialistAppointmentsScreen({
                 filter === item.key && styles.filterLabelSelected,
               ]}
             >
-              {item.label} · {groups[item.key].length}
+              {item.label} ·{' '}
+              {agenda
+                ? item.key === 'all'
+                  ? all.length
+                  : groups[item.key].length
+                : '—'}
             </Text>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
+
+      <TourTarget
+        id={!visible.length ? 'specialist-appointment-actions' : undefined}
+        route="/appointments"
+        title="Danh sách lịch hẹn"
+        description="Các lịch hẹn và thao tác sẽ xuất hiện tại đây khi danh sách tải thành công. Khi chưa có lịch trong nhóm đang chọn, bạn có thể đổi nhóm hoặc tải lại."
+        style={styles.toolbar}
+      >
+        <Text style={styles.toolbarText}>
+          Danh sách yêu cầu{agenda ? ` (${visible.length})` : ''}
+        </Text>
+        {(filter === 'all' || filter === 'pending') && (
+          <Text style={styles.toolbarText}>Ưu tiên: Sắp hết hạn trước</Text>
+        )}
+      </TourTarget>
 
       {(appointmentsQuery.isLoading || authorityRecovery === 'refreshing') && (
         <Text accessibilityLiveRegion="polite" style={styles.state}>
@@ -224,6 +302,12 @@ export function SpecialistAppointmentsScreen({
         authorityRecovery === 'blocked' ||
         assignmentMismatch) && (
         <View style={styles.errorBox}>
+          <Text style={styles.errorIcon} aria-hidden>
+            ↻
+          </Text>
+          <Text accessibilityRole="header" style={styles.cardTitle}>
+            Chưa thể tải lịch hẹn
+          </Text>
           <Text accessibilityRole="alert" style={styles.errorText}>
             {assignmentMismatch
               ? 'Dữ liệu lịch hẹn không khớp với chuyên gia đang đăng nhập. Nội dung và thao tác đã được khóa.'
@@ -237,7 +321,7 @@ export function SpecialistAppointmentsScreen({
             onPress={() => void reconcileAuthority()}
             style={styles.retry}
           >
-            <Text style={styles.retryLabel}>Tải lại an toàn</Text>
+            <Text style={styles.retryLabel}>⟳ Thử lại</Text>
           </Pressable>
         </View>
       )}
@@ -248,7 +332,7 @@ export function SpecialistAppointmentsScreen({
         </Text>
       ) : null}
 
-      {data && !assignmentMismatch && groups[filter].length === 0 ? (
+      {agenda && visible.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.cardTitle}>Chưa có lịch hẹn trong nhóm này</Text>
           <Text style={styles.cardCopy}>
@@ -258,7 +342,7 @@ export function SpecialistAppointmentsScreen({
       ) : null}
 
       <View style={styles.list}>
-        {groups[filter].map((appointment) => {
+        {visible.map((appointment, appointmentIndex) => {
           const decisionEligible = canDecide(appointment, data!.generatedAt)
           return (
             <View key={appointment.id} style={styles.card}>
@@ -266,14 +350,27 @@ export function SpecialistAppointmentsScreen({
                 <Text style={styles.cardTitle}>
                   {formatAppointmentRange(appointment)}
                 </Text>
-                <Text style={styles.badge}>
+                <Text
+                  style={[
+                    styles.badge,
+                    ['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) &&
+                      styles.activeBadge,
+                    ['REJECTED', 'EXPIRED', 'CANCELLED'].includes(
+                      appointment.status,
+                    ) && styles.closedBadge,
+                  ]}
+                >
                   {APPOINTMENT_STATUS_LABELS[appointment.status]}
                 </Text>
               </View>
               <Text style={styles.cardCopy}>
                 {appointment.modality === 'IN_APP_CHAT'
-                  ? 'Tư vấn qua trò chuyện trong ứng dụng'
-                  : 'Tư vấn video trong ứng dụng'}
+                  ? 'Chat trong ứng dụng'
+                  : 'Video trong ứng dụng'}
+              </Text>
+              <Text style={styles.cardCopy}>
+                Thân chủ: Người đặt lịch ·{' '}
+                {APPOINTMENT_CREDIT_LABELS[appointment.creditState]}
               </Text>
               {appointment.status === 'REQUESTED' ? (
                 <Text style={styles.deadline}>
@@ -285,7 +382,63 @@ export function SpecialistAppointmentsScreen({
                   }).format(new Date(appointment.decisionDeadlineAt))}
                 </Text>
               ) : null}
-              <View style={styles.actions}>
+              <TourTarget
+                id={
+                  appointmentIndex === 0
+                    ? 'specialist-appointment-actions'
+                    : undefined
+                }
+                route="/appointments"
+                style={styles.actions}
+              >
+                {appointment.modality === 'IN_APP_CHAT' &&
+                  (['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) ||
+                    appointment.history.some(
+                      (event) => event.toStatus === 'CONFIRMED',
+                    )) && (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() =>
+                        router.push({
+                          pathname: '/(specialist)/messages',
+                          params: { appointmentId: appointment.id },
+                        })
+                      }
+                      style={styles.secondaryButton}
+                    >
+                      <Text style={styles.secondaryLabel}>Mở tin nhắn</Text>
+                    </Pressable>
+                  )}
+                {appointment.modality === 'IN_APP_VIDEO' &&
+                  [
+                    'CONFIRMED',
+                    'IN_PROGRESS',
+                    'SESSION_ENDED',
+                    'COMPLETED',
+                  ].includes(appointment.status) && (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() =>
+                        router.push({
+                          pathname:
+                            '/(specialist)/appointments/[appointmentId]',
+                          params: {
+                            appointmentId: appointment.id,
+                            view: 'video',
+                          },
+                        })
+                      }
+                      style={styles.secondaryButton}
+                    >
+                      <Text style={styles.secondaryLabel}>
+                        {['CONFIRMED', 'IN_PROGRESS'].includes(
+                          appointment.status,
+                        )
+                          ? 'Mở phòng tư vấn'
+                          : 'Xem phiên tư vấn video'}
+                      </Text>
+                    </Pressable>
+                  )}
                 <Pressable
                   accessibilityRole="button"
                   onPress={() =>
@@ -326,55 +479,66 @@ export function SpecialistAppointmentsScreen({
                     </Pressable>
                   </>
                 ) : null}
-              </View>
+              </TourTarget>
+              <SpecialistAppointmentContent
+                appointment={appointment}
+                subject={subject}
+                serverNow={data!.generatedAt}
+                authorityConfirmed={authorityConfirmed}
+                refreshAuthority={reconcileAuthority}
+                continuityApi={continuityApi}
+                summaryApi={summaryApi}
+                disputeApi={disputeApi}
+              />
             </View>
           )
         })}
       </View>
+      <SpecialistAgendaFooter />
     </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  back: { minHeight: 44, justifyContent: 'center', marginBottom: spacing.lg },
-  backLabel: {
-    color: colors.tealDeep,
-    fontSize: typography.body,
-    fontWeight: '700',
+  errorIcon: {
+    color: '#A33B3C',
+    fontSize: 24,
+    backgroundColor: '#FAE5E1',
+    borderRadius: 28,
+    overflow: 'hidden',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
   },
-  eyebrow: {
-    color: colors.teal,
-    fontSize: typography.eyebrow,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    marginBottom: spacing.sm,
-  },
-  title: {
+  search: {
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 18,
     color: colors.ink,
-    fontSize: typography.heading,
-    fontWeight: '700',
-    lineHeight: typography.headingLineHeight,
-    marginBottom: spacing.md,
+    minHeight: 44,
+    marginTop: 12,
+    paddingHorizontal: 13,
   },
-  description: {
-    color: colors.inkSoft,
-    fontSize: typography.body,
-    lineHeight: typography.bodyLineHeight,
-    marginBottom: spacing.xl,
+  toolbar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
   },
+  toolbarText: { color: colors.inkSoft, fontSize: 12 },
   filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
-    marginBottom: spacing.xl,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
   },
   filter: {
-    borderColor: colors.line,
+    backgroundColor: '#F0F2ED',
     borderRadius: radii.pill,
-    borderWidth: 1,
     minHeight: 44,
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   filterSelected: {
     backgroundColor: colors.tealDeep,
@@ -389,21 +553,28 @@ const styles = StyleSheet.create({
   },
   errorBox: {
     backgroundColor: colors.surface,
-    borderColor: colors.terracotta,
-    borderRadius: radii.panel,
-    borderWidth: 1,
+    borderRadius: 28,
+    alignItems: 'center',
     gap: spacing.md,
     marginBottom: spacing.lg,
-    padding: spacing.lg,
+    paddingVertical: 23,
+    paddingHorizontal: spacing.lg,
   },
   errorText: {
-    color: colors.ink,
-    fontSize: typography.body,
-    lineHeight: typography.bodyLineHeight,
+    color: colors.inkSoft,
+    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 20,
   },
-  retry: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
+  retry: {
+    minHeight: 44,
+    justifyContent: 'center',
+    backgroundColor: '#143831',
+    borderRadius: 22,
+    paddingHorizontal: 23,
+  },
   retryLabel: {
-    color: colors.tealDeep,
+    color: colors.white,
     fontSize: typography.body,
     fontWeight: '700',
   },
@@ -413,7 +584,7 @@ const styles = StyleSheet.create({
     lineHeight: typography.bodyLineHeight,
     marginBottom: spacing.lg,
   },
-  list: { gap: spacing.lg },
+  list: { gap: spacing.lg, marginBottom: spacing.lg },
   empty: {
     backgroundColor: colors.surfaceSoft,
     borderRadius: radii.panel,
@@ -437,15 +608,17 @@ const styles = StyleSheet.create({
   },
   badge: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.tealPale,
+    backgroundColor: '#EEF2FD',
     borderRadius: radii.pill,
-    color: colors.tealDeep,
+    color: '#59636E',
     fontSize: 13,
     fontWeight: '700',
     overflow: 'hidden',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
+  activeBadge: { backgroundColor: '#DCF4E9', color: '#1F5C3F' },
+  closedBadge: { backgroundColor: '#FDE3DF', color: '#A63848' },
   cardCopy: {
     color: colors.inkSoft,
     fontSize: typography.body,

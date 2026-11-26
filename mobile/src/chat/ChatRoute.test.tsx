@@ -8,6 +8,9 @@ import {
 } from '@testing-library/react-native'
 import { AppState } from 'react-native'
 import type { AppSession } from '@/auth/session'
+import type { DependencyList, EffectCallback } from 'react'
+import { router } from 'expo-router'
+import { appointment } from '@/appointments/appointment-fixtures'
 import { ChatRoute } from './ChatRoute'
 import {
   appointmentId,
@@ -29,9 +32,24 @@ const mockList = jest.fn().mockResolvedValue({
   count: 0,
   generatedAt: eligibility.serverTime,
 })
+const mockSpecialist = jest
+  .fn()
+  .mockResolvedValue({ supportAreas: ['ANXIETY_SYMPTOMS'] })
+jest.mock('@/discovery/discovery-api', () => ({
+  createDiscoveryApi: () => ({ detail: mockSpecialist }),
+}))
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), push: jest.fn() },
   useLocalSearchParams: () => mockParams,
+  useFocusEffect: (effect: EffectCallback) => {
+    const React = jest.requireActual<{
+      useEffect: (effect: EffectCallback, dependencies: DependencyList) => void
+    }>('react')
+    React.useEffect(effect, [effect])
+  },
+}))
+jest.mock('@/resources/useResourceFonts', () => ({
+  useResourceFonts: () => false,
 }))
 jest.mock('@/auth/session-context', () => ({
   useSession: () => ({
@@ -76,6 +94,11 @@ beforeEach(() => {
   mockParams = { appointmentId }
   mockSockets.length = 0
   jest.clearAllMocks()
+  mockList.mockResolvedValue({
+    items: [],
+    count: 0,
+    generatedAt: eligibility.serverTime,
+  })
   Object.defineProperty(AppState, 'currentState', {
     configurable: true,
     value: 'active',
@@ -156,5 +179,40 @@ it('empty owner appointment list is explicit and does not grant a chat session',
     await screen.findByText('Chưa có lịch tư vấn qua trò chuyện.'),
   ).toBeTruthy()
   expect(mockSockets).toHaveLength(0)
+  await value.view.unmount()
+})
+
+it('binds selected appointment and specialist data and opens the same appointment summary', async () => {
+  mockList.mockResolvedValue({
+    items: [
+      {
+        ...appointment,
+        id: appointmentId,
+        specialistAccountId: specialist,
+        specialistDisplayName: 'ThS. Tên thật từ lịch hẹn',
+        status: 'COMPLETED',
+      },
+    ],
+    count: 1,
+    generatedAt: eligibility.serverTime,
+  })
+  jest.mocked(mockApi.eligibility).mockResolvedValue({
+    ...eligibility,
+    phase: 'COMPLETED',
+    sessionOutcome: 'COMPLETED',
+    subscribeAllowed: false,
+    sendAllowed: false,
+    checkInAllowed: false,
+  })
+  const value = await route()
+  expect(await screen.findByText('ThS. Tên thật từ lịch hẹn')).toBeOnTheScreen()
+  expect(await screen.findByText('Lo âu')).toBeOnTheScreen()
+  expect(mockSpecialist).toHaveBeenCalledWith(specialist, {})
+  await fireEvent.press(screen.getByRole('button', { name: /Xem tóm tắt/ }))
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: '/(user)/appointments',
+    params: { appointmentId },
+  })
+  expect(screen.getByTestId('chat-send')).toBeDisabled()
   await value.view.unmount()
 })

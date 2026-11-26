@@ -21,6 +21,7 @@ import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import { useDashboardFonts } from '@/theme/useDashboardFonts'
 
 import type { SupportPlanApi } from './support-plan-api'
 import {
@@ -29,6 +30,7 @@ import {
   type HomePlanOriginInput,
 } from './home-plan-context'
 import { SupportPlanPersonalizationCard } from './SupportPlanPersonalizationCard'
+import { planDayLabel, SupportPlanHeader } from './SupportPlanHeader'
 import { SupportPlanScheduleEditor } from './SupportPlanScheduleEditor'
 import type {
   OccurrenceEngagement,
@@ -689,8 +691,24 @@ function OccurrenceCard({
         </Text>
       </View>
       <Text style={styles.supportingText}>
-        {formatDate(occurrence.scheduledAt)}
+        {planDayLabel(occurrence.localDate)} ·{' '}
+        {occurrence.localTime.slice(0, 5)}
       </Text>
+      {occurrence.source.type === 'RESOURCE' && occurrence.source.resourceId ? (
+        <PrimaryButton
+          label="Mở nội dung"
+          tone="darkPill"
+          onPress={() => {
+            const { resourceId } = occurrence.source
+            if (resourceId) {
+              router.push({
+                pathname: '/(user)/resources/[resourceId]',
+                params: { resourceId, date: occurrence.localDate },
+              })
+            }
+          }}
+        />
+      ) : null}
       {!canEdit && occurrence.state !== 'CANCELLED' && (
         <Text style={styles.supportingText}>
           Tiếp tục kế hoạch để ghi nhận hoạt động này.
@@ -797,6 +815,7 @@ export function SupportPlanScreen({
 }>) {
   const { session, signOut } = useSession()
   const subject = session?.subject
+  const fontsLoaded = useDashboardFonts()
   const queryClient = useQueryClient()
   const [notice, setNotice] = useState<Notice | null>(null)
   const [authorityRecovery, setAuthorityRecovery] =
@@ -814,7 +833,7 @@ export function SupportPlanScreen({
     if (!contentRef.current) return
     target.measureLayout(contentRef.current, (_x, y) => {
       scrollRef.current?.scrollTo({
-        y: Math.max(0, y + spacing.xxxl - spacing.md),
+        y: Math.max(0, y + spacing.sm),
         animated: false,
       })
       AccessibilityInfo.sendAccessibilityEvent?.(heading, 'focus')
@@ -1403,16 +1422,16 @@ export function SupportPlanScreen({
     replacementQuery.data?.rationaleCodes.includes('PROPOSED_PLAN_ADMISSIBLE')
 
   return (
-    <Screen scrollRef={scrollRef} contentRef={contentRef}>
-      <SecondaryButton label="← Quay lại" onPress={() => router.back()} />
-      <Text style={styles.eyebrow}>CHĂM SÓC BẢN THÂN</Text>
-      <Text accessibilityRole="header" style={styles.title}>
-        Kế hoạch hỗ trợ
-      </Text>
-      <Text style={styles.description}>
-        Xem hoạt động tiếp theo, ghi nhận trải nghiệm của bạn và chỉ thay đổi kế
-        hoạch sau khi MentalBridge xác nhận.
-      </Text>
+    <Screen
+      layout="dashboard"
+      backgroundColor="#f5f9f6"
+      scrollRef={scrollRef}
+      contentRef={contentRef}
+    >
+      <SupportPlanHeader
+        status={activePlan ? statusLabels[activePlan.status] : undefined}
+        fontsLoaded={fontsLoaded}
+      />
 
       {notice && <StateMessage notice={notice} />}
       <SupportPlanPersonalizationCard
@@ -1970,6 +1989,8 @@ const styles = StyleSheet.create({
   section: { gap: spacing.md, marginTop: spacing.xl },
   occurrencePanel: {
     backgroundColor: colors.surface,
+    borderColor: '#e4ede7',
+    borderWidth: 1,
     borderRadius: radii.panel,
     gap: spacing.md,
     padding: spacing.lg,

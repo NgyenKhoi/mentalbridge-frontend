@@ -10,6 +10,7 @@ import {
   type CommunityApi,
 } from '@/community/community-api'
 import { Screen } from '@/components/Screen'
+import { CommunityNavigation } from '@/community/CommunitySpace'
 import type { RuntimeConfig } from '@/config/runtime-config'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
 import { secureCredentialStore } from '@/security/credential-store'
@@ -97,7 +98,25 @@ export function CommunityChatScreen({
       ? profile.data.profile.communityProfileId
       : null
   return (
-    <Screen>
+    <Screen
+      layout="dashboard"
+      backgroundColor="#F5FAF6"
+      bottomActions={
+        <CommunityNavigation
+          section="chat"
+          onChat={() => {
+            setConversationId(null)
+            setPrivacy(false)
+          }}
+          onSelect={(section) =>
+            router.replace({
+              pathname: '/(user)/community',
+              params: { section },
+            })
+          }
+        />
+      }
+    >
       <View
         style={[s.column, !foreground && { display: 'none' }]}
         accessibilityElementsHidden={!foreground}

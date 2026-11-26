@@ -27,6 +27,14 @@ export function notificationDestination(
 ) {
   if (!action) return null
   if (role === 'SPECIALIST') return specialistNotificationDestination(action)
+  if (action.type === 'OPEN_APPOINTMENT') {
+    const id = z.uuid().safeParse(action.targetId)
+    if (!id.success || action.href !== `/appointments/${id.data}`) return null
+    return {
+      pathname: '/(user)/appointments' as const,
+      params: { appointmentId: id.data },
+    }
+  }
 
   if (
     action.type === 'OPEN_COMMUNITY_CONVERSATION' ||

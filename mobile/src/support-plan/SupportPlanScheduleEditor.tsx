@@ -1,8 +1,16 @@
 import { randomUUID } from 'expo-crypto'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
 
 import { ApiError } from '@/api/api-error'
+import { AppIcon, type AppIconName } from '@/components/AppIcon'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type {
@@ -66,6 +74,46 @@ const weekdayOptions = [
   [6, 'T7'],
   [7, 'CN'],
 ] as const
+
+function ActivityIcon({
+  type,
+}: Readonly<{ type: PlanActionProjection['actionType'] }>) {
+  if (type === 'EMOTION_CHECK_IN')
+    return (
+      <Image
+        accessible={false}
+        source={require('../../assets/home-shortcuts/emotion.png')}
+        style={styles.activityImage}
+      />
+    )
+  const icons: Record<PlanActionProjection['actionType'], AppIconName> = {
+    RESOURCE: 'book',
+    JOURNAL: 'book',
+    EMOTION_CHECK_IN: 'chat',
+    ROUTINE_SELF_MANAGEMENT: 'clipboard',
+    PROFESSIONAL_SUPPORT: 'user',
+    REASSESSMENT_SCREENING: 'clipboard',
+    SELF_REPORT_REVIEW: 'calendar',
+  }
+  return <AppIcon name={icons[type]} size={22} />
+}
+
+function scheduleSummary(form: ScheduleForm) {
+  if (!form.enabled) return 'Chưa lên lịch'
+  const recurrence =
+    form.recurrenceType === 'WEEKLY'
+      ? weekdayOptions
+          .filter(([day]) => form.daysOfWeek.includes(day))
+          .map(([, label]) => label)
+          .join(', ')
+      : form.recurrenceType === 'DAILY'
+        ? 'Mỗi ngày'
+        : 'Một lần'
+  const time = form.preferredDaypart
+    ? daypartOptions.find(([value]) => value === form.preferredDaypart)?.[1]
+    : form.localTime
+  return `${recurrence} · ${time} · ${form.duration} phút`
+}
 
 function localDate(timezone: string) {
   try {
@@ -250,6 +298,8 @@ function SupportPlanScheduleEditorState({
     }
   })
   const [saving, setSaving] = useState<string>()
+  const [expandedAction, setExpandedAction] = useState<string>()
+  const [advancedAction, setAdvancedAction] = useState<string>()
   const [messages, setMessages] = useState<Record<string, string>>({})
   const [stale, setStale] = useState<string>()
   const commandKeys = useRef<
@@ -358,6 +408,9 @@ function SupportPlanScheduleEditorState({
           ? 'Đã lưu lịch cho các hoạt động tương lai.'
           : 'Đã bỏ lịch tương lai. Điều này không ảnh hưởng đến kết quả kế hoạch.',
       }))
+      setExpandedAction((current) =>
+        current === action.actionId ? undefined : current,
+      )
     } catch (error) {
       if (
         error instanceof ApiError &&
@@ -385,235 +438,371 @@ function SupportPlanScheduleEditorState({
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.eyebrow}>
-        {plan.status === 'DRAFT'
-          ? 'XEM LẠI TRƯỚC KHI BẮT ĐẦU'
-          : 'ĐIỀU CHỈNH KHI CẦN'}
-      </Text>
-      <Text accessibilityRole="header" style={styles.title}>
-        Nhịp hoạt động phù hợp với bạn
-      </Text>
-      <Text style={styles.body}>
-        Chọn số lần, thời điểm và thời lượng vừa sức. Giảm hoặc bỏ lịch không
-        được xem là thất bại.
+      <View style={styles.headingRow}>
+        <Text accessibilityRole="header" style={styles.title}>
+          Hoạt động &amp; lịch
+        </Text>
+        <Text style={styles.count}>{actions.length} hoạt động</Text>
+      </View>
+      <Text style={styles.supporting}>
+        Chạm hoạt động để xem và chỉnh. Bạn có thể giảm hoặc bỏ lịch bất cứ lúc
+        nào.
       </Text>
       {actions.map((action) => {
         const form = forms[action.actionId]
         if (!form) return null
-        if (!canSchedule(action)) {
-          return (
-            <View key={action.actionId} style={styles.item}>
-              <Text style={styles.itemTitle}>{action.presentation.title}</Text>
-              <Text style={styles.supporting}>
-                Mục này được thực hiện khi bạn chủ động cần đến, nên không bị
-                đưa vào lịch lặp lại.
-              </Text>
-            </View>
-          )
-        }
         const itemDisabled = disabled || saving === action.actionId
-        const itemDirty = signature(form) !== initial[action.actionId]
+        const itemDirty =
+          canSchedule(action) && signature(form) !== initial[action.actionId]
+        const expanded = expandedAction === action.actionId
+        const focus = plan.focuses.find((entry) =>
+          entry.actions.some((item) => item.actionId === action.actionId),
+        )
+        const firstInFocus =
+          focus?.actions.find((item) => item.status !== 'ENDED')?.actionId ===
+          action.actionId
         return (
-          <View key={action.actionId} style={styles.item}>
-            <Text style={styles.itemTitle}>{action.presentation.title}</Text>
-            <Choice
-              disabled={itemDisabled}
-              label={form.enabled ? '✓ Đang lên lịch' : 'Không lên lịch'}
-              selected={form.enabled}
-              onPress={() =>
-                update(action.actionId, { enabled: !form.enabled })
-              }
-            />
-            {form.enabled && (
-              <>
-                <Text style={styles.label}>Nhịp hoạt động</Text>
-                <View style={styles.wrap}>
-                  {(action.actionType === 'REASSESSMENT_SCREENING'
-                    ? recurrenceOptions.filter(([value]) => value === 'ONCE')
-                    : recurrenceOptions
-                  ).map(([value, label]) => (
-                    <Choice
-                      key={value}
-                      disabled={itemDisabled}
-                      label={label}
-                      selected={form.recurrenceType === value}
-                      onPress={() =>
-                        update(action.actionId, {
-                          recurrenceType: value,
-                          daysOfWeek:
-                            value === 'WEEKLY'
-                              ? form.daysOfWeek.length
-                                ? form.daysOfWeek
-                                : [1]
-                              : [],
-                        })
-                      }
-                    />
-                  ))}
-                </View>
-                {form.recurrenceType === 'WEEKLY' && (
-                  <>
-                    <Text style={styles.label}>Ngày trong tuần</Text>
-                    <View style={styles.wrap}>
-                      {weekdayOptions.map(([day, label]) => (
-                        <Choice
-                          key={day}
-                          disabled={itemDisabled}
-                          label={label}
-                          selected={form.daysOfWeek.includes(day)}
-                          onPress={() =>
-                            update(action.actionId, {
-                              daysOfWeek: form.daysOfWeek.includes(day)
-                                ? form.daysOfWeek.filter(
-                                    (value) => value !== day,
-                                  )
-                                : [...form.daysOfWeek, day],
-                            })
-                          }
-                        />
-                      ))}
-                    </View>
-                  </>
-                )}
-                <Text style={styles.label}>Thời điểm trong ngày</Text>
-                <View style={styles.wrap}>
-                  {daypartOptions.map(([value, label]) => (
-                    <Choice
-                      key={value ?? 'EXACT'}
-                      disabled={itemDisabled}
-                      label={label}
-                      selected={form.preferredDaypart === value}
-                      onPress={() =>
-                        update(action.actionId, { preferredDaypart: value })
-                      }
-                    />
-                  ))}
-                </View>
-                <TextInput
-                  accessibilityLabel="Giờ địa phương"
-                  editable={!itemDisabled}
-                  inputMode="text"
-                  onChangeText={(value) =>
-                    update(action.actionId, { localTime: value })
-                  }
-                  placeholder="HH:mm"
-                  style={styles.input}
-                  value={form.localTime}
-                />
-                <TextInput
-                  accessibilityLabel="Thời lượng dự kiến (phút)"
-                  editable={!itemDisabled}
-                  inputMode="numeric"
-                  onChangeText={(value) =>
-                    update(action.actionId, { duration: value })
-                  }
-                  placeholder="5–180 phút"
-                  style={styles.input}
-                  value={form.duration}
-                />
-                <TextInput
-                  accessibilityLabel="Múi giờ"
-                  editable={!itemDisabled}
-                  onChangeText={(value) =>
-                    update(action.actionId, { timezone: value })
-                  }
-                  placeholder="Asia/Ho_Chi_Minh"
-                  style={styles.input}
-                  value={form.timezone}
-                />
-                <TextInput
-                  accessibilityLabel="Ngày bắt đầu"
-                  editable={!itemDisabled}
-                  onChangeText={(value) =>
-                    update(action.actionId, { effectiveFrom: value })
-                  }
-                  placeholder="YYYY-MM-DD"
-                  style={styles.input}
-                  value={form.effectiveFrom}
-                />
-                <TextInput
-                  accessibilityLabel="Ngày kết thúc (không bắt buộc)"
-                  editable={!itemDisabled}
-                  onChangeText={(value) =>
-                    update(action.actionId, { effectiveUntil: value })
-                  }
-                  placeholder="YYYY-MM-DD"
-                  style={styles.input}
-                  value={form.effectiveUntil}
-                />
-                <Choice
-                  disabled={itemDisabled}
-                  label={
-                    form.reminderEnabled ? '✓ Có nhắc tôi' : 'Không nhắc tôi'
-                  }
-                  selected={form.reminderEnabled}
-                  onPress={() =>
-                    update(action.actionId, {
-                      reminderEnabled: !form.reminderEnabled,
-                    })
-                  }
-                />
-              </>
+          <View key={action.actionId}>
+            {firstInFocus && (
+              <Text style={styles.focusTitle}>{focus?.title}</Text>
             )}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: itemDisabled || !itemDirty }}
-              disabled={itemDisabled || !itemDirty}
-              onPress={() => void save(action)}
-              style={({ pressed }) => [
-                styles.save,
-                (itemDisabled || !itemDirty) && styles.disabled,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.saveText}>
-                {saving === action.actionId ? 'Đang lưu…' : 'Lưu lịch'}
-              </Text>
-            </Pressable>
-            {stale === action.actionId && (
+            <View style={[styles.item, expanded && styles.itemExpanded]}>
               <Pressable
                 accessibilityRole="button"
-                onPress={async () => {
-                  const actionId = action.actionId
-                  setReloadRequest({
-                    actionId,
-                    planVersion: plan.version,
-                  })
-                  const authoritative = await onReload()
-                  if (!authoritative) {
-                    setReloadRequest(undefined)
-                    return
-                  }
-                  const authoritativeActions = authoritative.focuses
-                    .flatMap((focus) => focus.actions)
-                    .filter((candidate) => candidate.status !== 'ENDED')
-                  setEditor((current) =>
-                    reconcileForms(
-                      current,
-                      authoritativeActions,
-                      authoritative.status,
-                      actionId,
-                    ),
-                  )
-                  setReloadRequest(undefined)
-                  setStale((current) =>
-                    current === actionId ? undefined : current,
-                  )
-                  setMessages((current) => ({
-                    ...current,
-                    [actionId]: '',
-                  }))
+                accessibilityLabel={`Chỉnh hoạt động: ${action.presentation.title}`}
+                accessibilityState={{
+                  expanded,
+                  disabled: saving === action.actionId,
                 }}
-                style={styles.reload}
+                disabled={saving === action.actionId}
+                onPress={() =>
+                  setExpandedAction(expanded ? undefined : action.actionId)
+                }
+                style={({ pressed }) => [
+                  styles.activityRow,
+                  pressed && styles.pressed,
+                ]}
               >
-                <Text style={styles.reloadText}>Tải lịch mới</Text>
+                <View
+                  style={[
+                    styles.activityIcon,
+                    action.actionType === 'JOURNAL' && styles.journalIcon,
+                  ]}
+                >
+                  <ActivityIcon type={action.actionType} />
+                </View>
+                <View style={styles.activityCopy}>
+                  <Text style={styles.itemTitle}>
+                    {action.presentation.title}
+                  </Text>
+                  <Text style={styles.supporting}>
+                    {canSchedule(action)
+                      ? scheduleSummary(form)
+                      : 'Thực hiện khi cần'}
+                  </Text>
+                  {itemDirty && (
+                    <Text style={styles.unsaved}>Chưa lưu thay đổi</Text>
+                  )}
+                </View>
+                <View
+                  style={{
+                    transform: [{ rotate: expanded ? '-90deg' : '90deg' }],
+                  }}
+                >
+                  <AppIcon name="chevron" size={17} />
+                </View>
               </Pressable>
-            )}
-            {messages[action.actionId] && (
-              <Text accessibilityLiveRegion="polite" style={styles.supporting}>
-                {messages[action.actionId]}
-              </Text>
-            )}
+              {expanded && (
+                <View style={styles.editorContent}>
+                  {action.presentation.summary && (
+                    <Text style={styles.supporting}>
+                      {action.presentation.summary}
+                    </Text>
+                  )}
+                  {action.actionType === 'EMOTION_CHECK_IN' && (
+                    <Text style={styles.supporting}>
+                      Ghi nhận theo nhịp bạn đã chọn; việc lưu cảm xúc không tự
+                      thay đổi kế hoạch.
+                    </Text>
+                  )}
+                  {canSchedule(action) ? (
+                    <>
+                      <Choice
+                        disabled={itemDisabled}
+                        label={
+                          form.enabled ? '✓ Đang lên lịch' : 'Không lên lịch'
+                        }
+                        selected={form.enabled}
+                        onPress={() =>
+                          update(action.actionId, { enabled: !form.enabled })
+                        }
+                      />
+                      {form.enabled && (
+                        <>
+                          <Text style={styles.label}>Nhịp hoạt động</Text>
+                          <View style={styles.wrap}>
+                            {(action.actionType === 'REASSESSMENT_SCREENING'
+                              ? recurrenceOptions.filter(
+                                  ([value]) => value === 'ONCE',
+                                )
+                              : recurrenceOptions
+                            ).map(([value, label]) => (
+                              <Choice
+                                key={value}
+                                disabled={itemDisabled}
+                                label={label}
+                                selected={form.recurrenceType === value}
+                                onPress={() =>
+                                  update(action.actionId, {
+                                    recurrenceType: value,
+                                    daysOfWeek:
+                                      value === 'WEEKLY'
+                                        ? form.daysOfWeek.length
+                                          ? form.daysOfWeek
+                                          : [1]
+                                        : [],
+                                  })
+                                }
+                              />
+                            ))}
+                          </View>
+                          {form.recurrenceType === 'WEEKLY' && (
+                            <>
+                              <Text style={styles.label}>Ngày trong tuần</Text>
+                              <View style={styles.wrap}>
+                                {weekdayOptions.map(([day, label]) => (
+                                  <Choice
+                                    key={day}
+                                    disabled={itemDisabled}
+                                    label={label}
+                                    selected={form.daysOfWeek.includes(day)}
+                                    onPress={() =>
+                                      update(action.actionId, {
+                                        daysOfWeek: form.daysOfWeek.includes(
+                                          day,
+                                        )
+                                          ? form.daysOfWeek.filter(
+                                              (value) => value !== day,
+                                            )
+                                          : [...form.daysOfWeek, day],
+                                      })
+                                    }
+                                  />
+                                ))}
+                              </View>
+                            </>
+                          )}
+                          <Text style={styles.label}>Thời điểm trong ngày</Text>
+                          <View style={styles.wrap}>
+                            {daypartOptions.map(([value, label]) => (
+                              <Choice
+                                key={value ?? 'EXACT'}
+                                disabled={itemDisabled}
+                                label={label}
+                                selected={form.preferredDaypart === value}
+                                onPress={() =>
+                                  update(action.actionId, {
+                                    preferredDaypart: value,
+                                  })
+                                }
+                              />
+                            ))}
+                          </View>
+                          <View style={styles.inputRow}>
+                            <View style={styles.inputField}>
+                              <Text style={styles.label}>Giờ</Text>
+                              <TextInput
+                                accessibilityLabel="Giờ địa phương"
+                                editable={!itemDisabled}
+                                inputMode="text"
+                                onChangeText={(value) =>
+                                  update(action.actionId, { localTime: value })
+                                }
+                                placeholder="HH:mm"
+                                style={styles.input}
+                                value={form.localTime}
+                              />
+                            </View>
+                            <View style={styles.inputField}>
+                              <Text style={styles.label}>
+                                Thời lượng (phút)
+                              </Text>
+                              <TextInput
+                                accessibilityLabel="Thời lượng dự kiến (phút)"
+                                editable={!itemDisabled}
+                                inputMode="numeric"
+                                onChangeText={(value) =>
+                                  update(action.actionId, { duration: value })
+                                }
+                                placeholder="5–180 phút"
+                                style={styles.input}
+                                value={form.duration}
+                              />
+                            </View>
+                          </View>
+                          <View style={styles.inputRow}>
+                            <View style={styles.inputField}>
+                              <Text style={styles.label}>Từ ngày</Text>
+                              <TextInput
+                                accessibilityLabel="Ngày bắt đầu"
+                                editable={!itemDisabled}
+                                onChangeText={(value) =>
+                                  update(action.actionId, {
+                                    effectiveFrom: value,
+                                  })
+                                }
+                                placeholder="YYYY-MM-DD"
+                                style={styles.input}
+                                value={form.effectiveFrom}
+                              />
+                            </View>
+                            <View style={styles.inputField}>
+                              <Text style={styles.label}>
+                                Đến ngày (tùy chọn)
+                              </Text>
+                              <TextInput
+                                accessibilityLabel="Ngày kết thúc (không bắt buộc)"
+                                editable={!itemDisabled}
+                                onChangeText={(value) =>
+                                  update(action.actionId, {
+                                    effectiveUntil: value,
+                                  })
+                                }
+                                placeholder="YYYY-MM-DD"
+                                style={styles.input}
+                                value={form.effectiveUntil}
+                              />
+                            </View>
+                          </View>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Chỉnh múi giờ"
+                            accessibilityState={{
+                              expanded: advancedAction === action.actionId,
+                            }}
+                            onPress={() =>
+                              setAdvancedAction(
+                                advancedAction === action.actionId
+                                  ? undefined
+                                  : action.actionId,
+                              )
+                            }
+                            style={styles.timezoneTrigger}
+                          >
+                            <Text style={styles.supporting}>
+                              Múi giờ:{' '}
+                              {form.timezone === 'Asia/Ho_Chi_Minh'
+                                ? 'Việt Nam (GMT+7)'
+                                : form.timezone}
+                            </Text>
+                            <AppIcon name="chevron" size={15} />
+                          </Pressable>
+                          {advancedAction === action.actionId && (
+                            <TextInput
+                              accessibilityLabel="Múi giờ"
+                              editable={!itemDisabled}
+                              onChangeText={(value) =>
+                                update(action.actionId, { timezone: value })
+                              }
+                              placeholder="Asia/Ho_Chi_Minh"
+                              style={styles.input}
+                              value={form.timezone}
+                            />
+                          )}
+                          <Choice
+                            disabled={itemDisabled}
+                            label={
+                              form.reminderEnabled
+                                ? '✓ Có nhắc tôi'
+                                : 'Không nhắc tôi'
+                            }
+                            selected={form.reminderEnabled}
+                            onPress={() =>
+                              update(action.actionId, {
+                                reminderEnabled: !form.reminderEnabled,
+                              })
+                            }
+                          />
+                        </>
+                      )}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{
+                          disabled: itemDisabled || !itemDirty,
+                        }}
+                        disabled={itemDisabled || !itemDirty}
+                        onPress={() => void save(action)}
+                        style={({ pressed }) => [
+                          styles.save,
+                          (itemDisabled || !itemDirty) && styles.disabled,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Text style={styles.saveText}>
+                          {saving === action.actionId
+                            ? 'Đang lưu…'
+                            : 'Lưu lịch'}
+                        </Text>
+                      </Pressable>
+                      {stale === action.actionId && (
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={async () => {
+                            const actionId = action.actionId
+                            setReloadRequest({
+                              actionId,
+                              planVersion: plan.version,
+                            })
+                            const authoritative = await onReload()
+                            if (!authoritative) {
+                              setReloadRequest(undefined)
+                              return
+                            }
+                            const authoritativeActions = authoritative.focuses
+                              .flatMap((focus) => focus.actions)
+                              .filter(
+                                (candidate) => candidate.status !== 'ENDED',
+                              )
+                            setEditor((current) =>
+                              reconcileForms(
+                                current,
+                                authoritativeActions,
+                                authoritative.status,
+                                actionId,
+                              ),
+                            )
+                            setReloadRequest(undefined)
+                            setStale((current) =>
+                              current === actionId ? undefined : current,
+                            )
+                            setMessages((current) => ({
+                              ...current,
+                              [actionId]: '',
+                            }))
+                          }}
+                          style={styles.reload}
+                        >
+                          <Text style={styles.reloadText}>Tải lịch mới</Text>
+                        </Pressable>
+                      )}
+                    </>
+                  ) : (
+                    <Text style={styles.supporting}>
+                      Bạn chủ động thực hiện mục này khi cần, không có lịch lặp
+                      lại.
+                    </Text>
+                  )}
+                </View>
+              )}
+              {messages[action.actionId] && (
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={[styles.supporting, styles.message]}
+                >
+                  {messages[action.actionId]}
+                </Text>
+              )}
+            </View>
           </View>
         )
       })}
@@ -623,12 +812,7 @@ function SupportPlanScheduleEditorState({
 
 const styles = StyleSheet.create({
   panel: {
-    backgroundColor: colors.surfaceSoft,
-    borderColor: colors.line,
-    borderRadius: radii.panel,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.lg,
+    gap: spacing.sm,
   },
   eyebrow: {
     color: colors.tealDeep,
@@ -636,18 +820,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.8,
   },
-  title: { color: colors.ink, fontSize: 20, fontWeight: '700' },
+  title: { color: colors.ink, fontSize: 16, fontWeight: '700' },
   body: { color: colors.ink, fontSize: typography.body, lineHeight: 24 },
-  supporting: { color: colors.inkSoft, fontSize: 14, lineHeight: 20 },
+  supporting: { color: colors.inkSoft, fontSize: 13, lineHeight: 19 },
   item: {
     backgroundColor: colors.surface,
     borderColor: colors.line,
     borderRadius: radii.control,
     borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.md,
+    overflow: 'hidden',
   },
-  itemTitle: { color: colors.ink, fontSize: 16, fontWeight: '700' },
+  itemTitle: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '700',
+  },
   label: { color: colors.ink, fontSize: 14, fontWeight: '700' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   choice: {
@@ -687,4 +875,69 @@ const styles = StyleSheet.create({
   reloadText: { color: colors.tealDeep, fontSize: 15, fontWeight: '700' },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.68 },
+  headingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  count: {
+    color: colors.tealDeep,
+    backgroundColor: colors.surfaceSoft,
+    overflow: 'hidden',
+    borderRadius: radii.pill,
+    fontSize: 12,
+    fontWeight: '600',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  focusTitle: {
+    color: colors.teal,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 76,
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  activityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.control,
+    backgroundColor: colors.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  journalIcon: { backgroundColor: '#F5EFFA' },
+  activityImage: {
+    width: 22,
+    height: 22,
+    resizeMode: 'contain',
+    tintColor: colors.tealDeep,
+  },
+  activityCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
+  itemExpanded: { borderColor: colors.teal },
+  editorContent: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  inputRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  inputField: { flex: 1, minWidth: 125, gap: spacing.sm },
+  timezoneTrigger: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  unsaved: { color: '#805A24', fontSize: 12, fontWeight: '700' },
+  message: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
 })

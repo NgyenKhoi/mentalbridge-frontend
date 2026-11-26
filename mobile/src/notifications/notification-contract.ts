@@ -9,6 +9,7 @@ export const notificationActionSchema = z.strictObject({
     'OPEN_JOURNAL',
     'OPEN_MESSAGES',
     'OPEN_APPOINTMENTS',
+    'OPEN_APPOINTMENT',
     'OPEN_RESOURCES',
     'OPEN_ASSESSMENTS',
     'OPEN_RESOURCE',

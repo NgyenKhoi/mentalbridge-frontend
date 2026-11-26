@@ -71,14 +71,25 @@ export const sessionSummaryListSchema = z
 
 const publishStepSchema = z
   .object({
-    type: agreedNextStepTypeSchema.exclude(['PLATFORM_RESOURCE']),
+    type: agreedNextStepTypeSchema,
     title: z.string().trim().min(1).max(160),
     details: z.string().trim().max(500).nullable(),
-    resourceId: z.null(),
-    resourceVersion: z.null(),
-    resourceProposalReasonCode: z.null(),
+    resourceId: z.uuid().nullable(),
+    resourceVersion: z.string().min(1).max(64).nullable(),
+    resourceProposalReasonCode: resourceReasonSchema.nullable(),
   })
   .strict()
+  .refine((step) =>
+    step.type === 'PLATFORM_RESOURCE'
+      ? Boolean(
+          step.resourceId &&
+          step.resourceVersion &&
+          step.resourceProposalReasonCode,
+        )
+      : step.resourceId === null &&
+        step.resourceVersion === null &&
+        step.resourceProposalReasonCode === null,
+  )
 
 export const publishSessionSummaryRequestSchema = z
   .object({

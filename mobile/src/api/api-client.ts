@@ -34,6 +34,9 @@ export function createApiClient({
       request.headers.set('X-Correlation-Id', createCorrelationId())
     }
 
+    // Public authentication requests must not inherit an expired access token.
+    if (request.headers.get('Authorization') === false) return request
+
     const bearerToken = await getBearerToken()
     if (bearerToken) {
       request.headers.set('Authorization', `Bearer ${bearerToken}`)

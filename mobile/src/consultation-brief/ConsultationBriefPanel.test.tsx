@@ -42,7 +42,11 @@ describe('MB-723 ConsultationBriefPanel', () => {
       ),
     })
     await render(
-      <ConsultationBriefPanel api={feature} appointmentId={appointmentId} />,
+      <ConsultationBriefPanel
+        api={feature}
+        appointmentId={appointmentId}
+        scheduledStartAt="2099-01-01T00:00:00Z"
+      />,
     )
 
     await screen.findByText('Bản nháp riêng tư')
@@ -288,5 +292,47 @@ describe('MB-723 ConsultationBriefPanel', () => {
       screen.queryByTestId('consultation-brief-save'),
     ).not.toBeOnTheScreen()
     expect(feature.save).not.toHaveBeenCalled()
+  })
+  it('disables saving and sharing once the appointment preparation deadline has passed', async () => {
+    const feature = api()
+    await render(
+      <ConsultationBriefPanel
+        api={feature}
+        appointmentId={appointmentId}
+        scheduledStartAt="2000-01-01T00:00:00Z"
+      />,
+    )
+    await screen.findByTestId('consultation-brief-save')
+    expect(screen.getByTestId('consultation-brief-save')).toBeDisabled()
+    expect(screen.getByTestId('consultation-brief-open-approve')).toBeDisabled()
+    expect(
+      screen.getByTestId('consultation-brief-situation').props.editable,
+    ).toBe(false)
+    expect(feature.save).not.toHaveBeenCalled()
+  })
+  it('keeps unsaved user text when the server closes the preparation window', async () => {
+    const feature = api({
+      save: jest.fn().mockRejectedValue(
+        new ApiError({
+          code: 'CONSULTATION_BRIEF_APPOINTMENT_ALREADY_STARTED',
+          message: 'started',
+          status: 409,
+        }),
+      ),
+    })
+    await render(
+      <ConsultationBriefPanel api={feature} appointmentId={appointmentId} />,
+    )
+    await screen.findByTestId('consultation-brief-situation')
+    await fireEvent.changeText(
+      screen.getByTestId('consultation-brief-situation'),
+      'Nội dung tôi vừa nhập',
+    )
+    await fireEvent.press(screen.getByTestId('consultation-brief-save'))
+    await screen.findByText(/Đã đến giờ hẹn nên không thể lưu/)
+    expect(screen.getByTestId('consultation-brief-situation').props.value).toBe(
+      'Nội dung tôi vừa nhập',
+    )
+    expect(screen.getByTestId('consultation-brief-save')).toBeDisabled()
   })
 })

@@ -18,6 +18,7 @@ import type { ResourceBookmark } from '@/rewards/reward-contract'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type { ResourceApi } from './resource-api'
+import { BreathingResourceDetail } from './BreathingResourceDetail'
 import type {
   ResourceProgressItem,
   ResourceProgressUpdate,
@@ -84,6 +85,7 @@ export function ResourceDetailScreen({
   now = () => new Date(),
   timezone: timezoneOverride,
   onBack,
+  onHome,
 }: Readonly<{
   api: ResourceApi
   rewardApi?: Pick<
@@ -95,6 +97,7 @@ export function ResourceDetailScreen({
   now?: () => Date
   timezone?: string
   onBack: () => void
+  onHome?: () => void
 }>) {
   const { session, signOut } = useSession()
   const queryClient = useQueryClient()
@@ -430,6 +433,44 @@ export function ResourceDetailScreen({
       running: true,
     })
     setNotice(null)
+  }
+
+  if (resource.interactionType === 'BREATHING_PACER') {
+    return (
+      <BreathingResourceDetail
+        key={`${subject}:${resource.id}:${resource.contentVersion}:${localDate}`}
+        resource={resource}
+        completed={completed}
+        progressReady={progressQuery.isSuccess}
+        progressError={progressQuery.isError}
+        saving={saveMutation.isPending}
+        message={notice}
+        onRetryProgress={() => {
+          void progressQuery.refetch()
+        }}
+        onComplete={(update) => saveMutation.mutateAsync(update)}
+        onBack={onBack}
+        {...(onHome ? { onHome } : {})}
+        bookmarked={bookmarked}
+        bookmarkEnabled={
+          !bookmarkQuery.isPending && !bookmarkMutation.isPending
+        }
+        bookmarkUnavailable={bookmarkQuery.isError || bookmarkUncertain}
+        {...(rewardApi
+          ? {
+              onBookmark: () => {
+                if (bookmarkQuery.isError || bookmarkUncertain) {
+                  void bookmarkQuery.refetch().then((result) => {
+                    if (result.isSuccess) setBookmarkUncertain(false)
+                  })
+                } else {
+                  bookmarkMutation.mutate(bookmarked)
+                }
+              },
+            }
+          : {})}
+      />
+    )
   }
 
   return (

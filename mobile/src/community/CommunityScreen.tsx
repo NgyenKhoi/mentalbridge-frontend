@@ -9,7 +9,6 @@ import { BackHandler, Text, View } from 'react-native'
 import type { AssessmentApi } from '@/assessment/assessment-api'
 import { HelpNowPanel } from '@/assessment/AssessmentJourneyScreen'
 import { useSession } from '@/auth/session-context'
-import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import type { ResourceApi } from '@/resources/resource-api'
 
@@ -19,6 +18,14 @@ import type { CommunityMediaTransport } from './community-media'
 import { CommunityComposer } from './CommunityComposer'
 import { CommunityDetail } from './CommunityDetail'
 import { CommunityProfileEditor } from './CommunityProfileEditor'
+import { CommunityFeedView } from './CommunityFeedView'
+import { CommunityGroups } from './CommunityGroups'
+import {
+  CommunityHeader,
+  CommunityNavigation,
+  type CommunitySection,
+} from './CommunitySpace'
+import type { CircleApi } from './community-circle-api'
 import {
   CommunityButton,
   CommunityMessage,
@@ -28,6 +35,7 @@ import {
 
 type Props = Readonly<{
   initialPostId?: string
+  initialSection?: CommunitySection
   api: CommunityApi
   resources: ResourceApi
   safety: AssessmentApi
@@ -36,11 +44,13 @@ type Props = Readonly<{
   onResource: (id: string) => void
   onChat?: () => void
   onPeerChat?: (id: string) => void
+  circles?: CircleApi
 }>
-type Panel = 'feed' | 'profile' | 'composer' | 'detail' | 'help'
+type Panel = 'feed' | 'profile' | 'composer' | 'detail' | 'help' | 'groups'
 
 function AccountCommunityScreen({
   initialPostId,
+  initialSection = 'feed',
   api,
   resources,
   safety,
@@ -49,22 +59,34 @@ function AccountCommunityScreen({
   onResource,
   onChat,
   onPeerChat,
+  circles,
   subject,
 }: Props & { subject: string }) {
   const client = useQueryClient()
-  const [panel, setPanel] = useState<Panel>(initialPostId ? 'detail' : 'feed')
+  const [panel, setPanel] = useState<Panel>(
+    initialPostId
+      ? 'detail'
+      : initialSection === 'profile'
+        ? 'profile'
+        : initialSection === 'groups'
+          ? 'groups'
+          : 'feed',
+  )
   const [saved, setSaved] = useState(false)
   const [topics, setTopics] = useState<CommunityTopicCode[]>([])
   const [postId, setPostId] = useState<string | null>(initialPostId ?? null)
   const [editing, setEditing] = useState<VersionedPost | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [section, setSection] = useState<CommunitySection>(initialSection)
+  const [starter, setStarter] = useState('')
+  const [anonymous, setAnonymous] = useState(false)
   const topicQuery = useQuery({
     queryKey: ['community', subject, 'topics'],
     queryFn: () => api.topics(),
   })
   const query = useInfiniteQuery({
     queryKey: ['community', subject, saved ? 'saved' : 'feed', topics],
-    enabled: panel === 'feed',
+    enabled: panel === 'feed' || panel === 'composer',
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       saved ? api.saved(pageParam) : api.feed(topics, pageParam),
@@ -78,6 +100,7 @@ function AccountCommunityScreen({
       () => {
         if (panel === 'feed') return false
         setPanel('feed')
+        setSection((current) => (current === 'reels' ? 'reels' : 'feed'))
         return true
       },
     )
@@ -85,6 +108,7 @@ function AccountCommunityScreen({
   }, [panel])
   const feed = () => {
     setPanel('feed')
+    setSection((current) => (current === 'reels' ? 'reels' : 'feed'))
     setEditing(null)
   }
   const savedPost = async (value: VersionedPost) => {
@@ -94,198 +118,199 @@ function AccountCommunityScreen({
     setPanel('detail')
     setNotice('Chia sẻ đã được lưu.')
   }
+  const selectSection = (next: CommunitySection) => {
+    if (panel === 'composer') return
+    setSection(next)
+    setPanel(
+      next === 'profile' ? 'profile' : next === 'groups' ? 'groups' : 'feed',
+    )
+    setEditing(null)
+    if (next === 'reels') {
+      setSaved(false)
+      setTopics([])
+    }
+  }
   return (
-    <Screen key={panel}>
+    <Screen
+      key={`${panel === 'composer' ? 'feed' : panel}:${section}`}
+      layout="dashboard"
+      backgroundColor="#F5FAF6"
+      bottomActions={
+        <CommunityNavigation
+          section={
+            panel === 'profile'
+              ? 'profile'
+              : panel === 'groups'
+                ? 'groups'
+                : panel === 'feed'
+                  ? section
+                  : null
+          }
+          onSelect={selectSection}
+          onChat={onChat}
+        />
+      }
+    >
       <View style={styles.column}>
-        {panel === 'composer' ? (
+        <View
+          style={styles.column}
+          importantForAccessibility={
+            panel === 'composer' ? 'no-hide-descendants' : 'auto'
+          }
+          accessibilityElementsHidden={panel === 'composer'}
+        >
+          {(panel !== 'composer' || !editing) && (
+            <CommunityHeader
+              onBack={panel === 'feed' || panel === 'composer' ? onBack : feed}
+              onHelp={() => setPanel('help')}
+            />
+          )}
+          {panel === 'profile' ? (
+            <CommunityProfileEditor api={api} subject={subject} onBack={feed} />
+          ) : panel === 'groups' ? (
+            circles ? (
+              <CommunityGroups api={circles} subject={subject} />
+            ) : (
+              <CommunityMessage>Chưa tải được nhóm đồng hành.</CommunityMessage>
+            )
+          ) : panel === 'help' ? (
+            <>
+              <CommunityButton label="Quay lại cộng đồng" onPress={feed} />
+              <Text accessibilityRole="header" style={styles.title}>
+                Hỗ trợ ngay
+              </Text>
+              <Text style={styles.muted}>
+                Bạn chủ động tìm thông tin. MentalBridge không tự động gọi, điều
+                phối hoặc liên hệ bên thứ ba.
+              </Text>
+              <HelpNowPanel api={safety} defaultTrigger="HELP_NOW" />
+            </>
+          ) : panel === 'detail' && postId ? (
+            <CommunityDetail
+              key={postId}
+              api={api}
+              subject={subject}
+              postId={postId}
+              onBack={feed}
+              onEdit={(value) => {
+                setEditing(value)
+                setPanel('composer')
+              }}
+              onHelp={() => setPanel('help')}
+              onResource={onResource}
+              {...(onPeerChat ? { onPeerChat } : {})}
+              onGone={(message) => {
+                setNotice(message)
+                feed()
+              }}
+            />
+          ) : (
+            <CommunityFeedView
+              api={api}
+              resources={resources}
+              subject={subject}
+              posts={
+                query.isSuccess && !query.isRefetching
+                  ? [
+                      ...new Map(
+                        query.data.pages
+                          .flatMap((page) => page.items)
+                          .map((post) => [post.postId, post]),
+                      ).values(),
+                    ]
+                  : []
+              }
+              topicOptions={topicQuery.data ?? []}
+              topics={topics}
+              onTopics={setTopics}
+              saved={saved}
+              onSaved={setSaved}
+              onCompose={(content = '', hideName = false) => {
+                setEditing(null)
+                setStarter(content)
+                setAnonymous(hideName)
+                setNotice(null)
+                setPanel('composer')
+              }}
+              onOpen={(id) => {
+                setPostId(id)
+                setNotice(null)
+                setPanel('detail')
+              }}
+              onGroups={() => selectSection('groups')}
+              onChat={onChat}
+              onResource={onResource}
+              onRefresh={async () => {
+                await client.invalidateQueries({
+                  queryKey: ['community', subject],
+                })
+              }}
+              reelsOnly={section === 'reels' && panel !== 'composer'}
+              loading={query.isPending || query.isRefetching}
+              onLoadMore={
+                query.hasNextPage
+                  ? () => {
+                      if (!query.isFetching) void query.fetchNextPage()
+                    }
+                  : undefined
+              }
+              more={
+                query.hasNextPage && (
+                  <CommunityButton
+                    label="Tải thêm chia sẻ"
+                    disabled={query.isFetching}
+                    onPress={() => void query.fetchNextPage()}
+                  />
+                )
+              }
+              status={
+                <>
+                  {notice && <CommunityMessage>{notice}</CommunityMessage>}
+                  {topicQuery.isError && (
+                    <CommunityButton
+                      label="Tải lại chủ đề"
+                      onPress={() => void topicQuery.refetch()}
+                    />
+                  )}
+                  <CommunityButton
+                    label="Tải lại danh sách"
+                    disabled={query.isFetching}
+                    onPress={() => void query.refetch()}
+                  />
+                  {query.isPending || query.isRefetching ? (
+                    <CommunityMessage>
+                      Đang tải các chia sẻ còn hiển thị…
+                    </CommunityMessage>
+                  ) : query.isError ? (
+                    <CommunityMessage>
+                      {communityMessage(query.error)}
+                    </CommunityMessage>
+                  ) : query.data?.pages.every(
+                      (page) => page.items.length === 0,
+                    ) ? (
+                    <CommunityMessage>
+                      {saved
+                        ? 'Chưa có bài đã lưu còn hiển thị với bạn.'
+                        : 'Chưa có chia sẻ hiển thị cho chủ đề này.'}
+                    </CommunityMessage>
+                  ) : null}
+                </>
+              }
+            />
+          )}
+        </View>
+        {panel === 'composer' && (
           <CommunityComposer
             api={api}
             resources={resources}
             subject={subject}
             initial={editing}
             transport={media}
+            initialContent={starter}
+            initialMode={anonymous ? 'ANONYMOUS' : 'PROFILE'}
             onCancel={feed}
-            onSaved={(value) => void savedPost(value)}
+            onSaved={savedPost}
           />
-        ) : panel === 'profile' ? (
-          <CommunityProfileEditor api={api} subject={subject} onBack={feed} />
-        ) : panel === 'help' ? (
-          <>
-            <CommunityButton label="Quay lại cộng đồng" onPress={feed} />
-            <Text accessibilityRole="header" style={styles.title}>
-              Hỗ trợ ngay
-            </Text>
-            <Text style={styles.muted}>
-              Bạn chủ động tìm thông tin. MentalBridge không tự động gọi, điều
-              phối hoặc liên hệ bên thứ ba.
-            </Text>
-            <HelpNowPanel api={safety} defaultTrigger="HELP_NOW" />
-          </>
-        ) : panel === 'detail' && postId ? (
-          <CommunityDetail
-            key={postId}
-            api={api}
-            subject={subject}
-            postId={postId}
-            onBack={feed}
-            onEdit={(value) => {
-              setEditing(value)
-              setPanel('composer')
-            }}
-            onHelp={() => setPanel('help')}
-            onResource={onResource}
-            {...(onPeerChat ? { onPeerChat } : {})}
-            onGone={(message) => {
-              setNotice(message)
-              feed()
-            }}
-          />
-        ) : (
-          <>
-            <CommunityButton label="Về không gian của bạn" onPress={onBack} />
-            <Text accessibilityRole="header" style={styles.title}>
-              Cộng đồng đồng hành
-            </Text>
-            <Text style={styles.muted}>
-              Chia sẻ trải nghiệm, lắng nghe và động viên nhau. Không gian này
-              không thay thế tư vấn chuyên môn.
-            </Text>
-            {onChat && (
-              <CommunityButton label="Trò chuyện cộng đồng" onPress={onChat} />
-            )}
-            <View style={styles.row}>
-              <CommunityButton
-                label="Bảng tin"
-                selected={!saved}
-                onPress={() => setSaved(false)}
-              />
-              <CommunityButton
-                label="Bài đã lưu"
-                selected={saved}
-                onPress={() => setSaved(true)}
-              />
-              <CommunityButton
-                label="Danh tính cộng đồng"
-                onPress={() => setPanel('profile')}
-              />
-              <CommunityButton
-                label="Cần hỗ trợ ngay"
-                onPress={() => setPanel('help')}
-              />
-            </View>
-            <PrimaryButton
-              label="Viết chia sẻ"
-              onPress={() => {
-                setEditing(null)
-                setNotice(null)
-                setPanel('composer')
-              }}
-            />
-            {!saved && (
-              <View style={styles.column}>
-                <Text accessibilityRole="header" style={styles.heading}>
-                  Chủ đề bạn muốn xem
-                </Text>
-                <View style={styles.row}>
-                  <CommunityButton
-                    label="Tất cả chủ đề"
-                    selected={topics.length === 0}
-                    onPress={() => setTopics([])}
-                  />
-                  {topicQuery.data?.map((topic) => (
-                    <CommunityButton
-                      key={topic.code}
-                      label={topic.label}
-                      selected={topics.includes(topic.code)}
-                      disabled={
-                        !topics.includes(topic.code) && topics.length >= 3
-                      }
-                      onPress={() =>
-                        setTopics((values) =>
-                          values.includes(topic.code)
-                            ? values.filter((code) => code !== topic.code)
-                            : [...values, topic.code],
-                        )
-                      }
-                    />
-                  ))}
-                </View>
-                {topicQuery.isError && (
-                  <>
-                    <CommunityMessage>
-                      Chưa thể tải danh sách chủ đề.
-                    </CommunityMessage>
-                    <CommunityButton
-                      label="Tải lại chủ đề"
-                      onPress={() => void topicQuery.refetch()}
-                    />
-                  </>
-                )}
-              </View>
-            )}
-            {notice && <CommunityMessage>{notice}</CommunityMessage>}
-            <CommunityButton
-              label="Tải lại danh sách"
-              disabled={query.isFetching}
-              onPress={() => void query.refetch()}
-            />
-            {query.isPending ||
-            (query.isFetching && !query.isFetchingNextPage) ? (
-              <CommunityMessage>
-                Đang tải các chia sẻ còn hiển thị…
-              </CommunityMessage>
-            ) : query.isError ? (
-              <CommunityMessage>
-                {communityMessage(query.error)}
-              </CommunityMessage>
-            ) : (
-              <>
-                {query.data?.pages
-                  .flatMap((page) => page.items)
-                  .map((post) => (
-                    <View key={post.postId} style={styles.card}>
-                      <Text style={styles.heading}>
-                        {post.author.displayName}
-                      </Text>
-                      {post.sensitiveContentWarning === 'SENSITIVE_CONTENT' ? (
-                        <Text style={styles.muted}>
-                          Nội dung có cảnh báo nhạy cảm. Bạn quyết định có mở
-                          bài hay không.
-                        </Text>
-                      ) : (
-                        <Text style={styles.body}>{post.contentPreview}</Text>
-                      )}
-                      <Text
-                        style={styles.muted}
-                      >{`${post.counts.comments} bình luận · ${post.counts.reactions} lời động viên${post.viewerState.bookmarked ? ' · Đã lưu' : ''}`}</Text>
-                      <CommunityButton
-                        testID={`community-open-${post.postId}`}
-                        label="Mở chia sẻ"
-                        onPress={() => {
-                          setPostId(post.postId)
-                          setNotice(null)
-                          setPanel('detail')
-                        }}
-                      />
-                    </View>
-                  ))}
-                {query.data?.pages.every((page) => page.items.length === 0) && (
-                  <CommunityMessage>
-                    {saved
-                      ? 'Chưa có bài đã lưu còn hiển thị với bạn.'
-                      : 'Chưa có chia sẻ hiển thị cho chủ đề này.'}
-                  </CommunityMessage>
-                )}
-                {query.hasNextPage && (
-                  <CommunityButton
-                    label="Tải thêm chia sẻ"
-                    disabled={query.isFetchingNextPage}
-                    onPress={() => void query.fetchNextPage()}
-                  />
-                )}
-              </>
-            )}
-          </>
         )}
       </View>
     </Screen>
@@ -313,7 +338,7 @@ export function CommunityScreen(props: Props) {
     )
   return (
     <AccountCommunityScreen
-      key={`${session.subject}:${props.initialPostId ?? 'feed'}`}
+      key={`${session.subject}:${props.initialPostId ?? 'feed'}:${props.initialSection ?? 'feed'}`}
       {...props}
       subject={session.subject}
     />

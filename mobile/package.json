@@ -5,6 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "@config-plugins/react-native-webrtc": "15.0.2",
+    "@expo/dom-webview": "~57.0.1",
     "@livekit/react-native": "3.0.0",
     "@livekit/react-native-expo-plugin": "1.0.3",
     "@livekit/react-native-webrtc": "144.2.0",
@@ -51,6 +52,7 @@
   },
   "scripts": {
     "start": "expo start",
+    "start:dev": "node scripts/start-local.cjs",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "native:android:smoke": "bash scripts/verify-native-android.sh",

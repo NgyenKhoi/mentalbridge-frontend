@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
+import { GuideReplayButton } from '@/onboarding/OnboardingGuide'
 import {
   ActivityIndicator,
   Pressable,
+  type ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,9 +14,12 @@ import {
 
 import { ApiError } from '@/api/api-error'
 import { useSession } from '@/auth/session-context'
+import { AccountSignOutButton } from '@/components/AccountSignOutButton'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
+import { ChangePasswordScreen } from '@/password/ChangePasswordScreen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import { useDashboardFonts } from '@/theme/useDashboardFonts'
 
 import { loadCareProfile, type CareProfileApi } from './profile-api'
 import type { CareProfile } from './profile-contract'
@@ -89,6 +94,13 @@ type RuntimeNotice = Readonly<{
 
 type StaleRecovery = 'idle' | 'refreshing' | 'blocked'
 
+const profileSections = [
+  ['profile', 'Hồ sơ'],
+  ['notifications', 'Thông báo'],
+  ['security', 'Bảo mật'],
+] as const
+type ProfileSection = (typeof profileSections)[number][0]
+
 export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
   const { session, signOut } = useSession()
   const queryClient = useQueryClient()
@@ -100,6 +112,16 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
   const [fieldErrors, setFieldErrors] = useState<ProfileFieldErrors>({})
   const [runtimeNotice, setRuntimeNotice] = useState<RuntimeNotice | null>(null)
   const [staleRecovery, setStaleRecovery] = useState<StaleRecovery>('idle')
+  const [passwordSheetOwner, setPasswordSheetOwner] = useState<string | null>(
+    null,
+  )
+  const fontsLoaded = useDashboardFonts()
+  const scrollRef = useRef<ScrollView>(null)
+  const sectionOffset = useRef<Record<ProfileSection, number>>({
+    profile: 0,
+    notifications: 0,
+    security: 0,
+  })
   const staleRecoveryRef = useRef(false)
 
   useEffect(() => {
@@ -226,6 +248,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
   if (!subject) {
     return (
       <Screen>
+        <GuideReplayButton />
         <Text accessibilityRole="header" style={styles.title}>
           Hồ sơ cá nhân
         </Text>
@@ -241,6 +264,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
   if (profileQuery.isPending) {
     return (
       <Screen>
+        <GuideReplayButton />
         <View accessibilityLiveRegion="polite" style={styles.centeredState}>
           <ActivityIndicator
             accessibilityLabel="Đang tải hồ sơ"
@@ -254,6 +278,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
             Thông tin đã lưu của bạn đang được tải.
           </Text>
         </View>
+        <AccountSignOutButton />
       </Screen>
     )
   }
@@ -275,6 +300,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
 
     return (
       <Screen>
+        <GuideReplayButton />
         <Text style={styles.eyebrow}>TÀI KHOẢN CỦA BẠN</Text>
         <Text accessibilityRole="header" style={styles.title}>
           Hồ sơ cá nhân
@@ -293,6 +319,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
             else void profileQuery.refetch()
           }}
         />
+        {!unauthorized && <AccountSignOutButton />}
       </Screen>
     )
   }
@@ -303,28 +330,114 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
     form.dateOfBirth !== originalForm.dateOfBirth ||
     form.gender !== originalForm.gender
   const formLocked = saveProfile.isPending || staleRecovery !== 'idle'
+  const initials = profile?.displayName
+    .trim()
+    .split(/\s+/)
+    .slice(-2)
+    .map((part) => Array.from(part)[0])
+    .join('')
+    .toLocaleUpperCase('vi-VN')
+  const joined = profile
+    ? new Intl.DateTimeFormat('vi-VN', {
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'Asia/Ho_Chi_Minh',
+      }).format(new Date(profile.createdAt))
+    : null
 
   return (
-    <Screen>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.back()}
-        style={({ pressed }) => [
-          styles.backButton,
-          pressed && styles.secondaryPressed,
-        ]}
-      >
-        <Text style={styles.backLabel}>← Quay lại</Text>
-      </Pressable>
-
-      <Text style={styles.eyebrow}>TÀI KHOẢN CỦA BẠN</Text>
-      <Text accessibilityRole="header" style={styles.title}>
-        Hồ sơ cá nhân
-      </Text>
-      <Text style={styles.description}>
-        Giữ thông tin cơ bản của bạn chính xác để tiếp tục sử dụng các tính năng
-        cá nhân.
-      </Text>
+    <Screen layout="dashboard" backgroundColor="#f5f9f6" scrollRef={scrollRef}>
+      <View style={styles.masthead}>
+        <View style={styles.brandIcon}>
+          <Text accessible={false} style={styles.secondaryLabel}>
+            ✿
+          </Text>
+        </View>
+        <View style={styles.fieldGrow}>
+          <Text style={[styles.brand, fontsLoaded && styles.serif]}>
+            MentalBridge
+          </Text>
+          <Text style={styles.caption}>Tài khoản cá nhân</Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Mở thông báo"
+          onPress={() => router.push('/(user)/notifications')}
+          style={styles.headerButton}
+        >
+          <Text accessible={false} style={styles.secondaryLabel}>
+            ♧
+          </Text>
+        </Pressable>
+      </View>
+      <GuideReplayButton />
+      <View style={[styles.card, styles.overview]}>
+        <View style={styles.profileHeading}>
+          <View style={styles.avatar}>
+            <Text accessible={false} style={styles.avatarText}>
+              {initials || '◎'}
+            </Text>
+          </View>
+          <View style={styles.fieldGrow}>
+            <Text style={styles.accountBadge}>HỒ SƠ CÁ NHÂN</Text>
+            <Text
+              accessibilityRole="header"
+              numberOfLines={2}
+              style={[styles.profileName, fontsLoaded && styles.serif]}
+            >
+              {profile?.displayName ?? 'Hồ sơ cá nhân'}
+            </Text>
+            {joined ? (
+              <Text style={styles.caption}>Tạo hồ sơ {joined}</Text>
+            ) : null}
+          </View>
+        </View>
+        {profile ? (
+          <View style={styles.facts}>
+            <View style={styles.fact}>
+              <Text style={styles.caption}>Múi giờ</Text>
+              <Text style={styles.factValue}>
+                {profile.timezone === 'Asia/Ho_Chi_Minh'
+                  ? 'Giờ Việt Nam'
+                  : profile.timezone}
+              </Text>
+            </View>
+            <View style={styles.fact}>
+              <Text style={styles.caption}>Nhắc nhở hồ sơ</Text>
+              <Text style={styles.factValue}>
+                {profile.reminderEnabled ? 'Đang bật' : 'Đang tắt'}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+      </View>
+      <View style={styles.sectionLinks}>
+        {profileSections.map(([key, label], index) => (
+          <Pressable
+            accessibilityRole="button"
+            key={key}
+            onPress={() =>
+              scrollRef.current?.scrollTo({
+                y: sectionOffset.current[key],
+                animated: true,
+              })
+            }
+            style={[
+              styles.sectionLink,
+              index === 0 && styles.sectionLinkPrimary,
+            ]}
+          >
+            <Text
+              style={[
+                styles.sectionLinkText,
+                index === 0 && styles.sectionLinkPrimaryText,
+              ]}
+            >
+              {label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
       {!profile && (
         <View style={styles.emptyState}>
@@ -368,132 +481,315 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
         />
       )}
 
-      <View style={styles.form}>
-        <View style={styles.field}>
-          <Text style={styles.label}>Tên hiển thị</Text>
-          <TextInput
-            accessibilityLabel="Tên hiển thị"
-            accessibilityState={{ disabled: formLocked }}
-            autoCapitalize="words"
-            autoComplete="name"
-            editable={!formLocked}
-            maxLength={120}
-            onChangeText={(value) => updateField('displayName', value)}
-            style={[styles.input, fieldErrors.displayName && styles.inputError]}
-            value={form.displayName}
-          />
-          {fieldErrors.displayName && (
-            <Text accessibilityLiveRegion="assertive" style={styles.fieldError}>
-              {fieldErrors.displayName}
+      <View
+        style={styles.card}
+        onLayout={(event) => {
+          sectionOffset.current.profile = event.nativeEvent.layout.y
+        }}
+      >
+        <View style={styles.cardHeading}>
+          <View style={styles.cardIcon}>
+            <Text accessible={false} style={styles.secondaryLabel}>
+              ◎
             </Text>
-          )}
+          </View>
+          <View style={styles.fieldGrow}>
+            <Text accessibilityRole="header" style={styles.securityTitle}>
+              Thông tin cá nhân
+            </Text>
+            <Text style={styles.caption}>Cập nhật thông tin hồ sơ của bạn</Text>
+          </View>
+        </View>
+        <View style={styles.form}>
+          <View style={styles.field}>
+            <Text style={styles.label}>Tên hiển thị</Text>
+            <TextInput
+              accessibilityLabel="Tên hiển thị"
+              accessibilityState={{ disabled: formLocked }}
+              autoCapitalize="words"
+              autoComplete="name"
+              editable={!formLocked}
+              maxLength={120}
+              onChangeText={(value) => updateField('displayName', value)}
+              style={[
+                styles.input,
+                fieldErrors.displayName && styles.inputError,
+              ]}
+              value={form.displayName}
+            />
+            {fieldErrors.displayName && (
+              <Text
+                accessibilityLiveRegion="assertive"
+                style={styles.fieldError}
+              >
+                {fieldErrors.displayName}
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.fieldRow}>
+            <View style={[styles.field, styles.sideField]}>
+              <Text style={styles.label}>Ngày sinh (không bắt buộc)</Text>
+              <TextInput
+                accessibilityLabel="Ngày sinh"
+                accessibilityState={{ disabled: formLocked }}
+                autoCapitalize="none"
+                editable={!formLocked}
+                inputMode="numeric"
+                maxLength={10}
+                onChangeText={(value) => updateField('dateOfBirth', value)}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.inkFaint}
+                style={[
+                  styles.input,
+                  fieldErrors.dateOfBirth && styles.inputError,
+                ]}
+                value={form.dateOfBirth}
+              />
+              {fieldErrors.dateOfBirth && (
+                <Text
+                  accessibilityLiveRegion="assertive"
+                  style={styles.fieldError}
+                >
+                  {fieldErrors.dateOfBirth}
+                </Text>
+              )}
+            </View>
+
+            <View style={[styles.field, styles.sideField]}>
+              <Text style={styles.label}>Giới tính (không bắt buộc)</Text>
+              <TextInput
+                accessibilityLabel="Giới tính"
+                accessibilityState={{ disabled: formLocked }}
+                editable={!formLocked}
+                maxLength={32}
+                onChangeText={(value) => updateField('gender', value)}
+                style={[styles.input, fieldErrors.gender && styles.inputError]}
+                value={form.gender}
+              />
+              {fieldErrors.gender && (
+                <Text
+                  accessibilityLiveRegion="assertive"
+                  style={styles.fieldError}
+                >
+                  {fieldErrors.gender}
+                </Text>
+              )}
+            </View>
+          </View>
         </View>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Ngày sinh (không bắt buộc)</Text>
-          <TextInput
-            accessibilityLabel="Ngày sinh"
-            accessibilityState={{ disabled: formLocked }}
-            autoCapitalize="none"
-            editable={!formLocked}
-            inputMode="numeric"
-            maxLength={10}
-            onChangeText={(value) => updateField('dateOfBirth', value)}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.inkFaint}
-            style={[styles.input, fieldErrors.dateOfBirth && styles.inputError]}
-            value={form.dateOfBirth}
+        <View style={styles.actions}>
+          <PrimaryButton
+            disabled={formLocked || (Boolean(profile) && !hasChanges)}
+            label={
+              staleRecovery === 'refreshing'
+                ? 'Đang tải lại…'
+                : staleRecovery === 'blocked'
+                  ? 'Cần tải lại hồ sơ'
+                  : saveProfile.isPending
+                    ? 'Đang lưu…'
+                    : profile
+                      ? 'Lưu thay đổi'
+                      : 'Tạo hồ sơ'
+            }
+            onPress={submit}
+            tone="darkPill"
           />
-          {fieldErrors.dateOfBirth && (
-            <Text accessibilityLiveRegion="assertive" style={styles.fieldError}>
-              {fieldErrors.dateOfBirth}
-            </Text>
-          )}
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Giới tính (không bắt buộc)</Text>
-          <TextInput
-            accessibilityLabel="Giới tính"
-            accessibilityState={{ disabled: formLocked }}
-            editable={!formLocked}
-            maxLength={32}
-            onChangeText={(value) => updateField('gender', value)}
-            style={[styles.input, fieldErrors.gender && styles.inputError]}
-            value={form.gender}
-          />
-          {fieldErrors.gender && (
-            <Text accessibilityLiveRegion="assertive" style={styles.fieldError}>
-              {fieldErrors.gender}
-            </Text>
+          {hasChanges && !formLocked && (
+            <Pressable
+              accessibilityRole="button"
+              onPress={reset}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed && styles.secondaryPressed,
+              ]}
+            >
+              <Text style={styles.secondaryLabel}>Hoàn tác thay đổi</Text>
+            </Pressable>
           )}
         </View>
       </View>
 
-      <View style={styles.actions}>
-        <PrimaryButton
-          disabled={formLocked || (Boolean(profile) && !hasChanges)}
-          label={
-            staleRecovery === 'refreshing'
-              ? 'Đang tải lại…'
-              : staleRecovery === 'blocked'
-                ? 'Cần tải lại hồ sơ'
-                : saveProfile.isPending
-                  ? 'Đang lưu…'
-                  : profile
-                    ? 'Lưu thay đổi'
-                    : 'Tạo hồ sơ'
-          }
-          onPress={submit}
-        />
-        {hasChanges && !formLocked && (
-          <Pressable
-            accessibilityRole="button"
-            onPress={reset}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              pressed && styles.secondaryPressed,
-            ]}
-          >
-            <Text style={styles.secondaryLabel}>Hoàn tác thay đổi</Text>
-          </Pressable>
-        )}
+      <View
+        style={styles.card}
+        onLayout={(event) => {
+          sectionOffset.current.notifications = event.nativeEvent.layout.y
+        }}
+      >
+        <View style={styles.cardHeading}>
+          <View style={styles.cardIcon}>
+            <Text accessible={false} style={styles.secondaryLabel}>
+              ♧
+            </Text>
+          </View>
+          <View style={styles.fieldGrow}>
+            <Text accessibilityRole="header" style={styles.securityTitle}>
+              Thông báo và nhắc nhở
+            </Text>
+            <Text style={styles.caption}>
+              Quản lý thông báo nhận trong ứng dụng
+            </Text>
+          </View>
+        </View>
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => router.push('/(user)/notification-preferences')}
+          style={styles.softLink}
+        >
+          <Text style={styles.secondaryLabel}>Cài đặt thông báo</Text>
+          <Text accessible={false} style={styles.secondaryLabel}>
+            ›
+          </Text>
+        </Pressable>
       </View>
-
-      <View style={styles.securitySection}>
-        <Text style={styles.securityTitle}>Bảo mật tài khoản</Text>
+      <View
+        style={styles.card}
+        onLayout={(event) => {
+          sectionOffset.current.security = event.nativeEvent.layout.y
+        }}
+      >
+        <View style={styles.cardHeading}>
+          <View style={styles.cardIcon}>
+            <Text accessible={false} style={styles.secondaryLabel}>
+              ◇
+            </Text>
+          </View>
+          <View style={styles.fieldGrow}>
+            <Text accessibilityRole="header" style={styles.securityTitle}>
+              Bảo mật tài khoản
+            </Text>
+            <Text style={styles.caption}>Mật khẩu và phiên đăng nhập</Text>
+          </View>
+        </View>
         <Text style={styles.securityDescription}>
           Đổi mật khẩu sẽ kết thúc mọi phiên đăng nhập để bảo vệ tài khoản của
           bạn.
         </Text>
         <Pressable
           accessibilityRole="link"
-          onPress={() => router.push('/change-password')}
+          accessibilityLabel="Đổi mật khẩu"
+          onPress={() => setPasswordSheetOwner(subject)}
           style={({ pressed }) => [
-            styles.securityLink,
+            styles.softLink,
             pressed && styles.secondaryPressed,
           ]}
         >
           <Text style={styles.secondaryLabel}>Đổi mật khẩu</Text>
+          <Text accessible={false} style={styles.secondaryLabel}>
+            ›
+          </Text>
         </Pressable>
       </View>
+      {passwordSheetOwner === subject ? (
+        <ChangePasswordScreen onClose={() => setPasswordSheetOwner(null)} />
+      ) : null}
+      <AccountSignOutButton />
     </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  backButton: {
-    alignSelf: 'flex-start',
-    justifyContent: 'center',
-    minHeight: 44,
-    marginBottom: spacing.lg,
-    paddingRight: spacing.lg,
+  masthead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
   },
-  backLabel: {
+  brandIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.pill,
+    backgroundColor: '#deede5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brand: { fontSize: 18, fontWeight: '700', color: colors.tealDeep },
+  serif: { fontFamily: 'DashboardSerif' },
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: {
+    borderWidth: 1,
+    borderColor: '#e4ece6',
+    backgroundColor: colors.surface,
+    borderRadius: radii.panel,
+    padding: spacing.lg,
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  overview: { backgroundColor: '#f0f6f2' },
+  profileHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  avatar: {
+    width: 54,
+    height: 54,
+    borderRadius: radii.panel,
+    backgroundColor: colors.tealPale,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: colors.tealDeep, fontSize: 19, fontWeight: '700' },
+  accountBadge: {
     color: colors.tealDeep,
-    fontSize: typography.body,
+    fontSize: 10,
+    letterSpacing: 1,
+    fontWeight: '800',
+  },
+  profileName: {
+    color: colors.ink,
+    fontSize: 21,
+    lineHeight: 28,
     fontWeight: '700',
   },
+  caption: { color: colors.inkSoft, fontSize: 12, lineHeight: 18 },
+  facts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  fact: {
+    minWidth: 116,
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.control,
+    padding: spacing.md,
+  },
+  factValue: { color: colors.tealDeep, fontSize: 14, fontWeight: '700' },
+  sectionLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  sectionLink: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.pill,
+    backgroundColor: '#e9f1ed',
+  },
+  sectionLinkPrimary: { backgroundColor: colors.tealDeep },
+  sectionLinkText: { color: colors.tealDeep, fontSize: 13, fontWeight: '700' },
+  sectionLinkPrimaryText: { color: colors.white },
+  cardHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  cardIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.control,
+    backgroundColor: '#e4efe9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fieldGrow: { flex: 1 },
+  fieldRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  sideField: { flex: 1, minWidth: 120 },
   eyebrow: {
     color: colors.teal,
     fontSize: typography.eyebrow,
@@ -507,12 +803,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: typography.headingLineHeight,
     marginBottom: spacing.sm,
-  },
-  description: {
-    color: colors.inkSoft,
-    fontSize: typography.body,
-    lineHeight: typography.bodyLineHeight,
-    marginBottom: spacing.xl,
   },
   centeredState: {
     alignItems: 'center',
@@ -562,18 +852,18 @@ const styles = StyleSheet.create({
     color: colors.tealDeep,
   },
   form: {
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   field: {
     gap: spacing.sm,
   },
   label: {
     color: colors.ink,
-    fontSize: typography.body,
+    fontSize: 13,
     fontWeight: '700',
   },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#f0f4f1',
     borderColor: colors.line,
     borderRadius: radii.control,
     borderWidth: 1,
@@ -592,33 +882,26 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actions: {
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    marginTop: spacing.xl,
-  },
-  securitySection: {
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: radii.panel,
-    marginTop: spacing.xxl,
-    padding: spacing.xl,
+    gap: spacing.sm,
   },
   securityTitle: {
     color: colors.ink,
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
-    marginBottom: spacing.sm,
   },
   securityDescription: {
     color: colors.inkSoft,
-    fontSize: typography.body,
-    lineHeight: typography.bodyLineHeight,
-    marginBottom: spacing.md,
+    fontSize: 14,
+    lineHeight: 20,
   },
-  securityLink: {
-    alignSelf: 'flex-start',
-    justifyContent: 'center',
-    minHeight: 48,
-    paddingRight: spacing.lg,
+  softLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    backgroundColor: '#eff5f1',
+    borderRadius: radii.control,
   },
   secondaryButton: {
     justifyContent: 'center',

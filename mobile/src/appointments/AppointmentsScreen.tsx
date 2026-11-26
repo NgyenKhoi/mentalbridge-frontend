@@ -1,15 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { randomUUID } from 'expo-crypto'
 import { router } from 'expo-router'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
+import { useForegroundRefresh } from '@/api/use-foreground-refresh'
 import type { AppointmentDisputeApi } from '@/appointment-dispute/appointment-dispute-api'
 import { AppointmentDisputePanel } from '@/appointment-dispute/AppointmentDisputePanel'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
+import { AppIcon } from '@/components/AppIcon'
+import { useDashboardFonts } from '@/theme/useDashboardFonts'
 import type { ConsultationBriefApi } from '@/consultation-brief/consultation-brief-api'
 import { ConsultationBriefPanel } from '@/consultation-brief/ConsultationBriefPanel'
 import type { DiscoveryApi } from '@/discovery/discovery-api'
@@ -27,6 +30,7 @@ import { VideoConsultationPanel } from '@/video/VideoConsultationPanel'
 import type { VideoApi } from '@/video/video-api'
 
 import type { AppointmentApi } from './appointment-api'
+import { AppointmentCreditsCard, AppointmentListCard } from './AppointmentCards'
 import type { Appointment, CreditAccount } from './appointment-contract'
 import {
   ambiguous,
@@ -37,6 +41,7 @@ import {
   changeCandidate,
   creditLabels,
   matchesFilter,
+  orderAppointmentsForDisplay,
   sameSlot,
   sessionLabels,
   statusLabels,
@@ -54,6 +59,7 @@ type Props = Readonly<{
   sessionSummaryApi?: UserSummaryApi
   videoApi?: VideoApi
   initialSelection?: SlotSelection | undefined
+  reviewInitialSelection?: boolean
   originatingPlanActionId?: string | undefined
   supportEvaluationId?: string | undefined
 }>
@@ -141,6 +147,7 @@ function AccountAppointmentsScreen({
   discovery,
   onBack,
   initialSelection,
+  reviewInitialSelection,
   initialAppointmentId = null,
   originatingPlanActionId,
   sessionSummaryApi,
@@ -148,6 +155,7 @@ function AccountAppointmentsScreen({
   videoApi,
   subject,
 }: Props & { subject: string }) {
+  const fontsLoaded = useDashboardFonts()
   const list = useQuery({
     queryKey: ['appointments', subject],
     queryFn: () => api.list(),
@@ -175,6 +183,10 @@ function AccountAppointmentsScreen({
   const mounted = useRef(true)
   const listRefetch = list.refetch
   const creditRefetch = credits.refetch
+  useForegroundRefresh(() => {
+    if (!review && !inFlight.current && !list.isFetching)
+      void listRefetch({ cancelRefetch: false })
+  })
   useEffect(() => {
     mounted.current = true
     const subscription = AppState.addEventListener('change', (state) => {
@@ -270,6 +282,15 @@ function AccountAppointmentsScreen({
       if (mounted.current) setBusy(false)
     }
   }
+  const prepareInitial = useEffectEvent((selection: SlotSelection) => {
+    void prepare(selection, null)
+  })
+  useEffect(() => {
+    if (!reviewInitialSelection || !initialSelection) return
+    const timer = setTimeout(() => prepareInitial(initialSelection), 0)
+    return () => clearTimeout(timer)
+  }, [initialSelection, reviewInitialSelection])
+
   async function prepareCancel(item: Appointment) {
     if (inFlight.current || pending) return
     inFlight.current = true
@@ -393,27 +414,92 @@ function AccountAppointmentsScreen({
     !busy &&
     !pending &&
     changeCandidate(item, data)
-  const FindSlotButton =
-    initialSelection && !detailId ? Secondary : PrimaryButton
+  if (
+    reviewInitialSelection &&
+    review?.kind === 'request' &&
+    !review.replacement
+  ) {
+    const { slot, specialist } = review.selection
+    return (
+      <Screen layout="dashboard" backgroundColor="#F5FAF7">
+        <View style={styles.stack}>
+          <Secondary label="Chọn giờ khác" onPress={onBack} disabled={busy} />
+          <Text accessibilityRole="header" style={styles.title}>
+            Xác nhận đặt lịch
+          </Text>
+          <View style={styles.panel} testID="appointment-review">
+            <Text style={styles.subtitle}>{specialist.displayName}</Text>
+            <Text style={styles.body}>{slotLabel(slot)}</Text>
+            <Text style={styles.body}>
+              {modalityLabels[slot.modality]} · 60 phút
+            </Text>
+            <Text style={styles.body}>
+              1 lượt tư vấn · Còn {review.credits.balance.available} lượt khả
+              dụng
+            </Text>
+            <Text style={styles.muted}>
+              Lịch chỉ được xác nhận sau khi chuyên gia chấp thuận.
+            </Text>
+          </View>
+          {!!notice && (
+            <Text accessibilityLiveRegion="polite" style={styles.status}>
+              {notice}
+            </Text>
+          )}
+          <PrimaryButton
+            label={busy ? 'Đang gửi…' : 'Gửi yêu cầu đặt lịch'}
+            testID="appointment-confirm"
+            disabled={busy || pending !== null}
+            onPress={() => void execute()}
+          />
+        </View>
+      </Screen>
+    )
+  }
   if (choosing)
     return (
       <DiscoveryScreen
         api={discovery}
+        isRescheduling={replacement !== null}
         onBack={() => setChoosing(false)}
         onBook={(selection) => void prepare(selection, replacement)}
         {...(supportEvaluationId ? { supportEvaluationId } : {})}
       />
     )
   return (
-    <Screen>
+    <Screen layout="dashboard" backgroundColor="#F4F8F6">
       <View style={styles.stack}>
-        <Secondary label="Về trang trước" onPress={onBack} disabled={busy} />
-        <Text accessibilityRole="header" style={styles.title}>
-          Lịch hẹn của bạn
-        </Text>
-        <Text style={styles.body}>
-          Đặt và quản lý buổi tư vấn. Yêu cầu mới cần được chuyên gia xác nhận.
-        </Text>
+        <View style={styles.topbar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Về trang trước"
+            disabled={busy}
+            onPress={onBack}
+            style={styles.backButton}
+          >
+            <AppIcon name="back" size={18} />
+            <Text style={styles.backText}>Về trang trước</Text>
+          </Pressable>
+          <View style={styles.brand}>
+            <View style={styles.brandMark}>
+              <AppIcon name="headphones" size={16} color="#FFFFFF" />
+            </View>
+            <Text style={styles.brandText}>
+              MENTAL<Text style={styles.brandItalic}>BRIDGE</Text>
+            </Text>
+          </View>
+        </View>
+        <View style={styles.heading}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.title, fontsLoaded && styles.serif]}
+          >
+            Lịch hẹn của bạn
+          </Text>
+          <Text style={styles.description}>
+            Không gian an toàn kết nối bạn cùng các chuyên gia tư vấn.
+          </Text>
+        </View>
         {notice !== '' && (
           <Text accessibilityLiveRegion="polite" style={styles.status}>
             {notice}
@@ -437,10 +523,11 @@ function AccountAppointmentsScreen({
             />
           </View>
         )}
-        <View style={styles.group}>
-          <Text accessibilityRole="header" style={styles.subtitle}>
-            Lượt tư vấn
-          </Text>
+        <AppointmentCreditsCard
+          account={
+            !credits.isError && !credits.isPending ? credits.data : undefined
+          }
+        >
           {credits.isPending ? (
             <Text style={styles.body}>Đang tải quyền lợi…</Text>
           ) : credits.isError ? (
@@ -453,29 +540,32 @@ function AccountAppointmentsScreen({
                 onPress={() => void creditRefetch()}
               />
             </>
-          ) : (
-            credits.data && (
-              <>
-                <Text style={styles.body}>
-                  Còn {credits.data.balance.available} lượt · đang giữ{' '}
-                  {credits.data.balance.held} lượt
-                </Text>
-                <Text style={styles.muted}>
-                  Đã sử dụng {credits.data.balance.consumed} lượt · không hoàn
-                  lại {credits.data.balance.forfeited} lượt
-                </Text>
-                <Text style={styles.body}>
-                  Lịch đang giữ: {credits.data.reservationCapacity.active} /{' '}
-                  {credits.data.reservationCapacity.maximum} · còn có thể giữ{' '}
-                  {credits.data.reservationCapacity.remaining} lịch
-                </Text>
-                {credits.isFetching && (
-                  <Text style={styles.muted}>Đang cập nhật quyền lợi…</Text>
-                )}
-              </>
-            )
+          ) : credits.isFetching ? (
+            <Text style={styles.muted}>Đang cập nhật quyền lợi…</Text>
+          ) : null}
+          {!review && !pending && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Tìm giờ tư vấn"
+              disabled={busy}
+              onPress={() => {
+                setReplacement(null)
+                setChoosing(true)
+                setNotice('')
+              }}
+              style={({ pressed }) => [
+                styles.findButton,
+                pressed && styles.pressed,
+                busy && styles.disabled,
+              ]}
+            >
+              <AppIcon name="plus" size={20} color="#A8E7D2" />
+              <Text style={styles.findLabel}>
+                Tìm giờ tư vấn & Chuyên gia mới
+              </Text>
+            </Pressable>
           )}
-        </View>
+        </AppointmentCreditsCard>
         {review ? (
           <View style={styles.panel} testID="appointment-review">
             <Text accessibilityRole="header" style={styles.subtitle}>
@@ -550,26 +640,22 @@ function AccountAppointmentsScreen({
                   />
                 </View>
               )}
-              <FindSlotButton
-                label="Tìm giờ tư vấn"
-                disabled={busy}
-                onPress={() => {
-                  setReplacement(null)
-                  setChoosing(true)
-                  setNotice('')
-                }}
-              />
             </>
           )
         )}
-        <Secondary
-          label="Cập nhật lịch hẹn và quyền lợi"
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Cập nhật lịch hẹn và quyền lợi"
+          disabled={busy}
+          style={styles.refreshAction}
           onPress={() => {
             setReview(null)
             void refresh()
           }}
-          disabled={busy}
-        />
+        >
+          <AppIcon name="refresh" size={15} />
+          <Text style={styles.refreshText}>Cập nhật lịch hẹn</Text>
+        </Pressable>
         {list.isPending ? (
           <Text style={styles.body}>Đang tải lịch hẹn…</Text>
         ) : list.isError ? (
@@ -640,6 +726,7 @@ function AccountAppointmentsScreen({
                       key={item.id}
                       api={consultationBriefApi}
                       appointmentId={item.id}
+                      scheduledStartAt={item.scheduledStartAt}
                     />
                   )}
                   {item.sessionOutcome === 'COMPLETED' && sessionSummaryApi && (
@@ -725,29 +812,51 @@ function AccountAppointmentsScreen({
                   />
                 </View>
               )}
-              <Text accessibilityRole="header" style={styles.subtitle}>
-                Danh sách lịch hẹn
-              </Text>
-              <View style={styles.choices}>
+              <View style={styles.filterBar}>
                 {(
                   [
                     ['all', 'Tất cả'],
                     ['requested', 'Chờ xác nhận'],
-                    ['upcoming', 'Sắp tới'],
-                    ['history', 'Lịch sử'],
+                    ['history', 'Đã xong'],
                   ] as const
                 ).map(([value, label]) => (
                   <Pressable
                     key={value}
                     accessibilityRole="radio"
+                    accessibilityLabel={
+                      value === 'all'
+                        ? label
+                        : `${label}, ${data.items.filter((entry) => matchesFilter(entry, value, data.generatedAt)).length} lịch hẹn`
+                    }
                     accessibilityState={{ selected: filter === value }}
                     onPress={() => setFilter(value)}
                     style={[
-                      styles.secondary,
-                      filter === value && styles.selected,
+                      styles.filter,
+                      filter === value && styles.filterSelected,
                     ]}
                   >
-                    <Text style={styles.link}>{label}</Text>
+                    <Text
+                      style={[
+                        styles.filterLabel,
+                        filter === value && styles.filterLabelSelected,
+                      ]}
+                    >
+                      {label}
+                      {value === 'history'
+                        ? ` (${data.items.filter((entry) => matchesFilter(entry, value, data.generatedAt)).length})`
+                        : ''}
+                    </Text>
+                    {value === 'requested' && (
+                      <View style={styles.filterCount}>
+                        <Text style={styles.filterCountText}>
+                          {
+                            data.items.filter((entry) =>
+                              matchesFilter(entry, value, data.generatedAt),
+                            ).length
+                          }
+                        </Text>
+                      </View>
+                    )}
                   </Pressable>
                 ))}
               </View>
@@ -756,31 +865,65 @@ function AccountAppointmentsScreen({
                   Bạn chưa có lịch hẹn. Hãy tìm giờ tư vấn khi muốn bắt đầu.
                 </Text>
               ) : (
-                !data.items.some((entry) => matchesFilter(entry, filter)) && (
+                !data.items.some((entry) =>
+                  matchesFilter(entry, filter, data.generatedAt),
+                ) && (
                   <Text style={styles.body}>
                     Chưa có lịch hẹn trong nhóm này. Hãy chọn nhóm khác.
                   </Text>
                 )
               )}
-              {data.items
-                .filter((entry) => matchesFilter(entry, filter))
+              {orderAppointmentsForDisplay(data.items)
+                .filter((entry) =>
+                  matchesFilter(entry, filter, data.generatedAt),
+                )
                 .map((entry) => (
-                  <View key={entry.id} style={styles.row}>
-                    <AppointmentFacts item={entry} />
-                    <Secondary
-                      label={`Xem lịch ${entry.specialistDisplayName} · ${dateLabel(entry.scheduledStartAt, entry.timezone)}`}
-                      testID="appointment-open-detail"
-                      disabled={busy}
-                      onPress={() => {
-                        setReview(null)
-                        setDetailId(entry.id)
-                      }}
-                    />
-                  </View>
+                  <AppointmentListCard
+                    key={entry.id}
+                    item={entry}
+                    busy={busy}
+                    onDetail={() => {
+                      setReview(null)
+                      setDetailId(entry.id)
+                    }}
+                    onChat={() =>
+                      router.push({
+                        pathname: './messages',
+                        params: { appointmentId: entry.id },
+                      })
+                    }
+                    onReschedule={
+                      !review &&
+                      !pending &&
+                      !busy &&
+                      !list.isFetching &&
+                      changeCandidate(entry, data)
+                        ? () => {
+                            setReplacement(entry)
+                            setChoosing(true)
+                          }
+                        : undefined
+                    }
+                    onCancel={
+                      !review &&
+                      !pending &&
+                      !busy &&
+                      !list.isFetching &&
+                      changeCandidate(entry, data)
+                        ? () => void prepareCancel(entry)
+                        : undefined
+                    }
+                  />
                 ))}
             </>
           )
         )}
+        <View style={styles.privacy}>
+          <AppIcon name="lock" size={17} color="#3D7A6E" />
+          <Text style={styles.privacyText}>
+            Thông tin lịch hẹn chỉ hiển thị theo quyền truy cập của bạn.
+          </Text>
+        </View>
       </View>
     </Screen>
   )
@@ -808,12 +951,114 @@ export function AppointmentsScreen(props: Props) {
   )
 }
 const styles = StyleSheet.create({
-  stack: { gap: spacing.xl },
+  stack: { gap: 18, paddingHorizontal: 4 },
+  serif: { fontFamily: 'DashboardSerif', fontWeight: '400' },
+  topbar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  backButton: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  backText: { color: colors.tealDeep, fontSize: 14 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  brandMark: {
+    width: 29,
+    height: 29,
+    borderRadius: 15,
+    backgroundColor: '#1D443A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandText: { fontSize: 12, fontWeight: '600', color: '#18392E' },
+  brandItalic: { fontWeight: '400', fontStyle: 'italic' },
+  heading: { gap: 4, marginTop: -8 },
+  description: { color: '#69766F', fontSize: 14, lineHeight: 22 },
+  findButton: {
+    minHeight: 48,
+    borderRadius: 15,
+    backgroundColor: '#1D443A',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  findLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
+  },
+  refreshAction: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    gap: 6,
+    minHeight: 44,
+    alignItems: 'center',
+    marginVertical: -10,
+  },
+  refreshText: { color: '#526A5E', fontSize: 12 },
+  filterBar: {
+    flexDirection: 'row',
+    backgroundColor: '#E9EFEB',
+    borderRadius: 16,
+    padding: 4,
+    gap: 3,
+  },
+  filter: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 2,
+  },
+  filterSelected: { backgroundColor: '#FFFFFF' },
+  filterLabel: {
+    fontSize: 12,
+    color: '#69766F',
+    flexShrink: 1,
+    textAlign: 'center',
+  },
+  filterLabelSelected: { color: '#193D30', fontWeight: '600' },
+  filterCount: {
+    width: 18,
+    height: 18,
+    backgroundColor: '#FFF0B3',
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterCountText: { color: '#886422', fontSize: 11, fontWeight: '600' },
+  privacy: {
+    borderWidth: 1,
+    borderColor: '#E2EAE4',
+    borderRadius: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  privacyText: { flex: 1, fontSize: 12, lineHeight: 19, color: '#758079' },
   group: { gap: spacing.md },
   title: {
     color: colors.ink,
-    fontSize: typography.heading,
-    lineHeight: typography.headingLineHeight,
+    fontSize: 34,
+    lineHeight: 42,
     fontWeight: '700',
   },
   subtitle: {

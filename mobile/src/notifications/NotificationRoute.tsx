@@ -16,11 +16,13 @@ function AccountNotificationRoute({
   preferences,
   subject,
   role,
+  appointmentFilter,
 }: Readonly<{
   config: RuntimeConfig
   preferences: boolean
   subject: string
   role: MobileRole | null
+  appointmentFilter: boolean
 }>) {
   const queryClient = useQueryClient()
   useFocusEffect(
@@ -70,6 +72,7 @@ function AccountNotificationRoute({
   ) : (
     <NotificationInboxScreen
       api={binding.api}
+      initialAppointmentFilter={appointmentFilter && role === 'USER'}
       onBack={() => router.back()}
       onPreferences={() => router.push('./notification-preferences')}
       onOpen={(destination) => router.push(destination)}
@@ -78,16 +81,18 @@ function AccountNotificationRoute({
 }
 export function NotificationRoute({
   preferences = false,
-}: Readonly<{ preferences?: boolean }>) {
+  appointmentFilter = false,
+}: Readonly<{ preferences?: boolean; appointmentFilter?: boolean }>) {
   const config = useRuntimeConfig()
   const { session } = useSession()
   return (
     <AccountNotificationRoute
-      key={`${session?.subject ?? ''}:${session?.role ?? ''}:${preferences}`}
+      key={`${session?.subject ?? ''}:${session?.role ?? ''}:${preferences}:${appointmentFilter}`}
       config={config}
       preferences={preferences}
       subject={session?.subject ?? ''}
       role={session?.role ?? null}
+      appointmentFilter={appointmentFilter}
     />
   )
 }

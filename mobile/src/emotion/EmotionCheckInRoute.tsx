@@ -16,6 +16,7 @@ import {
   resolveEmotionPlanOrigin,
 } from '@/support-plan/emotion-plan-context'
 
+import { emotionSchema } from './emotion-contract'
 import { createEmotionApi } from './emotion-api'
 import { EmotionCheckInScreen } from './EmotionCheckInScreen'
 
@@ -25,7 +26,9 @@ export function EmotionCheckInRoute() {
   const params = useLocalSearchParams<{
     occurrenceId?: string
     actionId?: string
+    mood?: string
   }>()
+  const mood = emotionSchema.safeParse(params.mood)
   const origin = parseEmotionPlanOrigin(params.occurrenceId, params.actionId)
   const [services] = useState(() => {
     const client = createApiClient({
@@ -124,7 +127,8 @@ export function EmotionCheckInRoute() {
 
   return (
     <EmotionCheckInScreen
-      key={`${session?.subject}:standalone`}
+      key={`${session?.subject}:standalone:${mood.data ?? ''}`}
+      initialMood={mood.data}
       api={services.emotion}
     />
   )

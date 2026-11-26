@@ -12,13 +12,27 @@ import {
   type DiscoveryPage,
 } from './discovery-contract'
 
+const badgeSchema = z.strictObject({
+  title: z.string().min(1).max(160),
+  credentialType: z.enum(['DEGREE', 'LICENSE', 'CERTIFICATE']),
+})
+export type DiscoveryBadge = z.infer<typeof badgeSchema>
+
 export interface DiscoveryApi {
   list(criteria: DiscoveryCriteria, cursor?: string): Promise<DiscoveryPage>
   detail(id: string, criteria: DiscoveryCriteria): Promise<DiscoveryItem>
+  badges?(id: string): Promise<DiscoveryBadge[]>
 }
 
 export function createDiscoveryApi(client: AxiosInstance): DiscoveryApi {
   return {
+    async badges(id) {
+      const specialistId = z.uuid().parse(id)
+      const response = await client.get(
+        `/api/v1/specialists/${specialistId}/credential-badges`,
+      )
+      return z.array(badgeSchema).parse(response.data)
+    },
     async list(criteria, cursor) {
       const params = {
         ...discoveryCriteriaSchema.parse(criteria),

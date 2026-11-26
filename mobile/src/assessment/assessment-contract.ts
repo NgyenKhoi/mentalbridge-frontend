@@ -14,9 +14,12 @@ export const safetyStatusSchema = z.enum([
   'NOT_APPLICABLE',
 ])
 
+// Published questionnaire IDs are GUIDs, including seeded IDs without RFC version bits.
+const questionnaireIdSchema = z.guid()
+
 export const questionnaireSchema = z
   .object({
-    definitionId: z.uuid(),
+    definitionId: questionnaireIdSchema,
     instrument: instrumentSchema,
     version: z.string().min(1).max(32),
     locale: z.string().min(2).max(16),
@@ -37,7 +40,7 @@ export const questionnaireSchema = z
       .array(
         z
           .object({
-            questionId: z.uuid(),
+            questionId: questionnaireIdSchema,
             itemNumber: z.number().int().min(1).max(32),
             prompt: z.string().min(1).max(1000),
           })
@@ -87,14 +90,14 @@ export const consentCollectionSchema = z
 
 export const assessmentSubmissionSchema = z
   .object({
-    questionnaireDefinitionId: z.uuid(),
+    questionnaireDefinitionId: questionnaireIdSchema,
     privacyPolicyVersion: z.literal('privacy-capstone-v3'),
     privacyDisclosureAcknowledged: z.literal(true),
     answers: z
       .array(
         z
           .object({
-            questionId: z.uuid(),
+            questionId: questionnaireIdSchema,
             value: z.number().int().min(0).max(3),
           })
           .strict(),
@@ -118,7 +121,7 @@ const assessmentResultSchema = z
 export const assessmentSchema = z
   .object({
     assessmentId: z.uuid(),
-    questionnaireDefinitionId: z.uuid(),
+    questionnaireDefinitionId: questionnaireIdSchema,
     instrument: instrumentSchema,
     questionnaireVersion: z.string().min(1).max(32),
     privacyPolicyVersion: z.string().min(1).max(64),

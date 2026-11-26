@@ -1,4 +1,5 @@
 import type { AxiosInstance } from 'axios'
+import { z } from 'zod'
 
 import {
   availabilitySlotListSchema,
@@ -13,7 +14,16 @@ import {
   type SpecialistProfileRequest,
 } from './specialist-contract'
 
+const credentialSummarySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  issuer: z.string(),
+  issueYear: z.number(),
+  verificationStatus: z.enum(['PENDING', 'VERIFIED', 'REJECTED']),
+})
+
 export interface SpecialistApi {
+  listCredentials?(): Promise<z.infer<typeof credentialSummarySchema>[]>
   getProfile(): Promise<SpecialistProfile>
   saveProfile(
     request: SpecialistProfileRequest,
@@ -21,7 +31,9 @@ export interface SpecialistApi {
   ): Promise<SpecialistProfile>
   submitProfile(profile: SpecialistProfile): Promise<SpecialistProfile>
   resubmitProfile(profile: SpecialistProfile): Promise<SpecialistProfile>
-  listAvailability(): Promise<AvailabilitySlotList>
+  listAvailability(
+    window?: Readonly<{ from: string; to: string }>,
+  ): Promise<AvailabilitySlotList>
   publishAvailability(
     request: PublishAvailabilityRequest,
     idempotencyKey: string,
@@ -31,6 +43,10 @@ export interface SpecialistApi {
 
 export function createSpecialistApi(client: AxiosInstance): SpecialistApi {
   return {
+    async listCredentials() {
+      const response = await client.get('/api/v1/specialist-profile/documents')
+      return credentialSummarySchema.array().parse(response.data)
+    },
     async getProfile() {
       const response = await client.get('/api/v1/specialist-profile')
       return specialistProfileSchema.parse(response.data)
@@ -60,9 +76,9 @@ export function createSpecialistApi(client: AxiosInstance): SpecialistApi {
       )
       return specialistProfileSchema.parse(response.data)
     },
-    async listAvailability() {
+    async listAvailability(window) {
       const response = await client.get('/api/v1/availability-slots', {
-        params: { includeWithdrawn: true },
+        params: { includeWithdrawn: true, ...window },
       })
       return availabilitySlotListSchema.parse(response.data)
     },

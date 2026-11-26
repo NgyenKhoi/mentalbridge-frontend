@@ -40,4 +40,22 @@ it('accepts authoritative pending/verified video without accepting chat policy o
       completionFactId: null,
     }).success,
   ).toBe(false)
+  const legacy = {
+    ...completed,
+    sessionPolicyVersion: 'chat-session-completion-v1',
+    sessionOutcomeReason: 'EVIDENCE_REQUIREMENTS_MET',
+  }
+  expect(specialistAppointmentSchema.safeParse(legacy).success).toBe(true)
+  expect(
+    specialistAppointmentSchema.safeParse({
+      ...legacy,
+      sessionOutcomeReason: 'UNVERIFIED',
+    }).success,
+  ).toBe(false)
+  expect(
+    specialistAppointmentSchema.safeParse({
+      ...legacy,
+      completionFactId: null,
+    }).success,
+  ).toBe(false)
 })

@@ -9,6 +9,33 @@ import {
 } from './discovery-fixtures'
 
 describe('public-edge discovery GETs', () => {
+  it('loads the same approved profiles with no published slots and four languages as the web', async () => {
+    const profile = {
+      ...fixtureSpecialist,
+      languages: ['vi', 'en', 'zh', 'fr'],
+      selectableSlots: [],
+      explanation: {
+        ...fixtureSpecialist.explanation,
+        hasSelectableSlot: false,
+        earliestSelectableStartAt: null,
+        codes: fixtureSpecialist.explanation.codes.map((code) =>
+          code === 'SELECTABLE_SLOT_AVAILABLE' ? 'NO_SELECTABLE_SLOT' : code,
+        ),
+      },
+    }
+    const publicPage = { ...fixturePage, items: [profile] }
+    const client = create()
+    const get = jest
+      .spyOn(client, 'get')
+      .mockResolvedValueOnce({ data: publicPage })
+      .mockResolvedValueOnce({ data: profile })
+    const api = createDiscoveryApi(client)
+    await expect(api.list({ language: 'fr' })).resolves.toEqual(publicPage)
+    await expect(api.detail(specialistId, {})).resolves.toEqual(profile)
+    expect(get).toHaveBeenCalledWith('/api/v1/specialists', {
+      params: { language: 'fr', limit: 20 },
+    })
+  })
   it('sends supported criteria and opaque cursor with no identity/health payload', async () => {
     const supportEvaluationId = '40000000-0000-4000-8000-000000000725'
     const client = create()

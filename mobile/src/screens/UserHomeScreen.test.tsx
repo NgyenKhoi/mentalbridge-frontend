@@ -18,6 +18,10 @@ const mockPush = jest.fn()
 const mockSignOut = jest.fn()
 let focusEffect: (() => void) | undefined
 
+// Keep the pet's independent focus effects from replacing Home's captured
+// callback when exercising return-to-Home refresh behavior.
+jest.mock('@/mam/MamHomePet', () => ({ MamHomePet: () => null }))
+
 jest.mock('expo-router', () => ({
   router: { push: (href: unknown) => mockPush(href) },
   useFocusEffect: (callback: () => void) => {
@@ -52,6 +56,7 @@ describe('USER Home next-step hub', () => {
     await view({ getNextStep: jest.fn().mockResolvedValue(firstUseHome) })
 
     await screen.findByText('Bắt đầu bằng một bài sàng lọc ngắn')
+    expect(screen.queryByRole('button', { name: 'Đăng xuất' })).toBeNull()
     expect(screen.queryByText('Phiên trò chuyện')).toBeNull()
     await fireEvent.press(
       screen.getByRole('button', { name: 'Bắt đầu sàng lọc' }),

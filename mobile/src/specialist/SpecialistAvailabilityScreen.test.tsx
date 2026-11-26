@@ -70,13 +70,20 @@ function createTestQueryClient() {
 async function renderScreen(
   ui: ReactElement,
   client = createTestQueryClient(),
+  mode: 'list' | 'calendar' = 'list',
 ) {
-  return await render(
+  const rendered = await render(
     <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
   )
+  if (mode === 'list')
+    await fireEvent.press(await screen.findByRole('tab', { name: 'Danh sách' }))
+  return rendered
 }
 
 async function enterSlot() {
+  await fireEvent.press(
+    screen.getByRole('button', { name: '+ Thêm khung giờ' }),
+  )
   await fireEvent.changeText(
     screen.getByLabelText('Ngày khả dụng'),
     '2030-10-15',
@@ -127,10 +134,30 @@ describe('SPECIALIST availability screen', () => {
     await renderScreen(<SpecialistAvailabilityScreen api={api} />)
 
     expect(await screen.findByText(/15\/10\/2030/)).toBeOnTheScreen()
-    expect(
-      screen.getByText('Chat trong ứng dụng · Asia/Ho_Chi_Minh'),
-    ).toBeOnTheScreen()
+    expect(screen.getByText('Chat trong ứng dụng · 60 phút')).toBeOnTheScreen()
+    expect(screen.getByText('Asia/Ho_Chi_Minh')).toBeOnTheScreen()
     expect(screen.getByText('Có thể đặt')).toBeOnTheScreen()
+  })
+
+  it('loads a new server window when browsing to another calendar month', async () => {
+    const listAvailability = jest.fn().mockResolvedValue(makeAvailabilityList())
+    await renderScreen(
+      <SpecialistAvailabilityScreen api={makeApi({ listAvailability })} />,
+      undefined,
+      'calendar',
+    )
+
+    await waitFor(() => expect(listAvailability).toHaveBeenCalledTimes(1))
+    expect(
+      screen.getByRole('tab', { name: 'Lịch', selected: true }),
+    ).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('button', { name: 'Tháng sau' }))
+
+    await waitFor(() => expect(listAvailability).toHaveBeenCalledTimes(2))
+    const first = listAvailability.mock.calls[0]?.[0]
+    const next = listAvailability.mock.calls[1]?.[0]
+    expect(next.from).not.toBe(first.from)
+    expect(Date.parse(next.to) - Date.parse(next.from)).toBe(97 * 86_400_000)
   })
 
   it('keeps one idempotency key across an ambiguous publish retry', async () => {
@@ -337,6 +364,9 @@ describe('SPECIALIST availability screen', () => {
         'Chưa thể xác nhận trạng thái phê duyệt mới nhất. Các thao tác lịch đang được khóa cho đến khi tải lại thành công.',
       ),
     ).toBeOnTheScreen()
+    await fireEvent.press(
+      screen.getByRole('button', { name: '+ Thêm khung giờ' }),
+    )
     const publish = screen.getByTestId('availability-publish')
     const withdraw = screen.getByRole('button', { name: 'Rút khung giờ' })
     expect(publish).toBeDisabled()

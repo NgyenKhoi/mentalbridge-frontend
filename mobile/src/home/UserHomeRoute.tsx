@@ -1,3 +1,7 @@
+import { createRewardApi } from '@/rewards/reward-api'
+import { createResourceApi } from '@/resources/resource-api'
+import { createNotificationApi } from '@/notifications/notification-api'
+import { createEmotionApi } from '@/emotion/emotion-api'
 import { useState } from 'react'
 
 import { createDiscoveryApi } from '@/discovery/discovery-api'
@@ -21,6 +25,10 @@ export function UserHomeRoute() {
     })
     return {
       client,
+      reward: createRewardApi(client),
+      resource: createResourceApi(client),
+      notification: createNotificationApi(client),
+      emotion: createEmotionApi(client),
       discovery: createDiscoveryApi(client),
       home: createHomeApi(client),
       profile: createCareProfileApi(client),
@@ -30,6 +38,10 @@ export function UserHomeRoute() {
   return (
     <UserHomeScreen
       api={services.home}
+      rewardApi={services.reward}
+      resourceApi={services.resource}
+      notificationApi={services.notification}
+      emotionApi={services.emotion}
       profileApi={services.profile}
       discoveryApi={services.discovery}
       appointmentApi={

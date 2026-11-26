@@ -1,8 +1,9 @@
 import { randomUUID } from 'expo-crypto'
 import { router } from 'expo-router'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -10,11 +11,15 @@ import {
   View,
 } from 'react-native'
 
+import { ScreeningQuestion } from './ScreeningQuestion'
+
 import { ApiError } from '@/api/api-error'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
+import { AppIcon } from '@/components/AppIcon'
 import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import { useResourceFonts } from '@/resources/useResourceFonts'
 
 import type { AssessmentApi } from './assessment-api'
 import type {
@@ -241,14 +246,53 @@ function StateMessage({
 }
 
 function BackButton({ onPress }: Readonly<{ onPress: () => void }>) {
-  return <SecondaryButton label="← Quay lại" onPress={onPress} />
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Quay lại"
+      onPress={onPress}
+      style={resultStyles.back}
+    >
+      <AppIcon name="back" size={20} />
+      <Text style={styles.secondaryLabel}>Quay lại</Text>
+    </Pressable>
+  )
 }
 
-function ResultFacts({ assessment }: Readonly<{ assessment: Assessment }>) {
+function Details({
+  title,
+  children,
+}: Readonly<{ title: string; children: ReactNode }>) {
+  const [expanded, setExpanded] = useState(false)
   return (
-    <View style={styles.resultPanel}>
+    <View style={resultStyles.details}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded(!expanded)}
+        style={resultStyles.detailsTrigger}
+      >
+        <Text style={resultStyles.detailsTitle}>{title}</Text>
+        <View
+          style={{ transform: [{ rotate: expanded ? '-90deg' : '90deg' }] }}
+        >
+          <AppIcon name="chevron" size={18} />
+        </View>
+      </Pressable>
+      {expanded && <View style={resultStyles.detailsContent}>{children}</View>}
+    </View>
+  )
+}
+
+function ResultFacts({
+  assessment,
+  compact = false,
+}: Readonly<{ assessment: Assessment; compact?: boolean }>) {
+  return (
+    <View style={[styles.resultPanel, compact && resultStyles.scoreCard]}>
       <View style={styles.resultHeader}>
-        <Text style={styles.sectionTitle}>
+        <Text style={resultStyles.instrument}>
           {instrumentLabels[assessment.instrument]}
         </Text>
         <Text style={styles.levelBadge}>
@@ -256,16 +300,15 @@ function ResultFacts({ assessment }: Readonly<{ assessment: Assessment }>) {
         </Text>
       </View>
       <Text style={styles.score}>{assessment.result.totalScore} điểm</Text>
-      <Text style={styles.supportingText}>
-        Gửi lúc {formatDate(assessment.submittedAt)} · Kết quả do hệ thống sàng
-        lọc xác nhận.
+      <Text style={resultStyles.meta}>
+        {formatDate(assessment.submittedAt)}
       </Text>
       {assessment.result.safetyStatus === 'POSITIVE_SAFETY_SCREEN' && (
         <Text accessibilityLiveRegion="assertive" style={styles.safetyText}>
           Kết quả có tín hiệu cần xem hướng dẫn an toàn bên dưới.
         </Text>
       )}
-      {assessment.result.safetyStatus === 'NOT_APPLICABLE' && (
+      {!compact && assessment.result.safetyStatus === 'NOT_APPLICABLE' && (
         <Text style={styles.supportingText}>
           Bộ câu hỏi này không có mục sàng lọc an toàn riêng.
         </Text>
@@ -278,10 +321,12 @@ export function HelpNowPanel({
   api,
   defaultTrigger,
   guidance,
+  overviewCard = false,
 }: Readonly<{
   api: AssessmentApi
   defaultTrigger: 'POSITIVE_ITEM_9' | 'HELP_NOW'
   guidance?: string
+  overviewCard?: boolean
 }>) {
   const [expanded, setExpanded] = useState(false)
   const [location, setLocation] = useState('')
@@ -312,8 +357,25 @@ export function HelpNowPanel({
   const directoryMessage = response ? directoryStateMessage(response) : null
 
   return (
-    <View style={styles.safetyPanel}>
-      <Text style={styles.sectionTitle}>Hỗ trợ an toàn</Text>
+    <View style={[styles.safetyPanel, overviewCard && overviewStyles.support]}>
+      {overviewCard ? (
+        <View style={overviewStyles.supportHeader}>
+          <Text aria-hidden style={overviewStyles.heart}>
+            ♥
+          </Text>
+          <Text accessibilityRole="header" style={overviewStyles.supportTitle}>
+            Hỗ trợ an toàn &amp; khủng hoảng
+          </Text>
+        </View>
+      ) : (
+        <Text style={styles.sectionTitle}>Hỗ trợ an toàn</Text>
+      )}
+      {overviewCard && (
+        <Text style={overviewStyles.copy}>
+          Nếu bạn đang cảm thấy quá tải hoặc có ý nghĩ làm tổn thương bản thân,
+          bạn có thể tìm sự hỗ trợ phù hợp với khu vực của mình.
+        </Text>
+      )}
       {guidance && <Text style={styles.body}>{guidance}</Text>}
       {!expanded ? (
         <PrimaryButton
@@ -369,16 +431,21 @@ export function HelpNowPanel({
   )
 }
 
-function GuidePanel({
+export function GuidePanel({
   api,
   guide,
-}: Readonly<{ api: AssessmentApi; guide: SupportGuide }>) {
+  showSafety = true,
+}: Readonly<{
+  api: AssessmentApi
+  guide: SupportGuide
+  showSafety?: boolean
+}>) {
   const positive = guide.safety.status === 'POSITIVE_SAFETY_SCREEN'
   const resourceStatus = guide.resourceResolution.status
 
   return (
-    <View style={styles.sectionGap}>
-      {positive && (
+    <View style={resultStyles.section}>
+      {positive && showSafety && (
         <HelpNowPanel
           api={api}
           defaultTrigger="POSITIVE_ITEM_9"
@@ -386,13 +453,12 @@ function GuidePanel({
         />
       )}
 
-      <View style={styles.guidePanel}>
-        <Text style={styles.sectionTitle}>Gợi ý hỗ trợ sau sàng lọc</Text>
+      <Details title="Gợi ý hỗ trợ sau sàng lọc">
         <Text style={styles.body}>{guide.explanation.text}</Text>
         {!positive && (
           <Text style={styles.supportingText}>{guide.safety.guidance}</Text>
         )}
-      </View>
+      </Details>
 
       <View>
         <Text style={styles.sectionTitle}>Tài nguyên phù hợp</Text>
@@ -407,24 +473,41 @@ function GuidePanel({
         )}
         {guide.resources.length === 0 ? (
           <Text style={styles.supportingText}>
-            Chưa có tài nguyên đã rà soát phù hợp trong snapshot này.
+            Chưa có tài nguyên phù hợp cho lượt sàng lọc này.
           </Text>
         ) : (
           guide.resources.map((resource) => (
-            <View key={resource.resourceId} style={styles.historyItem}>
-              <Text style={styles.itemTitle}>{resource.title}</Text>
-              <Text style={styles.body}>{resource.summary}</Text>
-            </View>
+            <Pressable
+              key={resource.resourceId}
+              accessibilityRole="button"
+              accessibilityLabel={`Mở tài nguyên: ${resource.title}`}
+              onPress={() =>
+                router.push(
+                  `./resources/${encodeURIComponent(resource.resourceId)}`,
+                )
+              }
+              style={resultStyles.resource}
+            >
+              <View style={resultStyles.resourceIcon}>
+                <AppIcon name="book" size={22} />
+              </View>
+              <View style={resultStyles.resourceCopy}>
+                <Text style={styles.itemTitle}>{resource.title}</Text>
+                <Text numberOfLines={2} style={resultStyles.meta}>
+                  {resource.summary}
+                </Text>
+              </View>
+              <AppIcon name="chevron" size={18} />
+            </Pressable>
           ))
         )}
       </View>
 
-      <View style={styles.technicalPanel}>
-        <Text style={styles.itemTitle}>Thông tin kỹ thuật</Text>
+      <Details title="Thông tin bản lưu">
         <Text style={styles.supportingText}>
-          Snapshot {guide.guideVersion} · {formatDate(guide.generatedAt)}
+          Phiên bản {guide.guideVersion} · {formatDate(guide.generatedAt)}
         </Text>
-      </View>
+      </Details>
     </View>
   )
 }
@@ -447,12 +530,13 @@ function JourneyContinuation({
   return (
     <>
       {continuation && (
-        <View style={styles.guidePanel}>
+        <View style={resultStyles.continuation}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>
             Tiếp tục hành trình
           </Text>
           <PrimaryButton
             label={continuation.label}
+            tone="dashboard"
             onPress={() => router.push(continuation.path)}
           />
         </View>
@@ -489,12 +573,17 @@ export function AssessmentJourneyScreen({
   reassessment?: boolean
   onReassessmentComplete?: () => void
 }>) {
+  const overviewFonts = useResourceFonts()
   const { session, signOut } = useSession()
   const [overview, setOverview] = useState<Overview | null>(null)
   const [view, setView] = useState<ViewState>({ name: 'overview' })
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [historyUnavailable, setHistoryUnavailable] = useState({
+    assessments: false,
+    guides: false,
+  })
   const [runtimeError, setRuntimeError] = useState<string | null>(null)
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const [step, setStep] = useState(0)
@@ -508,7 +597,7 @@ export function AssessmentJourneyScreen({
     setLoading(true)
     setLoadError(null)
     try {
-      const [episode, assessments, guides, journey] = await Promise.all([
+      const [episode, assessments, guides, journey] = await Promise.allSettled([
         api.getCurrentEpisode().catch((error: unknown) => {
           if (isMissingCurrentEpisode(error)) return null
           throw error
@@ -517,7 +606,31 @@ export function AssessmentJourneyScreen({
         api.listSupportGuides(),
         api.getGuidedJourney().catch(() => null),
       ])
-      setOverview({ episode, assessments, guides, journey })
+      for (const result of [episode, assessments, guides]) {
+        if (
+          result.status === 'rejected' &&
+          result.reason instanceof ApiError &&
+          [401, 403].includes(result.reason.status ?? 0)
+        )
+          throw result.reason
+      }
+      if (episode.status === 'rejected') throw episode.reason
+      setHistoryUnavailable({
+        assessments: assessments.status === 'rejected',
+        guides: guides.status === 'rejected',
+      })
+      setOverview({
+        episode: episode.value,
+        assessments:
+          assessments.status === 'fulfilled'
+            ? assessments.value
+            : { items: [], hasMore: false },
+        guides:
+          guides.status === 'fulfilled'
+            ? guides.value
+            : { items: [], hasMore: false },
+        journey: journey.status === 'fulfilled' ? journey.value : null,
+      })
     } catch (error) {
       setLoadError(loadErrorMessage(error))
     } finally {
@@ -809,77 +922,24 @@ export function AssessmentJourneyScreen({
     )
 
     return (
-      <Screen>
+      <Screen key={step}>
         <BackButton onPress={returnToOverview} />
         <Text style={styles.eyebrow}>SÀNG LỌC CÁ NHÂN</Text>
         <Text accessibilityRole="header" style={styles.title}>
           {questionnaire.title}
         </Text>
-        <Text style={styles.description}>
-          Chọn câu trả lời đúng với trải nghiệm trong{' '}
-          {questionnaire.referencePeriodDays} ngày gần đây.
-        </Text>
-
-        <Text accessibilityLiveRegion="polite" style={styles.progressText}>
-          Câu {step + 1} / {questionnaire.questions.length}
-        </Text>
-        <View
-          accessibilityLabel="Tiến độ bài sàng lọc"
-          accessibilityRole="progressbar"
-          accessibilityValue={{
-            min: 1,
-            max: questionnaire.questions.length,
-            now: step + 1,
-          }}
-          style={styles.progressTrack}
-        >
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${((step + 1) / questionnaire.questions.length) * 100}%`,
-              },
-            ]}
-          />
-        </View>
-
-        <View style={styles.questionPanel}>
-          <Text style={styles.questionNumber}>Câu {question.itemNumber}</Text>
-          <Text accessibilityRole="header" style={styles.questionText}>
-            {question.prompt}
-          </Text>
-          <View style={styles.options}>
-            {questionnaire.responseOptions.map((option) => {
-              const selected = selectedValue === option.value
-              return (
-                <Pressable
-                  accessibilityLabel={option.label}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected, disabled: working }}
-                  disabled={working}
-                  key={option.value}
-                  onPress={() =>
-                    setAnswers((current) => ({
-                      ...current,
-                      [question.questionId]: option.value,
-                    }))
-                  }
-                  style={({ pressed }) => [
-                    styles.option,
-                    selected && styles.optionSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <View
-                    aria-hidden
-                    style={[styles.radio, selected && styles.radioSelected]}
-                  />
-                  <Text style={styles.optionLabel}>{option.label}</Text>
-                </Pressable>
-              )
-            })}
-          </View>
-        </View>
+        <ScreeningQuestion
+          questionnaire={questionnaire}
+          step={step}
+          selected={selectedValue}
+          busy={working}
+          onSelect={(value) =>
+            setAnswers((current) => ({
+              ...current,
+              [question.questionId]: value,
+            }))
+          }
+        />
 
         {isLast && (
           <View style={styles.disclosurePanel}>
@@ -940,23 +1000,38 @@ export function AssessmentJourneyScreen({
   if (view.name === 'completed') {
     const completed = view.data
     return (
-      <Screen>
+      <Screen layout="dashboard">
         <BackButton onPress={returnToOverview} />
-        <Text style={styles.supportingText}>
-          Kết quả → Gợi ý hỗ trợ → Bước tiếp theo
-        </Text>
-        <Text style={styles.eyebrow}>KẾT QUẢ SÀNG LỌC</Text>
-        <Text accessibilityRole="header" style={styles.title}>
-          Bạn đã hoàn tất lượt sàng lọc
-        </Text>
-        <Text style={styles.description}>
-          Kết quả dưới đây do hệ thống xác nhận từ đúng hai bài vừa hoàn tất.
-          Đây không phải chẩn đoán y khoa.
-        </Text>
-        <ResultFacts assessment={view.data.phq9} />
-        <ResultFacts assessment={view.data.gad7} />
-        <View style={styles.guidePanel}>
-          <Text style={styles.sectionTitle}>Ý nghĩa của kết quả</Text>
+        <View style={resultStyles.header}>
+          <Text style={resultStyles.completeBadge}>Đã hoàn thành 2/2 bài</Text>
+          <Text accessibilityRole="header" style={resultStyles.title}>
+            Bạn đã hoàn tất lượt sàng lọc
+          </Text>
+          <Text style={resultStyles.meta}>
+            Kết quả giúp bạn hiểu mình hơn, không phải chẩn đoán y khoa.
+          </Text>
+        </View>
+        <View style={resultStyles.scoreRow}>
+          <ResultFacts compact assessment={completed.phq9} />
+          <ResultFacts compact assessment={completed.gad7} />
+        </View>
+        {completed.guide?.safety.status === 'POSITIVE_SAFETY_SCREEN' && (
+          <HelpNowPanel
+            api={api}
+            defaultTrigger="POSITIVE_ITEM_9"
+            guidance={completed.guide.safety.guidance}
+          />
+        )}
+        {completed.guide && (
+          <JourneyContinuation
+            guide={completed.guide}
+            journey={completed.journey}
+            showUnavailable
+            working={working}
+            onRetry={() => void retryJourney(completed)}
+          />
+        )}
+        <Details title="Ý nghĩa của kết quả">
           {view.data.evaluation.evidence.map((evidence) => (
             <View key={evidence.assessmentId} style={styles.meaningItem}>
               <Text style={styles.itemTitle}>
@@ -968,25 +1043,14 @@ export function AssessmentJourneyScreen({
               </Text>
             </View>
           ))}
-        </View>
-        <View style={styles.guidePanel}>
-          <Text style={styles.sectionTitle}>Bước tiếp theo</Text>
+          <Text style={styles.itemTitle}>Bước tiếp theo</Text>
           <Text style={styles.body}>{view.data.evaluation.nextStep.text}</Text>
           <Text style={styles.supportingText}>
             {view.data.evaluation.nextStep.boundary}
           </Text>
-        </View>
+        </Details>
         {completed.guide ? (
-          <>
-            <GuidePanel api={api} guide={completed.guide} />
-            <JourneyContinuation
-              guide={completed.guide}
-              journey={completed.journey}
-              showUnavailable
-              working={working}
-              onRetry={() => void retryJourney(completed)}
-            />
-          </>
+          <GuidePanel api={api} guide={completed.guide} showSafety={false} />
         ) : (
           <View style={styles.guidePanel}>
             <StateMessage
@@ -1034,15 +1098,14 @@ export function AssessmentJourneyScreen({
 
   if (view.name === 'guide') {
     return (
-      <Screen>
+      <Screen layout="dashboard">
         <BackButton onPress={returnToOverview} />
         <Text style={styles.eyebrow}>GỢI Ý ĐÃ LƯU</Text>
         <Text accessibilityRole="header" style={styles.title}>
-          Snapshot hỗ trợ sau sàng lọc
+          Gợi ý hỗ trợ của bạn
         </Text>
         <Text style={styles.description}>
-          Đây là đúng snapshot đã được lưu cho lượt sàng lọc, không được tạo lại
-          từ dữ liệu hiện tại.
+          Xem lại những gợi ý đã lưu từ lượt sàng lọc của bạn.
         </Text>
         <GuidePanel api={api} guide={view.data} />
         <JourneyContinuation
@@ -1059,20 +1122,93 @@ export function AssessmentJourneyScreen({
     loadError &&
     (loadError.includes('hết hạn') || loadError.includes('không có quyền'))
 
+  const continuing = Boolean(
+    overview?.episode && overview.episode.status !== 'COMPLETED',
+  )
+  const startLabel =
+    overview?.episode?.status === 'COMPLETED'
+      ? 'Xem kết quả & bước tiếp theo'
+      : continuing
+        ? 'Tiếp tục lượt đang làm'
+        : reassessment
+          ? 'Bắt đầu lượt kiểm tra lại'
+          : 'Bắt đầu lượt sàng lọc mới'
   return (
-    <Screen>
-      <BackButton onPress={() => router.back()} />
-      <Text style={styles.eyebrow}>CHĂM SÓC BẢN THÂN</Text>
-      <Text accessibilityRole="header" style={styles.title}>
-        {reassessment
-          ? 'Kiểm tra lại cho giai đoạn này'
-          : 'Sàng lọc và gợi ý hỗ trợ'}
-      </Text>
-      <Text style={styles.description}>
-        Hoàn thành PHQ-9 rồi GAD-7 theo nội dung đã được duyệt. Câu trả lời chỉ
-        được gửi khi bạn xác nhận và không được lưu vào hồ sơ hay phân tích khác
-        trên thiết bị.
-      </Text>
+    <Screen layout="dashboard" backgroundColor="#F8F6EF">
+      <View style={overviewStyles.bar}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.back()}
+          style={overviewStyles.navPill}
+        >
+          <Text style={overviewStyles.link}>‹ Quay lại</Text>
+        </Pressable>
+        <Text style={overviewStyles.eyebrow}>CHĂM SÓC BẢN THÂN</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Mở hồ sơ cá nhân"
+          onPress={() => router.push('/(user)/profile')}
+          style={overviewStyles.gear}
+        >
+          <Text aria-hidden style={overviewStyles.link}>
+            ⚙
+          </Text>
+        </Pressable>
+      </View>
+      <View style={overviewStyles.hero}>
+        <Text style={overviewStyles.pill}>✓ Không gian cá nhân</Text>
+        <Text
+          accessibilityRole="header"
+          style={[overviewStyles.title, overviewFonts && overviewStyles.serif]}
+        >
+          {reassessment
+            ? 'Kiểm tra lại cho giai đoạn này'
+            : 'Sàng lọc và gợi ý hỗ trợ'}
+        </Text>
+        <Text style={overviewStyles.copy}>
+          Hoàn thành PHQ-9 (trầm cảm) và GAD-7 (lo âu) dựa trên trải nghiệm
+          trong 14 ngày gần đây. Câu trả lời chỉ được gửi khi bạn xác nhận.
+        </Text>
+        <View style={overviewStyles.artFrame}>
+          <Image
+            source={require('../../assets/resource-covers/resource-small-steps.webp')}
+            style={overviewStyles.art}
+            resizeMode="cover"
+            accessible={false}
+          />
+          <Text style={overviewStyles.artLabel}>
+            ● Dành một chút thời gian cho bạn
+          </Text>
+        </View>
+        {overview && !permissionFailure && (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                working ? 'Đang chuẩn bị…' : 'Bắt đầu hoặc tiếp tục'
+              }
+              accessibilityState={{ disabled: working || Boolean(loadError) }}
+              disabled={working || Boolean(loadError)}
+              onPress={() => void startOrResume()}
+              style={({ pressed }) => [
+                overviewStyles.start,
+                (pressed || working || loadError) && styles.pressed,
+              ]}
+            >
+              <Text style={overviewStyles.startText}>
+                {working ? 'Đang chuẩn bị…' : startLabel}
+              </Text>
+              <Text aria-hidden style={overviewStyles.startArrow}>
+                →
+              </Text>
+            </Pressable>
+            <View style={overviewStyles.metaRow}>
+              <Text style={overviewStyles.meta}>◷ Khoảng 3–5 phút</Text>
+              <Text style={overviewStyles.meta}>16 câu hỏi</Text>
+            </View>
+          </>
+        )}
+      </View>
 
       {loadError && (
         <View style={styles.errorPanel}>
@@ -1095,62 +1231,129 @@ export function AssessmentJourneyScreen({
               tone="error"
             />
           )}
-          <View style={styles.heroPanel}>
-            <Text style={styles.sectionTitle}>
-              {overview.episode && overview.episode.status !== 'COMPLETED'
-                ? 'Tiếp tục lượt đang làm'
-                : reassessment
-                  ? 'Bắt đầu lượt kiểm tra lại'
-                  : 'Bắt đầu lượt sàng lọc'}
-            </Text>
-            <Text style={styles.body}>
-              Hai bài hỏi về trải nghiệm trong 14 ngày gần đây. Kết quả dùng để
-              đưa ra gợi ý hỗ trợ, không thay thế đánh giá chuyên môn.
-            </Text>
-            <PrimaryButton
-              disabled={working || Boolean(loadError)}
-              label={working ? 'Đang chuẩn bị…' : 'Bắt đầu hoặc tiếp tục'}
-              onPress={() => void startOrResume()}
-            />
-          </View>
-
           {runtimeError && <StateMessage message={runtimeError} tone="error" />}
 
-          <HelpNowPanel api={api} defaultTrigger="HELP_NOW" />
+          <HelpNowPanel api={api} defaultTrigger="HELP_NOW" overviewCard />
 
           <View style={styles.sectionGap}>
-            <Text style={styles.sectionTitle}>Kết quả gần đây</Text>
-            {overview.assessments.items.length === 0 ? (
+            <View style={overviewStyles.historyHeader}>
+              <View style={overviewStyles.historyCopy}>
+                <Text
+                  accessibilityRole="header"
+                  style={[
+                    overviewStyles.historyTitle,
+                    overviewFonts && overviewStyles.serif,
+                  ]}
+                >
+                  Kết quả sàng lọc gần đây
+                </Text>
+                <Text style={overviewStyles.meta}>
+                  Xem lại các lượt bạn đã lưu
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => router.push('/(user)/analytics')}
+                style={overviewStyles.navPill}
+              >
+                <Text style={overviewStyles.link}>Biểu đồ ›</Text>
+              </Pressable>
+            </View>
+            {historyUnavailable.assessments ? (
+              <View>
+                <StateMessage
+                  message="Chưa tải được lịch sử kết quả. Bạn vẫn có thể tiếp tục lượt sàng lọc hiện tại."
+                  tone="error"
+                />
+                <SecondaryButton
+                  label="Tải lại lịch sử kết quả"
+                  onPress={() => void loadOverview()}
+                  disabled={loading || working}
+                />
+              </View>
+            ) : overview.assessments.items.length === 0 ? (
               <Text style={styles.supportingText}>
                 Bạn chưa có kết quả sàng lọc đã lưu.
               </Text>
             ) : (
-              overview.assessments.items.map((assessment) => (
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={working}
-                  key={assessment.assessmentId}
-                  onPress={() => void openAssessment(assessment.assessmentId)}
-                  style={({ pressed }) => [
-                    styles.historyItem,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={styles.itemTitle}>
-                    {instrumentLabels[assessment.instrument]} ·{' '}
-                    {levelLabels[assessment.result.screeningLevel]}
-                  </Text>
-                  <Text style={styles.supportingText}>
-                    {formatDate(assessment.submittedAt)}
-                  </Text>
-                </Pressable>
-              ))
+              overview.assessments.items.map((assessment) => {
+                const isPhq = assessment.instrument === 'PHQ9'
+                const maximum = isPhq ? 27 : 21
+                const { totalScore, screeningLevel } = assessment.result
+                const minimum = screeningLevel === 'MINIMAL'
+                const percent = Math.min(100, (totalScore / maximum) * 100)
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={working}
+                    key={assessment.assessmentId}
+                    onPress={() => void openAssessment(assessment.assessmentId)}
+                    style={({ pressed }) => [
+                      overviewStyles.resultRow,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <View style={overviewStyles.historyCopy}>
+                      <View style={overviewStyles.metaRow}>
+                        <Text style={overviewStyles.resultName}>
+                          {instrumentLabels[assessment.instrument]} (
+                          {isPhq ? 'Trầm cảm' : 'Lo âu'})
+                        </Text>
+                        <Text
+                          style={[
+                            overviewStyles.scorePill,
+                            minimum && overviewStyles.minimum,
+                          ]}
+                        >
+                          {levelLabels[screeningLevel]} ({totalScore}/{maximum})
+                        </Text>
+                      </View>
+                      <View
+                        accessibilityRole="progressbar"
+                        accessibilityLabel="Điểm sàng lọc"
+                        accessibilityValue={{
+                          min: 0,
+                          max: maximum,
+                          now: totalScore,
+                        }}
+                        style={overviewStyles.track}
+                      >
+                        <View
+                          style={[
+                            overviewStyles.fill,
+                            minimum && overviewStyles.fillMinimum,
+                            { width: `${percent}%` },
+                          ]}
+                        />
+                      </View>
+                      <Text style={overviewStyles.meta}>
+                        {formatDate(assessment.submittedAt)}
+                      </Text>
+                    </View>
+                    <Text aria-hidden style={overviewStyles.chevron}>
+                      ›
+                    </Text>
+                  </Pressable>
+                )
+              })
             )}
           </View>
 
           <View style={styles.sectionGap}>
             <Text style={styles.sectionTitle}>Gợi ý đã lưu</Text>
-            {overview.guides.items.length === 0 ? (
+            {historyUnavailable.guides ? (
+              <View>
+                <StateMessage
+                  message="Chưa tải được gợi ý đã lưu. Các gợi ý hiện có không bị thay đổi."
+                  tone="error"
+                />
+                <SecondaryButton
+                  label="Tải lại gợi ý đã lưu"
+                  onPress={() => void loadOverview()}
+                  disabled={loading || working}
+                />
+              </View>
+            ) : overview.guides.items.length === 0 ? (
               <Text style={styles.supportingText}>
                 Gợi ý hỗ trợ sẽ xuất hiện sau khi bạn hoàn thành đủ hai bài.
               </Text>
@@ -1191,7 +1394,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   title: {
-    color: colors.ink,
+    color: colors.tealDeep,
     fontSize: typography.heading,
     fontWeight: '700',
     lineHeight: typography.headingLineHeight,
@@ -1224,12 +1427,6 @@ const styles = StyleSheet.create({
   errorText: { color: '#9B352D' },
   successText: { color: colors.tealDeep },
   errorPanel: { gap: spacing.md },
-  heroPanel: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.shell,
-    gap: spacing.lg,
-    padding: spacing.xl,
-  },
   sectionGap: { gap: spacing.md, marginTop: spacing.xxl },
   sectionTitle: { color: colors.ink, fontSize: 20, fontWeight: '700' },
   secondaryButton: {
@@ -1245,70 +1442,6 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.68 },
-  progressText: {
-    color: colors.inkSoft,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-  },
-  progressTrack: {
-    backgroundColor: colors.tealPale,
-    borderRadius: radii.pill,
-    height: 8,
-    marginBottom: spacing.xl,
-    overflow: 'hidden',
-  },
-  progressFill: { backgroundColor: colors.tealDeep, height: 8 },
-  questionPanel: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.shell,
-    padding: spacing.xl,
-  },
-  questionNumber: {
-    color: colors.teal,
-    fontSize: typography.eyebrow,
-    fontWeight: '800',
-    marginBottom: spacing.sm,
-  },
-  questionText: {
-    color: colors.ink,
-    fontSize: 22,
-    fontWeight: '700',
-    lineHeight: 30,
-  },
-  options: { gap: spacing.md, marginTop: spacing.xl },
-  option: {
-    alignItems: 'center',
-    borderColor: colors.line,
-    borderRadius: radii.control,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.md,
-    minHeight: 52,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  optionSelected: {
-    backgroundColor: colors.tealPale,
-    borderColor: colors.tealDeep,
-  },
-  radio: {
-    borderColor: colors.inkFaint,
-    borderRadius: radii.pill,
-    borderWidth: 2,
-    height: 20,
-    width: 20,
-  },
-  radioSelected: {
-    backgroundColor: colors.tealDeep,
-    borderColor: colors.tealDeep,
-  },
-  optionLabel: {
-    color: colors.ink,
-    flex: 1,
-    fontSize: typography.body,
-    lineHeight: typography.bodyLineHeight,
-  },
   disclosurePanel: {
     backgroundColor: colors.surfaceSoft,
     borderRadius: radii.panel,
@@ -1343,6 +1476,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   resultPanel: {
+    borderColor: colors.line,
+    borderWidth: 1,
     backgroundColor: colors.surface,
     borderRadius: radii.panel,
     gap: spacing.sm,
@@ -1352,6 +1487,7 @@ const styles = StyleSheet.create({
   resultHeader: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.md,
     justifyContent: 'space-between',
   },
@@ -1432,4 +1568,271 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: spacing.xl,
   },
+})
+
+const resultStyles = StyleSheet.create({
+  back: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  header: {
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+  title: {
+    color: colors.tealDeep,
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: '800',
+  },
+  completeBadge: {
+    color: colors.tealDeep,
+    backgroundColor: colors.tealPale,
+    borderRadius: radii.pill,
+    overflow: 'hidden',
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  meta: { color: colors.inkSoft, fontSize: 13, lineHeight: 20 },
+  scoreRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  scoreCard: { flex: 1, minWidth: 140, padding: spacing.lg, gap: spacing.sm },
+  instrument: { color: colors.ink, fontSize: 16, fontWeight: '700' },
+  section: { gap: spacing.md, marginTop: spacing.md },
+  details: {
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: radii.panel,
+    marginTop: spacing.md,
+    overflow: 'hidden',
+  },
+  detailsTrigger: {
+    minHeight: 52,
+    padding: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  detailsTitle: { color: colors.ink, fontSize: 15, fontWeight: '700', flex: 1 },
+  detailsContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  continuation: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radii.panel,
+    backgroundColor: colors.tealPale,
+    marginVertical: spacing.md,
+  },
+  resource: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.panel,
+    padding: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  resourceIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.control,
+    backgroundColor: colors.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resourceCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
+})
+
+const overviewStyles = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  navPill: {
+    minHeight: 44,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gear: {
+    width: 44,
+    height: 44,
+    backgroundColor: '#FFF',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#E9EBE2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyebrow: {
+    backgroundColor: '#EDF3EC',
+    color: '#285344',
+    borderRadius: 12,
+    overflow: 'hidden',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  link: { color: '#214D3D', fontSize: 13, fontWeight: '700' },
+  hero: {
+    backgroundColor: '#FFF',
+    borderColor: '#EFEEE6',
+    borderWidth: 1,
+    borderRadius: 26,
+    padding: 17,
+    gap: 12,
+  },
+  pill: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E7F7EF',
+    color: '#245844',
+    borderRadius: 14,
+    overflow: 'hidden',
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  title: { color: '#172F27', fontSize: 27, lineHeight: 33, fontWeight: '800' },
+  serif: { fontFamily: 'ResourceSerif', fontWeight: 'normal' },
+  copy: { color: '#465852', fontSize: 14, lineHeight: 22 },
+  artFrame: {
+    borderRadius: 17,
+    overflow: 'hidden',
+    backgroundColor: '#DFE8DF',
+    aspectRatio: 1.83,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    padding: 8,
+  },
+  art: { ...StyleSheet.absoluteFill, height: '100%', width: '100%' },
+  artLabel: {
+    color: '#255344',
+    backgroundColor: '#F8FCF7',
+    overflow: 'hidden',
+    borderRadius: 11,
+    fontSize: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  start: {
+    backgroundColor: '#193F34',
+    borderRadius: 16,
+    minHeight: 54,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  startText: { color: '#FFF', fontSize: 15, fontWeight: '800', flex: 1 },
+  startArrow: {
+    color: '#FFF',
+    backgroundColor: '#356457',
+    overflow: 'hidden',
+    borderRadius: 15,
+    width: 30,
+    lineHeight: 30,
+    textAlign: 'center',
+    fontSize: 18,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  meta: { color: '#65736A', fontSize: 12, lineHeight: 17 },
+  support: {
+    marginTop: 17,
+    backgroundColor: '#FFF0EA',
+    borderWidth: 1,
+    borderColor: '#F2DDD5',
+    borderRadius: 23,
+    padding: 15,
+  },
+  supportHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  heart: {
+    width: 38,
+    lineHeight: 38,
+    textAlign: 'center',
+    overflow: 'hidden',
+    borderRadius: 14,
+    backgroundColor: '#FFF',
+    color: '#A53341',
+    fontSize: 18,
+  },
+  supportTitle: {
+    fontFamily: 'serif',
+    fontWeight: '700',
+    fontSize: 18,
+    lineHeight: 24,
+    color: '#42302C',
+    flexShrink: 1,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 5,
+  },
+  historyCopy: { flex: 1, minWidth: 0, gap: 6 },
+  historyTitle: {
+    color: '#19322A',
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: '800',
+  },
+  resultRow: {
+    minHeight: 75,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#EFEEE5',
+    backgroundColor: '#FFF',
+    padding: 12,
+  },
+  resultName: { color: '#1E362C', fontWeight: '800', fontSize: 13 },
+  scorePill: {
+    color: '#634B25',
+    backgroundColor: '#FFF1D2',
+    overflow: 'hidden',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  minimum: { color: '#215843', backgroundColor: '#D9F4E7' },
+  track: {
+    width: '60%',
+    height: 5,
+    backgroundColor: '#EEF1EB',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  fill: { height: '100%', backgroundColor: '#D89E38', borderRadius: 3 },
+  fillMinimum: { backgroundColor: '#29A778' },
+  chevron: { color: '#698376', fontSize: 22 },
 })

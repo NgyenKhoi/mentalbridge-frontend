@@ -38,6 +38,9 @@ import { appointmentCommands, sessionLabels } from './appointment-model'
 import { AppointmentsScreen } from './AppointmentsScreen'
 
 let mockSession: AppSession | null = { subject, role: 'USER' }
+jest.mock('@/api/use-foreground-refresh', () => ({
+  useForegroundRefresh: jest.fn(),
+}))
 jest.mock('@/auth/session-context', () => ({
   useSession: () => ({ session: mockSession }),
 }))
@@ -115,6 +118,31 @@ async function mount(
   return { ...result, ...service, client, view }
 }
 
+it('opens verified discovery selection directly at confirmation without sending it', async () => {
+  const service = services()
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  })
+  const onBack = jest.fn()
+  await render(
+    <QueryClientProvider client={client}>
+      <AppointmentsScreen
+        api={service.api}
+        discovery={service.discovery}
+        initialSelection={selection}
+        reviewInitialSelection
+        onBack={onBack}
+      />
+    </QueryClientProvider>,
+  )
+  expect(
+    await screen.findByRole('header', { name: 'Xác nhận đặt lịch' }),
+  ).toBeOnTheScreen()
+  expect(service.api.request).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByRole('button', { name: 'Chọn giờ khác' }))
+  expect(onBack).toHaveBeenCalledTimes(1)
+})
+
 function completedAppointment(
   id = appointment.id,
   specialistDisplayName = appointment.specialistDisplayName,
@@ -175,13 +203,11 @@ async function reviewReplacement() {
       name: `Xem hồ sơ ${fixtureSpecialist.displayName}`,
     }),
   )
+  await fireEvent.press(await screen.findByRole('tab', { name: 'Lịch trống' }))
   await fireEvent.press(
     await screen.findByRole('button', {
       name: `Chọn ${slotLabel(selection.slot)}`,
     }),
-  )
-  await fireEvent.press(
-    await screen.findByRole('button', { name: 'Tiếp tục đặt lịch' }),
   )
   await screen.findByRole('button', { name: 'Gửi yêu cầu đổi lịch' })
 }
@@ -193,6 +219,18 @@ beforeEach(() => {
 })
 
 describe('MB-630 authoritative USER appointments', () => {
+  it('reviews cancellation from the card shortcut before sending any cancellation', async () => {
+    const service = services([appointment])
+    await mount(service, false)
+    await fireEvent.press(
+      await screen.findByRole('button', {
+        name: `Hủy lịch với ${appointment.specialistDisplayName}`,
+      }),
+    )
+    await screen.findByRole('button', { name: 'Xác nhận hủy lịch' })
+    expect(service.api.cancel).not.toHaveBeenCalled()
+    expect(await screen.findAllByRole('radio')).toHaveLength(3)
+  })
   it('mounts MB-726 only inside the exact settled owner detail', async () => {
     const completed = completedAppointment()
     const disputeApi = disputeService()
@@ -341,6 +379,7 @@ describe('MB-630 authoritative USER appointments', () => {
   it('freshly reviews exact handoff and server balance/cap, then opens persisted owner detail', async () => {
     const { api, discovery } = await mount()
     await reviewRequest()
+    await fireEvent.press(screen.getByRole('button', { name: 'Chi tiết gói' }))
     expect(screen.getByText('Còn 4 lượt · đang giữ 0 lượt')).toBeTruthy()
     expect(api.request).not.toHaveBeenCalled()
     await fireEvent.press(
@@ -460,6 +499,7 @@ describe('MB-630 authoritative USER appointments', () => {
       screen.getByRole('button', { name: 'Kiểm tra giờ đã chọn' }),
     )
     await screen.findByText(/Chưa có lượt tư vấn phù hợp/)
+    await fireEvent.press(screen.getByRole('button', { name: 'Chi tiết gói' }))
     expect(screen.getByText(/Lịch đang giữ: 1 \/ 1/)).toBeTruthy()
     expect(service.api.request).not.toHaveBeenCalled()
   })
@@ -672,10 +712,9 @@ describe('MB-630 authoritative USER appointments', () => {
     const service = services([cancelled])
     await mount(service, false)
 
-    const filters = await screen.findAllByRole('radio')
-    const historyFilter = filters[3]
-    if (!historyFilter) throw new Error('History filter missing')
-    await fireEvent.press(historyFilter)
+    await fireEvent.press(
+      await screen.findByRole('radio', { name: /^Đã xong/ }),
+    )
 
     const historyEntry = await screen.findByTestId('appointment-open-detail')
     await fireEvent.press(historyEntry)
@@ -690,7 +729,7 @@ describe('MB-630 authoritative USER appointments', () => {
     await mount(service, false)
     await openDetail()
     expect(screen.getByText(/Chưa thể tải lượt tư vấn/)).toBeTruthy()
-    await fireEvent.press(screen.getByRole('radio', { name: 'Lịch sử' }))
+    await fireEvent.press(screen.getByRole('radio', { name: /^Đã xong/ }))
     expect(screen.getByText(/Chưa có lịch hẹn trong nhóm này/)).toBeTruthy()
     service.setItems([])
     await fireEvent.press(

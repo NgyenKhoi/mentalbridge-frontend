@@ -35,9 +35,7 @@ const groupLabels: Record<
 const specialistGroups = [
   'appointmentMessage',
   'resourceSystem',
-] as const satisfies ReadonlyArray<
-  keyof NotificationPreferences['contentGroups']
->
+] as const satisfies readonly (keyof NotificationPreferences['contentGroups'])[]
 const specialistGroupLabels: Record<(typeof specialistGroups)[number], string> =
   {
     appointmentMessage: 'Lịch hẹn và tin nhắn',

@@ -20,6 +20,11 @@ import {
 } from './notification-fixtures'
 import type { NotificationApi } from './notification-api'
 let mockSession: AppSession | null = { subject, role: 'USER' }
+jest.mock('expo-router', () => ({
+  ...jest.requireActual('expo-router'),
+  useFocusEffect: (callback: () => void) =>
+    jest.requireActual('react').useEffect(callback, [callback]),
+}))
 jest.mock('@/auth/session-context', () => ({
   useSession: () => ({ session: mockSession }),
 }))
@@ -56,6 +61,29 @@ async function mount(
 }
 const press = (label: string) =>
   fireEvent.press(screen.getByRole('button', { name: label }))
+it('filters the inbox to appointment updates and keeps access to the full inbox', async () => {
+  await mount(
+    fixtureApi({
+      list: jest
+        .fn()
+        .mockResolvedValue(
+          page([
+            notification({
+              kind: 'APPOINTMENT',
+              title: 'Lịch hẹn đã xác nhận',
+            }),
+            notification({ id: targetId, title: 'Nhắc viết nhật ký' }),
+          ]),
+        ),
+    }),
+  )
+  await screen.findByText('Lịch hẹn đã xác nhận')
+  await press('Chỉ xem thông báo lịch hẹn')
+  expect(screen.getByText('Lịch hẹn đã xác nhận')).toBeOnTheScreen()
+  expect(screen.queryByText('Nhắc viết nhật ký')).toBeNull()
+  await press('Xem tất cả thông báo')
+  expect(screen.getByText('Nhắc viết nhật ký')).toBeOnTheScreen()
+})
 it('opens a fresh Community conversation descriptor after Content confirms mark-read', async () => {
   const item = notification({
     kind: 'COMMUNITY_MESSAGE',

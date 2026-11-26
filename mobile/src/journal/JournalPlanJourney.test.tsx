@@ -284,11 +284,13 @@ it('a late origin read never retargets ordinary writing that was already started
     expect(props.onReturnToPlan).toHaveBeenCalledWith(originValue),
   )
 })
-it('revising a newly saved entry keeps the same candidate and does not create a second fact', async () => {
+it('reopening and revising a saved entry keeps the same candidate and does not create a second fact', async () => {
   const { props } = await mount()
+  props.api.list = jest.fn().mockResolvedValue(page([entry]))
   await fill()
   await fireEvent.press(screen.getByTestId('journal-save'))
   await screen.findByText('Đã lưu nhật ký.')
+  await fireEvent.press(await screen.findByTestId(`journal-entry-${entry.id}`))
   await fireEvent.changeText(
     screen.getByLabelText('Nội dung nhật ký'),
     'Chỉnh sửa vẫn riêng tư.',

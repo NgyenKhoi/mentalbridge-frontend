@@ -127,6 +127,56 @@ export function resourceTimerSeconds(resource: ResourceDetail) {
   return actionSeconds > 0 ? Math.min(7200, actionSeconds) : undefined
 }
 
+export function breathingPractice(resource: ResourceDetail) {
+  const config = resource.interactionConfig
+  const inhale = boundedInteger(config.inhaleSeconds, 1, 60) ?? 4
+  const hold = boundedInteger(config.holdSeconds, 0, 60) ?? 0
+  const exhale = boundedInteger(config.exhaleSeconds, 1, 60) ?? 6
+  const phases = [
+    { id: 'inhale', label: 'Hít vào', hint: 'Nhẹ qua mũi', seconds: inhale },
+    ...(hold
+      ? [
+          {
+            id: 'hold',
+            label: 'Giữ nhẹ',
+            hint: 'Không gắng sức',
+            seconds: hold,
+          },
+        ]
+      : []),
+    {
+      id: 'exhale',
+      label: 'Thở ra',
+      hint: 'Chậm và tự nhiên',
+      seconds: exhale,
+    },
+  ]
+  // The web breathing experience uses the published session length, which may
+  // end partway through the final cycle.
+  const durationSeconds = Math.min(7200, resource.expectedDurationMinutes * 60)
+  const cycleSeconds = inhale + hold + exhale
+  return {
+    phases,
+    durationSeconds,
+    cycleSeconds,
+    cycleCount: Math.floor(durationSeconds / cycleSeconds),
+  }
+}
+
+export function breathingPhase(
+  practice: ReturnType<typeof breathingPractice>,
+  remainingSeconds: number,
+) {
+  const elapsed = Math.max(0, practice.durationSeconds - remainingSeconds)
+  let position = elapsed % practice.cycleSeconds
+  for (const phase of practice.phases) {
+    if (position < phase.seconds)
+      return { ...phase, remaining: Math.ceil(phase.seconds - position) }
+    position -= phase.seconds
+  }
+  return { ...practice.phases[0]!, remaining: practice.phases[0]!.seconds }
+}
+
 export function localDateInTimeZone(now: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,

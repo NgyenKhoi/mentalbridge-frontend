@@ -69,6 +69,7 @@ async function openProfile() {
       name: `Xem hồ sơ ${fixtureSpecialist.displayName}`,
     }),
   )
+  await fireEvent.press(await screen.findByRole('tab', { name: 'Lịch trống' }))
   await screen.findByRole('button', { name: `Chọn ${slotLabel(fixtureSlot)}` })
 }
 async function selectSlot() {
@@ -76,8 +77,39 @@ async function selectSlot() {
     screen.getByRole('button', { name: `Chọn ${slotLabel(fixtureSlot)}` }),
   )
 }
+async function openFilters() {
+  await fireEvent.press(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }))
+}
 
 describe('MB-629 daily-current public discovery', () => {
+  it('keeps a profile usable when its schedule is empty', async () => {
+    const profile: DiscoveryItem = {
+      ...fixtureSpecialist,
+      languages: ['vi', 'zh', 'fr'],
+      selectableSlots: [],
+      explanation: {
+        ...fixtureSpecialist.explanation,
+        hasSelectableSlot: false,
+        earliestSelectableStartAt: null,
+      },
+    }
+    await mount(
+      api({
+        list: jest.fn().mockResolvedValue({ ...fixturePage, items: [profile] }),
+        detail: jest.fn().mockResolvedValue(profile),
+      }),
+    )
+    expect(await screen.findByText('Chưa có lịch trống')).toBeOnTheScreen()
+    await fireEvent.press(
+      screen.getByRole('button', { name: `Xem hồ sơ ${profile.displayName}` }),
+    )
+    expect(
+      await screen.findByText('Tiếng Việt, 中文, Français'),
+    ).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('tab', { name: 'Lịch trống' }))
+    expect(screen.getByText(/Hiện chưa có lịch trống/)).toBeOnTheScreen()
+  })
+
   beforeEach(() => {
     mockSession = {
       subject: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -111,10 +143,14 @@ describe('MB-629 daily-current public discovery', () => {
     ).toEqual([fixtureSpecialist.displayName, second.displayName])
     expect(screen.queryByText(/cần gói Plus/i)).toBeNull()
     expect(screen.getAllByText('Chưa có đánh giá tổng hợp.')).toHaveLength(2)
+    expect(screen.getByText('GÓI FREE')).toBeTruthy()
+    expect(screen.queryByText('phiên còn lại')).toBeNull()
+    expect(screen.queryByText('Liệu pháp CBT')).toBeNull()
   })
   it('applies only server-supported search filters and preserves them on detail back', async () => {
     const { service } = await mount()
     await screen.findByText(fixtureSpecialist.displayName)
+    await openFilters()
     await fireEvent.press(screen.getByRole('radio', { name: 'Lo âu' }))
     await fireEvent.press(screen.getByRole('radio', { name: 'Tiếng Việt' }))
     await fireEvent.press(
@@ -156,6 +192,7 @@ describe('MB-629 daily-current public discovery', () => {
       undefined,
     )
 
+    await openFilters()
     await fireEvent.press(screen.getByRole('radio', { name: 'Lo âu' }))
     await fireEvent.press(
       screen.getByRole('button', { name: 'Tìm theo tiêu chí' }),
@@ -197,6 +234,7 @@ describe('MB-629 daily-current public discovery', () => {
         }),
       )
       if (filtered) {
+        await openFilters()
         await fireEvent.press(screen.getByRole('radio', { name: 'Lo âu' }))
         await fireEvent.press(
           screen.getByRole('button', { name: 'Tìm theo tiêu chí' }),
@@ -216,12 +254,24 @@ describe('MB-629 daily-current public discovery', () => {
           ...fixtureSpecialist,
           ratingAggregate: { averageRating: 4.25, ratingCount: 7 },
         }),
+        badges: jest
+          .fn()
+          .mockResolvedValue([
+            { title: 'Chứng chỉ đã xác minh', credentialType: 'CERTIFICATE' },
+          ]),
       }),
     )
-    await openProfile()
+    await fireEvent.press(
+      await screen.findByRole('button', {
+        name: `Xem hồ sơ ${fixtureSpecialist.displayName}`,
+      }),
+    )
+    await screen.findByText(/Chứng chỉ đã xác minh/)
     expect(screen.getByText(fixtureSpecialist.bio)).toBeTruthy()
-    expect(screen.getByText('4,25 / 5 · 7 đánh giá')).toBeTruthy()
-    expect(screen.queryByText(/Giá|Chứng chỉ|Điện thoại/)).toBeNull()
+    expect(screen.getByText(/4.3 · 7 đánh giá/)).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: `Chọn ${slotLabel(fixtureSlot)}` }),
+    ).toBeNull()
   })
   it('freshly rechecks FREE policy and slot, previews without booking mutation', async () => {
     const { service } = await mount()
@@ -271,16 +321,24 @@ describe('MB-629 daily-current public discovery', () => {
           <DiscoveryScreen api={service} onBack={jest.fn()} onBook={onBook} />
         </QueryClientProvider>,
       )
-      await openProfile()
-      await selectSlot()
-      await screen.findByText('Khung giờ đã chọn')
-      const action = screen.queryByRole('button', { name: 'Tiếp tục đặt lịch' })
-      if (bookingHandoff === 'BROWSE_ONLY') expect(action).toBeNull()
-      else {
-        if (!action) throw new Error('Approved booking handoff missing')
-        await fireEvent.press(action)
-        expect(onBook).toHaveBeenCalledWith(
-          expect.objectContaining({ slot: fixtureSlot, bookingHandoff }),
+      if (bookingHandoff === 'BROWSE_ONLY') {
+        await openProfile()
+        await selectSlot()
+        await screen.findByText('Khung giờ đã chọn')
+        expect(onBook).not.toHaveBeenCalled()
+      } else {
+        await fireEvent.press(
+          await screen.findByRole('button', {
+            name: `Xem hồ sơ ${fixtureSpecialist.displayName}`,
+          }),
+        )
+        await fireEvent.press(
+          await screen.findByRole('button', { name: 'Đặt lịch gần nhất' }),
+        )
+        await waitFor(() =>
+          expect(onBook).toHaveBeenCalledWith(
+            expect.objectContaining({ slot: fixtureSlot, bookingHandoff }),
+          ),
         )
       }
     },

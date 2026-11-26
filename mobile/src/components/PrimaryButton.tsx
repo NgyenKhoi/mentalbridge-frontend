@@ -15,17 +15,22 @@ export function PrimaryButton({
   testID,
   tone = 'default',
   labelStyle,
+  leadingIcon,
+  accessibilityLabel,
 }: Readonly<{
   disabled?: boolean
   label: string
   onPress: () => void
   testID?: string
-  tone?: 'default' | 'light' | 'darkPill'
+  tone?: 'default' | 'light' | 'darkPill' | 'dashboard'
+  leadingIcon?: string
+  accessibilityLabel?: string
   labelStyle?: StyleProp<TextStyle>
 }>) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
@@ -34,6 +39,7 @@ export function PrimaryButton({
         styles.button,
         tone === 'light' && styles.lightButton,
         tone === 'darkPill' && styles.darkPill,
+        tone === 'dashboard' && styles.dashboard,
         disabled && styles.disabled,
         pressed && styles.pressed,
       ]}
@@ -45,6 +51,7 @@ export function PrimaryButton({
           labelStyle,
         ]}
       >
+        {leadingIcon ? leadingIcon + '  ' : null}
         {label}
       </Text>
     </Pressable>
@@ -61,6 +68,13 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
+  },
+  dashboard: {
+    alignSelf: 'stretch',
+    borderRadius: radii.pill,
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   darkPill: {
     alignSelf: 'stretch',
