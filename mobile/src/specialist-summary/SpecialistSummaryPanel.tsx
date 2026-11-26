@@ -299,9 +299,7 @@ export function SpecialistSummaryPanel({
 
       {latest ? (
         <View style={styles.published}>
-          <Text style={styles.version}>
-            Bản tổng hợp đã xuất bản
-          </Text>
+          <Text style={styles.version}>Bản tổng hợp đã xuất bản</Text>
           <PublishedSessionSummary summary={latest} timezone={timezone} />
           {versions.length > 1 && (
             <>

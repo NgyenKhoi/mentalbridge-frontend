@@ -111,9 +111,7 @@ describe('SPECIALIST SessionSummary authority', () => {
           .mockResolvedValue(makeSessionSummaryList([original, latest])),
       }),
     )
-    expect(
-      await screen.findByText('Phiên bản 2'),
-    ).toBeOnTheScreen()
+    expect(await screen.findByText('Phiên bản 2')).toBeOnTheScreen()
     expect(screen.getByText('Điều đã ghi nhận trong phiên')).toBeOnTheScreen()
     expect(screen.getByText('Thực hiện trong ba ngày.')).toBeOnTheScreen()
     expect(screen.queryByText('Phiên bản 1')).toBeNull()
@@ -253,9 +251,7 @@ describe('SPECIALIST SessionSummary authority', () => {
       resolveSummaries(makeSessionSummaryList([refreshed, current]))
       resolveAppointment(true)
     })
-    expect(
-      await screen.findByText('Phiên bản 2'),
-    ).toBeOnTheScreen()
+    expect(await screen.findByText('Phiên bản 2')).toBeOnTheScreen()
   })
 
   it('stays locked when post-success authority refresh fails', async () => {
