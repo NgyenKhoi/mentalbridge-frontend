@@ -101,6 +101,26 @@ describe('mam guide state', () => {
     expect(startGuideSession(again).pending).toBeNull()
   })
 
+  it('relax first, then the journal: the walk goes on from the side path', () => {
+    const relaxing = actGuide(started(), 'relax', T0)
+    expect(relaxing.pending).toBeNull()
+    // Left half way: the next session picks the walk up at the journal.
+    expect(startGuideSession(relaxing).pending).toEqual({
+      after: 'reoffer',
+      next: 'journal',
+    })
+    // Finished: Mầm answers the relaxation, then offers the journal.
+    const relaxed = reduceGuide(relaxing, { type: 'resource-done' }, T1)!
+    expect(relaxed.pending).toEqual({ after: 'relax', next: 'journal' })
+    expect(sequenceFor(relaxed.pending!, relaxed).at(-1)).toMatchObject({
+      kind: 'ask',
+      actions: [
+        { go: 'journal', tone: 'primary' },
+        { go: 'decline', tone: 'secondary' },
+      ],
+    })
+  })
+
   it('a step done after a decline clears the decline', () => {
     const declined = actGuide(started(), 'decline', T0)
     const done = reduceGuide(declined, { type: 'journal-created' }, T1)!
@@ -211,6 +231,7 @@ describe('mam guide sequences', () => {
 
   it('stories hold 4 to 5 seconds', () => {
     expect(guideHoldMs('Nè')).toBe(4000)
-    expect(guideHoldMs('x'.repeat(200))).toBe(5000)
+    expect(guideHoldMs('x'.repeat(120))).toBe(8000)
+    expect(guideHoldMs('x'.repeat(400))).toBe(9000)
   })
 })

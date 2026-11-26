@@ -73,16 +73,21 @@ test.describe('Mầm guide', () => {
     )
 
     await expect(guide(page)).toContainText('Mầm đọc kết quả của bạn rồi nè.')
-    // A story moves on by itself after 4–5 s.
+    // A story moves on by itself after its reading time (4–9 s).
     await expect(guide(page)).toContainText(
       'Bạn không cần hiểu hết web này đâu.',
       {
-        timeout: 8000,
+        timeout: 12_000,
       },
     )
-    await frames(page, 'result-skip', () =>
-      guide(page).getByRole('button', { name: 'Bỏ qua' }).click(),
+    await frames(page, 'result-next', () =>
+      guide(page).getByRole('button', { name: 'Tiếp' }).click(),
     )
+    // One line per press: the third line, then the question.
+    await expect(guide(page)).toContainText('Dạo này bạn hơi mệt trong lòng')
+    await guide(page)
+      .getByRole('button', { name: 'Tiếp, câu 3 trên 4' })
+      .click()
     const primary = guide(page).getByRole('link', {
       name: 'Viết nhật ký cùng Mầm',
     })
@@ -163,7 +168,11 @@ test.describe('Mầm guide', () => {
         granted: true,
       },
     ])
-    await guide(page).getByRole('button', { name: 'Bỏ qua' }).click()
+    await guide(page).getByRole('button', { name: 'Tiếp' }).click()
+    await expect(guide(page)).toContainText('Dám viết ra hết như vậy')
+    await guide(page)
+      .getByRole('button', { name: 'Tiếp, câu 3 trên 4' })
+      .click()
     await expect(
       guide(page).getByRole('link', { name: 'Kể tiếp đi' }),
     ).toHaveAttribute('href', '/ai-companion?opening=FROM_JOURNAL')
@@ -181,7 +190,7 @@ test.describe('Mầm guide', () => {
     await expect(guide(page)).toContainText(
       'Bạn không cần hiểu hết web này đâu.',
       {
-        timeout: 8000,
+        timeout: 12_000,
       },
     )
   })

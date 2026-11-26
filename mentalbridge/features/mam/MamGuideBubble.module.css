@@ -10,41 +10,140 @@
 
 .choices {
   display: grid;
-  gap: 6px;
+  gap: 8px;
+}
+
+/* Every choice shares one column, one height and one inset, so the labels line up. */
+.act {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.act:hover {
+  background: var(--teal-pale);
+}
+
+.act:active {
+  transform: scale(0.98);
+}
+
+.act:focus-visible,
+.next:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 2px;
+}
+
+.main {
+  background: var(--teal);
+  color: #fff;
+}
+
+.main:hover {
+  background: var(--teal-deep);
+}
+
+.later {
+  min-height: 44px;
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.later:hover {
+  background: transparent;
+  color: var(--ink);
+}
+
+/* Three lines held for every story, so the bubble edge barely moves as lines swap. */
+.line {
+  min-height: calc(1.55em * 3);
+}
+
+.live {
+  position: absolute;
+  width: 1px;
+  height: 1px; /* taste-skill-ignore: visually hidden live region, not a rule */
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .storyFoot {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 44px;
+  gap: 12px;
+  margin-top: -2px;
 }
 
-.spacer {
-  flex: 1;
+/* Where this bubble sits in what Mầm has to say. */
+.dots {
+  display: flex;
+  gap: 6px;
 }
 
-.skip {
+.dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--teal) 28%, var(--surface));
+  transition: background-color var(--motion-base) var(--ease-standard);
+}
+
+.dots span[data-on] {
+  background: var(--teal);
+}
+
+.next {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   min-height: 44px;
-  padding: 0 8px;
+  padding: 0 14px 0 18px;
   border: 0;
-  background: transparent;
-  color: var(--ink-soft);
-  font-size: 0.875rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+  font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
-  transition: color var(--motion-fast) var(--ease-standard);
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 
-.skip:hover {
-  color: var(--ink);
+.next:hover {
+  background: var(--teal-pale);
 }
 
-.skip:focus-visible {
-  outline: 2px solid var(--teal-deep);
-  outline-offset: 2px;
-  border-radius: 6px;
+.next:active {
+  transform: scale(0.97);
+}
+
+.assure {
+  margin: -2px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.45;
 }
 
 .waiting {
@@ -137,8 +236,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skip {
+  .act,
+  .next,
+  .dots span {
     transition: none;
+  }
+
+  .act:active,
+  .next:active {
+    transform: none;
   }
 }
 

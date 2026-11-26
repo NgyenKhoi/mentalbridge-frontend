@@ -27,8 +27,8 @@ function renderBubble(spec: MamBubbleSpec, overrides = {}) {
     reduced: true,
     bubbleRef: createRef<HTMLDivElement>(),
     dockRef: createRef<HTMLElement>(),
+    progress: { at: 0, total: 4 },
     onNext: vi.fn(),
-    onSkip: vi.fn(),
     onAct: vi.fn(),
     onConsented: vi.fn(),
     onClose: vi.fn(),
@@ -49,10 +49,19 @@ describe('MamGuideBubble', () => {
     expect(props.onNext).toHaveBeenCalledTimes(1)
   })
 
-  it('"Bỏ qua" skips the stories', () => {
+  it('"Tiếp" moves on one bubble', () => {
     const { props } = renderBubble(story)
-    fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua' }))
-    expect(props.onSkip).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: /^Tiếp, câu 1 trên 4/ }))
+    expect(props.onNext).toHaveBeenCalledTimes(1)
+  })
+
+  it('no key closes the guide, Escape included', () => {
+    const { props } = renderBubble(ask)
+    const bubble = screen.getByRole('group')
+    bubble.focus()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'a' })
+    expect(props.onClose).not.toHaveBeenCalled()
   })
 
   it('an ask waits for the user and reports the chosen action', () => {
@@ -68,7 +77,9 @@ describe('MamGuideBubble', () => {
     fireEvent.pointerDown(document.body)
     act(() => vi.advanceTimersByTime(10_000))
     expect(props.onNext).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }))
+    fireEvent.pointerDown(
+      screen.getAllByText('Mầm đọc kết quả của bạn rồi nè.')[0]!,
+    )
     act(() => vi.advanceTimersByTime(5000))
     expect(props.onNext).toHaveBeenCalledTimes(1)
   })
@@ -80,7 +91,7 @@ describe('MamGuideBubble', () => {
       withContext: 'Ê, Mầm đọc rồi nè.',
     }
     renderBubble(spec, { context: true })
-    expect(screen.getByText('Ê, Mầm đọc rồi nè.')).toBeTruthy()
+    expect(screen.getAllByText('Ê, Mầm đọc rồi nè.')).toHaveLength(2)
   })
 
   it('the close button counts as later', () => {

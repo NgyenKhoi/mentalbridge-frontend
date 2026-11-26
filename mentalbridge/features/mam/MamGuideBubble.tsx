@@ -1,6 +1,6 @@
 'use client'
 
-import { Leaf, X } from 'lucide-react'
+import { ChevronRight, Leaf, X } from 'lucide-react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useId, useRef, useState, type RefObject } from 'react'
@@ -50,9 +50,9 @@ function ConsentStep({
 }
 
 /**
- * One bubble of the Mầm guide, on the dock. A story holds 4–5 s and moves on by itself (paused while the
- * pointer or focus is on it, or after a click elsewhere); an ask waits for the user. Escape or the close
- * button counts as "Để sau đi".
+ * One bubble of the Mầm guide, on the dock. A story holds 4–9 s by its length and moves on by itself (paused
+ * while the pointer or focus is on it, or after a click elsewhere), or on "Tiếp"; an ask waits for the user.
+ * The close button counts as "Để sau đi".
  */
 export function MamGuideBubble({
   spec,
@@ -61,8 +61,8 @@ export function MamGuideBubble({
   reduced,
   bubbleRef,
   dockRef,
+  progress,
   onNext,
-  onSkip,
   onAct,
   onConsented,
   onClose,
@@ -74,8 +74,8 @@ export function MamGuideBubble({
   reduced: boolean
   bubbleRef: RefObject<HTMLDivElement | null>
   dockRef: RefObject<HTMLElement | null>
+  progress: Readonly<{ at: number; total: number }>
   onNext: () => void
-  onSkip: () => void
   onAct: (action: MamGuideAction) => void
   onConsented: (result: AiConsent | 'later') => void
   onClose: () => void
@@ -96,26 +96,17 @@ export function MamGuideBubble({
       ? spec.text
       : ''
 
-  // A click elsewhere pauses the story; a click on the bubble resumes it.
+  // A click elsewhere pauses the story; a click on the bubble resumes it. No key closes the guide: a stray
+  // keystroke (Escape included) must not lose the first-run walk (owner 2026-11-26); only the close button does.
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
       const node = event.target as Node
       if (bubbleRef.current?.contains(node)) setPaused(false)
       else if (!dockRef.current?.contains(node)) setPaused(true)
     }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return
-      if (!bubbleRef.current?.contains(document.activeElement)) return
-      event.preventDefault()
-      onClose()
-    }
     document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [bubbleRef, dockRef, onClose])
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [bubbleRef, dockRef])
 
   useEffect(() => {
     if (!story || paused || held) return
@@ -183,6 +174,10 @@ export function MamGuideBubble({
           <X size={18} strokeWidth={1.8} aria-hidden="true" />
         </button>
       </div>
+      {/* Stories change by themselves, so they are announced from one region that outlives the step swap. */}
+      <div className={styles.live} aria-live="polite">
+        {story ? text : ''}
+      </div>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={step}
@@ -195,10 +190,10 @@ export function MamGuideBubble({
           {spec.kind === 'consent' ? (
             <ConsentStep onConsented={onConsented} />
           ) : (
-            // Stories change by themselves, so they are announced; an ask waits and is read on focus.
+            // A story is read from the live region above; an ask waits and is read on focus.
             <div
-              className={bubble.answer}
-              aria-live={story ? 'polite' : undefined}
+              className={`${bubble.answer} ${story ? styles.line : ''}`}
+              aria-hidden={story || undefined}
             >
               {text}
             </div>
@@ -212,12 +207,13 @@ export function MamGuideBubble({
               transition={{ duration: 0.2, delay: reduced ? 0 : 0.08, ease }}
             >
               {spec.actions.map((action) => {
+                // One column, one width, one inset: the main step filled, the others quiet, "later" as text.
                 const className =
                   action.tone === 'primary'
-                    ? bubble.primary
+                    ? `${styles.act} ${styles.main}`
                     : action.go === 'decline'
-                      ? bubble.done
-                      : bubble.starter
+                      ? `${styles.act} ${styles.later}`
+                      : styles.act
                 const href = guideHref(action.go)
                 return href ? (
                   <Link
@@ -243,19 +239,23 @@ export function MamGuideBubble({
           ) : null}
           {story ? (
             <div className={styles.storyFoot}>
-              {paused ? (
-                <button
-                  type="button"
-                  className={bubble.done}
-                  onClick={() => setPaused(false)}
-                >
-                  Tiếp tục
-                </button>
+              {progress.total > 1 ? (
+                <span className={styles.dots} aria-hidden="true">
+                  {Array.from({ length: progress.total }, (_, at) => (
+                    <span key={at} data-on={at <= progress.at || undefined} />
+                  ))}
+                </span>
               ) : (
-                <span className={styles.spacer} />
+                <span />
               )}
-              <button type="button" className={styles.skip} onClick={onSkip}>
-                Bỏ qua
+              <button
+                type="button"
+                className={styles.next}
+                aria-label={`Tiếp, câu ${progress.at + 1} trên ${progress.total}`}
+                onClick={onNext}
+              >
+                Tiếp
+                <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
               </button>
             </div>
           ) : null}

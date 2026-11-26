@@ -116,8 +116,7 @@ export function MamGuideConsent({
     <div className={styles.consent}>
       <div className={bubble.answer}>
         Để Mầm dẫn bạn đi đúng hơn, Mầm cần bạn đồng ý{' '}
-        {savedL1 ? 'việc này' : '2 việc này'} nhé. Bạn tick cái nào thì Mầm chỉ
-        dùng cái đó.
+        {savedL1 ? 'việc này' : '2 việc này'} nhé.
       </div>
       {savedL1 ? null : (
         <div className={styles.tick}>
@@ -190,10 +189,10 @@ export function MamGuideConsent({
           {error}
         </div>
       ) : null}
-      <div className={bubble.actions}>
+      <div className={styles.choices}>
         <button
           type="button"
-          className={`${bubble.primary} ${styles.agree}`}
+          className={`${styles.act} ${styles.main} ${styles.agree}`}
           disabled={!ready || saving}
           aria-describedby={savedL1 || tickL1 ? undefined : ids.hint}
           onClick={() => void agree()}
@@ -202,13 +201,16 @@ export function MamGuideConsent({
         </button>
         <button
           type="button"
-          className={bubble.done}
+          className={`${styles.act} ${styles.later}`}
           disabled={saving}
           onClick={() => onDone('later')}
         >
           Để sau đi
         </button>
       </div>
+      <p className={styles.assure}>
+        Mầm chỉ dùng đúng cái bạn tick thôi, không dùng thêm gì đâu.
+      </p>
     </div>
   )
 }
