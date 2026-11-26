@@ -1,8 +1,7 @@
-import { render, waitFor } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import OnboardingTour from './OnboardingTour'
-import { hasSeenOnboarding } from './tour-storage'
 
 const mocks = vi.hoisted(() => ({
   journey: vi.fn(),
@@ -27,40 +26,24 @@ const renderTour = (accountId: string) =>
 
 describe('OnboardingTour auto-start', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     window.localStorage.clear()
+    mocks.journey.mockResolvedValue({ episodeId: null })
     mocks.create.mockReturnValue({
       start: vi.fn().mockResolvedValue(undefined),
       isActive: () => false,
       destroy: vi.fn(),
     })
   })
-  afterEach(() => vi.clearAllMocks())
-
-  it('stays closed for an account that already screened on another device', async () => {
-    mocks.journey.mockResolvedValue({
-      episodeId: '10000000-0000-4000-8000-000000000001',
-    })
-    renderTour('returning-account')
-
-    await waitFor(
-      () => expect(hasSeenOnboarding('returning-account')).toBe(true),
-      { timeout: 3000 },
-    )
-    expect(mocks.create).not.toHaveBeenCalled()
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
   })
 
-  it('opens for a new account, and when the journey cannot be read', async () => {
-    mocks.journey
-      .mockResolvedValueOnce({ episodeId: null })
-      .mockRejectedValueOnce(new Error('offline'))
+  // mam-guide design §5: Mầm leads a new USER; the tour stays available from "Xem lại hướng dẫn".
+  it('no longer opens by itself for a new USER account', async () => {
     renderTour('new-account')
-    await waitFor(() => expect(mocks.create).toHaveBeenCalledOnce(), {
-      timeout: 3000,
-    })
-
-    renderTour('unknown-account')
-    await waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(2), {
-      timeout: 3000,
-    })
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(mocks.create).not.toHaveBeenCalled()
   })
 })

@@ -30,6 +30,11 @@ import {
 
 import { JournalDetail } from '@/features/journal/JournalDetail'
 import { dispatchMamEvent } from '@/features/mam/mam-events'
+import { dispatchMamGuide } from '@/features/mam/mam-guide'
+
+// The Mầm guide opens the editor with this nudge (mam-guide design §5.1); a placeholder, never text.
+const GUIDE_PLACEHOLDER =
+  'Viết ra 3 thứ đang làm bạn khó chịu nhất hôm nay. Không cần viết hay, chỉ cần viết thật.\n1.\n2.\n3.'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import { Dialog } from '@/components/ui/Dialog'
@@ -161,6 +166,7 @@ export default function JournalPage() {
   const [savedOrigin, setSavedOrigin] =
     useState<ResolvedJournalPlanOrigin | null>(null)
   const openedOrigin = useRef(new Set<string>())
+  const [guidePrompt, setGuidePrompt] = useState(false)
   const mutationPendingRef = useRef(false)
   // MB-897: a save that resolves after the page is gone is not announced to Mầm.
   const mountedRef = useRef(false)
@@ -595,6 +601,25 @@ export default function JournalPage() {
     })
     setMode('create')
   }
+  // `?compose=guide` from the Mầm guide opens a new entry with the guide's nudge, once.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('compose') !== 'guide') return
+    params.delete('compose')
+    const rest = params.toString()
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${rest ? `?${rest}` : ''}`,
+    )
+    const timer = window.setTimeout(() => {
+      setGuidePrompt(true)
+      openCreate(null, null)
+    }, 0)
+    return () => window.clearTimeout(timer)
+    // Runs on arrival only; `openCreate` reads the state of that first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   useEffect(() => {
     if (
       planContext.status !== 'ready' ||
@@ -771,11 +796,14 @@ export default function JournalPage() {
         },
         parseJournalEntry,
       )
-      if (mountedRef.current)
+      if (mountedRef.current) {
         dispatchMamEvent({
           type: 'journal-saved',
           mood: created.mood ?? undefined,
         })
+        dispatchMamGuide({ type: 'journal-created' })
+      }
+      setGuidePrompt(false)
       setPageNotice('Nhật ký đã được lưu.')
       showActionToast({ title: 'Đã lưu nhật ký' })
       if (capturedOrigin) {
@@ -1443,8 +1471,10 @@ export default function JournalPage() {
                         value={text}
                         maxLength={12_000}
                         placeholder={
-                          currentDisplayedPrompts[0] ||
-                          JOURNAL_PROMPTS[promptIndex]
+                          guidePrompt
+                            ? GUIDE_PLACEHOLDER
+                            : currentDisplayedPrompts[0] ||
+                              JOURNAL_PROMPTS[promptIndex]
                         }
                         onChange={(event) => {
                           setText(event.target.value)

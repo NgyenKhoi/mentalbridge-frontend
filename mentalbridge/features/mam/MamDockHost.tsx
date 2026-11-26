@@ -57,6 +57,8 @@ import { useMamTrajectory } from './use-mam-trajectory'
 import { useOnboardingHold } from '@/features/onboarding/onboarding-hold'
 import { useMamDropRing } from './use-mam-drop-ring'
 import { useMamSummon } from './use-mam-summon'
+import { MamGuideBubble } from './MamGuideBubble'
+import { useMamGuide } from './use-mam-guide'
 import {
   useMamAway,
   useMamCompanionDialog,
@@ -259,6 +261,20 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
   const accountId = useMamAccountId()
   // A first-run tour owns the screen: the welcome keeps waiting (no cap, no cancel) and flies once it ends or is skipped.
   const tourHolds = useOnboardingHold(accountId, pathname)
+  // The first-run guide (mam-guide design) waits while Mầm is away, busy or answering something else.
+  const guideRef = useRef<HTMLDivElement | null>(null)
+  const guideHeld = [
+    hidden && 'hidden',
+    away && 'away',
+    suppressed && 'suppressed',
+    dizzy && 'dizzy',
+    tourHolds && 'tour',
+    summon && 'summon',
+    menuOpen && 'menu',
+    notice && 'notice',
+  ].filter(Boolean)
+  const guide = useMamGuide(accountId, guideHeld.length === 0)
+  const guideShown = guide.bubble !== null
   if (notice && (summon || menuOpen)) setNotice(null)
   // A renderer failure retires what is open: the menu, the summon and its request.
   if (dizzy && open) setOpen(false)
@@ -684,8 +700,9 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     if (dizzy) orchestrator.cancel('renderer')
   }, [orchestrator, dizzy])
   useEffect(() => {
-    if (summon || menuOpen || notice) orchestrator.claim(MAM_PRIORITY.summon)
-  }, [orchestrator, summon, menuOpen, notice])
+    if (summon || menuOpen || notice || guide.bubble)
+      orchestrator.claim(MAM_PRIORITY.summon)
+  }, [orchestrator, summon, menuOpen, notice, guide.bubble])
   // The yawn, the wake and a poke take the stage from an idle look (the airplane's own hop and wave do not).
   useEffect(() => {
     if (local.shot && localKind !== 'hop_down' && localKind !== 'wave')
@@ -941,6 +958,8 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
         !root ||
         menuOpen ||
         dockBubble ||
+        // The guide asked something on purpose: like a summon, it stays readable and clickable.
+        guideShown ||
         (travelMode !== 'dock' && travelMode !== 'hop') ||
         (active && root.contains(active))
       ) {
@@ -1054,6 +1073,7 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
     hidden,
     menuOpen,
     dockBubble,
+    guideShown,
     celebrating,
     travelMode,
     above,
@@ -1251,6 +1271,13 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
       }
       data-yield={yielding !== 'none'}
       data-focus-yield={yielding === 'focus'}
+      data-mam-guide={
+        guide.bubble
+          ? 'on'
+          : guideHeld.length
+            ? guideHeld.join(' ')
+            : guide.status
+      }
       data-mam-travel={travelMode}
       data-mam-sleep={asleep}
       data-mam-shot={playing?.kind ?? ''}
@@ -1586,6 +1613,25 @@ export function MamDockHost({ pathname }: Readonly<{ pathname: string }>) {
                   }
                 : undefined
             }
+          />
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {guide.bubble ? (
+          <MamGuideBubble
+            key="guide"
+            spec={guide.bubble}
+            step={guide.step}
+            context={guide.context}
+            reduced={reduced}
+            bubbleRef={guideRef}
+            dockRef={dockRef}
+            onNext={guide.next}
+            onSkip={guide.skip}
+            onAct={guide.act}
+            onConsented={guide.consented}
+            onClose={guide.close}
           />
         ) : null}
       </AnimatePresence>

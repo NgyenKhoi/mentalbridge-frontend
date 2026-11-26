@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { useMamDockSlotted } from '@/features/mam/MamDockSlot'
+import { dispatchMamGuide } from '@/features/mam/mam-guide'
 import { useMamPreferences } from '@/features/mam/mam-preferences'
 import {
   parseAiProcessingDisclosure,
@@ -47,6 +48,15 @@ export default function VoiceDialog({
     controller.snapshot,
     controller.snapshot,
   )
+  // A call that really connected and then ended counts for the Mầm guide (mam-guide design §5.3).
+  const connected = useRef(false)
+  useEffect(() => {
+    if (view.phase === 'connected') connected.current = true
+    if (view.phase === 'ended' && connected.current) {
+      connected.current = false
+      dispatchMamGuide({ type: 'call-ended' })
+    }
+  }, [view.phase])
   const [disclosure, setDisclosure] = useState<
     Disclosure | AiProcessingDisclosure
   >()

@@ -1,0 +1,131 @@
+/* In-place consent in the chat column (mam-guide design §6). Sits where the error line sits. */
+.card {
+  display: grid;
+  gap: 10px;
+  width: min(560px, calc(100% - 36px));
+  margin: 14px auto 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line); /* taste-skill-ignore: a form container, like the chat composer */
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  animation: mb-data-enter var(--motion-base) var(--ease-standard) both;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 2px;
+}
+
+.title {
+  margin: 0;
+  color: var(--ink);
+  font: 600 1.0625rem/1.3 var(--font-fraunces);
+}
+
+.lead {
+  color: var(--ink);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.notice {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.notice summary {
+  width: fit-content;
+  color: var(--teal-deep);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notice summary:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.notice > div {
+  max-height: 40dvh;
+  margin-top: 6px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  color: var(--ink-soft);
+}
+
+.tick {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+}
+
+.tick input {
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  accent-color: var(--teal-deep);
+  cursor: pointer;
+}
+
+.tick label {
+  color: var(--ink);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.error {
+  color: var(--danger, #9a3b2e);
+  font-size: 0.875rem;
+}
+
+.primary {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--teal-deep);
+}
+
+.primary:active:not(:disabled) {
+  transform: scale(var(--motion-scale-enter));
+}
+
+.primary:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 2px;
+}
+
+.primary:disabled {
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+
+  .primary {
+    transition: none;
+  }
+}

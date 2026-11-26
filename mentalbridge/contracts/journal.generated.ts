@@ -1491,6 +1491,11 @@ export interface components {
             fallbackReason: "CONSENT_REQUIRED" | "CONSENT_UNAVAILABLE" | "PROVIDER_DISABLED" | "PROVIDER_TIMEOUT" | "PROVIDER_QUOTA_LIMITED" | "PROVIDER_UNAVAILABLE" | "MALFORMED_OUTPUT" | "POLICY_REJECTED" | null;
         };
         CreateAiConversationRequest: {
+            /**
+             * @description Optional first assistant opener. FROM_JOURNAL selects latest diary entries and FROM_RESULT selects screening only with effective L2 AI context consent; no personal source is selected otherwise. Opener generation uses ordinary chat consent, entitlement and quota checks, and failure never prevents conversation creation.
+             * @enum {string}
+             */
+            opening?: "FROM_JOURNAL" | "FROM_RESULT";
             /** @description Optional explicit title; outer whitespace is allowed and bounds are 1..80 Unicode code points after outer trim (expressed by the pattern, not a raw maxLength), with no six-word limit. Compile the pattern with the Unicode flag. Raw outer whitespace is bounded only by the HTTP request body limit. Stored encrypted even when equal to the default title. */
             title?: string;
         };
@@ -3717,7 +3722,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Conversation created. */
+            /** @description Conversation created. A requested opener may add one ASSISTANT message; authorization, quota or provider failure leaves messages empty. */
             201: {
                 headers: {
                     [name: string]: unknown;
