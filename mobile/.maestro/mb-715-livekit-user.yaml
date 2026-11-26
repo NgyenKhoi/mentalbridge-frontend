@@ -1,0 +1,133 @@
+appId: com.mentalbridge.mobile
+name: MB-715 USER Android LiveKit control journey
+---
+# Requires one disposable synthetic USER whose first upcoming appointment is
+# the shared, confirmed IN_APP_VIDEO fixture and is inside its ACTIVE window.
+# Start this flow together with the SPECIALIST flow on a second device. These
+# assertions cover app/SDK UI state only; they do not prove delivered audio or
+# video, signed provider attendance, completion, or credit settlement.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: sign-in-email-input
+- inputText: '${MAESTRO_MB_VIDEO_USER_EMAIL}'
+- hideKeyboard
+- tapOn:
+    id: sign-in-password-input
+- inputText: '${MAESTRO_MB_VIDEO_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: sign-in-submit
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Lịch hẹn của tôi'
+- tapOn: 'Sắp tới'
+- scrollUntilVisible:
+    element:
+      id: appointment-open-detail
+    direction: DOWN
+- tapOn:
+    id: appointment-open-detail
+    index: 0
+- assertVisible: 'Chi tiết lịch hẹn'
+- assertVisible: 'Tư vấn video trong ứng dụng'
+- scrollUntilVisible:
+    element:
+      text: 'Mở phiên tư vấn video'
+    direction: DOWN
+- tapOn: 'Mở phiên tư vấn video'
+- extendedWaitUntil:
+    visible: 'Phiên tư vấn đã mở. Hãy tham gia khi sẵn sàng.'
+    timeout: 30000
+
+# Camera/microphone permissions are pre-granted by the runner. Permission
+# denial and Settings recovery remain explicit physical-device checklist items.
+- scrollUntilVisible:
+    element:
+      text: 'Kiểm tra camera và micro'
+    direction: DOWN
+- tapOn: 'Kiểm tra camera và micro'
+- extendedWaitUntil:
+    visible: 'Thiết bị đã mở trên máy, chưa kết nối với người còn lại.'
+    timeout: 30000
+- tapOn: 'Dừng kiểm tra thiết bị'
+- scrollUntilVisible:
+    element:
+      text: 'Tham gia phiên tư vấn'
+    direction: DOWN
+- tapOn: 'Tham gia phiên tư vấn'
+- extendedWaitUntil:
+    visible: 'Đã kết nối với người còn lại'
+    timeout: 120000
+- scrollUntilVisible:
+    element:
+      text: 'Micro: Đang tắt'
+    direction: DOWN
+- tapOn: 'Micro: Đang tắt'
+- extendedWaitUntil:
+    visible: 'Micro: Đang bật'
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: 'Camera: Đang tắt'
+    direction: DOWN
+- tapOn: 'Camera: Đang tắt'
+- extendedWaitUntil:
+    visible: 'Camera: Đang bật'
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: 'Micro: Đang bật'
+    direction: DOWN
+- tapOn: 'Micro: Đang bật'
+- scrollUntilVisible:
+    element:
+      text: 'Camera: Đang bật'
+    direction: DOWN
+- tapOn: 'Camera: Đang bật'
+- scrollUntilVisible:
+    element:
+      text: 'Rời cuộc gọi'
+    direction: DOWN
+- tapOn: 'Rời cuộc gọi'
+- extendedWaitUntil:
+    visible: 'Tham gia phiên tư vấn'
+    timeout: 30000
+
+# A stop/reopen proves that access is cleared and an explicit join is required.
+# It is not a substitute for the manual Android background/reconnect check.
+- stopApp
+- launchApp:
+    clearState: false
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Lịch hẹn của tôi'
+- tapOn: 'Sắp tới'
+- scrollUntilVisible:
+    element:
+      id: appointment-open-detail
+    direction: DOWN
+- tapOn:
+    id: appointment-open-detail
+    index: 0
+- scrollUntilVisible:
+    element:
+      text: 'Mở phiên tư vấn video'
+    direction: DOWN
+- tapOn: 'Mở phiên tư vấn video'
+- extendedWaitUntil:
+    visible: 'Tham gia phiên tư vấn'
+    timeout: 30000
+- assertNotVisible: 'Rời cuộc gọi'
+- tapOn: 'Tham gia phiên tư vấn'
+- extendedWaitUntil:
+    visible: 'Đã kết nối với người còn lại'
+    timeout: 120000
+- scrollUntilVisible:
+    element:
+      text: 'Rời cuộc gọi'
+    direction: DOWN
+- tapOn: 'Rời cuộc gọi'
+- extendedWaitUntil:
+    visible: 'Tham gia phiên tư vấn'
+    timeout: 30000
