@@ -2,6 +2,7 @@ import { useLocalSearchParams } from 'expo-router'
 import { useMemo } from 'react'
 
 import { createApiClient } from '@/api/api-client'
+import { createAppointmentDisputeApi } from '@/appointment-dispute/appointment-dispute-api'
 import { useSession } from '@/auth/session-context'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
 import { secureCredentialStore } from '@/security/credential-store'
@@ -16,7 +17,10 @@ import { sharedAppointmentChatHandoff } from './specialist-chat-handoff'
 export function SpecialistAppointmentDetailRoute() {
   const runtimeConfig = useRuntimeConfig()
   const { session } = useSession()
-  const { appointmentId } = useLocalSearchParams<{ appointmentId: string }>()
+  const { appointmentId, view } = useLocalSearchParams<{
+    appointmentId: string
+    view?: string
+  }>()
   const specialistAccountId =
     session?.role === 'SPECIALIST' ? session.subject : ''
   const apis = useMemo(() => {
@@ -29,6 +33,7 @@ export function SpecialistAppointmentDetailRoute() {
       continuity: createSpecialistContinuityApi(client),
       summary: createSpecialistSummaryApi(client, specialistAccountId),
       video: createVideoApi(client),
+      dispute: createAppointmentDisputeApi(client, 'SPECIALIST'),
     }
   }, [runtimeConfig, specialistAccountId])
 
@@ -41,6 +46,8 @@ export function SpecialistAppointmentDetailRoute() {
       continuityApi={apis.continuity}
       summaryApi={apis.summary}
       videoApi={apis.video}
+      disputeApi={apis.dispute}
+      openVideo={view === 'video'}
     />
   )
 }

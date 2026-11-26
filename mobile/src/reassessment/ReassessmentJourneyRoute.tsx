@@ -53,6 +53,12 @@ function AccountReassessmentRoute({
         })
       }
       onReturnToPlan={() => router.dismissTo('/(user)/support-plan')}
+      onReviewPlan={() =>
+        router.dismissTo({
+          pathname: '/(user)/support-plan',
+          params: { review: 'open' },
+        })
+      }
     />
   )
 }

@@ -1,5 +1,5 @@
 import { router, useFocusEffect, type Href } from 'expo-router'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   AccessibilityInfo,
   Animated,
@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { colors } from '@/theme/tokens'
 import { useDashboardFonts } from '@/theme/useDashboardFonts'
+import { useRegisterTourTarget } from '@/onboarding/tour-target'
 
 const mam = require('../../assets/mam/mam-idle.png')
 
@@ -45,6 +46,8 @@ const questions = [
 type Question = (typeof questions)[number]
 
 export function MamHomePet() {
+  const tourRef = useRef<View>(null)
+  useRegisterTourTarget('user-mam-pet', '/user', tourRef)
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<Question | null>(null)
   const insets = useSafeAreaInsets()
@@ -99,6 +102,9 @@ export function MamHomePet() {
   return (
     <>
       <Pressable
+        ref={tourRef}
+        collapsable={false}
+        nativeID="user-mam-pet"
         accessibilityRole="button"
         accessibilityLabel="Hỏi Mầm về Trang chủ"
         accessibilityState={{ expanded: open }}

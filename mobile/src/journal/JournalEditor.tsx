@@ -95,6 +95,7 @@ export function JournalEditor({
   onClose,
   onDirtyChange,
   onCreated,
+  onSaved,
   onNavigationStateChange,
 }: Readonly<{
   api: JournalApi
@@ -107,6 +108,7 @@ export function JournalEditor({
   onClose: () => void
   onDirtyChange: (dirty: boolean) => void
   onCreated?: (journalId: string) => void
+  onSaved?: () => void
   onNavigationStateChange?: (state: JournalNavigationState) => void
 }>) {
   const client = useQueryClient()
@@ -184,6 +186,7 @@ export function JournalEditor({
       if (created) onCreated?.(saved.id)
       client.setQueryData(['journal', subject, 'detail', saved.id], saved)
       await refresh()
+      onSaved?.()
     },
     onError: (error) => {
       if (

@@ -54,6 +54,7 @@
   },
   "scripts": {
     "start": "expo start",
+    "start:dev": "node scripts/start-local.cjs",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "native:android:smoke": "bash scripts/verify-native-android.sh",

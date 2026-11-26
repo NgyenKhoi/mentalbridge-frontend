@@ -89,10 +89,19 @@ export const browserConsultation = {
       },
     )
   },
-  credentialFile(id: string, download = false) {
-    return call<CredentialDocumentLink>(
-      `/api/consultation/specialist-profile/documents/${encodeURIComponent(id)}/file?download=${download}`,
+  async credentialFile(id: string, signal: AbortSignal) {
+    const response = await fetch(
+      `/api/consultation/specialist-profile/documents/${encodeURIComponent(id)}/file`,
+      { cache: 'no-store', signal },
     )
+    if (!response.ok) {
+      throw new BrowserConsultationError(
+        response.status,
+        'CREDENTIAL_FILE_FAILED',
+        'Không thể mở tệp.',
+      )
+    }
+    return response.blob()
   },
   credentialBadge(id: string, visible: boolean, version: number) {
     return call<CredentialDocument>(

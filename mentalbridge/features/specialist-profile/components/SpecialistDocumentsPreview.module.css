@@ -36,7 +36,7 @@
 .paperFoot { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; width: 100%; margin-top: auto; color: var(--color-text-muted); font-size: 11px; line-height: 1.5; text-align: left; }
 .paperFoot svg { width: 42px; height: 42px; padding: 8px; border: 1px solid var(--color-amber); border-radius: 50%; color: var(--color-amber); }
 .tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 22px; border-top: 1px solid var(--color-border); background: var(--color-surface); }
-.tools > button, .zoom { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 11px; font-weight: 700; }
+.tools > button, .tools > a, .zoom { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 11px; font-weight: 700; text-decoration: none; }
 .tools > button:disabled { color: var(--color-text-muted); opacity: .6; cursor: not-allowed; }
 .tools > button.delete { margin-left: auto; color: var(--color-danger); }
 .zoom { gap: 0; padding: 0 5px; }
@@ -45,7 +45,7 @@
 .zoom span { min-width: 42px; text-align: center; font-size: 12px; }
 .disclosure { display: flex; align-items: center; gap: 7px; margin: 0; padding: 9px 22px; border-top: 1px solid var(--color-border); background: var(--color-primary-soft); color: var(--color-primary); font-size: 10px; line-height: 1.4; }
 .disclosure svg { width: 14px; height: 14px; }
-.shell button:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+.shell button:focus-visible, .tools > a:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) { .document:hover:not([aria-current='true']) { background: var(--color-surface-soft); } .close:hover, .zoom button:hover:not(:disabled) { background: var(--color-primary-soft); } }
 @media (max-width: 760px) {
   .dialog { width: calc(100% - 16px); max-height: 94dvh; }
@@ -62,7 +62,7 @@
 @media (max-width: 480px) {
   .header { padding: 16px; }
   .metadata { gap: 8px; }
-  .tools > button { flex: 1 1 auto; }
+  .tools > button, .tools > a { flex: 1 1 auto; }
   .tools > button.delete { margin-left: 0; }
   .paper { min-width: 310px; }
 }

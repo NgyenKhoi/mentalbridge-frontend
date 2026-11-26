@@ -38,6 +38,16 @@ beforeEach(() => {
   jest.clearAllMocks()
   mockParams = {}
 })
+it.each([['open'], ['other'], [['open', 'open']]])(
+  'opens the review only for its explicit typed route flag: %s',
+  async (review) => {
+    mockParams = { review }
+    await render(<SupportPlanRoute />)
+    expect(mockWorkspace).toHaveBeenLastCalledWith(
+      expect.objectContaining({ openReview: review === 'open' }),
+    )
+  },
+)
 it('separates the Journal candidate route from the existing Emotion handoff', async () => {
   mockParams = origin
   await render(<SupportPlanRoute />)

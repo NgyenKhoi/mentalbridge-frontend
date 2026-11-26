@@ -724,9 +724,11 @@ export default function SpecialistEarningsManager() {
                 ? 'Tài khoản đang chờ xác nhận'
                 : destination.status !== 'VERIFIED'
                   ? 'Nơi nhận tiền đang bị vô hiệu hóa'
-                  : data.balance.availableVnd < data.minimumWithdrawalVnd
-                    ? 'Số dư chưa đạt mức rút tối thiểu'
-                    : 'Đủ điều kiện yêu cầu rút tiền'
+                  : !usable
+                    ? 'Cần kiểm tra lại nơi nhận tiền'
+                    : data.balance.availableVnd < data.minimumWithdrawalVnd
+                      ? 'Số dư chưa đạt mức rút tối thiểu'
+                      : 'Đủ điều kiện yêu cầu rút tiền'
   // The sub-line follows the reason: what to expect, never the default repeated while blocked.
   const subLine = unconfirmedPayout
     ? 'Kiểm tra lại cùng yêu cầu, không tạo thêm lệnh mới.'
@@ -738,7 +740,9 @@ export default function SpecialistEarningsManager() {
           ? 'Thêm tài khoản ngân hàng để nhận tiền.'
           : pendingConfirmation
             ? 'Bạn có thể rút ngay khi tài khoản được xác nhận.'
-            : 'Rút toàn bộ số dư khả dụng; số tiền do hệ thống tính.'
+            : destination?.status === 'VERIFIED' && !usable
+              ? 'Hãy cập nhật lại nơi nhận tiền để xác minh thông tin trước khi rút.'
+              : 'Rút toàn bộ số dư khả dụng; số tiền do hệ thống tính.'
   const destinationBadge = !destination
     ? 'Chưa thiết lập'
     : legacy
@@ -746,9 +750,11 @@ export default function SpecialistEarningsManager() {
       : pendingConfirmation
         ? 'Chờ xác nhận'
         : destination.status === 'VERIFIED'
-          ? payos
-            ? 'Đã xác nhận'
-            : 'Đã xác minh'
+          ? !usable
+            ? 'Cần kiểm tra lại'
+            : payos
+              ? 'Đã xác nhận'
+              : 'Đã xác minh'
           : 'Đã vô hiệu hóa'
   const destinationName = legacy
     ? 'Ví MoMo'

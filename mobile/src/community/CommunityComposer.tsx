@@ -116,6 +116,8 @@ export function CommunityComposer({
   transport,
   onCancel,
   onSaved,
+  initialContent = '',
+  initialMode = 'PROFILE',
 }: Readonly<{
   api: CommunityApi
   resources: ResourceApi
@@ -124,14 +126,22 @@ export function CommunityComposer({
   author?: AvatarAuthor | undefined
   transport: CommunityMediaTransport
   onCancel: () => void
-  onSaved: (value: VersionedPost) => void
+  onSaved: (value: VersionedPost) => void | Promise<void>
+  initialContent?: string
+  initialMode?: 'PROFILE' | 'ANONYMOUS'
 }>) {
-  const [content, setContent] = useState(initial?.post.content ?? '')
+  const [content, setContent] = useState(
+    initial?.post.content ?? initialContent,
+  )
   const [topics, setTopics] = useState<CommunityTopicCode[]>(
     initial?.post.topics ?? [],
   )
   const [mode, setMode] = useState<'PROFILE' | 'ANONYMOUS'>(
-    initial?.post.author.state === 'ANONYMOUS' ? 'ANONYMOUS' : 'PROFILE',
+    initial
+      ? initial.post.author.state === 'ANONYMOUS'
+        ? 'ANONYMOUS'
+        : 'PROFILE'
+      : initialMode,
   )
   const [warning, setWarning] = useState(
     initial?.post.sensitiveContentWarning === 'SENSITIVE_CONTENT',
@@ -211,7 +221,7 @@ export function CommunityComposer({
         const value = initial
           ? await api.update(initial.post.postId, initial.etag!, body)
           : await api.create(body, commandKey(body))
-        onSaved(value)
+        await onSaved(value)
       } catch (error) {
         if (error instanceof ApiError && error.status === 412) setStale(true)
         else if (

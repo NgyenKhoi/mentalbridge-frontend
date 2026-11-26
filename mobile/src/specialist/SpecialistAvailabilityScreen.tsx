@@ -15,8 +15,16 @@ import { ApiError } from '@/api/api-error'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
+import { SpecialistOverviewTabBar } from '@/navigation/SpecialistOverviewTabBar'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import { useDashboardFonts } from '@/theme/useDashboardFonts'
 
+import {
+  AvailabilityMonth,
+  availabilityDay,
+  availabilityWindow,
+  displayAvailabilityDay,
+} from './AvailabilityMonth'
 import type { SpecialistApi } from './specialist-api'
 import type {
   AvailabilityModality,
@@ -134,6 +142,20 @@ function replaceSlot(
   }
 }
 
+function formatCompactTime(slot: AvailabilitySlot, timezone: string) {
+  const clock = new Intl.DateTimeFormat('vi-VN', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+  return (
+    clock.format(new Date(slot.startAt)) +
+    ' – ' +
+    clock.format(new Date(slot.endAt))
+  )
+}
+
 function modalityLabel(modality: AvailabilityModality): string {
   return modality === 'IN_APP_CHAT'
     ? 'Chat trong ứng dụng'
@@ -183,7 +205,18 @@ export function SpecialistAvailabilityScreen({
   const queryClient = useQueryClient()
   const subject = session?.subject
   const profileKey = ['specialist-profile', subject] as const
-  const availabilityKey = ['specialist-availability', subject] as const
+  const availabilityScope = ['specialist-availability', subject] as const
+  const [anchor, setAnchor] = useState<string | null>(null)
+  const [today] = useState(() => availabilityDay(new Date(), defaultTimezone()))
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [calendar, setCalendar] = useState(true)
+  const serif = useDashboardFonts() && styles.serif
+  const [formOpen, setFormOpen] = useState(false)
+  const [expandedSlot, setExpandedSlot] = useState<string | null>(null)
+  const availabilityKey = anchor
+    ? ([...availabilityScope, anchor] as const)
+    : availabilityScope
+  const window = availabilityWindow(anchor ?? today)
   const commandRef = useRef<StableCommand | null>(null)
   const authorityLockedRef = useRef(false)
   const activeSubjectRef = useRef(subject)
@@ -224,13 +257,41 @@ export function SpecialistAvailabilityScreen({
     queryKey: availabilityKey,
     enabled: Boolean(subject) && profileQuery.isSuccess,
     refetchOnMount: 'always',
-    queryFn: () => api.listAvailability(),
+    queryFn: () => api.listAvailability(window),
   })
 
   const profile = profileQuery.data ?? null
   const state = profileState(profile)
   const profileApproved = state === 'APPROVED'
   const list = availabilityQuery.data
+  const timezone = defaultTimezone()
+  const day = selectedDay ?? anchor ?? today
+  const slots = list?.items ?? []
+  const visibleSlots = calendar
+    ? slots.filter((slot) => availabilityDay(slot.startAt, timezone) === day)
+    : slots
+
+  const browseDate = (date: string) => {
+    setAnchor(date === today ? null : date)
+    setSelectedDay(date)
+    setConfirmingSlotId(null)
+    setExpandedSlot(null)
+  }
+
+  const selectDate = (date: string) => {
+    if (mutationBusy) return
+    if (
+      date.slice(0, 7) !== day.slice(0, 7) ||
+      availabilityDay(window.from, timezone) >= date ||
+      availabilityDay(window.to, timezone) <= date
+    ) {
+      browseDate(date)
+    } else {
+      setSelectedDay(date)
+      setConfirmingSlotId(null)
+      setExpandedSlot(null)
+    }
+  }
 
   if (profile && seededProfileVersion !== profile.version) {
     setSeededProfileVersion(profile.version)
@@ -286,6 +347,11 @@ export function SpecialistAvailabilityScreen({
         availabilityKey,
         (current) => replaceSlot(current, slot),
       )
+      if (
+        Date.parse(slot.startAt) < Date.parse(window.from) ||
+        Date.parse(slot.startAt) >= Date.parse(window.to)
+      )
+        browseDate(availabilityDay(slot.startAt, timezone))
       commandRef.current = null
       setForm((current) => ({ ...current, date: '', startTime: '' }))
       setFormError(null)
@@ -294,7 +360,7 @@ export function SpecialistAvailabilityScreen({
         tone: 'success',
       })
       void queryClient.invalidateQueries({
-        queryKey: availabilityKey,
+        queryKey: availabilityScope,
         refetchType: 'none',
       })
     },
@@ -329,7 +395,7 @@ export function SpecialistAvailabilityScreen({
         tone: 'success',
       })
       void queryClient.invalidateQueries({
-        queryKey: availabilityKey,
+        queryKey: availabilityScope,
         refetchType: 'none',
       })
     },
@@ -423,7 +489,7 @@ export function SpecialistAvailabilityScreen({
 
   if (!subject) {
     return (
-      <Screen>
+      <Screen bottomActions={<SpecialistOverviewTabBar />}>
         <Text accessibilityRole="header" style={styles.title}>
           Lịch khả dụng
         </Text>
@@ -438,7 +504,7 @@ export function SpecialistAvailabilityScreen({
 
   if (profileQuery.isPending) {
     return (
-      <Screen>
+      <Screen bottomActions={<SpecialistOverviewTabBar />}>
         <View accessibilityLiveRegion="polite" style={styles.centeredState}>
           <ActivityIndicator
             accessibilityLabel="Đang kiểm tra hồ sơ chuyên gia"
@@ -458,7 +524,7 @@ export function SpecialistAvailabilityScreen({
       profileQuery.error instanceof ApiError &&
       profileQuery.error.status === 401
     return (
-      <Screen>
+      <Screen bottomActions={<SpecialistOverviewTabBar />}>
         <Text accessibilityRole="header" style={styles.title}>
           Lịch khả dụng
         </Text>
@@ -478,17 +544,51 @@ export function SpecialistAvailabilityScreen({
   }
 
   return (
-    <Screen>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.back()}
-        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-      >
-        <Text style={styles.backLabel}>← Quay lại</Text>
-      </Pressable>
-
+    <Screen
+      layout="dashboard"
+      backgroundColor="#F8F8F2"
+      bottomActions={<SpecialistOverviewTabBar />}
+    >
+      <View style={styles.masthead}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Về Tổng quan"
+          style={styles.avatar}
+          onPress={() => router.dismissTo('/(specialist)/specialist')}
+        >
+          <Text style={styles.avatarText}>
+            {profile?.displayName.charAt(0) ?? '◎'}
+          </Text>
+        </Pressable>
+        <View style={styles.slotContent}>
+          <Text numberOfLines={1} style={styles.profileName}>
+            {profile?.displayName ?? 'Chuyên gia'}
+          </Text>
+          <Text style={styles.slotMeta}>Lịch khả dụng</Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Chuyển sang lịch tháng"
+          onPress={() => setCalendar(true)}
+          style={styles.modeButton}
+        >
+          <Text style={styles.modeLabel} aria-hidden>
+            ▦
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Thông báo chuyên môn"
+          onPress={() => router.push('/(specialist)/notifications')}
+          style={styles.modeButton}
+        >
+          <Text style={styles.modeLabel} aria-hidden>
+            🔔︎
+          </Text>
+        </Pressable>
+      </View>
       <Text style={styles.eyebrow}>KHÔNG GIAN CHUYÊN GIA</Text>
-      <Text accessibilityRole="header" style={styles.title}>
+      <Text accessibilityRole="header" style={[styles.title, serif]}>
         Lịch khả dụng trực tuyến
       </Text>
       <Text style={styles.description}>
@@ -496,9 +596,35 @@ export function SpecialistAvailabilityScreen({
         ứng dụng khi hình thức đó được hỗ trợ.
       </Text>
 
-      <View style={styles.statusPanel}>
-        <Text style={styles.statusLabel}>Trạng thái hồ sơ</Text>
-        <Text accessibilityLiveRegion="polite" style={styles.statusValue}>
+      <View style={styles.summaryBar}>
+        {list && (
+          <>
+            <Text style={styles.summaryBadge}>
+              ● {slots.filter((slot) => slot.readiness === 'AVAILABLE').length}{' '}
+              có thể đặt
+            </Text>
+            <Text style={styles.summaryBadge}>
+              {slots.filter((slot) => slot.status === 'WITHDRAWN').length} đã
+              rút
+            </Text>
+          </>
+        )}
+        {profileApproved && (
+          <PrimaryButton
+            label={formOpen ? 'Đóng biểu mẫu' : '+ Thêm khung giờ'}
+            onPress={() => setFormOpen(!formOpen)}
+          />
+        )}
+      </View>
+
+      <View style={profileApproved ? styles.approved : styles.statusPanel}>
+        {!profileApproved && (
+          <Text style={styles.statusLabel}>Trạng thái hồ sơ</Text>
+        )}
+        <Text
+          accessibilityLiveRegion="polite"
+          style={profileApproved ? styles.slotMeta : styles.statusValue}
+        >
           {specialistProfileStatusLabels[state]}
         </Text>
         {!profileApproved && (
@@ -530,7 +656,7 @@ export function SpecialistAvailabilityScreen({
         />
       )}
 
-      {profileApproved && (
+      {profileApproved && formOpen && (
         <View style={styles.publishPanel}>
           <Text style={styles.sectionTitle}>Thêm khung giờ</Text>
           <Text style={styles.sectionDescription}>
@@ -625,27 +751,95 @@ export function SpecialistAvailabilityScreen({
         </View>
       )}
 
-      <View style={styles.listHeader}>
-        <View style={styles.listHeaderCopy}>
-          <Text style={styles.sectionTitle}>Khung giờ đã lưu</Text>
-          <Text style={styles.sectionDescription}>
-            Bao gồm cả khung đã rút để bạn theo dõi chính xác.
-          </Text>
+      <View style={styles.savedControls}>
+        <View style={styles.listHeader}>
+          <View style={styles.listHeaderCopy}>
+            <Text style={styles.sectionTitle}>
+              Khung giờ đã lưu{list ? ' · ' + list.count : ''}
+            </Text>
+            <Text style={styles.sectionDescription}>
+              Bao gồm cả khung đã rút để bạn theo dõi chính xác.
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: reloadDisabled }}
+            disabled={reloadDisabled}
+            onPress={reloadAuthority}
+            style={({ pressed }) => [
+              styles.reloadButton,
+              reloadDisabled && styles.disabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.reloadLabel}>Tải lại</Text>
+          </Pressable>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: reloadDisabled }}
-          disabled={reloadDisabled}
-          onPress={reloadAuthority}
-          style={({ pressed }) => [
-            styles.reloadButton,
-            reloadDisabled && styles.disabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={styles.reloadLabel}>Tải lại</Text>
-        </Pressable>
+
+        <View style={styles.viewControls}>
+          <Pressable
+            accessibilityRole="button"
+            style={styles.modeButton}
+            accessibilityLabel="Chuyển sang lịch tháng"
+            onPress={() => setCalendar(true)}
+          >
+            <Text style={styles.slotMeta}>Xem lịch quanh ngày</Text>
+            <Text style={styles.modeLabel}>
+              {day.split('-').reverse().join('/')}
+            </Text>
+            <Text style={styles.controlArrow} aria-hidden>
+              ⌄
+            </Text>
+          </Pressable>
+          <View accessibilityRole="tablist" style={styles.viewModes}>
+            {(['Danh sách', 'Lịch'] as const).map((mode) => {
+              const isCalendar = mode === 'Lịch'
+              const selected = calendar === isCalendar
+              return (
+                <Pressable
+                  key={mode}
+                  accessibilityRole="tab"
+                  accessibilityLabel={mode}
+                  accessibilityState={{ selected }}
+                  onPress={() => setCalendar(isCalendar)}
+                  style={[
+                    styles.modeButton,
+                    styles.segment,
+                    selected && styles.modeSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.modeLabel,
+                      selected && styles.modeSelectedLabel,
+                    ]}
+                  >
+                    {mode}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </View>
+        </View>
       </View>
+
+      {calendar && (
+        <>
+          <AvailabilityMonth
+            day={day}
+            timezone={timezone}
+            slots={slots}
+            onSelect={selectDate}
+            onBrowse={(date) => {
+              if (!mutationBusy) browseDate(date)
+            }}
+          />
+          <Text style={[styles.dayHeading, serif]}>
+            {displayAvailabilityDay(day)}
+            {list ? ` · ${visibleSlots.length} khung giờ` : ''}
+          </Text>
+        </>
+      )}
 
       {availabilityQuery.isPending ? (
         <View accessibilityLiveRegion="polite" style={styles.listState}>
@@ -663,33 +857,102 @@ export function SpecialistAvailabilityScreen({
           />
           <PrimaryButton label="Thử tải lại" onPress={reloadAuthority} />
         </View>
-      ) : !list || list.items.length === 0 ? (
+      ) : visibleSlots.length === 0 ? (
         <View style={styles.listState}>
           <Text style={styles.stateDescription}>
-            Chưa có khung giờ nào. Khi hồ sơ được phê duyệt, bạn có thể xuất bản
-            khung đầu tiên ở phía trên.
+            {calendar
+              ? 'Ngày này chưa có khung giờ.'
+              : 'Chưa có khung giờ trong khoảng đã tải.'}
           </Text>
         </View>
       ) : (
         <View style={styles.slotList}>
-          {list.items.map((slot) => {
+          {visibleSlots.map((slot) => {
             const canWithdraw =
               profileApproved &&
               slot.status === 'ACTIVE' &&
               slot.readiness === 'AVAILABLE'
             const confirming = confirmingSlotId === slot.id
+            const slotDay = availabilityDay(slot.startAt, slot.timezone)
+            const expanded = expandedSlot === slot.id
             return (
-              <View key={slot.id} style={styles.slotRow}>
-                <Text style={styles.slotTime}>
-                  {formatAvailabilitySlot(slot)}
-                </Text>
-                <Text style={styles.slotMeta}>
-                  {modalityLabel(slot.modality)} · {slot.timezone}
-                </Text>
-                <Text style={styles.slotReadiness}>
-                  {availabilityReadinessLabels[slot.readiness]}
-                </Text>
-                {canWithdraw && (
+              <View
+                key={slot.id}
+                style={[styles.slotRow, calendar && styles.compactCard]}
+              >
+                {calendar ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded }}
+                    onPress={() => {
+                      setExpandedSlot(expanded ? null : slot.id)
+                      setConfirmingSlotId(null)
+                    }}
+                    style={styles.compactSlot}
+                  >
+                    <Text aria-hidden style={styles.slotIcon}>
+                      {slot.modality === 'IN_APP_CHAT' ? '▤' : '▣'}
+                    </Text>
+                    <View style={styles.slotContent}>
+                      <Text style={styles.compactTime}>
+                        {formatCompactTime(slot, timezone)}
+                      </Text>
+                      <Text style={styles.slotMeta}>
+                        {modalityLabel(slot.modality)}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.slotReadiness,
+                        slot.readiness === 'AVAILABLE' && styles.openSlot,
+                      ]}
+                    >
+                      {availabilityReadinessLabels[slot.readiness]}
+                    </Text>
+                    <Text aria-hidden style={styles.modeLabel}>
+                      {expanded ? '⌃' : '›'}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <View style={styles.slotMain}>
+                    <View style={styles.dateBlock}>
+                      <Text style={styles.slotMeta}>
+                        TH {Number(slotDay.slice(5, 7))}
+                      </Text>
+                      <Text style={styles.dateNumber}>
+                        {Number(slotDay.slice(8))}
+                      </Text>
+                    </View>
+                    <View style={styles.slotContent}>
+                      <Text style={styles.slotTime}>
+                        {formatAvailabilitySlot(slot)}
+                      </Text>
+                      <Text style={styles.slotMeta}>
+                        {modalityLabel(slot.modality)} ·{' '}
+                        {Math.round(
+                          (Date.parse(slot.endAt) - Date.parse(slot.startAt)) /
+                            60000,
+                        )}{' '}
+                        phút
+                      </Text>
+                      <Text style={styles.slotMeta}>{slot.timezone}</Text>
+                      <Text
+                        style={[
+                          styles.slotReadiness,
+                          slot.readiness === 'AVAILABLE' && styles.openSlot,
+                        ]}
+                      >
+                        {availabilityReadinessLabels[slot.readiness]}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+                {calendar && expanded && (
+                  <Text style={styles.slotMeta}>
+                    {displayAvailabilityDay(slotDay)} · {slot.timezone}
+                  </Text>
+                )}
+                {canWithdraw && (!calendar || expanded) && (
                   <View style={styles.inlineActions}>
                     <Pressable
                       accessibilityRole="button"
@@ -729,6 +992,41 @@ export function SpecialistAvailabilityScreen({
         </View>
       )}
 
+      {calendar && visibleSlots.length > 0 && (
+        <Text style={styles.helper}>
+          Chọn một khung giờ để xem chi tiết hoặc chỉnh sửa.
+        </Text>
+      )}
+      <View style={styles.tip}>
+        <Text style={styles.tipTitle}>Một lịch hẹn, một khoảng dành riêng</Text>
+        <Text style={styles.sectionDescription}>
+          Chọn những khung giờ bạn có thể dành trọn vẹn để hai bên dễ sắp xếp.
+        </Text>
+      </View>
+      <View style={[styles.tip, styles.tipSecondary]}>
+        <Text style={styles.sectionDescription}>
+          ◇ Rút khung giờ chỉ dừng nhận lượt đặt mới. Các lịch đã xác nhận vẫn
+          được giữ.
+        </Text>
+      </View>
+      {list && (
+        <View style={styles.loadedRange}>
+          <Text style={styles.footerText}>
+            ◷ Lịch đã tải:{' '}
+            {window.from.slice(0, 10).split('-').reverse().join('/')} –{' '}
+            {window.to.slice(0, 10).split('-').reverse().join('/')}
+          </Text>
+          <Text style={styles.footerText}>
+            Cập nhật{' '}
+            {new Intl.DateTimeFormat('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: timezone,
+            }).format(new Date(list.generatedAt))}
+          </Text>
+        </View>
+      )}
+
       {authorityRecovery === 'blocked' && (
         <View style={styles.recoveryPanel}>
           <PrimaryButton
@@ -742,17 +1040,137 @@ export function SpecialistAvailabilityScreen({
 }
 
 const styles = StyleSheet.create({
-  backButton: {
-    alignSelf: 'flex-start',
-    justifyContent: 'center',
-    minHeight: 44,
-    marginBottom: spacing.lg,
-    paddingRight: spacing.lg,
+  serif: { fontFamily: 'DashboardSerif' },
+  masthead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 15,
   },
-  backLabel: {
+  avatar: {
+    minWidth: 40,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: '#173932',
+  },
+  avatarText: { color: '#fff', fontWeight: '800' },
+  profileName: { color: colors.ink, fontSize: 14, fontWeight: '700' },
+  approved: { alignSelf: 'flex-start', marginBottom: 10 },
+  savedControls: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 11,
+    marginBottom: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+  },
+  compactCard: { padding: 8, borderRadius: 16 },
+  compactSlot: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    minHeight: 52,
+    gap: 7,
+  },
+  compactTime: { color: colors.ink, fontSize: 14, fontWeight: '700' },
+  slotIcon: {
+    backgroundColor: '#E8F0E9',
+    borderRadius: 15,
+    overflow: 'hidden',
+    padding: 8,
     color: colors.tealDeep,
-    fontSize: typography.body,
+  },
+  summaryBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  summaryBadge: {
+    backgroundColor: '#EAF0E6',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 15,
+    overflow: 'hidden',
+    color: colors.tealDeep,
+    fontSize: 12,
     fontWeight: '700',
+  },
+  viewControls: { gap: 7 },
+  dateControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 11,
+    minHeight: 44,
+    backgroundColor: '#F0F2ED',
+    borderRadius: 16,
+  },
+  controlArrow: { flexGrow: 1, textAlign: 'right', color: colors.tealDeep },
+  viewModes: {
+    flexDirection: 'row',
+    backgroundColor: '#EEF0EB',
+    borderRadius: 22,
+    padding: 3,
+    gap: 3,
+  },
+  segment: { flex: 1, alignItems: 'center', borderRadius: 20 },
+  modeButton: {
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 9,
+    justifyContent: 'center',
+    borderRadius: 10,
+  },
+  modeLabel: { fontWeight: '700', fontSize: 13, color: colors.tealDeep },
+  modeSelected: { backgroundColor: colors.white },
+  modeSelectedLabel: { color: colors.ink },
+  dayHeading: {
+    fontSize: 14,
+    color: colors.tealDeep,
+    fontWeight: '700',
+    marginBottom: 9,
+  },
+  slotMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  slotContent: { flex: 1, minWidth: 0, gap: 4 },
+  dateBlock: {
+    backgroundColor: '#E9EEE3',
+    padding: 8,
+    borderRadius: 10,
+    minWidth: 46,
+    alignItems: 'center',
+  },
+  dateNumber: { color: colors.tealDeep, fontWeight: '800', fontSize: 23 },
+  openSlot: { backgroundColor: '#D9EAE0' },
+  helper: {
+    color: colors.inkSoft,
+    textAlign: 'center',
+    marginTop: 10,
+    fontSize: 12,
+  },
+  tipTitle: { color: colors.ink, fontSize: 15, fontWeight: '700' },
+  tipSecondary: { backgroundColor: '#F0F2EC' },
+  loadedRange: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 7,
+  },
+  footerText: {
+    color: colors.inkSoft,
+    fontSize: 12,
+    marginTop: 10,
+    marginBottom: 14,
+  },
+  tip: {
+    backgroundColor: '#E9EEE4',
+    borderRadius: 16,
+    padding: 12,
+    gap: 6,
+    marginTop: 12,
   },
   eyebrow: {
     color: colors.teal,

@@ -1,1 +1,1 @@
-export { SpecialistHomeScreen as default } from '@/screens/SpecialistHomeScreen'
+export { default } from '@/specialist/SpecialistHomeRoute'

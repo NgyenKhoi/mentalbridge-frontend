@@ -390,6 +390,9 @@ describe('mobile assessment and support-guide journey', () => {
     ).toBeOnTheScreen()
     expect(screen.getByText('6 điểm')).toBeOnTheScreen()
     expect(screen.getByText('2 điểm')).toBeOnTheScreen()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Gợi ý hỗ trợ sau sàng lọc' }),
+    )
     expect(
       screen.getByText(
         'Ưu tiên xem hỗ trợ an toàn trước các tài nguyên bổ sung.',
@@ -500,7 +503,7 @@ describe('mobile assessment and support-guide journey', () => {
     )
   })
 
-  it('fails closed for unauthorized history and dependency unavailability', async () => {
+  it('fails closed for unauthorized history and an unavailable current episode', async () => {
     const forbiddenApi = assessmentApi({
       listAssessments: jest.fn().mockRejectedValue(
         new ApiError({
@@ -523,7 +526,7 @@ describe('mobile assessment and support-guide journey', () => {
     await forbidden.unmount()
 
     const unavailableApi = assessmentApi({
-      listAssessments: jest.fn().mockRejectedValue(
+      getCurrentEpisode: jest.fn().mockRejectedValue(
         new ApiError({
           code: 'CARE_UNAVAILABLE',
           message: 'Unavailable',
@@ -565,6 +568,90 @@ describe('mobile assessment and support-guide journey', () => {
       completedEpisode.presentationEvaluationId,
     )
     expect(api.ensureEpisodeSupportGuide).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['listAssessments', 'listSupportGuides'] as const)(
+    'keeps current screening available when %s fails and recovers history on retry',
+    async (method) => {
+      const api = assessmentApi({
+        getCurrentEpisode: jest.fn().mockResolvedValue(phqEpisode),
+      })
+      const history = jest
+        .fn()
+        .mockRejectedValueOnce(
+          new ApiError({
+            code: 'CARE_UNAVAILABLE',
+            status: 503,
+            message: 'Unavailable',
+          }),
+        )
+        .mockResolvedValue({ items: [], hasMore: false })
+      api[method] = history
+      await render(<AssessmentJourneyScreen api={api} />)
+      const retry =
+        method === 'listAssessments'
+          ? 'Tải lại lịch sử kết quả'
+          : 'Tải lại gợi ý đã lưu'
+      expect(
+        await screen.findByRole('button', { name: retry }),
+      ).toBeOnTheScreen()
+      expect(
+        screen.getByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      ).toBeEnabled()
+      expect(
+        screen.queryByText(
+          method === 'listAssessments'
+            ? 'Bạn chưa có kết quả sàng lọc đã lưu.'
+            : 'Gợi ý hỗ trợ sẽ xuất hiện sau khi bạn hoàn thành đủ hai bài.',
+        ),
+      ).not.toBeOnTheScreen()
+      await fireEvent.press(screen.getByRole('button', { name: retry }))
+      await screen.findByText(
+        method === 'listAssessments'
+          ? 'Bạn chưa có kết quả sàng lọc đã lưu.'
+          : 'Gợi ý hỗ trợ sẽ xuất hiện sau khi bạn hoàn thành đủ hai bài.',
+      )
+      await fireEvent.press(
+        screen.getByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+      )
+      expect(await screen.findByText('Bài GAD-7')).toBeOnTheScreen()
+      expect(api.startEpisode).not.toHaveBeenCalled()
+    },
+  )
+
+  it('keeps completed scores and continuation visible while long explanations expand on demand', async () => {
+    const api = assessmentApi({
+      getCurrentEpisode: jest.fn().mockResolvedValue(completedEpisode),
+      getGuidedJourney: jest
+        .fn()
+        .mockResolvedValue(guidedJourney('START_PLAN_PROPOSAL')),
+    })
+    await render(<AssessmentJourneyScreen api={api} />)
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+    )
+    expect(await screen.findByText('Đã hoàn thành 2/2 bài')).toBeOnTheScreen()
+    expect(
+      screen.getByRole('button', { name: 'Tiếp tục với kế hoạch hỗ trợ' }),
+    ).toBeOnTheScreen()
+    expect(
+      screen.queryByText('Nội dung diễn giải PHQ-9 đã duyệt.'),
+    ).not.toBeOnTheScreen()
+    const details = screen.getByRole('button', { name: 'Ý nghĩa của kết quả' })
+    expect(details.props.accessibilityState).toEqual({ expanded: false })
+    await fireEvent.press(details)
+    expect(
+      screen.getByText('Nội dung diễn giải PHQ-9 đã duyệt.'),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByText('Nội dung diễn giải GAD-7 đã duyệt.'),
+    ).toBeOnTheScreen()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Ý nghĩa của kết quả' }),
+    )
+    expect(
+      screen.queryByText('Nội dung diễn giải PHQ-9 đã duyệt.'),
+    ).not.toBeOnTheScreen()
   })
 
   it('explains a missing next action and recovers it on retry without hiding the Guide', async () => {
@@ -747,9 +834,10 @@ describe('mobile assessment and support-guide journey', () => {
       await screen.findByRole('button', { name: /Gợi ý sau sàng lọc/ }),
     )
 
-    expect(
-      await screen.findByText('Snapshot hỗ trợ sau sàng lọc'),
-    ).toBeOnTheScreen()
+    expect(await screen.findByText('Gợi ý hỗ trợ của bạn')).toBeOnTheScreen()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Gợi ý hỗ trợ sau sàng lọc' }),
+    )
     expect(
       screen.getByText(
         'Ưu tiên xem hỗ trợ an toàn trước các tài nguyên bổ sung.',

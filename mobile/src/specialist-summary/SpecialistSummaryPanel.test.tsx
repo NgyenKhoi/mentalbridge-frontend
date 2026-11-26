@@ -64,6 +64,77 @@ async function openValidDraft(buttonName = 'Tạo tóm tắt sau phiên') {
 }
 
 describe('SPECIALIST SessionSummary authority', () => {
+  it('retains the resource identity and immutable version when amending existing steps', () => {
+    const result = normalizeSummaryDraft({
+      topics: 'Nhịp ngủ',
+      progressSummary: '',
+      specialistNoteForUser: '',
+      followUpSuggested: false,
+      steps: [
+        {
+          type: 'PLATFORM_RESOURCE',
+          title: 'Thở chậm',
+          details: 'Thực hành trong 5 phút.',
+          resourceId: '99999999-9999-4999-8999-999999999999',
+          resourceVersion: 'resource-v2',
+          resourceProposalReasonCode: 'POST_CONSULTATION_CONTINUITY',
+        },
+      ],
+    })
+    expect(result.agreedNextSteps[0]).toMatchObject({
+      type: 'PLATFORM_RESOURCE',
+      resourceId: '99999999-9999-4999-8999-999999999999',
+      resourceVersion: 'resource-v2',
+      resourceProposalReasonCode: 'POST_CONSULTATION_CONTINUITY',
+    })
+  })
+
+  it('shows summary details and previous versions and prefills an amendment', async () => {
+    const original = makeSessionSummary()
+    const latest = makeSessionSummary({
+      id: '88888888-8888-4888-8888-888888888889',
+      version: 2,
+      amendsSummaryId: original.id,
+      progressSummary: 'Nội dung phiên bản mới nhất.',
+      specialistNoteForUser: 'Lời nhắn cần được giữ khi đính chính.',
+      agreedNextSteps: [
+        {
+          ...original.agreedNextSteps[0]!,
+          details: 'Thực hiện trong ba ngày.',
+        },
+      ],
+    })
+    await renderPanel(
+      api({
+        list: jest
+          .fn()
+          .mockResolvedValue(makeSessionSummaryList([original, latest])),
+      }),
+    )
+    expect(
+      await screen.findByText('Phiên bản 2'),
+    ).toBeOnTheScreen()
+    expect(screen.getByText('Điều đã ghi nhận trong phiên')).toBeOnTheScreen()
+    expect(screen.getByText('Thực hiện trong ba ngày.')).toBeOnTheScreen()
+    expect(screen.queryByText('Phiên bản 1')).toBeNull()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Xem 1 phiên bản trước' }),
+    )
+    expect(screen.getByText('Phiên bản 1')).toBeOnTheScreen()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Đính chính bản tóm tắt' }),
+    )
+    expect(
+      screen.getByLabelText('Tiến triển được ghi nhận'),
+    ).toHaveDisplayValue(latest.progressSummary!)
+    expect(screen.getByLabelText('Lời nhắn cho người dùng')).toHaveDisplayValue(
+      latest.specialistNoteForUser!,
+    )
+    expect(screen.getByLabelText('Chi tiết bước 1')).toHaveDisplayValue(
+      'Thực hiện trong ba ngày.',
+    )
+  })
+
   it('publishes a bounded summary and agreed next step after COMPLETED authority', async () => {
     const publish = jest.fn().mockResolvedValue(makeSessionSummary())
     const service = api({
@@ -162,7 +233,7 @@ describe('SPECIALIST SessionSummary authority', () => {
       publish,
     })
     await renderPanel(service, () => appointment)
-    await openValidDraft('Tạo bản đính chính')
+    await openValidDraft('Đính chính bản tóm tắt')
     await fireEvent.press(
       screen.getByRole('button', { name: 'Xuất bản bản đính chính' }),
     )
@@ -183,7 +254,7 @@ describe('SPECIALIST SessionSummary authority', () => {
       resolveAppointment(true)
     })
     expect(
-      await screen.findByText('Bản đã xuất bản · phiên bản 2'),
+      await screen.findByText('Phiên bản 2'),
     ).toBeOnTheScreen()
   })
 

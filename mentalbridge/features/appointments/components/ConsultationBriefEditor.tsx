@@ -54,12 +54,23 @@ function message(error: unknown) {
 
 export function ConsultationBriefEditor({
   appointmentId,
+  scheduledStartAt,
   earlierAppointments = [],
 }: Readonly<{
   appointmentId: string
-  /** The user's latest ended sessions before this one, newest first. */
+  scheduledStartAt?: string
   earlierAppointments?: readonly Appointment[]
 }>) {
+  const [preparationClosed, setPreparationClosed] = useState(() =>
+    scheduledStartAt ? Date.parse(scheduledStartAt) <= Date.now() : false,
+  )
+  useEffect(() => {
+    if (!scheduledStartAt || preparationClosed) return
+    const timer = window.setInterval(() => {
+      if (Date.now() >= Date.parse(scheduledStartAt)) setPreparationClosed(true)
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [scheduledStartAt, preparationClosed])
   const { confirm, showActionToast } = useFeedback()
   const [brief, setBrief] = useState<ConsultationBrief | null>(null)
   const [choices, setChoices] = useState<
@@ -317,7 +328,7 @@ export function ConsultationBriefEditor({
     parsedGoals.every((goal, index) => goal === brief.userGoals[index])
 
   async function save() {
-    if (!valid) return
+    if (!valid || preparationClosed) return
     setBusy(true)
     setError('')
     try {
@@ -338,6 +349,11 @@ export function ConsultationBriefEditor({
         tone: 'success',
       })
     } catch (caught) {
+      if (
+        caught instanceof ApiError &&
+        caught.code === 'CONSULTATION_BRIEF_APPOINTMENT_ALREADY_STARTED'
+      )
+        setPreparationClosed(true)
       setError(message(caught))
     } finally {
       setBusy(false)
@@ -345,7 +361,7 @@ export function ConsultationBriefEditor({
   }
 
   async function action(value: 'approve' | 'revoke') {
-    if (!brief) return
+    if (!brief || (value === 'approve' && preparationClosed)) return
     if (value === 'approve') {
       const accepted = await confirm({
         title: 'Phê duyệt bản tóm tắt này?',
@@ -406,9 +422,17 @@ export function ConsultationBriefEditor({
           </span>
         )}
       </div>
+      {preparationClosed && (
+        <p className={styles.notice} role="status">
+          Đã đến giờ hẹn nên không thể lưu hoặc phê duyệt bản chuẩn bị nữa. Nội
+          dung đã nhập vẫn được giữ trên màn hình; bạn có thể trao đổi trực tiếp
+          với chuyên gia trong phiên.
+        </p>
+      )}
       <EarlierSessionSummaries
         appointments={earlierAppointments}
         disabled={
+          preparationClosed ||
           busy ||
           brief?.sharingStatus === 'ACTIVE' ||
           (choices.length === 0 && !brief)
@@ -437,7 +461,9 @@ export function ConsultationBriefEditor({
                 visibleDraftRef.current.situation = event.target.value
                 setSituation(event.target.value)
               }}
-              disabled={busy || brief?.sharingStatus === 'ACTIVE'}
+              disabled={
+                busy || preparationClosed || brief?.sharingStatus === 'ACTIVE'
+              }
             />
           </label>
           <label>
@@ -448,7 +474,9 @@ export function ConsultationBriefEditor({
                 visibleDraftRef.current.evaluationId = event.target.value
                 setEvaluationId(event.target.value)
               }}
-              disabled={busy || brief?.sharingStatus === 'ACTIVE'}
+              disabled={
+                busy || preparationClosed || brief?.sharingStatus === 'ACTIVE'
+              }
             >
               {choices.map((choice) => (
                 <option
@@ -469,14 +497,17 @@ export function ConsultationBriefEditor({
                 visibleDraftRef.current.goals = event.target.value
                 setGoals(event.target.value)
               }}
-              disabled={busy || brief?.sharingStatus === 'ACTIVE'}
+              disabled={
+                busy || preparationClosed || brief?.sharingStatus === 'ACTIVE'
+              }
             />
           </label>
           <p className={styles.privacy}>
             Không bao gồm nhật ký thô, câu trả lời sàng lọc, chat, ghi chú riêng
             hay chẩn đoán.
           </p>
-          {brief?.status === 'DRAFT' &&
+          {!preparationClosed &&
+            brief?.status === 'DRAFT' &&
             (exactDraftIsSaved || aiJob !== null) && (
               <div className={styles.aiPanel}>
                 <strong>Gợi ý AI tùy chọn</strong>
@@ -559,7 +590,7 @@ export function ConsultationBriefEditor({
               <button
                 type="button"
                 onClick={() => void save()}
-                disabled={busy || !valid}
+                disabled={busy || preparationClosed || !valid}
               >
                 {busy ? 'Đang lưu…' : 'Lưu bản nháp'}
               </button>
@@ -570,7 +601,10 @@ export function ConsultationBriefEditor({
                 className={styles.primary}
                 onClick={() => void action('approve')}
                 disabled={
-                  busy || brief.status !== 'DRAFT' || !exactDraftIsSaved
+                  busy ||
+                  preparationClosed ||
+                  brief.status !== 'DRAFT' ||
+                  !exactDraftIsSaved
                 }
               >
                 Phê duyệt chia sẻ

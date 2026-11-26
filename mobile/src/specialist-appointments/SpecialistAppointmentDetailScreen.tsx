@@ -3,7 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { useSession } from '@/auth/session-context'
+import type { AppointmentDisputeApi } from '@/appointment-dispute/appointment-dispute-api'
+import { AppointmentDisputePanel } from '@/appointment-dispute/AppointmentDisputePanel'
 import { Screen } from '@/components/Screen'
+import { SpecialistOverviewTabBar } from '@/navigation/SpecialistOverviewTabBar'
 import type { SpecialistContinuityApi } from '@/specialist-continuity/specialist-continuity-api'
 import { SpecialistContinuityPanel } from '@/specialist-continuity/SpecialistContinuityPanel'
 import type { SpecialistSummaryApi } from '@/specialist-summary/specialist-summary-api'
@@ -19,6 +22,7 @@ import {
 } from './specialist-appointment-model'
 import {
   APPOINTMENT_STATUS_LABELS,
+  APPOINTMENT_CREDIT_LABELS,
   appointmentErrorMessage,
   formatAppointmentRange,
 } from './specialist-appointment-ui'
@@ -46,6 +50,8 @@ export function SpecialistAppointmentDetailScreen({
   continuityApi,
   summaryApi,
   videoApi,
+  disputeApi,
+  openVideo = false,
 }: Readonly<{
   appointmentApi: SpecialistAppointmentApi
   appointmentId: string
@@ -53,6 +59,8 @@ export function SpecialistAppointmentDetailScreen({
   continuityApi: SpecialistContinuityApi
   summaryApi: SpecialistSummaryApi
   videoApi?: VideoApi
+  disputeApi?: AppointmentDisputeApi
+  openVideo?: boolean
 }>) {
   const { session } = useSession()
   const queryKey = [
@@ -81,10 +89,13 @@ export function SpecialistAppointmentDetailScreen({
   }
 
   return (
-    <Screen>
+    <Screen
+      layout="dashboard"
+      bottomActions={<SpecialistOverviewTabBar onAppointments />}
+    >
       <Pressable
         accessibilityRole="button"
-        onPress={() => router.back()}
+        onPress={() => router.dismissTo('/(specialist)/appointments')}
         style={styles.back}
       >
         <Text style={styles.backLabel}>← Danh sách lịch hẹn</Text>
@@ -134,13 +145,20 @@ export function SpecialistAppointmentDetailScreen({
             </Text>
             <Text style={[styles.copy, { color: colors.white }]}>
               {appointment.modality === 'IN_APP_CHAT'
-                ? 'Tư vấn qua trò chuyện trong ứng dụng'
-                : 'Tư vấn video trong ứng dụng'}
+                ? 'Chat trong ứng dụng'
+                : 'Video trong ứng dụng'}
+            </Text>
+            <Text style={[styles.copy, { color: colors.white }]}>
+              Thân chủ: Người đặt lịch ·{' '}
+              {APPOINTMENT_CREDIT_LABELS[appointment.creditState]}
             </Text>
           </View>
 
           {appointment.modality === 'IN_APP_CHAT' &&
-          ['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) ? (
+          (['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) ||
+            appointment.history.some(
+              (event) => event.toStatus === 'CONFIRMED',
+            )) ? (
             <View style={styles.chatPanel}>
               <Text style={styles.sectionTitle}>Trò chuyện của lịch hẹn</Text>
               <Text style={styles.copy}>
@@ -178,6 +196,7 @@ export function SpecialistAppointmentDetailScreen({
               <VideoConsultationPanel
                 api={videoApi}
                 appointmentId={appointment.id}
+                initiallyOpen={openVideo}
               />
             )}
 
@@ -187,6 +206,7 @@ export function SpecialistAppointmentDetailScreen({
               appointmentAuthorityConfirmed={authorityConfirmed}
               appointmentId={appointment.id}
               refreshAppointmentAuthority={refreshAuthority}
+              timezone={appointment.timezone}
             />
           ) : authorityConfirmed ? (
             <View style={styles.readOnlyPanel}>
@@ -198,6 +218,18 @@ export function SpecialistAppointmentDetailScreen({
               </Text>
             </View>
           ) : null}
+
+          {authorityConfirmed &&
+            disputeApi &&
+            appointment.sessionSettledAt &&
+            ['SESSION_ENDED', 'COMPLETED'].includes(appointment.status) && (
+              <AppointmentDisputePanel
+                api={disputeApi}
+                appointment={appointment}
+                serverNow={appointmentsQuery.data!.generatedAt}
+                subject={session!.subject}
+              />
+            )}
 
           <View style={styles.historyPanel}>
             <Text style={styles.sectionTitle}>Lịch sử trạng thái</Text>

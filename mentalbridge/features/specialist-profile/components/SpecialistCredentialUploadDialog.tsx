@@ -1,6 +1,12 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react'
 import { FilePlus2, X } from 'lucide-react'
 
 import { Dialog } from '@/components/ui/Dialog'
@@ -31,6 +37,13 @@ export default function SpecialistCredentialUploadDialog({
   const [error, setError] = useState('')
   const [readingStatus, setReadingStatus] = useState('')
   const [reading, setReading] = useState<CredentialReading | null>(null)
+
+  useEffect(() => {
+    return () => {
+      activeRead.current?.abort()
+      activeRead.current = null
+    }
+  }, [open])
 
   function stopReading() {
     activeRead.current?.abort()

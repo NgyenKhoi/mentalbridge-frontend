@@ -4,11 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppState, Pressable, Text, View } from 'react-native'
 import { ApiError } from '@/api/api-error'
 import { useSession } from '@/auth/session-context'
-import { PrimaryButton } from '@/components/PrimaryButton'
-import { spacing } from '@/theme/tokens'
 import type { VideoApi } from './video-api'
 import type { VideoAccess, VideoSession } from './video-contract'
 import { videoStyles as styles } from './video-styles'
+import { lobbyStyles as lobby } from './video-lobby-styles'
 
 import VideoMedia from './VideoMedia'
 
@@ -16,10 +15,12 @@ export function VideoButton({
   label,
   onPress,
   disabled = false,
+  danger = false,
 }: {
   label: string
   onPress: () => void
   disabled?: boolean
+  danger?: boolean
 }) {
   return (
     <Pressable
@@ -27,9 +28,14 @@ export function VideoButton({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[styles.button, disabled && styles.disabled]}
+      style={({ pressed }) => [
+        lobby.button,
+        danger && lobby.danger,
+        disabled && lobby.disabled,
+        pressed && lobby.pressed,
+      ]}
     >
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[lobby.label, danger && lobby.dangerLabel]}>{label}</Text>
     </Pressable>
   )
 }
@@ -37,22 +43,38 @@ export function VideoButton({
 export function VideoConsultationPanel({
   api,
   appointmentId,
+  initiallyOpen = false,
 }: {
   api: VideoApi
   appointmentId: string
+  initiallyOpen?: boolean
 }) {
   const { session } = useSession()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(initiallyOpen)
   return (
-    <View style={styles.panel}>
+    <View style={lobby.panel}>
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={
+          open ? 'Đóng phiên tư vấn video' : 'Mở phiên tư vấn video'
+        }
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen((value) => !value)}
-        style={styles.button}
+        style={lobby.disclosure}
       >
-        <Text style={styles.label}>
-          {open ? 'Đóng phiên tư vấn video' : 'Mở phiên tư vấn video'}
+        <View style={lobby.disclosureIcon}>
+          <View style={lobby.cameraMark} />
+        </View>
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text style={lobby.disclosureTitle}>Cuộc gọi video</Text>
+          <Text style={lobby.caption}>
+            {open
+              ? 'Kiểm tra thiết bị & tham gia phiên'
+              : 'Mở khu vực chuẩn bị cuộc gọi'}
+          </Text>
+        </View>
+        <Text accessible={false} style={lobby.disclosureChevron}>
+          {open ? '⌃' : '⌄'}
         </Text>
       </Pressable>
       {open && session && (
@@ -288,16 +310,100 @@ export function VideoSessionPanel({
   }
 
   return (
-    <View style={{ gap: spacing.lg }}>
-      <Text accessibilityRole="header" style={styles.title}>
-        Trao đổi trực tiếp
-      </Text>
-      <Text style={styles.note}>Không ghi âm hoặc ghi hình</Text>
-      <Text accessibilityLiveRegion="polite" style={styles.copy}>
-        {snapshot
-          ? phaseCopy[snapshot.phase]
-          : 'Đang kiểm tra quyền vào phiên…'}
-      </Text>
+    <View style={lobby.body}>
+      <View style={lobby.headingRow}>
+        <View>
+          <Text style={lobby.eyebrow}>PHÒNG TƯ VẤN TRỰC TUYẾN</Text>
+          <Text accessibilityRole="header" style={lobby.title}>
+            {access
+              ? 'Cuộc gọi đang diễn ra'
+              : snapshot?.phase === 'COMPLETED'
+                ? 'Buổi tư vấn hoàn tất'
+                : snapshot?.phase === 'ENDED'
+                  ? 'Phiên đã kết thúc'
+                  : 'Chuẩn bị cuộc gọi'}
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={lobby.badge}>
+            <View
+              style={[
+                lobby.badgeDot,
+                snapshot?.phase !== 'ACTIVE' && { backgroundColor: '#7A8B80' },
+              ]}
+            />
+            <Text style={lobby.badgeText}>
+              {access
+                ? 'Đang tham gia'
+                : snapshot?.phase === 'ACTIVE'
+                  ? 'Đã mở phiên'
+                  : snapshot?.phase === 'WAITING'
+                    ? 'Sắp đến giờ'
+                    : snapshot?.phase === 'COMPLETED'
+                      ? 'Đã hoàn tất'
+                      : snapshot?.phase === 'ENDED'
+                        ? 'Đã kết thúc'
+                        : 'Kiểm tra phiên'}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Tải lại phiên"
+            accessibilityHint="Cập nhật trạng thái và quyền tham gia cuộc gọi"
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={() => {
+              setError('')
+              void refresh().catch(() =>
+                setError('Chưa thể tải lại. Vui lòng thử lại.'),
+              )
+            }}
+            style={({ pressed }) => [
+              lobby.reload,
+              busy && lobby.disabled,
+              pressed && lobby.pressed,
+            ]}
+          >
+            <Text accessible={false} style={lobby.reloadIcon}>
+              ↻
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+      <View style={lobby.statusBox}>
+        {snapshot && (
+          <>
+            <Text style={lobby.schedule}>
+              {new Date(snapshot.startsAt).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'Asia/Ho_Chi_Minh',
+              })}{' '}
+              –{' '}
+              {new Date(snapshot.endsAt).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'Asia/Ho_Chi_Minh',
+              })}
+            </Text>
+            <Text style={lobby.scheduleMeta}>
+              {new Date(snapshot.startsAt).toLocaleDateString('vi-VN', {
+                weekday: 'long',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                timeZone: 'Asia/Ho_Chi_Minh',
+              })}{' '}
+              · Giờ Việt Nam
+            </Text>
+          </>
+        )}
+        <Text accessibilityLiveRegion="polite" style={lobby.statusText}>
+          {snapshot
+            ? phaseCopy[snapshot.phase]
+            : 'Đang kiểm tra quyền vào phiên…'}
+        </Text>
+      </View>
       {error !== '' && (
         <Text accessibilityRole="alert" style={styles.error}>
           {error}
@@ -318,6 +424,8 @@ export function VideoSessionPanel({
         (access || snapshot?.previewAllowed) && (
           <VideoMedia
             access={access}
+            role={role}
+            startsAt={snapshot?.startsAt}
             previewAllowed={Boolean(snapshot?.previewAllowed)}
             onLeave={() => setAccess(null)}
             onError={() => {
@@ -329,8 +437,17 @@ export function VideoSessionPanel({
           />
         )}
       {!access && (
-        <PrimaryButton
-          label={busy ? 'Đang xử lý…' : 'Tham gia phiên tư vấn'}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={busy ? 'Đang xử lý…' : 'Tham gia phiên tư vấn'}
+          accessibilityState={{
+            disabled:
+              busy ||
+              !foreground ||
+              !focused ||
+              !snapshot?.joinAllowed ||
+              uncertain,
+          }}
           disabled={
             busy ||
             !foreground ||
@@ -339,18 +456,25 @@ export function VideoSessionPanel({
             uncertain
           }
           onPress={() => void join()}
-        />
+          style={({ pressed }) => [
+            lobby.join,
+            (busy ||
+              !foreground ||
+              !focused ||
+              !snapshot?.joinAllowed ||
+              uncertain) &&
+              lobby.disabled,
+            pressed && lobby.pressed,
+          ]}
+        >
+          <Text style={lobby.joinText}>
+            {busy ? 'Đang xử lý…' : 'Tham gia phiên tư vấn'}
+          </Text>
+          <Text accessible={false} style={lobby.joinArrow}>
+            →
+          </Text>
+        </Pressable>
       )}
-      <VideoButton
-        label="Tải lại phiên"
-        disabled={busy}
-        onPress={() => {
-          setError('')
-          void refresh().catch(() =>
-            setError('Chưa thể tải lại. Vui lòng thử lại.'),
-          )
-        }}
-      />
       {role === 'SPECIALIST' &&
         !snapshot?.completion &&
         (uncertain ||
@@ -364,12 +488,13 @@ export function VideoSessionPanel({
         ) : (
           <VideoButton
             label="Xác nhận kết thúc buổi tư vấn"
+            danger
             disabled={busy}
             onPress={() => setReview(true)}
           />
         ))}
       {review && !uncertain && (
-        <View style={styles.panel}>
+        <View style={lobby.review}>
           <Text accessibilityRole="header" style={styles.title}>
             Buổi tư vấn đã kết thúc?
           </Text>
@@ -384,15 +509,24 @@ export function VideoSessionPanel({
           />
           <VideoButton
             label="Kết thúc và gửi xác nhận"
+            danger
             disabled={busy}
             onPress={() => void finish()}
           />
         </View>
       )}
-      <Text style={styles.note}>
-        Kiểm tra thiết bị chỉ diễn ra trên máy. Rời cuộc gọi không tự hoàn tất
-        buổi tư vấn.
-      </Text>
+      <View style={lobby.footer}>
+        <View style={lobby.footerIcon}>
+          <Text style={lobby.caption}>✓</Text>
+        </View>
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text style={lobby.footerCopy}>Không ghi âm hoặc ghi hình</Text>
+          <Text style={lobby.footerCopy}>
+            Kiểm tra thiết bị chỉ diễn ra trên máy. Rời cuộc gọi không tự hoàn
+            tất buổi tư vấn.
+          </Text>
+        </View>
+      </View>
     </View>
   )
 }

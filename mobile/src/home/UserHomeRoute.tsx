@@ -1,10 +1,10 @@
 import { createRewardApi } from '@/rewards/reward-api'
 import { createResourceApi } from '@/resources/resource-api'
 import { createNotificationApi } from '@/notifications/notification-api'
+import { createEmotionApi } from '@/emotion/emotion-api'
 import { useState } from 'react'
 
 import { createDiscoveryApi } from '@/discovery/discovery-api'
-import { createEmotionApi } from '@/emotion/emotion-api'
 import { createAppointmentApi } from '@/appointments/appointment-api'
 import { useSession } from '@/auth/session-context'
 import { createCareProfileApi } from '@/profile/profile-api'
@@ -28,8 +28,8 @@ export function UserHomeRoute() {
       reward: createRewardApi(client),
       resource: createResourceApi(client),
       notification: createNotificationApi(client),
-      discovery: createDiscoveryApi(client),
       emotion: createEmotionApi(client),
+      discovery: createDiscoveryApi(client),
       home: createHomeApi(client),
       profile: createCareProfileApi(client),
     }
@@ -41,9 +41,9 @@ export function UserHomeRoute() {
       rewardApi={services.reward}
       resourceApi={services.resource}
       notificationApi={services.notification}
+      emotionApi={services.emotion}
       profileApi={services.profile}
       discoveryApi={services.discovery}
-      emotionApi={services.emotion}
       appointmentApi={
         session
           ? createAppointmentApi(services.client, session.subject)

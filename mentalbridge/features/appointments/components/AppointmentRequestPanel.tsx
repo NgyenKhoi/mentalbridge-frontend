@@ -1012,7 +1012,9 @@ export default function AppointmentRequestPanel({
               {focusedAppointment.status === 'CONFIRMED' && (
                 <div style={{ marginTop: '20px' }}>
                   <ConsultationBriefEditor
+                    key={focusedAppointment.id}
                     appointmentId={focusedAppointment.id}
+                    scheduledStartAt={focusedAppointment.scheduledStartAt}
                     earlierAppointments={earlierSessions(
                       appointments,
                       focusedAppointment,
@@ -1727,7 +1729,9 @@ export default function AppointmentRequestPanel({
               (detailAppointment ? (
                 detailAppointment.status === 'CONFIRMED' ? (
                   <ConsultationBriefEditor
+                    key={detailAppointment.id}
                     appointmentId={detailAppointment.id}
+                    scheduledStartAt={detailAppointment.scheduledStartAt}
                     earlierAppointments={earlierSessions(
                       appointments,
                       detailAppointment,

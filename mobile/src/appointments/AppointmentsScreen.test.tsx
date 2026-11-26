@@ -219,6 +219,18 @@ beforeEach(() => {
 })
 
 describe('MB-630 authoritative USER appointments', () => {
+  it('reviews cancellation from the card shortcut before sending any cancellation', async () => {
+    const service = services([appointment])
+    await mount(service, false)
+    await fireEvent.press(
+      await screen.findByRole('button', {
+        name: `Hủy lịch với ${appointment.specialistDisplayName}`,
+      }),
+    )
+    await screen.findByRole('button', { name: 'Xác nhận hủy lịch' })
+    expect(service.api.cancel).not.toHaveBeenCalled()
+    expect(await screen.findAllByRole('radio')).toHaveLength(3)
+  })
   it('mounts MB-726 only inside the exact settled owner detail', async () => {
     const completed = completedAppointment()
     const disputeApi = disputeService()
@@ -367,6 +379,7 @@ describe('MB-630 authoritative USER appointments', () => {
   it('freshly reviews exact handoff and server balance/cap, then opens persisted owner detail', async () => {
     const { api, discovery } = await mount()
     await reviewRequest()
+    await fireEvent.press(screen.getByRole('button', { name: 'Chi tiết gói' }))
     expect(screen.getByText('Còn 4 lượt · đang giữ 0 lượt')).toBeTruthy()
     expect(api.request).not.toHaveBeenCalled()
     await fireEvent.press(
@@ -486,6 +499,7 @@ describe('MB-630 authoritative USER appointments', () => {
       screen.getByRole('button', { name: 'Kiểm tra giờ đã chọn' }),
     )
     await screen.findByText(/Chưa có lượt tư vấn phù hợp/)
+    await fireEvent.press(screen.getByRole('button', { name: 'Chi tiết gói' }))
     expect(screen.getByText(/Lịch đang giữ: 1 \/ 1/)).toBeTruthy()
     expect(service.api.request).not.toHaveBeenCalled()
   })
@@ -698,10 +712,9 @@ describe('MB-630 authoritative USER appointments', () => {
     const service = services([cancelled])
     await mount(service, false)
 
-    const filters = await screen.findAllByRole('radio')
-    const historyFilter = filters[3]
-    if (!historyFilter) throw new Error('History filter missing')
-    await fireEvent.press(historyFilter)
+    await fireEvent.press(
+      await screen.findByRole('radio', { name: /^Đã xong/ }),
+    )
 
     const historyEntry = await screen.findByTestId('appointment-open-detail')
     await fireEvent.press(historyEntry)
@@ -716,7 +729,7 @@ describe('MB-630 authoritative USER appointments', () => {
     await mount(service, false)
     await openDetail()
     expect(screen.getByText(/Chưa thể tải lượt tư vấn/)).toBeTruthy()
-    await fireEvent.press(screen.getByRole('radio', { name: 'Lịch sử' }))
+    await fireEvent.press(screen.getByRole('radio', { name: /^Đã xong/ }))
     expect(screen.getByText(/Chưa có lịch hẹn trong nhóm này/)).toBeTruthy()
     service.setItems([])
     await fireEvent.press(

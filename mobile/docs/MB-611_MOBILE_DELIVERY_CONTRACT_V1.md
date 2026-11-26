@@ -80,6 +80,11 @@ build on the same device. Side-by-side environment installs require a reviewed
 contract v2 and coordinated Identity redirect allow-list changes; feature teams
 must not add ad hoc suffixes.
 
+Owner-authorized local testing exception (2026-11-20): the separately installed
+Expo Dev client uses `com.mentalbridge.mobile.dev` and `mentalbridge-dev`.
+See [Local development alongside staging](LOCAL_DEVELOPMENT_VARIANT.md).
+Default/staging identity and backend verification redirects remain unchanged.
+
 The V1 Identity verification link is:
 
 ```text

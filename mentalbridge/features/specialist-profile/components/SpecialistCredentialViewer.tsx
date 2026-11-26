@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react'
 import { Download, Eye, FileText, Minus, Plus, RotateCw, X } from 'lucide-react'
 
 import { Dialog } from '@/components/ui/Dialog'
-import { browserConsultation } from '../api/browser-client'
+import {
+  BrowserConsultationError,
+  browserConsultation,
+} from '../api/browser-client'
 import type { CredentialDocument } from '../api/credential-validation'
 import styles from './SpecialistDocumentsPreview.module.css'
 
@@ -23,53 +26,63 @@ export default function SpecialistCredentialViewer({
   const [prevSelectedId, setPrevSelectedId] = useState<string | null>(
     selectedId,
   )
+  const [attempt, setAttempt] = useState(0)
   if (selectedId !== prevSelectedId) {
     setPrevSelectedId(selectedId)
     setActiveId(null)
+    setAttempt(attempt + 1)
   }
-  const [loadedDoc, setLoadedDoc] = useState<{
+  const [preview, setPreview] = useState<{
     id: string
-    url: string | null
+    attempt: number
+    url?: string
+    error?: string
   } | null>(null)
-  const [error, setError] = useState('')
   const [zoom, setZoom] = useState(100)
   const effectiveId = activeId ?? selectedId ?? documents[0]?.id ?? null
   const selected =
     documents.find((item) => item.id === effectiveId) ?? documents[0] ?? null
-  // Bound to the document id so a late response for another document is never shown.
-  const url =
-    loadedDoc && selected && loadedDoc.id === selected.id ? loadedDoc.url : null
+  const documentId = selected?.id
+  const current =
+    preview?.id === documentId && preview?.attempt === attempt ? preview : null
+  const url = current?.url
+  const loading = Boolean(documentId && !current)
 
   useEffect(() => {
-    if (!open || !selected) return
-    let active = true
+    if (!open || !documentId) return
+    const request = new AbortController()
+    let objectUrl: string | undefined
     browserConsultation
-      .credentialFile(selected.id)
-      .then((result) => {
-        if (active) {
-          setLoadedDoc({ id: selected.id, url: result.data.url })
-          setError('')
-        }
+      .credentialFile(documentId, request.signal)
+      .then((file) => {
+        if (request.signal.aborted) return
+        objectUrl = URL.createObjectURL(file)
+        setPreview({ id: documentId, attempt, url: objectUrl })
       })
-      .catch(() => {
-        if (active) {
-          setLoadedDoc({ id: selected.id, url: null })
-          setError('Không thể mở tệp. Hãy thử lại.')
-        }
+      .catch((error: unknown) => {
+        if (request.signal.aborted) return
+        setPreview({
+          id: documentId,
+          attempt,
+          error:
+            error instanceof BrowserConsultationError && error.status === 429
+              ? 'Tệp đang được tải quá nhiều lần. Hãy đợi một lúc rồi thử lại.'
+              : 'Không thể mở tệp. Hãy thử lại.',
+        })
       })
     return () => {
-      active = false
+      request.abort()
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [open, selected])
+  }, [open, documentId, attempt])
 
-  async function download() {
-    if (!selected) return
-    try {
-      const result = await browserConsultation.credentialFile(selected.id, true)
-      window.location.assign(result.data.url)
-    } catch {
-      setError('Không thể tải tệp. Hãy thử lại.')
-    }
+  function reload() {
+    setAttempt((value) => value + 1)
+  }
+
+  function close() {
+    reload()
+    onClose()
   }
 
   const verifiedCount = documents.filter(
@@ -79,7 +92,7 @@ export default function SpecialistCredentialViewer({
   return (
     <Dialog
       open={open}
-      onOpenChange={(next) => !next && onClose()}
+      onOpenChange={(next) => !next && close()}
       labelledBy="specialist-documents-title"
       describedBy="specialist-documents-description"
       className={styles.dialog}
@@ -97,7 +110,7 @@ export default function SpecialistCredentialViewer({
           <button
             type="button"
             className={styles.close}
-            onClick={onClose}
+            onClick={close}
             aria-label="Đóng giấy tờ"
           >
             <X aria-hidden="true" />
@@ -112,6 +125,8 @@ export default function SpecialistCredentialViewer({
                 className={styles.document}
                 aria-current={selected?.id === document.id ? 'true' : undefined}
                 onClick={() => {
+                  if (document.id === documentId) return
+                  reload()
                   setActiveId(document.id)
                   setZoom(100)
                 }}
@@ -177,8 +192,8 @@ export default function SpecialistCredentialViewer({
                       style={{ zoom: `${zoom}%` }}
                     />
                   ) : (
-                    <div className={styles.viewerState}>
-                      {error || 'Đang mở tệp…'}
+                    <div className={styles.viewerState} role="status">
+                      {current?.error || 'Đang mở tệp…'}
                     </div>
                   )}
                 </div>
@@ -193,7 +208,7 @@ export default function SpecialistCredentialViewer({
                       onClick={() =>
                         setZoom((value) => Math.max(50, value - 10))
                       }
-                      disabled={zoom <= 50}
+                      disabled={!url || zoom <= 50}
                       aria-label="Thu nhỏ"
                     >
                       <Minus aria-hidden="true" />
@@ -204,35 +219,24 @@ export default function SpecialistCredentialViewer({
                       onClick={() =>
                         setZoom((value) => Math.min(150, value + 10))
                       }
-                      disabled={zoom >= 150}
+                      disabled={!url || zoom >= 150}
                       aria-label="Phóng to"
                     >
                       <Plus aria-hidden="true" />
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoadedDoc(null)
-                      void browserConsultation
-                        .credentialFile(selected.id)
-                        .then((result) => {
-                          // A newer load for another document wins over this late reload.
-                          setLoadedDoc((current) =>
-                            current && current.id !== selected.id
-                              ? current
-                              : { id: selected.id, url: result.data.url },
-                          )
-                          setError('')
-                        })
-                        .catch(() => setError('Không thể mở tệp. Hãy thử lại.'))
-                    }}
-                  >
+                  <button type="button" onClick={reload} disabled={loading}>
                     <RotateCw aria-hidden="true" /> Tải lại
                   </button>
-                  <button type="button" onClick={() => void download()}>
-                    <Download aria-hidden="true" /> Tải xuống
-                  </button>
+                  {url ? (
+                    <a href={url} download={selected.fileName}>
+                      <Download aria-hidden="true" /> Tải xuống
+                    </a>
+                  ) : (
+                    <button type="button" disabled>
+                      <Download aria-hidden="true" /> Tải xuống
+                    </button>
+                  )}
                 </footer>
               </>
             ) : (

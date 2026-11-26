@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store'
+import { TourTarget } from '@/onboarding/tour-target'
 import { router, type Href } from 'expo-router'
 import { useEffect, useState } from 'react'
 import {
@@ -78,12 +79,42 @@ const defaultOrder = shortcuts.map(({ id }) => id)
 type ShortcutId = (typeof defaultOrder)[number]
 
 const additionalLinks = [
-  ['Kế hoạch hỗ trợ', '/(user)/support-plan'],
-  ['Lịch hẹn của tôi', '/(user)/appointments'],
-  ['Ghi nhận cảm xúc', '/(user)/emotion'],
-  ['Nhắc nhở của tôi', '/(user)/reminders'],
-  ['Bộ sưu tập và Bingo', '/(user)/rewards'],
-] as const satisfies readonly (readonly [string, Href])[]
+  {
+    label: 'Kế hoạch hỗ trợ',
+    href: '/(user)/support-plan',
+    icon: require('../../assets/icons/clipboard.png'),
+    tint: '#E2EEE8',
+  },
+  {
+    label: 'Lịch hẹn của tôi',
+    href: '/(user)/appointments',
+    icon: require('../../assets/home-shortcuts/booking.png'),
+    tint: '#FFF9E7',
+  },
+  {
+    label: 'Ghi nhận cảm xúc',
+    href: '/(user)/emotion',
+    icon: require('../../assets/home-shortcuts/emotion.png'),
+    tint: '#FFF0F2',
+  },
+  {
+    label: 'Nhắc nhở của tôi',
+    href: '/(user)/reminders',
+    icon: require('../../assets/home-shortcuts/reminders.png'),
+    tint: '#FFF9E7',
+  },
+  {
+    label: 'Bộ sưu tập và Bingo',
+    href: '/(user)/rewards',
+    icon: require('../../assets/home-shortcuts/rewards.png'),
+    tint: '#F8F1FF',
+  },
+] as const satisfies readonly {
+  label: string
+  href: Href
+  icon: number
+  tint: string
+}[]
 
 function restoreOrder(raw: string | null): ShortcutId[] {
   if (!raw) return defaultOrder
@@ -184,7 +215,7 @@ export function HomeShortcuts({
   )
 
   return (
-    <View style={s.card}>
+    <TourTarget id="user-shortcuts" route="/user" style={s.card}>
       <View style={s.header}>
         <Text accessibilityRole="header" style={s.heading}>
           Tiện ích chăm sóc
@@ -296,13 +327,24 @@ export function HomeShortcuts({
                 </View>
               ))}
               {panel === 'all' &&
-                additionalLinks.map(([label, href]) => (
+                additionalLinks.map(({ label, href, icon, tint }) => (
                   <Pressable
                     key={href}
                     accessibilityRole="link"
-                    style={s.listLink}
+                    style={({ pressed }) => [
+                      s.listRow,
+                      s.additionalLink,
+                      pressed && s.pressed,
+                    ]}
                     onPress={() => open(href)}
                   >
+                    <View style={[s.iconBox, { backgroundColor: tint }]}>
+                      <Image
+                        source={icon}
+                        style={[s.icon, { tintColor: '#1E4A43' }]}
+                        accessible={false}
+                      />
+                    </View>
                     <Text style={s.listLabel}>{label}</Text>
                   </Pressable>
                 ))}
@@ -337,7 +379,7 @@ export function HomeShortcuts({
           </SafeAreaView>
         </View>
       </Modal>
-    </View>
+    </TourTarget>
   )
 }
 
@@ -439,6 +481,7 @@ const s = StyleSheet.create({
     flexShrink: 1,
   },
   listLink: { flex: 1, minHeight: 46, justifyContent: 'center' },
+  additionalLink: { minHeight: 56 },
   move: {
     marginLeft: 'auto',
     minWidth: 44,

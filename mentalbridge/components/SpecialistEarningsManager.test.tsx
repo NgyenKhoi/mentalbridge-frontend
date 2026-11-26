@@ -88,6 +88,34 @@ describe('SpecialistEarningsManager', () => {
     ).toBeInTheDocument()
   })
 
+  it('keeps earnings visible while an unreadable destination blocks withdrawal', async () => {
+    api.get.mockResolvedValue({
+      ...response,
+      destination: {
+        ...response.destination,
+        bankCode: null,
+        bankName: null,
+        usableForPayout: false,
+      },
+    })
+    render(<SpecialistEarningsManager />)
+    expect(
+      await screen.findByText('Cần kiểm tra lại nơi nhận tiền'),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/210\.000/).length).toBeGreaterThan(0)
+    expect(screen.getByText('Cần kiểm tra lại')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Rút toàn bộ số dư' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'Cập nhật nơi nhận tiền' }),
+    ).toBeEnabled()
+    expect(
+      screen.queryByText('Đủ điều kiện yêu cầu rút tiền'),
+    ).not.toBeInTheDocument()
+    expect(api.createPayout).not.toHaveBeenCalled()
+  })
+
   it('shows a recoverable error state when the API is unavailable', async () => {
     api.get.mockRejectedValue(new Error('offline'))
     render(<SpecialistEarningsManager />)

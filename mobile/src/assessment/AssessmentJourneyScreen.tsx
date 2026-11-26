@@ -1,6 +1,6 @@
 import { randomUUID } from 'expo-crypto'
 import { router } from 'expo-router'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   Image,
@@ -16,6 +16,7 @@ import { ScreeningQuestion } from './ScreeningQuestion'
 import { ApiError } from '@/api/api-error'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
+import { AppIcon } from '@/components/AppIcon'
 import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 import { useResourceFonts } from '@/resources/useResourceFonts'
@@ -245,14 +246,53 @@ function StateMessage({
 }
 
 function BackButton({ onPress }: Readonly<{ onPress: () => void }>) {
-  return <SecondaryButton label="← Quay lại" onPress={onPress} />
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Quay lại"
+      onPress={onPress}
+      style={resultStyles.back}
+    >
+      <AppIcon name="back" size={20} />
+      <Text style={styles.secondaryLabel}>Quay lại</Text>
+    </Pressable>
+  )
 }
 
-function ResultFacts({ assessment }: Readonly<{ assessment: Assessment }>) {
+function Details({
+  title,
+  children,
+}: Readonly<{ title: string; children: ReactNode }>) {
+  const [expanded, setExpanded] = useState(false)
   return (
-    <View style={styles.resultPanel}>
+    <View style={resultStyles.details}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded(!expanded)}
+        style={resultStyles.detailsTrigger}
+      >
+        <Text style={resultStyles.detailsTitle}>{title}</Text>
+        <View
+          style={{ transform: [{ rotate: expanded ? '-90deg' : '90deg' }] }}
+        >
+          <AppIcon name="chevron" size={18} />
+        </View>
+      </Pressable>
+      {expanded && <View style={resultStyles.detailsContent}>{children}</View>}
+    </View>
+  )
+}
+
+function ResultFacts({
+  assessment,
+  compact = false,
+}: Readonly<{ assessment: Assessment; compact?: boolean }>) {
+  return (
+    <View style={[styles.resultPanel, compact && resultStyles.scoreCard]}>
       <View style={styles.resultHeader}>
-        <Text style={styles.sectionTitle}>
+        <Text style={resultStyles.instrument}>
           {instrumentLabels[assessment.instrument]}
         </Text>
         <Text style={styles.levelBadge}>
@@ -260,16 +300,15 @@ function ResultFacts({ assessment }: Readonly<{ assessment: Assessment }>) {
         </Text>
       </View>
       <Text style={styles.score}>{assessment.result.totalScore} điểm</Text>
-      <Text style={styles.supportingText}>
-        Gửi lúc {formatDate(assessment.submittedAt)} · Kết quả do hệ thống sàng
-        lọc xác nhận.
+      <Text style={resultStyles.meta}>
+        {formatDate(assessment.submittedAt)}
       </Text>
       {assessment.result.safetyStatus === 'POSITIVE_SAFETY_SCREEN' && (
         <Text accessibilityLiveRegion="assertive" style={styles.safetyText}>
           Kết quả có tín hiệu cần xem hướng dẫn an toàn bên dưới.
         </Text>
       )}
-      {assessment.result.safetyStatus === 'NOT_APPLICABLE' && (
+      {!compact && assessment.result.safetyStatus === 'NOT_APPLICABLE' && (
         <Text style={styles.supportingText}>
           Bộ câu hỏi này không có mục sàng lọc an toàn riêng.
         </Text>
@@ -395,13 +434,18 @@ export function HelpNowPanel({
 export function GuidePanel({
   api,
   guide,
-}: Readonly<{ api: AssessmentApi; guide: SupportGuide }>) {
+  showSafety = true,
+}: Readonly<{
+  api: AssessmentApi
+  guide: SupportGuide
+  showSafety?: boolean
+}>) {
   const positive = guide.safety.status === 'POSITIVE_SAFETY_SCREEN'
   const resourceStatus = guide.resourceResolution.status
 
   return (
-    <View style={styles.sectionGap}>
-      {positive && (
+    <View style={resultStyles.section}>
+      {positive && showSafety && (
         <HelpNowPanel
           api={api}
           defaultTrigger="POSITIVE_ITEM_9"
@@ -409,13 +453,12 @@ export function GuidePanel({
         />
       )}
 
-      <View style={styles.guidePanel}>
-        <Text style={styles.sectionTitle}>Gợi ý hỗ trợ sau sàng lọc</Text>
+      <Details title="Gợi ý hỗ trợ sau sàng lọc">
         <Text style={styles.body}>{guide.explanation.text}</Text>
         {!positive && (
           <Text style={styles.supportingText}>{guide.safety.guidance}</Text>
         )}
-      </View>
+      </Details>
 
       <View>
         <Text style={styles.sectionTitle}>Tài nguyên phù hợp</Text>
@@ -430,24 +473,41 @@ export function GuidePanel({
         )}
         {guide.resources.length === 0 ? (
           <Text style={styles.supportingText}>
-            Chưa có tài nguyên đã rà soát phù hợp trong snapshot này.
+            Chưa có tài nguyên phù hợp cho lượt sàng lọc này.
           </Text>
         ) : (
           guide.resources.map((resource) => (
-            <View key={resource.resourceId} style={styles.historyItem}>
-              <Text style={styles.itemTitle}>{resource.title}</Text>
-              <Text style={styles.body}>{resource.summary}</Text>
-            </View>
+            <Pressable
+              key={resource.resourceId}
+              accessibilityRole="button"
+              accessibilityLabel={`Mở tài nguyên: ${resource.title}`}
+              onPress={() =>
+                router.push(
+                  `./resources/${encodeURIComponent(resource.resourceId)}`,
+                )
+              }
+              style={resultStyles.resource}
+            >
+              <View style={resultStyles.resourceIcon}>
+                <AppIcon name="book" size={22} />
+              </View>
+              <View style={resultStyles.resourceCopy}>
+                <Text style={styles.itemTitle}>{resource.title}</Text>
+                <Text numberOfLines={2} style={resultStyles.meta}>
+                  {resource.summary}
+                </Text>
+              </View>
+              <AppIcon name="chevron" size={18} />
+            </Pressable>
           ))
         )}
       </View>
 
-      <View style={styles.technicalPanel}>
-        <Text style={styles.itemTitle}>Thông tin kỹ thuật</Text>
+      <Details title="Thông tin bản lưu">
         <Text style={styles.supportingText}>
-          Snapshot {guide.guideVersion} · {formatDate(guide.generatedAt)}
+          Phiên bản {guide.guideVersion} · {formatDate(guide.generatedAt)}
         </Text>
-      </View>
+      </Details>
     </View>
   )
 }
@@ -470,12 +530,13 @@ function JourneyContinuation({
   return (
     <>
       {continuation && (
-        <View style={styles.guidePanel}>
+        <View style={resultStyles.continuation}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>
             Tiếp tục hành trình
           </Text>
           <PrimaryButton
             label={continuation.label}
+            tone="dashboard"
             onPress={() => router.push(continuation.path)}
           />
         </View>
@@ -519,6 +580,10 @@ export function AssessmentJourneyScreen({
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [historyUnavailable, setHistoryUnavailable] = useState({
+    assessments: false,
+    guides: false,
+  })
   const [runtimeError, setRuntimeError] = useState<string | null>(null)
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const [step, setStep] = useState(0)
@@ -532,7 +597,7 @@ export function AssessmentJourneyScreen({
     setLoading(true)
     setLoadError(null)
     try {
-      const [episode, assessments, guides, journey] = await Promise.all([
+      const [episode, assessments, guides, journey] = await Promise.allSettled([
         api.getCurrentEpisode().catch((error: unknown) => {
           if (isMissingCurrentEpisode(error)) return null
           throw error
@@ -541,7 +606,31 @@ export function AssessmentJourneyScreen({
         api.listSupportGuides(),
         api.getGuidedJourney().catch(() => null),
       ])
-      setOverview({ episode, assessments, guides, journey })
+      for (const result of [episode, assessments, guides]) {
+        if (
+          result.status === 'rejected' &&
+          result.reason instanceof ApiError &&
+          [401, 403].includes(result.reason.status ?? 0)
+        )
+          throw result.reason
+      }
+      if (episode.status === 'rejected') throw episode.reason
+      setHistoryUnavailable({
+        assessments: assessments.status === 'rejected',
+        guides: guides.status === 'rejected',
+      })
+      setOverview({
+        episode: episode.value,
+        assessments:
+          assessments.status === 'fulfilled'
+            ? assessments.value
+            : { items: [], hasMore: false },
+        guides:
+          guides.status === 'fulfilled'
+            ? guides.value
+            : { items: [], hasMore: false },
+        journey: journey.status === 'fulfilled' ? journey.value : null,
+      })
     } catch (error) {
       setLoadError(loadErrorMessage(error))
     } finally {
@@ -911,23 +1000,38 @@ export function AssessmentJourneyScreen({
   if (view.name === 'completed') {
     const completed = view.data
     return (
-      <Screen>
+      <Screen layout="dashboard">
         <BackButton onPress={returnToOverview} />
-        <Text style={styles.supportingText}>
-          Kết quả → Gợi ý hỗ trợ → Bước tiếp theo
-        </Text>
-        <Text style={styles.eyebrow}>KẾT QUẢ SÀNG LỌC</Text>
-        <Text accessibilityRole="header" style={styles.title}>
-          Bạn đã hoàn tất lượt sàng lọc
-        </Text>
-        <Text style={styles.description}>
-          Kết quả dưới đây do hệ thống xác nhận từ đúng hai bài vừa hoàn tất.
-          Đây không phải chẩn đoán y khoa.
-        </Text>
-        <ResultFacts assessment={view.data.phq9} />
-        <ResultFacts assessment={view.data.gad7} />
-        <View style={styles.guidePanel}>
-          <Text style={styles.sectionTitle}>Ý nghĩa của kết quả</Text>
+        <View style={resultStyles.header}>
+          <Text style={resultStyles.completeBadge}>Đã hoàn thành 2/2 bài</Text>
+          <Text accessibilityRole="header" style={resultStyles.title}>
+            Bạn đã hoàn tất lượt sàng lọc
+          </Text>
+          <Text style={resultStyles.meta}>
+            Kết quả giúp bạn hiểu mình hơn, không phải chẩn đoán y khoa.
+          </Text>
+        </View>
+        <View style={resultStyles.scoreRow}>
+          <ResultFacts compact assessment={completed.phq9} />
+          <ResultFacts compact assessment={completed.gad7} />
+        </View>
+        {completed.guide?.safety.status === 'POSITIVE_SAFETY_SCREEN' && (
+          <HelpNowPanel
+            api={api}
+            defaultTrigger="POSITIVE_ITEM_9"
+            guidance={completed.guide.safety.guidance}
+          />
+        )}
+        {completed.guide && (
+          <JourneyContinuation
+            guide={completed.guide}
+            journey={completed.journey}
+            showUnavailable
+            working={working}
+            onRetry={() => void retryJourney(completed)}
+          />
+        )}
+        <Details title="Ý nghĩa của kết quả">
           {view.data.evaluation.evidence.map((evidence) => (
             <View key={evidence.assessmentId} style={styles.meaningItem}>
               <Text style={styles.itemTitle}>
@@ -939,25 +1043,14 @@ export function AssessmentJourneyScreen({
               </Text>
             </View>
           ))}
-        </View>
-        <View style={styles.guidePanel}>
-          <Text style={styles.sectionTitle}>Bước tiếp theo</Text>
+          <Text style={styles.itemTitle}>Bước tiếp theo</Text>
           <Text style={styles.body}>{view.data.evaluation.nextStep.text}</Text>
           <Text style={styles.supportingText}>
             {view.data.evaluation.nextStep.boundary}
           </Text>
-        </View>
+        </Details>
         {completed.guide ? (
-          <>
-            <GuidePanel api={api} guide={completed.guide} />
-            <JourneyContinuation
-              guide={completed.guide}
-              journey={completed.journey}
-              showUnavailable
-              working={working}
-              onRetry={() => void retryJourney(completed)}
-            />
-          </>
+          <GuidePanel api={api} guide={completed.guide} showSafety={false} />
         ) : (
           <View style={styles.guidePanel}>
             <StateMessage
@@ -1005,15 +1098,14 @@ export function AssessmentJourneyScreen({
 
   if (view.name === 'guide') {
     return (
-      <Screen>
+      <Screen layout="dashboard">
         <BackButton onPress={returnToOverview} />
         <Text style={styles.eyebrow}>GỢI Ý ĐÃ LƯU</Text>
         <Text accessibilityRole="header" style={styles.title}>
-          Snapshot hỗ trợ sau sàng lọc
+          Gợi ý hỗ trợ của bạn
         </Text>
         <Text style={styles.description}>
-          Đây là đúng snapshot đã được lưu cho lượt sàng lọc, không được tạo lại
-          từ dữ liệu hiện tại.
+          Xem lại những gợi ý đã lưu từ lượt sàng lọc của bạn.
         </Text>
         <GuidePanel api={api} guide={view.data} />
         <JourneyContinuation
@@ -1033,11 +1125,14 @@ export function AssessmentJourneyScreen({
   const continuing = Boolean(
     overview?.episode && overview.episode.status !== 'COMPLETED',
   )
-  const startLabel = continuing
-    ? 'Tiếp tục lượt đang làm'
-    : reassessment
-      ? 'Bắt đầu lượt kiểm tra lại'
-      : 'Bắt đầu lượt sàng lọc mới'
+  const startLabel =
+    overview?.episode?.status === 'COMPLETED'
+      ? 'Xem kết quả & bước tiếp theo'
+      : continuing
+        ? 'Tiếp tục lượt đang làm'
+        : reassessment
+          ? 'Bắt đầu lượt kiểm tra lại'
+          : 'Bắt đầu lượt sàng lọc mới'
   return (
     <Screen layout="dashboard" backgroundColor="#F8F6EF">
       <View style={overviewStyles.bar}>
@@ -1164,7 +1259,19 @@ export function AssessmentJourneyScreen({
                 <Text style={overviewStyles.link}>Biểu đồ ›</Text>
               </Pressable>
             </View>
-            {overview.assessments.items.length === 0 ? (
+            {historyUnavailable.assessments ? (
+              <View>
+                <StateMessage
+                  message="Chưa tải được lịch sử kết quả. Bạn vẫn có thể tiếp tục lượt sàng lọc hiện tại."
+                  tone="error"
+                />
+                <SecondaryButton
+                  label="Tải lại lịch sử kết quả"
+                  onPress={() => void loadOverview()}
+                  disabled={loading || working}
+                />
+              </View>
+            ) : overview.assessments.items.length === 0 ? (
               <Text style={styles.supportingText}>
                 Bạn chưa có kết quả sàng lọc đã lưu.
               </Text>
@@ -1234,7 +1341,19 @@ export function AssessmentJourneyScreen({
 
           <View style={styles.sectionGap}>
             <Text style={styles.sectionTitle}>Gợi ý đã lưu</Text>
-            {overview.guides.items.length === 0 ? (
+            {historyUnavailable.guides ? (
+              <View>
+                <StateMessage
+                  message="Chưa tải được gợi ý đã lưu. Các gợi ý hiện có không bị thay đổi."
+                  tone="error"
+                />
+                <SecondaryButton
+                  label="Tải lại gợi ý đã lưu"
+                  onPress={() => void loadOverview()}
+                  disabled={loading || working}
+                />
+              </View>
+            ) : overview.guides.items.length === 0 ? (
               <Text style={styles.supportingText}>
                 Gợi ý hỗ trợ sẽ xuất hiện sau khi bạn hoàn thành đủ hai bài.
               </Text>
@@ -1368,6 +1487,7 @@ const styles = StyleSheet.create({
   resultHeader: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.md,
     justifyContent: 'space-between',
   },
@@ -1448,6 +1568,90 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: spacing.xl,
   },
+})
+
+const resultStyles = StyleSheet.create({
+  back: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  header: {
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+  title: {
+    color: colors.tealDeep,
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: '800',
+  },
+  completeBadge: {
+    color: colors.tealDeep,
+    backgroundColor: colors.tealPale,
+    borderRadius: radii.pill,
+    overflow: 'hidden',
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  meta: { color: colors.inkSoft, fontSize: 13, lineHeight: 20 },
+  scoreRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  scoreCard: { flex: 1, minWidth: 140, padding: spacing.lg, gap: spacing.sm },
+  instrument: { color: colors.ink, fontSize: 16, fontWeight: '700' },
+  section: { gap: spacing.md, marginTop: spacing.md },
+  details: {
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: radii.panel,
+    marginTop: spacing.md,
+    overflow: 'hidden',
+  },
+  detailsTrigger: {
+    minHeight: 52,
+    padding: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  detailsTitle: { color: colors.ink, fontSize: 15, fontWeight: '700', flex: 1 },
+  detailsContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  continuation: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radii.panel,
+    backgroundColor: colors.tealPale,
+    marginVertical: spacing.md,
+  },
+  resource: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.panel,
+    padding: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  resourceIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.control,
+    backgroundColor: colors.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resourceCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
 })
 
 const overviewStyles = StyleSheet.create({

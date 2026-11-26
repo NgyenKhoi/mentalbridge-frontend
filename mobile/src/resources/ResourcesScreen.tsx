@@ -23,6 +23,7 @@ import {
 
 import { ApiError } from '@/api/api-error'
 import { useSession } from '@/auth/session-context'
+import { AppIcon } from '@/components/AppIcon'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import { CRISIS_SUPPORT_CONTENT } from '@/crisis-support/crisis-support-content'
@@ -152,7 +153,6 @@ export function ResourcesScreen({
       white: { ...baseStyles.white, ...sans },
       brandCaption: { ...baseStyles.brandCaption, ...sans },
       sosText: { ...baseStyles.sosText, ...sans },
-      homeText: { ...baseStyles.homeText, ...sans },
       eyebrow: { ...baseStyles.eyebrow, ...sans },
       label: { ...baseStyles.label, ...sans },
       small: { ...baseStyles.small, ...sans },
@@ -349,11 +349,19 @@ export function ResourcesScreen({
     >
       <View style={styles.stack}>
         <View style={styles.masthead}>
-          <View style={styles.brandIcon}>
-            <Text accessible={false} style={styles.white}>
-              ✿
-            </Text>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Về trang chủ"
+            accessibilityHint="Mở trang chủ MentalBridge"
+            hitSlop={5}
+            onPress={onHome ?? (() => router.replace('/(user)/user'))}
+            style={({ pressed }) => [
+              styles.brandIcon,
+              pressed && styles.pressed,
+            ]}
+          >
+            <AppIcon name="home" size={23} color={colors.white} />
+          </Pressable>
           <View style={styles.flex}>
             <Text style={[styles.brand, headingFont]}>Resources</Text>
             <Text style={styles.brandCaption}>MENTALBRIDGE</Text>
@@ -387,13 +395,6 @@ export function ResourcesScreen({
             </Text>
           </Pressable>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onHome ?? (() => router.replace('/(user)/user'))}
-          style={styles.home}
-        >
-          <Text style={styles.homeText}>⌂ Về trang chủ</Text>
-        </Pressable>
         <View style={styles.headingRow}>
           <View style={styles.flex}>
             <Text style={styles.eyebrow}>TÀI NGUYÊN CHĂM SÓC</Text>
@@ -924,15 +925,6 @@ const baseStyles = StyleSheet.create({
   sosText: { color: '#733116', fontSize: 12, fontWeight: '700' },
   primaryBackground: { backgroundColor: colors.tealDeep },
   softBackground: { backgroundColor: '#e3eee7' },
-  home: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    justifyContent: 'center',
-    backgroundColor: '#e9f3ed',
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.pill,
-  },
-  homeText: { color: colors.tealDeep, fontSize: 13, fontWeight: '700' },
   headingRow: {
     flexDirection: 'row',
     alignItems: 'center',

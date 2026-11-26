@@ -57,6 +57,43 @@ describe('MB-634 public mobile contract clients', () => {
     await expect(api.listAssigned()).rejects.toThrow()
   })
 
+  it.each([null, '77777777-7777-4777-8777-777777777777'])(
+    'loads assigned appointments with the backend plan origin %s',
+    async (originatingPlanActionId) => {
+      const payload = makeAppointmentList([
+        makeAppointment({ originatingPlanActionId }),
+      ])
+      const adapter: AxiosAdapter = async (request) =>
+        response(request, payload)
+      const api = createSpecialistAppointmentApi(create({ adapter }))
+
+      await expect(api.listAssigned()).resolves.toEqual(payload)
+    },
+  )
+
+  it('loads a mixed collection containing a legacy completed video appointment', async () => {
+    const payload = makeAppointmentList([
+      makeAppointment({ originatingPlanActionId: null }),
+      makeAppointment({
+        id: '77777777-7777-4777-8777-777777777777',
+        originatingPlanActionId: null,
+        modality: 'IN_APP_VIDEO',
+        status: 'COMPLETED',
+        sessionPolicyVersion: 'chat-session-completion-v1',
+        sessionOutcomeReason: 'EVIDENCE_REQUIREMENTS_MET',
+        sessionOutcome: 'COMPLETED',
+        sessionEndedAt: '2030-10-15T03:00:00.000Z',
+        sessionSettledAt: '2030-10-15T03:01:00.000Z',
+        completionFactId: '88888888-8888-4888-8888-888888888888',
+        creditState: 'CONSUMED',
+      }),
+    ])
+    const adapter: AxiosAdapter = async (request) => response(request, payload)
+    const api = createSpecialistAppointmentApi(create({ adapter }))
+
+    await expect(api.listAssigned()).resolves.toEqual(payload)
+  })
+
   it.each(['accept', 'reject'] as const)(
     'sends %s with the exact version and caller command key',
     async (decision) => {

@@ -17,6 +17,7 @@ export function SupportPlanRoute() {
   const runtimeConfig = useRuntimeConfig()
   const params = useLocalSearchParams<{
     proposalId?: string
+    review?: string
     occurrenceId?: string
     actionId?: string
     actionType?: string
@@ -47,6 +48,7 @@ export function SupportPlanRoute() {
   return (
     <SupportPlanActionWorkspace
       {...services}
+      openReview={params.review === 'open'}
       origin={
         journalContext || homeContext
           ? { state: 'none' }

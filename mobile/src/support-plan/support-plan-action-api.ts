@@ -1,5 +1,6 @@
 import type { AxiosInstance } from 'axios'
 import { z } from 'zod'
+import { ApiError } from '@/api/api-error'
 import { screeningEpisodeSchema } from '@/assessment/assessment-contract'
 import {
   reassessmentSummaryReferenceSchema,
@@ -142,21 +143,37 @@ export function createSupportPlanActionApi(
       const parsedPurpose = z
         .enum(['INITIAL_CHECK', 'REASSESSMENT'])
         .parse(purpose)
-      const episode = screeningEpisodeSchema.parse(
-        (
-          await client.get('/api/v1/screening-episodes/current', {
-            params: { purpose: parsedPurpose },
-          })
-        ).data,
-      )
-      if (
-        episode.purpose !== parsedPurpose ||
-        episode.status !== 'COMPLETED' ||
-        !episode.supportEvaluationId
-      )
-        throw new Error(
-          'Complete the current screening before proposing a plan.',
+      const incomplete = () =>
+        new ApiError({
+          status: 409,
+          code:
+            parsedPurpose === 'REASSESSMENT'
+              ? 'REASSESSMENT_INCOMPLETE'
+              : 'INITIAL_CHECK_INCOMPLETE',
+          message: 'Complete the current screening before proposing a plan.',
+        })
+      let response
+      try {
+        response = await client.get('/api/v1/screening-episodes/current', {
+          params: { purpose: parsedPurpose },
+        })
+      } catch (error) {
+        if (
+          error instanceof ApiError &&
+          error.code === 'SCREENING_EPISODE_NOT_FOUND'
         )
+          throw incomplete()
+        throw error
+      }
+      const episode = screeningEpisodeSchema.parse(response.data)
+      if (episode.purpose !== parsedPurpose)
+        throw new ApiError({
+          status: 502,
+          code: 'CARE_MALFORMED_RESPONSE',
+          message: 'Invalid screening response.',
+        })
+      if (episode.status !== 'COMPLETED' || !episode.supportEvaluationId)
+        throw incomplete()
       return episode.supportEvaluationId
     },
     async getReassessmentSummary() {

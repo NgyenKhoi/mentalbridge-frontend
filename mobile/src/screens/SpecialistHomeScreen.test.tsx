@@ -20,6 +20,7 @@ describe('SPECIALIST home screen', () => {
 
   it('opens the appointment workbench as the primary journey', async () => {
     await render(<SpecialistHomeScreen />)
+    expect(screen.queryByRole('button', { name: 'Đăng xuất' })).toBeNull()
 
     await fireEvent.press(
       screen.getByRole('button', { name: 'Mở lịch hẹn tư vấn' }),
@@ -54,6 +55,19 @@ describe('SPECIALIST home screen', () => {
     )
 
     expect(mockPush).toHaveBeenCalledWith('./notifications')
+  })
+
+  it('opens operational analytics from the overview shortcuts', async () => {
+    await render(<SpecialistHomeScreen />)
+
+    expect(
+      screen.getByRole('button', { name: 'Mở lịch hẹn tư vấn' }),
+    ).toBeTruthy()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Phân tích vận hành' }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('/(specialist)/operational-analytics')
   })
 
   it('opens the availability journey', async () => {

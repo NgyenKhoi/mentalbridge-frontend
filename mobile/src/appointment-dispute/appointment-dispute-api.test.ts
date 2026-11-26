@@ -4,6 +4,29 @@ import { createAppointmentDisputeApi } from './appointment-dispute-api'
 import { disputeFixture } from './appointment-dispute-fixtures'
 
 describe('MB-726 owner-scoped dispute API boundary', () => {
+  it('uses specialist ownership for reading and opening a dispute', async () => {
+    const client = create()
+    const data = { ...disputeFixture, openedByRole: 'SPECIALIST' }
+    const get = jest.spyOn(client, 'get').mockResolvedValue({ data })
+    const post = jest.spyOn(client, 'post').mockResolvedValue({ data })
+    const api = createAppointmentDisputeApi(client, 'SPECIALIST')
+    const body = {
+      reasonCode: disputeFixture.reasonCode,
+      evidenceType: null,
+      evidenceOccurredAt: null,
+    }
+    const path = `/api/v1/specialist/appointments/${disputeFixture.appointmentId}/dispute`
+
+    await expect(api.get(disputeFixture.appointmentId)).resolves.toEqual(data)
+    await expect(
+      api.open(disputeFixture.appointmentId, body, 'specialist-review-command'),
+    ).resolves.toEqual(data)
+    expect(get).toHaveBeenCalledWith(path)
+    expect(post).toHaveBeenCalledWith(path, body, {
+      headers: { 'Idempotency-Key': 'specialist-review-command' },
+    })
+  })
+
   it('reads the exact owned appointment path and rejects another identity', async () => {
     const client = create()
     const get = jest

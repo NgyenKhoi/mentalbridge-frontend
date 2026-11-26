@@ -4,6 +4,7 @@ import {
   type InternalAxiosRequestConfig,
 } from 'axios'
 import { createSupportPlanActionApi } from './support-plan-action-api'
+import { ApiError } from '@/api/api-error'
 import {
   actionOccurrenceSchema,
   canonicalSupportPlanSchema,
@@ -200,9 +201,57 @@ describe('Native SupportPlan mobile transport', () => {
     expect(await api.getProposalEvaluationId('REASSESSMENT')).toBe(planId)
     expect(requests[0]?.url).toBe('/api/v1/screening-episodes/current')
     expect(requests[0]?.params).toEqual({ purpose: 'REASSESSMENT' })
-    await expect(api.getProposalEvaluationId('REASSESSMENT')).rejects.toThrow(
-      'Complete the current screening',
+    await expect(
+      api.getProposalEvaluationId('REASSESSMENT'),
+    ).rejects.toMatchObject({ code: 'CARE_MALFORMED_RESPONSE', status: 502 })
+  })
+  it.each(['IN_PROGRESS', 'READY', 'COMPLETED'])(
+    'requires screening instead of inventing an evaluation for %s without evidence',
+    async (status) => {
+      const { api } = apiFixture([
+        {
+          episodeId: actionId,
+          purpose: 'INITIAL_CHECK',
+          status,
+          supportEvaluationId: null,
+          createdAt: instant,
+          updatedAt: instant,
+          version: 0,
+        },
+      ])
+      await expect(
+        api.getProposalEvaluationId('INITIAL_CHECK'),
+      ).rejects.toMatchObject({ code: 'INITIAL_CHECK_INCOMPLETE', status: 409 })
+    },
+  )
+  it('maps only a missing screening episode to the completion prerequisite', async () => {
+    const missing = new ApiError({
+      code: 'SCREENING_EPISODE_NOT_FOUND',
+      status: 404,
+      message: 'Not found',
+    })
+    const adapter: AxiosAdapter = async () => {
+      throw missing
+    }
+    const api = createSupportPlanActionApi(create({ adapter }))
+    await expect(
+      api.getProposalEvaluationId('REASSESSMENT'),
+    ).rejects.toMatchObject({ code: 'REASSESSMENT_INCOMPLETE', status: 409 })
+    const failure = new ApiError({
+      code: 'DEPENDENCY_UNAVAILABLE',
+      status: 503,
+      message: 'Unavailable',
+    })
+    const unavailable = createSupportPlanActionApi(
+      create({
+        adapter: async () => {
+          throw failure
+        },
+      }),
     )
+    await expect(
+      unavailable.getProposalEvaluationId('INITIAL_CHECK'),
+    ).rejects.toBe(failure)
   })
   it('reuses owner reassessment and schedule commands without manufacturing a legacy plan', async () => {
     const summary = makeReassessmentSummary()

@@ -169,7 +169,7 @@ export function UserHomeScreen({
 }>) {
   const fontsLoaded = useDashboardFonts()
   const styles = fontsLoaded ? webFontStyles : systemFontStyles
-  const { session, signOut } = useSession()
+  const { session } = useSession()
   const { width } = useWindowDimensions()
   const queryClient = useQueryClient()
   const moodSize = Math.max(34, Math.min(48, Math.floor((width - 86) / 5)))
@@ -1107,17 +1107,6 @@ export function UserHomeScreen({
           </View>
         ) : null}
       </View>
-
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => void signOut()}
-        style={({ pressed }) => [
-          styles.signOutButton,
-          pressed && styles.pressed,
-        ]}
-      >
-        <Text style={styles.signOutLabel}>Đăng xuất</Text>
-      </Pressable>
     </Screen>
   )
 
@@ -1729,18 +1718,6 @@ const dashboardStyles = {
     gap: spacing.xs,
     paddingBottom: spacing.md,
   },
-  signOutButton: {
-    alignSelf: 'flex-start',
-    justifyContent: 'center',
-    marginTop: spacing.xl,
-    minHeight: 44,
-    paddingHorizontal: spacing.sm,
-  },
-  signOutLabel: {
-    color: colors.tealDeep,
-    fontSize: typography.body,
-    fontWeight: '700',
-  },
   pressed: {
     opacity: 0.65,
   },
@@ -1787,5 +1764,4 @@ const webFontStyles = StyleSheet.create({
   moreTitle: { ...dashboardStyles.moreTitle, ...sans },
   supporting: { ...dashboardStyles.supporting, ...sans },
   toggleLabel: { ...dashboardStyles.toggleLabel, ...sans },
-  signOutLabel: { ...dashboardStyles.signOutLabel, ...sans },
 })

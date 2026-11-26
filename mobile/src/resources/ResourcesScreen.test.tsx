@@ -229,9 +229,7 @@ describe('mobile reviewed resource catalogue', () => {
     await renderResources(
       <ResourcesScreen {...props(resourceApi)} onHome={onHome} />,
     )
-    await fireEvent.press(
-      screen.getByRole('button', { name: '⌂  Về trang chủ' }),
-    )
+    await fireEvent.press(screen.getByRole('button', { name: 'Về trang chủ' }))
     expect(onHome).toHaveBeenCalledTimes(1)
   })
 

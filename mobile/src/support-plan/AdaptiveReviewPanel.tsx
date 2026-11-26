@@ -334,7 +334,7 @@ export function AdaptiveReviewPanel({
   }
 
   useImperativeHandle(reviewTrigger, () => () => {
-    if (!disabled && !review) void load()
+    if (!disabled) void load()
   })
 
   function choose(option: AdaptiveReviewOption) {
@@ -362,12 +362,11 @@ export function AdaptiveReviewPanel({
   return (
     <View style={styles.panel}>
       <Text accessibilityRole="header" style={styles.title}>
-        Tiến độ và điều chỉnh
+        Xem lại kế hoạch
       </Text>
       <Text style={styles.body}>
-        Xem lại giai đoạn hiện tại và chủ động giữ hoặc đổi kế hoạch. Đây là lời
-        mời theo nhịp 14 ngày của Care, không phải cam kết rằng mọi người đều
-        hoàn tất đúng ngày đó.
+        Xem lại giai đoạn hiện tại, rồi chọn giữ hoặc điều chỉnh. Kế hoạch chỉ
+        đổi khi bạn xác nhận.
       </Text>
       {!review && (
         <PrimaryButton

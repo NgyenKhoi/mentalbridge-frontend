@@ -1144,16 +1144,35 @@ describe('mobile SupportPlan journey', () => {
 
     await renderScreen(<SupportPlanScreen api={api} />)
 
-    const durations = await screen.findAllByLabelText(
-      'Thời lượng dự kiến (phút)',
+    await fireEvent.press(
+      await screen.findByRole('button', {
+        name: 'Chỉnh hoạt động: Hoạt động 1',
+      }),
     )
-    fireEvent.changeText(durations[0]!, '25')
-    fireEvent.changeText(durations[1]!, '35')
-    const save = screen.getAllByRole('button', { name: 'Lưu lịch' })[0]!
+    await fireEvent.changeText(
+      screen.getByLabelText('Thời lượng dự kiến (phút)'),
+      '25',
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chỉnh hoạt động: Hoạt động 2' }),
+    )
+    await fireEvent.changeText(
+      screen.getByLabelText('Thời lượng dự kiến (phút)'),
+      '35',
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chỉnh hoạt động: Hoạt động 1' }),
+    )
+    expect(screen.getByLabelText('Thời lượng dự kiến (phút)').props.value).toBe(
+      '25',
+    )
     await waitFor(() =>
-      expect(save.props.accessibilityState.disabled).toBe(false),
+      expect(
+        screen.getByRole('button', { name: 'Lưu lịch' }).props
+          .accessibilityState.disabled,
+      ).toBe(false),
     )
-    fireEvent.press(save)
+    await fireEvent.press(screen.getByRole('button', { name: 'Lưu lịch' }))
     await waitFor(() => expect(api.replaceSchedule).toHaveBeenCalledTimes(1))
 
     const reload = await screen.findByRole('button', {
@@ -1166,12 +1185,16 @@ describe('mobile SupportPlan journey', () => {
     await screen.findByText(
       'Đã tải trạng thái mới nhất. Hãy kiểm tra lại trước khi tiếp tục.',
     )
-    await waitFor(() => {
-      const reloadedDurations = screen.getAllByLabelText(
-        'Thời lượng dự kiến (phút)',
-      )
-      expect(reloadedDurations[0]!.props.value).toBe('30')
-      expect(reloadedDurations[1]!.props.value).toBe('35')
-    })
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText('Thời lượng dự kiến (phút)').props.value,
+      ).toBe('30'),
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Chỉnh hoạt động: Hoạt động 2' }),
+    )
+    expect(screen.getByLabelText('Thời lượng dự kiến (phút)').props.value).toBe(
+      '35',
+    )
   })
 })

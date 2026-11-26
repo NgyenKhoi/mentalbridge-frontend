@@ -32,6 +32,7 @@ it('shows the shared bar on main tabs and excludes standalone screens', () => {
       isUserTabPath,
     ),
   ).toBe(true)
+  expect(isUserTabPath('/appointments')).toBe(true)
   expect(
     [
       '/login',
@@ -41,4 +42,13 @@ it('shows the shared bar on main tabs and excludes standalone screens', () => {
       '/change-password',
     ].some(isUserTabPath),
   ).toBe(false)
+})
+
+it('keeps Experts selected on appointments and returns to the experts root', async () => {
+  mockReplace.mockClear()
+  await render(<UserTabBar pathname="/appointments" />)
+  await fireEvent.press(
+    screen.getByRole('tab', { name: 'Chuyên gia', selected: true }),
+  )
+  expect(mockReplace).toHaveBeenCalledWith('/(user)/specialists')
 })

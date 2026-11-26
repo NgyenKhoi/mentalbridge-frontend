@@ -1,4 +1,5 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
+import { createRef } from 'react'
 
 import { makeMobileReassessmentSummary } from '@/reassessment/reassessment-test-fixtures'
 
@@ -105,6 +106,32 @@ function panelApi(
 }
 
 describe('adaptive SupportPlan review panel', () => {
+  it('refreshes an already opened review after reassessment without applying a choice', async () => {
+    const trigger = createRef<() => void>()
+    const confirm = jest.fn()
+    const owner = panelApi(confirm, [keepOption])
+    await render(
+      <AdaptiveReviewPanel
+        api={owner}
+        current={nativePlan()}
+        draft={null}
+        disabled={false}
+        onChanged={jest.fn()}
+        onReassessment={jest.fn()}
+        onProfessionalSupport={jest.fn()}
+        reviewTrigger={trigger}
+      />,
+    )
+    await act(async () => trigger.current?.())
+    await waitFor(() =>
+      expect(owner.getAdaptiveReview).toHaveBeenCalledTimes(1),
+    )
+    await act(async () => trigger.current?.())
+    await waitFor(() =>
+      expect(owner.getAdaptiveReview).toHaveBeenCalledTimes(2),
+    )
+    expect(confirm).not.toHaveBeenCalled()
+  })
   it('shows factual progress and requires explicit keep confirmation', async () => {
     const current = nativePlan()
     const confirmAdaptiveReview = jest.fn().mockResolvedValue({

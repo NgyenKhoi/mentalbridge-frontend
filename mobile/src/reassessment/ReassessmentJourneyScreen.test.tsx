@@ -76,12 +76,14 @@ describe('mobile reassessment journey', () => {
   it('saves explicit self-report, composes four sourced dimensions and returns to plan review', async () => {
     const care = api()
     const onReturnToPlan = jest.fn()
+    const onReviewPlan = jest.fn()
     const view = await render(
       <ReassessmentJourneyScreen
         api={care}
         journalApi={successfulJournal()}
         onScreening={jest.fn()}
         onReturnToPlan={onReturnToPlan}
+        onReviewPlan={onReviewPlan}
         wait={() => Promise.resolve()}
       />,
     )
@@ -94,8 +96,10 @@ describe('mobile reassessment journey', () => {
       expect.any(String),
     )
     expect(await view.findByText('Bốn góc nhìn riêng biệt')).toBeTruthy()
-    await fireEvent.press(view.getByText('Xem lựa chọn giữ hoặc đổi kế hoạch'))
-    expect(onReturnToPlan).toHaveBeenCalledTimes(1)
+    expect(view.queryByTestId('reassessment-submit')).toBeNull()
+    await fireEvent.press(view.getByText('Giữ hoặc đổi kế hoạch'))
+    expect(onReviewPlan).toHaveBeenCalledTimes(1)
+    expect(onReturnToPlan).not.toHaveBeenCalled()
   })
 
   it('refreshes the retained screen after paired screening and then submits the report', async () => {
@@ -169,6 +173,12 @@ describe('mobile reassessment journey', () => {
     await fireEvent.press(view.getByTestId('reassessment-submit'))
     await waitFor(() => expect(care.compose).toHaveBeenCalledTimes(1))
 
+    await fireEvent.press(
+      view.getByRole('button', { name: 'Chỉnh câu trả lời' }),
+    )
+    await fireEvent.press(
+      view.getByRole('button', { name: 'Thêm chia sẻ (tùy chọn)' }),
+    )
     await fireEvent.press(view.getByText('Khó khăn hơn trước'))
     await fireEvent.changeText(
       view.getByLabelText('Điều gì khiến bạn thấy khó khăn'),
@@ -347,6 +357,9 @@ describe('mobile reassessment journey', () => {
       <ReassessmentJourneyScreen {...props} refreshToken={0} />,
     )
     await fireEvent.press(await view.findByText('Dễ chịu hơn trước'))
+    await fireEvent.press(
+      view.getByRole('button', { name: 'Thêm chia sẻ (tùy chọn)' }),
+    )
     await fireEvent.changeText(
       view.getByLabelText('Điều gì đã giúp ích'),
       'Dữ liệu kỳ cũ',
@@ -354,9 +367,11 @@ describe('mobile reassessment journey', () => {
     await view.rerender(
       <ReassessmentJourneyScreen {...props} refreshToken={1} />,
     )
-    expect(
-      await view.findByText('Đã tải giai đoạn đánh giá mới từ Care.'),
-    ).toBeTruthy()
+    expect(await view.findByText('Đã tải giai đoạn đánh giá mới.')).toBeTruthy()
+    expect(view.queryByLabelText('Điều gì đã giúp ích')).toBeNull()
+    await fireEvent.press(
+      view.getByRole('button', { name: 'Thêm chia sẻ (tùy chọn)' }),
+    )
     expect(view.getByLabelText('Điều gì đã giúp ích').props.value).toBe('')
     expect(
       view.getByRole('radio', { name: 'Dễ chịu hơn trước' }).props
