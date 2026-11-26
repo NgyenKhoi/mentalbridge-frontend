@@ -1,6 +1,7 @@
 // Mầm guide (mam-guide design, phase 1): leads a new user, one step at a time, from the first screening
 // result through a first journal, a first chat and a call or a relaxation, then "graduates" them. Pure core:
 // state, step order and the reviewed bubble copy. The host (`use-mam-guide.ts`) owns timers, storage and DOM.
+import type { MamLoopingBehavior, MamOneShot } from './mam-contract'
 import { slottedMamAccountId } from './MamDockSlot'
 
 export type MamGuideStep = 'journal' | 'chat' | 'unwind'
@@ -49,9 +50,25 @@ export type MamGuideAction = Readonly<{
   go: MamGuideGo
 }>
 
+/** What Mầm does while a bubble is up: a looping look, and a one-shot as it opens. */
+export type MamGuideMotion = Readonly<{
+  loop: MamLoopingBehavior
+  shot?: MamOneShot
+}>
+
 export type MamBubbleSpec =
-  | Readonly<{ kind: 'story'; text: string; withContext?: string }>
-  | Readonly<{ kind: 'ask'; text: string; actions: readonly MamGuideAction[] }>
+  | Readonly<{
+      kind: 'story'
+      text: string
+      withContext?: string
+      motion?: MamGuideMotion
+    }>
+  | Readonly<{
+      kind: 'ask'
+      text: string
+      actions: readonly MamGuideAction[]
+      motion?: MamGuideMotion
+    }>
   | Readonly<{ kind: 'consent' }>
 
 /** "Thở chậm trong 5 phút", a reviewed catalogue item with a fixed seeded id. */
@@ -86,9 +103,9 @@ export const MAM_GUIDE_CRUDE_WORDS = [
 const ORDER: readonly MamGuideStep[] = ['journal', 'chat', 'unwind']
 const storageKey = (accountId: string) => `mb:mam-guide:v1:${accountId}`
 
-/** A story holds 4–5 s, longer text a little longer. */
+/** A story holds at least 4 s; the longer v2 lines get reading time (about 20 characters a second), up to 9 s. */
 export const guideHoldMs = (text: string) =>
-  Math.min(5000, Math.max(4000, 2500 + 40 * text.length))
+  Math.min(9000, Math.max(4000, 2000 + 50 * text.length))
 
 /**
  * Reports a verified moment to the guide. With a Mầm layout mounted the dock host hears it; screening runs
@@ -266,7 +283,10 @@ export function actGuide(
   return cleared
 }
 
-/** Pure: on a new page session, offer a declined step once more, softly. */
+/**
+ * Pure: on a new page session, offer a declined step once more, softly; or, when the user took a side path
+ * (relax or chat first) and left it unfinished, pick the walk up again at the next open step.
+ */
 export function startGuideSession(state: MamGuideState): MamGuideState {
   if (state.graduatedAt || state.pending) return state
   const step = ORDER.find(
@@ -275,7 +295,14 @@ export function startGuideSession(state: MamGuideState): MamGuideState {
       state.declined[item] &&
       !state.declined[item]?.reoffered,
   )
-  if (!step) return state
+  if (!step) {
+    // A step said no to twice keeps Mầm quiet: the side-path pickup is only for a walk left half way.
+    if (Object.keys(state.declined).length) return state
+    const open = nextStep(state)
+    return open && open !== 'graduate'
+      ? { ...state, pending: { after: 'reoffer', next: open } }
+      : state
+  }
   return {
     ...state,
     declined: {
@@ -300,7 +327,8 @@ function offer(
   if (step === 'journal')
     return {
       kind: 'ask',
-      text: 'Mầm có 1 việc nhỏ: viết ra 3 thứ đang làm bạn khó chịu nhất hôm nay. Bạn thử viết cùng Mầm không?',
+      text: 'Mầm có 1 việc nhỏ thôi: viết ra 3 thứ đang làm bạn khó chịu nhất hôm nay. Viết ra là nhẹ hơn giữ trong đầu đó, bạn thử viết cùng Mầm không?',
+      motion: { loop: 'explaining', shot: 'point' },
       actions: [
         { label: 'Viết nhật ký cùng Mầm', tone: 'primary', go: 'journal' },
         ...(after === 'result'
@@ -320,7 +348,8 @@ function offer(
     return after === 'journal'
       ? {
           kind: 'ask',
-          text: 'Giờ kể thêm cho Mầm nghe bằng tin nhắn được không? Không cần dài như nhật ký đâu.',
+          text: 'Giờ kể thêm cho Mầm nghe bằng tin nhắn được không? Không cần dài như nhật ký đâu, kể 1 đoạn làm bạn mệt nhất thôi cũng được.',
+          motion: { loop: 'listening' },
           actions: [
             { label: 'Kể tiếp đi', tone: 'primary', go: 'chat-journal' },
             decline('Để mình nghỉ chút'),
@@ -328,7 +357,8 @@ function offer(
         }
       : {
           kind: 'ask',
-          text: 'Kể cho Mầm nghe chuyện dạo này bằng tin nhắn nhé? Gõ ngắn cũng được.',
+          text: 'Kể cho Mầm nghe chuyện dạo này bằng tin nhắn nhé? Gõ ngắn cũng được, Mầm đọc hết mà.',
+          motion: { loop: 'listening' },
           actions: [
             { label: 'Nhắn với Mầm', tone: 'primary', go: 'chat-result' },
             decline(),
@@ -337,7 +367,8 @@ function offer(
   return plan === 'PLUS' || plan === 'PREMIUM'
     ? {
         kind: 'ask',
-        text: 'Gõ nhiều mỏi tay rồi ha. Để Mầm gọi cho bạn nhé? Không cần nhìn ai, chỉ cần nói.',
+        text: 'Gõ nhiều mỏi tay rồi ha. Để Mầm gọi cho bạn nhé? Không cần nhìn ai, chỉ cần nói thôi, Mầm nghe bạn là được rồi.',
+        motion: { loop: 'listening' },
         actions: [
           { label: 'Gọi cho Mầm', tone: 'primary', go: 'call' },
           { label: 'Nghe nhạc thư giãn trước', tone: 'secondary', go: 'relax' },
@@ -346,7 +377,8 @@ function offer(
       }
     : {
         kind: 'ask',
-        text: 'Nghe 1 bài thư giãn 3 phút với Mầm nhé?',
+        text: 'Nghe 1 bài thư giãn 3 phút với Mầm nhé? Cho đầu mình nghỉ 1 chút, rồi mình kể tiếp sau cũng được.',
+        motion: { loop: 'listening' },
         actions: [
           { label: 'Nghe thư giãn', tone: 'primary', go: 'relax' },
           decline(),
@@ -354,52 +386,91 @@ function offer(
       }
 }
 
+// Owner copy v2 (2026-11-26): every line carries one comforting clause; the motion reuses the v0.8 asset's looks.
 const REACTIONS: Record<MamGuidePending['after'], readonly MamBubbleSpec[]> = {
   result: [
-    { kind: 'story', text: 'Mầm đọc kết quả của bạn rồi nè.' },
     {
       kind: 'story',
-      text: 'Bạn không cần hiểu hết web này đâu. Đi cùng Mầm từng bước nha.',
+      text: 'Mầm đọc kết quả của bạn rồi nè. Cảm ơn bạn vì đã làm hết bài, lúc mệt mà làm hết được như vậy là cố lắm rồi đó.',
+      motion: { loop: 'curious', shot: 'nod' },
     },
     {
       kind: 'story',
-      text: 'Dạo này bạn hơi mệt trong lòng, nhưng vẫn đang cố giữ mọi thứ ổn đúng không?',
+      text: 'Bạn không cần hiểu hết web này đâu. Đi cùng Mầm từng bước nha, Mầm ở đây với bạn mà.',
+      motion: { loop: 'gentle', shot: 'wave' },
+    },
+    {
+      kind: 'story',
+      text: 'Dạo này bạn hơi mệt trong lòng, nhưng vẫn đang cố giữ mọi thứ ổn đúng không? Mầm nghe được cái mệt đó của bạn rồi nè.',
+      motion: { loop: 'listening' },
     },
   ],
   journal: [
     { kind: 'consent' },
     {
       kind: 'story',
-      text: 'Mầm thấy bạn vừa viết xong rồi nè.',
-      withContext: 'Ê, Mầm đọc rồi nè.',
+      text: 'Mầm thấy bạn vừa viết xong rồi nè. Viết xong chắc trong người cũng nhẹ hơn được 1 chút rồi đúng không?',
+      withContext:
+        'Ê, Mầm đọc rồi nè. Hôm nay của bạn đúng là 1 ngày oải thật sự luôn á, Mầm đọc mà cũng thấy nặng lòng theo bạn.',
+      motion: { loop: 'listening', shot: 'nod' },
     },
-    { kind: 'story', text: 'Dám viết ra hết như vậy là dũng cảm lắm rồi đó.' },
+    {
+      kind: 'story',
+      text: 'Dám viết ra hết như vậy là dũng cảm lắm rồi đó. Nhiều người mệt mà còn không dám viết ra đâu, bạn làm được rồi nè.',
+      motion: { loop: 'happy', shot: 'clap' },
+    },
   ],
-  chat: [{ kind: 'story', text: 'Cảm ơn bạn đã kể cho Mầm nghe nè.' }],
-  call: [{ kind: 'story', text: 'Mầm vui vì bạn đã thử gọi cho Mầm nè.' }],
+  chat: [
+    {
+      kind: 'story',
+      text: 'Cảm ơn bạn đã kể cho Mầm nghe nè. Kể được tới đây là bạn đã tin Mầm lắm rồi đó, Mầm trân trọng cái đó lắm.',
+      motion: { loop: 'gentle', shot: 'nod' },
+    },
+  ],
+  call: [
+    {
+      kind: 'story',
+      text: 'Mầm vui vì bạn đã thử gọi cho Mầm nè. Lúc đầu còn ngại mà vẫn dám gọi, là bạn đã tự chăm mình 1 bước rồi đó.',
+      motion: { loop: 'happy', shot: 'stretch' },
+    },
+  ],
   relax: [
     {
       kind: 'story',
-      text: 'Thư giãn xong rồi, cơ thể bạn cũng được nghỉ một chút nè.',
+      text: 'Thư giãn xong rồi, cơ thể bạn cũng được nghỉ một chút nè. Giờ trong người bạn thấy nhẹ hơn được chút nào chưa?',
+      motion: { loop: 'happy', shot: 'stretch' },
     },
   ],
-  reoffer: [{ kind: 'story', text: 'Mầm hỏi lại một lần nha.' }],
+  reoffer: [
+    {
+      kind: 'story',
+      text: 'Mầm hỏi lại một lần nha. Không sao đâu, lúc nãy bạn chưa sẵn sàng thôi mà, giờ Mầm hỏi lại nhẹ nhàng nè.',
+      motion: { loop: 'curious', shot: 'look_around' },
+    },
+  ],
 }
 
 function graduation(unwindKind: MamGuideState['unwindKind']): MamBubbleSpec[] {
   return [
-    { kind: 'story', text: 'Nè, bạn thấy không?' },
     {
       kind: 'story',
-      text: `Nãy giờ bạn đã tự đi hết 1 vòng rồi đó: viết nhật ký, nhắn với Mầm, rồi ${unwindKind === 'call' ? 'gọi cho Mầm' : 'nghe thư giãn'}.`,
+      text: 'Nè, bạn thấy không?',
+      motion: { loop: 'happy', shot: 'pop_up' },
     },
     {
       kind: 'story',
-      text: 'Từ giờ Mầm sẽ không dẫn từng bước nữa đâu. Vì bạn biết đường rồi.',
+      text: `Nãy giờ bạn đã tự đi hết 1 vòng rồi đó: viết nhật ký, nhắn với Mầm, rồi ${unwindKind === 'call' ? 'gọi cho Mầm' : 'nghe thư giãn'}. Bạn tự đi được hết luôn, Mầm chỉ đi bên cạnh thôi đó.`,
+      motion: { loop: 'explaining' },
+    },
+    {
+      kind: 'story',
+      text: 'Từ giờ Mầm sẽ không dẫn từng bước nữa đâu. Vì bạn biết đường rồi, Mầm tin bạn tự đi được.',
+      motion: { loop: 'gentle', shot: 'wave' },
     },
     {
       kind: 'ask',
-      text: 'Mệt mà muốn xả thì vào Nhật ký, muốn có người nghe thì nhắn Mầm. Mầm vẫn ở góc này nè, chịu không?',
+      text: 'Mệt mà muốn xả thì vào Nhật ký, muốn có người nghe thì nhắn Mầm. Mầm vẫn ở góc này nè, cần là gọi Mầm là Mầm chạy ra, chịu không?',
+      motion: { loop: 'idle', shot: 'wave' },
       actions: [{ label: 'Chịu, Mầm ơi', tone: 'primary', go: 'graduate' }],
     },
   ]

@@ -14,8 +14,11 @@ import {
   writeGuide,
   type MamBubbleSpec,
   type MamGuideAction,
+  type MamGuideMotion,
   type MamGuideState,
 } from './mam-guide'
+
+const CONSENT_MOTION: MamGuideMotion = { loop: 'gentle' }
 
 const sessionKey = (accountId: string) => `mb:mam-guide:session:${accountId}`
 const indexKey = (accountId: string) => `mb:mam-guide:index:${accountId}`
@@ -45,8 +48,13 @@ export interface MamGuideView {
   step: number
   /** Whether Mầm may say what she read: L2 granted, so the story can use its context line. */
   context: boolean
+  /** Where the bubble sits in its sequence, for the progress dots. */
+  progress: Readonly<{ at: number; total: number }>
+  /** What Mầm does while the bubble is up (the consent bubble: a gentle look). */
+  motion: MamGuideMotion | null
+  /** Stable per bubble: the dock plays its one-shot once. */
+  key: string
   next(): void
-  skip(): void
   act(action: MamGuideAction): void
   consented(result: { l1: boolean; l2: boolean } | 'later'): void
   close(): void
@@ -166,18 +174,6 @@ export function useMamGuide(
     storeIndex(accountId, at)
   }, [accountId, bubbles.length, finish, index])
 
-  /** "Bỏ qua": past the stories, to the next bubble that needs the user (or the end). */
-  const skip = useCallback(() => {
-    if (!accountId || !stateRef.current) return
-    const ask = bubbles.findIndex((b, at) => at > index && b.kind !== 'story')
-    if (ask < 0) {
-      finish({ ...stateRef.current, pending: null })
-      return
-    }
-    setIndex(ask)
-    storeIndex(accountId, ask)
-  }, [accountId, bubbles, finish, index])
-
   const act = useCallback(
     (action: MamGuideAction) => {
       const current = stateRef.current
@@ -196,7 +192,7 @@ export function useMamGuide(
     [next],
   )
 
-  /** The close button or Escape: "Để sau đi" for the step on offer; Mầm offers it again once, next session. */
+  /** The close button: "Để sau đi" for the step on offer; Mầm offers it again once, next session. */
   const close = useCallback(() => {
     const current = stateRef.current
     if (!current) return
@@ -213,8 +209,14 @@ export function useMamGuide(
     status,
     step: index,
     context,
+    progress: { at: index, total: bubbles.length },
+    motion: !bubble
+      ? null
+      : bubble.kind === 'consent'
+        ? CONSENT_MOTION
+        : (bubble.motion ?? null),
+    key: `${state?.pending?.after ?? ''}:${index}`,
     next,
-    skip,
     act,
     consented,
     close,

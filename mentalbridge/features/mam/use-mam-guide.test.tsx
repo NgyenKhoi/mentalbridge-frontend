@@ -39,10 +39,14 @@ describe('useMamGuide', () => {
     rerender({ allowed: true })
     expect(result.current.bubble).toMatchObject({
       kind: 'story',
-      text: 'Mầm đọc kết quả của bạn rồi nè.',
+      text: expect.stringContaining('Mầm đọc kết quả của bạn rồi nè.'),
+      motion: { loop: 'curious', shot: 'nod' },
     })
-    act(() => result.current.skip())
-    expect(result.current.bubble?.kind).toBe('ask')
+    expect(result.current.progress).toEqual({ at: 0, total: 4 })
+    expect(result.current.motion).toEqual({ loop: 'curious', shot: 'nod' })
+    act(() => result.current.next())
+    expect(result.current.bubble?.kind).toBe('story')
+    expect(result.current.key).toBe('result:1')
   })
 
   it('resumes at the stored bubble after a reload', () => {
