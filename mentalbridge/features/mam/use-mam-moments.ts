@@ -1,13 +1,16 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { localDateInTimeZone } from '@/lib/emotion-check-in/presentation'
 import { mamDailyKey, readMamDaily, writeMamDaily } from './mam-daily'
+import { readGuide } from './mam-guide'
 import type { MamBubbleSpec, MamGuideAction, MamGuideMotion } from './mam-guide'
 import {
   MAM_MOMENT_EVENT,
   dispatchMamMoment,
   markMomentSeen,
+  momentFits,
   momentSeen,
   momentSpec,
   parseMamMoment,
@@ -45,6 +48,7 @@ export function useMamMoments(
   accountId: string | null,
   ready: boolean,
 ): MamMoments {
+  const pathname = usePathname()
   const [queue, setQueue] = useState<readonly MamMoment[]>([])
   const [staying, setStaying] = useState(false)
   const [step, setStep] = useState(0)
@@ -65,6 +69,20 @@ export function useMamMoments(
     const reminder = readMamDaily(reminderKey(accountId))
     const [day, href] = (reminder ?? '').split('|')
     let timer: number | undefined
+    // Free graduated after "Để sau" on the plan: Home asks once more, from the next day on.
+    const guide = readGuide(accountId)
+    const freePlanLater =
+      guide?.graduatedAt &&
+      guide.declined.plan &&
+      guide.plan !== 'PLUS' &&
+      guide.plan !== 'PREMIUM' &&
+      guide.declined.plan.at.slice(0, 10) <
+        new Date().toISOString().slice(0, 10)
+    const reask = freePlanLater
+      ? window.setTimeout(() =>
+          dispatchMamMoment({ kind: 'plan-reask', key: 'plan-reask' }),
+        )
+      : undefined
     if (day && day < today()) {
       writeMamDaily(reminderKey(accountId), '')
       // Through the same event, after this render, like any other moment.
@@ -78,6 +96,7 @@ export function useMamMoments(
     }
     return () => {
       window.clearTimeout(timer)
+      window.clearTimeout(reask)
       window.removeEventListener(MAM_MOMENT_EVENT, onMoment)
     }
   }, [accountId])
@@ -88,20 +107,24 @@ export function useMamMoments(
     return () => window.clearTimeout(timer)
   }, [staying])
 
-  const current = ready && accountId ? (queue[0] ?? null) : null
+  // The first moment that belongs on this page; the others keep their place in line.
+  const current =
+    ready && accountId
+      ? (queue.find((item) => momentFits(item, pathname)) ?? null)
+      : null
   const bubble = current ? momentSpec(current) : null
 
+  const currentKey = current?.key
   const close = useCallback(() => {
-    setQueue(([first, ...rest]) => {
-      if (first && accountId) markMomentSeen(accountId, first.key)
-      return rest
-    })
+    if (!currentKey) return
+    if (accountId) markMomentSeen(accountId, currentKey)
+    setQueue((items) => items.filter((item) => item.key !== currentKey))
     setStep((value) => value + 1)
-  }, [accountId])
+  }, [accountId, currentKey])
 
   const act = useCallback(
     (action: MamGuideAction) => {
-      const first = queue[0]
+      const first = current
       if (!first || !accountId) return
       if (
         action.go === 'pick' &&
@@ -110,14 +133,17 @@ export function useMamMoments(
       ) {
         // "Chỉ Mầm đi": the same bubble turns into the one lightest activity.
         markMomentSeen(accountId, first.key)
-        setQueue(([, ...rest]) => [
-          {
-            kind: 'guide-pick',
-            key: `pick:${first.key}`,
-            activity: first.activity,
-          },
-          ...rest,
-        ])
+        setQueue((items) =>
+          items.map((item) =>
+            item.key === first.key
+              ? {
+                  kind: 'guide-pick',
+                  key: `pick:${first.key}`,
+                  activity: first.activity,
+                }
+              : item,
+          ),
+        )
         setStep((value) => value + 1)
         return
       }
@@ -127,7 +153,7 @@ export function useMamMoments(
       // An action with an href is a Link: it navigates by itself.
       close()
     },
-    [accountId, close, queue],
+    [accountId, close, current],
   )
 
   return {

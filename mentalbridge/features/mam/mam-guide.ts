@@ -4,7 +4,7 @@
 import type { MamLoopingBehavior, MamOneShot } from './mam-contract'
 import { slottedMamAccountId } from './MamDockSlot'
 
-export type MamGuideStep = 'journal' | 'chat' | 'unwind'
+export type MamGuideStep = 'journal' | 'chat' | 'plan' | 'unwind'
 export type MamGuidePlan = 'FREE' | 'PLUS' | 'PREMIUM'
 export type MamGuideTier =
   | 'SELF_GUIDED_SUPPORT'
@@ -17,10 +17,23 @@ export type MamGuideEvent =
   | Readonly<{ type: 'chat-replied'; userTurns: number; plan: MamGuidePlan }>
   | Readonly<{ type: 'call-ended' }>
   | Readonly<{ type: 'resource-done' }>
+  // Owner 2026-11-27: the Support Plan step (a plan activated in the walk, a plan activity marked done).
+  | Readonly<{ type: 'plan-created' }>
+  | Readonly<{ type: 'plan-activity-done' }>
 
 /** What just happened, and which step Mầm offers next. */
 export type MamGuidePending = Readonly<{
-  after: 'result' | 'journal' | 'chat' | 'call' | 'relax' | 'reoffer'
+  after:
+    | 'result'
+    | 'journal'
+    | 'chat'
+    | 'call'
+    | 'relax'
+    | 'reoffer'
+    | 'plan-created'
+    | 'plan'
+    | 'plus'
+    | 'plan-later'
   next: MamGuideStep | 'graduate' | null
 }>
 
@@ -30,8 +43,10 @@ export interface MamGuideState {
   done: Partial<Record<MamGuideStep, string>>
   declined: Partial<Record<MamGuideStep, { at: string; reoffered: boolean }>>
   pending: MamGuidePending | null
-  unwindKind: 'call' | 'relax' | null
+  unwindKind: 'call' | 'relax' | 'plan' | null
   plan: MamGuidePlan | null
+  /** Plus: when the user activated a Support Plan during the walk. */
+  planCreatedAt?: string | null
   graduatedAt: string | null
 }
 
@@ -48,6 +63,10 @@ export type MamGuideGo =
   | 'stay'
   | 'remind'
   | 'pick'
+  // Support Plan step: create the plan, open today's first activity, see Plus (Free).
+  | 'plan'
+  | 'plan-today'
+  | 'plus'
 
 export type MamGuideAction = Readonly<{
   label: string
@@ -95,6 +114,11 @@ export function guideHref(go: MamGuideGo): string | null {
       return '/ai-companion?call=1'
     case 'relax':
       return `/resources/${RELAX_RESOURCE_ID}`
+    case 'plan':
+    case 'plan-today':
+      return '/support-plan'
+    case 'plus':
+      return '/subscription'
     default:
       return null
   }
@@ -107,7 +131,19 @@ export const MAM_GUIDE_CRUDE_WORDS = [
   'vl',
   'đéo',
 ] as const
-const ORDER: readonly MamGuideStep[] = ['journal', 'chat', 'unwind']
+const ORDER: readonly MamGuideStep[] = ['journal', 'chat', 'unwind', 'plan']
+// Plus makes the plan before practising, so its practice is the first plan activity (owner 2026-11-27);
+// Free practises a separate resource first, then hears about the plan once before graduating.
+const PAID_ORDER: readonly MamGuideStep[] = [
+  'journal',
+  'chat',
+  'plan',
+  'unwind',
+]
+const paidPlan = (plan: MamGuidePlan | null) =>
+  plan === 'PLUS' || plan === 'PREMIUM'
+const orderFor = (state: Pick<MamGuideState, 'plan'>) =>
+  paidPlan(state.plan) ? PAID_ORDER : ORDER
 const storageKey = (accountId: string) => `mb:mam-guide:v1:${accountId}`
 
 /** A story holds at least 4 s; the longer v2 lines get reading time (about 20 characters a second), up to 9 s. */
@@ -171,6 +207,8 @@ export function parseMamGuideEvent(
     case 'journal-created':
     case 'call-ended':
     case 'resource-done':
+    case 'plan-created':
+    case 'plan-activity-done':
       return { type: value.type }
     default:
       return null
@@ -200,9 +238,16 @@ export function writeGuide(accountId: string, state: MamGuideState) {
 
 /** The next step to offer: the first one neither done nor waiting after a decline. */
 function nextStep(state: MamGuideState): MamGuideStep | 'graduate' | null {
-  if (ORDER.every((step) => state.done[step])) return 'graduate'
+  const order = orderFor(state)
+  // The plan is an offer, never a gate: "Để sau" still lets the walk graduate.
+  if (
+    order.every(
+      (step) => state.done[step] || (step === 'plan' && state.declined.plan),
+    )
+  )
+    return 'graduate'
   return (
-    ORDER.find((step) => !state.done[step] && !state.declined[step]) ?? null
+    order.find((step) => !state.done[step] && !state.declined[step]) ?? null
   )
 }
 
@@ -261,9 +306,32 @@ export function reduceGuide(
         ? state
         : complete({ ...state, unwindKind: 'call' }, 'unwind', 'call', now)
     case 'resource-done':
+      // While a plan made in the walk waits for its first activity, practice counts through the plan.
+      if (state.planCreatedAt && !state.done.plan) return state
       return state.done.unwind
         ? state
         : complete({ ...state, unwindKind: 'relax' }, 'unwind', 'relax', now)
+    case 'plan-created':
+      return state.done.plan || state.planCreatedAt
+        ? state
+        : {
+            ...state,
+            planCreatedAt: now,
+            pending: { after: 'plan-created', next: 'plan' },
+          }
+    case 'plan-activity-done':
+      // A plan activity is tracked by day in "Hôm nay"; it also stands in for the separate unwind step.
+      if (state.done.plan || !paidPlan(state.plan)) return state
+      return complete(
+        {
+          ...state,
+          unwindKind: 'plan',
+          done: { ...state.done, unwind: state.done.unwind ?? now },
+        },
+        'plan',
+        'plan',
+        now,
+      )
   }
 }
 
@@ -276,6 +344,20 @@ export function actGuide(
   const offered = state.pending?.next
   const cleared = { ...state, pending: null }
   if (go === 'graduate') return { ...cleared, graduatedAt: now }
+  // Free, "Xem gói Plus": back from /subscription Mầm says she is still here, then graduates.
+  if (go === 'plus')
+    return {
+      ...cleared,
+      done: { ...state.done, plan: now },
+      pending: { after: 'plus', next: 'graduate' },
+    }
+  // Free, "Để sau đi" on the plan: one gentle line with a single graduate button; Home asks once more later.
+  if (go === 'decline' && offered === 'plan' && !paidPlan(state.plan))
+    return {
+      ...cleared,
+      declined: { ...state.declined, plan: { at: now, reoffered: false } },
+      pending: { after: 'plan-later', next: null },
+    }
   if (go === 'decline' && offered && offered !== 'graduate')
     return {
       ...cleared,
@@ -296,8 +378,10 @@ export function actGuide(
  */
 export function startGuideSession(state: MamGuideState): MamGuideState {
   if (state.graduatedAt || state.pending) return state
-  const step = ORDER.find(
+  const step = orderFor(state).find(
     (item) =>
+      // A declined plan is asked again once, from Home, not by the walk (owner 2026-11-27).
+      item !== 'plan' &&
       !state.done[item] &&
       state.declined[item] &&
       !state.declined[item]?.reoffered,
@@ -305,6 +389,7 @@ export function startGuideSession(state: MamGuideState): MamGuideState {
   if (!step) {
     // A step said no to twice keeps Mầm quiet: the side-path pickup is only for a walk left half way.
     if (Object.keys(state.declined).length) return state
+    if (state.pending) return state
     const open = nextStep(state)
     return open && open !== 'graduate'
       ? { ...state, pending: { after: 'reoffer', next: open } }
@@ -330,7 +415,40 @@ function offer(
   step: MamGuideStep,
   after: MamGuidePending['after'],
   plan: MamGuidePlan | null,
+  state: Pick<MamGuideState, 'planCreatedAt' | 'unwindKind'> = {
+    unwindKind: null,
+  },
 ): MamBubbleSpec {
+  if (step === 'plan' && paidPlan(plan))
+    return state.planCreatedAt
+      ? {
+          kind: 'ask',
+          text: 'Tạo xong rồi nè. Hôm nay mình thử luôn 1 việc nhỏ trong kế hoạch này nhé, để bạn thấy nó nhẹ như thế nào.',
+          motion: { loop: 'happy', shot: 'wave' },
+          actions: [
+            { label: 'Thử việc đầu tiên', tone: 'primary', go: 'plan-today' },
+            decline('Để mai làm'),
+          ],
+        }
+      : {
+          kind: 'ask',
+          text: 'Mầm nè, giờ Mầm dẫn bạn làm 1 cái hay hơn nè. Là Kế hoạch hỗ trợ, 14 ngày, mỗi ngày chỉ vài việc nhỏ thôi. Mầm sẽ nhắc bạn từng ngày, làm được thì khen, bỏ qua thì Mầm cũng không trách đâu.',
+          motion: { loop: 'explaining', shot: 'pop_up' },
+          actions: [
+            { label: 'Tạo kế hoạch với Mầm', tone: 'primary', go: 'plan' },
+            decline(),
+          ],
+        }
+  if (step === 'plan')
+    return {
+      kind: 'ask',
+      text: 'Cái này cần gói Plus mới tạo được. Bạn xem thử gói Plus nhé, xem thôi cũng được, không mua cũng không sao đâu.',
+      motion: { loop: 'curious', shot: 'look_around' },
+      actions: [
+        { label: 'Xem gói Plus', tone: 'primary', go: 'plus' },
+        decline(),
+      ],
+    }
   if (step === 'journal')
     return {
       kind: 'ask',
@@ -444,8 +562,31 @@ const REACTIONS: Record<MamGuidePending['after'], readonly MamBubbleSpec[]> = {
   relax: [
     {
       kind: 'story',
-      text: 'Thư giãn xong rồi, cơ thể bạn cũng được nghỉ một chút nè. Giờ trong người bạn thấy nhẹ hơn được chút nào chưa?',
-      motion: { loop: 'happy', shot: 'stretch' },
+      text: 'Thư giãn xong rồi, cơ thể bạn cũng được nghỉ một chút nè. Bạn thấy nhẹ hơn được chút nào chưa?',
+      motion: { loop: 'happy', shot: 'wave' },
+    },
+  ],
+  'plan-created': [],
+  plan: [
+    {
+      kind: 'story',
+      text: 'Xong rồi nè. Bạn thấy không, 5 phút thôi là xong 1 việc trong kế hoạch rồi. Từ giờ mỗi ngày Mầm sẽ nhắc bạn 1 chút như vậy nè.',
+      motion: { loop: 'idle', shot: 'wave' },
+    },
+  ],
+  plus: [
+    {
+      kind: 'story',
+      text: 'Bạn xem xong rồi nè. Khi nào bạn muốn có kế hoạch 14 ngày để Mầm nhắc mỗi ngày, bạn quay lại đây nhé. Mầm vẫn ở đây nè.',
+      motion: { loop: 'gentle', shot: 'nod' },
+    },
+  ],
+  'plan-later': [
+    {
+      kind: 'ask',
+      text: 'Ok, để sau cũng được, không sao đâu. Khi nào bạn muốn có kế hoạch để Mầm nhắc mỗi ngày, bạn bấm vào đây là được nè.',
+      motion: { loop: 'gentle', shot: 'wave' },
+      actions: [{ label: 'Chịu, Mầm ơi', tone: 'primary', go: 'graduate' }],
     },
   ],
   reoffer: [
@@ -457,6 +598,52 @@ const REACTIONS: Record<MamGuidePending['after'], readonly MamBubbleSpec[]> = {
   ],
 }
 
+const walked = (unwindKind: MamGuideState['unwindKind']) =>
+  unwindKind === 'call'
+    ? 'viết nhật ký, nhắn với Mầm, rồi gọi cho Mầm'
+    : unwindKind === 'plan'
+      ? 'viết nhật ký, nhắn với Mầm, rồi làm 1 việc trong kế hoạch'
+      : unwindKind === 'relax'
+        ? 'viết nhật ký, nhắn với Mầm, rồi nghe thư giãn'
+        : 'viết nhật ký và nhắn với Mầm'
+
+/** Free, before graduating: the plan, said once, without selling (owner 2026-11-27). */
+function planTeaser(unwindKind: MamGuideState['unwindKind']): MamBubbleSpec[] {
+  return [
+    {
+      kind: 'story',
+      text: `Mầm nè, nãy giờ bạn đã đi hết 1 vòng rồi đó: ${walked(unwindKind)}. Mà còn 1 cái hay hơn nữa, là Kế hoạch hỗ trợ.`,
+      motion: { loop: 'explaining' },
+    },
+    {
+      kind: 'story',
+      text: 'Kế hoạch này 14 ngày, mỗi ngày Mầm nhắc bạn làm 1 việc nhỏ thôi, kiểu viết 3 dòng, thở 3 phút, vậy đó. Làm được thì Mầm khen, bỏ qua thì Mầm cũng không trách đâu. Bạn không cần tự nhớ gì hết, Mầm nhớ giùm bạn.',
+      motion: { loop: 'explaining' },
+    },
+  ]
+}
+
+function freeGraduation(): MamBubbleSpec[] {
+  return [
+    {
+      kind: 'story',
+      text: 'Nè, bạn thấy không? Nãy giờ bạn đã tự đi hết 1 vòng rồi đó.',
+      motion: { loop: 'happy', shot: 'pop_up' },
+    },
+    {
+      kind: 'story',
+      text: 'Từ giờ Mầm sẽ không dẫn từng bước nữa đâu. Vì bạn biết đường rồi.',
+      motion: { loop: 'explaining', shot: 'wave' },
+    },
+    {
+      kind: 'ask',
+      text: 'Mệt mà muốn xả thì vào Nhật ký, muốn có người nghe thì nhắn Mầm. Muốn có kế hoạch để Mầm nhắc mỗi ngày thì vào Gói Plus nhé. Mầm vẫn ở góc này nè, chịu không?',
+      motion: { loop: 'idle', shot: 'wave' },
+      actions: [{ label: 'Chịu, Mầm ơi', tone: 'primary', go: 'graduate' }],
+    },
+  ]
+}
+
 function graduation(unwindKind: MamGuideState['unwindKind']): MamBubbleSpec[] {
   return [
     {
@@ -466,7 +653,7 @@ function graduation(unwindKind: MamGuideState['unwindKind']): MamBubbleSpec[] {
     },
     {
       kind: 'story',
-      text: `Nãy giờ bạn đã tự đi hết 1 vòng rồi đó: viết nhật ký, nhắn với Mầm, rồi ${unwindKind === 'call' ? 'gọi cho Mầm' : 'nghe thư giãn'}. Bạn tự đi được hết luôn, Mầm chỉ đi bên cạnh thôi đó.`,
+      text: `Nãy giờ bạn đã tự đi hết 1 vòng rồi đó: ${walked(unwindKind)}. Bạn tự đi được hết luôn, Mầm chỉ đi bên cạnh thôi đó.`,
       motion: { loop: 'explaining' },
     },
     {
@@ -486,11 +673,24 @@ function graduation(unwindKind: MamGuideState['unwindKind']): MamBubbleSpec[] {
 /** The bubbles of a pending sequence: what Mầm says about what happened, then the next offer. */
 export function sequenceFor(
   pending: MamGuidePending,
-  state: Pick<MamGuideState, 'plan' | 'unwindKind'>,
+  state: Pick<MamGuideState, 'plan' | 'unwindKind'> &
+    Partial<Pick<MamGuideState, 'planCreatedAt'>>,
 ): MamBubbleSpec[] {
   const lead = [...REACTIONS[pending.after]]
+  const paid = paidPlan(state.plan)
   if (pending.next === 'graduate')
-    return [...lead, ...graduation(state.unwindKind)]
+    return [
+      ...lead,
+      ...(paid ? graduation(state.unwindKind) : freeGraduation()),
+    ]
   if (!pending.next) return lead
-  return [...lead, offer(pending.next, pending.after, state.plan)]
+  return [
+    ...lead,
+    // Free hears about the plan in three beats, the last one asks.
+    ...(pending.next === 'plan' && !paid ? planTeaser(state.unwindKind) : []),
+    offer(pending.next, pending.after, state.plan, {
+      planCreatedAt: state.planCreatedAt,
+      unwindKind: state.unwindKind,
+    }),
+  ]
 }

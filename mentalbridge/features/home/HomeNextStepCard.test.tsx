@@ -134,7 +134,7 @@ describe('HomeNextStepCard', () => {
     expect(within(contextual).getAllByRole('link')).toHaveLength(2)
     expect(
       within(contextual).getByRole('link', {
-        name: 'Xem trước kế hoạch hỗ trợ',
+        name: 'Kế hoạch hỗ trợ · Cần Plus',
       }),
     ).toHaveAttribute('href', '/support-plan')
     expect(screen.queryByRole('link', { name: /Nâng cấp|Mua gói/ })).toBeNull()
@@ -162,7 +162,7 @@ describe('HomeNextStepCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
     expect(onRetry).toHaveBeenCalledOnce()
     expect(
-      screen.queryByRole('link', { name: 'Xem trước kế hoạch hỗ trợ' }),
+      screen.queryByRole('link', { name: 'Kế hoạch hỗ trợ · Cần Plus' }),
     ).toBeNull()
   })
 
