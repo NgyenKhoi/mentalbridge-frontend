@@ -78,10 +78,10 @@ test.describe('MB-672 Home next step', () => {
         page,
         page
           .getByRole('navigation', { name: 'Điều hướng chính', exact: true })
-          .getByRole('link', { name: 'Tổng quan', exact: true }),
+          .getByRole('link', { name: 'Hôm nay', exact: true }),
       )
       await expect(page).toHaveURL(/\/dashboard$/)
-      await expect(next).toContainText('Bạn đã xong việc hôm nay')
+      await expect(next).toContainText('Hôm nay bạn xong việc rồi nè')
       expect(world.homeReads).toBeGreaterThan(readsBeforeReturn)
       expect(world.occurrences[0].state).toBe('COMPLETED')
       expect(
@@ -192,7 +192,7 @@ test.describe('MB-672 Home next step', () => {
         ).toBeVisible()
         await expect(
           page.getByRole('heading', { name: 'Hành động nhanh', exact: true }),
-        ).toBeVisible()
+        ).toHaveCount(0)
         await expect(
           page.getByTestId('home-upcoming-appointment'),
         ).toBeVisible()
@@ -345,7 +345,9 @@ test.describe('MB-672 Home next step', () => {
     await expect(
       page.getByRole('link', { name: 'Bắt đầu bài sàng lọc', exact: true }),
     ).toBeVisible()
-    expect(world.homeReads).toBe(2)
+    // The retry reads again; Mầm's daily decision reads Home once more (mam-decide.ts), in any order.
+    expect(world.homeReads).toBeGreaterThanOrEqual(2)
+    expect(world.homeReads).toBeLessThanOrEqual(3)
   })
 
   for (const width of [1440, 375]) {
@@ -460,7 +462,7 @@ test.describe('MB-672 Home next step', () => {
       if (width === 375)
         await page
           .getByRole('navigation', { name: 'Điều hướng chính' })
-          .getByRole('link', { name: 'Tổng quan', exact: true })
+          .getByRole('link', { name: 'Hôm nay', exact: true })
           .click()
       const mood = page.locator('#emotion-check-in')
       await expect(
@@ -536,25 +538,14 @@ test.describe('MB-672 Home next step', () => {
       await expect(
         page.getByText(/Bạn đang ở ngày 6 của kế hoạch 14 ngày/),
       ).toHaveCount(plan ? 1 : 0)
-      const quick = page.getByRole('region', {
-        name: 'Hành động nhanh',
-        exact: true,
-      })
       await expect(
-        quick.getByRole('link', { name: /Viết nhật ký/ }),
-      ).toHaveAttribute('href', /journal/)
+        page.getByRole('region', { name: 'Hành động nhanh', exact: true }),
+      ).toHaveCount(0)
       await expect(
-        quick.getByRole('link', { name: /Bài sàng lọc/ }),
-      ).toHaveAttribute('href', plan ? '/assessments' : '/initial-check')
-      await expect(
-        quick.getByRole('link', { name: /Tìm chuyên gia/ }),
-      ).toHaveAttribute('href', '/specialists')
-      await expect(
-        quick.getByRole('link', { name: /Cộng đồng/ }),
-      ).toHaveAttribute('href', '/community')
-      await expect(
-        quick.getByRole('link', { name: /Tài nguyên/ }),
-      ).toHaveAttribute('href', '/resources')
+        page.getByRole('link', {
+          name: 'Hôm nay mệt? Chỉ ghi cảm xúc thôi cũng được',
+        }),
+      ).toHaveCount(1)
     })
   }
 

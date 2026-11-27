@@ -1,9 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { waitFor } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
+import { beforeEach, describe, expect, it } from 'vitest'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
+import { mockServer } from '@/tests/mocks/server'
+import {
+  refreshCompanionState,
+  resetCompanionStateForTests,
+} from './companion-state'
 import {
   appointmentMoments,
   lightestActivity,
+  markMomentSeen,
   missedDayStreak,
+  momentFits,
+  momentSeen,
   momentSpec,
   parseMamMoment,
   type MamMomentKind,
@@ -79,9 +89,70 @@ describe('Mầm moments copy (owner 2026-11-27)', () => {
       'plan-skipped',
       'plan-missed-days',
       'plan-reminder',
+      'screening-half',
+      'result-professional',
     ]
     for (const kind of kinds)
       expect(momentSpec({ kind, key: kind }).kind).not.toBe('consent')
+  })
+
+  it('screening-half is a story without buttons, in the owner words', () => {
+    expect(momentSpec({ kind: 'screening-half', key: 'k' })).toMatchObject({
+      kind: 'story',
+      text: 'Xong nửa rồi nè. Còn 7 câu nữa thôi, cứ chọn cái gần nhất với bạn.',
+    })
+    expect(momentSpec({ kind: 'screening-half', key: 'k' })).not.toHaveProperty(
+      'actions',
+    )
+  })
+
+  it('result-professional keeps the specialist as the main path and the chat as the quiet one, no cheer', () => {
+    const spec = momentSpec({ kind: 'result-professional', key: 'k' })
+    expect(spec).toMatchObject({
+      kind: 'ask',
+      text: 'Cảm ơn bạn đã làm xong nè. Kết quả này là lý do tốt để nói chuyện với chuyên gia. Mầm vẫn ở đây với bạn.',
+      actions: [
+        {
+          label: 'Tìm chuyên gia phù hợp',
+          tone: 'primary',
+          href: '/specialists',
+        },
+        {
+          label: 'Kể cho Mầm nghe trước',
+          tone: 'secondary',
+          href: '/ai-companion?opening=FROM_RESULT',
+        },
+      ],
+    })
+    // No celebration shot on a result that points to a specialist.
+    expect(
+      (spec as { motion?: { shot?: string } }).motion?.shot,
+    ).toBeUndefined()
+  })
+})
+
+describe('momentFits on the screening', () => {
+  it('speaks the screening moments there only, and keeps every other moment out of it', () => {
+    const half = { kind: 'screening-half', key: 'h' } as const
+    const result = { kind: 'result-professional', key: 'r' } as const
+    const reminder = { kind: 'plan-reminder', key: 'p' } as const
+    expect(momentFits(half, '/initial-check')).toBe(true)
+    expect(momentFits(result, '/initial-check')).toBe(true)
+    expect(momentFits(half, '/dashboard')).toBe(false)
+    expect(momentFits(result, '/support-guides/g1')).toBe(false)
+    expect(momentFits(reminder, '/initial-check')).toBe(false)
+    expect(momentFits(reminder, '/dashboard')).toBe(true)
+  })
+
+  it('parses the two new kinds', () => {
+    expect(parseMamMoment({ kind: 'screening-half', key: 'k' })).toEqual({
+      kind: 'screening-half',
+      key: 'k',
+    })
+    expect(parseMamMoment({ kind: 'result-professional', key: 'k' })).toEqual({
+      kind: 'result-professional',
+      key: 'k',
+    })
   })
 })
 
@@ -221,5 +292,53 @@ describe('parseMamMoment', () => {
     ).toEqual({ kind: 'guide-open', key: 'k' })
     expect(parseMamMoment({ kind: 'nope', key: 'k' })).toBeNull()
     expect(parseMamMoment({ kind: 'plan-skipped', key: '' })).toBeNull()
+  })
+})
+
+describe('moment seen keys and the server copy', () => {
+  const state = (seen: string[]) => ({
+    focus: null,
+    chapters: [],
+    commitments: [],
+    ui: { guide: null, seen },
+    revision: 1,
+  })
+
+  beforeEach(() => {
+    resetCompanionStateForTests()
+    localStorage.clear()
+  })
+
+  it('reads a key as seen when only the server has it', async () => {
+    mockServer.use(
+      http.get('/api/companion-state', () =>
+        HttpResponse.json(state(['confirmed:a1'])),
+      ),
+    )
+    expect(momentSeen('acc-seen', 'confirmed:a1')).toBe(false)
+
+    await refreshCompanionState('acc-seen')
+
+    expect(momentSeen('acc-seen', 'confirmed:a1')).toBe(true)
+    expect(momentSeen('acc-seen', 'confirmed:a2')).toBe(false)
+    expect(momentSeen('acc-other', 'confirmed:a1')).toBe(false)
+  })
+
+  it('marks a key seen locally at once and sends it to the server once, debounced', async () => {
+    const bodies: unknown[] = []
+    mockServer.use(
+      http.patch('/api/companion-state', async ({ request }) => {
+        bodies.push(await request.json())
+        return HttpResponse.json(state(['confirmed:a1']))
+      }),
+    )
+
+    markMomentSeen('acc-mark', 'confirmed:a1')
+    markMomentSeen('acc-mark', 'confirmed:a1')
+
+    expect(momentSeen('acc-mark', 'confirmed:a1')).toBe(true)
+    expect(bodies).toHaveLength(0)
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    expect(bodies[0]).toEqual({ seenAdd: ['confirmed:a1'] })
   })
 })

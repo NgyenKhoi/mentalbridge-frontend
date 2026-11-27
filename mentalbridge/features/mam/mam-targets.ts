@@ -193,7 +193,7 @@ export function mamReviewedAnswer(
     return { text: MAM_TARGET_DEFINITIONS[target.kind].explain }
   if (target.kind === 'dashboard.page' && isRegistered('home.next-step'))
     return {
-      text: 'Bắt đầu từ thẻ “Bước tiếp theo” nhé. Một việc nhỏ ở đó là đủ cho hôm nay.',
+      text: 'Bắt đầu từ thẻ “Hôm nay cùng Mầm” nhé. Một việc nhỏ ở đó là đủ cho hôm nay.',
       focusKind: 'home.next-step',
     }
   return null

@@ -2,6 +2,7 @@
 // specialist booking (KB2), explains the Support Guide, and comforts after a skipped or missed plan activity.
 // Pure: what to say for a moment, and which moment the current data calls for. The hook shows them.
 import type { Appointment } from '@/lib/consultation/consultation-validation'
+import { peekCompanionState, queueCompanionWrite } from './companion-state'
 import { readMamDaily, writeMamDaily, mamDailyKey } from './mam-daily'
 import type { MamBubbleSpec, MamGuideAction } from './mam-guide'
 
@@ -18,6 +19,8 @@ export type MamMomentKind =
   | 'plan-missed-days'
   | 'plan-reminder'
   | 'plan-reask'
+  | 'screening-half'
+  | 'result-professional'
 
 export type MamMoment = Readonly<{
   kind: MamMomentKind
@@ -167,15 +170,41 @@ export function momentSpec(moment: MamMoment): MamBubbleSpec {
         ],
         motion: { loop: 'gentle', shot: 'wave' },
       }
+    case 'screening-half':
+      return {
+        kind: 'story',
+        text: 'Xong nửa rồi nè. Còn 7 câu nữa thôi, cứ chọn cái gần nhất với bạn.',
+        motion: { loop: 'gentle', shot: 'nod' },
+      }
+    case 'result-professional':
+      // A result that points to a specialist: no celebration, the specialist stays the main path (care-support:47).
+      return {
+        kind: 'ask',
+        text: 'Cảm ơn bạn đã làm xong nè. Kết quả này là lý do tốt để nói chuyện với chuyên gia. Mầm vẫn ở đây với bạn.',
+        actions: [
+          act('Tìm chuyên gia phù hợp', 'primary', 'go', '/specialists'),
+          act(
+            'Kể cho Mầm nghe trước',
+            'secondary',
+            'go',
+            '/ai-companion?opening=FROM_RESULT',
+          ),
+        ],
+        motion: { loop: 'gentle' },
+      }
   }
 }
 
 const seenKey = (accountId: string, key: string) =>
   mamDailyKey('moment', accountId, key)
+/** Seen on this device, or on any device (the server copy, once it has been read). */
 export const momentSeen = (accountId: string, key: string) =>
-  readMamDaily(seenKey(accountId, key)) !== null
-export const markMomentSeen = (accountId: string, key: string) =>
+  readMamDaily(seenKey(accountId, key)) !== null ||
+  (peekCompanionState(accountId)?.ui.seen.includes(key) ?? false)
+export const markMomentSeen = (accountId: string, key: string) => {
   writeMamDaily(seenKey(accountId, key), '1')
+  queueCompanionWrite(accountId, { seen: key })
+}
 
 const fresh = (at: string | null, now: number) =>
   at !== null && now - Date.parse(at) <= MAM_MOMENT_FRESH_MS
@@ -285,6 +314,11 @@ export function momentFits(
   moment: MamMoment,
   pathname: string | null,
 ): boolean {
+  // The screening is not interrupted by anything else, and its own moments speak nowhere else.
+  const screening = pathname?.startsWith('/initial-check') ?? false
+  if (moment.kind === 'screening-half' || moment.kind === 'result-professional')
+    return screening
+  if (screening) return false
   if (moment.kind === 'guide-open' || moment.kind === 'guide-pick')
     return pathname?.startsWith('/support-guides') ?? false
   if (moment.kind === 'plan-reask') return pathname === '/dashboard'
@@ -309,6 +343,8 @@ const KINDS: readonly MamMomentKind[] = [
   'plan-missed-days',
   'plan-reminder',
   'plan-reask',
+  'screening-half',
+  'result-professional',
 ]
 const SAFE_HREF = /^\/[A-Za-z0-9/_?=&.%-]*$/
 

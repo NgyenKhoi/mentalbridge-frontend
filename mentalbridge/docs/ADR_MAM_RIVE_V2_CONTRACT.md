@@ -155,8 +155,8 @@ Gate A is a visual decision, not a test count: it stays open while the art or th
 | Mode   | Routes                                                                                                                                                                                                               |
 | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FULL   | `/dashboard`, `/achievements`, `/resources`, `/analytics`, `/nhin-lai`                                                                                                                                               |
-| QUIET  | `/journal`, `/ai-companion`, `/support-plan` (exact), `/support-guides`, `/support-guides/[id]`, `/appointments`, `/appointments/[id]`, `/messages`, `/notifications`, `/profile`, `/specialists`, `/resources/[id]` |
-| HIDDEN | `/appointments/[id]/chat`, `/appointments/[id]/video`, `/call/*`, `/assessments(/*)`, `/assessment/*`, `/initial-check`, `/safety-directory`, `/community/*`, `/subscription`, and any unknown route                 |
+| QUIET  | `/journal`, `/ai-companion`, `/support-plan` (exact), `/support-guides`, `/support-guides/[id]`, `/appointments`, `/appointments/[id]`, `/messages`, `/notifications`, `/profile`, `/specialists`, `/resources/[id]`, `/initial-check` (exact; mam-v3) |
+| HIDDEN | `/appointments/[id]/chat`, `/appointments/[id]/video`, `/call/*`, `/assessments(/*)`, `/assessment/*`, `/safety-directory`, `/community/*`, `/subscription`, and any unknown route                 |
 
 - **FULL:** visible; idle life at the normal cadence; celebrations and reactions; the welcome may play.
 - **QUIET:** visible and docked. Idle micro-actions (`stretch`, `look_around`, `scratch`) run at half the FULL cadence
@@ -167,7 +167,8 @@ Gate A is a visual decision, not a test count: it stays open while the art or th
 - **First-run guide (owner, 2026-11-26, mam-guide design):** the guide bubble (`MamGuideBubble`, `features/mam/mam-guide.ts`) is
   the one bubble allowed on FULL and QUIET routes alike: Mầm leads a new user through the result, the first journal, the
   first chat and a call or relaxation, then stops. It waits while Mầm is away, hidden, summoned, in her menu or on a
-  HIDDEN route (screening and its result stay Mầm-free; the result sequence plays on the next Mầm page). Stories hold
+  HIDDEN route (the standalone assessments stay Mầm-free; since mam-v3 `/initial-check` is QUIET and the result sequence
+  plays in place on its result step, hidden again whenever the result is SAFETY or its tier is unknown). Stories hold
   4–5 s and pause on a click elsewhere; asks wait; at most 2 clicks per sequence.
 - **HIDDEN:** `MamDock` renders nothing, so no host and no motion run there.
 - **Welcome (changes the V1-era rule above):** a wait that ends without playing (the 4 s cap, a failed start check or
@@ -376,3 +377,61 @@ Mầm notices what the user really does and how their days are going. It reacts 
 - QA: `?mamIntent=` is unchanged; `data-mam-intent` on the dock root is the test hook.
 - Rollback: removing the `useMamTrajectory` call from the host silences the feature; the dispatchers then send events nobody hears.
 - Known limits: "days since the last journal entry" and the previous journal mood are per device; a reassessment is answered only from the plan review; a celebration from a QUIET route waits at most 10 minutes. Fixed in round 2: a first moderate-or-higher screening (nothing to compare) now counts as moderate-or-higher in both the trajectory view and the look-back page model.
+
+## Mục tiêu của Mầm và bảng quyết định hằng ngày (mam-v3)
+
+Mirrors backend ADR 0053 (`mentalbridge-backend/docs/adr/0053-mam-companion-state-and-daily-decisions.md`, decision
+`MB-MAM-COMPANION-STATE-001`); the server stores the answers, this section owns the web wording and surfaces.
+
+### Mục tiêu của Mầm
+
+Mầm leads the user through one 14-day chặng around a focus the user picks after the first screening result, asks back the
+small promises ("lời hẹn") the user made, and at day 14 asks "Điều đó nhẹ đi chưa?". Objectives, in order:
+
+1. the user understands their own feelings;
+2. does small things regularly;
+3. reaches real people (a specialist, someone they trust) when needed;
+4. needs Mầm less over time.
+
+Mầm never optimises app opens or message counts. It never diagnoses, scores recovery, shames inactivity or changes a plan.
+Safety never waits on Mầm: she is hidden on safety surfaces and when the result is SAFETY (`CombinedMeaningCard` and the
+initial-check result both call `useMamSuppress('hide')`; an unknown tier hides her too). Every proactive line is fixed
+copy; a model call happens only after the user clicks.
+
+### Bảng quyết định hằng ngày
+
+`features/mam/mam-decide.ts` (pure, unit-tested) decides what Mầm does on the first FULL-route visit of a local day. The
+guide and the one-time moments keep their higher priority and never pass through it. First match wins.
+
+| #   | Condition                                                            | Mầm does                                      | Line (deterministic)                                                                                             |
+| --- | -------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 1   | PERSISTENT_LOW, FIRST_LOW, DIP_AFTER_GOOD                            | comforts (existing reaction)                  | the state's own line                                                                                             |
+| 2   | an OPEN lời hẹn due yesterday or today (and Home is not safety)      | asks about it                                 | "Hôm qua mình có hẹn {phrase} nè. Ghé thẻ Hôm nay kể Mầm nghe nhé." / today: "Hôm nay mình hẹn {phrase} nè, 5 phút thôi cũng được." |
+| 3   | the 14-day review is due (Care's `plan.focus === 'REVIEW_DUE'`)      | points to the look-back                       | "Tròn 14 ngày rồi nè. Mình cùng nhìn lại nhé?"                                                                  |
+| 4   | a screening exists, no focus, not asked in the last 3 days           | invites the focus pick                        | "14 ngày tới bạn muốn điều gì nhẹ đi? Chọn ở thẻ Hôm nay nhé."                                                  |
+| 5   | BOUNCE_BACK, IMPROVING, STEADY_GOOD, WELCOME_BACK, FLAT              | the existing reaction (cheer only if cheerable) | the state's own line                                                                                             |
+| 6   | anything else                                                        | silence                                       | -                                                                                                                |
+
+Inputs are levels, enums and dates only: the trajectory state, `mamCheerable`, the companion state (focus, due lời hẹn),
+Care's Home step (`journey.stage`, `plan.focus`, `nextAction`). A failed read silences the rows that need it (rows 2 and 4
+need the companion state; rows 2 to 4 are silent on a safety Home). The date Mầm last invited the focus pick is kept per
+device (`mentalbridge_mam_focus-ask:<account>`).
+
+Needing Mầm less: the daily bubble cap is 1 while the day's state is STEADY_GOOD, else `MAM_BUBBLE_CAP` (3). Comfort
+reactions always keep the full allowance (a low mood is never dropped to honour "less Mầm").
+
+### Surfaces
+
+- **Focus goal:** `MamFocusPicker` (radio chips, "Chọn điều này", quiet "Để sau") under the first screening result for the
+  SELF_GUIDED and PROFESSIONAL tiers, never on SAFETY or a reassessment; on the Home card as the chip "Mục tiêu 14 ngày:
+  {goal}" with "Đổi", or the quiet link "Chọn điều bạn muốn nhẹ đi" once a screening exists.
+- **Mầm at the screening:** QUIET on `/initial-check`; the moment `screening-half` (story, no buttons) when PHQ-9 is saved;
+  the guide's result sequence plays in place; the PROFESSIONAL tier has no guide, so the moment `result-professional` asks
+  with "Tìm chuyên gia phù hợp" (primary, `/specialists`) and "Kể cho Mầm nghe trước". No celebration motion on any result.
+  Moments that belong to other pages do not speak on `/initial-check`.
+- **Lời hẹn:** up to 3 open at a time (409 `COMMITMENT_LIMIT` → "Bạn đang có 3 lời hẹn rồi, làm xong một cái rồi hẹn thêm
+  nhé."). Made from the chat chip (source `CHAT`, ≥3 user messages, once per conversation per day), the Home swap picker
+  (`HOME`), "Mai Mầm nhắc mình nhé" after a plan skip (`PLAN_SKIP`, 5 minutes) and the session summary ("Hẹn Mầm nhắc mình
+  làm 1 bước", `SESSION`). The Home card asks "Xong rồi / Chưa / Đổi việc nhẹ hơn" with three secondary buttons; "Xong rồi"
+  also sends `mam:commitment-done` (ENCOURAGE, never a celebration). `CONNECT_PERSON` offers "Soạn tin cùng Mầm", and
+  `/ai-companion?draft=connect` fills the composer once; nothing is ever sent for the user.

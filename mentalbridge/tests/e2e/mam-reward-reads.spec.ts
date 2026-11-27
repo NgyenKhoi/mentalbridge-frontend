@@ -97,6 +97,22 @@ async function openGallery(page: Page) {
     bingo: 0,
   }
   await recordReads(page)
+  // The gallery's own popup for an unseen earned item would put a dialog over the dock: the baseline and the
+  // awards the scenarios add (unlocked 5 minutes in) count as already celebrated there.
+  const fresh = new Date(START.getTime() + 5 * MIN)
+  await page.addInitScript(
+    (keys) =>
+      localStorage.setItem(
+        'mentalbridge_seen_achievements',
+        JSON.stringify(keys),
+      ),
+    [
+      ...baseline(),
+      ...['Một', 'Hai', 'Ba'].map((title) =>
+        earned(`journal.${title}`, title, fresh),
+      ),
+    ].map((item) => `${item.definitionId}:${item.unlockedAt}`),
+  )
   await page.clock.install({ time: START })
   await installHomeMocks(page, homeWorld('nothing-today'))
   await page.route('**/api/achievements?*', (route) => {
@@ -308,7 +324,7 @@ test.describe('MB-774 Mầm reward reads', () => {
     const state = await openGallery(page)
     await page.goto('/achievements')
     await expect(
-      page.getByRole('heading', { name: 'Bộ sưu tập hành trình' }),
+      page.getByRole('heading', { name: 'Dấu mốc của bạn' }),
     ).toBeVisible()
     await expect.poll(() => state.achievements).toBeGreaterThan(0)
     const { achievements } = state
@@ -409,6 +425,8 @@ test.describe('MB-774 Mầm reward reads', () => {
         exact: true,
       })
       const before = (await bingoReads(page)).length
+      // The board lives in a dialog that the banner opens.
+      await section.getByRole('button', { name: 'Mở bảng Bingo' }).click()
       await toggle.click()
       await expect(toggle).toHaveAttribute('aria-pressed', 'true')
       // The save response is a read the director sees, and it has no award.

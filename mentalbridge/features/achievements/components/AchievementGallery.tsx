@@ -661,8 +661,8 @@ export default function AchievementGallery() {
   const filters: { value: AchievementFilter; label: string; count: number }[] =
     [
       { value: 'ALL', label: 'Tất cả', count: collection.items.length },
-      { value: 'EARNED', label: 'Đã đạt', count: earnedCount },
-      { value: 'UNEARNED', label: 'Chưa đạt', count: unearnedCount },
+      { value: 'EARNED', label: 'Đã có', count: earnedCount },
+      { value: 'UNEARNED', label: 'Sắp mở', count: unearnedCount },
     ]
   const hasUnavailable = collection.sources.some(
     ({ availability }) => availability === 'UNAVAILABLE',
@@ -705,10 +705,10 @@ export default function AchievementGallery() {
             <span className={styles.eyebrow} data-user-page-kicker>
               <LockKeyhole aria-hidden="true" /> Riêng tư cho bạn
             </span>
-            <h1>Bộ sưu tập hành trình</h1>
+            <h1>Dấu mốc của bạn</h1>
             <p className={styles.heroDesc}>
-              Những bước đã được lưu từ hoạt động của bạn. Không có xếp hạng hay
-              áp lực duy trì chuỗi.
+              Những lần bạn đã chăm sóc mình. Không có chuỗi nào bị mất; quay
+              lại lúc nào cũng được.
             </p>
             <p className={styles.heroQuote}>
               Mỗi hành động yêu thương bản thân, dù là một dòng nhật ký hay vài
@@ -854,7 +854,7 @@ export default function AchievementGallery() {
         <div
           className={styles.filterButtons}
           role="tablist"
-          aria-label="Trạng thái thành tựu"
+          aria-label="Trạng thái dấu mốc"
         >
           {filters.map((option) => (
             <button
@@ -892,9 +892,9 @@ export default function AchievementGallery() {
           <Leaf aria-hidden="true" />
           <h2>
             {filter === 'EARNED'
-              ? 'Chưa có thành tựu đã đạt'
+              ? 'Chưa có dấu mốc nào'
               : filter === 'UNEARNED'
-                ? 'Không có thành tựu chưa đạt trong bộ lọc này'
+                ? 'Chưa có dấu mốc nào đang chờ mở'
                 : 'Bộ sưu tập chưa có dấu mốc'}
           </h2>
           <p>
@@ -906,7 +906,7 @@ export default function AchievementGallery() {
           </p>
           {filter !== 'ALL' && (
             <button type="button" onClick={() => setFilter('ALL')}>
-              Xem tất cả thành tựu
+              Xem tất cả dấu mốc
             </button>
           )}
         </section>
@@ -954,7 +954,7 @@ export default function AchievementGallery() {
                     </div>
                   </div>
                   <span className={styles.domainCountBadge}>
-                    {earnedInDomain} / {eligibleTotalInDomain} Đạt
+                    {earnedInDomain} / {eligibleTotalInDomain} đã có
                   </span>
                 </header>
 

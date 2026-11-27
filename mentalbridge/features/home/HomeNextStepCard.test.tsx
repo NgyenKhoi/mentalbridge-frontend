@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CRISIS_SUPPORT_CONTENT } from '@/components/crisis-support/crisis-support-content'
 import HomeNextStepCard from './HomeNextStepCard'
@@ -298,7 +298,12 @@ describe('HomeNextStepCard', () => {
   })
 
   it.each([
-    ['TODAY_DONE', 'Bạn đã xong việc hôm nay', 'Xem kế hoạch', '/support-plan'],
+    [
+      'TODAY_DONE',
+      'Hôm nay bạn xong việc rồi nè',
+      'Xem kế hoạch',
+      '/support-plan',
+    ],
     [
       'NOTHING_TODAY',
       'Hôm nay không có việc nào trong kế hoạch',
@@ -313,7 +318,7 @@ describe('HomeNextStepCard', () => {
     ],
     [
       'REVIEW_DUE',
-      'Đến lúc nhìn lại 14 ngày qua',
+      '14 ngày rồi nè, mình nhìn lại nhé',
       'Làm bài đánh giá lại',
       '/initial-check?purpose=reassessment',
     ],
@@ -375,7 +380,7 @@ describe('HomeNextStepCard', () => {
 
       if (reassessed) {
         expect(
-          screen.getByRole('link', { name: 'Chọn nhịp tiếp theo' }),
+          screen.getByRole('link', { name: 'Chọn kế hoạch tiếp theo' }),
         ).toHaveAttribute('href', '/support-plan?review=open')
         expect(
           screen.getByRole('link', { name: 'Xem nhìn lại' }),
@@ -387,6 +392,130 @@ describe('HomeNextStepCard', () => {
       }
     },
   )
+
+  it('speaks in Mầm voice with one h2 and the step title below it', () => {
+    render(
+      <HomeNextStepCard
+        home={home({ plan: plan('DO_TODAY') })}
+        onRetry={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
+      'Hôm nay cùng Mầm',
+    )
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Đọc về giấc ngủ' }),
+    ).toBeVisible()
+    expect(
+      screen.getByText(
+        'Việc nhỏ hôm nay của bạn nè. Làm xong là đủ cho hôm nay.',
+      ),
+    ).toBeVisible()
+  })
+
+  it.each([
+    [firstUse, 'Bắt đầu bằng 5 phút hiểu mình'],
+    [
+      home({
+        journey: journey({ stage: 'GUIDE_REQUIRED', supportGuideId: null }),
+      }),
+      'Mầm đọc kết quả của bạn rồi',
+    ],
+  ])(
+    'names the screening and guide steps in Mầm voice (%#)',
+    (value, title) => {
+      render(<HomeNextStepCard home={value} onRetry={vi.fn()} />)
+      expect(
+        screen.getByRole('heading', { level: 3, name: title }),
+      ).toBeVisible()
+    },
+  )
+
+  it('says the plan-cycle choice without "nhịp"', () => {
+    const view = homeNextStepView(
+      home({
+        journey: journey({
+          latestScreening: {
+            episodeId: '10000000-0000-4000-8000-000000000673',
+            purpose: 'REASSESSMENT',
+            completedAt: '2026-11-04T01:00:00Z',
+            presentationEvaluationId: '20000000-0000-4000-8000-000000000673',
+            supportEvaluationId: '70000000-0000-4000-8000-000000000673',
+          },
+        }),
+        plan: plan('REVIEW_DUE'),
+      }),
+    )
+    expect(view.title).toBe('Đến lúc chọn kế hoạch cho 14 ngày tới')
+    expect(view.description).toBe(
+      'Bạn đã làm bài đánh giá lại. Xem Nhìn lại rồi chọn tiếp nhé.',
+    )
+    expect(view.primary.label).toBe('Chọn kế hoạch tiếp theo')
+    expect(view.description + view.title + view.primary.label).not.toMatch(
+      /nhịp/,
+    )
+  })
+
+  it.each([
+    ['TODAY_DONE', 'Nghỉ ngơi đi, mai Mầm nhắc tiếp.'],
+    ['NOTHING_TODAY', 'Hôm nay là ngày nghỉ trong kế hoạch.'],
+  ] as const)('describes %s in Mầm voice', (focus, description) => {
+    expect(homeNextStepView(home({ plan: plan(focus) })).description).toBe(
+      description,
+    )
+  })
+
+  describe('the light way out', () => {
+    const scrollIntoView = vi.fn()
+    beforeEach(() => {
+      scrollIntoView.mockReset()
+      Element.prototype.scrollIntoView = scrollIntoView
+    })
+
+    it.each([
+      ['a first screening', firstUse],
+      ['a plan occurrence', home({ plan: plan('DO_TODAY') })],
+      ['the review due', home({ plan: plan('REVIEW_DUE') })],
+    ])('is offered on %s and focuses the check-in heading', (_name, value) => {
+      render(
+        <>
+          <HomeNextStepCard home={value} onRetry={vi.fn()} />
+          <section id="emotion-check-in">
+            <h2 tabIndex={-1}>Cảm xúc hôm nay</h2>
+          </section>
+        </>,
+      )
+
+      const link = screen.getByRole('link', {
+        name: 'Hôm nay mệt? Chỉ ghi cảm xúc thôi cũng được',
+      })
+      expect(link).toHaveAttribute('href', '#emotion-check-in')
+      fireEvent.click(link)
+      expect(
+        screen.getByRole('heading', { name: 'Cảm xúc hôm nay' }),
+      ).toHaveFocus()
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        block: 'start',
+        behavior: expect.stringMatching(/smooth|instant/),
+      })
+    })
+
+    it('is absent on the safety step, whose h2 is the help header', () => {
+      render(
+        <HomeNextStepCard
+          home={home({
+            journey: journey({ nextAction: 'REVIEW_SAFETY_SUPPORT' }),
+          })}
+          onRetry={vi.fn()}
+        />,
+      )
+      expect(screen.queryByRole('link', { name: /Chỉ ghi cảm xúc/ })).toBeNull()
+      expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
+        'Hỗ trợ ngay',
+      )
+    })
+  })
 
   it('offers completed-plan history and redo without replacing the journey primary', () => {
     render(
@@ -413,7 +542,8 @@ describe('HomeNextStepCard', () => {
       screen.getByRole('link', { name: 'Làm lại kiểm tra' }),
     ).toHaveAttribute('href', '/initial-check')
     expect(screen.queryByRole('link', { name: 'Xem hướng dẫn' })).toBeNull()
-    expect(screen.getAllByRole('link')).toHaveLength(3)
+    // The primary, the two history links and the quiet check-in link.
+    expect(screen.getAllByRole('link')).toHaveLength(4)
   })
 
   it.each([false, true])(
@@ -448,7 +578,7 @@ describe('HomeNextStepCard', () => {
       expect(
         screen.queryByRole('link', { name: /đề xuất|Xem trước|Nâng cấp/ }),
       ).toBeNull()
-      expect(screen.queryByText('Đến lúc nhìn lại 14 ngày qua')).toBeNull()
+      expect(screen.queryByText('14 ngày rồi nè, mình nhìn lại nhé')).toBeNull()
     },
   )
 

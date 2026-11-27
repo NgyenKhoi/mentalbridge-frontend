@@ -430,7 +430,7 @@ export default function Hero() {
               </Link>
             </MagneticButton>
             <a href="#journey" className="hero-text-link">
-              Xem cách hoạt động <span aria-hidden="true">→</span>
+              Xem 14 ngày cùng Mầm <span aria-hidden="true">→</span>
             </a>
           </div>
         </div>

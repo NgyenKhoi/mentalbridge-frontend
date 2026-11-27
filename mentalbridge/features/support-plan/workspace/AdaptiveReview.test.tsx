@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { adaptiveReviewFixture } from '../testing/adaptive-review-fixture'
@@ -47,7 +47,7 @@ describe('AdaptiveReview new plan from the reassessment', () => {
     expect(onProposeReplacement).toHaveBeenCalledTimes(1)
     // Keeping the rhythm stays one of the options.
     expect(
-      screen.getByText('Giữ nhịp này thêm 14 ngày', { exact: false }),
+      screen.getByText('Giữ kế hoạch này thêm 14 ngày', { exact: false }),
     ).toBeInTheDocument()
   })
 
@@ -63,7 +63,7 @@ describe('AdaptiveReview new plan from the reassessment', () => {
 
   it('hides it when the host does not offer a replacement', async () => {
     renderReview()
-    await screen.findByText('Giữ nhịp này thêm 14 ngày', { exact: false })
+    await screen.findByText('Giữ kế hoạch này thêm 14 ngày', { exact: false })
     expect(screen.queryByRole('radio', { name: /Lập kế hoạch mới/ })).toBeNull()
   })
 
@@ -90,5 +90,50 @@ describe('AdaptiveReview new plan from the reassessment', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xem phương án mới' }))
     expect(onOpenAlternatives).toHaveBeenCalledOnce()
     expect(onProposeReplacement).not.toHaveBeenCalled()
+  })
+})
+
+describe('AdaptiveReview preferred option', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    api.getAdaptiveSupportPlanReview.mockResolvedValue(adaptiveReviewFixture())
+  })
+
+  const titles = () =>
+    screen
+      .getAllByRole('radio')
+      .map(
+        (radio) => radio.closest('label')?.querySelector('strong')?.textContent,
+      )
+
+  it('moves the matching Care option first and labels only it', async () => {
+    renderReview({ prefer: 'LOWER_WORKLOAD' })
+    await screen.findByText('Giữ kế hoạch này thêm 14 ngày', { exact: false })
+    expect(titles()[0]).toMatch(/^Làm nhẹ bớt/)
+    expect(screen.getAllByText('Hợp với điều bạn vừa chọn')).toHaveLength(1)
+  })
+
+  it('never moves a preferred option above a professional-support option', async () => {
+    const review = adaptiveReviewFixture()
+    const [keep, lower, professional] = review.options
+    api.getAdaptiveSupportPlanReview.mockResolvedValue({
+      ...review,
+      options: [professional, keep, lower],
+    })
+    renderReview({ prefer: 'LOWER_WORKLOAD' })
+    await screen.findByText('Trao đổi với chuyên gia', { exact: false })
+    expect(titles()[0]).toMatch(/^Trao đổi với chuyên gia/)
+    expect(titles()[1]).toMatch(/^Làm nhẹ bớt/)
+  })
+
+  it('changes nothing when no option has that kind', async () => {
+    renderReview()
+    await screen.findByText('Giữ kế hoạch này thêm 14 ngày', { exact: false })
+    const before = titles()
+    cleanup()
+    renderReview({ prefer: 'ALTERNATIVE_ACTION' })
+    await screen.findByText('Giữ kế hoạch này thêm 14 ngày', { exact: false })
+    expect(titles()).toEqual(before)
+    expect(screen.queryByText('Hợp với điều bạn vừa chọn')).toBeNull()
   })
 })

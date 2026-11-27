@@ -24,6 +24,7 @@ import {
   type SummaryDraft,
 } from '../model/session-summary-draft'
 import { PlanChangeRequestCard } from './PlanChangeRequestCard'
+import { SessionStepReminder } from './SessionStepReminder'
 import styles from './SessionSummaryPanel.module.css'
 
 type DraftStep = {
@@ -761,6 +762,7 @@ export function SessionSummaryPanel({
                 )}
               </div>
             ))}
+            {viewer === 'USER' && <SessionStepReminder />}
           </div>
         )}
         {viewer === 'USER' && latest && (

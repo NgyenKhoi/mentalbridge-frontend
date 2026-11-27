@@ -1,8 +1,15 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const api = vi.hoisted(() => ({ getLookBack: vi.fn() }))
 vi.mock('./browser-look-back', () => api)
+// The signed-in account comes from the dashboard layout's slot; only the question tests sign in.
+const slot = vi.hoisted(() => ({ accountId: null as string | null }))
+vi.mock('@/features/mam/MamDockSlot', () => ({
+  useMamAccountId: () => slot.accountId,
+  slottedMamAccountId: () => slot.accountId,
+}))
 vi.mock('@/features/resources/api/browser-resources', () => ({
   getResourceCatalogue: vi
     .fn()
@@ -19,7 +26,14 @@ import {
   makeDashboard,
   sparse,
 } from '@/tests/fixtures/look-back'
+import { resetCompanionStateForTests } from '@/features/mam/companion-state'
 import { isMamFeatureSuppressed } from '@/features/mam/mam-suppression'
+import {
+  localDate,
+  shiftDate,
+} from '@/features/resources/model/resource-experience'
+import type { CompanionState } from '@/lib/companion-state/contract'
+import { mockServer } from '@/tests/mocks/server'
 import { buildJourney } from './look-back-chapters'
 import { composeLookBack, type LookBack } from './look-back-model'
 import { narrativeCopy } from './look-back-copy'
@@ -78,10 +92,28 @@ const twoChapters = () => [
   summary('s2', '2026-10-25', '2026-11-08'),
 ]
 
+// The primary action is the first link; a quiet second one may follow.
 const nextLink = () =>
-  within(screen.getByRole('region', { name: 'Bước tiếp theo' })).getByRole(
+  within(screen.getByRole('region', { name: 'Bước tiếp theo' })).getAllByRole(
     'link',
-  )
+  )[0]
+
+// Five check-ins at "tốt" on plan days, nine at "không tốt" on the others.
+const helped = () =>
+  steady({
+    ...composeLookBack({
+      dashboard: makeDashboard([4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2], {
+        0: { supportCompleted: 1 },
+        1: { supportCompleted: 1 },
+        2: { supportCompleted: 1 },
+        3: { supportCompleted: 1 },
+        4: { supportCompleted: 1 },
+      }),
+      conversations: null,
+      progress: [],
+      degraded: false,
+    }),
+  })
 
 describe('LookBackPage', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -159,6 +191,36 @@ describe('LookBackPage', () => {
         .closest('section'),
     ).toHaveAttribute('data-page-motion', 'off')
     expect(screen.queryByText(/chúc mừng|tuyệt vời|thành tích/i)).toBeNull()
+  })
+
+  it('shows what seems to help, as an association, in its own section before the stats', async () => {
+    api.getLookBack.mockResolvedValue(helped())
+    render(<LookBackPage />)
+    const section = (
+      await screen.findByRole('heading', { name: 'Chặng này của bạn' })
+    ).closest('section')!
+    expect(
+      within(section).getByRole('heading', { name: 'Điều có vẻ giúp bạn' }),
+    ).toBeVisible()
+    expect(section).toHaveTextContent(
+      '5 ngày bạn làm ít nhất một việc trong kế hoạch, cảm xúc bạn ghi thường ở mức tốt. 9 ngày không làm: không tốt.',
+    )
+    expect(
+      screen.getByText(
+        'Số liệu do bạn tự ghi lại; xu hướng và điều cùng xuất hiện không phải chẩn đoán hay nguyên nhân.',
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText(/nhờ|vì|do việc/i)).toBeNull()
+  })
+
+  it('hides the whole section when there is nothing to say yet', async () => {
+    api.getLookBack.mockResolvedValue(improving())
+    render(<LookBackPage />)
+    await screen.findByText(narrativeCopy.IMPROVING)
+    expect(
+      screen.queryByRole('heading', { name: 'Chặng này của bạn' }),
+    ).toBeNull()
+    expect(screen.queryByText('Điều có vẻ giúp bạn')).toBeNull()
   })
 
   it('SPARSE: no chart, no sections, just the copy and the check-in step', async () => {
@@ -531,6 +593,24 @@ describe('LookBackPage', () => {
       ).toBeVisible()
     })
 
+    it('offers the explanation link only where the review choice shows', async () => {
+      api.getLookBack.mockResolvedValue(improving())
+      const { unmount } = render(<LookBackPage />)
+      await screen.findByText(narrativeCopy.IMPROVING)
+      expect(screen.queryByText('Nhờ Mầm giải thích các lựa chọn')).toBeNull()
+      unmount()
+      api.getLookBack.mockResolvedValue(
+        withJourney(pickable(), cycle({ state: 'REVIEW_DUE', currentDay: 14 })),
+      )
+      render(<LookBackPage />)
+      await screen.findByRole('heading', { name: /Chặng 3/ })
+      expect(nextLink()).toHaveAttribute(
+        'href',
+        '/initial-check?purpose=reassessment',
+      )
+      expect(screen.queryByText('Nhờ Mầm giải thích các lựa chọn')).toBeNull()
+    })
+
     it('puts the pending next step only on the chặng it concerns', async () => {
       // A closed cycle waits for the choice: only the newest closed chặng shows it.
       const closedBase = withJourney(
@@ -692,11 +772,13 @@ describe('LookBackPage', () => {
       expect(selected()).toEqual(['Chặng 201/11 – 14/11'])
       // One call to action, in the next-step card.
       const choose = screen.getAllByRole('link', {
-        name: /Chọn nhịp tiếp theo/,
+        name: /Chọn kế hoạch tiếp theo/,
       })
       expect(choose).toHaveLength(1)
       expect(choose[0]).toHaveAttribute('href', '/support-plan?review=open')
       expect(nextLink()).toBe(choose[0])
+      // No second route: a reading of the options cannot exist before a plan draft does.
+      expect(screen.queryByText(/Nhờ Mầm giải thích/)).toBeNull()
       expect(screen.queryByText('Tiếp tục kế hoạch hôm nay')).toBeNull()
       expect(screen.queryByText('Đang diễn ra')).toBeNull()
       expect(
@@ -745,6 +827,517 @@ describe('LookBackPage', () => {
       expect(
         screen.getByRole('link', { name: 'Tìm chuyên gia' }),
       ).toHaveAttribute('href', '/specialists')
+    })
+  })
+
+  describe('chapter questions', () => {
+    const stamp = '2026-11-27T02:00:00.000Z'
+    const commitmentId = '30000000-0000-4000-8000-000000000001'
+    let server: CompanionState
+    let patches: unknown[]
+    let posts: unknown[]
+    let limit: boolean
+    let failPatch: boolean
+
+    const setServer = (patch: Partial<CompanionState> = {}) => {
+      server = {
+        focus: null,
+        chapters: [],
+        commitments: [],
+        ui: { guide: null, seen: [] },
+        revision: 1,
+        ...patch,
+      }
+    }
+    const sleep = { goal: 'SLEEP', chosenOn: '2026-11-01' } as const
+
+    beforeEach(() => {
+      slot.accountId = 'acc-1'
+      resetCompanionStateForTests()
+      setServer()
+      patches = []
+      posts = []
+      limit = false
+      failPatch = false
+      mockServer.use(
+        http.get('/api/companion-state', () => HttpResponse.json(server)),
+        http.patch('/api/companion-state', async ({ request }) => {
+          if (failPatch)
+            return HttpResponse.json({ code: 'X' }, { status: 500 })
+          const body = (await request.json()) as {
+            chapter: CompanionState['chapters'][number]
+          }
+          patches.push(body)
+          const others = server.chapters.filter(
+            (item) => item.startedOn !== body.chapter.startedOn,
+          )
+          const merged = {
+            ...server.chapters.find(
+              (item) => item.startedOn === body.chapter.startedOn,
+            ),
+            ...body.chapter,
+            updatedAt: stamp,
+          }
+          server = {
+            ...server,
+            chapters: [...others, merged],
+            revision: server.revision + 1,
+          }
+          return HttpResponse.json(server)
+        }),
+        http.post('/api/companion-state/commitments', async ({ request }) => {
+          if (limit)
+            return HttpResponse.json(
+              {
+                type: '/problems/commitment_limit',
+                title: 'x',
+                status: 409,
+                code: 'COMMITMENT_LIMIT',
+                correlationId: 'c',
+              },
+              { status: 409 },
+            )
+          const body = (await request.json()) as Record<string, unknown>
+          posts.push(body)
+          return HttpResponse.json(
+            {
+              id: commitmentId,
+              ...body,
+              status: 'OPEN',
+              createdAt: stamp,
+              resolvedAt: null,
+            },
+            { status: 201 },
+          )
+        }),
+      )
+    })
+    afterEach(() => {
+      slot.accountId = null
+    })
+
+    // Two weeks of mood 3; `extra` shapes the plan activity per day (index 0-13, week 1 first).
+    const view = (
+      extra: Parameters<typeof makeDashboard>[1] = {},
+      plan: ReturnType<typeof cycle> | null = null,
+      patch: Partial<LookBack> = {},
+    ): LookBack => ({
+      ...composeLookBack({
+        dashboard: makeDashboard(Array(14).fill(3), extra),
+        conversations: null,
+        progress: [],
+        degraded: false,
+      }),
+      journey: buildJourney({
+        summaries: plan ? [] : twoChapters(),
+        dashboard: makeDashboard(Array(14).fill(4)),
+        cycle: plan,
+        timeZone: 'Asia/Ho_Chi_Minh',
+      }),
+      ...patch,
+    })
+    const closed = (
+      extra: Parameters<typeof makeDashboard>[1] = {},
+      patch: Partial<LookBack> = {},
+    ) => view(extra, null, patch)
+    const startOf = (data: LookBack) =>
+      data.journey!.chapters.at(-1)!.startLocalDate
+    const slipping = { 0: { supportCompleted: 2 }, 9: { supportCompleted: 1 } }
+    const radios = (name: string | RegExp) =>
+      within(screen.getByRole('radiogroup', { name })).getAllByRole('radio')
+    const heard = () => {
+      const events: unknown[] = []
+      const on = (event: Event) => {
+        const { kind, value, moderatePlus } = (event as CustomEvent).detail
+        events.push({ kind, value, moderatePlus })
+      }
+      window.addEventListener('mam:lookback-answer', on)
+      return {
+        events,
+        stop: () => window.removeEventListener('mam:lookback-answer', on),
+      }
+    }
+
+    it('with no focus asks only the connection question at the end of a closed chặng', async () => {
+      api.getLookBack.mockResolvedValue(closed())
+      render(<LookBackPage />)
+      expect(
+        await screen.findByRole('heading', { name: 'Kết nối' }),
+      ).toBeVisible()
+      expect(
+        screen.getByRole('heading', { name: 'Chặng này của bạn' }),
+      ).toBeVisible()
+      expect(screen.queryByText('Mục tiêu chặng này')).toBeNull()
+      expect(screen.queryByText(/nhẹ đi chưa/)).toBeNull()
+      expect(screen.queryByText('Điều gì cản bạn?')).toBeNull()
+    })
+
+    it('shows the goal while the chặng runs, and the rating and connection only from day 12', async () => {
+      setServer({ focus: sleep })
+      api.getLookBack.mockResolvedValue(view({}, cycle({ currentDay: 11 })))
+      const { unmount } = render(<LookBackPage />)
+      expect(
+        await screen.findByRole('heading', { name: 'Mục tiêu chặng này' }),
+      ).toBeVisible()
+      expect(screen.getByText('Giấc ngủ')).toBeVisible()
+      expect(screen.queryByText(/nhẹ đi chưa/)).toBeNull()
+      expect(screen.queryByRole('heading', { name: 'Kết nối' })).toBeNull()
+      unmount()
+
+      api.getLookBack.mockResolvedValue(view({}, cycle({ currentDay: 12 })))
+      render(<LookBackPage />)
+      expect(await screen.findByText(/nhẹ đi chưa/)).toBeVisible()
+      expect(screen.getByRole('heading', { name: 'Kết nối' })).toBeVisible()
+    })
+
+    it('stays out of the rolling 14 days and without a signed-in account', async () => {
+      setServer({ focus: sleep })
+      api.getLookBack.mockResolvedValue(
+        steady({
+          journey: buildJourney({
+            summaries: [],
+            dashboard: makeDashboard(Array(14).fill(4)),
+            cycle: null,
+            timeZone: 'Asia/Ho_Chi_Minh',
+          }),
+        }),
+      )
+      const { unmount } = render(<LookBackPage />)
+      await screen.findByRole('heading', { name: '14 ngày gần đây' })
+      expect(
+        screen.queryByRole('heading', { name: 'Chặng này của bạn' }),
+      ).toBeNull()
+      unmount()
+
+      slot.accountId = null
+      api.getLookBack.mockResolvedValue(closed())
+      render(<LookBackPage />)
+      await screen.findByRole('heading', { name: 'Chặng 2' })
+      expect(screen.queryByRole('heading', { name: 'Kết nối' })).toBeNull()
+    })
+
+    it('saves the rating with the goal, answers in place, and lets the user change it', async () => {
+      setServer({ focus: sleep })
+      const base = closed()
+      api.getLookBack.mockResolvedValue(base)
+      const { stop, events } = heard()
+      render(<LookBackPage />)
+      await screen.findByText(/nhẹ đi chưa/)
+      expect(radios(/nhẹ đi chưa/).map((item) => item.textContent)).toEqual([
+        'Nhẹ hơn',
+        'Như cũ',
+        'Nặng hơn',
+        'Chưa rõ',
+      ])
+      for (const radio of radios(/nhẹ đi chưa/))
+        expect(radio).toHaveAttribute('aria-checked', 'false')
+
+      fireEvent.click(screen.getByRole('radio', { name: 'Nhẹ hơn' }))
+      expect(
+        await screen.findByText(
+          'Vui cùng bạn nè. Mình giữ những việc đã giúp nhé.',
+        ),
+      ).toBeVisible()
+      expect(patches).toEqual([
+        {
+          chapter: {
+            startedOn: startOf(base),
+            goal: 'SLEEP',
+            rating: 'LIGHTER',
+          },
+        },
+      ])
+      expect(events).toEqual([
+        { kind: 'rating', value: 'LIGHTER', moderatePlus: false },
+      ])
+      // Answered: the answer and "Đổi" replace the chips, and focus stays on a control.
+      expect(
+        screen.queryByRole('radiogroup', { name: /nhẹ đi chưa/ }),
+      ).toBeNull()
+      const change = screen.getAllByRole('button', { name: 'Đổi' })[0]
+      expect(change).toHaveFocus()
+      expect(change).toHaveAccessibleDescription('Nhẹ hơn')
+      expect(screen.queryByRole('link', { name: 'Tìm chuyên gia' })).toBeNull()
+
+      fireEvent.click(change)
+      expect(screen.getByRole('radio', { name: 'Nhẹ hơn' })).toHaveAttribute(
+        'aria-checked',
+        'true',
+      )
+      expect(screen.getByRole('radio', { name: 'Nhẹ hơn' })).toHaveFocus()
+      fireEvent.click(screen.getByRole('radio', { name: 'Nặng hơn' }))
+      expect(await screen.findByText(/Cảm ơn bạn đã nói thật/)).toBeVisible()
+      expect(
+        screen.getByRole('link', { name: 'Tìm chuyên gia' }),
+      ).toHaveAttribute('href', '/specialists')
+      expect(events.at(-1)).toEqual({
+        kind: 'rating',
+        value: 'HEAVIER',
+        moderatePlus: false,
+      })
+      stop()
+    })
+
+    it.each([
+      ['Như cũ', /Có khi cần thêm thời gian/],
+      ['Chưa rõ', /Chưa rõ cũng là một câu trả lời/],
+    ])('replies to %s in place', async (label, reply) => {
+      setServer({ focus: sleep })
+      api.getLookBack.mockResolvedValue(closed())
+      render(<LookBackPage />)
+      await screen.findByText(/nhẹ đi chưa/)
+      fireEvent.click(screen.getByRole('radio', { name: label }))
+      expect(await screen.findByText(reply)).toBeVisible()
+    })
+
+    it('shows a saved answer straight away and tells Mầm when the band is moderate or worse', async () => {
+      const base = closed({}, { professionalPointer: true })
+      setServer({
+        focus: sleep,
+        chapters: [
+          { startedOn: startOf(base), rating: 'SAME', updatedAt: stamp },
+        ],
+      })
+      api.getLookBack.mockResolvedValue(base)
+      const { stop, events } = heard()
+      render(<LookBackPage />)
+      expect(await screen.findByText(/Có khi cần thêm thời gian/)).toBeVisible()
+      fireEvent.click(screen.getAllByRole('button', { name: 'Đổi' })[0])
+      fireEvent.click(screen.getByRole('radio', { name: 'Chưa rõ' }))
+      await screen.findByText(/Chưa rõ cũng là/)
+      expect(events).toEqual([
+        { kind: 'rating', value: 'UNSURE', moderatePlus: true },
+      ])
+      stop()
+    })
+
+    it('arrow keys move between chips without answering', async () => {
+      setServer({ focus: sleep })
+      api.getLookBack.mockResolvedValue(closed())
+      render(<LookBackPage />)
+      await screen.findByText(/nhẹ đi chưa/)
+      const [first, second, , last] = radios(/nhẹ đi chưa/)
+      expect(first).toHaveAttribute('tabindex', '0')
+      expect(second).toHaveAttribute('tabindex', '-1')
+      first.focus()
+      fireEvent.keyDown(first, { key: 'ArrowRight' })
+      expect(second).toHaveFocus()
+      fireEvent.keyDown(second, { key: 'ArrowLeft' })
+      fireEvent.keyDown(first, { key: 'ArrowUp' })
+      expect(last).toHaveFocus()
+      fireEvent.keyDown(last, { key: 'Home' })
+      expect(first).toHaveFocus()
+      fireEvent.keyDown(first, { key: 'End' })
+      expect(last).toHaveFocus()
+      expect(patches).toEqual([])
+    })
+
+    it('keeps the chips and says so when the answer could not be saved', async () => {
+      setServer({ focus: sleep })
+      failPatch = true
+      api.getLookBack.mockResolvedValue(closed())
+      const { stop, events } = heard()
+      render(<LookBackPage />)
+      await screen.findByText(/nhẹ đi chưa/)
+      fireEvent.click(screen.getByRole('radio', { name: 'Như cũ' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Chưa lưu được',
+      )
+      expect(screen.getByRole('radio', { name: 'Như cũ' })).toHaveAttribute(
+        'aria-checked',
+        'false',
+      )
+      expect(events).toEqual([])
+      stop()
+    })
+
+    it('asks what got in the way only when week 2 slipped, and links the matching review option', async () => {
+      api.getLookBack.mockResolvedValue(closed())
+      const first = render(<LookBackPage />)
+      await screen.findByRole('heading', { name: 'Kết nối' })
+      expect(
+        screen.queryByRole('heading', { name: 'Điều gì cản bạn?' }),
+      ).toBeNull()
+      first.unmount()
+
+      // Week 2 did less than week 1.
+      const base = closed(slipping)
+      api.getLookBack.mockResolvedValue(base)
+      const { stop, events } = heard()
+      render(<LookBackPage />)
+      expect(
+        await screen.findByRole('heading', { name: 'Điều gì cản bạn?' }),
+      ).toBeVisible()
+      expect(
+        radios('Điều gì cản bạn?').map((item) => item.textContent),
+      ).toEqual([
+        'Bận quá',
+        'Hay quên',
+        'Không còn sức',
+        'Việc không hợp',
+        'Lý do khác',
+      ])
+      fireEvent.click(screen.getByRole('radio', { name: 'Không còn sức' }))
+      expect(
+        await screen.findByText(
+          'Hiểu rồi nè. Mình chọn kế hoạch nhẹ hơn cho chặng sau nhé.',
+        ),
+      ).toBeVisible()
+      expect(patches).toEqual([
+        { chapter: { startedOn: startOf(base), obstacle: 'LOW_ENERGY' } },
+      ])
+      expect(
+        screen.getByRole('link', { name: 'Xem lựa chọn phù hợp' }),
+      ).toHaveAttribute(
+        'href',
+        '/support-plan?review=open&prefer=LOWER_WORKLOAD',
+      )
+      expect(events).toEqual([
+        { kind: 'obstacle', value: 'LOW_ENERGY', moderatePlus: false },
+      ])
+      stop()
+    })
+
+    it('also asks when week 2 skipped an activity, but not on a part-lived week 2 that merely did less', async () => {
+      api.getLookBack.mockResolvedValue(closed({ 10: { supportSkipped: 1 } }))
+      const first = render(<LookBackPage />)
+      expect(
+        await screen.findByRole('heading', { name: 'Điều gì cản bạn?' }),
+      ).toBeVisible()
+      first.unmount()
+
+      // Day 9 of a running chặng: week 2 has two days, so "less than week 1" says nothing yet.
+      const early = view(slipping, cycle({ currentDay: 9 }))
+      api.getLookBack.mockResolvedValue({
+        ...early,
+        days: early.days.slice(0, 9),
+      })
+      render(<LookBackPage />)
+      await screen.findByRole('heading', { name: /ngày 9[/]14/ })
+      expect(
+        screen.queryByRole('heading', { name: 'Điều gì cản bạn?' }),
+      ).toBeNull()
+    })
+
+    it.each([
+      ['Bận quá', 'DIFFERENT_TIME'],
+      ['Hay quên', 'DIFFERENT_TIME'],
+      ['Việc không hợp', 'ALTERNATIVE_ACTION'],
+      ['Lý do khác', null],
+    ])('maps the obstacle %s to prefer=%s', async (label, prefer) => {
+      api.getLookBack.mockResolvedValue(closed(slipping))
+      render(<LookBackPage />)
+      await screen.findByRole('heading', { name: 'Điều gì cản bạn?' })
+      fireEvent.click(screen.getByRole('radio', { name: label }))
+      expect(
+        await screen.findByRole('link', { name: 'Xem lựa chọn phù hợp' }),
+      ).toHaveAttribute(
+        'href',
+        prefer
+          ? `/support-plan?review=open&prefer=${prefer}`
+          : '/support-plan?review=open',
+      )
+    })
+
+    it('"Rồi" ends there; "Chưa" offers a draft with Mầm and a lời hẹn for tomorrow', async () => {
+      const base = closed()
+      api.getLookBack.mockResolvedValue(base)
+      const { stop, events } = heard()
+      render(<LookBackPage />)
+      await screen.findByRole('heading', { name: 'Kết nối' })
+      expect(
+        radios(/nói chuyện thật lòng/).map((item) => item.textContent),
+      ).toEqual(['Rồi', 'Chưa', 'Không muốn nói'])
+      fireEvent.click(screen.getByRole('radio', { name: 'Rồi' }))
+      await screen.findByRole('button', { name: 'Đổi' })
+      expect(
+        screen.queryByRole('link', { name: 'Soạn tin cùng Mầm' }),
+      ).toBeNull()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Đổi' }))
+      fireEvent.click(screen.getByRole('radio', { name: 'Chưa' }))
+      expect(
+        await screen.findByText(
+          'Thử nhắn cho một người bạn tin nhé, ngắn thôi cũng được.',
+        ),
+      ).toBeVisible()
+      expect(patches.at(-1)).toEqual({
+        chapter: { startedOn: startOf(base), connected: 'NOT_YET' },
+      })
+      expect(
+        screen.getByRole('link', { name: 'Soạn tin cùng Mầm' }),
+      ).toHaveAttribute('href', '/ai-companion?draft=connect')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Hẹn Mầm mai nhắc' }))
+      const booked = await screen.findByRole('button', {
+        name: 'Đã hẹn, mai Mầm hỏi bạn',
+      })
+      expect(booked).toHaveAttribute('aria-disabled', 'true')
+      expect(posts).toEqual([
+        {
+          kind: 'CONNECT_PERSON',
+          minutes: null,
+          dueOn: shiftDate(localDate(), 1),
+          source: 'LOOK_BACK',
+        },
+      ])
+      // Pressing it again books nothing more.
+      fireEvent.click(booked)
+      expect(posts).toHaveLength(1)
+      expect(events).toEqual([
+        { kind: 'connected', value: 'YES', moderatePlus: false },
+        { kind: 'connected', value: 'NOT_YET', moderatePlus: false },
+      ])
+      stop()
+    })
+
+    it('says three lời hẹn are already open instead of booking a fourth', async () => {
+      const base = closed()
+      setServer({
+        chapters: [
+          { startedOn: startOf(base), connected: 'NOT_YET', updatedAt: stamp },
+        ],
+      })
+      limit = true
+      api.getLookBack.mockResolvedValue(base)
+      render(<LookBackPage />)
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Hẹn Mầm mai nhắc' }),
+      )
+      expect(
+        await screen.findByText(
+          'Bạn đang có 3 lời hẹn rồi, làm xong một cái rồi hẹn thêm nhé.',
+        ),
+      ).toBeVisible()
+      expect(
+        screen.getByRole('button', { name: 'Hẹn Mầm mai nhắc' }),
+      ).not.toHaveAttribute('aria-disabled')
+    })
+
+    it('shows a lời hẹn already made as booked after a reload', async () => {
+      const base = closed()
+      setServer({
+        chapters: [
+          { startedOn: startOf(base), connected: 'NOT_YET', updatedAt: stamp },
+        ],
+        commitments: [
+          {
+            id: commitmentId,
+            kind: 'CONNECT_PERSON',
+            minutes: null,
+            dueOn: shiftDate(localDate(), 1),
+            source: 'LOOK_BACK',
+            status: 'OPEN',
+            createdAt: stamp,
+            resolvedAt: null,
+          },
+        ],
+      })
+      api.getLookBack.mockResolvedValue(base)
+      render(<LookBackPage />)
+      expect(
+        await screen.findByRole('button', { name: 'Đã hẹn, mai Mầm hỏi bạn' }),
+      ).toBeVisible()
     })
   })
 })

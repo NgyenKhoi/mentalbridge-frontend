@@ -154,7 +154,7 @@ export default function TodayOverview({
           )}
           {dates.length > 0 && (
             <div className="mbw-week-calendar">
-              <span className="mbw-week-caption">Nhịp tuần của bạn</span>
+              <span className="mbw-week-caption">Tuần này của bạn</span>
               <ol className="mbw-week-days" aria-label="Các ngày trong tuần">
                 {dates.map((date, index) => {
                   const known =

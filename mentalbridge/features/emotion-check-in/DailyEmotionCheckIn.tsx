@@ -409,7 +409,9 @@ export function DailyEmotionCheckIn({
       )}
       {phase !== 'saved' && (
         <header className={styles.header}>
-          <h2 className={styles.title}>Cảm xúc hôm nay</h2>
+          <h2 tabIndex={-1} className={styles.title}>
+            Cảm xúc hôm nay
+          </h2>
           <p className={styles.subtitle}>
             Chọn cảm xúc gần nhất với bạn lúc này
           </p>
@@ -457,7 +459,7 @@ export function DailyEmotionCheckIn({
               <path className={styles.tick} d="m5 13 4 4L19 7" />
             </svg>
           </div>
-          <h2 className={styles.savedTitle}>
+          <h2 tabIndex={-1} className={styles.savedTitle}>
             Đã ghi nhận: {emotionPresentation[persisted.emotion].label}
           </h2>
           <p>Cảm ơn bạn đã dành chút thời gian cho mình.</p>

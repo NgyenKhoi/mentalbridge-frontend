@@ -11,7 +11,9 @@ import {
   reduceGuide,
   sequenceFor,
   startGuideSession,
+  syncGuideFromServer,
   writeGuide,
+  writeGuideLocal,
   type MamBubbleSpec,
   type MamGuideAction,
   type MamGuideMotion,
@@ -86,27 +88,45 @@ export function useMamGuide(
     [accountId],
   )
 
-  // Storage is read after mount (it differs from the server render), like the other Mầm state.
+  // Storage is read after mount (it differs from the server render), like the other Mầm state. Then the
+  // server copy is read once: it wins over the local cache (a new device picks up where the user left off).
   useEffect(() => {
+    let cancelled = false
+    const begin = (id: string, guide: MamGuideState | null) => {
+      let loaded = guide
+      try {
+        if (loaded && !sessionStorage.getItem(sessionKey(id))) {
+          sessionStorage.setItem(sessionKey(id), '1')
+          const session = startGuideSession(loaded)
+          if (session !== loaded) writeGuide(id, (loaded = session))
+        }
+      } catch {
+        // Storage blocked: no reoffer this session.
+      }
+      return loaded
+    }
     const timer = window.setTimeout(() => {
       if (!accountId) {
         setState(null)
         return
       }
-      let loaded = readGuide(accountId)
-      try {
-        if (loaded && !sessionStorage.getItem(sessionKey(accountId))) {
-          sessionStorage.setItem(sessionKey(accountId), '1')
-          const session = startGuideSession(loaded)
-          if (session !== loaded) writeGuide(accountId, (loaded = session))
-        }
-      } catch {
-        // Storage blocked: no reoffer this session.
-      }
-      setState(loaded)
+      const local = begin(accountId, readGuide(accountId))
+      // The ref moves now, not after the render: the server answer is compared against it.
+      stateRef.current = local
+      setState(local)
       setIndex(storedIndex(accountId))
+      void syncGuideFromServer(accountId).then((remote) => {
+        // An answer given while the server was read is newer than that copy: keep it.
+        if (cancelled || !remote || stateRef.current !== local) return
+        writeGuideLocal(accountId, remote)
+        setState(begin(accountId, remote))
+        setIndex(storedIndex(accountId))
+      })
     }, 0)
-    return () => window.clearTimeout(timer)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
   }, [accountId])
 
   useEffect(() => {

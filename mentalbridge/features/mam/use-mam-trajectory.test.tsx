@@ -1,15 +1,22 @@
 import { act, renderHook } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { getHomeNextStep } from '@/features/home/browser-home-next-step'
+import { mockServer } from '@/tests/mocks/server'
 import { getMamTrajectory } from './browser-mam-trajectory'
+import { resetCompanionStateForTests } from './companion-state'
 import type { MamBandStatus, MamTrajectoryView } from './mam-trajectory-source'
-import { resetMamDailyMemory } from './mam-daily'
+import { mamDailyKey, readMamDaily, resetMamDailyMemory } from './mam-daily'
 import { MAM_LINES, resetMamLines } from './mam-lines'
 import { mamEventName, type MamEvent } from './mam-events'
 import { useMamTrajectory } from './use-mam-trajectory'
 
 vi.mock('./browser-mam-trajectory', () => ({
   getMamTrajectory: vi.fn(),
+}))
+vi.mock('@/features/home/browser-home-next-step', () => ({
+  getHomeNextStep: vi.fn().mockRejectedValue(new Error('no home')),
 }))
 const lookBack = vi.mocked(getMamTrajectory)
 
@@ -83,6 +90,167 @@ describe('useMamTrajectory', () => {
     lookBack.mockResolvedValue(view([4, 4, 4, 4]))
   })
   afterEach(() => vi.useRealTimers())
+
+  describe('the daily decision table (mam-v3)', () => {
+    const serveState = (state: { focus?: unknown; commitments?: unknown[] }) =>
+      mockServer.use(
+        http.get('/api/companion-state', () =>
+          HttpResponse.json({
+            focus: null,
+            chapters: [],
+            commitments: [],
+            ui: { guide: null, seen: [] },
+            revision: 1,
+            ...state,
+          }),
+        ),
+      )
+    const open = (patch: object = {}) => ({
+      id: '30000000-0000-4000-8000-000000000001',
+      kind: 'REST',
+      minutes: 5,
+      dueOn: shift(-1),
+      source: 'HOME',
+      status: 'OPEN',
+      createdAt: '2026-11-19T08:00:00.000Z',
+      resolvedAt: null,
+      ...patch,
+    })
+    const home = (patch: object = {}) =>
+      ({
+        journey: { stage: 'GUIDE_READY', nextAction: 'OPEN_GUIDE' },
+        plan: null,
+        ...patch,
+      }) as never
+    beforeEach(() => {
+      resetCompanionStateForTests()
+      vi.mocked(getHomeNextStep).mockReset()
+      vi.mocked(getHomeNextStep).mockResolvedValue(home())
+    })
+    afterEach(() =>
+      vi.mocked(getHomeNextStep).mockRejectedValue(new Error('no home')),
+    )
+
+    it('a failed Home read counts as safety: no lời hẹn, review or focus line speaks', async () => {
+      serveState({ commitments: [open()] })
+      vi.mocked(getHomeNextStep).mockRejectedValue(new Error('no home'))
+      const { result } = mount()
+      await flush()
+      expect(result.current.reaction?.text ?? '').not.toMatch(/hẹn|14 ngày/)
+    })
+
+    it('records the focus invite as asked only when the bubble is really shown', async () => {
+      serveState({})
+      const askKey = mamDailyKey('focus-ask', ACCOUNT)
+      const waiting = mount({ ready: false })
+      await flush()
+      expect(waiting.result.current.reaction).toBeNull()
+      expect(readMamDaily(askKey)).toBeNull()
+      waiting.rerender({ ...FULL, ready: true })
+      await flush()
+      expect(waiting.result.current.reaction?.text).toMatch(/^14 ngày tới/)
+      expect(readMamDaily(askKey)).toBe(TODAY)
+    })
+
+    it('asks about yesterday lời hẹn instead of cheering a good week', async () => {
+      serveState({ commitments: [open()] })
+      const { result } = mount()
+      await flush()
+      expect(result.current.reaction).toMatchObject({ intent: 'LISTEN' })
+      expect(result.current.reaction?.text).toBe(
+        'Hôm qua mình có hẹn nghỉ ngơi hoặc ngủ sớm hơn nè. Ghé thẻ Hôm nay kể Mầm nghe nhé.',
+      )
+    })
+
+    it('still comforts first when the day is low, whatever is promised', async () => {
+      lookBack.mockResolvedValue(view([4, 5, 4, 2]))
+      serveState({ commitments: [open()] })
+      const { result } = mount()
+      await flush()
+      expect(result.current.reaction).toMatchObject({ intent: 'COMFORT' })
+    })
+
+    it('points to the look-back when Care says the review is due', async () => {
+      serveState({})
+      vi.mocked(getHomeNextStep).mockResolvedValue(
+        home({ plan: { focus: 'REVIEW_DUE' } }),
+      )
+      const { result } = mount()
+      await flush()
+      expect(result.current.reaction?.text).toBe(
+        'Tròn 14 ngày rồi nè. Mình cùng nhìn lại nhé?',
+      )
+    })
+
+    it('invites the focus pick after a screening, and not again within 3 days', async () => {
+      serveState({})
+      vi.mocked(getHomeNextStep).mockResolvedValue(home())
+      const first = mount()
+      await flush()
+      expect(first.result.current.reaction?.text).toBe(
+        '14 ngày tới bạn muốn điều gì nhẹ đi? Chọn ở thẻ Hôm nay nhé.',
+      )
+      first.unmount()
+
+      // The next day it is 1 day since the invite: Mầm keeps quiet instead of nagging.
+      vi.setSystemTime(new Date('2026-11-21T09:00:00'))
+      lookBack.mockResolvedValue(
+        view([4, null, null, null, null], { asOfLocalDate: '2026-11-21' }),
+      )
+      const second = mount()
+      await flush()
+      expect(second.result.current.reaction).toBeNull()
+    })
+
+    it('stays silent with the focus chosen, no screening, or a safety Home', async () => {
+      lookBack.mockResolvedValue(view([4, null, null]))
+      serveState({ focus: { goal: 'SLEEP', chosenOn: shift(-2) } })
+      vi.mocked(getHomeNextStep).mockResolvedValue(home())
+      const chosen = mount()
+      await flush()
+      expect(chosen.result.current.reaction).toBeNull()
+      chosen.unmount()
+
+      window.localStorage.clear()
+      resetMamDailyMemory()
+      resetCompanionStateForTests()
+      serveState({ commitments: [open()] })
+      vi.mocked(getHomeNextStep).mockResolvedValue(
+        home({
+          journey: {
+            stage: 'GUIDE_READY',
+            nextAction: 'REVIEW_SAFETY_SUPPORT',
+          },
+        }),
+      )
+      const safety = mount()
+      await flush()
+      expect(safety.result.current.reaction).toBeNull()
+    })
+
+    it('speaks once on a steady-good day, but comfort keeps its full allowance', async () => {
+      vi.useRealTimers()
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(`${TODAY}T09:00:00`))
+      serveState({ focus: { goal: 'SLEEP', chosenOn: shift(-2) } })
+      const { result } = mount()
+      await flush()
+      expect(result.current.reaction).toMatchObject({ intent: 'HAPPY' })
+      act(() => result.current.dismiss())
+
+      // 61 s later: an ordinary reaction is past the one-a-day cap and is dropped...
+      vi.setSystemTime(new Date(`${TODAY}T09:01:01`))
+      fire({ type: 'resource-done' })
+      await flush()
+      expect(result.current.reaction).toBeNull()
+
+      // ...a low journal mood still gets its comfort.
+      vi.setSystemTime(new Date(`${TODAY}T09:03:00`))
+      fire({ type: 'journal-saved' }, { mood: 'LOW' })
+      await flush()
+      expect(result.current.reaction).toMatchObject({ intent: 'COMFORT' })
+    })
+  })
 
   describe('the daily moment', () => {
     it('answers the first FULL visit of the day once, with a line of its state and the intent', async () => {
@@ -287,6 +455,28 @@ describe('useMamTrajectory', () => {
       await flush()
       expect(result.current.reaction).toBeNull()
     })
+
+    it.each([
+      ['rating', 'LIGHTER', false, 'HAPPY'],
+      ['rating', 'LIGHTER', true, 'LISTEN'],
+      ['rating', 'HEAVIER', false, 'COMFORT'],
+      ['rating', 'SAME', false, 'LISTEN'],
+      ['obstacle', 'BUSY', false, 'LISTEN'],
+      ['connected', 'NOT_YET', false, 'LISTEN'],
+    ])(
+      'a look-back %s answer %s (band moderate or higher: %s) plays %s, never a celebration',
+      async (kind, value, moderatePlus, intent) => {
+        window.localStorage.setItem(
+          `mentalbridge_mam_daily:${ACCOUNT}:${TODAY}`,
+          '1',
+        )
+        const { result } = mount()
+        fire({ type: 'lookback-answer', kind, value, moderatePlus })
+        await flush()
+        expect(result.current.reaction).toMatchObject({ intent })
+        expect(result.current.reaction?.intent).not.toBe('CELEBRATE')
+      },
+    )
 
     it('a support step answers with encouragement; every 3rd cheers softly once cheering is known', async () => {
       window.localStorage.setItem(

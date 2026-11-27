@@ -13,7 +13,7 @@ const FULL_ROUTES = [
   /^\/nhin-lai$/,
 ]
 
-// Private chat, video, screening and its results, plus the owner's scope cut
+// Private chat, video, the standalone assessments and their results, plus the owner's scope cut
 // (MB-895): Mầm stays on the support journey, not in the community or in plans
 // and payment. Listed even though unknown routes are HIDDEN, so the cut is explicit.
 const HIDDEN_ROUTES = [
@@ -23,11 +23,13 @@ const HIDDEN_ROUTES = [
   /^\/call(\/.*)?$/,
   /^\/assessments(\/.*)?$/,
   /^\/assessment(\/.*)?$/,
-  /^\/initial-check(\/.*)?$/,
   /^\/safety-directory(\/.*)?$/,
 ]
 
+// `/initial-check` (mam-v3): Mầm keeps the user company through the first screening and its result. The
+// result hides her again when it is a SAFETY one (useMamSuppress 'hide').
 const QUIET_ROUTES = [
+  /^\/initial-check$/,
   /^\/journal$/,
   /^\/ai-companion$/,
   /^\/support-plan$/,

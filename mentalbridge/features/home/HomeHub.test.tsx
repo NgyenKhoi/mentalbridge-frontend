@@ -1,6 +1,5 @@
 ﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { HomeNextStep } from '@/features/assessment/api/care-contract'
-import Link from 'next/link'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getMamPageTarget } from '@/features/mam/use-mam-target'
 import { HomeHub } from './HomeHub'
@@ -40,13 +39,6 @@ vi.mock('./HomeLookBackEntry', () => ({
 vi.mock('./HomeGreeting', () => ({
   HomeGreeting: () => (
     <header data-testid="home-greeting">Chào buổi sáng</header>
-  ),
-}))
-vi.mock('./HomeQuickActions', () => ({
-  HomeQuickActions: () => (
-    <nav aria-label="Hành động nhanh">
-      <Link href="/resources">Tài nguyên</Link>
-    </nav>
   ),
 }))
 vi.mock('./HomeResources', () => ({
@@ -117,7 +109,6 @@ describe('HomeHub', () => {
       screen.getByRole('region', { name: 'Cảm xúc' }),
       screen.getByRole('region', { name: 'Tài nguyên gợi ý' }),
       screen.getByRole('region', { name: 'Buổi hẹn sắp tới' }),
-      screen.getByRole('navigation', { name: 'Hành động nhanh' }),
     ]
     nodes.slice(1).forEach((node, index) => {
       expect(
@@ -161,7 +152,7 @@ describe('HomeHub', () => {
       screen.queryByRole('region', { name: 'Đang tải bước tiếp theo' }),
     ).toBeNull()
     finish(homeNextStepFixture({ plan: homePlanFixture('TODAY_DONE') }))
-    await screen.findByText('Bạn đã xong việc hôm nay')
+    await screen.findByText('Hôm nay bạn xong việc rồi nè')
     expect(screen.getByRole('region', { name: 'Cảm xúc' })).toBe(card)
     expect(
       screen.getByRole('button', { name: 'Đã ghi nhận thử nghiệm' }),
@@ -201,10 +192,9 @@ describe('HomeHub', () => {
     vi.mocked(getHomeNextStep).mockRejectedValueOnce(new Error('Unavailable'))
     render(<HomeHub />)
     await screen.findByText('Chưa tải được bước tiếp theo.')
-    expect(screen.getByRole('link', { name: 'Tài nguyên' })).toHaveAttribute(
-      'href',
-      '/resources',
-    )
+    expect(
+      screen.getByRole('region', { name: 'Tài nguyên gợi ý' }),
+    ).toBeVisible()
     expect(screen.getByRole('region', { name: 'Cảm xúc' })).toBeVisible()
     expect(
       screen.getByRole('region', { name: 'Buổi hẹn sắp tới' }),
@@ -236,8 +226,8 @@ describe('HomeHub', () => {
       for (const name of ['Cảm xúc', 'Tài nguyên gợi ý', 'Buổi hẹn sắp tới'])
         expect(screen.getByRole('region', { name })).toBeVisible()
       expect(
-        screen.getByRole('navigation', { name: 'Hành động nhanh' }),
-      ).toBeVisible()
+        screen.queryByRole('navigation', { name: 'Hành động nhanh' }),
+      ).toBeNull()
       for (const name of ['Tài nguyên gợi ý', 'Buổi hẹn sắp tới'])
         expect(screen.getByRole('region', { name })).toHaveAttribute(
           'data-summonable',
@@ -291,7 +281,7 @@ describe('HomeHub', () => {
       homeNextStepFixture({ plan: homePlanFixture('TODAY_DONE') }),
     )
     render(<HomeHub />)
-    await screen.findByText('Bạn đã xong việc hôm nay')
+    await screen.findByText('Hôm nay bạn xong việc rồi nè')
     expect(getHomeNextStep).toHaveBeenCalledTimes(2)
     expect(vi.mocked(getHomeNextStep).mock.calls[0][0]).toBeInstanceOf(
       AbortSignal,
@@ -324,8 +314,5 @@ describe('HomeHub', () => {
     expect(
       screen.queryByRole('button', { name: 'Lưu cảm xúc trong kế hoạch' }),
     ).toBeNull()
-    expect(
-      screen.getByRole('navigation', { name: 'Hành động nhanh' }),
-    ).toBeVisible()
   })
 })

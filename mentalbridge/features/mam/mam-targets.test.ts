@@ -140,7 +140,7 @@ describe('mamReviewedAnswer', () => {
   it('points "where to start" at the next-step card only when it is on the page', () => {
     const target = resolveMamTarget({ kind: 'dashboard.page' })!
     expect(mamReviewedAnswer(target, 'WHERE_TO_START', all)).toEqual({
-      text: expect.stringContaining('Bước tiếp theo'),
+      text: expect.stringContaining('Hôm nay cùng Mầm'),
       focusKind: 'home.next-step',
     })
     expect(mamReviewedAnswer(target, 'WHERE_TO_START', none)).toBeNull()

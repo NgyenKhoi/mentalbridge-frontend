@@ -56,7 +56,7 @@ export function homeNextStepView(
           state: plan.focus,
           title,
           description:
-            'Bạn có thể bắt đầu bằng việc này trong kế hoạch hôm nay.',
+            'Việc nhỏ hôm nay của bạn nè. Làm xong là đủ cho hôm nay.',
           primary: {
             label: 'Bắt đầu ngay',
             href: destination ?? '/support-plan',
@@ -69,8 +69,8 @@ export function homeNextStepView(
       case 'TODAY_DONE':
         return {
           state: plan.focus,
-          title: 'Bạn đã xong việc hôm nay',
-          description: 'Bạn có thể xem lại kế hoạch khi muốn.',
+          title: 'Hôm nay bạn xong việc rồi nè',
+          description: 'Nghỉ ngơi đi, mai Mầm nhắc tiếp.',
           primary: { label: 'Xem kế hoạch', href: '/support-plan' },
           contextual: [],
           done: true,
@@ -79,7 +79,7 @@ export function homeNextStepView(
         return {
           state: plan.focus,
           title: 'Hôm nay không có việc nào trong kế hoạch',
-          description: 'Bạn có thể mở kế hoạch để xem những việc sắp tới.',
+          description: 'Hôm nay là ngày nghỉ trong kế hoạch.',
           primary: { label: 'Xem kế hoạch', href: '/support-plan' },
           contextual: [],
         }
@@ -95,7 +95,7 @@ export function homeNextStepView(
           contextual: [],
         }
       case 'REVIEW_DUE':
-        // Same rule as the plan page: the activities wait for the reassessment, then for the chosen rhythm.
+        // Same rule as the plan page: the activities wait for the reassessment, then for the chosen plan.
         return reassessedForReview(
           journey.latestScreening,
           plan.reviewDueOn,
@@ -103,18 +103,18 @@ export function homeNextStepView(
         )
           ? {
               state: plan.focus,
-              title: 'Đến lúc chọn nhịp tiếp theo',
+              title: 'Đến lúc chọn kế hoạch cho 14 ngày tới',
               description:
-                'Bạn đã làm bài đánh giá lại. Xem kết quả và chọn nhịp cho 14 ngày tới.',
+                'Bạn đã làm bài đánh giá lại. Xem Nhìn lại rồi chọn tiếp nhé.',
               primary: {
-                label: 'Chọn nhịp tiếp theo',
+                label: 'Chọn kế hoạch tiếp theo',
                 href: '/support-plan?review=open',
               },
               contextual: [{ label: 'Xem nhìn lại', href: '/nhin-lai' }],
             }
           : {
               state: plan.focus,
-              title: 'Đến lúc nhìn lại 14 ngày qua',
+              title: '14 ngày rồi nè, mình nhìn lại nhé',
               description:
                 'Kế hoạch đang tạm dừng chờ bạn làm bài đánh giá lại.',
               primary: {
@@ -140,7 +140,7 @@ export function homeNextStepView(
       state: journey.assessmentInProgress
         ? 'ASSESSMENT_IN_PROGRESS'
         : 'ASSESSMENT_REQUIRED',
-      title: 'Hiểu rõ hơn về 14 ngày gần đây',
+      title: 'Bắt đầu bằng 5 phút hiểu mình',
       description:
         '16 câu hỏi ngắn, khoảng 5 phút. Bạn có thể dừng và quay lại sau.',
       primary: { label, href: '/initial-check' },
@@ -149,7 +149,7 @@ export function homeNextStepView(
   } else if (journey.stage === 'GUIDE_REQUIRED') {
     view = {
       state: 'GUIDE_REQUIRED',
-      title: 'Hướng dẫn sau kiểm tra của bạn',
+      title: 'Mầm đọc kết quả của bạn rồi',
       description: 'Xem kết quả và những gợi ý hỗ trợ tiếp theo.',
       primary: {
         label: 'Xem kết quả và hướng dẫn của bạn',
