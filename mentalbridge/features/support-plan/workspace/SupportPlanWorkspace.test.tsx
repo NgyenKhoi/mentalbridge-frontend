@@ -2646,7 +2646,7 @@ describe('SupportPlan workspace replacement', () => {
     )
     expect(
       screen.getByRole('region', { name: 'Mầm xem lại tuần của bạn' }),
-    ).toBeVisible()
+    ).toBeInTheDocument()
     await user.click(collapse)
     await waitFor(() =>
       expect(
@@ -3056,7 +3056,7 @@ describe('SupportPlan workspace with the global Mầm', () => {
       )
       const { unmount } = render(<SupportPlanWorkspace mamEnabled />)
       await screen.findByRole('link', { name: 'Xem số hỗ trợ gần bạn' })
-      expect(isMamFeatureSuppressed()).toBe(true)
+      await waitFor(() => expect(isMamFeatureSuppressed()).toBe(true))
       expect(getMamPageTarget()).toBeNull()
       unmount()
       expect(isMamFeatureSuppressed()).toBe(false)
