@@ -11,7 +11,7 @@ export function eligibility(
   plan: 'FREE' | 'PLUS' | 'PREMIUM' = 'PLUS',
   patch: Partial<Eligibility> = {},
 ): Eligibility {
-  const cap = plan === 'FREE' ? 0 : plan === 'PLUS' ? 300 : 600
+  const cap = plan === 'FREE' ? 0 : plan === 'PLUS' ? 600 : 1800
   return {
     policyVersion: 'companion-voice-policy-v1',
     state: plan === 'FREE' ? 'FREE_LOCKED' : 'ELIGIBLE',
@@ -24,13 +24,13 @@ export function eligibility(
       quotaDay: '2026-10-28',
       timeZone: 'Asia/Ho_Chi_Minh',
       resetAt: '2026-10-28T17:00:00Z',
-      remainingSessions: plan === 'FREE' ? 0 : 2,
+      remainingSessions: plan === 'FREE' ? 0 : 10,
       remainingSeconds:
         plan === 'FREE'
           ? 0
           : patch.availableSessionSeconds && patch.availableSessionSeconds > 0
             ? patch.availableSessionSeconds
-            : 600,
+            : cap,
       reservedSessions: 0,
       reservedSeconds: 0,
     },

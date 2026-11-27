@@ -6,7 +6,7 @@ export const voiceCopy: Record<string, string> = {
   MIC_UNAVAILABLE:
     'Chưa thể sử dụng micro trên thiết bị này. Bạn vẫn có thể tiếp tục nhắn tin.',
   FREE_LOCKED:
-    'Gọi AI dành cho gói Plus và Premium, với số phiên và thời lượng hữu hạn.',
+    'Gọi AI dành cho gói Plus (10 phút mỗi ngày) và Premium (30 phút mỗi ngày).',
   CONSENT_REQUIRED: 'Bạn cần đồng ý xử lý AI trước khi sử dụng giọng nói.',
   VOICE_CONSENT_REQUIRED:
     'Bạn cần đọc và đồng ý với thông tin xử lý giọng nói trước cuộc gọi đầu tiên.',

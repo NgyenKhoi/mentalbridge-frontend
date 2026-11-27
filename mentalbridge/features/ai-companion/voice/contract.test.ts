@@ -46,7 +46,7 @@ describe('published Voice contracts', () => {
     expect(
       validators.eligibility({
         ...eligibility(),
-        availableSessionSeconds: 301,
+        availableSessionSeconds: 601,
       }),
     ).toBe(false)
   })
@@ -64,7 +64,7 @@ describe('published Voice contracts', () => {
     },
   )
   it('still rejects availability outside positive package and daily bounds', () => {
-    for (const seconds of [-1, 0, 90.5, 301])
+    for (const seconds of [-1, 0, 90.5, 601])
       expect(() =>
         decode('eligibility', {
           ...eligibility(),

@@ -22,6 +22,7 @@ import { useCurrentPlanReviewDue } from './useCurrentPlanReviewDue'
 import { loadGuideMeaning, loadGuideScores } from './load-guide-scores'
 import type { CombinedScreeningMeaning } from '@/features/assessment/api/care-contract'
 
+import { dispatchMamMoment, lightestActivity } from '@/features/mam/mam-moments'
 import './support-guide.css'
 
 function message(error: unknown) {
@@ -98,6 +99,14 @@ export default function SupportGuideJourney({
           setJourney(currentJourney)
           setJourneyFailed(journeyResult.failed)
           setItems([guide])
+          // First open of a Guide: Mầm explains it and offers one lightest activity (owner copy 2026-11-27).
+          const activity = historical ? null : lightestActivity(guide.resources)
+          if (activity)
+            dispatchMamMoment({
+              kind: 'guide-open',
+              key: 'guide-open:first',
+              activity,
+            })
           setScores({ [guide.supportGuideId]: pair })
           setMeaning(savedMeaning)
           setHasMore(false)
