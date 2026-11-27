@@ -30,6 +30,7 @@ describe('mamRouteMode', () => {
     '/profile',
     '/specialists',
     '/resources/resource-1',
+    '/initial-check',
   ])('is QUIET on %s', (path) => expect(mamRouteMode(path)).toBe('quiet'))
 
   it.each([
@@ -47,7 +48,6 @@ describe('mamRouteMode', () => {
     '/community/messages/c-1',
     '/community/chat/dm/t-1',
     '/subscription',
-    '/initial-check',
     '/assessment/phq-9',
     '/assessment/anonymous',
     '/safety-directory',

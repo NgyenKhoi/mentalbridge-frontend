@@ -115,7 +115,7 @@ describe('AchievementGallery', () => {
   it('renders factual earned, unavailable, and deferred states without clinical claims', async () => {
     render(<AchievementGallery />)
     expect(
-      await screen.findByRole('heading', { name: 'Bộ sưu tập hành trình' }),
+      await screen.findByRole('heading', { name: 'Dấu mốc của bạn' }),
     ).toBeVisible()
     expect(screen.getByLabelText('4 dấu mốc đã ghi nhận')).toBeVisible()
     const emotion = screen
@@ -127,6 +127,17 @@ describe('AchievementGallery', () => {
       screen.getByRole('heading', { name: 'Một chương mới' }),
     ).toBeVisible()
     expect(screen.getByText('Chưa mở trong phiên bản này')).toBeVisible()
+    expect(
+      screen.getByText(/Không có chuỗi nào bị mất; quay lại lúc nào cũng được/),
+    ).toBeVisible()
+    expect(
+      screen
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent?.replace(/\d+$/, '')),
+    ).toEqual(['Tất cả', 'Đã có', 'Sắp mở'])
+    expect(
+      screen.queryByText(/Đã đạt|Chưa đạt|còn \d+ ngày|đừng bỏ lỡ|mất chuỗi/i),
+    ).not.toBeInTheDocument()
     expect(screen.getByText(/PHQ-9\/GAD-7/)).toBeVisible()
     expect(
       screen.queryByText(/điểm điều trị|đã hồi phục|hạng nhất/i),
@@ -188,13 +199,13 @@ describe('AchievementGallery', () => {
   it('filters milestones by tab and updates filter summary', async () => {
     const user = userEvent.setup()
     render(<AchievementGallery />)
-    await screen.findByRole('heading', { name: 'Bộ sưu tập hành trình' })
+    await screen.findByRole('heading', { name: 'Dấu mốc của bạn' })
 
-    const earnedTab = screen.getByRole('tab', { name: /đã đạt/i })
+    const earnedTab = screen.getByRole('tab', { name: /đã có/i })
     await user.click(earnedTab)
     expect(screen.getByText('Hiển thị 4/11 dấu mốc')).toBeVisible()
 
-    const unearnedTab = screen.getByRole('tab', { name: /chưa đạt/i })
+    const unearnedTab = screen.getByRole('tab', { name: /sắp mở/i })
     await user.click(unearnedTab)
     expect(screen.getByText('Hiển thị 3/11 dấu mốc')).toBeVisible()
   })
@@ -203,7 +214,7 @@ describe('AchievementGallery', () => {
     const user = userEvent.setup()
     localStorage.clear()
     render(<AchievementGallery />)
-    await screen.findByRole('heading', { name: 'Bộ sưu tập hành trình' })
+    await screen.findByRole('heading', { name: 'Dấu mốc của bạn' })
 
     const celebrateBtn = screen.getByRole('button', {
       name: /xem đóa hoa vừa nở/i,

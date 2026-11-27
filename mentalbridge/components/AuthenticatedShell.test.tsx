@@ -53,6 +53,59 @@ describe('AuthenticatedShell', () => {
     profileApi.getCareProfile.mockReset().mockReturnValue(new Promise(() => {}))
   })
 
+  it('orders the sidebar as today, daily, 14-day journey and real people', () => {
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    const menu = screen.getByRole('navigation', { name: 'Điều hướng chính' })
+    const sections = Array.from(menu.querySelectorAll('section')).map(
+      (section) => ({
+        title: section.querySelector('h2')?.textContent ?? null,
+        links: Array.from(section.querySelectorAll('a')).map((link) => [
+          link.getAttribute('href'),
+          link.textContent,
+        ]),
+      }),
+    )
+    expect(sections).toEqual([
+      { title: null, links: [['/dashboard', 'Hôm nay']] },
+      {
+        title: 'Mỗi ngày cùng Mầm',
+        links: [
+          ['/ai-companion', 'Trò chuyện với Mầm'],
+          ['/journal', 'Nhật ký'],
+          ['/resources', 'Tài nguyên'],
+        ],
+      },
+      {
+        title: 'Hành trình 14 ngày',
+        links: [
+          ['/assessments', 'Bài sàng lọc'],
+          ['/support-guides', 'Gợi ý hỗ trợ'],
+          ['/support-plan', 'Kế hoạch hỗ trợ'],
+          ['/nhin-lai', 'Nhìn lại'],
+        ],
+      },
+      {
+        title: 'Khi cần người thật',
+        links: [
+          ['/specialists', 'Chuyên gia'],
+          ['/appointments', 'Lịch hẹn'],
+          ['/messages', 'Tin nhắn'],
+        ],
+      },
+    ])
+    // Notifications stay in the header bell; milestones and the plan in the account menu.
+    expect(within(menu).queryByRole('link', { name: 'Thông báo' })).toBeNull()
+  })
+
+  it.each([
+    ['/dashboard', 'Hôm nay cùng Mầm'],
+    ['/achievements', 'Dấu mốc của bạn'],
+  ])('titles %s in the header', (path, title) => {
+    navigation.pathname = path
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    expect(within(screen.getByRole('banner')).getByText(title)).toBeVisible()
+  })
+
   it('offers the 14-day look-back in the sidebar', () => {
     navigation.pathname = '/nhin-lai'
     render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)

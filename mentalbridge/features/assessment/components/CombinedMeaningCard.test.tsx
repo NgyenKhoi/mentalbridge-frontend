@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { isMamFeatureHiding } from '@/features/mam/mam-suppression'
 import { ensureCurrentSupportGuide } from '@/features/support-guide/api/browser-support-guide'
 import { combinedMeaningFixture } from '@/tests/fixtures/combined-meaning'
 import { CombinedMeaningCard } from './CombinedMeaningCard'
@@ -85,6 +86,25 @@ describe('CombinedMeaningCard', () => {
       ).toBe(false)
     },
   )
+
+  it('hides Mầm while a SAFETY result is on screen, and only then', () => {
+    const safe = render(
+      <CombinedMeaningCard
+        meaning={combinedMeaningFixture({ priority: 'PROFESSIONAL_SUPPORT' })}
+      />,
+    )
+    expect(isMamFeatureHiding()).toBe(false)
+    safe.unmount()
+
+    const safety = render(
+      <CombinedMeaningCard
+        meaning={combinedMeaningFixture({ priority: 'SAFETY' })}
+      />,
+    )
+    expect(isMamFeatureHiding()).toBe(true)
+    safety.unmount()
+    expect(isMamFeatureHiding()).toBe(false)
+  })
 
   it('gives backend safety priority precedence over the ordinary CTA', () => {
     render(

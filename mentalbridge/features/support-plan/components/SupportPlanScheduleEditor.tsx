@@ -419,7 +419,7 @@ function SupportPlanScheduleEditorState({
               : 'Điều chỉnh khi cần'}
           </span>
           <h3 id="support-plan-cadence-title">
-            Nhịp hoạt động phù hợp với bạn
+            Tần suất hoạt động phù hợp với bạn
           </h3>
         </div>
       </div>
@@ -511,7 +511,7 @@ function SupportPlanScheduleEditorState({
                       id={fieldId(action.actionId, 'cadence-label')}
                       htmlFor={fieldId(action.actionId, 'cadence')}
                     >
-                      Nhịp hoạt động
+                      Tần suất hoạt động
                     </label>
                     <LightSelect
                       id={fieldId(action.actionId, 'cadence')}

@@ -322,9 +322,10 @@ export function useMamSummon({
       behavior: reducedMotion ? 'auto' : 'smooth',
       block: 'center',
     })
-    const focusable = element.querySelector<HTMLElement>(
-      'a[href], button:not([disabled])',
-    )
+    // The card's one primary action first: a card may hold quieter links ahead of it in the DOM.
+    const focusable =
+      element.querySelector<HTMLElement>('[data-mam-primary]') ??
+      element.querySelector<HTMLElement>('a[href], button:not([disabled])')
     if (focusable) focusable.focus({ preventScroll: true })
     else {
       element.setAttribute('tabindex', '-1')

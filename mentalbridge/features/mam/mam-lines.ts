@@ -107,6 +107,12 @@ export const MAM_LINES = {
     'Một bài nhỏ nữa xong rồi nè. Bạn làm tốt đó.',
     'Hoàn thành rồi nè. Lúc nào cần, mình lại ghé thư viện nha.',
   ],
+  COMMITMENT_DONE: [
+    'Bạn giữ lời hẹn với Mầm rồi nè. Một việc nhỏ cũng là thật đó.',
+    'Lời hẹn xong rồi nè. Cảm ơn bạn đã làm cùng Mầm nha.',
+    'Hẹn rồi làm được luôn, tớ ghi nhận nha.',
+    'Việc nhỏ này xong rồi. Nghỉ một chút nha bạn.',
+  ],
   REASSESSMENT_LOWER: [
     'Lần kiểm tra lại này, điểm tự đánh giá của bạn thấp hơn trước. Đáng ghi nhận lắm.',
     'Điểm tự đánh giá lần này thấp hơn lần trước. Tớ ghi nhận sự cố gắng của bạn nha.',
@@ -118,6 +124,25 @@ export const MAM_LINES = {
     'Lần kiểm tra lại này khá giống lần trước. Bạn đã dành thời gian cho mình rồi nè.',
     'Điểm tự đánh giá vẫn như lần trước. Mình xem kế hoạch hợp với bạn nhé.',
     'Cảm ơn bạn đã kiểm tra lại. Mình cứ giữ nhịp từ từ nha.',
+  ],
+  // Look-back answers (the "nhẹ đi chưa" rating, the obstacle, the connection); enums only.
+  LOOKBACK_LIGHTER: [
+    'Nghe bạn thấy nhẹ hơn, tớ vui lắm. Mình giữ những việc hợp với bạn nha.',
+    'Nhẹ hơn rồi nè. Những việc bạn đã làm trong chặng này là của bạn đó.',
+    'Cảm ơn bạn đã cho tớ biết. Nhẹ hơn là một tin vui nè.',
+    'Tớ vui cùng bạn nha. Mình chọn tiếp những việc hợp với bạn nhé.',
+  ],
+  LOOKBACK_HEAVIER: [
+    'Cảm ơn bạn đã nói thật. Tớ ở đây với bạn.',
+    'Nặng hơn thì mình không phải đi một mình đâu. Tớ ở cạnh bạn nè.',
+    'Nói ra điều này không dễ đâu. Tớ nghe bạn nè.',
+    'Tớ nghe bạn rồi nè. Có một người thật ở cạnh lúc này cũng tốt đó.',
+  ],
+  LOOKBACK_LISTEN: [
+    'Tớ nghe rồi nè. Cảm ơn bạn đã trả lời.',
+    'Cảm ơn bạn đã chia sẻ. Mình cùng chọn bước tiếp theo nhé.',
+    'Tớ ghi nhận rồi nè. Mình đi tiếp từ từ nha.',
+    'Nhờ câu trả lời này, mình chọn kế hoạch hợp với bạn hơn nè.',
   ],
   // Direction-free: also used when the band is moderate or higher, whatever the change.
   REASSESSMENT_CARE: [

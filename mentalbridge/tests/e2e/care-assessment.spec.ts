@@ -1,5 +1,6 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test'
 
+import { homeResponse, homeWorld } from './home-next-step-mocks'
 import { test } from './test-fixtures'
 
 const useCareFixture = process.env.E2E_RUNTIME !== 'live-cross-stack'
@@ -207,15 +208,6 @@ test.describe('Care-backed PHQ-9 screening', () => {
         ),
       )
       .not.toBe('rgba(0, 0, 0, 0)')
-    const searchInput = page.getByPlaceholder('Tìm kiếm chuyên gia, nhật ký...')
-    await searchInput.focus()
-    await expect
-      .poll(() =>
-        searchInput.evaluate(
-          (element) => getComputedStyle(element, '::placeholder').color,
-        ),
-      )
-      .toBe('rgb(95, 107, 91)')
     await page.screenshot({
       path: 'docs/evidence/story-1101-profile-desktop.png',
       fullPage: true,
@@ -528,14 +520,15 @@ test.describe('Care-backed PHQ-9 screening', () => {
       },
     ])
 
+    // The Care fixture server has no Home endpoint: the card gets the first-use answer.
+    await page.route('**/api/care/home-next-step*', (route) =>
+      route.fulfill({ json: homeResponse(homeWorld('first-use')) }),
+    )
     await page.setViewportSize({ width: 1440, height: 1000 })
     await page.goto('/dashboard')
     const start = page
-      .getByRole('navigation', { name: 'Hành động nhanh' })
-      .getByRole('link', {
-        name: 'Bài sàng lọc Hiểu rõ 14 ngày gần đây',
-        exact: true,
-      })
+      .getByRole('region', { name: 'Bước tiếp theo', exact: true })
+      .getByRole('link', { name: 'Bắt đầu bài sàng lọc', exact: true })
     await expect(start).toBeVisible()
     await expect(start).toHaveAttribute('href', '/initial-check')
     await start.click()

@@ -22,6 +22,15 @@ export type MamEvent =
     }>
   | Readonly<{ type: 'support-done' }>
   | Readonly<{ type: 'resource-done' }>
+  /** The user answered "Xong rồi" to a lời hẹn (Home card). */
+  | Readonly<{ type: 'commitment-done' }>
+  /** A saved look-back answer (enum value only); `moderatePlus` keeps it from ever cheering. */
+  | Readonly<{
+      type: 'lookback-answer'
+      kind: 'rating' | 'obstacle' | 'connected'
+      value: string
+      moderatePlus: boolean
+    }>
   | Readonly<{
       type: 'reassessment-done'
       band: MamBandChange
@@ -36,6 +45,8 @@ export const MAM_EVENT_TYPES: readonly MamEventType[] = [
   'checkin-saved',
   'support-done',
   'resource-done',
+  'commitment-done',
+  'lookback-answer',
   'reassessment-done',
 ]
 export const mamEventName = (type: MamEventType) => `mam:${type}`
@@ -63,6 +74,7 @@ export function dispatchMamEvent(event: MamEvent) {
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 const BANDS: readonly string[] = ['LOWER', 'SAME', 'HIGHER']
+const ANSWER_VALUE = /^[A-Z_]{1,20}$/
 
 /** The detail of an event for this account, or null: another account, an unknown shape or a stray field. */
 export function parseMamEvent(
@@ -83,7 +95,23 @@ export function parseMamEvent(
         : { ...base, type }
     case 'support-done':
     case 'resource-done':
+    case 'commitment-done':
       return { ...base, type }
+    case 'lookback-answer':
+      return (value.kind === 'rating' ||
+        value.kind === 'obstacle' ||
+        value.kind === 'connected') &&
+        typeof value.value === 'string' &&
+        ANSWER_VALUE.test(value.value) &&
+        typeof value.moderatePlus === 'boolean'
+        ? {
+            ...base,
+            type,
+            kind: value.kind,
+            value: value.value,
+            moderatePlus: value.moderatePlus,
+          }
+        : null
     case 'checkin-saved':
       return typeof value.emotion === 'string' &&
         value.emotion in MAM_EMOTION_LEVEL &&
@@ -227,12 +255,23 @@ export function mamEventReaction(
         : { intent: 'ENCOURAGE', line: 'SUPPORT_DONE' }
     case 'resource-done':
       return { intent: 'ENCOURAGE', line: 'RESOURCE_DONE' }
+    case 'commitment-done':
+      return { intent: 'ENCOURAGE', line: 'COMMITMENT_DONE' }
     case 'reassessment-done':
       if (event.moderatePlus || event.band === 'HIGHER')
         return { intent: 'COMFORT', line: 'REASSESSMENT_CARE' }
       return event.band === 'LOWER' && context.calm === true
         ? { intent: 'CELEBRATE', grade: 'soft', line: 'REASSESSMENT_LOWER' }
         : { intent: 'LISTEN', line: 'REASSESSMENT_SAME' }
+    case 'lookback-answer':
+      // Never a celebration: a lighter chặng gets a soft happy only when no band is moderate or higher.
+      if (event.kind === 'rating' && event.value === 'HEAVIER')
+        return { intent: 'COMFORT', line: 'LOOKBACK_HEAVIER' }
+      return event.kind === 'rating' &&
+        event.value === 'LIGHTER' &&
+        !event.moderatePlus
+        ? { intent: 'HAPPY', line: 'LOOKBACK_LIGHTER' }
+        : { intent: 'LISTEN', line: 'LOOKBACK_LISTEN' }
     case 'checkin-saved':
       // Answered from the trajectory, which needs the series.
       return null

@@ -4,7 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { localDateInTimeZone } from '@/lib/emotion-check-in/presentation'
 
+import { getHomeNextStep } from '@/features/home/browser-home-next-step'
+
 import { getMamTrajectory } from './browser-mam-trajectory'
+import { loadCompanionState } from './companion-state'
+import { decideMamDaily } from './mam-decide'
 import {
   MAM_EVENT_TYPES,
   mamEventIsNew,
@@ -112,10 +116,16 @@ export function useMamTrajectory({
     accountId: string
   } | null>(null)
   const [wake, setWake] = useState(0)
-  const pending = useRef<{ reaction: MamReaction; at: number } | null>(null)
+  const pending = useRef<{
+    reaction: MamReaction
+    at: number
+    onShown?: () => void
+  } | null>(null)
   const lastShownAt = useRef<number | null>(null)
   const seen = useRef(new Map<string, number>())
   const cheering = useRef<boolean | null>(null)
+  // The day's state is STEADY_GOOD: Mầm speaks once (comfort keeps the full cap).
+  const steady = useRef(false)
   const tried = useRef(new Set<string>())
   const live = useRef({ hard })
   useEffect(() => {
@@ -138,6 +148,7 @@ export function useMamTrajectory({
       pending.current = null
       lastShownAt.current = null
       cheering.current = null
+      steady.current = false
       seen.current.clear()
       tried.current.clear()
     },
@@ -146,11 +157,16 @@ export function useMamTrajectory({
 
   // A new reaction waits for delivery; the daily one never replaces an event's that is already waiting.
   const offer = useCallback(
-    (reaction: Omit<MamReaction, 'key'> | null, keepWaiting = false) => {
+    (
+      reaction: Omit<MamReaction, 'key'> | null,
+      keepWaiting = false,
+      onShown?: () => void,
+    ) => {
       if (!reaction || (keepWaiting && pending.current)) return
       pending.current = {
         reaction: { ...reaction, key: `mam-reaction:${Date.now()}` },
         at: Date.now(),
+        onShown,
       }
       setWake((value) => value + 1)
     },
@@ -168,7 +184,12 @@ export function useMamTrajectory({
     }
     if (!mamSpeaks(mode, next.reaction.intent) || !ready) return
     const countKey = mamDailyKey('bubbles', accountId, today)
-    if (mamBubbleCapped(readMamCount(countKey))) {
+    if (
+      mamBubbleCapped(
+        readMamCount(countKey),
+        steady.current && next.reaction.intent !== 'COMFORT',
+      )
+    ) {
       pending.current = null
       return
     }
@@ -183,6 +204,7 @@ export function useMamTrajectory({
     pending.current = null
     bumpMamCount(countKey)
     lastShownAt.current = now
+    next.onShown?.()
     setShown({ reaction: next.reaction, accountId })
   }, [wake, shown, hard, mode, ready, accountId, today])
 
@@ -202,9 +224,9 @@ export function useMamTrajectory({
         if (!days.some((day) => day.localDate === event.localDate))
           days.push({ localDate: event.localDate, level })
         cheering.current = mamCheerable(view)
-        offer(
-          stateReaction(mamTrajectory(days, event.localDate), view, accountId),
-        )
+        const state = mamTrajectory(days, event.localDate)
+        steady.current = state === 'STEADY_GOOD'
+        offer(stateReaction(state, view, accountId))
         return
       }
       let daysSinceJournal: number | null = null
@@ -301,7 +323,13 @@ export function useMamTrajectory({
     attempts.add(key)
     const controller = new AbortController()
     let finished = false
-    void loadView(controller.signal).then((view) => {
+    // The decision table (mam-decide.ts) also reads the focus goal, the lời hẹn and Care's Home step; a failed
+    // read of either only silences the rows that need it.
+    void Promise.all([
+      loadView(controller.signal),
+      loadCompanionState(accountId),
+      getHomeNextStep(controller.signal).catch(() => null),
+    ]).then(([view, companion, home]) => {
       finished = true
       if (controller.signal.aborted || !view) return
       writeMamDaily(key, '1')
@@ -310,9 +338,28 @@ export function useMamTrajectory({
         localDate: day.localDate,
         level: day.emotionLevel,
       }))
+      const state = mamTrajectory(days, view.asOfLocalDate)
+      steady.current = state === 'STEADY_GOOD'
+      const askKey = mamDailyKey('focus-ask', accountId)
+      const decision = decideMamDaily({
+        state,
+        cheerable: cheering.current,
+        companion,
+        // No Home read means the safety state is unknown: stay on the quiet side.
+        safety: !home || home.journey.nextAction === 'REVIEW_SAFETY_SUPPORT',
+        reviewDue: home?.plan?.focus === 'REVIEW_DUE',
+        hasScreening: !!home && home.journey.stage !== 'ASSESSMENT_REQUIRED',
+        focusAskedOn: readMamDaily(askKey),
+        today,
+      })
+      if (!decision) return
+      if (decision.kind === 'state')
+        return offer(stateReaction(state, view, accountId), true)
+      // The invite counts as asked only once the bubble is really shown.
       offer(
-        stateReaction(mamTrajectory(days, view.asOfLocalDate), view, accountId),
+        { intent: decision.intent, text: decision.text },
         true,
+        decision.row === 4 ? () => writeMamDaily(askKey, today) : undefined,
       )
     })
     return () => {

@@ -329,10 +329,10 @@ export default function TodayPanel({
 
       {focus.kind === 'REVIEW_DUE' && reassessed && (
         <section className="mbw-tile mbw-next" aria-labelledby="mbw-next-title">
-          <h2 id="mbw-next-title">Đến lúc chọn nhịp tiếp theo</h2>
+          <h2 id="mbw-next-title">Đến lúc chọn kế hoạch cho 14 ngày tới</h2>
           <p>
-            Bạn đã làm bài đánh giá lại. Xem kết quả cùng kế hoạch rồi chọn nhịp
-            cho 14 ngày tới.
+            Bạn đã làm bài đánh giá lại. Xem kết quả cùng kế hoạch rồi chọn kế
+            hoạch cho 14 ngày tới.
           </p>
           <div className="mbw-actions">
             <button
@@ -340,7 +340,7 @@ export default function TodayPanel({
               className="mbw-primary"
               onClick={onOpenReview}
             >
-              Chọn nhịp tiếp theo
+              Chọn kế hoạch tiếp theo
               <ArrowRight size={18} aria-hidden="true" />
             </button>
             <Link className="mbw-secondary" href="/nhin-lai">

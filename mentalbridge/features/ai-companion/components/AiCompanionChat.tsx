@@ -31,8 +31,10 @@ import CompanionContextDialog from './CompanionContextDialog'
 import StreamingText from './StreamingText'
 import { suggestionLink } from './suggestion-link'
 import VoiceEntry from '../voice/VoiceEntry'
+import { CONNECT_DRAFT } from '@/features/mam/companion-copy'
 import { dispatchMamGuide } from '@/features/mam/mam-guide'
 import AiConsentCard from './AiConsentCard'
+import ChatCommitmentOffer from './ChatCommitmentOffer'
 import {
   clearCompanionDraft,
   clearCompanionPending,
@@ -177,6 +179,8 @@ export default function AiCompanionChat({
     call: boolean
   } | null>(null)
   const [callRequested, setCallRequested] = useState(false)
+  // `?draft=connect` (a lời hẹn to message someone): read once like the guide request, applied once loaded.
+  const connectDraft = useRef(false)
   const [search, setSearch] = useState('')
   const [contextOpen, setContextOpen] = useState(false)
   const [contextSaving, setContextSaving] = useState(false)
@@ -206,6 +210,16 @@ export default function AiCompanionChat({
       Number(active.context.sources.screening) +
       active.context.sources.resourceIds.length
     : 0
+  // The reply the lời hẹn offer sits under: the latest message, from Mầm, finished, in a conversation of 3+ turns.
+  const lastMessage = active?.messages[active.messages.length - 1]
+  const offerAfter =
+    active &&
+    lastMessage?.role === 'ASSISTANT' &&
+    !sending &&
+    !streamingId &&
+    active.messages.filter((item) => item.role === 'USER').length >= 3
+      ? lastMessage.messageId
+      : null
   const filteredConversations = conversations.filter((conversation) =>
     conversation.title
       .toLocaleLowerCase('vi')
@@ -261,6 +275,10 @@ export default function AiCompanionChat({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const opening = params.get('opening')
+    if (params.get('draft') === 'connect') {
+      connectDraft.current = true
+      window.history.replaceState(null, '', window.location.pathname)
+    }
     if (!params.has('opening') && !params.has('call')) return
     guideRequest.current = {
       opening:
@@ -293,8 +311,8 @@ export default function AiCompanionChat({
 
   const createConversation = async (
     opening?: 'FROM_JOURNAL' | 'FROM_RESULT',
-  ) => {
-    if (!(await allowConversationChange())) return
+  ): Promise<boolean> => {
+    if (!(await allowConversationChange())) return false
     setError(null)
     try {
       const created = await companionBrowserClient.create({ opening })
@@ -308,8 +326,10 @@ export default function AiCompanionChat({
       setQuota(null)
       setMobileView('chat')
       showActionToast({ title: 'Đã tạo cuộc trò chuyện mới' })
+      return true
     } catch (cause) {
       setError({ message: friendlyError(cause), retry: 'load' })
+      return false
     }
   }
 
@@ -323,6 +343,37 @@ export default function AiCompanionChat({
     // `createConversation` is recreated every render; the request is taken exactly once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading])
+
+  const focusComposerEnd = () =>
+    window.setTimeout(() => {
+      const box = composerRef.current
+      if (!box) return
+      box.focus()
+      box.setSelectionRange(box.value.length, box.value.length)
+    }, 0)
+  // Mầm's draft starter for a message to someone the user trusts. It never overwrites what the user typed,
+  // and nothing is sent: the user edits and sends it.
+  const composeConnectDraft = () => {
+    setMobileView('chat')
+    if (!message.trim()) setMessage(CONNECT_DRAFT)
+    focusComposerEnd()
+  }
+  const connectDraftStarted = useRef(false)
+  useEffect(() => {
+    if (loading || !connectDraft.current) return
+    if (activeId) {
+      connectDraft.current = false
+      window.setTimeout(composeConnectDraft, 0)
+    } else if (!connectDraftStarted.current) {
+      connectDraftStarted.current = true
+      // A refused or failed start lets the draft try again (the retry, or the conversation the user picks).
+      void createConversation().then((created) => {
+        if (!created) connectDraftStarted.current = false
+      })
+    }
+    // Runs when the history has loaded or a conversation became active; the draft is taken exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, activeId])
 
   const selectConversation = async (id: string) => {
     if (id === activeId) {
@@ -925,6 +976,15 @@ export default function AiCompanionChat({
                       {streamingId === item.messageId ? null : (
                         <SuggestionAction suggestion={item.suggestion} />
                       )}
+                      {/* A quiet lời hẹn offer under the latest reply, once the talk has some depth. */}
+                      {item.messageId === offerAfter ? (
+                        <ChatCommitmentOffer
+                          accountId={accountId}
+                          conversationId={activeId}
+                          onCompose={composeConnectDraft}
+                          onClose={focusComposerEnd}
+                        />
+                      ) : null}
                     </div>
                   </article>
                 ))

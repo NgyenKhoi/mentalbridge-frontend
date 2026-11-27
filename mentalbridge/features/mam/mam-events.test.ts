@@ -293,6 +293,63 @@ describe('mamEventReaction', () => {
     })
   })
 
+  it('look-back answer: parses enums only and never celebrates', () => {
+    const detail = {
+      accountId: ACCOUNT,
+      localDate: '2026-11-27',
+      kind: 'rating',
+      value: 'LIGHTER',
+      moderatePlus: false,
+    }
+    const event = parseMamEvent('lookback-answer', detail, ACCOUNT)
+    expect(event).toMatchObject({ type: 'lookback-answer', value: 'LIGHTER' })
+    expect(
+      parseMamEvent(
+        'lookback-answer',
+        { ...detail, value: 'free text!' },
+        ACCOUNT,
+      ),
+    ).toBeNull()
+    expect(
+      parseMamEvent('lookback-answer', { ...detail, kind: 'other' }, ACCOUNT),
+    ).toBeNull()
+    const answer = (value: string, moderatePlus = false) =>
+      mamEventReaction(
+        { type: 'lookback-answer', kind: 'rating', value, moderatePlus },
+        ctx,
+      )
+    expect(answer('LIGHTER')).toEqual({
+      intent: 'HAPPY',
+      line: 'LOOKBACK_LIGHTER',
+    })
+    expect(answer('LIGHTER', true)).toEqual({
+      intent: 'LISTEN',
+      line: 'LOOKBACK_LISTEN',
+    })
+    expect(answer('HEAVIER', true)).toEqual({
+      intent: 'COMFORT',
+      line: 'LOOKBACK_HEAVIER',
+    })
+  })
+
+  it('lời hẹn done: encouragement, never a celebration', () => {
+    expect(mamEventReaction({ type: 'commitment-done' }, ctx)).toEqual({
+      intent: 'ENCOURAGE',
+      line: 'COMMITMENT_DONE',
+    })
+    expect(
+      parseMamEvent(
+        'commitment-done',
+        { accountId: ACCOUNT, localDate: '2026-11-27' },
+        ACCOUNT,
+      ),
+    ).toEqual({
+      type: 'commitment-done',
+      accountId: ACCOUNT,
+      localDate: '2026-11-27',
+    })
+  })
+
   it('reassessment: lower cheers softly, equal listens, higher or moderate+ comforts and points to the guide', () => {
     const at = (
       band: 'LOWER' | 'SAME' | 'HIGHER',

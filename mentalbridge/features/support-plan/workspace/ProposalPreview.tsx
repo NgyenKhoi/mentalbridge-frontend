@@ -111,7 +111,7 @@ export default function ProposalPreview({
           {choices}
         </Disclosure>
       )}
-      <Disclosure summary="Đổi giờ và nhịp">{schedule}</Disclosure>
+      <Disclosure summary="Đổi giờ và tần suất">{schedule}</Disclosure>
 
       <div className="mbw-sticky-actions">
         {/* Always mounted so the change of text is announced. */}

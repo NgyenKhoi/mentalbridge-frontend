@@ -151,7 +151,9 @@ describe('review due', () => {
     expect(
       screen.queryByRole('link', { name: 'Làm bài đánh giá lại để tiếp tục' }),
     ).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn nhịp tiếp theo' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Chọn kế hoạch tiếp theo' }),
+    )
     expect(onOpenReview).toHaveBeenCalledOnce()
     expect(screen.getByRole('link', { name: 'Xem nhìn lại' })).toHaveAttribute(
       'href',

@@ -35,7 +35,8 @@ const QUIET = [
   '/specialists',
   `/resources/${resourceId}`,
 ]
-// The community and plans-and-payment are out of scope (owner, 2026-11-22); screening is private.
+// The community and plans-and-payment are out of scope (owner, 2026-11-22); the standalone assessments are private
+// (`/initial-check` is QUIET since mam-v3: Mầm keeps company through the first screening, hidden on a SAFETY result).
 const HIDDEN = [
   '/assessments',
   '/subscription',
@@ -263,10 +264,10 @@ test.describe('MB-895 Mầm route surface matrix', () => {
     page,
   }) => {
     await open(page, 1440)
-    await page.goto('/ai-companion')
+    await page.goto('/profile')
     await expect(dockRoot(page)).toHaveAttribute('data-mam-mode', 'quiet')
-    // The shell's search box is a text field on every QUIET page.
-    const field = page.getByPlaceholder(/Tìm kiếm/)
+    // The profile's name field is a text field on this QUIET page (the shell no longer has a search box).
+    const field = page.getByLabel('Tên hiển thị')
     await expect(field).toBeVisible()
     await expect(page.locator('[data-mam-reduced="true"]')).toHaveCount(0)
     await field.focus()
@@ -357,7 +358,7 @@ test.describe('MB-895 Mầm route surface matrix', () => {
       )
       await page.goto('/achievements')
       await expect(
-        page.getByRole('heading', { name: 'Bộ sưu tập hành trình' }),
+        page.getByRole('heading', { name: 'Dấu mốc của bạn' }),
       ).toBeVisible()
       await expect(dockRoot(page)).toHaveAttribute('data-mam-mode', 'full')
       await clear('/achievements')

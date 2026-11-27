@@ -1,6 +1,7 @@
 import { ApiError } from '@/lib/api/api-error'
 import { browserApiClient } from '@/lib/api/browser-client'
 import { clearAllCompanionDrafts } from '@/features/ai-companion/components/companion-draft-storage'
+import { clearCompanionState } from '@/features/mam/companion-state'
 
 import type {
   PublicRegistrationRole,
@@ -88,6 +89,7 @@ export async function terminateSession(mode: LogoutMode) {
   const endpoint = mode === 'all' ? '/identity/logout-all' : '/identity/logout'
   // Before the request: the caller redirects to /login even when it fails.
   clearAllCompanionDrafts()
+  clearCompanionState()
   await browserApiClient.post(endpoint)
 }
 

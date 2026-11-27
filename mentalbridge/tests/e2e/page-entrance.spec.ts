@@ -43,7 +43,7 @@ async function entranceNames(page: Page) {
     )
 }
 
-test('Home content enters in order while its decision uses its own motion', async ({
+test('Home content enters while its decision uses its own motion', async ({
   page,
 }) => {
   await installHomeMocks(page, homeWorld('first-use'))
@@ -51,23 +51,12 @@ test('Home content enters in order while its decision uses its own motion', asyn
   await expect(
     page.getByRole('region', { name: 'Bước tiếp theo', exact: true }),
   ).toBeVisible()
-  const blocks = await page.locator('.home-data-rise').evaluateAll((elements) =>
-    elements.map((element) => {
-      const style = getComputedStyle(element)
-      return {
-        name: style.animationName,
-        delay: Number.parseFloat(style.animationDelay),
-      }
-    }),
-  )
-  expect(blocks.length).toBeGreaterThanOrEqual(4)
-  expect(blocks.every((block) => block.name !== 'none')).toBe(true)
-  expect(blocks.every((block) => block.delay >= 0 && block.delay <= 0.7)).toBe(
-    true,
+  // The card's title wipes in with the card's own animation, apart from the shell entrance.
+  await expect(page.locator('.home-title.home-wipe')).toHaveCSS(
+    'animation-name',
+    'home-wipe',
   )
   await expect(page.locator('main.ref-content')).toHaveAttribute('data-entered')
-  await expect(page.locator('.home-explore')).toHaveCSS('opacity', '1')
-  await expect(page.locator('.home-explore')).toHaveCSS('transform', 'none')
 })
 
 test('clinical history is still before its asynchronous results arrive', async ({
@@ -152,17 +141,12 @@ test('reduced motion, a preference change and printing show final content', asyn
   page,
 }) => {
   await installHomeMocks(page, homeWorld('first-use'))
-  const enteringTile = page.locator('.home-explore .home-data-rise').first()
+  const enteringTile = page.locator('.home-title.home-wipe')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
   expect(
     (await entranceNames(page)).some((name) => entranceName.test(name)),
   ).toBe(false)
-  await expect(page.locator('.home-explore')).toHaveCSS('opacity', '1')
-  await expect(page.locator('.home-explore')).toHaveCSS(
-    'animation-name',
-    'none',
-  )
   await expect(enteringTile).toHaveCSS('animation-name', 'home-fade')
   await expect(enteringTile).toHaveCSS('transform', 'none')
   await expect(enteringTile).toHaveCSS('opacity', '1')
@@ -171,13 +155,8 @@ test('reduced motion, a preference change and printing show final content', asyn
   await expect(
     page.getByRole('region', { name: 'Bước tiếp theo', exact: true }),
   ).toBeVisible()
-  await expect(enteringTile).toHaveCSS('animation-name', 'home-rise')
+  await expect(enteringTile).toHaveCSS('animation-name', 'home-wipe')
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await expect(page.locator('.home-explore')).toHaveCSS(
-    'animation-name',
-    'none',
-  )
-  await expect(page.locator('.home-explore')).toHaveCSS('transform', 'none')
   await expect(enteringTile).toHaveCSS('animation-name', 'home-fade')
   await expect(enteringTile).toHaveCSS('transform', 'none')
   await expect(enteringTile).toHaveCSS('opacity', '1')
@@ -185,7 +164,6 @@ test('reduced motion, a preference change and printing show final content', asyn
   expect(
     (await entranceNames(page)).some((name) => entranceName.test(name)),
   ).toBe(false)
-  await expect(page.locator('.home-explore')).toHaveCSS('opacity', '1')
   await expect(enteringTile).toHaveCSS('animation-name', 'none')
   await expect(enteringTile).toHaveCSS('transform', 'none')
   await expect(enteringTile).toHaveCSS('opacity', '1')
@@ -198,15 +176,13 @@ test.describe('without JavaScript', () => {
     page,
   }) => {
     await page.goto('/dashboard')
-    await expect(page.locator('.home-explore')).toHaveCSS('opacity', '1')
-    await expect(page.locator('.home-explore')).toHaveCSS('transform', 'none')
     await expect(page.locator('.home-hub h1')).toHaveCSS('transform', 'none')
     await expect(page.locator('main.ref-content')).not.toHaveAttribute(
       'data-entered',
     )
     const resourcesLink = page
-      .locator('.home-explore')
-      .getByRole('link', { name: /^Tài nguyên/ })
+      .getByRole('navigation', { name: 'Điều hướng chính' })
+      .getByRole('link', { name: 'Tài nguyên', exact: true })
     await expect(resourcesLink).toBeVisible()
     await expect(resourcesLink).toHaveAttribute('href', '/resources')
     await expect(resourcesLink).toHaveCSS('opacity', '1')

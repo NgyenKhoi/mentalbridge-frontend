@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 
 import { parseEmotionPlanOrigin } from '@/features/support-plan/emotion-plan-origin'
 import { parseJournalPlanOrigin } from '@/features/support-plan/journal-plan-origin'
+import { parseReviewPreference } from '@/features/support-plan/workspace/workspace-links'
 import SupportPlanWorkspace from '@/features/support-plan/workspace/SupportPlanWorkspace'
 
 export const metadata: Metadata = {
@@ -56,7 +57,11 @@ export default async function SupportPlanPage({
   }
   if (!query.has('occurrenceId'))
     return values.review === 'open' ? (
-      <SupportPlanWorkspace mamEnabled openReview />
+      <SupportPlanWorkspace
+        mamEnabled
+        openReview
+        preferKind={parseReviewPreference(values.prefer)}
+      />
     ) : (
       <SupportPlanWorkspace mamEnabled />
     )

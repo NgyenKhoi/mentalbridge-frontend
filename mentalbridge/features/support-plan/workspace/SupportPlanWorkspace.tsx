@@ -77,6 +77,7 @@ import {
   useMamActionExplain,
 } from './mam-support-plan'
 import ProposalPreview from './ProposalPreview'
+import type { ReviewPreference } from './workspace-links'
 import TodayPanel, { type Barrier, type Helpfulness } from './TodayPanel'
 import { useCompanion } from './use-companion'
 import {
@@ -300,12 +301,15 @@ export default function SupportPlanWorkspace({
   returnOrigin,
   invalidOrigin = false,
   openReview: openReviewOnLoad = false,
+  preferKind,
   mamEnabled = false,
 }: Readonly<{
   returnOrigin?: ReturnOrigin
   invalidOrigin?: boolean
   /** Returning from a reassessment the plan review asked for. */
   openReview?: boolean
+  /** The review shows the option of this kind first (the look-back obstacle answer). */
+  preferKind?: ReviewPreference
   /** The global Mầm owns the explanations; the page always passes it (tests default to false). */
   mamEnabled?: boolean
 }>) {
@@ -1068,7 +1072,7 @@ export default function SupportPlanWorkspace({
     setTab('today')
     setAnnouncement(
       result.result === 'CYCLE_CONTINUED'
-        ? 'Đã bắt đầu thêm 14 ngày với nhịp hiện tại.'
+        ? 'Đã bắt đầu thêm 14 ngày với kế hoạch hiện tại.'
         : 'Đã cập nhật kế hoạch theo lựa chọn của bạn.',
     )
   }
@@ -1757,6 +1761,7 @@ export default function SupportPlanWorkspace({
               dirty={dirty}
               reviewOpen={reviewOpen}
               mamReview={mamEnabled}
+              preferKind={preferKind}
               schedule={scheduleEditor(current)}
               preferences={
                 <SupportPlanPersonalization

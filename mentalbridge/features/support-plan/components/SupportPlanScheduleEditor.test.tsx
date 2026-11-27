@@ -255,7 +255,7 @@ describe('SupportPlanScheduleEditor', () => {
       />,
     )
     expect(
-      screen.getByRole('combobox', { name: 'Nhịp hoạt động' }),
+      screen.getByRole('combobox', { name: 'Tần suất hoạt động' }),
     ).toBeDisabled()
     expect(
       screen.getByRole('combobox', { name: 'Thời điểm trong ngày' }),

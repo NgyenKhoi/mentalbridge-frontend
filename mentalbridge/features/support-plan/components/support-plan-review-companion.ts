@@ -205,7 +205,7 @@ function engagementDimension(
   const { completedCount, skippedCount } = engagement.currentPeriod
   return {
     id: 'engagement',
-    label: 'Nhịp thực hiện',
+    label: 'Tần suất',
     state: engagement.state === 'AVAILABLE' ? 'available' : 'limited',
     summary:
       engagement.state === 'AVAILABLE'
@@ -337,7 +337,7 @@ function scheduleChanges(
       ? `“${title}”: thời lượng mỗi lần từ ${before.estimatedDurationMinutes ?? 'chưa nêu'} phút thành ${after.estimatedDurationMinutes ?? 'chưa nêu'} phút.`
       : '',
     frequency(before) !== frequency(after)
-      ? `“${title}”: nhịp từ ${frequency(before)} thành ${frequency(after)}.`
+      ? `“${title}”: tần suất từ ${frequency(before)} thành ${frequency(after)}.`
       : '',
     scheduledTime(before) !== scheduledTime(after)
       ? `“${title}”: thời điểm từ ${scheduledTime(before)} sang ${scheduledTime(after)}.`
@@ -396,7 +396,7 @@ function reviewOptions(
   const keep: CompanionReviewOption = {
     id: 'keep',
     title: 'Giữ kế hoạch hiện tại',
-    summary: 'Tiếp tục nhịp hiện tại; không có thay đổi nào được áp dụng.',
+    summary: 'Tiếp tục kế hoạch hiện tại; không có thay đổi nào được áp dụng.',
     details: [],
   }
   const change: CompanionReviewOption = {

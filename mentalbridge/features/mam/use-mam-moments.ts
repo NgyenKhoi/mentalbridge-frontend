@@ -3,6 +3,11 @@
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { localDateInTimeZone } from '@/lib/emotion-check-in/presentation'
+import {
+  createCompanionCommitment,
+  loadCompanionState,
+} from './companion-state'
+import { shiftLocalDate } from './companion-copy'
 import { mamDailyKey, readMamDaily, writeMamDaily } from './mam-daily'
 import { readGuide } from './mam-guide'
 import type { MamBubbleSpec, MamGuideAction, MamGuideMotion } from './mam-guide'
@@ -65,6 +70,15 @@ export function useMamMoments(
       )
     }
     window.addEventListener(MAM_MOMENT_EVENT, onMoment)
+    // Moments already seen on another device leave the line once the server copy is read.
+    let cancelled = false
+    void loadCompanionState(accountId).then((state) => {
+      if (cancelled || !state) return
+      setQueue((items) => {
+        const kept = items.filter((item) => !momentSeen(accountId, item.key))
+        return kept.length === items.length ? items : kept
+      })
+    })
     // The reminder the user asked for yesterday ("Mai Mầm nhắc mình nhé") comes back once, on a later day.
     const reminder = readMamDaily(reminderKey(accountId))
     const [day, href] = (reminder ?? '').split('|')
@@ -95,6 +109,7 @@ export function useMamMoments(
       )
     }
     return () => {
+      cancelled = true
       window.clearTimeout(timer)
       window.clearTimeout(reask)
       window.removeEventListener(MAM_MOMENT_EVENT, onMoment)
@@ -147,8 +162,16 @@ export function useMamMoments(
         setStep((value) => value + 1)
         return
       }
-      if (action.go === 'remind')
+      if (action.go === 'remind') {
         writeMamDaily(reminderKey(accountId), `${today()}|${first.href ?? ''}`)
+        // The same promise, kept on the server too: Home asks about it tomorrow. A full list (409) is not an error here.
+        void createCompanionCommitment(accountId, {
+          kind: 'PLAN_ACTIVITY',
+          minutes: 5,
+          dueOn: shiftLocalDate(today(), 1),
+          source: 'PLAN_SKIP',
+        })
+      }
       if (action.go === 'stay' || action.go === 'remind') setStaying(true)
       // An action with an href is a Link: it navigates by itself.
       close()

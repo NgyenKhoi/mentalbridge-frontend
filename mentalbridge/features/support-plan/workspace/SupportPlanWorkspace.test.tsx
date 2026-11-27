@@ -850,11 +850,11 @@ describe('SupportPlan workspace', () => {
     for (const radio of screen.getAllByRole('radio'))
       expect(radio).not.toBeChecked()
     await user.click(
-      screen.getByRole('radio', { name: /Giữ nhịp này thêm 14 ngày/ }),
+      screen.getByRole('radio', { name: /Giữ kế hoạch này thêm 14 ngày/ }),
     )
     expect(api.confirmAdaptiveReviewOption).not.toHaveBeenCalled()
     await user.click(
-      screen.getByRole('button', { name: 'Giữ nhịp này thêm 14 ngày' }),
+      screen.getByRole('button', { name: 'Giữ kế hoạch này thêm 14 ngày' }),
     )
     await waitFor(() =>
       expect(api.confirmAdaptiveReviewOption).toHaveBeenCalledWith(
@@ -885,10 +885,12 @@ describe('SupportPlan workspace', () => {
       await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
     )
     await user.click(
-      await screen.findByRole('radio', { name: /Giữ nhịp này thêm 14 ngày/ }),
+      await screen.findByRole('radio', {
+        name: /Giữ kế hoạch này thêm 14 ngày/,
+      }),
     )
     const keep = screen.getByRole('button', {
-      name: 'Giữ nhịp này thêm 14 ngày',
+      name: 'Giữ kế hoạch này thêm 14 ngày',
     })
     await user.click(keep)
     expect(
@@ -955,14 +957,16 @@ describe('SupportPlan workspace', () => {
       await screen.findByRole('button', { name: /Xem lại kế hoạch/ }),
     )
     await user.click(
-      await screen.findByRole('radio', { name: /Giữ nhịp này thêm 14 ngày/ }),
+      await screen.findByRole('radio', {
+        name: /Giữ kế hoạch này thêm 14 ngày/,
+      }),
     )
     await user.click(
-      screen.getByRole('button', { name: 'Giữ nhịp này thêm 14 ngày' }),
+      screen.getByRole('button', { name: 'Giữ kế hoạch này thêm 14 ngày' }),
     )
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(
-      'Cần làm bài đánh giá lại trước khi giữ nhịp thêm 14 ngày.',
+      'Cần làm bài đánh giá lại trước khi giữ kế hoạch thêm 14 ngày.',
     )
     expect(
       within(alert).getByRole('link', { name: 'Làm bài đánh giá lại' }),
@@ -1825,7 +1829,7 @@ describe('SupportPlan workspace recovery', () => {
     api.getCurrentSupportPlanActions.mockRejectedValue(notFound())
     api.getCurrentNativeSupportPlanDraft.mockResolvedValue(draftPlan())
     render(<SupportPlanWorkspace />)
-    await user.click(await screen.findByText('Đổi giờ và nhịp'))
+    await user.click(await screen.findByText('Đổi giờ và tần suất'))
     await user.click(screen.getByRole('button', { name: 'Sửa giờ' }))
     await user.click(screen.getByText('Điều chỉnh theo ý bạn (không bắt buộc)'))
     await user.click(screen.getByRole('button', { name: 'Lưu tùy chọn' }))
@@ -1926,7 +1930,7 @@ describe('SupportPlan workspace recovery', () => {
       occurrenceList(nativeSupportPlanFixture(), []),
     )
     render(<SupportPlanWorkspace />)
-    await user.click(await screen.findByText('Đổi giờ và nhịp'))
+    await user.click(await screen.findByText('Đổi giờ và tần suất'))
     await user.click(screen.getByRole('button', { name: 'Sửa giờ' }))
     await user.click(screen.getByText('Điều chỉnh theo ý bạn (không bắt buộc)'))
     await user.click(screen.getByRole('button', { name: 'Lưu tùy chọn' }))

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ComponentProps } from 'react'
 import type SupportPlanWorkspace from '@/features/support-plan/workspace/SupportPlanWorkspace'
@@ -90,6 +90,27 @@ describe('SupportPlan return route discrimination', () => {
   })
   it('reopens the plan review for the exact return token', async () => {
     expect(await propsFor({ review: 'open' })).toEqual({ openReview: true })
+  })
+  it('passes the look-back prefer hint only with the open review', async () => {
+    expect(
+      await propsFor({
+        review: 'open',
+        prefer: 'LOWER_WORKLOAD',
+      }),
+    ).toEqual({
+      openReview: true,
+      preferKind: 'LOWER_WORKLOAD',
+    })
+    cleanup()
+    expect(await propsFor({ prefer: 'DIFFERENT_TIME' })).toEqual({})
+  })
+  it('ignores a prefer value that is not a Care option kind it may reorder', async () => {
+    for (const prefer of ['KEEP_CURRENT', 'lower_workload', 'x']) {
+      cleanup()
+      expect(await propsFor({ review: 'open', prefer })).toEqual({
+        openReview: true,
+      })
+    }
   })
   it('ignores any other review value', async () => {
     expect(await propsFor({ review: 'yes' })).toEqual({})

@@ -160,6 +160,19 @@ async function open(
       }),
     )
   }
+  // The gallery's own 0.9 s popup for an unseen earned item would put a dialog over the dock: these were
+  // already celebrated.
+  await page.addInitScript(
+    (keys) =>
+      localStorage.setItem(
+        'mentalbridge_seen_achievements',
+        JSON.stringify(keys),
+      ),
+    [achievement('old', 'Cũ', 5 * 60 * MIN), ...earned].map(
+      (award) =>
+        `${award.key.split(':')[1]}:${new Date(award.at).toISOString()}`,
+    ),
+  )
   await page.goto(path)
   await expect(dock(page)).toBeVisible()
   // The host's own gallery read seeds the domain before the fake reads.

@@ -17,7 +17,10 @@ import type {
   AdaptiveSupportPlanReview,
   SupportPlanV3,
 } from '../api/support-plan-contract'
-import { REVIEW_REASSESSMENT_HREF } from './workspace-links'
+import {
+  REVIEW_REASSESSMENT_HREF,
+  type ReviewPreference,
+} from './workspace-links'
 import { planActions, replacementDiff } from './workspace-model'
 
 type Review = AdaptiveSupportPlanReview
@@ -26,6 +29,8 @@ type SelfReport = Summary['selfReportedExperience']
 type Props = Readonly<{
   plan: SupportPlanV3
   locked: boolean
+  /** Care options of this kind are listed first and labelled; no match changes nothing. */
+  prefer?: ReviewPreference
   /** The plan's current DRAFT, if any; Care allows only one. */
   pendingDraft?: SupportPlanV3
   /** Called after Care applied a change or prepared a draft; the workspace reloads. */
@@ -119,7 +124,7 @@ function changeText(change: AdaptiveReviewOption['changes'][number]) {
 function optionTitle(option: AdaptiveReviewOption, review: Review) {
   if (option.kind === 'KEEP_CURRENT')
     return option.executionKind === 'CONTINUE_CYCLE'
-      ? 'Giữ nhịp này thêm 14 ngày'
+      ? 'Giữ kế hoạch này thêm 14 ngày'
       : kindName.KEEP_CURRENT
   const action = review.patterns.find(
     (pattern) => pattern.actionId === option.actionId,
@@ -151,7 +156,7 @@ function evidenceText(ref: AdaptiveReviewEvidenceRef, review: Review) {
     case 'JOURNAL_CONTEXT':
       return 'Nhật ký của bạn'
     case 'PLAN_ENGAGEMENT':
-      return 'Nhịp thực hiện kế hoạch'
+      return 'Tần suất thực hiện kế hoạch'
     case 'ACTIVITY_REFLECTION':
       return 'Phản hồi sau hoạt động'
     case 'PREFERENCES':
@@ -162,7 +167,7 @@ function evidenceText(ref: AdaptiveReviewEvidenceRef, review: Review) {
 function confirmLabel(option: AdaptiveReviewOption) {
   switch (option.executionKind) {
     case 'CONTINUE_CYCLE':
-      return 'Giữ nhịp này thêm 14 ngày'
+      return 'Giữ kế hoạch này thêm 14 ngày'
     case 'NO_CHANGE':
       return 'Giữ kế hoạch'
     case 'UPDATE_SCHEDULE':
@@ -186,7 +191,7 @@ function selfReport(review: Review): SelfReport | undefined {
 }
 
 const REASSESSMENT_REQUIRED_COPY =
-  'Cần làm bài đánh giá lại trước khi giữ nhịp thêm 14 ngày.'
+  'Cần làm bài đánh giá lại trước khi giữ kế hoạch thêm 14 ngày.'
 
 function problem(error: unknown) {
   if (error instanceof ApiError) {
@@ -344,7 +349,7 @@ function Evidence({ review }: Readonly<{ review: Review }>) {
       aria-label="Những gì đã ghi nhận"
     >
       <section className="mbw-evidence-item" aria-labelledby="mbw-ev-pace">
-        <h3 id="mbw-ev-pace">Nhịp thực hiện</h3>
+        <h3 id="mbw-ev-pace">Tần suất</h3>
         <p className="mbw-evidence-value">
           Đã làm {period.completedCount}/{period.scheduledCount} lần đã hẹn
         </p>
@@ -403,6 +408,34 @@ function Evidence({ review }: Readonly<{ review: Review }>) {
   )
 }
 
+/**
+ * The preferred kind moves up, but only past options of its own stretch: a professional-support option
+ * Care ranked above it stays above it. Stable, Care's own order otherwise.
+ */
+function preferFirst<T extends { kind: string }>(
+  options: readonly T[],
+  prefer: string | undefined,
+): T[] {
+  const ordered: T[] = []
+  let stretch: T[] = []
+  const flush = () => {
+    ordered.push(
+      ...stretch.sort(
+        (a, b) => Number(b.kind === prefer) - Number(a.kind === prefer),
+      ),
+    )
+    stretch = []
+  }
+  for (const option of options) {
+    if (option.kind === 'PROFESSIONAL_SUPPORT_NEXT_STEP') {
+      flush()
+      ordered.push(option)
+    } else stretch.push(option)
+  }
+  flush()
+  return ordered
+}
+
 const reassessmentNote = {
   NOT_STARTED: 'Bạn chưa làm bài đánh giá lại cho giai đoạn này.',
   INCOMPLETE: 'Bài đánh giá lại của giai đoạn này chưa hoàn tất.',
@@ -413,6 +446,7 @@ const reassessmentNote = {
 export default function AdaptiveReview({
   plan,
   locked,
+  prefer,
   pendingDraft,
   onApplied,
   onDiscardDraft,
@@ -728,7 +762,7 @@ export default function AdaptiveReview({
               </span>
             </label>
           )}
-          {review.options.map((option) => {
+          {preferFirst(review.options, prefer).map((option) => {
             // A source the user never gave is not shown as a reason.
             const why = option.evidenceRefs
               .filter(
@@ -753,6 +787,9 @@ export default function AdaptiveReview({
                 />
                 <span>
                   <strong>{optionTitle(option, review)}</strong>
+                  {prefer && option.kind === prefer && (
+                    <span className="mbw-quiet">Hợp với điều bạn vừa chọn</span>
+                  )}
                   {option.executionKind === 'CONTINUE_CYCLE' && (
                     <span className="mbw-quiet">
                       Tiếp tục {currentTitles.length} hoạt động hiện tại thêm

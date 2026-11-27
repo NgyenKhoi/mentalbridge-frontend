@@ -1081,6 +1081,188 @@
   outline-color: #fff;
 }
 
+/* ---------- Chặng của bạn: calm blocks, appended one after another ---------- */
+.self {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.insight {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.h3 {
+  margin: 0;
+  color: var(--forest-900);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.insightText {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* Questions: a heading, then chips. Calm: neutral chips, one dark fill for the chosen one, no celebration. */
+.question {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.answerBlock {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.prompt {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--healing-border); /* taste-skill-ignore: choice chip needs a visible edge */
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.chip:hover {
+  background: var(--forest-50);
+}
+
+.chip[aria-checked='true'] {
+  border-color: var(--forest-700);
+  background: var(--forest-700);
+  color: #fff;
+  font-weight: 650;
+}
+
+.chip[aria-disabled='true'] {
+  cursor: default;
+}
+
+.chip:active {
+  transform: scale(0.95);
+}
+
+.chip:focus-visible,
+.change:focus-visible,
+.act:focus-visible {
+  outline: 3px solid var(--forest-500);
+  outline-offset: 3px;
+}
+
+.answered {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.answer {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.change {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--forest-700);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.change:hover {
+  text-decoration: underline;
+}
+
+/* The status region stays mounted; Mầm's reply fades in place (opacity and a few pixels of lift). */
+.replyWrap:empty {
+  display: none;
+}
+
+.reply {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  animation: lbFade 240ms var(--ease-standard) backwards;
+}
+
+.reply p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--forest-700); /* taste-skill-ignore: outlined secondary action button */
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--forest-700);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.act:hover {
+  background: var(--forest-50);
+}
+
+.act[aria-disabled='true'] {
+  border-color: var(--healing-border);
+  color: var(--healing-muted);
+  cursor: default;
+}
+
+.act:active {
+  transform: scale(0.95);
+}
+
 /* ---------- Screening, notes and shared bits ---------- */
 .block {
   display: grid;
@@ -1666,6 +1848,13 @@
   }
 }
 
+@keyframes lbFade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 @keyframes lbDraw {
   to {
     stroke-dashoffset: 0;
@@ -1709,6 +1898,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rise,
+  .reply,
   .station,
   .aura i,
   .kicker > i::after,
@@ -1731,6 +1921,8 @@
   .stationDisk,
   .zone,
   .primary,
+  .chip,
+  .act,
   .filters button,
   .next .primary svg,
   .chapterTab,
@@ -1744,6 +1936,8 @@
   .next .primary:hover,
   .next .primary:hover svg,
   .filters button:active,
+  .chip:active,
+  .act:active,
   .chapterTab:active {
     transform: none;
   }

@@ -9,9 +9,10 @@ import { PlanEmotionCheckIn } from '@/features/emotion-check-in/PlanEmotionCheck
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useMamPageTarget } from '@/features/mam/use-mam-target'
 import { useMamSuppress } from '@/features/mam/mam-suppression'
+import { useMamAccountId } from '@/features/mam/MamDockSlot'
+import { refreshCompanionState } from '@/features/mam/companion-state'
 import HomeNextStepCard from './HomeNextStepCard'
 import { HomeGreeting } from './HomeGreeting'
-import { HomeQuickActions } from './HomeQuickActions'
 import { HomeEmotionSection } from './HomeEmotionSection'
 import { HomeResources } from './HomeResources'
 import { HomeUpcomingAppointment } from './HomeUpcomingAppointment'
@@ -83,6 +84,11 @@ export function HomeHub() {
   const [attempt, setAttempt] = useState(0)
   // One journey entry at a time: the reassessment review wins when it exists.
   const [reviewExists, setReviewExists] = useState<boolean | null>(null)
+  const accountId = useMamAccountId()
+  // Another tab or device may have changed the focus or a lời hẹn since this tab cached the state.
+  useEffect(() => {
+    if (accountId) void refreshCompanionState(accountId)
+  }, [accountId])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -181,7 +187,6 @@ export function HomeHub() {
         />
         <HomeUpcomingAppointment summonable={!safety && !planEmotion} />
       </div>
-      <HomeQuickActions home={home} />
       {/* Last, so it appearing after its lookups moves nothing above it. */}
       {home &&
         !planEmotion &&
