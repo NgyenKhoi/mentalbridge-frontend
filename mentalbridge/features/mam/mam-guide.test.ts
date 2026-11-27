@@ -74,7 +74,7 @@ describe('mam guide state', () => {
     expect(three.pending).toEqual({ after: 'chat', next: 'journal' })
   })
 
-  it('queues graduation once journal, chat and unwind are done, then ignores events', () => {
+  it('Free: after the relaxation Mầm tells about the plan once, never sells, and graduates either way', () => {
     let s: MamGuideState = started()
     s = reduceGuide(s, { type: 'journal-created' }, T1)!
     s = reduceGuide(
@@ -83,13 +83,101 @@ describe('mam guide state', () => {
       T1,
     )!
     s = reduceGuide(s, { type: 'resource-done' }, T1)!
-    expect(s.pending).toEqual({ after: 'relax', next: 'graduate' })
-    expect(s.unwindKind).toBe('relax')
-    const graduated = actGuide(s, 'graduate', T1)
+    // Not graduated bare: the plan comes first (owner 2026-11-27).
+    expect(s.pending).toEqual({ after: 'relax', next: 'plan' })
+    const teaser = sequenceFor(s.pending!, s)
+    expect(teaser[0]).toMatchObject({
+      text: expect.stringContaining('Bạn thấy nhẹ hơn được chút nào chưa?'),
+    })
+    expect(teaser.at(-1)).toMatchObject({
+      kind: 'ask',
+      text: expect.stringContaining(
+        'xem thôi cũng được, không mua cũng không sao đâu',
+      ),
+      actions: [
+        { label: 'Xem gói Plus', go: 'plus' },
+        { label: 'Để sau đi', go: 'decline' },
+      ],
+    })
+    // "Xem gói Plus": back from /subscription, one line, then the Free graduation with the plan in it.
+    const viewed = actGuide(s, 'plus', T1)
+    expect(viewed.pending).toEqual({ after: 'plus', next: 'graduate' })
+    const lines = sequenceFor(viewed.pending!, viewed).map((b) =>
+      b.kind === 'consent' ? '' : b.text,
+    )
+    expect(lines[0]).toContain('Bạn xem xong rồi nè.')
+    expect(lines.at(-1)).toContain(
+      'Muốn có kế hoạch để Mầm nhắc mỗi ngày thì vào Gói Plus nhé.',
+    )
+    // "Để sau đi": one gentle line, a single graduate button, never asked again by the walk.
+    const later = actGuide(s, 'decline', T1)
+    expect(later.declined.plan).toEqual({ at: T1, reoffered: false })
+    expect(sequenceFor(later.pending!, later)).toEqual([
+      expect.objectContaining({
+        kind: 'ask',
+        text: expect.stringContaining('Ok, để sau cũng được, không sao đâu.'),
+        actions: [{ label: 'Chịu, Mầm ơi', tone: 'primary', go: 'graduate' }],
+      }),
+    ])
+    const graduated = actGuide(later, 'graduate', T1)
     expect(graduated.graduatedAt).toBe(T1)
     expect(reduceGuide(graduated, { type: 'journal-created' }, T1)).toBe(
       graduated,
     )
+  })
+
+  it('Plus: after the chat Mầm makes the plan first, practises inside it, then graduates with it', () => {
+    let s: MamGuideState = started()
+    s = reduceGuide(s, { type: 'journal-created' }, T1)!
+    s = reduceGuide(
+      s,
+      { type: 'chat-replied', userTurns: 3, plan: 'PLUS' },
+      T1,
+    )!
+    expect(s.pending).toEqual({ after: 'chat', next: 'plan' })
+    expect(sequenceFor(s.pending!, s).at(-1)).toMatchObject({
+      kind: 'ask',
+      actions: [
+        { label: 'Tạo kế hoạch với Mầm', go: 'plan' },
+        { go: 'decline' },
+      ],
+    })
+    s = actGuide(s, 'plan', T1)
+    // A separate resource does not count while the new plan waits for its first activity.
+    expect(
+      reduceGuide({ ...s, planCreatedAt: T1 }, { type: 'resource-done' }, T1),
+    ).toEqual({ ...s, planCreatedAt: T1 })
+    s = reduceGuide(s, { type: 'plan-created' }, T1)!
+    expect(s.pending).toEqual({ after: 'plan-created', next: 'plan' })
+    expect(sequenceFor(s.pending!, s).at(-1)).toMatchObject({
+      text: expect.stringContaining('Tạo xong rồi nè.'),
+      actions: [
+        { label: 'Thử việc đầu tiên', go: 'plan-today' },
+        { label: 'Để mai làm', go: 'decline' },
+      ],
+    })
+    s = actGuide(s, 'plan-today', T1)
+    s = reduceGuide(s, { type: 'plan-activity-done' }, T1)!
+    expect(s.pending).toEqual({ after: 'plan', next: 'graduate' })
+    expect(s.unwindKind).toBe('plan')
+    const lines = sequenceFor(s.pending!, s).map((b) =>
+      b.kind === 'consent' ? '' : b.text,
+    )
+    expect(lines[0]).toContain('5 phút thôi là xong 1 việc trong kế hoạch rồi')
+    expect(lines.join(' ')).toContain('rồi làm 1 việc trong kế hoạch')
+  })
+
+  it('Free graduated after "Để sau" on the plan is not re-offered the plan by the walk', () => {
+    let s: MamGuideState = started()
+    s = reduceGuide(s, { type: 'journal-created' }, T1)!
+    s = reduceGuide(
+      s,
+      { type: 'chat-replied', userTurns: 3, plan: 'FREE' },
+      T1,
+    )!
+    s = reduceGuide(s, { type: 'resource-done' }, T1)!
+    const later = actGuide(s, 'decline', T1)
+    expect(startGuideSession({ ...later, pending: null }).pending).toBeNull()
   })
 
   it('offers a declined step once more on the next session, never again after that', () => {

@@ -135,12 +135,22 @@ export function useMamGuide(
           detail: { type: 'resource-done', accountId },
         }),
       )
+    // A plan activity marked done (Care confirmed it) is the plan step's practice, tracked by day.
+    const onPlanActivity = () =>
+      onGuide(
+        new CustomEvent(MAM_GUIDE_EVENT, {
+          detail: { type: 'plan-activity-done', accountId },
+        }),
+      )
     window.addEventListener(MAM_GUIDE_EVENT, onGuide)
     const resourceEvent = mamEventName('resource-done')
+    const planEvent = mamEventName('support-done')
     window.addEventListener(resourceEvent, onResource)
+    window.addEventListener(planEvent, onPlanActivity)
     return () => {
       window.removeEventListener(MAM_GUIDE_EVENT, onGuide)
       window.removeEventListener(resourceEvent, onResource)
+      window.removeEventListener(planEvent, onPlanActivity)
     }
   }, [accountId])
 

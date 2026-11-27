@@ -82,13 +82,6 @@ const quotaCopy = (quota: CompanionQuota | null) => {
   ).format(new Date(quota.resetAt))}`
 }
 
-const contextLabels: Record<string, string> = {
-  JOURNAL: 'Nhật ký gần đây',
-  SUPPORT_PLAN: 'Kế hoạch hỗ trợ hiện tại',
-  REASSESSMENT: 'Bài sàng lọc gần đây',
-  RESOURCE: 'Tài nguyên đã chọn',
-}
-
 const formatConversationTime = (value: string) =>
   new Intl.DateTimeFormat('vi-VN', {
     day: '2-digit',
@@ -932,22 +925,6 @@ export default function AiCompanionChat({
                       {streamingId === item.messageId ? null : (
                         <SuggestionAction suggestion={item.suggestion} />
                       )}
-                      {item.contextKinds.length > 0 ? (
-                        <details className={styles.messageContextChip}>
-                          <summary>
-                            <InfoIcon /> Đã dùng {item.contextKinds.length}{' '}
-                            nguồn
-                          </summary>
-                          <div>
-                            <strong>Nguồn đã dùng cho câu trả lời này</strong>
-                            <ul>
-                              {item.contextKinds.map((kind) => (
-                                <li key={kind}>{contextLabels[kind]}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </details>
-                      ) : null}
                     </div>
                   </article>
                 ))
@@ -1000,8 +977,9 @@ export default function AiCompanionChat({
                   onClick={() => setContextVisibility(true)}
                 >
                   <InfoIcon />
+                  {/* Which sources is a setting, not a per-answer counter (owner 2026-11-27). */}
                   {contextCount > 0
-                    ? `Mầm đang dùng ${String(contextCount)} nguồn bạn cho phép`
+                    ? 'Điều Mầm được biết về bạn'
                     : 'Chọn điều Mầm được biết về bạn'}
                 </button>
               </div>
