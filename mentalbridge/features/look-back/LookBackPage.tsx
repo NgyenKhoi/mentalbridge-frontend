@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { levelLabels } from '@/features/assessment/components/assessment-meanings'
 
 import { getLookBack } from './browser-look-back'
+import { ChapterSection, type LookBackChapterRef } from './ChapterSection'
 import { JourneyStrip } from './JourneyStrip'
 import {
   defaultClosedChapter,
@@ -473,21 +474,37 @@ function Ready({
     )
   }, [active, phase, label])
   const runningActive = running && shownId === RUNNING
+  // The chặng the questions belong to; the rolling 14 days belong to none.
+  const chapterRef: LookBackChapterRef | null = runningActive
+    ? {
+        start: running.startLocalDate,
+        end: null,
+        closed: false,
+        day: running.currentDay,
+      }
+    : chapter
+      ? {
+          start: chapter.startLocalDate,
+          end: chapter.endLocalDate,
+          closed: true,
+          day: 14,
+        }
+      : null
   // The override belongs to the chặng it concerns: the newest closed one, or the running one.
   const pending =
     closed && shownId === closed.summaryId
       ? {
-          label: 'Chọn nhịp tiếp theo',
+          label: 'Chọn kế hoạch tiếp theo',
           href: '/support-plan?review=open',
-          title: 'Chọn nhịp cho chặng tiếp theo',
-          body: 'Chặng vừa rồi đã khép lại với lần đánh giá mới. Bạn chọn giữ nhịp, điều chỉnh hay lập kế hoạch mới.',
+          title: 'Chọn kế hoạch cho chặng tiếp theo',
+          body: 'Chặng vừa rồi đã khép lại với lần đánh giá mới. Bạn chọn giữ nguyên kế hoạch, điều chỉnh hay lập kế hoạch mới.',
         }
       : runningActive && running.state === 'REVIEW_DUE'
         ? {
             label: 'Làm bài đánh giá lại',
             href: '/initial-check?purpose=reassessment',
             title: 'Khép lại chặng này',
-            body: 'Đã đủ 14 ngày. Làm bài đánh giá lại để xem chặng vừa qua và chọn nhịp tiếp theo.',
+            body: 'Đã đủ 14 ngày. Làm bài đánh giá lại để xem chặng vừa qua và chọn kế hoạch tiếp theo.',
           }
         : undefined
   return (
@@ -555,7 +572,7 @@ function Ready({
                   : undefined
               }
             />
-            <Window data={data} pending={pending} />
+            <Window data={data} pending={pending} chapter={chapterRef} />
           </Fragment>
         )}
       </div>
@@ -563,7 +580,8 @@ function Ready({
         <JourneyStrip journey={journey} />
       )}
       <p className={styles.note}>
-        Số liệu do bạn tự ghi lại; xu hướng không phải chẩn đoán.
+        Số liệu do bạn tự ghi lại; xu hướng và điều cùng xuất hiện không phải
+        chẩn đoán hay nguyên nhân.
       </p>
     </>
   )
@@ -572,10 +590,17 @@ function Ready({
 function Window({
   data,
   pending,
+  chapter,
 }: Readonly<{
   data: LookBack
+  chapter: LookBackChapterRef | null
   /** A step the cycle is waiting for outranks the generic next step. */
-  pending?: { label: string; href: string; title: string; body: string }
+  pending?: {
+    label: string
+    href: string
+    title: string
+    body: string
+  }
 }>) {
   const next = pending ?? nextStepAction[data.nextStep]
   const narrative = data.narrative
@@ -606,6 +631,7 @@ function Window({
       </div>
       {narrative !== 'SPARSE' && (
         <>
+          <ChapterSection data={data} chapter={chapter} />
           <Stats data={data} />
           {hasMood && <JourneyMap data={data} />}
         </>

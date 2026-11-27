@@ -12,7 +12,7 @@ import type {
 import SupportPlanMamReview from '../components/SupportPlanMamReview'
 import AdaptiveReview from './AdaptiveReview'
 import { dayLabel } from './TodayPanel'
-import { REASSESSMENT_HREF } from './workspace-links'
+import { REASSESSMENT_HREF, type ReviewPreference } from './workspace-links'
 import { planActions, replacementDiff } from './workspace-model'
 
 type Props = Readonly<{
@@ -24,6 +24,8 @@ type Props = Readonly<{
   reviewOpen: boolean
   /** Global Mầm presentation: the review explanation opens inline. */
   mamReview?: boolean
+  /** Option kind the adaptive review shows first. */
+  preferKind?: ReviewPreference
   schedule: ReactNode
   preferences: ReactNode
   history: ReactNode
@@ -99,6 +101,7 @@ export default function AdjustPanel({
   dirty,
   reviewOpen,
   mamReview,
+  preferKind,
   schedule,
   preferences,
   history,
@@ -167,6 +170,7 @@ export default function AdjustPanel({
     <AdaptiveReview
       plan={plan}
       locked={locked}
+      prefer={preferKind}
       pendingDraft={replacement}
       onApplied={onApplied}
       onDiscardDraft={onDiscardDraft}

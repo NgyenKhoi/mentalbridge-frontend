@@ -238,7 +238,7 @@ test.describe('MB-769 Mầm summon', () => {
     await travelling(page, 'perch')
     await expect(bubble(page)).toHaveAttribute('data-anchor', 'point')
     await expect(bubble(page)).toContainText(
-      'Bắt đầu từ thẻ “Bước tiếp theo” nhé.',
+      'Bắt đầu từ thẻ “Hôm nay cùng Mầm” nhé.',
     )
     await expect(dockRoot(page)).toHaveAttribute('data-mam-shot', 'point')
     await expect(nextStep(page)).toHaveAttribute('data-mam-active', '')
@@ -307,7 +307,7 @@ test.describe('MB-769 Mầm summon', () => {
       .getByRole('button', { name: 'Nên bắt đầu từ đâu?' })
       .click()
     await expect(bubble(page)).toContainText(
-      'Bắt đầu từ thẻ “Bước tiếp theo” nhé.',
+      'Bắt đầu từ thẻ “Hôm nay cùng Mầm” nhé.',
     )
     await expect(bubble(page)).toHaveAttribute('data-anchor', 'dock')
     await expect(
@@ -334,7 +334,7 @@ test.describe('MB-769 Mầm summon', () => {
       .getByRole('button', { name: 'Nên bắt đầu từ đâu?' })
       .click()
     await expect(bubble(page)).toContainText(
-      'Bắt đầu từ thẻ “Bước tiếp theo” nhé.',
+      'Bắt đầu từ thẻ “Hôm nay cùng Mầm” nhé.',
     )
     await expect(bubble(page)).toHaveAttribute('data-anchor', 'dock')
     await page.waitForTimeout(800)
@@ -607,10 +607,8 @@ test.describe('MB-769 Mầm summon', () => {
       .getByRole('heading', { level: 2 })
       .click({ button: 'right' })
     await expect(bubble(page)).toBeVisible()
-    await page
-      .getByRole('navigation', { name: 'Điều hướng chính' })
-      .getByRole('link', { name: 'Thành tựu' })
-      .click()
+    await page.getByRole('button', { name: 'Mở menu tài khoản' }).click()
+    await page.getByRole('menuitem', { name: 'Dấu mốc của bạn' }).click()
     await expect(page).toHaveURL(/\/achievements$/)
     await expect(bubble(page)).toHaveCount(0)
   })
@@ -619,10 +617,11 @@ test.describe('MB-769 Mầm summon', () => {
     await installHomeMocks(page, homeWorld('safety'))
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/dashboard')
-    await expect(dock(page)).toBeVisible()
+    // Safety support hides Mầm altogether (Home's useMamSuppress): no dock, no summon, no targets.
+    await expect(nextStep(page)).toBeVisible()
     await nextStep(page).click({ button: 'right', position: { x: 24, y: 24 } })
     await expect(bubble(page)).toHaveCount(0)
-    await dock(page).click()
+    await expect(dock(page)).toHaveCount(0)
     await expect(
       page.getByRole('button', { name: 'Hỏi Mầm về trang này' }),
     ).toHaveCount(0)

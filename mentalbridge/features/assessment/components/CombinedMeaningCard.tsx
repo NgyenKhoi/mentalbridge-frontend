@@ -21,6 +21,7 @@ import type {
   CombinedScreeningMeaning,
   ScreeningLevel,
 } from '@/features/assessment/api/care-contract'
+import { useMamSuppress } from '@/features/mam/mam-suppression'
 import { ensureCurrentSupportGuide } from '@/features/support-guide/api/browser-support-guide'
 
 import './combined-meaning-card.css'
@@ -178,6 +179,8 @@ export function CombinedMeaningCard({
   }, [preparing])
   const occurredAt = meaning.episodeCompletedAt ?? meaning.evaluatedAt
   const isSafety = meaning.presentationPriority === 'SAFETY'
+  // Safety never shares the screen with Mầm (care-support-and-intervention-policy.md:63-67).
+  useMamSuppress(isSafety, 'hide')
   const SubHeading = isSafety || headingLevel === 'h2' ? 'h3' : 'h2'
   const professional = meaning.presentationPriority === 'PROFESSIONAL_SUPPORT'
   const urgentProfessional = meaning.evidence.some(

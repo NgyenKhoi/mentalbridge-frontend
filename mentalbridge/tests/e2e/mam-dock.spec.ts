@@ -61,7 +61,7 @@ test.describe('MB-768 Mầm dock', () => {
     await expect(page).toHaveURL(/\/support-plan/)
     await expect(page.locator('[data-mam-dock]')).toHaveCount(1)
 
-    await nav.getByRole('link', { name: 'Tổng quan' }).click()
+    await nav.getByRole('link', { name: 'Hôm nay' }).click()
     await expect(page).toHaveURL(/\/dashboard$/)
     await expect(dock(page)).toBeVisible()
     expect(hydrationErrors).toEqual([])

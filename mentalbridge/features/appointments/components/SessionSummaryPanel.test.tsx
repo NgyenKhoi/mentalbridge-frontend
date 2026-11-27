@@ -1,6 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { localToday, shiftLocalDate } from '@/features/mam/companion-copy'
+import { MamDockSlot } from '@/features/mam/MamDockSlot'
+import { mockServer } from '@/tests/mocks/server'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
 
 const api = vi.hoisted(() => ({
@@ -134,6 +138,97 @@ describe('SessionSummaryPanel', () => {
     expect(
       screen.getByText(/chuyên gia của lịch hẹn sau đã được xác nhận đọc được/),
     ).toBeInTheDocument()
+  })
+
+  it('lets the user ask Mầm to remind them of one agreed step tomorrow (lời hẹn, source SESSION)', async () => {
+    api.list.mockResolvedValue({
+      items: [summary],
+      count: 1,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    let body: unknown = null
+    mockServer.use(
+      http.post('/api/companion-state/commitments', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(
+          {
+            id: '30000000-0000-4000-8000-000000000009',
+            kind: 'SPECIALIST_STEP',
+            minutes: null,
+            dueOn: shiftLocalDate(localToday(), 1),
+            source: 'SESSION',
+            status: 'OPEN',
+            createdAt: '2026-11-27T08:00:00.000Z',
+            resolvedAt: null,
+          },
+          { status: 201 },
+        )
+      }),
+    )
+    const user = userEvent.setup()
+    render(
+      <>
+        <MamDockSlot accountId="10000000-0000-4000-8000-0000000000aa" />
+        <SessionSummaryPanel appointmentId={appointmentId} viewer="USER" />
+      </>,
+    )
+
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Hẹn Mầm nhắc mình làm 1 bước',
+      }),
+    )
+
+    const line = await screen.findByText('Mai Mầm hỏi lại nhé.')
+    expect(line).toHaveFocus()
+    expect(body).toEqual({
+      kind: 'SPECIALIST_STEP',
+      minutes: null,
+      dueOn: shiftLocalDate(localToday(), 1),
+      source: 'SESSION',
+    })
+  })
+
+  it('does not offer the Mầm reminder to the specialist or without steps', async () => {
+    api.list.mockResolvedValue({
+      items: [summary],
+      count: 1,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    const user = userEvent.setup()
+    const { unmount } = render(
+      <>
+        <MamDockSlot accountId="10000000-0000-4000-8000-0000000000aa" />
+        <SessionSummaryPanel
+          appointmentId={appointmentId}
+          viewer="SPECIALIST"
+        />
+      </>,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await screen.findByText('Viết nhật ký 3 ngày')
+    expect(
+      screen.queryByRole('button', { name: 'Hẹn Mầm nhắc mình làm 1 bước' }),
+    ).toBeNull()
+    unmount()
+
+    api.list.mockResolvedValue({
+      items: [{ ...summary, agreedNextSteps: [] }],
+      count: 1,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    render(
+      <>
+        <MamDockSlot accountId="10000000-0000-4000-8000-0000000000aa" />
+        <SessionSummaryPanel appointmentId={appointmentId} viewer="USER" />
+      </>,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await screen.findByText('Giấc ngủ')
+    expect(
+      screen.queryByRole('button', { name: 'Hẹn Mầm nhắc mình làm 1 bước' }),
+    ).toBeNull()
   })
 
   it('cancels a new draft without publishing and restores focus', async () => {

@@ -511,6 +511,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/companion-state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the authenticated owner's Mầm companion state.
+         * @description Returns defaults (focus null, empty lists, ui guide null and seen empty) with revision 0 when nothing was stored. Self-reported enums and client UI state only; no AI processing reads it.
+         */
+        get: operations["getCompanionState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Merge focus, one chapter, the guide state or seen keys into the owner's state.
+         * @description Every section is optional but at least one is required. `focus` replaces
+         *     the focus (null clears it). `chapter` upserts by `startedOn` and merges
+         *     the supplied fields; only the 12 most recent chapters are kept.
+         *     `guide` replaces the opaque client guide state. `seenAdd` adds keys with
+         *     set semantics; only the 300 most recently added keys are kept. The
+         *     server retries once on a concurrent write, then returns 409 CONFLICT.
+         */
+        patch: operations["updateCompanionState"];
+        trace?: never;
+    };
+    "/api/v1/companion-state/commitments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make one small commitment with Mầm ("lời hẹn").
+         * @description Creates an OPEN commitment. `dueOn` must lie between two days before and
+         *     eight days after the server's current UTC date. At most three
+         *     commitments may be OPEN. Only the 30 most recent commitments are kept;
+         *     the oldest resolved one is dropped first.
+         */
+        post: operations["createCompanionCommitment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companion-state/commitments/{commitmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Resolve one OPEN commitment.
+         * @description Allowed transitions are OPEN to DONE, NOT_YET or SWAPPED. A missing or foreign ID is 404.
+         */
+        patch: operations["resolveCompanionCommitment"];
+        trace?: never;
+    };
     "/api/v1/notification-activity": {
         parameters: {
             query?: never;
@@ -1835,6 +1907,101 @@ export interface components {
                 decidedAt: string | null;
             };
             items: components["schemas"]["EmotionCheckInConsumerItem"][];
+        };
+        /**
+         * @description The user's self-chosen 14-day focus; not a diagnosis.
+         * @enum {string}
+         */
+        CompanionFocusGoal: "SLEEP" | "STUDY_WORK_PRESSURE" | "LONELINESS" | "FAMILY" | "RELATIONSHIPS" | "SELF_WORTH" | "NOT_SURE";
+        CompanionFocus: {
+            goal: components["schemas"]["CompanionFocusGoal"];
+            /**
+             * Format: date
+             * @description The user's local date when the focus was chosen.
+             */
+            chosenOn: string;
+        };
+        /**
+         * @description Self-reported answer to "Điều đó nhẹ đi chưa?"; not a recovery score.
+         * @enum {string}
+         */
+        CompanionChapterRating: "LIGHTER" | "SAME" | "HEAVIER" | "UNSURE";
+        /** @enum {string} */
+        CompanionChapterObstacle: "BUSY" | "FORGOT" | "LOW_ENERGY" | "NOT_A_FIT" | "OTHER";
+        /** @enum {string} */
+        CompanionChapterConnected: "YES" | "NOT_YET" | "PREFER_NOT_SAY";
+        CompanionChapterInput: {
+            /**
+             * Format: date
+             * @description Local start date of the 14-day chặng; the chapter key.
+             */
+            startedOn: string;
+            goal?: components["schemas"]["CompanionFocusGoal"];
+            rating?: components["schemas"]["CompanionChapterRating"];
+            obstacle?: components["schemas"]["CompanionChapterObstacle"];
+            connected?: components["schemas"]["CompanionChapterConnected"];
+        };
+        CompanionChapter: {
+            /** Format: date */
+            startedOn: string;
+            goal?: components["schemas"]["CompanionFocusGoal"];
+            rating?: components["schemas"]["CompanionChapterRating"];
+            obstacle?: components["schemas"]["CompanionChapterObstacle"];
+            connected?: components["schemas"]["CompanionChapterConnected"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @enum {string} */
+        CompanionCommitmentKind: "STUDY_WORK_STEP" | "REST" | "MOVE" | "CONNECT_PERSON" | "JOURNAL" | "RELAX" | "PLAN_ACTIVITY" | "SPECIALIST_STEP";
+        /** @enum {integer|null} */
+        CompanionCommitmentMinutes: 5 | 10 | 15 | 25 | 30 | null;
+        /** @enum {string} */
+        CompanionCommitmentSource: "CHAT" | "PLAN_SKIP" | "SESSION" | "LOOK_BACK" | "GUIDE" | "HOME";
+        /** @enum {string} */
+        CompanionCommitmentStatus: "OPEN" | "DONE" | "NOT_YET" | "SWAPPED";
+        CompanionCommitment: {
+            /** Format: uuid */
+            id: string;
+            kind: components["schemas"]["CompanionCommitmentKind"];
+            minutes: components["schemas"]["CompanionCommitmentMinutes"];
+            /** Format: date */
+            dueOn: string;
+            source: components["schemas"]["CompanionCommitmentSource"];
+            status: components["schemas"]["CompanionCommitmentStatus"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            resolvedAt: string | null;
+        };
+        CompanionSeenKey: string;
+        CompanionState: {
+            focus: components["schemas"]["CompanionFocus"] | null;
+            chapters: components["schemas"]["CompanionChapter"][];
+            commitments: components["schemas"]["CompanionCommitment"][];
+            ui: {
+                /** @description Client-serialized guide state; opaque to the server. */
+                guide: string | null;
+                seen: components["schemas"]["CompanionSeenKey"][];
+            };
+            /** @description Server write counter; 0 means nothing is stored yet. */
+            revision: number;
+        };
+        UpdateCompanionStateRequest: {
+            focus?: components["schemas"]["CompanionFocus"] | null;
+            chapter?: components["schemas"]["CompanionChapterInput"];
+            guide?: string | null;
+            seenAdd?: components["schemas"]["CompanionSeenKey"][];
+        };
+        CreateCompanionCommitmentRequest: {
+            kind: components["schemas"]["CompanionCommitmentKind"];
+            minutes: components["schemas"]["CompanionCommitmentMinutes"];
+            /** Format: date */
+            dueOn: string;
+            source: components["schemas"]["CompanionCommitmentSource"];
+        };
+        ResolveCompanionCommitmentRequest: {
+            /** @enum {string} */
+            status: "DONE" | "NOT_YET" | "SWAPPED";
         };
         HealthResponse: {
             /** @enum {string} */
@@ -3375,6 +3542,147 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    getCompanionState: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The owner's current state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanionState"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    updateCompanionState: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCompanionStateRequest"];
+            };
+        };
+        responses: {
+            /** @description The merged state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanionState"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description CONFLICT: a concurrent write won twice; reload and retry. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    createCompanionCommitment: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCompanionCommitmentRequest"];
+            };
+        };
+        responses: {
+            /** @description The new OPEN commitment. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanionCommitment"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description COMMITMENT_LIMIT: three commitments are already OPEN. CONFLICT: a concurrent write won twice. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    resolveCompanionCommitment: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                commitmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveCompanionCommitmentRequest"];
+            };
+        };
+        responses: {
+            /** @description The resolved commitment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanionCommitment"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description COMMITMENT_RESOLVED: the commitment is no longer OPEN. CONFLICT: a concurrent write won twice. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             503: components["responses"]["DependencyUnavailable"];
         };
     };

@@ -1,6 +1,13 @@
 // Mầm guide (mam-guide design, phase 1): leads a new user, one step at a time, from the first screening
 // result through a first journal, a first chat and a call or a relaxation, then "graduates" them. Pure core:
 // state, step order and the reviewed bubble copy. The host (`use-mam-guide.ts`) owns timers, storage and DOM.
+import { MAX_GUIDE_LENGTH } from '@/lib/companion-state/validation'
+import {
+  guideSynced,
+  loadCompanionState,
+  patchCompanionState,
+  queueCompanionWrite,
+} from './companion-state'
 import type { MamLoopingBehavior, MamOneShot } from './mam-contract'
 import { slottedMamAccountId } from './MamDockSlot'
 
@@ -166,12 +173,15 @@ export function dispatchMamGuide(event: MamGuideEvent, accountId?: string) {
     return
   }
   if (!accountId) return
-  const next = reduceGuide(
-    readGuide(accountId),
-    event,
-    new Date().toISOString(),
-  )
-  if (next) writeGuide(accountId, next)
+  // The server copy is read first, so a guide finished on another device is not started again here.
+  void syncGuideFromServer(accountId).then((remote) => {
+    const next = reduceGuide(
+      remote ?? readGuide(accountId),
+      event,
+      new Date().toISOString(),
+    )
+    if (next) writeGuide(accountId, next)
+  })
 }
 
 const PLANS: readonly string[] = ['FREE', 'PLUS', 'PREMIUM']
@@ -215,10 +225,10 @@ export function parseMamGuideEvent(
   }
 }
 
-export function readGuide(accountId: string): MamGuideState | null {
+/** A stored or server-held guide: version 1 only, anything else is ignored. */
+function parseGuide(raw: string | null | undefined): MamGuideState | null {
+  if (!raw) return null
   try {
-    const raw = window.localStorage.getItem(storageKey(accountId))
-    if (!raw) return null
     const value = JSON.parse(raw) as MamGuideState
     return value && value.version === 1 && typeof value.startedAt === 'string'
       ? value
@@ -228,13 +238,65 @@ export function readGuide(accountId: string): MamGuideState | null {
   }
 }
 
-export function writeGuide(accountId: string, state: MamGuideState) {
+export function readGuide(accountId: string): MamGuideState | null {
+  try {
+    return parseGuide(window.localStorage.getItem(storageKey(accountId)))
+  } catch {
+    return null
+  }
+}
+
+export function writeGuideLocal(accountId: string, state: MamGuideState) {
   try {
     window.localStorage.setItem(storageKey(accountId), JSON.stringify(state))
   } catch {
     // Storage blocked: the guide lasts for this tab only.
   }
 }
+
+/** Local cache first, then a debounced copy to the server; a failed PATCH keeps the local one. */
+export function writeGuide(accountId: string, state: MamGuideState) {
+  writeGuideLocal(accountId, state)
+  queueCompanionWrite(accountId, { guide: JSON.stringify(state) })
+}
+
+/** The latest moment of real progress (a step done or declined, graduation); '' before any. */
+const guideProgress = (state: MamGuideState) =>
+  [
+    ...Object.values(state.done),
+    ...Object.values(state.declined).map((item) => item?.at),
+    state.graduatedAt,
+  ].reduce<string>((latest, at) => (at && at > latest ? at : latest), '')
+
+/**
+ * First load per account per tab session: the server guide wins unless the local one is further along (a
+ * debounced PATCH lost to a closed tab), in which case the local one moves up; with none on the server the
+ * local one moves up once (device migration). Resolves to the server guide that should replace the local
+ * one, else null (also when the server could not be read). The caller writes it to the local cache, after
+ * checking nothing newer happened meanwhile.
+ */
+export async function syncGuideFromServer(
+  accountId: string,
+): Promise<MamGuideState | null> {
+  if (guideSynced.has(accountId)) return null
+  guideSynced.add(accountId)
+  const server = await loadCompanionState(accountId)
+  if (!server) {
+    guideSynced.delete(accountId)
+    return null
+  }
+  const remote = parseGuide(server.ui.guide)
+  const local = readGuide(accountId)
+  if (remote && !(local && guideProgress(local) > guideProgress(remote)))
+    return remote
+  const raw = local ? JSON.stringify(local) : null
+  if (raw && raw.length <= MAX_GUIDE_LENGTH)
+    void patchCompanionState(accountId, { guide: raw })
+  return null
+}
+
+/** Tests only: allow the next sync to read the server again. */
+export const resetGuideSyncForTests = () => guideSynced.clear()
 
 /** The next step to offer: the first one neither done nor waiting after a decline. */
 function nextStep(state: MamGuideState): MamGuideStep | 'graduate' | null {

@@ -2,7 +2,28 @@ import { setupServer } from 'msw/node'
 import { http, HttpResponse } from 'msw'
 
 // Default handlers for common endpoints
+const emptyCompanionState = {
+  focus: null,
+  chapters: [],
+  commitments: [],
+  ui: { guide: null, seen: [] },
+  revision: 0,
+}
 const defaultHandlers = [
+  // Mầm's guide and moments read and write the companion state; by default nothing is stored yet.
+  http.get('/api/companion-state', () =>
+    HttpResponse.json(emptyCompanionState),
+  ),
+  http.patch('/api/companion-state', () =>
+    HttpResponse.json(emptyCompanionState),
+  ),
+  // A lời hẹn is only made where a test says so; by default the call fails like an unreachable service.
+  http.post('/api/companion-state/commitments', () =>
+    HttpResponse.json(
+      { code: 'SERVICE_UNAVAILABLE', status: 503 },
+      { status: 503 },
+    ),
+  ),
   // Shells and settings ask for the account avatar; by default there is no community profile yet.
   http.get('/api/community/profile', () =>
     HttpResponse.json(

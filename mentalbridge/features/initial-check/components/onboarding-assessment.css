@@ -1632,3 +1632,8 @@
     flex-shrink: 0;
   }
 }
+
+/* The 14-day focus picker sits between the result and its one primary action. */
+.oj-focus-slot {
+  margin: 28px 0 0;
+}

@@ -3,6 +3,8 @@
 // full (private windows, quota), so every read and write is guarded and falls back to this tab's memory.
 // shortcut: old days' keys stay in storage (a few bytes each), prune them if the key count ever matters.
 export const MAM_BUBBLE_CAP = 3
+/** Needing Mầm less (mam-v3): on a steady-good day she speaks once. */
+export const MAM_BUBBLE_CAP_STEADY = 1
 export const MAM_SPACING_MS = 60_000
 
 const memory = new Map<string, string>()
@@ -62,9 +64,9 @@ export function rememberMamId(key: string, id: string) {
   writeMamDaily(key, JSON.stringify([...ids, id].slice(-MAM_IDS_KEPT)))
 }
 
-/** At most 3 bubbles a day: a reaction past the cap is dropped. */
-export const mamBubbleCapped = (shownToday: number) =>
-  shownToday >= MAM_BUBBLE_CAP
+/** At most 3 bubbles a day (1 on a steady-good day): a reaction past the cap is dropped. */
+export const mamBubbleCapped = (shownToday: number, steady = false) =>
+  shownToday >= (steady ? MAM_BUBBLE_CAP_STEADY : MAM_BUBBLE_CAP)
 
 /** How long a reaction waits for the 60 s spacing since the last bubble (0 when it may show now). */
 export const mamSpacingWaitMs = (lastShownAt: number | null, now: number) =>

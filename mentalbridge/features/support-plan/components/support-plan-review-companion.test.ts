@@ -215,7 +215,7 @@ describe('SupportPlan review Companion explanation', () => {
 
     expect(details).toEqual([
       '“Check-in cảm xúc”: thời lượng mỗi lần từ 20 phút thành 10 phút.',
-      '“Check-in cảm xúc”: nhịp từ mỗi ngày thành 3 ngày mỗi tuần (Thứ Hai, Thứ Tư và Thứ Sáu).',
+      '“Check-in cảm xúc”: tần suất từ mỗi ngày thành 3 ngày mỗi tuần (Thứ Hai, Thứ Tư và Thứ Sáu).',
       '“Check-in cảm xúc”: thời điểm từ buổi sáng (08:00) sang buổi tối (19:00).',
     ])
   })

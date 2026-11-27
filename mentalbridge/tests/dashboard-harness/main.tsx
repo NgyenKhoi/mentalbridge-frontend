@@ -1,22 +1,13 @@
 /* eslint-disable @next/next/no-html-link-for-pages -- Standalone Vite preview has no Next router. */
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import {
-  ArrowRight,
-  BookOpen,
-  ClipboardCheck,
-  NotebookPen,
-  Sun,
-  Users,
-  UserRound,
-} from 'lucide-react'
+import { ArrowRight, ClipboardCheck, Sun } from 'lucide-react'
 import { MoodFace } from '@/features/emotion-check-in/MoodFace'
 import {
   emotionOrder,
   emotionPresentation,
 } from '@/lib/emotion-check-in/presentation'
 import { HomeGreeting } from '@/features/home/HomeGreeting'
-import { homeJournalPrompt } from '@/features/home/journal-prompts'
 import { homeFirstUseFixture } from '@/features/home/testing/home-next-step-fixture'
 import checkInStyles from '@/features/emotion-check-in/DailyEmotionCheckIn.module.css'
 import emotionStyles from '@/features/home/HomeEmotionSection.module.css'
@@ -28,36 +19,6 @@ import '../../app/(dashboard)/dashboard-shell.css'
 import '../../app/(dashboard)/dashboard-page.css'
 
 const home = homeFirstUseFixture()
-const quickActions = [
-  {
-    label: 'Kiểm tra ban đầu',
-    hint: 'Hiểu rõ 14 ngày gần đây',
-    href: '/initial-check',
-    Icon: ClipboardCheck,
-    tone: 'sage',
-  },
-  {
-    label: 'Tìm chuyên gia',
-    hint: 'Theo lĩnh vực bạn quan tâm',
-    href: '/specialists',
-    Icon: UserRound,
-    tone: 'amber',
-  },
-  {
-    label: 'Cộng đồng',
-    hint: 'Chia sẻ và lắng nghe',
-    href: '/community',
-    Icon: Users,
-    tone: 'blue',
-  },
-  {
-    label: 'Tài nguyên',
-    hint: 'Bài đọc và bài tập đã duyệt',
-    href: '/resources',
-    Icon: BookOpen,
-    tone: 'clay',
-  },
-]
 const previewResources = [
   {
     title: 'Thở chậm 4–6 khi thấy căng thẳng',
@@ -255,54 +216,6 @@ function DashboardPreview() {
             </div>
           </section>
         </div>
-        <section
-          className="home-explore"
-          aria-labelledby="preview-quick-heading"
-        >
-          <h2 id="preview-quick-heading">Hành động nhanh</h2>
-          <nav className="home-quick-grid" aria-label="Hành động nhanh">
-            <a href="/journal" className="home-quick-tile home-journal-tile">
-              <div className="home-tile-icon">
-                <NotebookPen size={20} aria-hidden="true" />
-              </div>
-              <div className="home-journal-copy">
-                <div className="home-journal-title">Viết nhật ký</div>
-                <div className="home-journal-hint">Gợi ý viết hôm nay</div>
-                <div className="home-journal-prompt">
-                  “{homeJournalPrompt(new Date())}”
-                </div>
-              </div>
-              <div className="home-journal-action">
-                Bắt đầu viết{' '}
-                <ArrowRight
-                  className="home-arrow"
-                  size={18}
-                  aria-hidden="true"
-                />
-              </div>
-            </a>
-            {quickActions.map(({ href, label, hint, Icon, tone }) => (
-              <a
-                href={href}
-                key={href}
-                className={`home-quick-tile home-tile-${tone}`}
-              >
-                <div className="home-tile-icon">
-                  <Icon size={20} aria-hidden="true" />
-                </div>
-                <div>
-                  <div className="home-tile-title">{label}</div>
-                  <div className="home-tile-hint">{hint}</div>
-                </div>
-                <ArrowRight
-                  className="home-tile-go"
-                  size={18}
-                  aria-hidden="true"
-                />
-              </a>
-            ))}
-          </nav>
-        </section>
       </main>
     </div>
   )

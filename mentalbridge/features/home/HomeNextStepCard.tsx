@@ -12,11 +12,15 @@ import {
   NotebookPen,
   Phone,
 } from 'lucide-react'
-import type { CSSProperties } from 'react'
+import { useReducedMotion } from 'framer-motion'
+import type { CSSProperties, MouseEvent } from 'react'
 import { CRISIS_SUPPORT_CONTENT } from '@/components/crisis-support/crisis-support-content'
 import type { HomeNextStep } from '@/features/assessment/api/care-contract'
+import { useMamAccountId } from '@/features/mam/MamDockSlot'
 import { useMamTarget } from '@/features/mam/use-mam-target'
 import type { PublicResourceSummary } from '@/features/resources/api/browser-resources'
+import { HomeCommitment } from './HomeCommitment'
+import { HomeFocus } from './HomeFocus'
 import { homeNextStepView } from './home-next-step-state'
 import {
   homeIllustration,
@@ -179,6 +183,21 @@ export default function HomeNextStepCard({
   const mamTarget = useMamTarget(
     view.safety ? null : { kind: 'home.next-step' },
   )
+  const reducedMotion = useReducedMotion()
+  // The signed-in account (the dashboard layout's Mầm slot): without it the companion blocks stay out.
+  const accountId = useMamAccountId()
+  // The light way out: take the user to the check-in and put focus on its heading.
+  const openCheckIn = (event: MouseEvent<HTMLAnchorElement>) => {
+    const card = document.getElementById('emotion-check-in')
+    const heading = card?.querySelector<HTMLElement>('h2')
+    if (!card || !heading) return
+    event.preventDefault()
+    heading.focus({ preventScroll: true })
+    card.scrollIntoView({
+      block: 'start',
+      behavior: reducedMotion ? 'instant' : 'smooth',
+    })
+  }
 
   return (
     <section
@@ -188,6 +207,9 @@ export default function HomeNextStepCard({
       data-home-state={view.state}
       data-page-motion="off"
     >
+      <h2 className="home-eyebrow">
+        {view.safety ? 'Hỗ trợ ngay' : 'Hôm nay cùng Mầm'}
+      </h2>
       {!view.safety && (
         <ol className="home-trail" aria-label="Hành trình của bạn">
           {trail.map((step, index) => (
@@ -223,24 +245,14 @@ export default function HomeNextStepCard({
           ))}
         </ol>
       )}
+      {!view.safety && accountId && <HomeCommitment accountId={accountId} />}
       <div className="home-band-row">
         <Illustration home={home} resourceCategory={resourceCategory} />
         <div className="home-band-copy">
-          <div className="home-eyebrow">
-            {view.safety
-              ? 'Hỗ trợ ngay bây giờ'
-              : view.occurrence
-                ? 'Việc tiếp theo hôm nay'
-                : view.state.startsWith('ASSESSMENT')
-                  ? 'Bài sàng lọc'
-                  : 'Bước tiếp theo'}
-          </div>
-          <h2 className={`home-title${view.safety ? '' : ' home-wipe'}`}>
+          <h3 className={`home-title${view.safety ? '' : ' home-wipe'}`}>
             {view.title}
-          </h2>
-          {!view.occurrence && (
-            <div className="home-description">{view.description}</div>
-          )}
+          </h3>
+          <div className="home-description">{view.description}</div>
           {action && (
             <div className="home-action-meta">
               <div className="home-chip">
@@ -291,6 +303,21 @@ export default function HomeNextStepCard({
               Chưa kiểm tra được gói của bạn; bạn vẫn dùng được hướng dẫn.
             </div>
           )}
+          {!view.safety && accountId && (
+            <HomeFocus
+              accountId={accountId}
+              hasScreening={home.journey.stage !== 'ASSESSMENT_REQUIRED'}
+            />
+          )}
+          {!view.safety && (
+            <a
+              className="home-quiet-link"
+              href="#emotion-check-in"
+              onClick={openCheckIn}
+            >
+              Hôm nay mệt? Chỉ ghi cảm xúc thôi cũng được
+            </a>
+          )}
           {view.safety && (
             <div className="home-help">
               <a
@@ -311,6 +338,7 @@ export default function HomeNextStepCard({
           <Link
             className={view.safety ? 'home-quiet-link' : 'home-primary'}
             href={view.primary.href}
+            data-mam-primary=""
           >
             {view.primary.label}
             <ArrowRight className="home-arrow" size={18} aria-hidden="true" />

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -28,9 +28,14 @@ import {
   submitInitialCheckAssessment,
   createInitialCheckEvaluation,
 } from '@/features/assessment/api/browser-care'
+import type { SupportTier } from '@/features/assessment/api/care-contract'
 import { ReassessmentReview } from '@/features/assessment/components/ReassessmentReview'
 import { getHomeNextStep } from '@/features/home/browser-home-next-step'
+import { localToday } from '@/features/mam/companion-copy'
 import { dispatchMamGuide } from '@/features/mam/mam-guide'
+import { dispatchMamMoment } from '@/features/mam/mam-moments'
+import { useMamSuppress } from '@/features/mam/mam-suppression'
+import { MamFocusPicker } from '@/features/mam/MamFocusPicker'
 import {
   ensureCurrentSupportGuide,
   getGuidedJourney,
@@ -168,6 +173,20 @@ export default function OnboardingAssessmentJourney({
   const [submitting, setSubmitting] = useState(false)
   const isReassessment = purpose === 'REASSESSMENT'
   const [guideFailed, setGuideFailed] = useState(false)
+  // Care's tier for the finished screening; null until it is known (or when the evaluation call failed).
+  const [resultTier, setResultTier] = useState<SupportTier | null>(null)
+  // "Để sau" on the focus picker; the picker lives on the first screening's result only.
+  const [focusSkipped, setFocusSkipped] = useState(false)
+  const continueRef = useRef<HTMLButtonElement>(null)
+  const [showSafetyModal, setShowSafetyModal] = useState(false)
+  // Safety never shares the screen with Mầm: the crisis panel, a SAFETY result, or one whose tier is unknown
+  // hides her.
+  useMamSuppress(
+    showSafetyModal ||
+      (currentStep >= 3 &&
+        (resultTier === null || resultTier === 'SAFETY_FOLLOW_UP_RECOMMENDED')),
+    'hide',
+  )
   // Step 4 of a reassessment: the primary action waits until Care says whether a plan is in use.
   const [hasPlan, setHasPlan] = useState(false)
   const [planState, setPlanState] = useState<'loading' | 'known' | 'failed'>(
@@ -197,7 +216,6 @@ export default function OnboardingAssessmentJourney({
   // Modals state
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [reviewTab, setReviewTab] = useState<'PHQ9' | 'GAD7'>('PHQ9')
-  const [showSafetyModal, setShowSafetyModal] = useState(false)
 
   // Load profile & initial check status
   useEffect(() => {
@@ -397,6 +415,13 @@ export default function OnboardingAssessmentJourney({
         title: 'Đã lưu bài PHQ-9. Tiếp tục làm bài GAD-7',
         tone: 'success',
       })
+      // Halfway through: Mầm says so once a day (a story bubble, no buttons), but never after an answer to
+      // item 9 (thoughts of self-harm): that screening goes on without a cheerful word.
+      if ((phq9Answers.phq9_9 ?? 0) === 0)
+        dispatchMamMoment({
+          kind: 'screening-half',
+          key: `screening-half:${localToday()}`,
+        })
       setAssessmentPhase('GAD7')
       setQuestionIndex(0)
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -447,12 +472,20 @@ export default function OnboardingAssessmentJourney({
       const evaluation = await createInitialCheckEvaluation(purpose).catch(
         () => undefined,
       )
-      // A first screening starts the Mầm guide (mam-guide design §5); it plays on the next Mầm page.
-      if (purpose === 'INITIAL_CHECK' && evaluation)
+      setResultTier(evaluation?.supportTier ?? null)
+      // A first screening starts the Mầm guide (mam-guide design §5); it now plays on this result step
+      // (the self-guided tier only). The professional tier has no guide: Mầm points to the specialist.
+      if (purpose === 'INITIAL_CHECK' && evaluation) {
         dispatchMamGuide(
           { type: 'result', tier: evaluation.supportTier },
           accountId,
         )
+        if (evaluation.supportTier === 'PROFESSIONAL_SUPPORT_RECOMMENDED')
+          dispatchMamMoment({
+            kind: 'result-professional',
+            key: `result-professional:${localToday()}`,
+          })
+      }
 
       showActionToast({
         title: 'Đã hoàn thành hai bài sàng lọc PHQ-9 & GAD-7',
@@ -1354,9 +1387,27 @@ export default function OnboardingAssessmentJourney({
               </button>
             </div>
 
+            {/* The 14-day focus goal (mam-v3): the first screening's result, never a SAFETY one. */}
+            {!isReassessment &&
+              !focusSkipped &&
+              accountId &&
+              (resultTier === 'SELF_GUIDED_SUPPORT' ||
+                resultTier === 'PROFESSIONAL_SUPPORT_RECOMMENDED') && (
+                <div className="oj-focus-slot">
+                  <MamFocusPicker
+                    accountId={accountId}
+                    onSkip={() => {
+                      setFocusSkipped(true)
+                      continueRef.current?.focus()
+                    }}
+                  />
+                </div>
+              )}
+
             {/* CTA to Step 4 (reassessment) or the Support Guide (initial check) */}
             <div className="oj-cta-center-box">
               <button
+                ref={continueRef}
                 type="button"
                 className="oj-btn-primary oj-btn-large"
                 disabled={submitting}

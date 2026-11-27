@@ -144,21 +144,38 @@ export default function SessionActions({
             <span className={styles.itemLabel}>{resolvedProfileLabel}</span>
           </Link>
           {subscriptionEnabled && (
-            <Link
-              href="/subscription"
-              className={styles.menuItem}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              title={compact ? 'Gói dịch vụ' : undefined}
-            >
-              <span className={styles.itemIcon}>
-                <Icon>
-                  <rect x="3" y="6" width="18" height="12" rx="2.5" />
-                  <path d="M3 10h18" />
-                </Icon>
-              </span>
-              <span className={styles.itemLabel}>Gói dịch vụ</span>
-            </Link>
+            <>
+              <Link
+                href="/achievements"
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                title={compact ? 'Dấu mốc của bạn' : undefined}
+              >
+                <span className={styles.itemIcon}>
+                  <Icon>
+                    <path d="M12 3c1.2 3.2 3.4 5.2 6.5 6.2-3.1 1-5.3 3-6.5 6.2-1.2-3.2-3.4-5.2-6.5-6.2C8.6 8.2 10.8 6.2 12 3Z" />
+                    <path d="M6 15c.6 1.7 1.7 2.8 3.4 3.4C7.7 19 6.6 20.1 6 21.8c-.6-1.7-1.7-2.8-3.4-3.4C4.3 17.8 5.4 16.7 6 15Z" />
+                  </Icon>
+                </span>
+                <span className={styles.itemLabel}>Dấu mốc của bạn</span>
+              </Link>
+              <Link
+                href="/subscription"
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                title={compact ? 'Gói dịch vụ' : undefined}
+              >
+                <span className={styles.itemIcon}>
+                  <Icon>
+                    <rect x="3" y="6" width="18" height="12" rx="2.5" />
+                    <path d="M3 10h18" />
+                  </Icon>
+                </span>
+                <span className={styles.itemLabel}>Gói dịch vụ</span>
+              </Link>
+            </>
           )}
           {onReplayTour && (
             <button

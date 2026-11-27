@@ -1,5 +1,10 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mockServer } from '@/tests/mocks/server'
+import { localToday, shiftLocalDate } from './companion-copy'
+import { resetCompanionStateForTests } from './companion-state'
+import { resetMamDailyMemory } from './mam-daily'
 import { dispatchMamMoment } from './mam-moments'
 import { MAM_STAY_MS, useMamMoments } from './use-mam-moments'
 
@@ -9,6 +14,7 @@ vi.mock('next/navigation', () => ({ usePathname: () => nav.pathname }))
 
 afterEach(() => {
   localStorage.clear()
+  resetMamDailyMemory()
   vi.useRealTimers()
   nav.pathname = '/dashboard'
 })
@@ -91,6 +97,50 @@ describe('useMamMoments', () => {
   })
 })
 
+describe('"Mai Mầm nhắc mình nhé" and the server lời hẹn', () => {
+  it('also makes one PLAN_ACTIVITY lời hẹn of 5 minutes for tomorrow, from the plan skip', async () => {
+    let body: unknown = null
+    mockServer.use(
+      http.post('/api/companion-state/commitments', async ({ request }) => {
+        body = await request.json()
+        // A full list answers 409; the reminder must not care.
+        return HttpResponse.json(
+          {
+            type: '/problems/commitment_limit',
+            title: 'x',
+            status: 409,
+            code: 'COMMITMENT_LIMIT',
+            correlationId: 'c',
+          },
+          { status: 409 },
+        )
+      }),
+    )
+    const { result } = renderHook(() => useMamMoments(account, true))
+    act(() =>
+      dispatchMamMoment({
+        kind: 'plan-skipped',
+        key: 'skipped:o2',
+        href: '/support-plan',
+      }),
+    )
+    const skipped = result.current.bubble
+    if (skipped?.kind !== 'ask') throw new Error('ask expected')
+    const remind = skipped.actions.find((a) => a.go === 'remind')
+    if (!remind) throw new Error('remind expected')
+    act(() => result.current.act(remind))
+    await waitFor(() =>
+      expect(body).toEqual({
+        kind: 'PLAN_ACTIVITY',
+        minutes: 5,
+        dueOn: shiftLocalDate(localToday(), 1),
+        source: 'PLAN_SKIP',
+      }),
+    )
+    expect(result.current.staying).toBe(true)
+  })
+})
+
 describe('plan re-ask (Free, owner 2026-11-27)', () => {
   it('asks once more on Home the day after "Để sau" on the plan, then never again', () => {
     vi.useFakeTimers()
@@ -128,5 +178,31 @@ describe('plan re-ask (Free, owner 2026-11-27)', () => {
     const later = renderHook(() => useMamMoments(account, true))
     act(() => vi.advanceTimersByTime(1))
     expect(later.result.current.bubble).toBeNull()
+  })
+
+  it('drops a waiting moment the server says was already seen on another device', async () => {
+    resetCompanionStateForTests()
+    mockServer.use(
+      http.get('/api/companion-state', async () => {
+        await new Promise((resolve) => setTimeout(resolve, 30))
+        return HttpResponse.json({
+          focus: null,
+          chapters: [],
+          commitments: [],
+          ui: { guide: null, seen: ['confirmed:other-device'] },
+          revision: 1,
+        })
+      }),
+    )
+    const { result } = renderHook(() => useMamMoments(account, true))
+    act(() =>
+      dispatchMamMoment({
+        kind: 'booking-confirmed',
+        key: 'confirmed:other-device',
+      }),
+    )
+    expect(result.current.bubble?.kind).toBe('story')
+
+    await waitFor(() => expect(result.current.bubble).toBeNull())
   })
 })

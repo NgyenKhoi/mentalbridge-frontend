@@ -10,7 +10,11 @@ import {
   proposeSupportPlanDraft,
 } from '@/features/support-plan/api/browser-support-plan'
 import { getHomeNextStep } from '@/features/home/browser-home-next-step'
-import { saveCareProfile } from '@/features/assessment/api/browser-care'
+import {
+  createInitialCheckEvaluation,
+  saveCareProfile,
+} from '@/features/assessment/api/browser-care'
+import { useMamSuppress } from '@/features/mam/mam-suppression'
 import OnboardingAssessmentJourney, {
   PHQ9_QUESTIONS,
   GAD7_QUESTIONS,
@@ -66,6 +70,8 @@ vi.mock('@/features/assessment/api/browser-care', () => ({
   createInitialCheckEvaluation: vi.fn().mockResolvedValue({}),
   getInitialCheckState: vi.fn().mockResolvedValue({ phase: 'PHQ9' }),
 }))
+
+vi.mock('@/features/mam/mam-suppression', () => ({ useMamSuppress: vi.fn() }))
 
 vi.mock('@/features/assessment/components/ReassessmentReview', () => ({
   ReassessmentReview: ({ footer }: { footer?: React.ReactNode }) => (
@@ -336,9 +342,17 @@ describe('OnboardingAssessmentJourney', () => {
     expect(screen.queryByText(/đã được kích hoạt/)).not.toBeInTheDocument()
   })
 
-  async function reachStep3(purpose?: 'REASSESSMENT', planReview = false) {
+  async function reachStep3(
+    purpose?: 'REASSESSMENT',
+    planReview = false,
+    accountId?: string,
+  ) {
     render(
-      <OnboardingAssessmentJourney purpose={purpose} planReview={planReview} />,
+      <OnboardingAssessmentJourney
+        purpose={purpose}
+        planReview={planReview}
+        accountId={accountId}
+      />,
     )
     if (purpose !== 'REASSESSMENT') {
       fireEvent.click(
@@ -519,5 +533,160 @@ describe('OnboardingAssessmentJourney', () => {
     )
     expect(ensureCurrentSupportGuide).toHaveBeenCalledTimes(2)
     expect(proposeSupportPlanDraft).not.toHaveBeenCalled()
+  })
+})
+
+describe('OnboardingAssessmentJourney with Mầm (mam-v3)', () => {
+  const ACCOUNT = '00000000-0000-4000-8000-0000000000cc'
+  const FOCUS_TITLE = '14 ngày tới, bạn muốn điều gì nhẹ đi?'
+  const tier = (supportTier: string) =>
+    vi
+      .mocked(createInitialCheckEvaluation)
+      .mockResolvedValue({ supportTier } as never)
+  const moments: string[] = []
+  const onMoment = (event: Event) =>
+    moments.push((event as CustomEvent<{ kind: string }>).detail.kind)
+  const lastSuppress = () => vi.mocked(useMamSuppress).mock.calls.at(-1)
+
+  async function reach(purpose?: 'REASSESSMENT', item9Label = 'Không có gì') {
+    // The same walk as reachStep3, with the account the picker and Mầm need.
+    render(
+      <OnboardingAssessmentJourney purpose={purpose} accountId={ACCOUNT} />,
+    )
+    if (purpose !== 'REASSESSMENT')
+      fireEvent.click(
+        await screen.findByText(
+          /Lưu thông tin & Bắt đầu bài sàng lọc đầu tiên/i,
+        ),
+      )
+    await screen.findByText('PHQ-9 — Sàng lọc triệu chứng')
+    for (let i = 0; i < 9; i++) {
+      fireEvent.click(screen.getByText(i < 8 ? 'Vài ngày' : item9Label))
+      fireEvent.click(
+        screen.getByText(
+          i < 8 ? 'Câu tiếp theo →' : 'Lưu PHQ-9 và tiếp tục sang GAD-7 →',
+        ),
+      )
+    }
+    await screen.findByText('GAD-7 — Sàng lọc triệu chứng lo âu')
+    for (let j = 0; j < 7; j++) {
+      fireEvent.click(screen.getByText('Vài ngày'))
+      fireEvent.click(
+        screen.getByText(
+          j < 6
+            ? 'Câu tiếp theo →'
+            : 'Nộp bài & Xem phân tích ý nghĩa kết quả →',
+        ),
+      )
+    }
+    await screen.findByText(/Chuẩn thang đo quốc tế PHQ-9/i)
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.scrollTo = vi.fn()
+    moments.length = 0
+    window.addEventListener('mam:moment', onMoment)
+    return () => window.removeEventListener('mam:moment', onMoment)
+  })
+
+  it('says once, when PHQ-9 is saved, that half is done', async () => {
+    tier('SELF_GUIDED_SUPPORT')
+    await reach()
+
+    expect(moments.filter((kind) => kind === 'screening-half')).toHaveLength(1)
+  })
+
+  it('says nothing cheerful when item 9 was answered above "Không có gì"', async () => {
+    tier('SELF_GUIDED_SUPPORT')
+    await reach(undefined, 'Vài ngày')
+
+    expect(moments).not.toContain('screening-half')
+  })
+
+  it('hides Mầm while the crisis panel is open', async () => {
+    render(<OnboardingAssessmentJourney accountId={ACCOUNT} />)
+    await screen.findByText(/Lưu thông tin & Bắt đầu bài sàng lọc đầu tiên/i)
+    expect(lastSuppress()).toEqual([false, 'hide'])
+
+    fireEvent.click(screen.getByRole('button', { name: /Hỗ trợ an toàn/ }))
+
+    expect(lastSuppress()).toEqual([true, 'hide'])
+  })
+
+  it('SELF_GUIDED: keeps Mầm and asks for the 14-day goal under the result, before the one primary action', async () => {
+    tier('SELF_GUIDED_SUPPORT')
+    await reach()
+
+    expect(lastSuppress()).toEqual([false, 'hide'])
+    expect(
+      screen.getByRole('heading', { level: 3, name: FOCUS_TITLE }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Xem gợi ý hỗ trợ' }),
+    ).toBeInTheDocument()
+    expect(moments).not.toContain('result-professional')
+  })
+
+  it('PROFESSIONAL: Mầm points to the specialist in place, the goal picker is offered, nothing celebrates', async () => {
+    tier('PROFESSIONAL_SUPPORT_RECOMMENDED')
+    await reach()
+
+    expect(lastSuppress()).toEqual([false, 'hide'])
+    expect(moments).toContain('result-professional')
+    expect(
+      screen.getByRole('heading', { level: 3, name: FOCUS_TITLE }),
+    ).toBeInTheDocument()
+  })
+
+  it('SAFETY: Mầm is hidden, no goal is asked and no moment is sent', async () => {
+    tier('SAFETY_FOLLOW_UP_RECOMMENDED')
+    await reach()
+
+    expect(lastSuppress()).toEqual([true, 'hide'])
+    expect(screen.queryByRole('heading', { name: FOCUS_TITLE })).toBeNull()
+    expect(moments).not.toContain('result-professional')
+  })
+
+  it('an unknown tier (the evaluation failed) hides Mầm as well and asks nothing', async () => {
+    vi.mocked(createInitialCheckEvaluation).mockRejectedValue(new Error('down'))
+    await reach()
+
+    expect(lastSuppress()).toEqual([true, 'hide'])
+    expect(screen.queryByRole('heading', { name: FOCUS_TITLE })).toBeNull()
+  })
+
+  it('a reassessment never asks for the goal again', async () => {
+    tier('SELF_GUIDED_SUPPORT')
+    await reach('REASSESSMENT')
+
+    expect(screen.queryByRole('heading', { name: FOCUS_TITLE })).toBeNull()
+  })
+
+  it('"Để sau" removes the picker and gives focus to the one primary action', async () => {
+    tier('SELF_GUIDED_SUPPORT')
+    await reach()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Để sau' }))
+
+    expect(screen.queryByRole('heading', { name: FOCUS_TITLE })).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Xem gợi ý hỗ trợ' }),
+    ).toHaveFocus()
+  })
+
+  it('saving the goal shows Mầm line and keeps the primary action', async () => {
+    tier('SELF_GUIDED_SUPPORT')
+    await reach()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Giấc ngủ' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Chọn điều này' }))
+
+    expect(
+      await screen.findByText('Ok, 14 ngày tới mình để ý giấc ngủ nhé.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Xem gợi ý hỗ trợ' }),
+    ).toBeInTheDocument()
   })
 })

@@ -98,7 +98,11 @@ function Page({
       {card ? (
         <section ref={nextStep} aria-label="Bước tiếp theo">
           <p>Bước tiếp theo</p>
-          <button type="button">Làm ngay</button>
+          {/* A quieter link ahead of the primary action: "go" still lands on the primary. */}
+          <a href="#quiet">Việc nhẹ hơn</a>
+          <button type="button" data-mam-primary="">
+            Làm ngay
+          </button>
           <a href="/support-plan">Kế hoạch</a>
           <input aria-label="Ghi chú" />
         </section>
@@ -1477,7 +1481,7 @@ describe('Mầm summon', () => {
           )
           await advance(100)
         }
-        const answer = /Bắt đầu từ thẻ “Bước tiếp theo”/
+        const answer = /Bắt đầu từ thẻ “Hôm nay cùng Mầm”/
         // By anchor: the dock bubble that asked may still be leaving.
         const bubble = (anchor: 'dock' | 'point') =>
           document.querySelector(

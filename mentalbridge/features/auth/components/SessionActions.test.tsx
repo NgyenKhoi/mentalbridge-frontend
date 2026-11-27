@@ -80,8 +80,21 @@ describe('SessionActions', () => {
       screen.getByRole('menuitem', { name: 'Hồ sơ cá nhân' }),
     ).toHaveAttribute('href', '/profile')
     expect(
+      screen.getByRole('menuitem', { name: 'Dấu mốc của bạn' }),
+    ).toHaveAttribute('href', '/achievements')
+    expect(
       screen.getByRole('menuitem', { name: 'Gói dịch vụ' }),
     ).toHaveAttribute('href', '/subscription')
+  })
+
+  it('keeps the personal-only entries out of the specialist menu', () => {
+    render(<SessionActions accountKind="specialist" />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Mở menu tài khoản chuyên gia' }),
+    )
+    expect(
+      screen.queryByRole('menuitem', { name: 'Dấu mốc của bạn' }),
+    ).not.toBeInTheDocument()
   })
 
   it('replays the tour from the signed-in account menu and closes the menu', async () => {

@@ -5,6 +5,16 @@ import type { PlannedOccurrence } from './workspace-model'
 
 export type ActionDestination = Readonly<{ href: string; label: string }>
 
+/** Option kinds the look-back may ask the review to show first; anything else in the URL is ignored. */
+const REVIEW_PREFERENCES = [
+  'DIFFERENT_TIME',
+  'LOWER_WORKLOAD',
+  'ALTERNATIVE_ACTION',
+] as const
+export type ReviewPreference = (typeof REVIEW_PREFERENCES)[number]
+export const parseReviewPreference = (value: unknown) =>
+  REVIEW_PREFERENCES.find((kind) => kind === value)
+
 export const REASSESSMENT_HREF = '/initial-check?purpose=reassessment'
 /** Reassessment started from the plan review comes back to the review. */
 export const REVIEW_REASSESSMENT_HREF = `${REASSESSMENT_HREF}&returnTo=plan-review`

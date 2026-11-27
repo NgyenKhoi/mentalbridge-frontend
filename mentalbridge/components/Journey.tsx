@@ -1,3 +1,26 @@
+import Link from 'next/link'
+
+import { MamCharacter } from '@/features/mam/MamCharacter'
+
+const steps = [
+  {
+    title: 'Hiểu mình trong 5 phút',
+    text: 'Hai bài sàng lọc chuẩn PHQ-9 và GAD-7. Mầm giải thích kết quả bằng lời thường.',
+  },
+  {
+    title: 'Chọn điều bạn muốn nhẹ đi',
+    text: 'Giấc ngủ, áp lực học hay cô đơn. 14 ngày tới xoay quanh điều đó.',
+  },
+  {
+    title: 'Mỗi ngày một việc nhỏ cùng Mầm',
+    text: 'Mầm hỏi lại lời hẹn hôm qua, ở cạnh bạn ngày tệ, không trách khi bạn bỏ lỡ.',
+  },
+  {
+    title: 'Ngày 14, thấy thay đổi của chính bạn',
+    text: 'Nhìn lại cho thấy điều gì có vẻ giúp bạn. Cần thêm thì có chuyên gia thật.',
+  },
+]
+
 export default function Journey() {
   return (
     <section className="section" id="journey">
@@ -5,15 +28,28 @@ export default function Journey() {
         <div className="journey reveal">
           <div className="journey-bg-glow"></div>
           <div className="journey-inner">
-            <div className="section-head" style={{ marginBottom: '12px' }}>
-              <div className="eyebrow">
-                Hành trình của bạn trên MentalBridge
+            <div className="journey-intro">
+              <figure className="journey-mam">
+                <MamCharacter size={160} />
+                <figcaption>Mầm, người bạn đồng hành</figcaption>
+              </figure>
+              <div className="section-head" style={{ marginBottom: '12px' }}>
+                <div className="eyebrow">
+                  Hành trình của bạn trên MentalBridge
+                </div>
+                <h2>14 ngày cùng Mầm.</h2>
+                <p>
+                  Khi bạn chưa biết mình đang bị sao và không còn sức tự tìm
+                  cách, Mầm đi cùng bạn từng bước: hiểu mình đang ở đâu, mỗi
+                  ngày một việc nhỏ, và gặp chuyên gia khi cần.
+                </p>
+                <Link
+                  href="/assessment/anonymous"
+                  className="btn btn-primary journey-cta"
+                >
+                  Bắt đầu 5 phút hiểu mình
+                </Link>
               </div>
-              <h2>Năm bước, một cây cầu.</h2>
-              <p>
-                Chọn bài sàng lọc, trả lời theo trải nghiệm gần đây và xem những
-                bước hỗ trợ bạn có thể cân nhắc.
-              </p>
             </div>
             <div className="journey-path" id="journeyPath">
               <svg
@@ -30,47 +66,25 @@ export default function Journey() {
                   strokeDasharray="6 10"
                 />
               </svg>
-              <div className="journey-line">
+              <div className="journey-line" aria-hidden="true">
                 <div className="journey-line-fill" id="journeyFill"></div>
                 <span className="journey-traveler" id="journeyTraveler"></span>
               </div>
-              <div className="journey-step" data-step="1">
-                <div className="journey-dot">1</div>
-                <h4>Chọn bài sàng lọc</h4>
-                <p>Bắt đầu với PHQ-9 hoặc GAD-7 theo điều bạn muốn nhìn lại.</p>
-              </div>
-              <div className="journey-step" data-step="2">
-                <div className="journey-dot">2</div>
-                <h4>Trả lời</h4>
-                <p>
-                  Bạn chọn đủ chín mức tần suất cho trải nghiệm trong 14 ngày
-                  gần đây.
-                </p>
-              </div>
-              <div className="journey-step" data-step="3">
-                <div className="journey-dot">3</div>
-                <h4>Nhận kết quả</h4>
-                <p>
-                  Xem điểm và mức sàng lọc dựa trên những câu trả lời bạn đã
-                  cung cấp.
-                </p>
-              </div>
-              <div className="journey-step" data-step="4">
-                <div className="journey-dot">4</div>
-                <h4>Hiểu kết quả</h4>
-                <p>
-                  Đọc ý nghĩa, giới hạn và thông tin an toàn mà không xem đây là
-                  chẩn đoán.
-                </p>
-              </div>
-              <div className="journey-step" data-step="5">
-                <div className="journey-dot">5</div>
-                <h4>Chọn bước tiếp</h4>
-                <p>
-                  Xem tài nguyên, gợi ý hỗ trợ hoặc chuyên gia theo lĩnh vực bạn
-                  quan tâm.
-                </p>
-              </div>
+              <ol className="journey-steps" role="list">
+                {steps.map((step, index) => (
+                  <li
+                    className="journey-step"
+                    data-step={index + 1}
+                    key={step.title}
+                  >
+                    <div className="journey-dot" aria-hidden="true">
+                      {index + 1}
+                    </div>
+                    <h3>{step.title}</h3>
+                    <p>{step.text}</p>
+                  </li>
+                ))}
+              </ol>
             </div>
           </div>
         </div>

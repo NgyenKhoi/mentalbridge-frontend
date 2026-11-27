@@ -819,9 +819,11 @@ test.describe('MB-644 + MB-669 unified plan workspace', () => {
     expect(
       calls.some((call) => call.path.endsWith('/adaptive-review/confirm')),
     ).toBe(false)
-    await page.getByRole('radio', { name: /Giữ nhịp này thêm 14 ngày/ }).check()
     await page
-      .getByRole('button', { name: 'Giữ nhịp này thêm 14 ngày' })
+      .getByRole('radio', { name: /Giữ kế hoạch này thêm 14 ngày/ })
+      .check()
+    await page
+      .getByRole('button', { name: 'Giữ kế hoạch này thêm 14 ngày' })
       .click()
     await expect
       .poll(

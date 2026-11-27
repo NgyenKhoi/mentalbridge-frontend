@@ -41,18 +41,53 @@ const CommunityIcon = () => (
   </Svg>
 )
 
+// Ordered by the user's day: today, daily, the 14-day journey, real people.
+// Notifications live in the header bell; the subscription and the milestones
+// live in the account menu.
 const groups = [
   {
-    // Ordered as the journey runs: screen, guide, plan, look back.
-    title: 'Hành trình của bạn',
+    title: '',
     items: [
       [
         '/dashboard',
-        'Tổng quan',
+        'Hôm nay',
         <Svg key="h">
           <path d="M4 11 12 4l8 7M6 9.5V20h12V9.5" />
         </Svg>,
       ],
+    ],
+  },
+  {
+    title: 'Mỗi ngày cùng Mầm',
+    items: [
+      [
+        '/ai-companion',
+        'Trò chuyện với Mầm',
+        <Svg key="ai">
+          <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
+        </Svg>,
+      ],
+      [
+        '/journal',
+        'Nhật ký',
+        <Svg key="j">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+        </Svg>,
+      ],
+      [
+        '/resources',
+        'Tài nguyên',
+        <Svg key="r">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 8v4l3 2" />
+        </Svg>,
+      ],
+    ],
+  },
+  {
+    title: 'Hành trình 14 ngày',
+    items: [
       [
         '/assessments',
         'Bài sàng lọc',
@@ -93,35 +128,7 @@ const groups = [
     ],
   },
   {
-    title: 'Mỗi ngày',
-    items: [
-      [
-        '/journal',
-        'Nhật ký',
-        <Svg key="j">
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-        </Svg>,
-      ],
-      [
-        '/ai-companion',
-        'Trò chuyện với Mầm',
-        <Svg key="ai">
-          <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
-        </Svg>,
-      ],
-      [
-        '/resources',
-        'Tài nguyên',
-        <Svg key="r">
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="M12 8v4l3 2" />
-        </Svg>,
-      ],
-    ],
-  },
-  {
-    title: 'Khi cần thêm hỗ trợ',
+    title: 'Khi cần người thật',
     items: [
       [
         '/specialists',
@@ -148,38 +155,10 @@ const groups = [
       ],
     ],
   },
-  {
-    title: 'Tài khoản',
-    items: [
-      [
-        '/achievements',
-        'Thành tựu',
-        <Svg key="achievement">
-          <path d="M12 3c1.2 3.2 3.4 5.2 6.5 6.2-3.1 1-5.3 3-6.5 6.2-1.2-3.2-3.4-5.2-6.5-6.2C8.6 8.2 10.8 6.2 12 3Z" />
-          <path d="M6 15c.6 1.7 1.7 2.8 3.4 3.4C7.7 19 6.6 20.1 6 21.8c-.6-1.7-1.7-2.8-3.4-3.4C4.3 17.8 5.4 16.7 6 15Z" />
-        </Svg>,
-      ],
-      [
-        '/subscription',
-        'Gói dịch vụ',
-        <Svg key="p">
-          <rect x="3" y="6" width="18" height="12" rx="2.5" />
-          <path d="M3 10h18" />
-        </Svg>,
-      ],
-      [
-        '/notifications',
-        'Thông báo',
-        <Svg key="b">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        </Svg>,
-      ],
-    ],
-  },
 ]
 
 const labels: Record<string, string> = {
-  '/dashboard': 'Tổng quan',
+  '/dashboard': 'Hôm nay cùng Mầm',
   '/journal': 'Nhật ký',
   '/assessments': 'Bài sàng lọc',
   '/support-guides': 'Gợi ý hỗ trợ',
@@ -191,7 +170,7 @@ const labels: Record<string, string> = {
   '/messages': 'Tin nhắn',
   '/ai-companion': 'Trò chuyện với Mầm',
   '/resources': 'Tài nguyên',
-  '/achievements': 'Bộ sưu tập hành trình',
+  '/achievements': 'Dấu mốc của bạn',
   '/subscription': 'Gói dịch vụ',
   '/notifications': 'Thông báo',
   '/profile': 'Hồ sơ và quyền riêng tư',
@@ -403,8 +382,8 @@ export default function AuthenticatedShell({
         </div>
         <nav id="user-main-navigation" aria-label="Điều hướng chính">
           {groups.map((g) => (
-            <section key={g.title}>
-              <h2>{g.title}</h2>
+            <section key={g.title || 'today'}>
+              {g.title && <h2>{g.title}</h2>}
               {g.items.map((item) => (
                 <Link
                   key={item[0] as string}

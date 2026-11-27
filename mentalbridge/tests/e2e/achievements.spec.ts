@@ -177,7 +177,7 @@ for (const visibilityState of ['VISIBLE', 'HIDDEN'] as const) {
       await page.setViewportSize(viewport)
       await page.goto('/achievements')
       await expect(
-        page.getByRole('heading', { name: 'Bộ sưu tập hành trình' }),
+        page.getByRole('heading', { name: 'Dấu mốc của bạn' }),
       ).toBeVisible()
       await expect(page.getByText('Chưa thể xác minh').first()).toBeVisible()
       await expect(page.getByText('Chưa mở trong phiên bản này')).toBeVisible()
@@ -199,7 +199,8 @@ for (const visibilityState of ['VISIBLE', 'HIDDEN'] as const) {
         }
       })
       expect(typography.body).toContain('Be Vietnam Pro')
-      expect(typography.heading).toContain('Fraunces')
+      // Page titles use the workspace sans (user-workspace-theme.css), not the serif.
+      expect(typography.heading).toContain('plusJakartaSans')
       expect(typography.overflow).toBe(false)
       await page.screenshot({
         path: testInfo.outputPath(`gallery-${viewport.width}.png`),

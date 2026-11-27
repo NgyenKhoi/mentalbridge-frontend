@@ -375,7 +375,7 @@ export default function SupportPlanPersonalization({
           onChange={(value) => setScalar('preferredFocus', value)}
         />
         <ChoiceGroup
-          legend="Nhịp độ nào phù hợp với bạn?"
+          legend="Mỗi tuần bạn muốn làm bao nhiêu?"
           name="desiredPace"
           value={form.desiredPace}
           options={paceOptions}

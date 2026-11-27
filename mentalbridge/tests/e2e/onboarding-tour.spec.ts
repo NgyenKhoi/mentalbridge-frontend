@@ -17,11 +17,20 @@ async function login(page: Page) {
   await page.waitForURL('**/dashboard')
 }
 
+// The first-run tour no longer starts by itself (Mầm guides new users, #369): it opens from the account menu.
+async function replayTour(page: Page) {
+  await page
+    .getByRole('button', { name: 'Mở menu tài khoản', exact: true })
+    .click()
+  await page.getByRole('menuitem', { name: 'Xem lại hướng dẫn' }).click()
+}
+
 test('walks six steps, blocks background actions, persists completion and permits replay', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await login(page)
+  await replayTour(page)
   const tour = page.getByRole('dialog')
   await expect(tour).toContainText('Bước 1/6')
   await page.screenshot({ path: testInfo.outputPath('tour-desktop.png') })
@@ -62,6 +71,10 @@ test('keeps tooltips in view on mobile and restores the closed menu after skip',
 }, testInfo) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await login(page)
+  // The account menu sits in the closed mobile drawer: send the replay request it would send.
+  await page.evaluate(() =>
+    window.dispatchEvent(new Event('mentalbridge:onboarding-replay')),
+  )
   const tour = page.getByRole('dialog')
   await expect(tour).toContainText('Bước 1/6')
   for (let step = 1; step <= 6; step++) {
