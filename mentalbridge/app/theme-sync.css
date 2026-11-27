@@ -72,6 +72,7 @@
   border-color: var(--line) !important;
 }
 
+/* Mood pickers (.journal-mood-card) keep their own colours and selected state. */
 .ref-shell
   :is(
     .ref-card,
@@ -82,7 +83,7 @@
     [class*='-table-wrap'],
     [class*='-preferences'],
     [class*='-summary']
-  ),
+  ):not(.journal-mood-card),
 .role-shell
   :is(
     .role-panel,
@@ -1342,6 +1343,7 @@
 .ref-dashboard {
   color: var(--ink) !important;
 }
+/* Mood pickers (.journal-mood-card) keep their own colours and selected state. */
 .ref-shell
   :is(
     .ref-card,
@@ -1352,7 +1354,7 @@
     [class*='-table-wrap'],
     [class*='-preferences'],
     [class*='-summary']
-  ),
+  ):not(.journal-mood-card),
 .role-shell
   :is(
     .role-panel,

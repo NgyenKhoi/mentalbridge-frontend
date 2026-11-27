@@ -175,7 +175,9 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
   ).toBeVisible()
 
   await page
-    .getByRole('button', { name: /Mầm đang dùng|Chọn điều Mầm được biết/ })
+    .getByRole('button', {
+      name: /Điều Mầm được biết về bạn|Chọn điều Mầm được biết/,
+    })
     .click()
   const contextDialog = page.getByRole('dialog', {
     name: 'Nguồn thông tin cho cuộc trò chuyện này',
@@ -193,10 +195,8 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
       .getByText('Hãy chọn một bước nhỏ và vừa sức.'),
   ).toBeVisible()
   await expect(page.getByText(/Còn 4 lượt/)).toBeVisible()
-  await page.getByText('Đã dùng 2 nguồn').click()
-  await expect(page.getByText('Nhật ký gần đây')).toBeVisible()
-  await expect(page.getByText('Kế hoạch hỗ trợ hiện tại')).toBeVisible()
-  await page.getByText('Đã dùng 2 nguồn').click()
+  // Sources are a setting, not a per-answer counter (owner 2026-11-27).
+  await expect(page.getByText(/Đã dùng d+ nguồn/)).toHaveCount(0)
   await expect(
     page
       .getByRole('region', { name: 'Trò chuyện với Mầm' })

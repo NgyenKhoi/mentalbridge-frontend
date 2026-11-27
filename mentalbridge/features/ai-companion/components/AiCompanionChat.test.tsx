@@ -182,7 +182,7 @@ describe('AiCompanionChat', () => {
 
     await user.click(
       await screen.findByRole('button', {
-        name: /Mầm đang dùng|Chọn điều Mầm được biết/,
+        name: /Điều Mầm được biết về bạn|Chọn điều Mầm được biết/,
       }),
     )
     const dialog = screen.getByRole('dialog', {
@@ -225,9 +225,8 @@ describe('AiCompanionChat', () => {
       ).findByText('Hãy chọn một bước nhỏ.'),
     ).toBeVisible()
     expect(screen.getByText(/Còn 4 lượt/)).toBeVisible()
-    await user.click(screen.getByText('Đã dùng 2 nguồn'))
-    expect(screen.getByText('Nhật ký gần đây')).toBeVisible()
-    expect(screen.getByText('Kế hoạch hỗ trợ hiện tại')).toBeVisible()
+    // Sources are a setting, not a per-answer counter (owner 2026-11-27).
+    expect(screen.queryByText(/Đã dùng d+ nguồn/)).toBeNull()
   })
 
   it('offers AI consent in place, keeps the draft and sends it once consent is saved', async () => {

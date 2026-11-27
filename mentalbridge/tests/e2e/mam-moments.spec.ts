@@ -131,17 +131,17 @@ test.describe('Mầm moments', () => {
     await graduateGuide(page)
     await page.goto('/dashboard')
     await page.waitForLoadState('networkidle')
+    // The Support Guide moment belongs to the Guide page: on the dashboard it stays quiet.
     await say(page, {
       kind: 'guide-open',
       key: 'guide-open:first',
       activity: { title: 'Thở chậm trong 5 phút', href: '/resources/r1' },
     })
-    await bubble(page).getByRole('button', { name: 'Chỉ Mầm đi' }).click()
-    await expect(bubble(page)).toContainText(
-      'Mầm thấy cái này nhẹ nhất nè: Thở chậm trong 5 phút.',
-    )
+    await say(page, { kind: 'session-done', key: 'done:e2e' })
+    await expect(bubble(page)).toContainText('Bạn gặp xong rồi nè.')
+    await expect(bubble(page)).not.toContainText('Chỉ Mầm đi')
     await expect(
-      bubble(page).getByRole('link', { name: 'Làm cùng Mầm' }),
-    ).toHaveAttribute('href', '/resources/r1')
+      bubble(page).getByRole('link', { name: 'Kể cho Mầm nghe' }),
+    ).toHaveAttribute('href', '/ai-companion')
   })
 })

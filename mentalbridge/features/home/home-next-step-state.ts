@@ -218,7 +218,7 @@ export function homeNextStepView(
             ? [guideLink, { label: 'Thử lại', retry: true }]
             : [
                 guideLink,
-                { label: 'Xem trước kế hoạch hỗ trợ', href: '/support-plan' },
+                { label: 'Kế hoạch hỗ trợ · Cần Plus', href: '/support-plan' },
               ],
           entitlementUnavailable: unavailable,
         }

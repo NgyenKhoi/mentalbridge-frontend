@@ -779,61 +779,6 @@
   }
 }
 
-.messageContextChip {
-  position: relative;
-  margin-top: 9px;
-  width: fit-content;
-}
-
-.messageContextChip summary {
-  display: inline-flex;
-  min-height: 28px;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 9px;
-  border: 1px solid color-mix(in srgb, var(--teal) 18%, var(--line));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--teal-pale) 36%, var(--surface));
-  color: var(--ink-soft);
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-  list-style: none;
-}
-
-.messageContextChip summary::-webkit-details-marker {
-  display: none;
-}
-
-.messageContextChip summary svg {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-}
-
-.messageContextChip > div {
-  position: absolute;
-  z-index: 15;
-  bottom: calc(100% + 7px);
-  left: 0;
-  width: min(270px, 76vw);
-  padding: 11px 13px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: var(--elevation-2);
-  font-size: 11px;
-}
-
-.messageContextChip ul {
-  margin: 6px 0 0;
-  padding-left: 18px;
-  color: var(--ink-soft);
-}
-
 .streamingToken {
   display: inline;
   animation: streaming-word 300ms ease-out both;

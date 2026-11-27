@@ -17,6 +17,7 @@ export type MamMomentKind =
   | 'plan-skipped'
   | 'plan-missed-days'
   | 'plan-reminder'
+  | 'plan-reask'
 
 export type MamMoment = Readonly<{
   kind: MamMomentKind
@@ -138,6 +139,17 @@ export function momentSpec(moment: MamMoment): MamBubbleSpec {
           act('Để sau đi', 'secondary', 'decline'),
         ],
         motion: { loop: 'sit_hug', shot: 'nod' },
+      }
+    case 'plan-reask':
+      // Free said "Để sau" to the plan in the walk: asked once more, a day later, then never again.
+      return {
+        kind: 'ask',
+        text: 'Mầm hỏi lại một lần nha. Hôm trước Mầm có nhắc bạn vụ Kế hoạch hỗ trợ 14 ngày, bạn có muốn xem thử không? Không thì thôi, Mầm không hỏi nữa đâu.',
+        actions: [
+          act('Xem thử', 'primary', 'go', '/subscription'),
+          act('Thôi, để sau', 'secondary', 'decline'),
+        ],
+        motion: { loop: 'curious', shot: 'look_around' },
       }
     case 'plan-reminder':
       // The reminder the user asked for after a skip ("Mai Mầm nhắc mình nhé"); same voice, 5 minutes only.
@@ -265,6 +277,20 @@ export function lightestActivity(
     : null
 }
 
+/**
+ * Where a moment may speak. The Support Guide moments belong to the Guide page: anywhere else (the journal,
+ * the chat) "Mầm chỉ bạn 1 cái nhẹ nhất" would be out of context (owner 2026-11-27). They wait for the Guide.
+ */
+export function momentFits(
+  moment: MamMoment,
+  pathname: string | null,
+): boolean {
+  if (moment.kind === 'guide-open' || moment.kind === 'guide-pick')
+    return pathname?.startsWith('/support-guides') ?? false
+  if (moment.kind === 'plan-reask') return pathname === '/dashboard'
+  return true
+}
+
 export function dispatchMamMoment(moment: MamMoment) {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent(MAM_MOMENT_EVENT, { detail: moment }))
@@ -282,6 +308,7 @@ const KINDS: readonly MamMomentKind[] = [
   'plan-skipped',
   'plan-missed-days',
   'plan-reminder',
+  'plan-reask',
 ]
 const SAFE_HREF = /^\/[A-Za-z0-9/_?=&.%-]*$/
 

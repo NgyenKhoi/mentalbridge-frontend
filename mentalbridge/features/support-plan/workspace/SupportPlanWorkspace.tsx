@@ -57,6 +57,7 @@ import type {
   UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
 import { dispatchMamEvent, mamBandChange } from '@/features/mam/mam-events'
+import { dispatchMamGuide } from '@/features/mam/mam-guide'
 import { dispatchMamMoment, missedDayStreak } from '@/features/mam/mam-moments'
 import { dispatchMamSaved } from '@/features/mam/mam-saved'
 import { useMamSuppress } from '@/features/mam/mam-suppression'
@@ -982,6 +983,8 @@ export default function SupportPlanWorkspace({
         await reload()
       }
       keys.current.activation = undefined
+      // The first-run walk goes on from here: "Tạo xong rồi nè", then today's first activity.
+      if (mamEnabled) dispatchMamGuide({ type: 'plan-created' })
       setTab('today')
       setAnnouncement('Kế hoạch đã bắt đầu. Đây là việc của hôm nay.')
     })
